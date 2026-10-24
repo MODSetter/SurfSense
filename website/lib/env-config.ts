@@ -1,29 +1,16 @@
 /**
- * Environment configuration for the frontend.
- *
- * Docker deployments use same-origin relative browser URLs behind Caddy.
- * NEXT_PUBLIC_* values remain only as build-time fallbacks for packaged clients
- * like Electron, where there is no bundled Caddy origin.
+ * The website's settings from the environment: the license portal's origin and
+ * the two announcement switches. NEXT_PUBLIC_* values are baked in at
+ * `next build`, so a change needs a redeploy.
  */
 
-// Build-time fallback for packaged clients. Docker/runtime deployments default to
-// local auth unless AUTH_TYPE/NEXT_PUBLIC_AUTH_TYPE explicitly selects Google.
-export const BUILD_TIME_AUTH_TYPE = process.env.NEXT_PUBLIC_AUTH_TYPE || "LOCAL";
-
-// Backend API URL. An empty string is valid in proxy mode and means
-// same-origin relative requests (e.g. /api/v1/... and /auth/...).
+// The license portal's origin, https://api.surfsense.com in production. Unset,
+// requests stay same-origin relative paths.
 export const BACKEND_URL = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL ?? "";
 
 type BackendUrlParam = string | number | boolean | null | undefined;
 
-/**
- * Build browser-facing backend URLs without breaking proxy mode.
- *
- * In proxy mode BACKEND_URL intentionally stays empty, so callers must keep
- * same-origin relative URLs ("/api/v1/...") and let Caddy route them. When
- * BACKEND_URL is explicitly configured, the same path resolves against that
- * absolute backend origin.
- */
+/** A browser-facing URL for `path` on the backend, with `params` as its query; null and undefined are left out. */
 export function buildBackendUrl(path: string, params?: Record<string, BackendUrlParam>): string {
 	const backendPath = path.startsWith("/") ? path : `/${path}`;
 	const queryParams = new URLSearchParams();
@@ -49,37 +36,6 @@ export function buildBackendUrl(path: string, params?: Record<string, BackendUrl
 	return `${backendPath}${backendPath.includes("?") ? "&" : "?"}${queryString}`;
 }
 
-// Server-side backend URL. Relative browser URLs do not work from RSC/API route
-// code, so server callers should use Docker DNS or an explicit public backend.
-export const SERVER_BACKEND_URL =
-	process.env.SURFSENSE_BACKEND_INTERNAL_URL ||
-	// TODO: Remove FASTAPI_BACKEND_INTERNAL_URL after the post-Caddy env migration window.
-	process.env.FASTAPI_BACKEND_INTERNAL_URL ||
-	"http://backend:8000";
-
-// Build-time fallback for packaged clients. Docker runtime reads plain ETL_SERVICE
-// through the runtime config provider first, then falls back to this baked value.
-export const BUILD_TIME_ETL_SERVICE = process.env.NEXT_PUBLIC_ETL_SERVICE || "DOCLING";
-
-// Build-time fallback for packaged clients. Docker runtime reads plain
-// DEPLOYMENT_MODE through the runtime config provider first, then falls back to this baked value.
-export const BUILD_TIME_DEPLOYMENT_MODE = process.env.NEXT_PUBLIC_DEPLOYMENT_MODE || "self-hosted";
-
-/**
- * Detect the environment for diagnostics (e.g. GitHub issue auto-fill).
- * Inferred from the hostname so it needs no configuration from the operator.
- *
- * - "SurfSense Cloud": served from the official SurfSense domain (root + subdomains)
- * - "self-hosted": everything else (covers self-hosted and community cloud deploys)
- */
-export function detectEnvironment(): "SurfSense Cloud" | "self-hosted" {
-	const hostname = typeof window !== "undefined" ? window.location.hostname : "";
-	if (hostname === "surfsense.com" || hostname.endsWith(".surfsense.com")) {
-		return "SurfSense Cloud";
-	}
-	return "self-hosted";
-}
-
 // Global announcement banner at the top of every page. Toggle on Vercel via
 // NEXT_PUBLIC_GLOBAL_ANNOUNCEMENT_ENABLED ("true" to show), set the copy with
 // NEXT_PUBLIC_GLOBAL_ANNOUNCEMENT_MESSAGE, and the colour with
@@ -93,8 +49,8 @@ export const GLOBAL_ANNOUNCEMENT_MESSAGE =
 export const GLOBAL_ANNOUNCEMENT_TONE: "info" | "warning" =
 	process.env.NEXT_PUBLIC_GLOBAL_ANNOUNCEMENT_TONE === "warning" ? "warning" : "info";
 
-// The announcement pill above the homepage headline. Distinct from the
-// maintenance banner above. Toggle via NEXT_PUBLIC_TOP_ANNOUNCEMENT_ENABLED
-// ("true" to show); the name predates the pill, kept so deployments keep
-// working. The copy and link are fixed in HomeAnnouncement.
+// The announcement pill above the homepage headline, distinct from the banner
+// above. Toggle via NEXT_PUBLIC_TOP_ANNOUNCEMENT_ENABLED ("true" to show); the
+// name predates the pill, kept so deployments keep working. The copy and link
+// are fixed in HomeAnnouncement.
 export const TOP_ANNOUNCEMENT_ENABLED = process.env.NEXT_PUBLIC_TOP_ANNOUNCEMENT_ENABLED === "true";

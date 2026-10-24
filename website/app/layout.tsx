@@ -9,7 +9,6 @@ import {
 	WebSiteJsonLd,
 } from "@/components/seo/json-ld";
 import { GlobalAnnouncement } from "@/components/site/global-announcement";
-import { Toaster } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 
 const roboto = Roboto({
@@ -121,7 +120,6 @@ export default function RootLayout({
 					>
 						<GlobalAnnouncement />
 						{children}
-						<Toaster />
 					</RootProvider>
 				</PostHogProvider>
 			</body>

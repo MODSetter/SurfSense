@@ -51,7 +51,6 @@
 		"react": "^19.2.3",
 		"react-dom": "^19.2.3",
 		"server-only": "^0.0.1",
-		"sonner": "^2.0.6",
 		"streamdown": "^2.2.0",
 		"tailwind-merge": "^3.3.1",
 		"tailwind-scrollbar-hide": "^4.0.0",
