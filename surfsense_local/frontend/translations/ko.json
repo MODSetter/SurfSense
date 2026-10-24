@@ -1143,6 +1143,7 @@
   "privacy_choices_update_request_body": "확인할 때 {host}에 이 시스템용 최신 릴리스 파일을 요청합니다. 하루 최대 한 번, 그리고 지금 확인을 클릭할 때마다입니다. 다른 모든 요청처럼 IP 주소가 포함되지만 쿠키와 ID는 포함되지 않습니다.",
   "privacy_choices_update_user_agent_header_body": "항상 SurfSense, 버전 없음",
   "privacy_choices_update_version_header_body": "이 앱의 버전(예: 2.2.4)",
+  "privacy_choices_updates_channel_locked_status": "업데이트는 {channel, select, scoop {Scoop} aur {AUR} snap {Snap Store} flatpak {Flatpak} nix {Nix} apt {apt 저장소} other {패키지 관리자}}에서 제공되므로 SurfSense가 직접 확인하지 않습니다.",
   "privacy_choices_updates_policy_locked_status": "조직 정책에 따라 이 컴퓨터에서는 업데이트 확인이 꺼져 있습니다.",
   "privacy_choices_usage_do_not_track_locked_status": "이 컴퓨터에 DO_NOT_TRACK 또는 SURFSENSE_NO_TELEMETRY가 설정되어 있어 꺼져 있습니다.",
   "privacy_choices_usage_last_sent_aria": "마지막으로 보낸 사용 보고서",

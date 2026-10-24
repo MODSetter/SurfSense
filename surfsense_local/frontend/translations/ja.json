@@ -1143,6 +1143,7 @@
   "privacy_choices_update_request_body": "確認では、このシステム向けの最新リリースのファイルを{host}に問い合わせます。頻度は1日に最大1回と、「今すぐ確認」をクリックしたときです。ほかのリクエストと同じくIPアドレスが含まれますが、CookieやIDは含まれません。",
   "privacy_choices_update_user_agent_header_body": "常にSurfSense（バージョンなし）",
   "privacy_choices_update_version_header_body": "このアプリのバージョン（例: 2.2.4）",
+  "privacy_choices_updates_channel_locked_status": "アップデートは{channel, select, scoop {Scoop} aur {AUR} snap {Snap Store} flatpak {Flatpak} nix {Nix} apt {aptリポジトリ} other {パッケージマネージャー}}から届くため、SurfSense自身では確認しません。",
   "privacy_choices_updates_policy_locked_status": "組織のポリシーにより、このコンピューターではアップデートの確認がオフになっています。",
   "privacy_choices_usage_do_not_track_locked_status": "このコンピューターでDO_NOT_TRACKまたはSURFSENSE_NO_TELEMETRYが設定されているため、オフになっています。",
   "privacy_choices_usage_last_sent_aria": "最後に送信した利用状況レポート",

@@ -4,6 +4,15 @@ import type { PrivacyState } from "@/lib/api"
 /** Why update checks cannot be switched here, or null when they can. */
 export function updatesLockedText(state: PrivacyState): string | null {
   if (!state.updates.locked) return null
+  if (state.updates.lockedReason === "channel")
+    return intl.formatMessage(
+      {
+        id: "privacy_choices_updates_channel_locked_status",
+        defaultMessage:
+          "Updates come from {channel, select, scoop {Scoop} aur {the AUR} snap {the Snap Store} flatpak {Flatpak} nix {Nix} apt {your apt repository} other {your package manager}}, so SurfSense doesn’t check for them itself.",
+      },
+      { channel: state.updates.channel ?? "other" }
+    )
   return intl.formatMessage({
     id: "privacy_choices_updates_policy_locked_status",
     defaultMessage:

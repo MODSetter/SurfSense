@@ -96,6 +96,9 @@ export function UpdateSettings() {
 
   const text = statusText(state)
   const locked = privacy ? updatesLockedText(privacy) : null
+  // A package manager's install never asks the feed, so there is no daily
+  // check to describe and no request to show.
+  const channelLocked = privacy?.updates.lockedReason === "channel"
   return (
     <div className="mt-8 flex items-start justify-between gap-8">
       <div className="flex flex-col gap-1">
@@ -105,9 +108,11 @@ export function UpdateSettings() {
             defaultMessage: "App updates",
           })}
         </h3>
-        <p className="text-sm text-pretty text-muted-foreground">
-          {bodyText(privacy)}
-        </p>
+        {channelLocked ? null : (
+          <p className="text-sm text-pretty text-muted-foreground">
+            {bodyText(privacy)}
+          </p>
+        )}
         {locked ? (
           <p className="text-sm text-muted-foreground">{locked}</p>
         ) : null}
@@ -124,7 +129,7 @@ export function UpdateSettings() {
         ) : text ? (
           <p className="text-sm text-muted-foreground">{text}</p>
         ) : null}
-        {privacy ? (
+        {privacy && !channelLocked ? (
           <WhatsSentDialog
             topic="updates"
             state={privacy}

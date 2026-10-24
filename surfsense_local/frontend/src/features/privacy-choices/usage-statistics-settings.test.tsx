@@ -125,7 +125,7 @@ describe("App updates in Settings › About", () => {
   })
 
   it("holds Check now when a policy turned update checks off", async () => {
-    stubPrivacyBridge({ updates: { locked: true } })
+    stubPrivacyBridge({ updates: { locked: true, lockedReason: "policy" } })
     render(<UpdateSettings />)
 
     expect(
@@ -137,4 +137,35 @@ describe("App updates in Settings › About", () => {
       screen.getByRole("button", { name: "Check now" }).hasAttribute("disabled")
     ).toBe(true)
   })
+
+  it.each([
+    ["snap", "the Snap Store"],
+    ["aur", "the AUR"],
+    ["apt", "your apt repository"],
+  ] as const)(
+    "under %s, says only where updates come from",
+    async (channel, name) => {
+      stubPrivacyBridge({
+        updates: { locked: true, lockedReason: "channel", channel },
+      })
+      render(<UpdateSettings />)
+
+      expect(
+        await screen.findByText(
+          `Updates come from ${name}, so SurfSense doesn’t check for them itself.`
+        )
+      ).toBeTruthy()
+      // SurfSense never asks its feed here, so nothing promises a daily check
+      // or offers to show what one sends.
+      expect(screen.queryByText(/once a day/)).toBeNull()
+      expect(
+        screen.queryByRole("button", { name: "Show exactly what’s sent" })
+      ).toBeNull()
+      expect(
+        screen
+          .getByRole("button", { name: "Check now" })
+          .hasAttribute("disabled")
+      ).toBe(true)
+    }
+  )
 })

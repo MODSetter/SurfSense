@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { DownloadCircle02Icon, LicenseIcon } from "@/components/ui/icons"
 import type { LicenseState } from "@/features/license/api"
 import { useLicense } from "@/features/license/use-license"
+import { usePrivacyState } from "@/features/privacy-choices/use-privacy-state"
 import { useCheckForUpdates } from "@/features/updates/use-check-for-updates"
 import {
   updatesBridge,
@@ -162,9 +163,9 @@ function updateRow(state: UpdateState): Row {
  * The sidebar's bottom edge, holding only what is worth a glance: where the
  * license stands, and where the app stands on updates.
  *
- * Either row can be absent -- no bridge outside the desktop app, no license row
- * until its status arrives -- so the strip goes with them rather than leaving a
- * bordered gap.
+ * Either row can be absent -- no update row outside the desktop app or while
+ * updates are locked, no license row until its status arrives -- so the strip
+ * goes with them rather than leaving a bordered gap.
  */
 export function SidebarFooter({
   onOpenLicense,
@@ -175,10 +176,18 @@ export function SidebarFooter({
   const updates = updatesBridge()
   const state = useUpdateState()
   const checkForUpdates = useCheckForUpdates()
+  const privacy = usePrivacyState()
 
   const currentLicenseRow = license ? licenseRow(license.state) : null
+  // No row while a policy or a package manager locks updates, where a click
+  // would do nothing, nor until the privacy state says whether one does.
+  const showUpdates =
+    Boolean(updates) &&
+    (privacy.state === null ||
+      privacy.failed ||
+      privacy.state?.updates.locked === false)
 
-  if (!currentLicenseRow && !updates) return null
+  if (!currentLicenseRow && !showUpdates) return null
 
   // Installing is local and needs no permission; checking goes through consent.
   const onUpdateClick = async () => {
@@ -196,7 +205,7 @@ export function SidebarFooter({
           onClick={onOpenLicense}
         />
       ) : null}
-      {updates ? (
+      {showUpdates ? (
         <FooterRow
           icon={DownloadCircle02Icon}
           row={updateRow(state)}

@@ -64,6 +64,22 @@ test("replaces the home directory however a Windows path is spelled", () => {
   ])
 })
 
+test("in a snap, both the snap's home and the user's real one are replaced", () => {
+  const log = createSessionLog({
+    home: "/home/ada/snap/surfsense-local/12",
+    realHome: "/home/ada",
+    now: at,
+  })
+
+  log.append("api", "opened /home/ada/snap/surfsense-local/common/.surfsense/surfsense.db")
+  log.append("main", "read /home/ada/snap/surfsense-local/12/.config/mimeapps.list")
+
+  assert.deepEqual(log.lines(), [
+    "18:21:03 [api] opened ~/snap/surfsense-local/common/.surfsense/surfsense.db",
+    "18:21:03 [main] read ~/.config/mimeapps.list",
+  ])
+})
+
 test("drops colour codes and successful polling, and keeps failures and writes", () => {
   const log = createSessionLog({ home: "/home/ada", now: at })
 

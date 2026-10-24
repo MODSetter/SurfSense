@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event"
 
 import { EgressPrompt } from "@/features/egress/egress-prompt"
 import type { LicenseStatus } from "@/features/license/api"
+import { stubPrivacyBridge } from "@/features/privacy-choices/stub-privacy-bridge"
 import { stubUpdateBridge } from "@/features/updates/stub-bridge"
 import { render } from "@/test-utils"
 
@@ -185,6 +186,28 @@ describe("the update row", () => {
 
     expect(bridge.calls).toEqual(["install"])
     expect(screen.queryByRole("alertdialog")).toBeNull()
+  })
+
+  it.each([
+    [
+      "a package manager owns updates",
+      { lockedReason: "channel", channel: "snap" },
+    ],
+    ["a policy turned them off", { lockedReason: "policy", channel: null }],
+  ] as const)("is gone while %s", async (_, lock) => {
+    stubLicense(license("active"))
+    const bridge = stubPrivacyBridge({ updates: { automatic: true } })
+    renderFooter()
+
+    // The privacy state is read, and leaves the row while nothing locks it.
+    await screen.findByRole("button", { name: "Check for updates" })
+    bridge.push({ updates: { locked: true, ...lock } })
+
+    // A check the app refuses would make the row a button that does nothing.
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: /update/i })).toBeNull()
+    )
+    expect(screen.getByRole("button", { name: "License active" })).toBeTruthy()
   })
 
   it("renders no update row outside the desktop app", async () => {

@@ -1,5 +1,11 @@
-import { updatesLocked, usageLockReason, type UsageLockReason } from "../admin-policy/policy-locks.ts"
+import {
+  updatesLockReason,
+  usageLockReason,
+  type UpdatesLockReason,
+  type UsageLockReason,
+} from "../admin-policy/policy-locks.ts"
 import type { AdminPolicy } from "../admin-policy/read-policy.ts"
+import type { InstallChannel } from "../install-channel/install-channel.ts"
 import type { ManifestRequest } from "../update-feed/latest-manifest.ts"
 import type { UpdatePrefs } from "../updater.ts"
 import type { PrivacyStore } from "../usage-statistics/privacy-file.ts"
@@ -10,6 +16,9 @@ export type PrivacyState = {
   updates: {
     automatic: boolean
     locked: boolean
+    lockedReason: UpdatesLockReason | null
+    /** The package manager that owns updates; null unless that is the lock. */
+    channel: InstallChannel | null
     host: string
     fallbackHost: "github.com" | null
     lastCheckedAt: string | null
@@ -29,7 +38,7 @@ export type FirstRunChoices = { updates: boolean; usageStatistics: boolean }
 
 export type PrivacyController = {
   state(): PrivacyState
-  /** updates.json as the older updates bridge reads it; a policy lock reads as off. */
+  /** updates.json as the older updates bridge reads it; a lock reads as off. */
   updatePrefs(): UpdatePrefs
   setUpdatesAutomatic(enabled: boolean): UpdatePrefs
   setUsageStatistics(enabled: boolean): void
@@ -39,9 +48,13 @@ export type PrivacyController = {
   changed(): void
 }
 
-/** The user's choices about updates and usage statistics, with what the admin policy forces. */
+/**
+ * The user's choices about updates and usage statistics, with what the admin
+ * policy or a package manager forces.
+ */
 export function createPrivacyController(deps: {
   policy: AdminPolicy
+  installChannel: InstallChannel | null
   store: PrivacyStore
   readUpdatePrefs: () => UpdatePrefs
   writeUpdatePrefs: (prefs: UpdatePrefs) => void
@@ -55,7 +68,8 @@ export function createPrivacyController(deps: {
   log?: (line: string) => void
 }): PrivacyController {
   const log = deps.log ?? (() => undefined)
-  const updatesOff = updatesLocked(deps.policy)
+  const updatesLock = updatesLockReason(deps.policy, deps.installChannel)
+  const updatesOff = updatesLock !== null
   const usageLock = usageLockReason(deps.policy)
 
   const updatePrefs = (): UpdatePrefs => {
@@ -70,6 +84,8 @@ export function createPrivacyController(deps: {
       updates: {
         automatic: prefs.automatic,
         locked: updatesOff,
+        lockedReason: updatesLock,
+        channel: updatesLock === "channel" ? deps.installChannel : null,
         host: deps.updates.host,
         fallbackHost: deps.updates.fallbackHost,
         lastCheckedAt: prefs.lastCheckedAt ?? null,

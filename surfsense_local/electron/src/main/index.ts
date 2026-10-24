@@ -1,3 +1,4 @@
+import { mkdirSync } from "node:fs"
 import { join } from "node:path"
 import { pathToFileURL } from "node:url"
 
@@ -17,6 +18,7 @@ import {
   devWindowIcon,
   nameDevBuild,
 } from "./dev-app-identity.ts"
+import { dataDirs } from "./data-dir.ts"
 import { managedOriginalPath } from "./document-files.ts"
 import { printInHiddenWindow } from "./docx-snapshot/print-in-hidden-window.ts"
 import { serveDocxSnapshots } from "./docx-snapshot/serve-snapshots.ts"
@@ -68,11 +70,22 @@ function openAllowedExternal(url: string): void {
 
 nameDevBuild()
 
-// Dev keeps its own dir so testing never leaks into the real install's ~/.surfsense.
-const DATA_DIR = join(
-  app.getPath("home"),
-  app.isPackaged ? ".surfsense" : ".surfsense-dev"
-)
+const DIRS = dataDirs({
+  packaged: app.isPackaged,
+  env: process.env,
+  home: app.getPath("home"),
+  execPath: process.execPath,
+})
+const DATA_DIR = DIRS.data
+// Set before anything asks for a temp path; the sidecars inherit it.
+if (DIRS.temp) {
+  try {
+    mkdirSync(DIRS.temp, { recursive: true })
+    process.env.TMPDIR = DIRS.temp
+  } catch (error) {
+    warnMain(sessionLog, `failed to create ${DIRS.temp}, keeping TMPDIR: ${String(error)}`)
+  }
+}
 // productName is "SurfSense", same as the legacy desktop app, so the default
 // userData would be shared with it. Users run both during migration.
 app.setPath("userData", join(DATA_DIR, "electron"))

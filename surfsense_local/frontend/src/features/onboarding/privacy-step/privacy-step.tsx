@@ -51,7 +51,8 @@ function updatesBody(state: PrivacyState) {
 /**
  * The first-run question about update checks and usage statistics: two
  * separate answers, neither chosen for the user, both needed to go on. Only a
- * new install sees it; a policy that holds one off answers it already.
+ * new install sees it; a policy or package manager that holds one off answers
+ * it already.
  */
 export function PrivacyStep({
   state,
@@ -62,6 +63,8 @@ export function PrivacyStep({
 }) {
   const queryClient = useQueryClient()
   const updatesLocked = updatesLockedText(state)
+  // A package manager owns updates, so no check is described, as in Settings.
+  const channelLocked = state.updates.lockedReason === "channel"
   const usageLocked = usageLockedText(state)
   const [updates, setUpdates] = useState<boolean | null>(
     updatesLocked ? false : null
@@ -124,7 +127,7 @@ export function PrivacyStep({
                 id: "onboarding_privacy_updates_title",
                 defaultMessage: "Check for updates",
               })}
-              body={updatesBody(state)}
+              body={channelLocked ? undefined : updatesBody(state)}
               locked={updatesLocked}
               value={updates}
               onChange={setUpdates}
@@ -137,14 +140,16 @@ export function PrivacyStep({
                 defaultMessage: "No",
               })}
               whatsSent={
-                <WhatsSentDialog
-                  topic="updates"
-                  state={state}
-                  label={intl.formatMessage({
-                    id: "onboarding_privacy_updates_whats_sent_button",
-                    defaultMessage: "See exactly what’s sent",
-                  })}
-                />
+                channelLocked ? null : (
+                  <WhatsSentDialog
+                    topic="updates"
+                    state={state}
+                    label={intl.formatMessage({
+                      id: "onboarding_privacy_updates_whats_sent_button",
+                      defaultMessage: "See exactly what’s sent",
+                    })}
+                  />
+                )
               }
             />
             <PrivacyChoiceRow

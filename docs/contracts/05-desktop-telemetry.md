@@ -25,7 +25,7 @@ No part of this contract carries an identifier. Not `x-user-staging-id`, not a l
 
 - `GET /api/updates/<file>`. `file` must match `^stable(-mac|-linux(-arm64)?)?\.yml$`; anything else, `latest*.yml` included, answers 404.
 - It fetches `https://github.com/MODSetter/SurfSense/releases/latest/download/<file>`, following redirects, revalidated every 900 s.
-- It requires a `version: x.y.z` line, and every `url:` and `path:` value to be a bare file name matching `^SurfSense[-A-Za-z0-9._]*\.(exe|zip|dmg|AppImage|deb)$`, or already the exact absolute GitHub prefix for that version. It rewrites each to `https://github.com/MODSetter/SurfSense/releases/download/v<version>/<name>` and leaves `sha512`, `size`, `releaseDate` and `stagingPercentage` untouched.
+- It requires a `version: x.y.z` line, and every `url:` and `path:` value to be a bare file name matching `^SurfSense[-A-Za-z0-9._]*\.(exe|zip|dmg|AppImage|deb|rpm)$`, or already the exact absolute GitHub prefix for that version. It rewrites each to `https://github.com/MODSetter/SurfSense/releases/download/v<version>/<name>` and leaves `sha512`, `size`, `releaseDate` and `stagingPercentage` untouched.
 - Success is 200 with `Content-Type: text/yaml` and `Cache-Control: no-store`. Any upstream or validation problem is 502, and the app then falls back to GitHub.
 - It records one personless event, `desktop_update_check`, with `file`, `app_version` (the semver, or `"invalid"`), `platform` (the enum, or `"other"`), `os` (the enum, or `"other"`) and `country` (from `x-vercel-ip-country`, else `"unknown"`).
 - It never reads, logs or stores the IP address or the User-Agent.
@@ -121,6 +121,7 @@ The existing `updates.json` keeps `automatic` and `lastCheckedAt`.
 - `DO_NOT_TRACK=1` or `SURFSENSE_NO_TELEMETRY=1` in the environment forces usage statistics off.
 - A JSON policy file, read once at startup from `%ProgramData%/SurfSense/policy.json` (Windows), `/Library/Application Support/SurfSense/policy.json` (macOS) or `/etc/surfsense/policy.json` (Linux), may hold `"updates": "off" | "user"`, `"usageStatistics": "off" | "user"` and `"updateFeed": "<https url>"`.
 - A setting the policy forces is locked in the UI.
+- An install a package manager owns turns update checks off and locks them, with `lockedReason: "channel"` and `channel` naming it: `scoop`, `aur`, `snap`, `flatpak`, `nix` or `apt`. Electron main never checks for such an install, so nothing in part A is sent. When the policy also turns updates off, the policy is the reason and `channel` is `null`.
 
 ### The bridge
 
@@ -131,6 +132,8 @@ getState(): Promise<{
   updates: {
     automatic: boolean
     locked: boolean
+    lockedReason: "policy" | "channel" | null
+    channel: "scoop" | "aur" | "snap" | "flatpak" | "nix" | "apt" | null // only when lockedReason is "channel"
     host: string
     fallbackHost: "github.com" | null
     lastCheckedAt: string | null
@@ -177,10 +180,11 @@ Details the first implementation settled, within the contract:
 - The summary's `hardware` is `null` when the machine's memory cannot be read; Electron main then buckets `os.totalmem()` itself and reports the GPU and its memory as `unknown`. Electron main reads the summary with a 5 s timeout, and a summary it cannot read leaves every `week` value `unknown`.
 - Electron main asks GitHub with a 30 s timeout, longer than the 10 s on our feed, since it is the last resort, and refuses a redirect from our feed so the headers never reach another host.
 - `lastRequest` is the last request to `host` since the app started; it is kept in memory only.
+- A packaged app reads its channel once at startup, first match wins: a `resources/install-channel` file holding one of the six ids, which a repackager writes (Scoop, an AUR PKGBUILD, a Nix derivation); then, on Linux only, SurfSense's own snap (`snap`: `SNAP_NAME` is `surfsense-local` and the executable is under `$SNAP`, so another snap's variables inherited by a normal install do not count), `FLATPAK_ID` set or `/.flatpak-info` present (`flatpak`), an executable under `/nix/store/` (`nix`), and `resources/package-type` reading `deb` while `/etc/apt/sources.list.d/surfsense.list` exists (`apt`). Anything unreadable counts as no channel.
 
 ## Tests each side owns
 
 - The app's local API (`surfsense_local/backend`): `tests/integration/usage_statistics/test_summary_route.py` and `tests/unit/usage_statistics/` for the summary's buckets, hardware, language and counts.
 - The app's UI (`surfsense_local/frontend`): the privacy step in `src/features/onboarding/onboarding-page.test.tsx`, `src/features/privacy-choices/usage-statistics-settings.test.tsx` and `src/features/egress/network-settings.test.tsx`.
-- Electron main (`surfsense_local/electron`): the feed provider, the usage reporter, the policy reader, `privacy.json` and the bridge's IPC, each in a `*.test.ts` beside its module.
+- Electron main (`surfsense_local/electron`): the feed provider, the usage reporter, the policy reader, the install-channel detector, `privacy.json` and the bridge's IPC, each in a `*.test.ts` beside its module.
 - The website routes (`surfsense_web`): validation, rewriting and the 404, 502, 400, 413 and 415 answers of both routes.

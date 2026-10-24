@@ -1143,6 +1143,7 @@
   "privacy_choices_update_request_body": "Una comprobación pide a {host} el archivo de la versión más reciente para este sistema, como mucho una vez al día y cada vez que haces clic en Comprobar ahora. Lleva tu dirección IP, como toda solicitud, y ninguna cookie ni ID.",
   "privacy_choices_update_user_agent_header_body": "Siempre SurfSense, sin versión",
   "privacy_choices_update_version_header_body": "La versión de esta app, como 2.2.4",
+  "privacy_choices_updates_channel_locked_status": "Las actualizaciones llegan {channel, select, scoop {desde Scoop} aur {desde el AUR} snap {desde la Snap Store} flatpak {desde Flatpak} nix {desde Nix} apt {desde tu repositorio de apt} other {desde tu gestor de paquetes}}, así que SurfSense no las busca por su cuenta.",
   "privacy_choices_updates_policy_locked_status": "La política de tu organización desactivó la búsqueda de actualizaciones en este equipo.",
   "privacy_choices_usage_do_not_track_locked_status": "Desactivadas porque DO_NOT_TRACK o SURFSENSE_NO_TELEMETRY está definido en este equipo.",
   "privacy_choices_usage_last_sent_aria": "El último informe de uso enviado",

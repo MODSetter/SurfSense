@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import test from "node:test"
 
 import { readPolicy } from "../admin-policy/read-policy.ts"
+import type { InstallChannel } from "../install-channel/install-channel.ts"
 import type { UpdatePrefs, Updates } from "../updater.ts"
 import { parsePrivacyFile, type PrivacyFile } from "../usage-statistics/privacy-file.ts"
 import { createPrivacyController, type PrivacyState } from "./privacy-controller.ts"
@@ -11,8 +12,10 @@ import { registerUpdateHandlers } from "./update-ipc.ts"
 type Listener = (event: Electron.IpcMainInvokeEvent, ...args: unknown[]) => unknown
 type Sender = "app" | "app subframe" | "other window"
 
-/** The main process with both bridges registered, under a policy file and environment. */
-function mainProcess(options: { policy?: object; env?: Record<string, string> } = {}) {
+/** The main process with both bridges registered, under a policy file, environment and install channel. */
+function mainProcess(
+  options: { policy?: object; env?: Record<string, string>; installChannel?: InstallChannel } = {}
+) {
   const handlers = new Map<string, Listener>()
   const mainFrame = {}
   const appWindow = { mainFrame } as unknown as Electron.WebContents
@@ -34,6 +37,7 @@ function mainProcess(options: { policy?: object; env?: Record<string, string> } 
   })
   const controller = createPrivacyController({
     policy,
+    installChannel: options.installChannel ?? null,
     store: { read: () => file, update: (change) => (file = change(file)) },
     readUpdatePrefs: () => prefs,
     writeUpdatePrefs: (next) => (prefs = next),
@@ -93,6 +97,8 @@ test("the state says where each switch sends, what was sent, and that nothing wa
     updates: {
       automatic: false,
       locked: false,
+      lockedReason: null,
+      channel: null,
       host: "updates.surfsense.com",
       fallbackHost: "github.com",
       lastCheckedAt: null,
@@ -199,7 +205,33 @@ test("a policy that turns updates off reads as off and cannot be switched on", a
   assert.deepEqual(await app.invoke("updates:prefs", "app"), { automatic: false })
   const state = (await app.invoke("privacy:state", "app")) as PrivacyState
   assert.equal(state.updates.locked, true)
+  assert.equal(state.updates.lockedReason, "policy")
+  assert.equal(state.updates.channel, null)
   assert.equal(state.updates.automatic, false)
   assert.equal(state.usageStatistics.lockedReason, "policy")
   assert.equal(app.dueChecks(), 0)
+})
+
+test("an install a package manager owns reads as off, cannot be switched on, and says which", async () => {
+  const app = mainProcess({ installChannel: "snap" })
+
+  const prefs = await app.invoke("updates:set-automatic", "app", true)
+  await app.invoke("privacy:complete-first-run", "app", { updates: true, usageStatistics: false })
+
+  assert.deepEqual(prefs, { automatic: false })
+  assert.deepEqual(await app.invoke("updates:prefs", "app"), { automatic: false })
+  const state = (await app.invoke("privacy:state", "app")) as PrivacyState
+  assert.equal(state.updates.locked, true)
+  assert.equal(state.updates.lockedReason, "channel")
+  assert.equal(state.updates.channel, "snap")
+  assert.equal(state.usageStatistics.locked, false)
+  assert.equal(app.dueChecks(), 0)
+})
+
+test("a policy that turns updates off names itself, not the channel, as the lock", async () => {
+  const app = mainProcess({ policy: { updates: "off" }, installChannel: "apt" })
+
+  const state = (await app.invoke("privacy:state", "app")) as PrivacyState
+  assert.equal(state.updates.lockedReason, "policy")
+  assert.equal(state.updates.channel, null)
 })

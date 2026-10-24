@@ -4,7 +4,7 @@ One term per concept, so the app says the same thing everywhere. Terms marked wi
 
 ## Stays in English
 
-SurfSense, Studio, Markdown, llama.cpp, GGUF, Hugging Face, API, MCP, MCP's transports SSE and Streamable HTTP, the HTTP sign-in schemes Bearer and Basic, and every model and provider name.
+SurfSense, Studio, Markdown, llama.cpp, GGUF, Hugging Face, API, MCP, MCP's transports SSE and Streamable HTTP, the HTTP sign-in schemes Bearer and Basic, the package managers Scoop, AUR, Snap Store, Flatpak, Nix and apt, and every model and provider name.
 
 `workspace` is the one product word languages disagree on, and each keeps its own habit: German and Brazilian Portuguese write Workspace, because both say it routinely and the translation is three times as wide in the sidebar; Japanese writes ワークスペース, since `マイWorkspace` reads as a mistake; the rest translate it.
 
@@ -78,6 +78,7 @@ SurfSense, Studio, Markdown, llama.cpp, GGUF, Hugging Face, API, MCP, MCP's tran
 | subscription (using a ChatGPT plan instead of a key) | サブスクリプション | 구독 | 订阅 | सब्सक्रिप्शन | Abo | suscripción | abonnement | assinatura | подписка |
 | terminal (where the user runs `claude`, the command that stays in English) | ターミナル | 터미널 | 终端 | टर्मिनल | Terminal | terminal (una) | terminal | terminal | терминал |
 | header (an HTTP header a plugin's server reads, such as its key in `x-api-key`) | ヘッダー | 헤더 | 请求头 | हेडर | Header | encabezado | en-tête | cabeçalho | заголовок |
+| package manager (installs and updates SurfSense in place of its own updater) | パッケージマネージャー | 패키지 관리자 | 软件包管理器 | पैकेज मैनेजर | Paketmanager | gestor de paquetes | gestionnaire de paquets | gerenciador de pacotes | менеджер пакетов |
 | OAuth app (a user's own, registered with a provider) | OAuthアプリ | OAuth 앱 | OAuth 应用 | OAuth ऐप | OAuth-App | app OAuth | app OAuth | app OAuth | приложение OAuth |
 | client ID (of an OAuth app) | クライアントID | 클라이언트 ID | 客户端 ID | क्लाइंट आईडी | Client-ID | ID de cliente | ID client | ID do cliente | ID клиента |
 | link (a web address the user adds as a source) | リンク | 링크 | 链接 | लिंक | Link | enlace | lien | link | ссылка |

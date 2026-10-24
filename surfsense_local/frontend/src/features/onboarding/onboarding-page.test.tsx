@@ -1477,6 +1477,34 @@ describe("the privacy choices", () => {
     expect(bridge.calls).toContain("first-run:updates=false,usage=false")
   })
 
+  it("says only that a package manager owns updates, with no check described", async () => {
+    vi.stubGlobal("fetch", backend({ selections: { ...chatChosen } }))
+    const bridge = stubPrivacyBridge({
+      updates: { locked: true, lockedReason: "channel", channel: "snap" },
+    })
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+
+    await toPrivacyStep(user)
+    const updates = screen.getByRole("region", { name: "Check for updates" })
+    expect(updates.textContent).toContain("Updates come from the Snap Store")
+    expect(updates.textContent).not.toContain("Once a day")
+    expect(
+      within(updates).queryByRole("button", { name: "See exactly what’s sent" })
+    ).toBeNull()
+    expect(
+      screen.queryByRole("group", { name: "Check for updates" })
+    ).toBeNull()
+
+    await user.click(choice("Share usage statistics", "Yes"))
+    await user.click(screen.getByRole("button", { name: "Continue" }))
+
+    await screen.findByRole("heading", {
+      name: "Choose a text generation model",
+    })
+    expect(bridge.calls).toContain("first-run:updates=false,usage=true")
+  })
+
   it("goes on to the first step when the choices cannot be read", async () => {
     vi.stubGlobal("fetch", backend())
     stubPrivacyBridge()
