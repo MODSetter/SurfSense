@@ -98,3 +98,4 @@ The Date is the day the decision was first written down. Source links are permal
 | 0068 | [SurfSense calls its own plugins to pull a link into Sources, with no agent](0068-surfsense-calls-its-own-plugins-to-pull-a-link-into-sources.md) | Accepted |
 | 0069 | [On opencode 2.x the agent calls tools natively, holds the plugin tools its task needs from a catalogue of every ready plugin, and no plugin speaks SSE](0069-opencode-calls-tools-natively-and-holds-what-a-turn-needs.md) | Accepted |
 | 0070 | [The app may send opt-in, ID-less update checks and usage statistics](0070-opt-in-id-less-update-checks-and-usage-statistics.md) | Accepted |
+| 0071 | [Package managers ship the GitHub release files, and a package manager that installs SurfSense owns its updates](0071-package-managers-ship-the-release-files-and-own-their-updates.md) | Accepted |
