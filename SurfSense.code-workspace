@@ -3,22 +3,6 @@
 		{
 			"name": "SurfSense",
 			"path": "."
-		},
-		{
-			"name": "local backend",
-			"path": "surfsense_local/backend"
-		},
-		{
-			"name": "plugin CLI",
-			"path": "plugins/bundles/core/cli"
-		},
-		{
-			"name": "plugin SDK",
-			"path": "plugins/bundles/core/sdk"
-		},
-		{
-			"name": "plugin manifest rules",
-			"path": "plugins/bundles/core/manifest"
 		}
 	],
 	"settings": {}

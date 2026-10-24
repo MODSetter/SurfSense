@@ -1,12 +1,11 @@
 name: Docker Tests
 
-# surfsense_backend and surfsense_web, the product that ships as Docker images.
-# desktop-tests.yml covers surfsense_local; code-quality.yml the checks that
-# belong to the whole repository.
+# surfsense_backend and surfsense_web, which ship as Docker images.
+# code-quality.yml holds the checks that belong to the whole repository.
 
 on:
   pull_request:
-    branches: [main, dev]
+    branches: [legacy]
     types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
 
@@ -41,7 +40,6 @@ jobs:
               - 'surfsense_backend/**'
               - 'docker/opensandbox/**'
               - 'docker/sandbox/**'
-              - 'docs/contracts/**'
               - '.pre-commit-config.yaml'
               - '.github/workflows/docker-tests.yml'
             web:
@@ -128,7 +126,7 @@ jobs:
         with:
           python-version: '3.12'
 
-      # surfsense_web pins its own pnpm; the desktop trees pin theirs.
+      # surfsense_web pins its own pnpm.
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
         with:
@@ -365,7 +363,7 @@ jobs:
             sh -c "redis-cli --scan --pattern 'surfsense:auth_rate_limit:*' \
               | xargs -r redis-cli DEL" || true
 
-      # surfsense_web pins its own pnpm; the desktop trees pin theirs.
+      # surfsense_web pins its own pnpm.
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
         with:

@@ -1,9 +1,0 @@
-{
- "_source": "Live /api/search/user/full/ for 'espn' (2026-10-14, fast_users_dump2.log) plus the 'Business account' record seen on espndeutschland; only the logged fields are kept.",
- "user_list": [
-  {"user_info": {"unique_id": "espnfc", "follower_count": 19300000, "custom_verify": "", "enterprise_verify_reason": "verified account"}},
-  {"user_info": {"unique_id": "espn", "follower_count": 61400000, "custom_verify": "", "enterprise_verify_reason": "verified account"}},
-  {"user_info": {"unique_id": "espnuk", "follower_count": 3200000, "custom_verify": "", "enterprise_verify_reason": "verified account"}},
-  {"user_info": {"unique_id": "espndeutschland", "follower_count": 1779, "custom_verify": "", "enterprise_verify_reason": "Business account"}}
- ]
-}
