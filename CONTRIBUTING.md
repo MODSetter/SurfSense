@@ -33,4 +33,4 @@ Open your PR against `legacy`. If there is an issue, `Fixes #123` links it and c
 
 ## Review and merge
 
-CI on the PR should be green. `code-quality.yml` runs file checks and a secrets scan, and fails a PR from anyone but a maintainer that touches `proprietary/`. `docker-tests.yml` lints, scans and tests `surfsense_backend` and `surfsense_web`, including the end-to-end journey. [CODEOWNERS](.github/CODEOWNERS) asks the maintainer who owns the files you touched to review. One maintainer approval is enough to merge.
+CI on the PR should be green. `code-quality.yml` runs file checks and a secrets scan, and fails a PR from anyone but a maintainer that touches `proprietary/`. `docker-tests.yml` lints, scans and tests `surfsense_backend` and `surfsense_web`. The end-to-end journey runs locally only: see [`surfsense_web/tests/README.md`](surfsense_web/tests/README.md). [CODEOWNERS](.github/CODEOWNERS) asks the maintainer who owns the files you touched to review. One maintainer approval is enough to merge.

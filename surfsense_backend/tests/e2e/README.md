@@ -106,7 +106,7 @@ curl -X POST http://localhost:8000/auth/register \
 pnpm test:e2e             # dev server (fast iteration)
 pnpm test:e2e:headed      # show the browser
 pnpm test:e2e:ui          # Playwright UI mode
-pnpm test:e2e:prod        # build + start (matches CI exactly)
+pnpm test:e2e:prod        # production build + start
 ```
 
 `playwright.config.ts` and the run scripts share defaults, so this works on a
@@ -122,10 +122,10 @@ docker compose -f docker/docker-compose.deps-only.yml down
 
 Add `-v` to also wipe the Postgres volume.
 
-### Hermetic alternative (matches CI)
+### Hermetic alternative
 
-To reproduce the CI environment exactly — backend and Celery in containers,
-network egress denied at L3 — replace steps 1–3 with:
+For a fully hermetic run (backend and Celery in containers, network egress
+denied at L3), replace steps 1–3 with:
 
 ```bash
 docker compose -f docker/docker-compose.e2e.yml up -d --build --wait
