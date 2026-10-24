@@ -38,7 +38,7 @@
 
 param(
     [string]$DbUser     = "surfsense",
-    [string]$DbPassword = "surfsense",
+    [string]$DbPassword = "surfsense",  # pragma: allowlist secret
     [string]$DbName     = "surfsense",
     [switch]$Yes
 )
@@ -329,7 +329,7 @@ Write-Ok "Secret key: $KeyFile"
 Write-Host ""
 Write-Info "Next step - run install.ps1 from this same directory:"
 Write-Host ""
-Write-Host "  irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 | iex" -ForegroundColor Cyan
+Write-Host "  irm https://raw.githubusercontent.com/MODSetter/SurfSense/legacy/docker/scripts/install.ps1 | iex" -ForegroundColor Cyan
 Write-Host ""
 Write-Info "install.ps1 will detect the dump, restore your data into PostgreSQL 17,"
 Write-Info "and start the full SurfSense stack automatically."

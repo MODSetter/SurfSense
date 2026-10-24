@@ -52,9 +52,7 @@ CI: `.github/workflows/`. A fix starts with one failing test. Use the `tdd` skil
 
 ## Releases
 
-- `VERSION` holds the version; `scripts/bump-version.sh` writes it into each tree's manifest.
-- Tag the merge commit `legacy-vX.Y.Z`, matching `VERSION`. The tag builds and pushes `ghcr.io/modsetter/surfsense-backend`, `surfsense-web` and `surfsense-sandbox`, and moves `latest`.
-- Never tag `vX.Y.Z` here: tags are repo-wide, and `v*` belongs to the desktop app.
+Follow [RELEASE.md](RELEASE.md). Never tag `vX.Y.Z` here: tags are repo-wide, and `v*` belongs to the desktop app.
 
 ## Pull requests
 

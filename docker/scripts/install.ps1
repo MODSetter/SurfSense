@@ -2,7 +2,7 @@
 # SurfSense — One-line Install Script (Windows / PowerShell)
 #
 #
-# Usage: irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 | iex
+# Usage: irm https://raw.githubusercontent.com/MODSetter/SurfSense/legacy/docker/scripts/install.ps1 | iex
 #
 # To pass flags, save and run locally:
 #   .\install.ps1 -NoWatchtower
@@ -34,7 +34,7 @@ $ErrorActionPreference = 'Stop'
 
 # ── Configuration ───────────────────────────────────────────────────────────
 
-$RepoRaw            = "https://raw.githubusercontent.com/MODSetter/SurfSense/main"
+$RepoRaw            = "https://raw.githubusercontent.com/MODSetter/SurfSense/legacy"
 $InstallDir         = ".\surfsense"
 $OldVolume          = "surfsense-data"
 $DumpFile           = ".\surfsense_migration_backup.sql"
@@ -432,7 +432,7 @@ if ($MigrationMode) {
     $DbPass = ($envContent | Select-String '^DB_PASSWORD=' | ForEach-Object { ($_ -split '=',2)[1].Trim('"') }) | Select-Object -First 1
     $DbName = ($envContent | Select-String '^DB_NAME=' | ForEach-Object { ($_ -split '=',2)[1].Trim('"') }) | Select-Object -First 1
     if (-not $DbUser) { $DbUser = "surfsense" }
-    if (-not $DbPass) { $DbPass = "surfsense" }
+    if (-not $DbPass) { $DbPass = "surfsense" }  # pragma: allowlist secret
     if (-not $DbName) { $DbName = "surfsense" }
 
     Write-Step "Starting PostgreSQL 17"

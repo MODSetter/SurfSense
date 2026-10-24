@@ -3,7 +3,7 @@
 # SurfSense — One-line Install Script
 #
 #
-# Usage: curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/legacy/docker/scripts/install.sh | bash
 #
 # Flags:
 #   --no-watchtower              Skip automatic Watchtower setup
@@ -30,7 +30,7 @@ set -euo pipefail
 
 main() {
 
-REPO_RAW="https://raw.githubusercontent.com/MODSetter/SurfSense/main"
+REPO_RAW="https://raw.githubusercontent.com/MODSetter/SurfSense/legacy"
 INSTALL_DIR="./surfsense"
 OLD_VOLUME="surfsense-data"
 DUMP_FILE="./surfsense_migration_backup.sql"

@@ -1,72 +1,84 @@
 name: Build and Push Docker Images
 
+# A pull request or push to legacy builds every image and variant to check it,
+# and pushes nothing. Only a `legacy-vX.Y.Z` tag publishes; `v*` tags belong to
+# the desktop app.
 on:
   push:
-    branches:
-      - main
-      - dev
+    branches: [legacy]
     tags:
-      # Hosted stack stays on 0.x; v1.* and up is the desktop app.
-      - 'v0.*'
-      - 'beta-v*'
-    paths:
-      - 'surfsense_backend/**'
-      - 'surfsense_web/**'
-      - 'docker/sandbox/**'
-  workflow_dispatch:
-    inputs:
-      branch:
-        description: 'Branch to build from (leave empty for default branch)'
-        required: false
-        default: ''
+      - 'legacy-v*'
+  pull_request:
+    branches: [legacy]
+    types: [opened, synchronize, reopened, ready_for_review]
 
+# A release is never cancelled; a newer commit cancels its branch's checks.
 concurrency:
-  group: docker-build
-  cancel-in-progress: false
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
-  # 0.0.40 is the last hosted version, so VERSION is the image tag as written:
-  # no build number, and no git tag pushed back for one.
+  changes:
+    name: Changes
+    runs-on: ubuntu-latest
+    if: "!startsWith(github.ref, 'refs/tags/') && github.event.pull_request.draft != true"
+    outputs:
+      images: ${{ steps.filter.outputs.images }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Filter changed paths
+        id: filter
+        uses: dorny/paths-filter@v4
+        with:
+          filters: |
+            images:
+              - 'surfsense_backend/**'
+              - 'surfsense_web/**'
+              - 'docker/sandbox/**'
+              - '.github/workflows/docker-build.yml'
+
+  # Refuses a tag that does not match VERSION, so a release is always the
+  # version the tagged commit says it is.
   image_version:
     runs-on: ubuntu-latest
-    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch) || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/beta-v')
+    if: startsWith(github.ref, 'refs/tags/legacy-v')
     outputs:
       version: ${{ steps.resolve.outputs.version }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ github.event.inputs.branch }}
+        uses: actions/checkout@v7
 
       - name: Resolve image version
         id: resolve
         run: |
-          if [[ "$GITHUB_REF" == refs/tags/beta-v* ]]; then
-            VERSION="${GITHUB_REF#refs/tags/beta-v}"
-            IMAGE_VERSION="beta-${VERSION}"
-          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            VERSION="${GITHUB_REF#refs/tags/v}"
-            IMAGE_VERSION="$VERSION"
-          else
-            VERSION=$(tr -d '[:space:]' < ./VERSION)
-            IMAGE_VERSION="$VERSION"
-          fi
+          VERSION="${GITHUB_REF#refs/tags/legacy-v}"
+          FILE_VERSION=$(tr -d '[:space:]' < ./VERSION)
 
-          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$'; then
-            echo "::error::Version '$VERSION' is not valid semver (expected X.Y.Z). Fix the tag name or the VERSION file."
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Tag version '$VERSION' is not X.Y.Z."
+            exit 1
+          fi
+          if [[ "$VERSION" != "$FILE_VERSION" ]]; then
+            echo "::error::Tag legacy-v$VERSION does not match VERSION ($FILE_VERSION)."
             exit 1
           fi
 
-          echo "Docker image version: $IMAGE_VERSION"
-          echo "version=$IMAGE_VERSION" >> $GITHUB_OUTPUT
+          echo "Docker image version: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
+  # The same matrix checks a pull request and builds a release, so a tag only
+  # repeats builds that already passed.
   build:
-    needs: image_version
-    if: always() && (needs.image_version.result == 'success' || needs.image_version.result == 'skipped')
+    needs: [changes, image_version]
+    if: >-
+      !cancelled() &&
+      (needs.image_version.result == 'success' ||
+      (needs.image_version.result == 'skipped' && needs.changes.outputs.images == 'true'))
     runs-on: ${{ matrix.os }}
     permissions:
       packages: write
@@ -121,10 +133,11 @@ jobs:
             cuda_extra: cu126
     env:
       REGISTRY_IMAGE: ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}
+      RELEASE: ${{ startsWith(github.ref, 'refs/tags/legacy-v') }}
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set lowercase image name
         id: image
@@ -137,6 +150,7 @@ jobs:
           images: ${{ steps.image.outputs.name }}
 
       - name: Login to GitHub Container Registry
+        if: env.RELEASE == 'true'
         uses: docker/login-action@v4
         with:
           registry: ghcr.io
@@ -154,7 +168,8 @@ jobs:
           sudo rm -rf "$AGENT_TOOLSDIRECTORY" || true
           docker system prune -af
 
-      - name: Build and push by digest ${{ matrix.name }} (${{ matrix.variant }}, ${{ matrix.suffix }})
+      # A check builds and discards; only a release pushes and writes the cache.
+      - name: Build ${{ matrix.name }} (${{ matrix.variant }}, ${{ matrix.suffix }})
         id: build
         uses: docker/build-push-action@v7
         with:
@@ -163,10 +178,10 @@ jobs:
           target: ${{ matrix.target }}
           labels: ${{ steps.meta.outputs.labels }}
           tags: ${{ steps.image.outputs.name }}
-          outputs: type=image,push-by-digest=true,name-canonical=true,push=true
+          outputs: ${{ env.RELEASE == 'true' && 'type=image,push-by-digest=true,name-canonical=true,push=true' || 'type=cacheonly' }}
           platforms: ${{ matrix.platform }}
           cache-from: type=registry,ref=${{ steps.image.outputs.name }}:buildcache-${{ matrix.variant }}-${{ matrix.suffix }}
-          cache-to: type=registry,ref=${{ steps.image.outputs.name }}:buildcache-${{ matrix.variant }}-${{ matrix.suffix }},mode=max,image-manifest=true,oci-mediatypes=true
+          cache-to: ${{ env.RELEASE == 'true' && format('type=registry,ref={0}:buildcache-{1}-{2},mode=max,image-manifest=true,oci-mediatypes=true', steps.image.outputs.name, matrix.variant, matrix.suffix) || '' }}
           secrets: |
             HF_TOKEN=${{ secrets.HF_TOKEN }}
           provenance: false
@@ -175,12 +190,14 @@ jobs:
             ${{ matrix.image == 'backend' && format('CUDA_EXTRA={0}', matrix.cuda_extra) || '' }}
 
       - name: Export digest
+        if: env.RELEASE == 'true'
         run: |
           mkdir -p /tmp/digests
           digest="${{ steps.build.outputs.digest }}"
           touch "/tmp/digests/${digest#sha256:}"
 
       - name: Upload digest
+        if: env.RELEASE == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: digests-${{ matrix.image }}-${{ matrix.variant }}-${{ matrix.suffix }}
@@ -189,11 +206,10 @@ jobs:
           retention-days: 1
 
   # Release gate: require both arches for every variant, else block publishing.
-  # Release-only; skipped on dev so the tolerant create_manifest path is kept.
   verify_digests:
     runs-on: ubuntu-latest
     needs: [image_version, build]
-    if: ${{ always() && needs.image_version.result == 'success' && needs.image_version.outputs.version != '' }}
+    if: ${{ always() && needs.image_version.result == 'success' }}
     steps:
       - name: Download all digests
         uses: actions/download-artifact@v8
@@ -224,7 +240,7 @@ jobs:
   create_manifest:
     runs-on: ubuntu-latest
     needs: [image_version, build, verify_digests]
-    if: ${{ !cancelled() && needs.verify_digests.result != 'failure' }}
+    if: ${{ !cancelled() && needs.verify_digests.result == 'success' }}
     permissions:
       packages: write
       contents: read
@@ -300,11 +316,10 @@ jobs:
         with:
           images: ${{ steps.image.outputs.name }}
           tags: |
-            type=raw,value=${{ needs.image_version.outputs.version }},enable=${{ needs.image_version.outputs.version != '' }}
-            type=ref,event=branch
+            type=raw,value=${{ needs.image_version.outputs.version }}
             type=sha,prefix=git-
           flavor: |
-            latest=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) || github.event.inputs.branch == github.event.repository.default_branch || startsWith(github.ref, 'refs/tags/v') }}
+            latest=true
             ${{ matrix.tag_suffix != '' && format('suffix={0},onlatest=true', matrix.tag_suffix) || '' }}
 
       - name: Create manifest list and push
