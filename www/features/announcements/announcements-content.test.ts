@@ -28,7 +28,7 @@ test("every announcement id is URL-safe and unique", () => {
 
 test("every announcement has a body", () => {
 	for (const id of ids) {
-		assert.ok(files.includes(`${id}.mdx`), `announcements/content/${id}.mdx is missing`);
+		assert.ok(files.includes(`${id}.mdx`), `content/announcements/${id}.mdx is missing`);
 	}
 });
 
@@ -36,7 +36,7 @@ test("every body belongs to an announcement", () => {
 	for (const file of files) {
 		assert.ok(
 			file.endsWith(".mdx") && ids.includes(file.slice(0, -".mdx".length)),
-			`announcements/content/${file} has no entry in features/announcements/announcements-data.ts`
+			`content/announcements/${file} has no entry in features/announcements/announcements-data.ts`
 		);
 	}
 });

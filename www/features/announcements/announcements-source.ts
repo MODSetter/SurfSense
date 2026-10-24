@@ -9,7 +9,7 @@ import { isAnnouncementPublished } from "@/features/announcements/announcements-
 
 /**
  * Announcement pages: each entry in `announcements-data.ts` joined by its id
- * to `announcements/content/<id>.mdx`.
+ * to `content/announcements/<id>.mdx`.
  *
  * Server-only, as the bodies are compiled MDX. The in-app dialog, spotlight
  * and toasts keep reading the data file alone, synchronously.

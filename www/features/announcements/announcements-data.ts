@@ -4,7 +4,7 @@ import type { Announcement } from "@/features/announcements/announcement.types";
  * Static announcements data.
  *
  * To add a new announcement, append an entry to this array and write its full
- * text in `announcements/content/<id>.mdx`. The `id` is also the URL of its
+ * text in `content/announcements/<id>.mdx`. The `id` is also the URL of its
  * page, `/announcements/<id>`, so it takes lowercase letters, digits and
  * hyphens only; `features/announcements/announcements-content.test.ts` checks both.
  * Each announcement requires `startTime` and `endTime` (ISO datetime strings)

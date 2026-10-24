@@ -2,9 +2,8 @@
  * Shared site chrome: the links that appear in the navigation and footer on
  * every page.
  *
- * These live outside `components/homepage/` because the nav and footer are no
- * longer homepage furniture — they are the site's furniture, rendered once by
- * `app/(home)/layout.tsx` and kept mounted across navigations.
+ * The nav and footer belong to the whole site, not the home page: they are
+ * rendered once by `app/(home)/layout.tsx` and kept mounted across navigations.
  */
 
 import {
