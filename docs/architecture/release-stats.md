@@ -23,21 +23,27 @@ GitHub counts requests, not installs or people, and gives no IP, version or id. 
 
 | Kind | Assets | Measures |
 |---|---|---|
-| `installer_windows` | `*.exe` | site, README and email downloads, plus every 2.x Windows update, which fetches the full installer; the release's `stable.yml` count caps the updater's share |
-| `installer_mac` | `*.dmg` | people only; no updater fetches it |
-| `installer_appimage` | `*.AppImage` | fresh downloads plus AppImage updates |
-| `installer_deb` | `*.deb` | fresh downloads plus, probably, deb updates ([updates](updates.md#known-gaps)) |
-| `update_zip_mac` | `*.zip` | macOS updates downloaded; only electron-updater fetches it |
+| `installer_windows` | `*.exe` | site, README, email and `install.ps1` downloads, winget installs and upgrades, Scoop installs and updates, which unpack the exe, and the bots that check each new winget manifest, plus every 2.x Windows update the app makes itself, the whole installer up to 2.2.3 and byte ranges of it after; the release's `stable.yml` count caps only that last share, winget installs included, since winget leaves the in-app updater in place |
+| `installer_mac` | `*.dmg` | people, plus `brew install --cask`, `brew upgrade` and BrewTestBot's checks of each new cask; electron-updater never fetches it |
+| `installer_appimage` | `*.AppImage` | fresh downloads, `install.sh` where no package manager is found, and Homebrew's cask on Linux, installs and upgrades, plus AppImage updates |
+| `installer_deb` | `*.deb` | fresh downloads and `install.sh`'s fallback, plus, probably, the app's own deb updates ([updates](updates.md#known-gaps)); once the apt repository exists, apt fetches the deb from the release too, so every `apt upgrade` and apt install of SurfSense counts here; so does every AUR (`surfsense-bin`) install, upgrade or rebuild, since its PKGBUILD downloads the deb |
+| `installer_rpm` | the 2.x `SurfSense.rpm` | fresh downloads, `install.sh` on dnf and zypper, and the app's own rpm updates |
+| `update_zip_mac` | `*.zip` | macOS updates downloaded plus one-line installs on a Mac; only electron-updater and `install.sh` fetch it |
 | `manifest_stable_windows`, `_mac`, `_linux` | `stable*.yml` | 2.x update checks: one per launch with automatic updates on, or per Check now |
 | `manifest_legacy_windows`, `_mac`, `_linux` | `latest*.yml` | update checks from 0.0.x apps, mostly at login, plus 2.x checks retrying after a failed `stable*.yml` |
-| `blockmap` | `*.blockmap` | on 2.x releases, the noise floor of bots and mirrors (about 5 per asset), since differential updates are off; on 0.0.x releases, legacy differential updates |
-| `other` | anything else | for example the 0.0.x rpm |
+| `blockmap` | `*.blockmap` | up to 2.2.3, the noise floor of bots and mirrors (about 5 per asset), since those apps download updates whole; after it, the app's differential updates ([updates](updates.md#update-size)); on 0.0.x releases, legacy differential updates |
+| `install_script` | `install.sh`, `install.ps1` | one per one-line install run, refused and failed runs included; runs, not installs |
+| `apt_index` | `InRelease`, `Release`, `Release.gpg`, `Packages`, `Packages.gz`, `surfsense-archive-keyring.gpg` | `InRelease` (or `Release` and `Release.gpg`) once per `apt update` on every machine with the source, `Packages*` when a new release changed it, the keyring once per `install.sh` setup; apt reads them through `latest/download`, so the count lands on whichever release was Latest at the time, not the one a machine runs |
+| `checksums` | `SHA256SUMS` | one per install-script run, plus packagers and people checking a download by hand |
+| `other` | anything else | for example the 0.0.x rpm (`SurfSense-0.0.40-x86_64.rpm`), which keeps the kind its counts were first sent with |
+
+Package managers fetch the release's own files: winget and Scoop the exe, Homebrew the dmg and the AppImage, apt and the AUR the deb ([install channels](install-channels.md)). They never read `stable*.yml` to do it, so a `stable*.yml` count caps only the app's own updates, and an installer count minus that cap is not all website downloads.
 
 The classification and its reasons live in `release_stats/asset_kinds.py`.
 
 ## Tests
 
-`scripts/release_stats/tests/` covers the classification of every asset name the releases have carried, paging through releases, refusing a next-page link or a redirect off the API's origin, skipping traffic on a refused token, the events' shape and batching, and each day's event keeping one identity across reruns, with GitHub and PostHog faked at `urlopen`; urllib follows redirects itself, so those tests run against a server on 127.0.0.1. They need only pytest: `python -m pytest` from `scripts/release_stats`.
+`scripts/release_stats/tests/` covers the classification of every asset name the releases have carried or are about to carry (the rpm, install scripts, apt repository and `SHA256SUMS`), paging through releases, refusing a next-page link or a redirect off the API's origin, skipping traffic on a refused token, the events' shape and batching, and each day's event keeping one identity across reruns, with GitHub and PostHog faked at `urlopen`; urllib follows redirects itself, so those tests run against a server on 127.0.0.1. They need only pytest: `python -m pytest` from `scripts/release_stats`.
 
 ## Known gaps
 
