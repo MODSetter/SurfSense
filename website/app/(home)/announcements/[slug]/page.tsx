@@ -17,7 +17,6 @@ import { cn } from "@/lib/utils";
 import { getMDXComponents } from "@/mdx-components";
 import { categoryLabel } from "../category-label";
 import { formatAnnouncementDate } from "../format-announcement-date";
-import { MarkAnnouncementsRead } from "../mark-announcements-read";
 
 /**
  * One announcement, laid out like a blog post. The header and image come from
@@ -92,7 +91,6 @@ export default async function AnnouncementPage(props: { params: Promise<{ slug: 
 				author="SurfSense Team"
 				image={post.image ? new URL(post.image.src, BASE_URL).toString() : undefined}
 			/>
-			<MarkAnnouncementsRead id={post.id} />
 
 			<header className="mx-auto max-w-3xl pt-16 text-center md:pt-24">
 				<Link

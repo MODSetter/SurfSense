@@ -7,7 +7,6 @@ import { getPublishedAnnouncementPosts } from "@/lib/announcements/announcements
 import { cn } from "@/lib/utils";
 import { AnnouncementCard } from "./announcement-card";
 import { FeaturedAnnouncement } from "./featured-announcement";
-import { MarkAnnouncementsRead } from "./mark-announcements-read";
 
 /**
  * Rendered in the site design: listed in `SITE_DESIGN_ROUTES` in
@@ -67,8 +66,6 @@ export default function AnnouncementsPage() {
 
 	return (
 		<section className={sectionSpacing.foot}>
-			<MarkAnnouncementsRead />
-
 			<div className={cn("text-center", sectionSpacing.head)}>
 				<HomeBadge>Announcements</HomeBadge>
 				<h1 className={cn(siteText.display, "mt-4")}>What's New</h1>
