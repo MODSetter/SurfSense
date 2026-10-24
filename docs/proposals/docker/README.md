@@ -189,7 +189,7 @@ A GPU override file sits beside it ([`gpu.md`](gpu.md)).
 
 ## CI
 
-A new workflow, `docker-local.yml`. [`docker-build.yml`](../../../.github/workflows/docker-build.yml) stays on `v0.*` for the legacy images until they are retired.
+A new workflow, `docker-local.yml`. The legacy images build from [`docker-build.yml` on the `legacy` branch](https://github.com/MODSetter/SurfSense/blob/legacy/.github/workflows/docker-build.yml), on `legacy-v*` tags.
 
 - Runs on the desktop's release tags, `v[1-9]*`, and on `dev` pushes that touch `surfsense_local/**` or `docker/local/**`.
 - The same shape as today: build by digest per architecture and variant, require both architectures on a release, merge into one manifest.

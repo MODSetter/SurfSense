@@ -60,6 +60,6 @@ Small, focused PRs are easier to review.
 
 ## Review and merge
 
-CI on the PR should be green. `code-quality.yml` runs the docs checker, file checks and a secrets scan on every PR, and fails one from anyone but a maintainer that touches `proprietary/`. Each product lints, scans and tests itself when its files change: `docker-tests.yml` for `surfsense_backend` and `surfsense_web`, including the end-to-end journey, and `desktop-tests.yml` for `surfsense_local`. [CODEOWNERS](.github/CODEOWNERS) asks the maintainer who owns the files you touched to review. One maintainer approval is enough to merge. Merged work lands on `dev` and reaches `main` with the next release.
+CI on the PR should be green. `code-quality.yml` runs the docs checker, file checks and a secrets scan on every PR, and fails one from anyone but a maintainer that touches `proprietary/`. Each product lints, scans and tests itself when its files change: `desktop-tests.yml` for `surfsense_local`. `surfsense_backend` and `surfsense_web` are tested on the `legacy` branch, which carries the self-hosted stack. [CODEOWNERS](.github/CODEOWNERS) asks the maintainer who owns the files you touched to review. One maintainer approval is enough to merge. Merged work lands on `dev` and reaches `main` with the next release.
 
 If you work with a coding agent, [AGENTS.md](AGENTS.md) gives it the same rules, along with the repo's layout and commands.

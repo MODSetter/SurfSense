@@ -22,7 +22,7 @@ The desktop app ships Vulkan and no CUDA because of installer size ([ADR 0012](.
 | `-cuda` | 12.8 | ✓ | ✓ |
 | `-cuda126` | 12.6 | ✓ | ✓ |
 
-The names and versions are the legacy backend's ([`docker-build.yml`](../../../.github/workflows/docker-build.yml)), so a self-hoster moving over keeps their `SURFSENSE_VARIANT`. `-cuda126` is for hosts whose driver is too old for 12.8.
+The names and versions are the legacy backend's ([`docker-build.yml`](https://github.com/MODSetter/SurfSense/blob/legacy/.github/workflows/docker-build.yml) on `legacy`), so a self-hoster moving over keeps their `SURFSENSE_VARIANT`. `-cuda126` is for hosts whose driver is too old for 12.8.
 
 ## What runs on the GPU
 
@@ -79,7 +79,7 @@ with `SURFSENSE_VARIANT=cuda` or `cuda126` in `.env`.
 
 ## CI
 
-Six builds: three variants on two architectures, by digest, merged per variant; a release requires both architectures of every variant, as [`docker-build.yml`](../../../.github/workflows/docker-build.yml) does.
+Six builds: three variants on two architectures, by digest, merged per variant; a release requires both architectures of every variant, as [`docker-build.yml`](https://github.com/MODSetter/SurfSense/blob/legacy/.github/workflows/docker-build.yml) on `legacy` does.
 
 - The CUDA compiles are the slow step. Each variant and architecture keeps its own registry cache, as today.
 - The smoke job runs the CPU image only. GitHub's runners have no NVIDIA card, so a CUDA image is checked to start with `SURFSENSE_ALLOW_CPU=1` and to refuse without it; running it on a real card is a release checklist step.
