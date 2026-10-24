@@ -38,7 +38,10 @@ export type UpdatePrefs = {
 }
 
 export type Updates = {
-  /** True once a manifest was read, from either host; failures also reach the "error" state. */
+  /**
+   * True once a manifest was read, from either host. A failure ends in the
+   * "error" state; an inactive updater puts back the state it found.
+   */
   check(): Promise<boolean>
   install(): void
   state(): UpdateState
@@ -114,11 +117,22 @@ export function attachUpdater(
 
   return {
     async check() {
+      const before = current
       set({ status: "checking" })
-      // Failures surface through the "error" event above. AppUpdater answers
-      // null only when it is inactive, so it read nothing.
-      const result = await updater.checkForUpdates().catch(() => null)
-      return result !== null
+      let result: unknown
+      try {
+        result = await updater.checkForUpdates()
+      } catch {
+        // AppUpdater emitted "error" before rethrowing, so that state stands.
+        return false
+      }
+      // Inactive (an AppImage updater with no $APPIMAGE): it read nothing and
+      // emits no event, so put back what was there.
+      if (result === null) {
+        set(before.status === "checking" ? { status: "idle" } : before)
+        return false
+      }
+      return true
     },
     install() {
       if (current.status === "ready") updater.quitAndInstall()
