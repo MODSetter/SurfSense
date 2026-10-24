@@ -202,6 +202,7 @@ Each of these breaks unless it changes in the same pull request or at its merge:
 
 - **One of each.** One font (Instrument Sans, on `<body>`), one button (`HomeButton`) and one icon set (Hugeicons, also shadcn's `iconLibrary`). Biome is the only linter. Light by default, through fumadocs' theme.
 - **`/sunset` does not move.** Its route and `lib/sunset.ts` stay in `surfsense_web` and go with it; the website drops its links and redirects to it.
+- **`/mcp-server` goes.** `www.surfsense.com/mcp-server` sells the hosted MCP server at `mcp.surfsense.com`, which the cutover switches off; its setup snippets need API keys the purge removed and `surfsense_mcp`, now on `legacy` only. The page, `components/mcp/` and `lib/mcp/` are deleted, `/mcp-server` redirects to `/plugins`, and its sitemap and site-shell entries and the two links on `/external-mcp-connectors` go with it.
 - **Paths that point at `surfsense_web`:** Vercel's root directory, the banner image in all 11 READMEs, `surfsense_local/scripts/bump-version.sh` (writes `app-release.ts`) and `surfsense_local/RELEASE.md` (changelog entries).
 - **Tests.** The unit tests for downloads, checkout, docs redirects, funnel attribution and the update feed move with their code. No e2e spec covers marketing pages today.
 
@@ -220,8 +221,9 @@ Steps 1 and 2 landed in #2337. Then, into `dev`:
 
 3. #2341: the legacy code deleted, and `surfsense_web/` split into `website/`, with the hook, `CODEOWNERS` and doc-link changes. The cutover finishes before this reaches `main`, or Coolify's hosted `surfsense_backend` has no source to rebuild from.
 4. A desktop release that drops the cloud-import link to `/sunset`, with `release-local.yml` narrowed to `v[1-9]*` and its `legacy-update-bridge` job removed. It ships before the website goes live without `/sunset`. The sunset docs are deleted with it.
-5. The website restructured into feature folders, its own pull request.
-6. The Docker steps 4 to 14.
+5. `/mcp-server` removed from the website, with its redirect to `/plugins` ([the website](#the-website)), once `mcp.surfsense.com` is switched off.
+6. The website restructured into feature folders, its own pull request.
+7. The Docker steps 4 to 14.
 
 The backend's pull request adds `architecture/backend.md` and updates `portal.md`, `plugin-host.md`, `plugin-registry.md`, ADR 0024, ADR 0054 and the root `AGENTS.md`. The deletion drops the root `AGENTS.md`'s boundaries on carving out hosted code and on the legacy compose. #2341 updates the root `AGENTS.md` and repoints the README banners at `website/`. Still to come: `architecture/` gains `website.md` and `docker.md`, and this proposal and the Docker proposal are deleted once the Docker steps are done.
 
@@ -231,4 +233,4 @@ The backend's pull request adds `architecture/backend.md` and updates `portal.md
 2. Deploy the backend with the license settings; `api.surfsense.com` still points at `surfsense_backend`.
 3. Add `api.surfsense.com` to the backend's Coolify domains and move its DNS.
 4. Check `GET /health`, a trial request and a Stripe test-mode purchase against `api.surfsense.com`.
-5. Switch off the hosted backend and the hosted MCP server at `mcp.surfsense.com`.
+5. Switch off the hosted backend and the hosted MCP server at `mcp.surfsense.com`, and remove `www.surfsense.com/mcp-server` with it.
