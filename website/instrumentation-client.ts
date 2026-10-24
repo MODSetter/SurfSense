@@ -3,27 +3,16 @@ import posthog from "posthog-js";
 /**
  * PostHog initialisation for the Next.js renderer.
  *
- * The same bundle ships in two contexts:
- *   1. A normal browser session on surfsense.com  -> platform = "web"
- *   2. The retired 0.0.x desktop app, opening a site page -> platform = "desktop"
- *
- * The site never takes that app's machine identifier as its PostHog ID, so a
- * visit is never linked to a machine.
+ * Every event and person is stamped `platform: "web"`. Dashboards filter on it,
+ * so it stays although the retired 0.0.x desktop app, which was "desktop", no
+ * longer opens the site.
  */
 
-function isElectron(): boolean {
-	return typeof window !== "undefined" && !!window.electronAPI;
-}
-
-function currentPlatform(): "desktop" | "web" {
-	return isElectron() ? "desktop" : "web";
-}
+const platform = "web";
 
 async function initPostHog() {
 	try {
 		if (!process.env.NEXT_PUBLIC_POSTHOG_KEY) return;
-
-		const platform = currentPlatform();
 
 		posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY, {
 			api_host: "https://assets.surfsense.com",
@@ -34,9 +23,6 @@ async function initPostHog() {
 			before_send: (event) => {
 				if (event?.properties) {
 					event.properties.platform = platform;
-					if (platform === "desktop") {
-						event.properties.is_desktop = true;
-					}
 
 					const params = new URLSearchParams(window.location.search);
 					const ref = params.get("ref");
