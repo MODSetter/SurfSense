@@ -32,16 +32,23 @@ export type WebLinksOutcome = {
 
 const json = { "Content-Type": "application/json" }
 
-export async function searchWeb(
+/** `source` is `web` for Google, or a site with its own search, such as `youtube`. */
+export function searchWeb(
   workspaceId: number,
   query: string,
+  source: string,
+  page: number,
   signal?: AbortSignal
 ): Promise<WebGroup> {
-  const found = await requestJson<{ results: WebResult[] }>(
+  return requestJson<WebGroup>(
     `/workspaces/${workspaceId}/documents/web/search`,
-    { method: "POST", headers: json, body: JSON.stringify({ query }), signal }
+    {
+      method: "POST",
+      headers: json,
+      body: JSON.stringify({ query, source, page }),
+      signal,
+    }
   )
-  return { link: null, results: found.results, more: false, failed: false }
 }
 
 export async function openWebLinks(

@@ -109,6 +109,10 @@ def _list_items(items: list[dict]) -> list[Listed]:
     ]
 
 
+def _search_call(query: str, count: int) -> ToolCall:
+    return ToolCall("scrape", {"search_queries": [query], "max_results": count})
+
+
 PULLER = Puller(
     id="youtube",
     plugin_id="youtube",
@@ -116,4 +120,5 @@ PULLER = Puller(
     calls=_calls,
     written=_written,
     listing=Listing(_list_call, _list_items),
+    search=_search_call,
 )

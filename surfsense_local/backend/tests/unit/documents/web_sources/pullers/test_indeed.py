@@ -91,3 +91,17 @@ def test_a_job_search_is_listed_as_its_jobs() -> None:
     assert PULLER.listing.items([job()]) == [
         Listed(JOB, "Harbour Master", "Falmouth Harbour · Falmouth")
     ]
+
+
+def test_a_search_runs_on_indeed_itself() -> None:
+    """Cards only; the plugin's own site, a place in the words if wanted."""
+    assert PULLER.search is not None
+    assert PULLER.search("harbour master", 20) == ToolCall(
+        "scrape",
+        {
+            "search_queries": ["harbour master"],
+            "max_items": 20,
+            "max_items_per_query": 20,
+            "scrape_job_details": False,
+        },
+    )

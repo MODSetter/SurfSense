@@ -9,9 +9,13 @@ GOOGLE_SEARCH = "google-search"
 SCRAPE = "scrape"
 
 
-def search_arguments(query: str) -> dict[str, Any]:
-    """One results page, about ten links: as many as a person reads before picking."""
-    return {"queries": [query], "max_pages_per_query": 1}
+# Google pages a search shows at most, about ten links each.
+MAX_PAGES = 5
+
+
+def search_arguments(query: str, page: int) -> dict[str, Any]:
+    """Every results page up to this one: the plugin starts each search at page 1."""
+    return {"queries": [query], "max_pages_per_query": page + 1}
 
 
 def listed_results(items: list[dict[str, Any]]) -> list[WebResult]:

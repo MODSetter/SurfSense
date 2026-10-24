@@ -138,3 +138,11 @@ def test_a_maps_search_is_listed_as_its_places() -> None:
     assert PULLER.listing.items([place()]) == [
         Listed(PLACE, "Harbour Tide Cafe", "Cafe · 1 Quay St, Falmouth")
     ]
+
+
+def test_a_search_runs_on_google_maps_itself() -> None:
+    """A place belongs in the words, "cafes in Falmouth", as on Maps."""
+    assert PULLER.search is not None
+    assert PULLER.search("cafes in Falmouth", 20) == ToolCall(
+        "scrape", {"search_queries": ["cafes in Falmouth"], "max_places": 20}
+    )
