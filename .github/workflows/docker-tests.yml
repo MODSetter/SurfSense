@@ -190,6 +190,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: changes
     if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.backend == 'true'
+    # A hung test fails here rather than at GitHub's 6-hour default.
+    timeout-minutes: 60
     env:
       EMBEDDING_MODEL: sentence-transformers/all-MiniLM-L6-v2
 
@@ -224,6 +226,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: changes
     if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.backend == 'true'
+    timeout-minutes: 60
     env:
       EMBEDDING_MODEL: sentence-transformers/all-MiniLM-L6-v2
       REDIS_APP_URL: redis://localhost:6379/0
