@@ -113,7 +113,7 @@ A tag counts only once GitHub serves it. The redirect checks it against the newe
 
 ## The legacy app
 
-`surfsense_desktop/` left the tree on 17 Sep 2026; its source is at tag `archive/hosted-2026-09`. v0.0.40 caps its updater below 1.0.0, downloading only an offered version that starts with `0.`, and at startup reads `sunset` from the hosted `/health` to load the live `/sunset` page ([contract 4](../contracts/04-sunset-flag.md), [sunset](sunset.md)). The cap is not a live guard: it hangs off `update-available`, and a release without `latest*.yml` fails the check with a 404 before that event fires. The channel names keep 2.x manifests away from legacy clients, and the bridge keeps their checks from failing.
+`surfsense_desktop/` left the tree on 17 Sep 2026; its source is at tag `archive/hosted-2026-09`. v0.0.40 caps its updater below 1.0.0, downloading only an offered version that starts with `0.`, and at startup reads `sunset` from the hosted `/health` to load the live `/sunset` page ([contract 4](https://github.com/MODSetter/SurfSense/blob/261edd605ba67f19e47a5e1b6852e2ef045235af/docs/contracts/04-sunset-flag.md), [sunset](https://github.com/MODSetter/SurfSense/blob/261edd605ba67f19e47a5e1b6852e2ef045235af/docs/architecture/sunset.md)). The cap is not a live guard: it hangs off `update-available`, and a release without `latest*.yml` fails the check with a 404 before that event fires. The channel names keep 2.x manifests away from legacy clients, and the bridge keeps their checks from failing.
 
 ## Known gaps
 

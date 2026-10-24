@@ -168,10 +168,10 @@ What the routes need from `server/`:
 
 The hosted wind-down is over, so nothing answers the v0.0.40 desktop any more. The backend's `/health` stays plain `ok`, which is all Coolify's health check and the Dockerfile's `HEALTHCHECK` read.
 
-- **v0.0.40 is left as it is.** It asks `api.surfsense.com/health` at startup, reads anything but `"sunset": true` as "not sunset", and loads its bundled frontend, which cannot reach a backend ([contract 4](../../contracts/04-sunset-flag.md)). Its users get no pointer to 2.0.
-- **`release-local.yml` drops the `legacy-update-bridge` job.** It kept v0.0.40's update checks landing on v0.0.40 so `/sunset` could reach them; they now fail with a 404.
+- **v0.0.40 is left as it is.** It asks `api.surfsense.com/health` at startup, reads anything but `"sunset": true` as "not sunset", and loads its bundled frontend, which cannot reach a backend ([contract 4](https://github.com/MODSetter/SurfSense/blob/261edd605ba67f19e47a5e1b6852e2ef045235af/docs/contracts/04-sunset-flag.md)). Its users get no pointer to 2.0.
+- **`release-local.yml` keeps the `legacy-update-bridge` job for now.** It keeps 0.0.x update checks landing on v0.0.40 ([ADR 0020](../../adr/0020-two-update-channels.md)). It goes, with an ADR that supersedes that part of 0020, once those checks fall to near zero.
 - **The desktop drops its link to `/sunset`.** The cloud-import setting opens it ([`settings-dialog.tsx`](../../../surfsense_local/frontend/src/features/settings/settings-dialog.tsx)); the link and its tests go in a desktop release before the website ships without `/sunset`. Importing an export stays.
-- **The sunset docs are deleted:** `architecture/sunset.md`, contract 4 (with both sides' owners), and the sunset and purge runbooks. `architecture/updates.md` drops the bridge.
+- **The sunset docs are deleted:** `architecture/sunset.md`, contract 4 (with both sides' owners), and the sunset and purge runbooks. `architecture/updates.md` keeps the bridge while it runs.
 
 ### What the move changes with it
 
@@ -220,7 +220,7 @@ The backend lands first, in its own pull request into `dev`:
 Steps 1 and 2 landed in #2337. Then, into `dev`:
 
 3. #2341: the legacy code deleted, and `surfsense_web/` split into `website/`, with the hook, `CODEOWNERS` and doc-link changes. The cutover finishes before this reaches `main`, or Coolify's hosted `surfsense_backend` has no source to rebuild from.
-4. A desktop release that drops the cloud-import link to `/sunset`, with `release-local.yml` narrowed to `v[1-9]*` and its `legacy-update-bridge` job removed. It ships before the website goes live without `/sunset`. The sunset docs are deleted with it.
+4. A desktop release that drops the cloud-import link to `/sunset`, with `release-local.yml` narrowed to `v[1-9]*`. It ships before the website goes live without `/sunset`. The sunset docs are deleted with it.
 5. `/mcp-server` removed from the website, with its redirect to `/plugins` ([the website](#the-website)), once `mcp.surfsense.com` is switched off.
 6. The website restructured into feature folders, its own pull request.
 7. The Docker steps 4 to 14.
