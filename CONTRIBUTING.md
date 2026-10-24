@@ -17,17 +17,15 @@ Security: [SECURITY.md](SECURITY.md). Conduct: [CODE_OF_CONDUCT.md](CODE_OF_COND
 
 ## Getting set up
 
-This repo holds four products. Clone it once, then open the README for the product you want to change. You do not need to run the other three.
+Clone the repo once, then open the README for the part you want to change. You do not need to run the others.
 
 | If you want to work on | Open |
 |------------------------|------|
 | Desktop app | [`surfsense_local/README.md`](surfsense_local/README.md) |
-| MCP server | [`surfsense_mcp/README.md`](surfsense_mcp/README.md) |
-| API / scrapers | [`surfsense_backend/README.md`](surfsense_backend/README.md) |
-| Self-host web UI | [`surfsense_web/README.md`](surfsense_web/README.md) |
+| Website | [`website/README.md`](website/README.md) |
 | A plugin, your MCP server listed in the app | [`backend/plugins/registry/README.md`](backend/plugins/registry/README.md) |
 
-The web UI needs the API running. Desktop does not. MCP talks to any backend over HTTP.
+The self-hosted stack is on the [`legacy` branch](https://github.com/MODSetter/SurfSense/tree/legacy). A fix to it is a PR into `legacy`.
 
 ```bash
 git clone https://github.com/<you>/SurfSense.git
@@ -55,11 +53,11 @@ Small, focused PRs are easier to review.
 - After editing anything under `docs/` or `plans/`, run `python scripts/check_docs.py`.
 - [Allow edits from maintainers](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/allowing-changes-to-a-pull-request-branch-created-from-a-fork) lets us help on the branch.
 - New files follow [AGENTS.md](AGENTS.md). Existing packages do not need a layout rewrite unless that is the issue.
-- `surfsense_backend/app/proprietary/` and `backend/plugins/proprietary/` are Business Source License 1.1, and only maintainers change them. A pull request from anyone else that touches them is closed.
+- `backend/plugins/proprietary/` is Business Source License 1.1, and only maintainers change it. A pull request from anyone else that touches them is closed.
 - Keep `.env` and secrets out of the commit.
 
 ## Review and merge
 
-CI on the PR should be green. `code-quality.yml` runs the docs checker, file checks and a secrets scan on every PR, and fails one from anyone but a maintainer that touches `proprietary/`. Each product lints, scans and tests itself when its files change: `desktop-tests.yml` for `surfsense_local`. `surfsense_backend` and `surfsense_web` are tested on the `legacy` branch, which carries the self-hosted stack. [CODEOWNERS](.github/CODEOWNERS) asks the maintainer who owns the files you touched to review. One maintainer approval is enough to merge. Merged work lands on `dev` and reaches `main` with the next release.
+CI on the PR should be green. `code-quality.yml` runs the docs checker, file checks and a secrets scan on every PR, and fails one from anyone but a maintainer that touches `proprietary/`. Each product lints, scans and tests itself when its files change: `desktop-tests.yml` for `surfsense_local`. The self-hosted stack is tested on the `legacy` branch. [CODEOWNERS](.github/CODEOWNERS) asks the maintainer who owns the files you touched to review. One maintainer approval is enough to merge. Merged work lands on `dev` and reaches `main` with the next release.
 
 If you work with a coding agent, [AGENTS.md](AGENTS.md) gives it the same rules, along with the repo's layout and commands.

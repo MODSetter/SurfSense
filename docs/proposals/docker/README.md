@@ -3,6 +3,7 @@ status: in-progress
 tracking: https://github.com/MODSetter/SurfSense/issues/2100
 code:
   - docker/local/
+  - docker/scripts/
   - surfsense_local/electron/src/main/sidecars/
   - surfsense_local/electron/scripts/
   - surfsense_local/electron/src/main/index.ts
@@ -77,7 +78,8 @@ The new stack, in `docker/local/`:
 | `caddy/Caddyfile` | the routes; imports one access file |
 | `caddy/access-local.caddy` | access without a password, for `localhost` hosts only |
 | `caddy/access-password.caddy` | `basic_auth` and the allowed hosts |
-| `scripts/` | later: `install.sh` and `install.ps1` for this stack |
+
+Its installer, later, in `docker/scripts/`: `install.sh` and `install.ps1`, at the legacy installer's paths ([legacy split](../legacy-split/README.md#the-install-urls-pass-to-the-new-stack)).
 
 The code, in `surfsense_local/`:
 
@@ -97,8 +99,9 @@ The code, in `surfsense_local/`:
 
 CI is `.github/workflows/docker-local.yml`.
 
-- **Every file of the new stack is in `docker/local/`, and nothing outside it in `docker/` changes.** The new stack reads nothing from the legacy files and the legacy stack reads nothing from `docker/local/`, so either can change or be deleted without touching the other.
-- **`docker/local/`, not the top of `docker/`.** [`install.sh`](../../../docker/scripts/install.sh) downloads `docker/docker-compose.yml`, `docker/.env.example`, `docker/proxy/Caddyfile` and five more by path from `main`, so a new file at any of those paths reaches every legacy install. The folder name is fixed from the start, because this stack's own install script will be fetched by its path too. Retiring the legacy stack deletes its files and leaves `docker/local/` where it is.
+- **Every file of the new stack is in `docker/local/`, except its installer.** The new stack reads nothing from the legacy files and the legacy stack reads nothing from `docker/local/`, so either can change or be deleted without touching the other.
+- **`docker/local/`, not the top of `docker/`.** Copies of the legacy [`install.sh`](https://github.com/MODSetter/SurfSense/blob/legacy/docker/scripts/install.sh) from before 0.0.41 download `docker/docker-compose.yml`, `docker/.env.example`, `docker/proxy/Caddyfile` and five more by path from `main`, so a new file at any of those paths would reach a legacy install. The folder name is fixed from the start, because the installer fetches this stack's files by their paths too.
+- **The installer takes the legacy one's paths.** The one-line commands the legacy docs handed out, `…/main/docker/scripts/install.sh` and `install.ps1`, install this stack once it ships.
 - **Code stays in its tree.** `docker/local/` holds only what Docker reads; the supervisor, the checks and the settings are application code in `surfsense_local/`.
 - **Runtime staging is shared.** The Dockerfile runs the desktop's pinned fetch and compile scripts with the image's targets, so the pins cannot drift between the two.
 

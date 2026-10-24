@@ -21,7 +21,7 @@ No part of this contract carries an identifier. Not `x-user-staging-id`, not a l
 - Timeout 10 s. On **any** failure of our feed (a network error, the timeout, a status other than 200, a body that is not a valid manifest, a missing version, or any file URL that is not exactly `https://github.com/MODSetter/SurfSense/releases/download/v<version>/<file name>`), the provider fetches `https://github.com/MODSetter/SurfSense/releases/latest/download/<channelFile>` directly, with no SurfSense header and no staging ID, and uses that, resolving a relative file name to `https://github.com/MODSetter/SurfSense/releases/download/v<version>/<name>`. Only when GitHub fails too does the check fail.
 - **Updates are never blocked because `updates.surfsense.com` is down, slow or wrong.** The one exception: with an admin policy's `updateFeed` mirror there is no GitHub fallback, because such sites reach nothing else.
 
-### The website route (`surfsense_web`, served at `updates.surfsense.com`)
+### The website route (`website`, served at `updates.surfsense.com`)
 
 - `GET /api/updates/<file>`. `file` must match `^stable(-mac|-linux(-arm64)?)?\.yml$`; anything else, `latest*.yml` included, answers 404.
 - It fetches `https://github.com/MODSetter/SurfSense/releases/latest/download/<file>`, following redirects, revalidated every 900 s.
@@ -84,7 +84,7 @@ The body, schema 1. Every value is an enum, a boolean or a fixed format, never f
 | `week.plugin_calls` | `0`, `1-9`, `10+`, `unknown` | plugin tool calls in the window |
 | `week.onboarding` | `not_started`, `model_chosen`, `model_ready`, `first_source`, `first_answer`, `unknown` | the furthest step ever reached |
 
-### The website route (`surfsense_web`, served at `usage.surfsense.com`)
+### The website route (`website`, served at `usage.surfsense.com`)
 
 - `POST /api/usage`, validated strictly: an unknown key or value answers 400, a body over 4 KB 413, a wrong content type 415. Success is 204.
 - It records one personless event, `desktop_usage_report`, with the fields flattened (`app_version`, `platform`, `os`, `ui_language`, `install_week`, `active_first`, `active_week`, `active_month`, `hardware_ram_gb`, `hardware_gpu`, `hardware_vram_gb`, `week_chat_turns`, `week_agent_turns`, `week_model_source`, `week_sources`, `week_studio_outputs`, `week_plugin_calls`, `week_onboarding`) plus `country` from `x-vercel-ip-country`.
@@ -187,4 +187,4 @@ Details the first implementation settled, within the contract:
 - The app's local API (`surfsense_local/backend`): `tests/integration/usage_statistics/test_summary_route.py` and `tests/unit/usage_statistics/` for the summary's buckets, hardware, language and counts.
 - The app's UI (`surfsense_local/frontend`): the privacy step in `src/features/onboarding/onboarding-page.test.tsx`, `src/features/privacy-choices/usage-statistics-settings.test.tsx` and `src/features/egress/network-settings.test.tsx`.
 - Electron main (`surfsense_local/electron`): the feed provider, the usage reporter, the policy reader, the install-channel detector, `privacy.json` and the bridge's IPC, each in a `*.test.ts` beside its module.
-- The website routes (`surfsense_web`): validation, rewriting and the 404, 502, 400, 413 and 415 answers of both routes.
+- The website routes (`website`): validation, rewriting and the 404, 502, 400, 413 and 415 answers of both routes.

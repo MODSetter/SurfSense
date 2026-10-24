@@ -61,7 +61,7 @@ On a CUDA image the headless entry's `gpu-check.ts` runs `llama-server --list-de
 
 ## Compose
 
-`docker/local/docker-compose.gpu.yml`, layered on the main file as the legacy [`docker-compose.gpu.yml`](../../../docker/docker-compose.gpu.yml) is:
+`docker/local/docker-compose.gpu.yml`, layered on the main file as the legacy [`docker-compose.gpu.yml`](https://github.com/MODSetter/SurfSense/blob/legacy/docker/docker-compose.gpu.yml) is:
 
 ```yaml
 services:

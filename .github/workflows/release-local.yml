@@ -13,7 +13,8 @@ name: Desktop Release
 on:
   push:
     tags:
-      - "v*"
+      # Not v0.*: the 0.0.x line is the legacy stack, tagged legacy-v*.
+      - "v[1-9]*"
   workflow_dispatch:
     inputs:
       version:

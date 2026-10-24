@@ -1,0 +1,602 @@
+/**
+ * Marketing site stylesheet.
+ *
+ * Layout, spacing, type, corners and colours are Tailwind on the markup. This
+ * file holds the two things Tailwind cannot: the marketing palette, and the few
+ * rules that need real CSS (grid hairlines, tables, menu and FAQ motion, the
+ * logo marquee).
+ *
+ * The palette re-points the shared token names (`--card`, `--border`, ...)
+ * inside `.ss-home`, so `bg-card` and every shadcn component on a marketing
+ * page pick up these values while the docs and the 404 page keep the ones in
+ * `globals.css`. Values are the `:root` (light) block of the canonical palette
+ * (`.agents/skills/frontend-workflow/color/PALETTE.css`), pinned: the marketing
+ * site is light for every visitor, whatever theme <html> carries.
+ */
+
+/* Repeated so the order holds even if this file loads before Tailwind's: the
+ * rules below sit in `components`, under the utilities meant to override them. */
+@layer theme, base, components, utilities;
+
+/* The content column every marketing section and the footer's content sit in,
+ * centred. Backgrounds stay full width; see `.ss-home-page`. */
+:root {
+	--home-max: 80rem;
+}
+
+/* Big monitors: the marketing site scales up as one piece. Nearly every size
+ * here is in rem (column, gutters, nav, type, spacing), so growing the root
+ * grows them together. Exactly 100% up to 1920px, so no screen at or below it
+ * changes; then +4px of root per 640px of width, capped at 125% (2560px). */
+html:has(.ss-home) {
+	font-size: clamp(100%, calc(100% + (100vw - 120rem) * 0.00625), 125%);
+}
+
+.ss-home {
+	--app-shell: #f3f2ee;
+	--background: #f7f6f2;
+	--foreground: #1e1e1e;
+	--card: #fbfaf7;
+	--card-foreground: #1e1e1e;
+	--popover: #fbfaf7;
+	--popover-foreground: #1e1e1e;
+	--primary: #2e2e2e;
+	--primary-foreground: #f7f7f7;
+	--secondary: #f1f0ec;
+	--secondary-foreground: #2e2e2e;
+	--muted: #ebeae6;
+	--muted-foreground: #626262;
+	--accent: #e5e4df;
+	--accent-foreground: #2e2e2e;
+	--destructive: #dc2626;
+	--destructive-foreground: #ffffff;
+	--notice: #3f74c8;
+	/* The painted sky of the hero and footer, as a wash behind artifact previews. */
+	--home-sky: #cfe3f7;
+	--home-sky-soft: #eef4fa;
+	/* `HomeBadge` fill: cool grey that still reads on the warm ground. */
+	--home-badge: #e8eaed;
+	--border: #dedede;
+	/* Dividers inside one group, as opposed to `--border` between sections. */
+	--home-divider: color-mix(in oklab, var(--border) 90%, black);
+	--input: #d6d6d6;
+	--ring: #2e2e2e;
+	--radius: 0.5rem;
+
+	/* Space between the screen edge and the content column, matching `px-6
+	 * md:px-10` on full-bleed content such as the footer. */
+	--home-gutter: 1.5rem;
+
+	/* Fumadocs' tokens, which colour `prose` (blog, privacy, terms, changelog),
+	 * code blocks and tables. The app forces `.dark` on <html>, so without these
+	 * long-form text here would take the dark palette. */
+	--color-fd-background: var(--background);
+	--color-fd-foreground: var(--foreground);
+	--color-fd-muted: var(--muted);
+	--color-fd-muted-foreground: var(--muted-foreground);
+	--color-fd-popover: var(--popover);
+	--color-fd-popover-foreground: var(--popover-foreground);
+	--color-fd-card: var(--card);
+	--color-fd-card-foreground: var(--card-foreground);
+	--color-fd-border: var(--border);
+	--color-fd-primary: var(--primary);
+	--color-fd-primary-foreground: var(--primary-foreground);
+	--color-fd-secondary: var(--secondary);
+	--color-fd-secondary-foreground: var(--secondary-foreground);
+	--color-fd-accent: var(--accent);
+	--color-fd-accent-foreground: var(--accent-foreground);
+	--color-fd-ring: var(--ring);
+}
+
+@media (min-width: 768px) {
+	.ss-home {
+		--home-gutter: 2.5rem;
+	}
+}
+
+@media (prefers-contrast: more) {
+	.ss-home {
+		--border: #9b9b9b;
+		--muted-foreground: #2e2e2e;
+	}
+}
+
+@layer base {
+	.ss-home {
+		background-color: var(--background);
+		color: var(--foreground);
+		color-scheme: light;
+		-webkit-font-smoothing: antialiased;
+	}
+}
+
+@layer components {
+	/* Every top-level section of a page is held to the content column, centred,
+	 * so text, cards, grids and rules line up on every page. A section marked
+	 * `data-bleed` (a full-width image) and the footer, which caps its own
+	 * content, run edge to edge. `:where` keeps it below any utility.
+	 *
+	 * The gutter sits outside the column, so text, rules, grids and tables all
+	 * share one edge: a section adds no side padding of its own, and only a
+	 * filled or boxed cell pads its text inside it. */
+	.ss-home-page > :where(:not(footer, [data-bleed])) {
+		width: calc(100% - 2 * var(--home-gutter));
+		max-width: calc(var(--home-max) - 2 * var(--home-gutter));
+		margin-inline: auto;
+	}
+
+	/* -------------------------------------------------------------------------
+	 * Ruled grids
+	 *
+	 * Interior rules are the grid's background showing through a 1px gap, not
+	 * cell borders, which would draw 2px where two cells meet. Columns and
+	 * padding are Tailwind on the markup; a cell's own `bg-*` still wins.
+	 * ---------------------------------------------------------------------- */
+
+	/* Before `.ss-home-grid` itself, so a grid nested in a grid keeps its
+	 * hairline colour instead of taking its parent's cell ground. */
+	.ss-home-grid > * {
+		background-color: var(--background);
+		min-width: 0;
+	}
+
+	.ss-home-grid {
+		display: grid;
+		gap: 1px;
+		background-color: var(--border);
+	}
+
+	/* Dashed rules inset from both ends, for a grid whose only dividers sit
+	 * between its own cells. The gap trick only draws solid lines, so this
+	 * uses a pseudo-element: leading edge in a row, top edge once stacked. */
+	.ss-home-grid-dashed {
+		gap: 0;
+		background-color: transparent;
+	}
+
+	.ss-home-grid-dashed > * {
+		position: relative;
+		background-color: transparent;
+	}
+
+	.ss-home-grid-dashed > *:not(:first-child)::before {
+		content: "";
+		position: absolute;
+		top: 0;
+		right: 6%;
+		left: 6%;
+		border-top: 1px dashed var(--home-divider);
+	}
+
+	@media (min-width: 768px) {
+		.ss-home-grid-dashed > *:not(:first-child)::before {
+			top: 10%;
+			bottom: 10%;
+			left: 0;
+			right: auto;
+			width: 0;
+			border-top: none;
+			border-left: 1px dashed var(--home-divider);
+		}
+	}
+
+	/* Plan tiers: heads share one row and feature lists the next, so every
+	 * call to action lines up however its billing note wraps. Guarded:
+	 * without subgrid, `span 2` lays each tier across rows that do not exist. */
+	.ss-home-plan {
+		display: flex;
+		flex-direction: column;
+	}
+
+	@supports (grid-template-rows: subgrid) {
+		@media (min-width: 768px) {
+			.ss-home-plans {
+				grid-template-rows: auto 1fr;
+			}
+
+			.ss-home-plan {
+				display: grid;
+				grid-row: span 2;
+				grid-template-rows: subgrid;
+			}
+		}
+	}
+
+	/* -------------------------------------------------------------------------
+	 * Tables
+	 * ---------------------------------------------------------------------- */
+
+	.ss-home-table {
+		width: 100%;
+		min-width: 40rem;
+		border-collapse: collapse;
+		font-size: 0.875rem;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.ss-home-table th,
+	.ss-home-table td {
+		padding: 1rem 1.25rem;
+		text-align: left;
+		vertical-align: middle;
+	}
+
+	.ss-home-table th:first-child,
+	.ss-home-table td:first-child {
+		padding-inline-start: 0;
+		width: 11rem;
+	}
+
+	.ss-home-table th:last-child,
+	.ss-home-table td:last-child {
+		padding-inline-end: 0;
+	}
+
+	.ss-home-table thead tr,
+	.ss-home-table tbody tr + tr {
+		border-bottom: 1px solid var(--border);
+	}
+
+	.ss-home-table tbody tr {
+		border-top: 1px solid var(--border);
+	}
+
+	.ss-home-table thead th {
+		font-weight: 500;
+		color: var(--muted-foreground);
+	}
+
+	.ss-home-table tbody th {
+		font-weight: 400;
+		color: var(--muted-foreground);
+	}
+
+	.ss-home-table td {
+		color: var(--foreground);
+	}
+
+	/* The SurfSense column is the one being argued for. */
+	.ss-home-table [data-col="ours"] {
+		color: var(--primary);
+		font-weight: 600;
+	}
+
+	.ss-home-table thead [data-col="ours"] {
+		color: var(--foreground);
+	}
+
+	/* -------------------------------------------------------------------------
+	 * Nav
+	 *
+	 * The header is transparent so the page scrolls behind the gaps around the
+	 * floating bar, and ignores pointer events so those gaps never swallow a
+	 * click. The drawer and scrim stay mounted so a tap mid-animation reverses
+	 * from where it is; `visibility` flips at the end of a close so the closed
+	 * drawer takes no taps.
+	 * ---------------------------------------------------------------------- */
+
+	.ss-home-nav {
+		pointer-events: none;
+		/* Bar, menu card and dropdown read as one material: a translucent
+		 * cool-grey rim and a soft drop. Tinted rather than white, so it still
+		 * reads on the light page; it gives #e4e9f0 over white. */
+		--nav-surface: 0 0 0 5px rgb(201 211 225 / 0.5), 0 12px 28px -12px rgb(0 0 0 / 0.18);
+	}
+
+	.ss-home-nav > * {
+		pointer-events: auto;
+	}
+
+	/* Progressive blur under the bar, as on Apple's sites: content softens
+	 * the closer it gets to the top edge. One blur with a fading mask reads as
+	 * a band; stacked layers that double in strength over a shrinking area
+	 * give a ramp instead. */
+	.ss-home-nav > .ss-home-nav-blur {
+		position: absolute;
+		inset: 0 0 auto;
+		z-index: -1;
+		height: 3.5rem;
+		pointer-events: none;
+	}
+
+	.ss-home-nav-blur > span {
+		position: absolute;
+		inset: 0;
+	}
+
+	.ss-home-nav-blur > span:nth-child(1) {
+		backdrop-filter: blur(1px);
+		mask-image: linear-gradient(to bottom, #000 40%, transparent 100%);
+	}
+
+	.ss-home-nav-blur > span:nth-child(2) {
+		backdrop-filter: blur(2px);
+		mask-image: linear-gradient(to bottom, #000 25%, transparent 75%);
+	}
+
+	.ss-home-nav-blur > span:nth-child(3) {
+		backdrop-filter: blur(4px);
+		mask-image: linear-gradient(to bottom, #000 10%, transparent 50%);
+	}
+
+	.ss-home-nav-blur > span:nth-child(4) {
+		backdrop-filter: blur(8px);
+		mask-image: linear-gradient(to bottom, #000 0%, transparent 25%);
+	}
+
+	/* Closing is quicker and travels less than opening: focus is moving on. */
+	.ss-home-nav-drawer,
+	.ss-home-nav-scrim {
+		transition:
+			opacity 150ms ease-out,
+			translate 150ms ease-out,
+			visibility 0s linear 150ms;
+	}
+
+	.ss-home-nav-drawer[data-state="closed"],
+	.ss-home-nav-scrim[data-state="closed"] {
+		opacity: 0;
+		visibility: hidden;
+		pointer-events: none;
+	}
+
+	.ss-home-nav-drawer[data-state="closed"] {
+		translate: 0 -0.25rem;
+	}
+
+	.ss-home-nav-drawer[data-state="open"],
+	.ss-home-nav-scrim[data-state="open"] {
+		transition:
+			opacity 220ms cubic-bezier(0.2, 0, 0, 1),
+			translate 220ms cubic-bezier(0.2, 0, 0, 1),
+			visibility 0s;
+	}
+
+	/* Hugeicons' two-bar menu morphs into a cross in two steps: opening, the
+	 * bars slide to the middle and then turn; closing runs it backwards. Each
+	 * state names the transitions leading into it, which gives the two
+	 * directions their opposite order. The short lower bar (x 4–14) also
+	 * stretches to full width and recentres, so the cross has equal arms. */
+	.ss-home-nav-burger path {
+		transition:
+			rotate 140ms cubic-bezier(0.2, 0, 0, 1),
+			scale 140ms cubic-bezier(0.2, 0, 0, 1),
+			translate 140ms cubic-bezier(0.2, 0, 0, 1) 120ms;
+	}
+
+	.ss-home-nav-burger path:nth-child(1) {
+		transform-origin: 12px 9px;
+	}
+
+	.ss-home-nav-burger path:nth-child(2) {
+		transform-origin: 9px 15px;
+	}
+
+	[data-state="open"] > .ss-home-nav-burger path {
+		transition:
+			translate 140ms cubic-bezier(0.2, 0, 0, 1),
+			rotate 140ms cubic-bezier(0.2, 0, 0, 1) 120ms,
+			scale 140ms cubic-bezier(0.2, 0, 0, 1) 120ms;
+	}
+
+	[data-state="open"] > .ss-home-nav-burger path:nth-child(1) {
+		translate: 0 3px;
+		rotate: 45deg;
+	}
+
+	[data-state="open"] > .ss-home-nav-burger path:nth-child(2) {
+		translate: 3px -3px;
+		rotate: -45deg;
+		scale: 1.6 1;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.ss-home-nav-burger path,
+		[data-state="open"] > .ss-home-nav-burger path {
+			transition: none;
+		}
+
+		.ss-home-nav-drawer[data-state="closed"] {
+			translate: none;
+		}
+	}
+
+	/* -------------------------------------------------------------------------
+	 * FAQ (`SiteFaqItem`)
+	 *
+	 * `::details-content` keeps the answer in flow so its height can animate
+	 * both ways with no JS. `interpolate-size` must sit on `<details>` itself:
+	 * on the pseudo it only resolved the opening transition. `overflow: clip`,
+	 * not `hidden`, which fights `content-visibility` and snaps the close.
+	 * Browsers without support snap open and closed.
+	 * ---------------------------------------------------------------------- */
+
+	.ss-home-faq {
+		interpolate-size: allow-keywords;
+	}
+
+	.ss-home-faq::details-content {
+		overflow: clip;
+		height: 0;
+		opacity: 0;
+		transition:
+			height 260ms cubic-bezier(0.4, 0, 0.2, 1),
+			opacity 200ms ease-out,
+			content-visibility 260ms allow-discrete;
+	}
+
+	.ss-home-faq[open]::details-content {
+		height: auto;
+		opacity: 1;
+	}
+
+	@starting-style {
+		.ss-home-faq[open]::details-content {
+			height: 0;
+			opacity: 0;
+		}
+	}
+
+	/* A plus that turns into a cross. Decorative: details/summary already
+	 * exposes the open state. */
+	.ss-home-faq-marker {
+		position: relative;
+		flex: none;
+		width: 0.75rem;
+		height: 0.75rem;
+		transition: transform 150ms ease-out;
+	}
+
+	.ss-home-faq[open] .ss-home-faq-marker {
+		transform: rotate(45deg);
+	}
+
+	.ss-home-faq-marker::before,
+	.ss-home-faq-marker::after {
+		content: "";
+		position: absolute;
+		inset: 50% 0 auto;
+		height: 1px;
+		background: currentColor;
+	}
+
+	.ss-home-faq-marker::after {
+		transform: rotate(90deg);
+	}
+
+	/* -------------------------------------------------------------------------
+	 * Logo marquee (`HomeLogos`)
+	 *
+	 * The track holds the list twice and slides by half its width, so the loop
+	 * has no seam. Pauses on hover so a visitor can read a name.
+	 * ---------------------------------------------------------------------- */
+
+	.ss-home-marquee {
+		animation: ss-home-marquee 60s linear infinite;
+	}
+
+	.ss-home-marquee:hover {
+		animation-play-state: paused;
+	}
+
+	/* Set by `PauseOffscreen`: a loop nobody can see should not cost frames. */
+	[data-offscreen] .ss-home-marquee {
+		animation-play-state: paused;
+	}
+
+	/* -------------------------------------------------------------------------
+	 * Air-gap diorama (`AirGapDiagram`)
+	 *
+	 * The current claim (`data-active`, set from scroll) lights its objects in
+	 * the diorama: they turn blue, lift a few pixels off their shadows and a
+	 * glow comes up under them, while the other steps' objects step back. The laptop and the
+	 * slab belong to no step and never dim. Hooks are `data-dio` attributes,
+	 * not classes: SVGR's SVGO prefixes class names inside the SVG.
+	 * ---------------------------------------------------------------------- */
+
+	[data-dio="obj"] {
+		opacity: 0.6;
+		transition:
+			opacity 300ms ease-out,
+			transform 300ms cubic-bezier(0.2, 0, 0, 1);
+	}
+
+	[data-dio="glow"] {
+		opacity: 0;
+		transition: opacity 400ms ease-out;
+	}
+
+	/* Each step's objects also carry a blue copy over the stone one; the
+	 * active step fades it in, matching its claim's blue badge. */
+	[data-dio="accent"] {
+		opacity: 0;
+		transition: opacity 300ms ease-out;
+	}
+
+	.ss-airgap-root[data-active="index"] [data-group="index"] [data-dio="accent"],
+	.ss-airgap-root[data-active="model"] [data-group="model"] [data-dio="accent"],
+	.ss-airgap-root[data-active="outputs"] [data-group="outputs"] [data-dio="accent"] {
+		opacity: 1;
+	}
+
+	.ss-airgap-root[data-active="index"] [data-group="index"],
+	.ss-airgap-root[data-active="model"] [data-group="model"],
+	.ss-airgap-root[data-active="outputs"] [data-group="outputs"] {
+		opacity: 1;
+		transform: translateY(-4px);
+	}
+
+	.ss-airgap-root[data-active="index"] [data-glow="index"],
+	.ss-airgap-root[data-active="model"] [data-glow="model"],
+	.ss-airgap-root[data-active="outputs"] [data-glow="outputs"] {
+		opacity: 0.7;
+	}
+
+	.ss-airgap-step {
+		background-color: var(--foreground);
+		color: var(--background);
+		transition: background-color 200ms ease-out;
+	}
+
+	/* The other two claims step back while one is current. */
+	.ss-airgap-claim {
+		opacity: 0.45;
+		transition: opacity 300ms ease-out;
+	}
+
+	.ss-airgap-root[data-active="index"] [data-claim="index"],
+	.ss-airgap-root[data-active="model"] [data-claim="model"],
+	.ss-airgap-root[data-active="outputs"] [data-claim="outputs"] {
+		opacity: 1;
+	}
+
+	.ss-airgap-root[data-active="index"] [data-claim="index"] .ss-airgap-step,
+	.ss-airgap-root[data-active="model"] [data-claim="model"] .ss-airgap-step,
+	.ss-airgap-root[data-active="outputs"] [data-claim="outputs"] .ss-airgap-step {
+		background-color: var(--notice);
+	}
+}
+
+@keyframes ss-home-marquee {
+	to {
+		translate: -50% 0;
+	}
+}
+
+/* ---------------------------------------------------------------------------
+ * Unlayered on purpose: these must outrank Tailwind utilities.
+ * ------------------------------------------------------------------------ */
+
+/* Running text in the homepage's body grey, as `siteText.body` sets it;
+ * headings, bold and links stay in the near-black the tokens above give them. */
+.ss-home .prose {
+	--tw-prose-body: var(--muted-foreground);
+}
+
+/* Code takes Shiki's light colours: the forced `.dark` would otherwise pick the
+ * dark theme's pale tokens, unreadable on the light card. Doubled class to
+ * outrank Fumadocs' `.dark .shiki` rule. */
+.ss-home .shiki.shiki:not(.not-fumadocs-codeblock *) code span {
+	color: var(--shiki-light);
+	font-style: var(--shiki-light-font-style);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	/* biome-ignore-start lint/complexity/noImportantStyles: a reduced-motion
+	 * kill switch has to outrank the utility that set the duration. Colour,
+	 * the FAQ's open state and focus rings still change. */
+	.ss-home *,
+	.ss-home *::before,
+	.ss-home *::after {
+		transition-duration: 0.01ms !important;
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+	}
+
+	/* The kill switch above would run the marquee once and stop it mid-slide.
+	 * Hold it still at the start instead. */
+	.ss-home-marquee {
+		animation-name: none !important;
+	}
+	/* biome-ignore-end lint/complexity/noImportantStyles: see above */
+}

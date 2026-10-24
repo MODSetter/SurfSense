@@ -1208,7 +1208,6 @@
   "settings_general_body": "このデバイスでのSurfSenseの見た目と動作を管理します。",
   "settings_general_cloud_import_body": "SurfSenseクラウドからエクスポートしたZIPをアップロードしてください。",
   "settings_general_cloud_import_info_aria": "SurfSenseクラウドからのインポートの詳細",
-  "settings_general_cloud_import_link": "SurfSenseクラウドを開く",
   "settings_general_cloud_import_title": "SurfSenseクラウドからインポート",
   "settings_general_cloud_import_tooltip": "ワークスペース、フォルダー、チャットが引き継がれます。ドキュメントはテキストとして取り込まれ、インポート後にインデックスされます。元のファイルと生成物はクラウドに残ります。",
   "settings_general_language_body": "このデバイスでSurfSenseが使う言語を選びます。",
