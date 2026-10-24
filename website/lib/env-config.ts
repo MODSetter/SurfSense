@@ -5,8 +5,9 @@
  */
 
 // The license portal's origin, https://api.surfsense.com in production. Unset,
-// requests stay same-origin relative paths.
-export const BACKEND_URL = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL ?? "";
+// requests stay same-origin relative paths. Not exported: build URLs with
+// buildBackendUrl, the one seam for them.
+const BACKEND_URL = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL ?? "";
 
 type BackendUrlParam = string | number | boolean | null | undefined;
 

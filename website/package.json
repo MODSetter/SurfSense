@@ -12,13 +12,12 @@
 		"dev:turbo": "next dev --turbopack",
 		"build": "next build",
 		"start": "next start",
-		"lint": "next lint",
+		"lint": "biome lint .",
 		"format": "biome check --write ./ --max-diagnostics 500",
 		"debug": "cross-env NODE_OPTIONS=--inspect next dev --turbopack",
 		"debug:browser": "cross-env NODE_OPTIONS=--inspect next dev --turbopack",
 		"debug:server": "cross-env NODE_OPTIONS=--inspect=0.0.0.0:9229 next dev --turbopack",
 		"postinstall": "fumadocs-mdx",
-		"format:fix": "npx @biomejs/biome check --fix",
 		"test:unit": "tsx --test tests/unit/*.test.ts tests/unit/**/*.test.ts"
 	},
 	"dependencies": {
@@ -53,7 +52,6 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.5.15",
-		"@eslint/eslintrc": "^3.3.1",
 		"@playwright/test": "^1.59.1",
 		"@svgr/webpack": "^8.1.0",
 		"@tailwindcss/postcss": "^4.1.11",
@@ -62,8 +60,6 @@
 		"@types/react": "^19.1.8",
 		"@types/react-dom": "^19.1.6",
 		"cross-env": "^7.0.3",
-		"eslint": "^9.32.0",
-		"eslint-config-next": "15.2.0",
 		"tailwindcss": "^4.1.11",
 		"tsx": "^4.20.6",
 		"typescript": "^5.8.3"
