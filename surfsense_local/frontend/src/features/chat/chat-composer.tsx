@@ -251,7 +251,9 @@ export function ChatComposer({
       ) : null}
       <ComposerPrimitive.Root
         className={cn(
-          "relative rounded-2xl border bg-card p-1.5 shadow-sm transition-colors focus-within:border-ring/40 hover:border-ring/40",
+          // No top padding: the text scrolls up to the border, not to a strip
+          // above it, and holds that space in its own padding instead.
+          "relative rounded-2xl border bg-card px-1.5 pb-1.5 shadow-sm transition-colors focus-within:border-ring/40 hover:border-ring/40",
           placement === "bottom" && "flex items-end gap-2"
         )}
       >
@@ -271,9 +273,9 @@ export function ChatComposer({
             cancelOnEscape={!dictationKeys.recording}
             onKeyDown={dictationKeys.onKeyDown}
             className={cn(
-              "max-h-44 resize-none bg-transparent px-2 py-2.5 text-sm outline-none placeholder:text-muted-foreground",
+              "max-h-44 resize-none bg-transparent px-2 pt-4 pb-2.5 text-sm outline-none placeholder:text-muted-foreground",
               placement === "center"
-                ? "block min-h-20 w-full pb-12"
+                ? "block min-h-12 w-full"
                 : "min-h-10 flex-1"
             )}
             placeholder={
@@ -304,12 +306,14 @@ export function ChatComposer({
             })}
           />
           {placement === "center" ? (
-            <>
-              <div className="absolute bottom-2 left-1.5 flex items-center gap-1">
+            // Its own row under the text, never over it: long text scrolls
+            // inside the box and stops above the controls.
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex shrink-0 items-center gap-1">
                 {addMenu("")}
                 {model ? <ModePicker model={model} threadMode={null} /> : null}
               </div>
-              <div className="absolute right-1.5 bottom-2 flex items-center gap-2">
+              <div className="flex min-w-0 items-center gap-2">
                 {stripShown ? (
                   strip("max-w-56")
                 ) : (
@@ -328,7 +332,7 @@ export function ChatComposer({
                   onSendClick={dictationKeys.onSendClick}
                 />
               </div>
-            </>
+            </div>
           ) : (
             <>
               <SourceCount count={sourceCount} className="mb-2" />
