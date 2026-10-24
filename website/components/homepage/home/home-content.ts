@@ -12,17 +12,6 @@ import { BUSINESS_URL, DOWNLOADS_URL, REPO_URL } from "@/components/site/site-co
  * than on every render.
  */
 
-/**
- * Pinned release tag.
- *
- * Unreferenced since the hero's "grab v0.0.40 directly" line was removed, and
- * the tag it names is the retired legacy app. A download link added here should
- * take `APP_RELEASE_TAG` from `lib/app-release.ts`, which `bump-version.sh`
- * keeps current, rather than this constant. Delete both once that happens.
- */
-export const PINNED_RELEASE_TAG = "v0.0.40";
-export const RELEASE_URL = `${REPO_URL}/releases/tag/${PINNED_RELEASE_TAG}`;
-
 export { BUSINESS_URL, DOWNLOADS_URL, REPO_URL };
 
 /**

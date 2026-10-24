@@ -1,6 +1,5 @@
 import {
 	Agreement01Icon as Agreement01IconData,
-	AiSearchLinesIcon as AiSearchLinesIconData,
 	Alert02Icon as Alert02IconData,
 	ArrowRightIcon as ArrowRightIconData,
 	ArrowUp02Icon as ArrowUp02IconData,
@@ -12,15 +11,12 @@ import {
 	Calculator01Icon as Calculator01IconData,
 	Calendar03Icon as Calendar03IconData,
 	Cancel01Icon as Cancel01IconData,
-	Cards01Icon as Cards01IconData,
 	ChartHistogramIcon as ChartHistogramIconData,
 	CheckIcon as CheckIconData,
 	CheckmarkBadge02Icon as CheckmarkBadge02IconData,
 	ChevronDownIcon as ChevronDownIconData,
 	ChevronRightIcon as ChevronRightIconData,
-	ChipIcon as ChipIconData,
 	ClipboardCheckIcon as ClipboardCheckIconData,
-	CloudIcon as CloudIconData,
 	Compass01Icon as Compass01IconData,
 	ComputerTerminal01Icon as ComputerTerminal01IconData,
 	ContainerIcon as ContainerIconData,
@@ -33,7 +29,6 @@ import {
 	File02Icon as File02IconData,
 	FlaskConicalIcon as FlaskConicalIconData,
 	HistoryIcon as HistoryIconData,
-	Image01Icon as Image01IconData,
 	InformationCircleIcon as InformationCircleIconData,
 	Key01Icon as Key01IconData,
 	LaptopIcon as LaptopIconData,
@@ -42,14 +37,12 @@ import {
 	Megaphone01Icon as Megaphone01IconData,
 	MenuTwoLineIcon as MenuTwoLineIconData,
 	MinusSignIcon as MinusSignIconData,
-	NetworkIcon as NetworkIconData,
 	Notification03Icon as Notification03IconData,
 	Pdf01Icon as Pdf01IconData,
 	Plug01Icon as Plug01IconData,
 	PlusIcon as PlusIconData,
 	PodcastIcon as PodcastIconData,
 	Presentation02Icon as Presentation02IconData,
-	Quiz02Icon as Quiz02IconData,
 	Radar01Icon as Radar01IconData,
 	Search01Icon as Search01IconData,
 	SecurityCheckIcon as SecurityCheckIconData,
@@ -57,12 +50,8 @@ import {
 	SourceCodeIcon as SourceCodeIconData,
 	UnplugIcon as UnplugIconData,
 	UserCircleIcon as UserCircleIconData,
-	ViewIcon as ViewIconData,
-	ViewOffSlashIcon as ViewOffSlashIconData,
-	WebDesign01Icon as WebDesign01IconData,
 	WifiOffIcon as WifiOffIconData,
 	Wrench01Icon as Wrench01IconData,
-	Xls01Icon as Xls01IconData,
 	ZapIcon as ZapIconData,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -101,7 +90,6 @@ function createIcon(icon: IconData): Icon {
 	});
 }
 export const Agreement01Icon = createIcon(Agreement01IconData);
-export const AiSearchLinesIcon = createIcon(AiSearchLinesIconData);
 export const Alert02Icon = createIcon(Alert02IconData);
 export const ArrowRightIcon = createIcon(ArrowRightIconData);
 export const ArrowUp02Icon = createIcon(ArrowUp02IconData);
@@ -113,15 +101,12 @@ export const CableIcon = createIcon(CableIconData);
 export const Calculator01Icon = createIcon(Calculator01IconData);
 export const Calendar03Icon = createIcon(Calendar03IconData);
 export const Cancel01Icon = createIcon(Cancel01IconData);
-export const Cards01Icon = createIcon(Cards01IconData);
 export const ChartHistogramIcon = createIcon(ChartHistogramIconData);
 export const CheckIcon = createIcon(CheckIconData);
 export const CheckmarkBadgeIcon = createIcon(CheckmarkBadge02IconData);
 export const ChevronDownIcon = createIcon(ChevronDownIconData);
 export const ChevronRightIcon = createIcon(ChevronRightIconData);
-export const ChipIcon = createIcon(ChipIconData);
 export const ClipboardCheckIcon = createIcon(ClipboardCheckIconData);
-export const CloudIcon = createIcon(CloudIconData);
 export const Compass01Icon = createIcon(Compass01IconData);
 export const ComputerTerminal01Icon = createIcon(ComputerTerminal01IconData);
 export const ContainerIcon = createIcon(ContainerIconData);
@@ -134,7 +119,6 @@ export const FavouriteIcon = createIcon(FavouriteIconData);
 export const File02Icon = createIcon(File02IconData);
 export const FlaskConicalIcon = createIcon(FlaskConicalIconData);
 export const HistoryIcon = createIcon(HistoryIconData);
-export const Image01Icon = createIcon(Image01IconData);
 export const InformationCircleIcon = createIcon(InformationCircleIconData);
 export const Key01Icon = createIcon(Key01IconData);
 export const LaptopIcon = createIcon(LaptopIconData);
@@ -143,14 +127,12 @@ export const Mail01Icon = createIcon(Mail01IconData);
 export const Megaphone01Icon = createIcon(Megaphone01IconData);
 export const MenuTwoLineIcon = createIcon(MenuTwoLineIconData);
 export const MinusSignIcon = createIcon(MinusSignIconData);
-export const NetworkIcon = createIcon(NetworkIconData);
 export const Notification03Icon = createIcon(Notification03IconData);
 export const Pdf01Icon = createIcon(Pdf01IconData);
 export const Plug01Icon = createIcon(Plug01IconData);
 export const PlusIcon = createIcon(PlusIconData);
 export const PodcastIcon = createIcon(PodcastIconData);
 export const Presentation02Icon = createIcon(Presentation02IconData);
-export const Quiz02Icon = createIcon(Quiz02IconData);
 export const Radar01Icon = createIcon(Radar01IconData);
 export const Search01Icon = createIcon(Search01IconData);
 export const SecurityCheckIcon = createIcon(SecurityCheckIconData);
@@ -158,10 +140,6 @@ export const ServerStack01Icon = createIcon(ServerStack01IconData);
 export const SourceCodeIcon = createIcon(SourceCodeIconData);
 export const UnplugIcon = createIcon(UnplugIconData);
 export const UserCircleIcon = createIcon(UserCircleIconData);
-export const ViewIcon = createIcon(ViewIconData);
-export const ViewOffSlashIcon = createIcon(ViewOffSlashIconData);
-export const WebDesign01Icon = createIcon(WebDesign01IconData);
 export const WifiOffIcon = createIcon(WifiOffIconData);
 export const Wrench01Icon = createIcon(Wrench01IconData);
-export const Xls01Icon = createIcon(Xls01IconData);
 export const ZapIcon = createIcon(ZapIconData);
