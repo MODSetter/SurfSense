@@ -1,7 +1,7 @@
 import { DocsLayout } from "fumadocs-ui/layouts/docs";
 import type { ReactNode } from "react";
 import { baseOptions } from "@/app/layout.config";
-import { source } from "@/lib/source";
+import { source } from "@/features/docs/source";
 import { SidebarSeparator } from "./sidebar-separator";
 
 const gridTemplate = `"sidebar header toc"

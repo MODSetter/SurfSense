@@ -1,5 +1,5 @@
-import { GithubLogo } from "@/components/homepage/icons/github-logo";
-import { cn } from "@/lib/utils";
+import { GithubLogo } from "@/components/site/logos/github-logo";
+import { cn } from "@/components/ui/cn";
 
 /**
  * GitHub star count in the site navigation.

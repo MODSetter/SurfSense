@@ -1,5 +1,5 @@
+import { cn } from "@/components/ui/cn";
 import { CheckmarkBadgeIcon } from "@/components/ui/icons";
-import { cn } from "@/lib/utils";
 import type { PluginListing } from "./plugin-listing";
 
 /** Beside a verified plugin's name, the app's mark: SurfSense checked that its author runs it. */

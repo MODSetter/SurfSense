@@ -2,10 +2,10 @@
 
 import FuzzySearch from "fuzzy-search";
 import { useMemo, useState } from "react";
-import { HomeBadge } from "@/components/homepage/home/home-badge";
-import { sectionSpacing } from "@/components/homepage/home/home-section-spacing";
+import { HomeBadge } from "@/components/site/home-badge";
+import { sectionSpacing } from "@/components/site/home-section-spacing";
 import { siteText } from "@/components/site/site-text";
-import { cn } from "@/lib/utils";
+import { cn } from "@/components/ui/cn";
 import { FeaturedPost } from "./featured-post";
 import type { BlogEntry } from "./page";
 import { PostCard } from "./post-card";

@@ -1,6 +1,6 @@
 """The desktop release licence mail links to, through the site's download redirect.
 
-Kept in lockstep with ``website/lib/app-release.ts``: both name the same
+Kept in lockstep with ``website/features/downloads/app-release.ts``: both name the same
 tag, and ``surfsense_local/scripts/bump-version.sh`` writes both. Each link
 carries ``v=<tag>``, so a mail already sent keeps naming the build it was sent
 for, and ``src=email``, so the redirect counts which downloads mail produced.

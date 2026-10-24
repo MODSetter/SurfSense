@@ -1,8 +1,8 @@
 import path from "node:path";
 import { createMDX } from "fumadocs-mdx/next";
 import type { NextConfig } from "next";
-import { docsRedirects } from "./lib/docs-redirects";
-import { installScriptRedirects } from "./lib/install-script-redirects";
+import { docsRedirects } from "./features/docs/docs-redirects";
+import { installScriptRedirects } from "./features/downloads/install-script-redirects";
 
 // The per-scraper marketing pages gave way to each plugin's page under /plugins.
 const LISTED_SCRAPERS = [

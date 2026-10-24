@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteNav } from "@/components/site/site-nav";
 import { SiteSmoothScroll } from "@/components/site/site-smooth-scroll";
-import { cn } from "@/lib/utils";
+import { cn } from "@/components/ui/cn";
 
 /**
  * The chrome around every `(home)` route.

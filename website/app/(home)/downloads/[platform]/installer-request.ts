@@ -3,7 +3,7 @@ import {
 	FIRST_STABLE_NAMES_VERSION,
 	type InstallerPlatform,
 	isInstallerPlatform,
-} from "@/lib/app-release";
+} from "@/features/downloads/app-release";
 
 /** Where the link that led here lives. Anything else is counted as `other`. */
 export const DOWNLOAD_SOURCES = ["site", "readme", "email", "app", "pricing", "other"] as const;

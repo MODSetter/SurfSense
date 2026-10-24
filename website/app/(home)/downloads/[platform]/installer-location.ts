@@ -1,4 +1,8 @@
-import { INSTALLER_FILES, installerAssetUrl, latestInstallerUrl } from "@/lib/app-release";
+import {
+	INSTALLER_FILES,
+	installerAssetUrl,
+	latestInstallerUrl,
+} from "@/features/downloads/app-release";
 import type { InstallerRequest } from "./installer-request";
 import type { PublishedInstallers } from "./published-installers";
 

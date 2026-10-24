@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import { HomeButton } from "@/components/homepage/home/home-button";
-import { sectionSpacing } from "@/components/homepage/home/home-section-spacing";
+import { HomeButton } from "@/components/site/home-button";
+import { sectionSpacing } from "@/components/site/home-section-spacing";
 import { REPO_URL } from "@/components/site/site-content";
 import { siteText } from "@/components/site/site-text";
-import { cn } from "@/lib/utils";
+import { cn } from "@/components/ui/cn";
 import { PluginBrowser } from "./plugin-browser";
 import { SURFSENSE_PLUGINS } from "./plugin-list";
 import { registryPlugins } from "./registry-plugins";

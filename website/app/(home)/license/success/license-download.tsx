@@ -2,11 +2,11 @@
 
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { HomeButton } from "@/components/homepage/home/home-button";
+import { HomeButton } from "@/components/site/home-button";
 import { siteText } from "@/components/site/site-text";
+import { cn } from "@/components/ui/cn";
 import { Spinner } from "@/components/ui/spinner";
-import { buildBackendUrl } from "@/lib/env-config";
-import { cn } from "@/lib/utils";
+import { buildBackendUrl } from "@/features/license/backend-url";
 
 const LICENSE_FILENAME = "surfsense.lic";
 

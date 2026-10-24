@@ -4,7 +4,7 @@ import {
 	ContactChannels,
 	ContactEnterprise,
 	ContactHero,
-} from "@/components/contact/contact-sections";
+} from "@/app/(home)/contact/contact-sections";
 
 /**
  * Contact page.

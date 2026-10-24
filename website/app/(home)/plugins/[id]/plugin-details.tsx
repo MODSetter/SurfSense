@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { siteText } from "@/components/site/site-text";
+import { cn } from "@/components/ui/cn";
 import { ArrowUpRight01Icon } from "@/components/ui/icons";
-import { cn } from "@/lib/utils";
 import type { PluginListing, PluginSignIn } from "../plugin-listing";
 
 // What connecting asks of the user, as the app's plugin page names it.

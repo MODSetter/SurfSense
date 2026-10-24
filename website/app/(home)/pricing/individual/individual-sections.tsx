@@ -1,14 +1,14 @@
 import Link from "next/link";
-import { HomeBadge } from "@/components/homepage/home/home-badge";
-import { sectionSpacing } from "@/components/homepage/home/home-section-spacing";
-import { INDIVIDUAL_PRICE } from "@/components/pricing/pricing-content";
-import { FAQJsonLd } from "@/components/seo/json-ld";
+import { INDIVIDUAL_PRICE } from "@/app/(home)/pricing/pricing-content";
 import { type GuideStep, GuideSteps } from "@/components/site/guide-steps";
+import { HomeBadge } from "@/components/site/home-badge";
+import { sectionSpacing } from "@/components/site/home-section-spacing";
+import { FAQJsonLd } from "@/components/site/json-ld";
 import { DOWNLOADS_URL } from "@/components/site/site-content";
 import { SiteFaqItem } from "@/components/site/site-faq-item";
 import { siteText } from "@/components/site/site-text";
+import { cn } from "@/components/ui/cn";
 import { CheckIcon } from "@/components/ui/icons";
-import { cn } from "@/lib/utils";
 import { ContinueToCheckout } from "./continue-to-checkout";
 import {
 	BENEFITS,

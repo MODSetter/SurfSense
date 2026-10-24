@@ -1,5 +1,5 @@
-import { recordAfterResponse } from "@/lib/desktop-telemetry/record-after-response";
-import { receiveUsageReport } from "@/lib/desktop-telemetry/usage-report/receive-usage-report";
+import { recordAfterResponse } from "@/features/desktop-telemetry/record-after-response";
+import { receiveUsageReport } from "@/features/desktop-telemetry/usage-report/receive-usage-report";
 
 export const dynamic = "force-dynamic";
 

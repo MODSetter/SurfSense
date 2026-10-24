@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { HomeButton } from "@/components/homepage/home/home-button";
+import { HomeButton } from "@/components/site/home-button";
 
 export default function ErrorPage({
 	error,

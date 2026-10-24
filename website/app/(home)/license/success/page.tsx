@@ -3,8 +3,8 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { SiteFaqItem } from "@/components/site/site-faq-item";
 import { siteText } from "@/components/site/site-text";
+import { cn } from "@/components/ui/cn";
 import { ArrowRightIcon } from "@/components/ui/icons";
-import { cn } from "@/lib/utils";
 import { LicenseDownload } from "./license-download";
 
 /**

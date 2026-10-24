@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { PricingHero, PricingPlans, PricingQuestions } from "@/components/pricing/pricing-sections";
-import { JsonLd } from "@/components/seo/json-ld";
+import { PricingHero, PricingPlans, PricingQuestions } from "@/app/(home)/pricing/pricing-sections";
+import { JsonLd } from "@/components/site/json-ld";
 
 /**
  * Pricing page.

@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { HomeButton } from "@/components/homepage/home/home-button";
-import { BUY_INDIVIDUAL_URL } from "@/components/pricing/pricing-content";
+import { BUY_INDIVIDUAL_URL } from "@/app/(home)/pricing/pricing-content";
+import { HomeButton } from "@/components/site/home-button";
+import { cn } from "@/components/ui/cn";
 import { ArrowRightIcon } from "@/components/ui/icons";
 import { currentChannel } from "@/features/funnel-attribution/current-channel";
 import { trackCheckoutStarted } from "@/features/funnel-attribution/funnel-events";
-import { cn } from "@/lib/utils";
 import { checkoutHref, isPaymentLink } from "./checkout-link";
 
 const PAYMENT_LINK = isPaymentLink(BUY_INDIVIDUAL_URL);

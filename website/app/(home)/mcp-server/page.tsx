@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { HomeButton } from "@/components/homepage/home/home-button";
-import { GithubLogo } from "@/components/homepage/icons/github-logo";
-import { MarketingSection } from "@/components/marketing/section";
-import { AgentSetupTabs } from "@/components/mcp/agent-setup-tabs";
-import { BreadcrumbNav } from "@/components/seo/breadcrumb-nav";
-import { FAQJsonLd, JsonLd } from "@/components/seo/json-ld";
+import { AgentSetupTabs } from "@/app/(home)/mcp-server/agent-setup-tabs";
+import { BreadcrumbNav } from "@/components/site/breadcrumb-nav";
+import { HomeButton } from "@/components/site/home-button";
+import { FAQJsonLd, JsonLd } from "@/components/site/json-ld";
+import { GithubLogo } from "@/components/site/logos/github-logo";
+import { MarketingSection } from "@/components/site/section";
 import { type FaqItem, SiteFaq } from "@/components/site/site-faq";
 import { Reveal } from "@/components/site/site-reveal";
 import { Badge } from "@/components/ui/badge";
@@ -56,7 +56,7 @@ export const metadata: Metadata = {
 	},
 };
 
-/* The hosted Cursor config; mirrors lib/mcp/clients.ts. */
+/* The hosted Cursor config; mirrors app/(home)/mcp-server/clients.ts. */
 const CURSOR_CONFIG = `{
   "mcpServers": {
     "surfsense": {

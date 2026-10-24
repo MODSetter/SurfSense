@@ -1,15 +1,15 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { RootProvider } from "fumadocs-ui/provider/next";
-import { PostHogProvider } from "@/components/providers/PostHogProvider";
+import { GlobalAnnouncement } from "@/components/site/global-announcement";
 import {
 	OrganizationJsonLd,
 	SoftwareApplicationJsonLd,
 	WebSiteJsonLd,
-} from "@/components/seo/json-ld";
-import { GlobalAnnouncement } from "@/components/site/global-announcement";
+} from "@/components/site/json-ld";
 import { siteSansFont } from "@/components/site/site-sans-font";
-import { cn } from "@/lib/utils";
+import { cn } from "@/components/ui/cn";
+import { PostHogProvider } from "@/features/analytics/PostHogProvider";
 
 /**
  * Viewport configuration for mobile keyboard handling.

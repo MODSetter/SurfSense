@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { useDeferredValue, useState } from "react";
-import { HomeButton } from "@/components/homepage/home/home-button";
+import { HomeButton } from "@/components/site/home-button";
 import { siteText } from "@/components/site/site-text";
+import { cn } from "@/components/ui/cn";
 import { Search01Icon } from "@/components/ui/icons";
-import { cn } from "@/lib/utils";
 import { PluginCard } from "./plugin-card";
 import { PluginLine } from "./plugin-line";
 import { FEATURED_IDS, type PluginListing, SURFSENSE_PLUGINS } from "./plugin-list";

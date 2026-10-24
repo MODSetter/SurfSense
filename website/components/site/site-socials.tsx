@@ -1,9 +1,9 @@
-import { HomeButton } from "@/components/homepage/home/home-button";
-import { DiscordLogo } from "@/components/homepage/icons/discord-logo";
-import { GithubLogo } from "@/components/homepage/icons/github-logo";
-import { LinkedinLogo } from "@/components/homepage/icons/linkedin-logo";
-import { RedditLogo } from "@/components/homepage/icons/reddit-logo";
-import { XLogo } from "@/components/homepage/icons/x-logo";
+import { HomeButton } from "@/components/site/home-button";
+import { DiscordLogo } from "@/components/site/logos/discord-logo";
+import { GithubLogo } from "@/components/site/logos/github-logo";
+import { LinkedinLogo } from "@/components/site/logos/linkedin-logo";
+import { RedditLogo } from "@/components/site/logos/reddit-logo";
+import { XLogo } from "@/components/site/logos/x-logo";
 import { REPO_URL } from "@/components/site/site-content";
 
 /**

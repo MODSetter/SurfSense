@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { HomeBadge } from "@/components/homepage/home/home-badge";
-import { HomeDownloadButton } from "@/components/homepage/home/home-download-button";
-import { sectionSpacing } from "@/components/homepage/home/home-section-spacing";
+import { HomeBadge } from "@/components/site/home-badge";
+import { sectionSpacing } from "@/components/site/home-section-spacing";
 import { siteText } from "@/components/site/site-text";
+import { cn } from "@/components/ui/cn";
 import {
 	Agreement01Icon,
 	ArrowRightIcon,
@@ -17,7 +17,7 @@ import {
 	PodcastIcon,
 	Presentation02Icon,
 } from "@/components/ui/icons";
-import { cn } from "@/lib/utils";
+import { HomeDownloadButton } from "@/features/downloads/home-download-button";
 
 /**
  * Confidential documents into deliverables — the cross-cutting professional page.

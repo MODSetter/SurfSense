@@ -1,17 +1,22 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { HomeBadge } from "@/components/homepage/home/home-badge";
-import { HomeButton } from "@/components/homepage/home/home-button";
-import { HomeDownloadButton } from "@/components/homepage/home/home-download-button";
-import { BreadcrumbNav } from "@/components/seo/breadcrumb-nav";
-import { FAQJsonLd, JsonLd } from "@/components/seo/json-ld";
+import {
+	FREE_MODELS,
+	type FreeModel,
+	freeModelLabel,
+	isPublishedSlug,
+} from "@/app/(home)/free/free-models";
+import { BreadcrumbNav } from "@/components/site/breadcrumb-nav";
+import { HomeBadge } from "@/components/site/home-badge";
+import { HomeButton } from "@/components/site/home-button";
+import { FAQJsonLd, JsonLd } from "@/components/site/json-ld";
 import { DOWNLOADS_URL } from "@/components/site/site-content";
 import { SiteFaqItem } from "@/components/site/site-faq-item";
 import { siteText } from "@/components/site/site-text";
+import { cn } from "@/components/ui/cn";
 import { CheckIcon } from "@/components/ui/icons";
-import { FREE_MODELS, type FreeModel, freeModelLabel, isPublishedSlug } from "@/lib/free-models";
-import { cn } from "@/lib/utils";
+import { HomeDownloadButton } from "@/features/downloads/home-download-button";
 
 /**
  * `/free/<model>` — the page the closed hosted chat left behind.

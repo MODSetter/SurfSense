@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { HomeButton } from "@/components/homepage/home/home-button";
-import { GithubLogo } from "@/components/homepage/icons/github-logo";
-import { MarketingSection } from "@/components/marketing/section";
-import { BreadcrumbNav } from "@/components/seo/breadcrumb-nav";
-import { FAQJsonLd, JsonLd } from "@/components/seo/json-ld";
+import { BreadcrumbNav } from "@/components/site/breadcrumb-nav";
+import { HomeButton } from "@/components/site/home-button";
+import { FAQJsonLd, JsonLd } from "@/components/site/json-ld";
+import { GithubLogo } from "@/components/site/logos/github-logo";
+import { MarketingSection } from "@/components/site/section";
 import { type FaqItem, SiteFaq } from "@/components/site/site-faq";
 import { Reveal } from "@/components/site/site-reveal";
 import { Badge } from "@/components/ui/badge";

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { type GuideStep, GuideSteps } from "@/components/site/guide-steps";
 import { SiteFaqItem } from "@/components/site/site-faq-item";
 import { siteText } from "@/components/site/site-text";
-import { cn } from "@/lib/utils";
+import { cn } from "@/components/ui/cn";
 
 /**
  * Rendered in the site design: the palette, ruled column, navigation and

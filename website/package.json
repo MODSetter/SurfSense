@@ -18,7 +18,7 @@
 		"debug:browser": "cross-env NODE_OPTIONS=--inspect next dev --turbopack",
 		"debug:server": "cross-env NODE_OPTIONS=--inspect=0.0.0.0:9229 next dev --turbopack",
 		"postinstall": "fumadocs-mdx",
-		"test:unit": "tsx --test tests/unit/*.test.ts tests/unit/**/*.test.ts"
+		"test:unit": "tsx --test \"app/**/*.test.ts\" \"features/**/*.test.ts\""
 	},
 	"dependencies": {
 		"@hugeicons/core-free-icons": "^4.3.2",

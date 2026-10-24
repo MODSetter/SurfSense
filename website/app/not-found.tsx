@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { HomeButton } from "@/components/homepage/home/home-button";
+import { HomeButton } from "@/components/site/home-button";
 
 export const metadata: Metadata = {
 	title: "Page Not Found | SurfSense",

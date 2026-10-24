@@ -1,5 +1,5 @@
 import posthog from "posthog-js";
-import { REF_STORAGE_KEY } from "@/components/providers/PostHogReferral";
+import { REF_STORAGE_KEY } from "@/features/analytics/PostHogReferral";
 import { channelFor, DIRECT_CHANNEL, type Touch, touchFromUrl } from "./channel-tag";
 
 /**

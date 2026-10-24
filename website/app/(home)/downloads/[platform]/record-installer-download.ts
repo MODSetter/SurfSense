@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { EventMessage } from "posthog-node";
-import PostHogClient from "@/lib/posthog/server";
+import PostHogClient from "@/features/analytics/posthog-server";
 import type { DownloadSource } from "./installer-request";
 
 export type InstallerDownload = {

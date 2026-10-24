@@ -7,7 +7,7 @@ export const docs = defineDocs({
 });
 
 export const changelog = defineDocs({
-	dir: "changelog/content",
+	dir: "content/changelog",
 	docs: {
 		schema: frontmatterSchema.omit({ title: true, description: true }).extend({
 			date: z.string(),
@@ -17,7 +17,7 @@ export const changelog = defineDocs({
 });
 
 export const blog = defineDocs({
-	dir: "blog/content",
+	dir: "content/blog",
 	docs: {
 		schema: frontmatterSchema.extend({
 			date: z.string(),
@@ -36,10 +36,10 @@ export const blog = defineDocs({
 });
 
 // Announcement bodies, one `<id>.mdx` per entry in
-// `lib/announcements/announcements-data.ts`. The page reads the title, date,
+// `features/announcements/announcements-data.ts`. The page reads the title, date,
 // category, image and link from that entry, so frontmatter is optional here.
 export const announcements = defineDocs({
-	dir: "announcements/content",
+	dir: "content/announcements",
 	docs: {
 		schema: frontmatterSchema.omit({ title: true, description: true }),
 	},

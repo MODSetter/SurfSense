@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { TrialForm } from "@/app/(home)/license/license-forms";
-import { HomeBadge } from "@/components/homepage/home/home-badge";
-import { sectionSpacing } from "@/components/homepage/home/home-section-spacing";
+import { HomeBadge } from "@/components/site/home-badge";
+import { sectionSpacing } from "@/components/site/home-section-spacing";
 import { siteText } from "@/components/site/site-text";
-import { getReleaseAssets } from "@/lib/release-assets";
-import { cn } from "@/lib/utils";
+import { cn } from "@/components/ui/cn";
+import { getReleaseAssets } from "@/features/downloads/release-assets";
+import { TrialForm } from "@/features/license/license-forms";
 import { AllReleasesLink, OSDownloadGrid } from "./download-panels";
 
 /**

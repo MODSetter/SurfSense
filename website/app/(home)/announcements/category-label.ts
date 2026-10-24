@@ -1,4 +1,4 @@
-import type { AnnouncementCategory } from "@/contracts/types/announcement.types";
+import type { AnnouncementCategory } from "@/features/announcements/announcement.types";
 
 /** The category pill's text on the announcement pages. */
 export const categoryLabel: Record<AnnouncementCategory, string> = {

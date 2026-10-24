@@ -4,13 +4,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { blog } from "@/.source/server";
-import { HomeBadge } from "@/components/homepage/home/home-badge";
-import { sectionSpacing } from "@/components/homepage/home/home-section-spacing";
-import { ArticleJsonLd, FAQJsonLd } from "@/components/seo/json-ld";
+import { extractFaqFromBlogPost } from "@/app/(home)/blog/[slug]/blog-faq";
+import { formatDate } from "@/components/site/format-date";
+import { HomeBadge } from "@/components/site/home-badge";
+import { sectionSpacing } from "@/components/site/home-section-spacing";
+import { ArticleJsonLd, FAQJsonLd } from "@/components/site/json-ld";
 import { siteText } from "@/components/site/site-text";
+import { cn } from "@/components/ui/cn";
 import { ArrowRightIcon, DotIcon } from "@/components/ui/icons";
-import { extractFaqFromBlogPost } from "@/lib/blog-faq";
-import { cn, formatDate } from "@/lib/utils";
 import { getMDXComponents } from "@/mdx-components";
 
 const source = loader({

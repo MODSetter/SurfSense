@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { HomeBadge } from "@/components/homepage/home/home-badge";
-import { HomeButton } from "@/components/homepage/home/home-button";
-import { FAQJsonLd, JsonLd } from "@/components/seo/json-ld";
+import { ACCESS_LABEL, FREE_MODELS } from "@/app/(home)/free/free-models";
+import { HomeBadge } from "@/components/site/home-badge";
+import { HomeButton } from "@/components/site/home-button";
+import { FAQJsonLd, JsonLd } from "@/components/site/json-ld";
 import { SiteFaqItem } from "@/components/site/site-faq-item";
 import { siteText } from "@/components/site/site-text";
+import { cn } from "@/components/ui/cn";
 import { LinkSquare02Icon } from "@/components/ui/icons";
-import { ACCESS_LABEL, FREE_MODELS } from "@/lib/free-models";
-import { cn } from "@/lib/utils";
 
 /**
  * Rendered in the site design: the palette, ruled column, navigation and footer
@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
  *
  * The catalog, however, no longer comes from the hosted anon-chat endpoint —
  * that service is closed. Rows are a static, search-picked list in
- * `lib/free-models.ts`, and each one leads to `/free/[model_slug]`, which is now
+ * `app/(home)/free/free-models.ts`, and each one leads to `/free/[model_slug]`, which is now
  * the page that hands the visitor to the desktop app. The two columns that
  * described the old service (a Free/Premium tier, a "Chat" action) describe how
  * the app runs the model instead, because that is what the new data supports.

@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
-import { HomeCompare } from "@/components/homepage/home/home-compare/home-compare";
-import { HomeConfidential } from "@/components/homepage/home/home-confidential/home-confidential";
-import { HomeFeatures } from "@/components/homepage/home/home-features/home-features";
-import { HomeFormats } from "@/components/homepage/home/home-formats/home-formats";
-import { HomeLogos } from "@/components/homepage/home/home-logos";
-import { HomePillars } from "@/components/homepage/home/home-pillars/home-pillars";
-import { HomeQuestions } from "@/components/homepage/home/home-questions";
-import { HomeHero, HomeOnYourMachine } from "@/components/homepage/home/home-sections";
-import { JsonLd } from "@/components/seo/json-ld";
+import { HomeCompare } from "@/app/(home)/_home/home-compare/home-compare";
+import { HomeConfidential } from "@/app/(home)/_home/home-confidential/home-confidential";
+import { HomeFeatures } from "@/app/(home)/_home/home-features/home-features";
+import { HomeFormats } from "@/app/(home)/_home/home-formats/home-formats";
+import { HomeLogos } from "@/app/(home)/_home/home-logos";
+import { HomePillars } from "@/app/(home)/_home/home-pillars/home-pillars";
+import { HomeQuestions } from "@/app/(home)/_home/home-questions";
+import { HomeHero, HomeOnYourMachine } from "@/app/(home)/_home/home-sections";
+import { JsonLd } from "@/components/site/json-ld";
 
 /**
  * Landing page.

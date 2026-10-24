@@ -1,8 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { siteText } from "@/components/site/site-text";
+import { cn } from "@/components/ui/cn";
 import { ArrowRightIcon } from "@/components/ui/icons";
-import { cn } from "@/lib/utils";
 
 /**
  * A numbered walkthrough in the site design: one rounded card per step, prose

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { FOOTER_COLUMNS, REPO_URL } from "@/components/site/site-content";
 import footerScene from "@/components/site/site-footer-scene.webp";
 import { SiteSocials } from "@/components/site/site-socials";
-import { cn } from "@/lib/utils";
+import { cn } from "@/components/ui/cn";
 
 /**
  * Site footer: the site's links set straight on the page's ground, which fades

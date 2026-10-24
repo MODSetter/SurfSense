@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { cn } from "@/lib/utils";
+import { cn } from "@/components/ui/cn";
 import type { PluginListing } from "./plugin-listing";
 import { markTile, PluginMark } from "./plugin-mark";
 import { VerifiedMark } from "./verified-mark";

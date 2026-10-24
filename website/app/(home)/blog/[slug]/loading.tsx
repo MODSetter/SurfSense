@@ -1,5 +1,5 @@
-import { sectionSpacing } from "@/components/homepage/home/home-section-spacing";
-import { cn } from "@/lib/utils";
+import { sectionSpacing } from "@/components/site/home-section-spacing";
+import { cn } from "@/components/ui/cn";
 
 // Still placeholders: the blog has no motion, so not the pulsing `Skeleton`.
 function Block({ className }: { className: string }) {

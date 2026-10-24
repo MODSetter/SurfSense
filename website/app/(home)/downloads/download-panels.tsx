@@ -1,12 +1,12 @@
 import { siteText } from "@/components/site/site-text";
+import { cn } from "@/components/ui/cn";
 import { DownloadIcon } from "@/components/ui/icons";
 import {
 	GITHUB_RELEASES_URL,
 	getAssetLabel,
 	platformOfAsset,
 	type ReleaseAsset,
-} from "@/lib/app-release";
-import { cn } from "@/lib/utils";
+} from "@/features/downloads/app-release";
 
 /** Through the counting redirect (`./[platform]/route.ts`) when it knows the file. */
 function installerHref(asset: ReleaseAsset): string {

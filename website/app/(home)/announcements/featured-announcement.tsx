@@ -1,10 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import { siteText } from "@/components/site/site-text";
+import { cn } from "@/components/ui/cn";
 import { ArrowRightIcon } from "@/components/ui/icons";
-import type { Announcement } from "@/contracts/types/announcement.types";
-import { announcementPath } from "@/lib/announcements/announcements-utils";
-import { cn } from "@/lib/utils";
+import type { Announcement } from "@/features/announcements/announcement.types";
+import { announcementPath } from "@/features/announcements/announcements-utils";
 import { categoryLabel } from "./category-label";
 import { formatAnnouncementDate } from "./format-announcement-date";
 

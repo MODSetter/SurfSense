@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import { INDIVIDUAL_PRICE, PLUGIN_PLATFORMS } from "@/components/pricing/pricing-content";
-import { BreadcrumbNav } from "@/components/seo/breadcrumb-nav";
-import { JsonLd } from "@/components/seo/json-ld";
+import { INDIVIDUAL_PRICE, PLUGIN_PLATFORMS } from "@/app/(home)/pricing/pricing-content";
+import { BreadcrumbNav } from "@/components/site/breadcrumb-nav";
+import { JsonLd } from "@/components/site/json-ld";
 import {
 	AfterPaying,
 	ClosingCheckout,

@@ -2,8 +2,8 @@ import { format } from "date-fns";
 import Image from "next/image";
 import Link from "next/link";
 import { siteText } from "@/components/site/site-text";
+import { cn } from "@/components/ui/cn";
 import { DotIcon } from "@/components/ui/icons";
-import { cn } from "@/lib/utils";
 import type { BlogEntry } from "./page";
 
 function truncate(text: string, length: number) {

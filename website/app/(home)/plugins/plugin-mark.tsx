@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn } from "@/components/ui/cn";
 import type { PluginListing } from "./plugin-listing";
 
 // A registry mark may be white (DeepWiki's) or black, so it sits on taupe, in the site's

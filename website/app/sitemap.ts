@@ -1,11 +1,11 @@
 import { loader } from "fumadocs-core/source";
 import type { MetadataRoute } from "next";
 import { blog } from "@/.source/server";
+import { FREE_MODELS } from "@/app/(home)/free/free-models";
 import { allPlugins } from "@/app/(home)/plugins/all-plugins";
-import { getPublishedAnnouncementPosts } from "@/lib/announcements/announcements-source";
-import { announcementPath } from "@/lib/announcements/announcements-utils";
-import { FREE_MODELS } from "@/lib/free-models";
-import { source as docsSource } from "@/lib/source";
+import { getPublishedAnnouncementPosts } from "@/features/announcements/announcements-source";
+import { announcementPath } from "@/features/announcements/announcements-utils";
+import { source as docsSource } from "@/features/docs/source";
 
 const blogSource = loader({
 	baseUrl: "/blog",

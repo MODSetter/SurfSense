@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { SiteFaqItem } from "@/components/site/site-faq-item";
 import { siteText } from "@/components/site/site-text";
+import { cn } from "@/components/ui/cn";
 import { ArrowRightIcon } from "@/components/ui/icons";
-import { cn } from "@/lib/utils";
-import { ResendForm } from "./license-forms";
+import { ResendForm } from "@/features/license/license-forms";
 
 /**
  * Rendered in the site design: the palette, ruled column, navigation and

@@ -1,10 +1,10 @@
+import { cn } from "@/components/ui/cn";
 import { Alert02Icon, InformationCircleIcon } from "@/components/ui/icons";
 import {
 	GLOBAL_ANNOUNCEMENT_ENABLED,
 	GLOBAL_ANNOUNCEMENT_MESSAGE,
 	GLOBAL_ANNOUNCEMENT_TONE,
-} from "@/lib/env-config";
-import { cn } from "@/lib/utils";
+} from "@/features/announcements/announcement-settings";
 
 // One line, fixed, so the sticky headers below can offset by exactly this.
 const HEIGHT = "2.5rem";

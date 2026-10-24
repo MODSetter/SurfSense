@@ -1,5 +1,5 @@
-import { recordAfterResponse } from "@/lib/desktop-telemetry/record-after-response";
-import { serveUpdateManifest } from "@/lib/desktop-telemetry/update-feed/serve-update-manifest";
+import { recordAfterResponse } from "@/features/desktop-telemetry/record-after-response";
+import { serveUpdateManifest } from "@/features/desktop-telemetry/update-feed/serve-update-manifest";
 
 // Each check must reach the handler to be counted. The GitHub fetch inside
 // keeps its own 15-minute cache.

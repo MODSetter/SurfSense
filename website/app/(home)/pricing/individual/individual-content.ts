@@ -1,4 +1,3 @@
-import { EMAIL } from "@/components/contact/contact-content";
 import {
 	FAQ_EXPIRY,
 	FAQ_FEATURE_REQUEST,
@@ -9,7 +8,8 @@ import {
 	INDIVIDUAL_LIST_PRICE,
 	PLUGIN_PLATFORMS,
 	type PricingQuestion,
-} from "@/components/pricing/pricing-content";
+} from "@/app/(home)/pricing/pricing-content";
+import { EMAIL } from "@/components/site/site-content";
 import {
 	CheckmarkBadgeIcon,
 	type Icon,

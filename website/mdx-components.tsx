@@ -7,7 +7,7 @@ import {
 	AccordionItem,
 	AccordionTrigger,
 } from "@/components/ui/accordion";
-import { cn } from "@/lib/utils";
+import { cn } from "@/components/ui/cn";
 
 export function getMDXComponents(components?: MDXComponents): MDXComponents {
 	return {

@@ -1,14 +1,14 @@
 import type * as React from "react";
-import { AmazonLogo } from "@/components/homepage/icons/amazon-logo";
-import { GoogleMapsLogo } from "@/components/homepage/icons/google-maps-logo";
-import { GoogleSearchLogo } from "@/components/homepage/icons/google-search-logo";
-import { IndeedLogo } from "@/components/homepage/icons/indeed-logo";
-import { InstagramLogo } from "@/components/homepage/icons/instagram-logo";
-import { RedditLogo } from "@/components/homepage/icons/reddit-logo";
-import { TiktokLogo } from "@/components/homepage/icons/tiktok-logo";
-import { WalmartLogo } from "@/components/homepage/icons/walmart-logo";
-import { WebCrawlLogo } from "@/components/homepage/icons/web-crawl-logo";
-import { YoutubeLogo } from "@/components/homepage/icons/youtube-logo";
+import { AmazonLogo } from "@/components/site/logos/amazon-logo";
+import { GoogleMapsLogo } from "@/components/site/logos/google-maps-logo";
+import { GoogleSearchLogo } from "@/components/site/logos/google-search-logo";
+import { IndeedLogo } from "@/components/site/logos/indeed-logo";
+import { InstagramLogo } from "@/components/site/logos/instagram-logo";
+import { RedditLogo } from "@/components/site/logos/reddit-logo";
+import { TiktokLogo } from "@/components/site/logos/tiktok-logo";
+import { WalmartLogo } from "@/components/site/logos/walmart-logo";
+import { WebCrawlLogo } from "@/components/site/logos/web-crawl-logo";
+import { YoutubeLogo } from "@/components/site/logos/youtube-logo";
 import firstPartyList from "./first-party-plugins.json";
 import { listingFromEntry, type PluginListing } from "./plugin-listing";
 

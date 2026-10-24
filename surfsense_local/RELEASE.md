@@ -22,7 +22,7 @@ From the repo root, on `dev`. A release is `dev` merged into `main` by pull requ
 
 Before you start, check both signing credentials are current. Apple refuses notarization with a 403 until the account holder accepts a new developer agreement, as on 3 Oct 2026, and every release run checks for that before building, as does a weekly run of [`notarization-credentials.yml`](../.github/workflows/notarization-credentials.yml) ([#2224](https://github.com/MODSetter/SurfSense/issues/2224)). Windows signing needs the Azure client secret behind `AZURE_CLIENT_SECRET`, whose expiry Entra ID shows; only a tag's build uses it.
 
-Merge the changelog entry into `dev` before the bump, as a `docs(changelog): vX.Y.Z` pull request adding `website/changelog/content/<date>.mdx` with `version: "X.Y.Z"`. The website builds from `main`, so an entry merged after the release pull request stays off surfsense.com/changelog until another reaches `main`.
+Merge the changelog entry into `dev` before the bump, as a `docs(changelog): vX.Y.Z` pull request adding `website/content/changelog/<date>.mdx` with `version: "X.Y.Z"`. The website builds from `main`, so an entry merged after the release pull request stays off surfsense.com/changelog until another reaches `main`.
 
 ### 1. Write the new number
 
@@ -60,7 +60,7 @@ Include whatever the script changed, including lockfiles.
 git add surfsense_local/VERSION \
   surfsense_local/backend/pyproject.toml surfsense_local/backend/uv.lock \
   surfsense_local/frontend/package.json surfsense_local/electron/package.json \
-  website/lib/app-release.ts \
+  website/features/downloads/app-release.ts \
   backend/license/release.py
 git commit -m "chore(local): release 2.3.0"
 git push origin dev
@@ -199,4 +199,4 @@ Not a tag, not an update: the installers stay on the run as artifacts, and neith
 - Undraft with `GITHUB_TOKEN`, from a workflow or a bot: `release-channels.yml` would never start.
 - Delete `legacy-update-bridge` while 0.0.x clients are still checking in. Watch `SurfSense-Setup-0.0.40.exe.blockmap` on the v0.0.40 release: while it climbs, legacy installs are still migrating.
 - Rely on `/releases/latest` for download links. It names the right release now, but the site, the READMEs and the license email go through `/downloads/<platform>`, which names exact asset filenames, so they stay in lockstep with `APP_RELEASE_VERSION` instead, and fall back to Latest only while that tag is unpublished.
-- Rename an installer. `/downloads/<platform>` builds every URL from the tag and the fixed names in `website/lib/app-release.ts`, so a renamed file breaks every link already sent, mails included.
+- Rename an installer. `/downloads/<platform>` builds every URL from the tag and the fixed names in `website/features/downloads/app-release.ts`, so a renamed file breaks every link already sent, mails included.

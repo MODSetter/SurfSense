@@ -2,25 +2,25 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { HomeBadge } from "@/components/homepage/home/home-badge";
-import { HomeButton } from "@/components/homepage/home/home-button";
-import { sectionSpacing } from "@/components/homepage/home/home-section-spacing";
-import { ArticleJsonLd } from "@/components/seo/json-ld";
+import { HomeBadge } from "@/components/site/home-badge";
+import { HomeButton } from "@/components/site/home-button";
+import { sectionSpacing } from "@/components/site/home-section-spacing";
+import { ArticleJsonLd } from "@/components/site/json-ld";
 import { siteText } from "@/components/site/site-text";
+import { cn } from "@/components/ui/cn";
 import { ArrowRightIcon, LinkSquare02Icon } from "@/components/ui/icons";
 import {
 	getPublishedAnnouncementPost,
 	getPublishedAnnouncementPosts,
-} from "@/lib/announcements/announcements-source";
-import { announcementPath } from "@/lib/announcements/announcements-utils";
-import { cn } from "@/lib/utils";
+} from "@/features/announcements/announcements-source";
+import { announcementPath } from "@/features/announcements/announcements-utils";
 import { getMDXComponents } from "@/mdx-components";
 import { categoryLabel } from "../category-label";
 import { formatAnnouncementDate } from "../format-announcement-date";
 
 /**
  * One announcement, laid out like a blog post. The header and image come from
- * `lib/announcements/announcements-data.ts`, the text from its MDX body.
+ * `features/announcements/announcements-data.ts`, the text from its MDX body.
  * Site design via the `/announcements/` prefix in `components/site/site-shell.tsx`.
  */
 

@@ -3,12 +3,12 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { HomeButton } from "@/components/homepage/home/home-button";
+import { HomeButton } from "@/components/site/home-button";
 import { DOWNLOADS_URL, NAV_LINKS, NAV_RESOURCES } from "@/components/site/site-content";
 import { SiteStars } from "@/components/site/site-stars";
 import { siteText } from "@/components/site/site-text";
+import { cn } from "@/components/ui/cn";
 import { ChevronDownIcon, MenuTwoLineIcon } from "@/components/ui/icons";
-import { cn } from "@/lib/utils";
 
 /**
  * Site navigation.

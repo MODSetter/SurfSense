@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { HomeBadge } from "@/components/homepage/home/home-badge";
-import { sectionSpacing } from "@/components/homepage/home/home-section-spacing";
+import { HomeBadge } from "@/components/site/home-badge";
+import { sectionSpacing } from "@/components/site/home-section-spacing";
 import { siteText } from "@/components/site/site-text";
+import { cn } from "@/components/ui/cn";
 import { Notification03Icon } from "@/components/ui/icons";
-import { getPublishedAnnouncementPosts } from "@/lib/announcements/announcements-source";
-import { cn } from "@/lib/utils";
+import { getPublishedAnnouncementPosts } from "@/features/announcements/announcements-source";
 import { AnnouncementCard } from "./announcement-card";
 import { FeaturedAnnouncement } from "./featured-announcement";
 
