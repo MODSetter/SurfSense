@@ -131,6 +131,50 @@ test("a check says whether it read a manifest, so a failed one can be retried", 
   assert.equal(await updates.check(), false)
 })
 
+test("an inactive updater settles back to idle instead of staying on checking", async () => {
+  const fake = fakeAutoUpdater()
+  const states: UpdateState[] = []
+  const updates = attachUpdater(fake.updater, (state) => states.push(state), FEED)
+  // AppImageUpdater outside an AppImage, or inside a snap: no event, no manifest.
+  fake.updater.checkForUpdates = async () => null
+
+  assert.equal(await updates.check(), false)
+
+  assert.deepEqual(states, [{ status: "checking" }, { status: "idle" }])
+  assert.deepEqual(updates.state(), { status: "idle" })
+})
+
+test("an inactive check keeps a downloaded update's restart prompt", async () => {
+  const fake = fakeAutoUpdater()
+  const updates = attachUpdater(fake.updater, () => undefined, FEED)
+  await updates.check()
+  fake.emit("update-available", { version: "1.0.1" })
+  fake.emit("update-downloaded", { version: "1.0.1" })
+  fake.updater.checkForUpdates = async () => null
+
+  assert.equal(await updates.check(), false)
+
+  assert.deepEqual(updates.state(), { status: "ready", version: "1.0.1" })
+})
+
+test("a failed check stays on the error it emitted", async () => {
+  const fake = fakeAutoUpdater()
+  const states: UpdateState[] = []
+  const updates = attachUpdater(fake.updater, (state) => states.push(state), FEED)
+  // AppUpdater emits "error" and then rethrows.
+  fake.updater.checkForUpdates = async () => {
+    fake.emit("error", new Error("github.com (unreachable) could not be used"))
+    throw new Error("github.com (unreachable) could not be used")
+  }
+
+  assert.equal(await updates.check(), false)
+
+  assert.deepEqual(states, [
+    { status: "checking" },
+    { status: "error", message: "github.com (unreachable) could not be used" },
+  ])
+})
+
 test("install is a no-op until something is downloaded", () => {
   const fake = fakeAutoUpdater()
   const updates = attachUpdater(fake.updater, () => undefined, FEED)

@@ -7,9 +7,10 @@ import { app, ipcMain, session, type BrowserWindow } from "electron"
 // undefined). require() honours it, and the getter is lazy so dev pays nothing.
 import { autoUpdater } from "electron-updater"
 
-import { updatesLocked, usageLockReason } from "../admin-policy/policy-locks.ts"
+import { updatesLocked, updatesLockReason, usageLockReason } from "../admin-policy/policy-locks.ts"
 import { readPolicy } from "../admin-policy/read-policy.ts"
 import { currentLocale } from "../i18n/app-locale.ts"
+import { installChannel } from "../install-channel/install-channel.ts"
 import { warnMain } from "../session-log/main-warn.ts"
 import { sessionLog } from "../session-log/session-log.ts"
 import { updaterLogger } from "../session-log/updater-log.ts"
@@ -59,6 +60,18 @@ export function startPrivacyChoices(options: {
   if (policy.updateFeed) log("policy")(`updates from the mirror ${new URL(policy.updateFeed).host}`)
   const usageLock = usageLockReason(policy)
   if (usageLock) log("policy")(`usage statistics off (${usageLock})`)
+  // Packaged only: in dev, execPath and resources are Electron's own, so a
+  // Nix-provided Electron would read as a Nix install.
+  const channel = app.isPackaged
+    ? installChannel({
+        platform: process.platform,
+        env: process.env,
+        execPath: process.execPath,
+        resourcesPath: process.resourcesPath,
+      })
+    : null
+  const updatesLock = updatesLockReason(policy, channel)
+  if (channel) log("updates")(`updates come from ${channel}, so the app never checks`)
 
   const userData = app.getPath("userData")
   const prefsPath = join(userData, "updates.json")
@@ -100,7 +113,9 @@ export function startPrivacyChoices(options: {
   }
 
   let updates: Updates
-  if (app.isPackaged) {
+  // A package manager's install never constructs electron-updater, which would
+  // pick a DebUpdater from a repackaged deb's package-type.
+  if (app.isPackaged && updatesLock !== "channel") {
     autoUpdater.logger = updaterLogger(sessionLog)
     updates = tidyUpdaterCache(
       autoUpdater,
@@ -115,8 +130,8 @@ export function startPrivacyChoices(options: {
       }
     )
   } else {
-    // ponytail: dev has no signed build to update; expose the same surface
-    // so the Settings row renders, and stay idle.
+    // ponytail: dev has no signed build to update, and a package manager
+    // updates its own; expose the same surface so the Settings row renders, and stay idle.
     updates = {
       check: async () => false,
       install: () => undefined,
@@ -125,7 +140,8 @@ export function startPrivacyChoices(options: {
   }
 
   const check = updateCheckRunner({
-    locked: updatesLocked(policy),
+    locked: updatesLock,
+    channel,
     updates,
     readPrefs: updatePrefs,
     writePrefs: saveUpdatePrefs,
@@ -150,6 +166,7 @@ export function startPrivacyChoices(options: {
   let daily: DailyUpdateCheck | null = null
   controller = createPrivacyController({
     policy,
+    installChannel: channel,
     store,
     readUpdatePrefs: updatePrefs,
     writeUpdatePrefs: saveUpdatePrefs,

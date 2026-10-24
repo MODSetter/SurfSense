@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReleaseAsset } from "@/lib/app-release";
-import { APP_RELEASE_TAG } from "@/lib/app-release";
+import { APP_RELEASE_TAG, isOfferedInstaller } from "@/lib/app-release";
 
 export {
 	ASSET_LABELS,
@@ -67,7 +67,7 @@ export function useLatestRelease() {
 				if (data?.assets) {
 					setAssets(
 						data.assets
-							.filter((a: { name: string }) => /\.(exe|dmg|AppImage|deb)$/.test(a.name))
+							.filter((a: { name: string }) => isOfferedInstaller(a.name))
 							.map((a: { name: string; browser_download_url: string }) => ({
 								name: a.name,
 								url: a.browser_download_url,

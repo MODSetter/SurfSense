@@ -24,14 +24,22 @@ const flat = (text: string): string => Buffer.from(text, "utf8").toString("utf8"
 
 export function createSessionLog(options: {
   home: string
+  /** The user's own home when `home` is a sandbox's: a snap's SNAP_REAL_HOME. */
+  realHome?: string
   now?: () => Date
   maxLines?: number
 }): SessionLog {
-  const { home, now = () => new Date(), maxLines = MAX_LINES } = options
+  const { home, realHome = "", now = () => new Date(), maxLines = MAX_LINES } = options
   // The log is pasted into public issues. A Windows home shows up as written,
   // with forward slashes, and escaped in a Python repr.
   const homes = [
-    ...new Set([home, home.replaceAll("\\", "/"), home.replaceAll("\\", "\\\\")]),
+    ...new Set(
+      [home, realHome].flatMap((path) => [
+        path,
+        path.replaceAll("\\", "/"),
+        path.replaceAll("\\", "\\\\"),
+      ])
+    ),
   ]
     .filter((path) => path.length > 0)
     .sort((a, b) => b.length - a.length)
@@ -53,4 +61,7 @@ export function createSessionLog(options: {
   }
 }
 
-export const sessionLog = createSessionLog({ home: homedir() })
+export const sessionLog = createSessionLog({
+  home: homedir(),
+  realHome: process.env.SNAP_REAL_HOME,
+})

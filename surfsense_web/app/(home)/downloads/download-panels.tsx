@@ -38,8 +38,8 @@ const OS_PANELS: OSPanel[] = [
 	},
 	{
 		title: "Linux",
-		match: (name) => name.endsWith(".AppImage") || name.endsWith(".deb"),
-		suffixes: [".deb", ".AppImage"],
+		match: (name) => name.endsWith(".AppImage") || name.endsWith(".deb") || name.endsWith(".rpm"),
+		suffixes: [".deb", ".rpm", ".AppImage"],
 	},
 ];
 

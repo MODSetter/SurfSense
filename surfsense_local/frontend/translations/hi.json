@@ -1143,6 +1143,7 @@
   "privacy_choices_update_request_body": "जांच {host} से इस सिस्टम के लिए नवीनतम रिलीज़ की फ़ाइल मांगती है, दिन में ज़्यादा से ज़्यादा एक बार और हर बार जब आप अभी जांचें पर क्लिक करते हैं। हर अनुरोध की तरह इसमें आपका IP पता होता है, लेकिन कोई कुकी या ID नहीं।",
   "privacy_choices_update_user_agent_header_body": "हमेशा SurfSense, बिना वर्शन के",
   "privacy_choices_update_version_header_body": "इस ऐप का वर्शन, जैसे 2.2.4",
+  "privacy_choices_updates_channel_locked_status": "अपडेट {channel, select, scoop {Scoop} aur {AUR} snap {Snap Store} flatpak {Flatpak} nix {Nix} apt {आपकी apt रिपॉज़िटरी} other {आपके पैकेज मैनेजर}} से आते हैं, इसलिए SurfSense खुद इनकी जांच नहीं करता।",
   "privacy_choices_updates_policy_locked_status": "आपके संगठन की नीति ने इस कंप्यूटर पर अपडेट की जांच बंद कर दी है।",
   "privacy_choices_usage_do_not_track_locked_status": "बंद है, क्योंकि इस कंप्यूटर पर DO_NOT_TRACK या SURFSENSE_NO_TELEMETRY सेट है।",
   "privacy_choices_usage_last_sent_aria": "भेजी गई पिछली उपयोग रिपोर्ट",

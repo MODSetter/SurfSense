@@ -3,7 +3,7 @@ import { githubReleaseDownload } from "./feed-addresses.ts"
 // What the updates.surfsense.com route may name, as it validates it too. A
 // manifest outside these is never used: the check falls back to GitHub.
 const RELEASE_VERSION = /^\d+\.\d+\.\d+$/
-const RELEASE_FILE = /^SurfSense[-A-Za-z0-9._]*\.(exe|zip|dmg|AppImage|deb)$/
+const RELEASE_FILE = /^SurfSense[-A-Za-z0-9._]*\.(exe|zip|dmg|AppImage|deb|rpm)$/
 
 type Manifest = Record<string, unknown>
 

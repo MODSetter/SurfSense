@@ -79,7 +79,8 @@ publish:
 # they leave it out — add `${arch}` back on the day a second one appears, or the
 # two builds overwrite each other.
 linux:
-  target: [AppImage, deb]
+  # The snap is built by its own job from the packaged folder (`snapcraft:` below).
+  target: [AppImage, deb, rpm]
   artifactName: "${productName}.${ext}"
   category: Office
   icon: build/icons/packaged/icon.png
@@ -91,14 +92,76 @@ linux:
       Categories: Office;Utility;
       StartupWMClass: SurfSense
 
-# llama.cpp's GPU backend opens libvulkan.so.1 from the host. Recommended, not
-# depended on: without it the app still runs, on the CPU. Setting `recommends`
-# replaces electron-builder's list, so its default stays first. `depends` is left
-# unset to keep electron-builder's GTK, NSS and X libraries.
+# llama-server does not start without the host's libgomp.so.1, which llama.cpp's
+# archive does not carry, so the deb depends on libgomp1. It goes to fpm as an
+# extra --depends because setting `depends` would replace electron-builder's GTK,
+# NSS and X libraries. llama.cpp's GPU backend opens libvulkan.so.1 from the host.
+# Recommended, not depended on: without it the app still runs, on the CPU.
+# Setting `recommends` replaces electron-builder's list, so its default stays first.
+# deb and rpm both write resources/package-type into linux-unpacked, which keeps
+# the last one's.
 deb:
   recommends:
     - libappindicator3-1
     - libvulkan1
+  # libc6: the frozen backend's bundled libgcc_s needs glibc 2.35, so apt refuses
+  # an older system rather than installing an app that cannot start.
+  fpm:
+    - --depends=libgomp1
+    - --depends=libc6 (>= 2.35)
+
+# electron-builder's default requires without libXScrnSaver, which EL10 ships only
+# in EPEL and Electron 44 never loads, plus libgomp (openSUSE: libgomp1) for
+# llama.cpp. Setting depends replaces the defaults, so the rest is restated. fpm
+# has no recommends option for rpm, so --rpm-tag writes the weak dependency into
+# the spec as it is. fpm leaves AutoReqProv off, so no linked library becomes a
+# requirement on its own.
+rpm:
+  depends:
+    - gtk3
+    - libnotify
+    - nss
+    - (libXtst or libXtst6)
+    - xdg-utils
+    - at-spi2-core
+    - (libuuid or libuuid1)
+    - (libgomp or libgomp1)
+  fpm:
+    - "--rpm-tag=Recommends: vulkan-loader"
+
+# The static type-2 runtime carries its own FUSE library, so the AppImage starts
+# without libfuse2, which Ubuntu 22.04 and later do not install. electron-builder
+# 26.16 still calls it beta. It compresses with zstd, and the .desktop entry no
+# longer passes --no-sandbox: AppRun adds it when `unshare -Ur true` fails, where
+# user namespaces are blocked.
+toolsets:
+  appimage: "1.0.3"
+
+# Read by the snap job's `electron-builder --linux snap --prepackaged`. The store
+# name comes from executableName: surfsense-local. `publish` names GitHub so
+# electron-builder never falls back to uploading to the Snap Store; the snap job
+# does that. Listing our own plugs drops the browser-support allow-sandbox plug,
+# which needs store review, so the launcher passes --no-sandbox and confinement
+# sandboxes the app. network-bind serves the local API; audio-record, for speech
+# to text, is not connected automatically. libgomp1 is for llama.cpp, as above.
+snapcraft:
+  base: core24
+  publish:
+    provider: github
+    owner: MODSetter
+    repo: SurfSense
+    channel: stable
+  core24:
+    confinement: strict
+    grade: stable
+    summary: Local-first research over your own documents
+    description: >-
+      SurfSense is a local-first desktop app for research over your own
+      documents. It parses and embeds them on this computer, answers questions
+      about them with citations, and runs its language, voice and image models
+      locally.
+    plugs: [default, browser-support, network-bind, audio-record]
+    stagePackages: [default, libgomp1, libvulkan1]
 
 win:
   target: [nsis]

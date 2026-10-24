@@ -1143,6 +1143,7 @@
   "privacy_choices_update_request_body": "A check asks {host} for the newest release file for this system, at most once a day and whenever you click Check now. It carries your IP address, as every request does, and no cookies and no ID.",
   "privacy_choices_update_user_agent_header_body": "Always SurfSense, with no version",
   "privacy_choices_update_version_header_body": "This app’s version, such as 2.2.4",
+  "privacy_choices_updates_channel_locked_status": "Updates come from {channel, select, scoop {Scoop} aur {the AUR} snap {the Snap Store} flatpak {Flatpak} nix {Nix} apt {your apt repository} other {your package manager}}, so SurfSense doesn’t check for them itself.",
   "privacy_choices_updates_policy_locked_status": "Your organization’s policy turned update checks off on this computer.",
   "privacy_choices_usage_do_not_track_locked_status": "Off, because DO_NOT_TRACK or SURFSENSE_NO_TELEMETRY is set on this computer.",
   "privacy_choices_usage_last_sent_aria": "The last usage report sent",

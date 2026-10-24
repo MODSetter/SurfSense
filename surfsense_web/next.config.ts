@@ -3,6 +3,7 @@ import { createMDX } from "fumadocs-mdx/next";
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 import { docsRedirects } from "./lib/docs-redirects";
+import { installScriptRedirects } from "./lib/install-script-redirects";
 
 // The per-scraper marketing pages gave way to each plugin's page under /plugins.
 const LISTED_SCRAPERS = [
@@ -40,6 +41,7 @@ const nextConfig: NextConfig = {
 				permanent: true,
 			})),
 			...docsRedirects,
+			...installScriptRedirects,
 		];
 	},
 	outputFileTracingRoot: path.join(__dirname, ".."),

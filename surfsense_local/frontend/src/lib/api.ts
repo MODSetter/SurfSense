@@ -120,8 +120,12 @@ export type UpdateState =
 export type PrivacyState = {
   updates: {
     automatic: boolean
-    // An admin policy turned update checks off.
+    // An admin policy turned update checks off, or a package manager owns updates.
     locked: boolean
+    // The policy wins when both apply.
+    lockedReason: "policy" | "channel" | null
+    // The package manager that owns updates; null unless that is the lock.
+    channel: InstallChannel | null
     // updates.surfsense.com, or the mirror an admin policy names.
     host: string
     // null with a mirror, which never falls back.
@@ -141,6 +145,9 @@ export type PrivacyState = {
   firstRunAsked: boolean
 }
 export type FirstRunChoices = { updates: boolean; usageStatistics: boolean }
+// Mirrors electron/src/main/install-channel/install-channel.ts.
+export type InstallChannel =
+  "scoop" | "aur" | "snap" | "flatpak" | "nix" | "apt"
 
 export type SidecarCrash = {
   name: string

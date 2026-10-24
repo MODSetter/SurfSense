@@ -464,7 +464,14 @@ runtime:
   a grandchild process as well as the sidecar; `electron-builder.yml` sets
   `entitlementsInherit`.
 - The release workflow pins `ubuntu-22.04`. `ubuntu-latest` migrates and would
-  silently raise the AppImage's glibc floor; the Vulkan build needs 2.34.
+  silently raise the Linux floor. The pinned Linux archive needs glibc 2.34 and,
+  from the host, GCC 12's libstdc++ (`GLIBCXX_3.4.30`); with the backend's
+  glibc 2.35 that is Ubuntu 22.04, Debian 12, current Fedora and EL10 or later,
+  not RHEL 9 ([packaging](../packaging.md#the-linux-floor)).
+- llama.cpp's Linux libraries, `libggml-base` and every `libggml-cpu-*`, link
+  the host's `libgomp.so.1`, which the archive does not carry. The deb depends
+  on `libgomp1`, the rpm on `(libgomp or libgomp1)`, the Fedora and EL name or
+  openSUSE's, and the snap stages `libgomp1`; the AppImage declares nothing.
 - On Windows, `vulkan-1.dll` is in `System32` on a stock install, so nothing is
   bundled for it.
 - Quitting reaps the whole tree. On Windows the supervisor runs
@@ -488,9 +495,14 @@ The rest of the installer is in [`../packaging.md`](../packaging.md).
   because resolving it never touches the sidecar. An install still downloads and
   ends with "Downloaded. It becomes available once the runtime restarts."
 - **No Vulkan loader.** `dlopen` fails, ggml skips the backend silently, and the
-  CPU runs. The `.deb` recommends `libvulkan1`, so apt installs the loader by
-  default on Debian and Ubuntu; a user who declines recommends, or runs the
-  AppImage, which carries no dependency metadata, gets this.
+  CPU runs. The `.deb` recommends `libvulkan1` and the `.rpm` `vulkan-loader`,
+  so apt and dnf install the loader by default, and the snap stages it; a user
+  who declines weak dependencies, or runs the AppImage, which carries no
+  dependency metadata, gets this.
+- **No OpenMP runtime.** Without the host's `libgomp.so.1` the dynamic loader
+  cannot load `libggml-base`, so `llama-server` exits at once and the runtime is
+  missing as above. Only the AppImage can reach this: the deb and the rpm
+  depend on the library and the snap stages it.
 - **A GPU exists and ggml cannot see it.** Reported as `broken_install` rather
   than badged as a CPU-only machine ([`fit.md`](fit.md)).
 - **A quantized cache without a working flash-attention kernel.** llama.cpp falls

@@ -1143,6 +1143,7 @@
   "privacy_choices_update_request_body": "Une vérification demande à {host} le fichier de la dernière version pour ce système, au plus une fois par jour et chaque fois que vous cliquez sur Vérifier maintenant. Elle porte votre adresse IP, comme toute requête, mais aucun cookie ni identifiant.",
   "privacy_choices_update_user_agent_header_body": "Toujours SurfSense, sans version",
   "privacy_choices_update_version_header_body": "La version de cette application, par exemple 2.2.4",
+  "privacy_choices_updates_channel_locked_status": "Les mises à jour viennent {channel, select, scoop {de Scoop} aur {de l’AUR} snap {du Snap Store} flatpak {de Flatpak} nix {de Nix} apt {de votre dépôt apt} other {de votre gestionnaire de paquets}}, donc SurfSense ne les recherche pas lui-même.",
   "privacy_choices_updates_policy_locked_status": "La stratégie de votre organisation a désactivé la recherche de mises à jour sur cet ordinateur.",
   "privacy_choices_usage_do_not_track_locked_status": "Désactivées, car DO_NOT_TRACK ou SURFSENSE_NO_TELEMETRY est défini sur cet ordinateur.",
   "privacy_choices_usage_last_sent_aria": "Le dernier rapport d’utilisation envoyé",

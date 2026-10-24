@@ -2,9 +2,9 @@
 
 The desktop app updates itself with electron-updater from the GitHub Releases of `MODSetter/SurfSense`, on its own `stable` channel, and only once the user has allowed it. It reads the release's manifest through `updates.surfsense.com`, which counts the check, and straight from GitHub whenever that host fails; installers always come from GitHub. Updates are free for everyone and carry no license logic. The legacy 0.0.x desktop app reads the same releases, so the two apps are kept apart by the names of the manifests each one reads.
 
-**Code:** [`surfsense_local/electron/src/main/updater.ts`](../../surfsense_local/electron/src/main/updater.ts) and, in Electron main, `update-feed/`, `update-schedule/`, `admin-policy/` and [`updater-cache/`](../../surfsense_local/electron/src/main/updater-cache/); [`surfsense_local/electron/patches/electron-updater@6.8.9.patch`](../../surfsense_local/electron/patches/electron-updater@6.8.9.patch), [`surfsense_local/electron/electron-builder.yml`](../../surfsense_local/electron/electron-builder.yml), [`.github/workflows/release-local.yml`](../../.github/workflows/release-local.yml), [`surfsense_local/frontend/src/features/updates/`](../../surfsense_local/frontend/src/features/updates/), [`surfsense_local/frontend/src/features/privacy-choices/`](../../surfsense_local/frontend/src/features/privacy-choices/)
+**Code:** [`surfsense_local/electron/src/main/updater.ts`](../../surfsense_local/electron/src/main/updater.ts) and, in Electron main, `update-feed/`, `update-schedule/`, `admin-policy/`, [`install-channel/`](../../surfsense_local/electron/src/main/install-channel/) and [`updater-cache/`](../../surfsense_local/electron/src/main/updater-cache/); [`surfsense_local/electron/patches/electron-updater@6.8.9.patch`](../../surfsense_local/electron/patches/electron-updater@6.8.9.patch), [`surfsense_local/electron/electron-builder.yml`](../../surfsense_local/electron/electron-builder.yml), [`.github/workflows/release-local.yml`](../../.github/workflows/release-local.yml), [`surfsense_local/frontend/src/features/updates/`](../../surfsense_local/frontend/src/features/updates/), [`surfsense_local/frontend/src/features/privacy-choices/`](../../surfsense_local/frontend/src/features/privacy-choices/)
 **Decisions:** [ADR 0020](../adr/0020-two-update-channels.md), [ADR 0070](../adr/0070-opt-in-id-less-update-checks-and-usage-statistics.md)
-**Contract:** [contract 5](../contracts/05-desktop-telemetry.md), part A
+**Contract:** [contract 5](../contracts/05-desktop-telemetry.md), parts A and C
 
 How to cut a release is in [`surfsense_local/RELEASE.md`](../../surfsense_local/RELEASE.md).
 
@@ -17,6 +17,10 @@ Updates are a call the app makes on its own, so they are off until the user turn
 - The automatic check runs at most once a UTC day: at launch, and from an hourly tick once the day turns while the app stays open. The day is marked only once a check reads a manifest, from either host. A check that reads none is tried again on the hourly tick, at most three times a UTC day. A day's automatic checks therefore approximate the installs open that day, with no identifier on the wire; a retry after a failed check can add a second event from one install.
 - Check now in Settings › About, the sidebar's update row and Check for Updates… in the macOS app menu share one check (`useCheckForUpdates`), which asks first while `automatic` is off, naming the host it asks. The menu shows only that prompt; the sidebar and Settings show the progress. Allow turns `automatic` on, which also enables the daily check.
 - An admin policy file with `"updates": "off"` turns both off and locks the setting; Check now is disabled and says why. `"updateFeed"` names an `https` mirror instead of `updates.surfsense.com`, with no GitHub fallback ([usage statistics](usage-statistics.md#policy) says where the file lives).
+- An install a package manager owns never checks: Scoop, the AUR and Nix, whose packages write `resources/install-channel`, a snap or a flatpak, known from their environment, and a deb from SurfSense's apt repository, known from `/etc/apt/sources.list.d/surfsense.list` ([contract 5](../contracts/05-desktop-telemetry.md), part C, has the order). The setting is locked as under the policy, which names the lock when both apply. Settings › About then shows only "Updates come from" that package manager, with no daily check described and no "Show exactly what's sent". The app does not construct electron-updater at all for such an install, so a repackaged deb's `package-type` cannot start its deb updater.
+- The sidebar's update row is gone while either lock holds, since a check it started would be refused.
+- Scoop and the AUR must first be submitted with the first release that carries `install-channel/`, not earlier: an older release has no channel lock, so it would update itself out from under them ([packaging](../../surfsense_local/packaging/README.md)).
+- Homebrew and winget run the release's own installer, so nothing marks them and the in-app updater stays available beside `brew upgrade` and `winget upgrade`. The Homebrew cask declares `auto_updates` inside `on_macos` only, so plain `brew upgrade` updates the Mac app while its bundle's version is older than the cask's, as it is whenever the in-app updater is off, and always updates the Linux AppImage, which has no bundle version to compare.
 - `autoDownload` is false. The download starts from the `update-available` event, so it only ever follows a check the user enabled or clicked.
 - A downloaded update installs when the user restarts from the prompt in Settings, the sidebar or the title bar, which calls `quitAndInstall()` once the download is ready, or else the next time they quit: `autoInstallOnAppQuit`, electron-updater's default, is set to true on purpose. The update prompt says both.
 
@@ -41,6 +45,8 @@ Settings › About's "Show exactly what's sent" shows the last request to the fe
 
 This is not an `egress.require()` destination, because electron-updater runs in the Electron main process where the backend's check cannot see it ([egress](egress.md)). A development build shows the same controls and never checks.
 
+An inactive electron-updater, such as its AppImage updater in an AppImage run without `$APPIMAGE`, answers a check with null and emits nothing. The check then puts back the state it found, idle unless an update was already downloaded, so Settings and the sidebar never stay on "Checking…". A check that throws keeps the `error` state electron-updater emitted first.
+
 ## Update size
 
 Downloads are differential: electron-updater fetches only the blocks that changed, using the `.blockmap` files electron-builder publishes with each release. The app's provider asks for one byte range per request, as electron-updater's `GitHubProvider` does (`update-feed/surfsense-feed-provider.ts`): GitHub's release CDN serves a single range and answers several with 501, which would turn every update into a whole download. Any failure falls back to downloading the whole file, so the result is always the published file.
@@ -53,6 +59,7 @@ A proxy or antivirus web shield that drops the `Range` header answers each of th
 | macOS | `update.zip` in `~/Library/Caches/surfsense-local-electron-updater/`, the copy of the last downloaded zip | whole (1.28 GB) until a first update leaves `update.zip`, then about 187 MB (planned) |
 | AppImage | the running AppImage, through the blockmap embedded in it | about 42 MB |
 | deb | nothing; electron-updater always downloads a deb whole | 1.28 GB |
+| rpm | nothing; downloaded whole, like the deb | the whole rpm |
 
 An app at 2.2.3 or earlier still downloads its next update whole, because those versions turn differential downloads off.
 
@@ -85,7 +92,12 @@ A `v*` tag equal to `surfsense_local/VERSION` starts the workflow, which fails w
 | macOS arm64 | `SurfSense-arm64.dmg` | `SurfSense-arm64.zip`; electron-updater needs the zip, so the target is `[dmg, zip]` |
 | Windows x64 | `SurfSense-Setup.exe` | the same NSIS installer |
 | Linux x64 | `SurfSense.AppImage` | the AppImage |
-| Linux x64 | `SurfSense.deb` | likely the deb (Known gaps) |
+| Linux x64 | `SurfSense.deb` | the deb, through electron-updater's deb updater, which it picks from `resources/package-type`; apt instead once the apt repository is set up |
+| Linux x64 | `SurfSense.rpm` | the rpm, through the rpm updater, picked the same way |
+| Linux x64 | the `surfsense-local` snap, uploaded to the Snap Store by its own job and not to the release | snapd, from the Snap Store; the app never checks |
+| Linux x64 | `SurfSense.deb` from the flat apt repository on the release (`Packages`, `Packages.gz`, `Release`, `Release.gpg`, `InRelease`, `surfsense-archive-keyring.gpg`) | apt, once `/etc/apt/sources.list.d/surfsense.list` exists; the app never checks |
+
+The apt source is `deb [signed-by=/usr/share/keyrings/surfsense-archive-keyring.gpg] https://github.com/MODSetter/SurfSense/releases/latest/download/ ./`, so apt, like the updater, reads the release marked Latest.
 
 ## What GitHub counts
 
@@ -93,11 +105,11 @@ A daily job saves every asset's download count, and says which client each count
 
 ## Download links
 
-Every installer link outside the app goes through one redirect on the website, `/downloads/<platform>` for `windows`, `mac`, `linux-appimage` and `linux-deb` (`surfsense_web/app/(home)/downloads/[platform]/route.ts`). It answers a 302 to the GitHub asset, so the bytes still come from GitHub, and counts the download on the way: a personless `installer_download` event with the platform, `src` (where the link was: `site`, `readme`, `email`, `app`, `pricing`, else `other`), the version and the country Vercel derives, sent from the server so a content blocker does not hide it. Obvious bots and mail scanners, matched by User-Agent, are redirected but not counted. The response is `no-store`.
+Every installer link outside the app goes through one redirect on the website, `/downloads/<platform>` for `windows`, `mac`, `linux-appimage`, `linux-deb` and `linux-rpm` (`surfsense_web/app/(home)/downloads/[platform]/route.ts`). It answers a 302 to the GitHub asset, so the bytes still come from GitHub, and counts the download on the way: a personless `installer_download` event with the platform, `src` (where the link was: `site`, `readme`, `email`, `app`, `pricing`, else `other`), the version and the country Vercel derives, sent from the server so a content blocker does not hide it. Obvious bots and mail scanners, matched by User-Agent, are redirected but not counted. The response is `no-store`.
 
 The redirect's `v` pins a tag: the license email (`surfsense_backend/app/license/release.py`) sends `src=email&v=<tag>`, so a mail already sent keeps offering the build it was sent for. Without `v`, or with a tag older than 2.0.2, it uses `APP_RELEASE_VERSION` in `surfsense_web/lib/app-release.ts`; `surfsense_local/scripts/bump-version.sh` writes that pin into both files, and it moves when the web app and the backend are deployed with the bump. The site's `/downloads` grid (`src=site`) and every README's table (`src=readme`) use the pin, so they follow a release on deploy rather than on GitHub's Latest.
 
-A tag counts only once GitHub serves it. The redirect checks it against the newest 30 published releases from the GitHub API, cached for an hour, and otherwise sends the link to `/releases/latest/download/<file>` with the version recorded as `latest`. That covers release day, when the bump is deployed while its release is still a draft whose assets 404 for anyone signed out (about an hour, longer when a release run fails), a tag that was never published or is older than those 30, and a GitHub API that cannot be reached. Artifact names have carried no version since 2.0.2, which is why the redirect builds each URL from a tag and a fixed file name and why Latest always has the file; renaming an installer breaks every link already sent.
+A tag counts only once GitHub serves it. The redirect checks it against the newest 30 published releases from the GitHub API, cached for an hour, and otherwise sends the link to `/releases/latest/download/<file>` with the version recorded as `latest`. That covers release day, when the bump is deployed while its release is still a draft whose assets 404 for anyone signed out (about an hour, longer when a release run fails), a tag that was never published or is older than those 30, and a GitHub API that cannot be reached. Artifact names have carried no version since 2.0.2, which is why the redirect builds each URL from a tag and a fixed file name and why Latest has every file but the rpm, which exists only from the first release that builds it. Until that release is Latest, `/downloads/linux-rpm` falls back to a file Latest does not have, and still counts the download. Renaming an installer breaks every link already sent.
 
 ## The legacy app
 
@@ -105,7 +117,7 @@ A tag counts only once GitHub serves it. The redirect checks it against the newe
 
 ## Known gaps
 
-- The deb build likely auto-updates, although the launch plan said it would not: electron-builder writes `resources/package-type` for a deb, electron-updater picks its deb updater from that file, and v2.0.2's `stable-linux.yml` on the release lists `SurfSense.deb`. Not checked on an installed deb.
+- The deb updates itself through electron-updater's deb updater unless SurfSense's apt source is configured, and the rpm through its rpm updater. Neither has been run on an installed package: each downloads the whole package and installs it as root through `pkexec` or `sudo`.
 - The macOS differential path has only been planned from the real blockmaps, not run end to end. A failure there falls back to a whole download.
 - On macOS a download whose blockmap could not be fetched replaces `update.zip` but not `current.blockmap`, so the next update downloads whole after a wasted differential attempt.
 - Uninstalling leaves `%LOCALAPPDATA%\surfsense-local-electron-updater\` behind, with the 1.16 GB `installer.exe` in it.

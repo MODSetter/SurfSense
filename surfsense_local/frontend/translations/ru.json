@@ -1143,6 +1143,7 @@
   "privacy_choices_update_request_body": "Проверка запрашивает у {host} файл последнего выпуска для этой системы — не чаще раза в день и каждый раз, когда вы нажимаете «Проверить сейчас». Как и любой запрос, она передаёт ваш IP-адрес, но не передаёт ни cookie, ни идентификатора.",
   "privacy_choices_update_user_agent_header_body": "Всегда SurfSense, без версии",
   "privacy_choices_update_version_header_body": "Версия этого приложения, например 2.2.4",
+  "privacy_choices_updates_channel_locked_status": "Обновления приходят {channel, select, scoop {через Scoop} aur {из AUR} snap {из Snap Store} flatpak {через Flatpak} nix {через Nix} apt {из вашего репозитория apt} other {через ваш менеджер пакетов}}, поэтому SurfSense сам их не проверяет.",
   "privacy_choices_updates_policy_locked_status": "Политика вашей организации отключила проверку обновлений на этом компьютере.",
   "privacy_choices_usage_do_not_track_locked_status": "Отключено, потому что на этом компьютере задана переменная DO_NOT_TRACK или SURFSENSE_NO_TELEMETRY.",
   "privacy_choices_usage_last_sent_aria": "Последний отправленный отчёт об использовании",

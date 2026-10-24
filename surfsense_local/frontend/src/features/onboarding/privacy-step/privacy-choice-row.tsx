@@ -17,7 +17,8 @@ export function PrivacyChoiceRow({
   onChange,
 }: {
   title: string
-  body: string
+  /** Left out when SurfSense would do nothing to describe. */
+  body?: string
   whatsSent: ReactNode
   value: boolean | null
   locked: string | null
@@ -46,7 +47,9 @@ export function PrivacyChoiceRow({
         <h2 id={titleId} className="text-sm font-medium">
           {title}
         </h2>
-        <p className="text-sm text-pretty text-muted-foreground">{body}</p>
+        {body ? (
+          <p className="text-sm text-pretty text-muted-foreground">{body}</p>
+        ) : null}
         {locked ? (
           <p className="text-sm text-muted-foreground">{locked}</p>
         ) : null}

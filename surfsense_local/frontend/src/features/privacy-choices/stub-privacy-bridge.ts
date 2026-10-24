@@ -21,6 +21,8 @@ export function stubPrivacyBridge(
     updates: {
       automatic: false,
       locked: false,
+      lockedReason: null,
+      channel: null,
       host: "updates.surfsense.com",
       fallbackHost: "github.com",
       lastCheckedAt: null,
