@@ -193,6 +193,21 @@ function box(dialog: HTMLElement) {
   })
 }
 
+// The trigger names the site in use, so this also checks the one before.
+async function pickSite(
+  user: ReturnType<typeof userEvent.setup>,
+  dialog: HTMLElement,
+  from: string,
+  to: string
+) {
+  await user.click(
+    within(dialog).getByRole("button", {
+      name: `Search on ${from}. Change site.`,
+    })
+  )
+  await user.click(await screen.findByRole("menuitemradio", { name: to }))
+}
+
 async function ask(
   user: ReturnType<typeof userEvent.setup>,
   dialog: HTMLElement,
@@ -249,15 +264,34 @@ describe("adding sources from the web", () => {
     expect(await screen.findByText(PAGE)).toBeTruthy()
   })
 
-  it("searches the web unless another site is chosen beside the box", async () => {
+  it("searches the web unless another site is chosen under the box", async () => {
     const user = userEvent.setup()
     const sent = serving()
     render(<WebHarness />)
     const dialog = await openDialog(user)
 
-    const site = within(dialog).getByRole("combobox", { name: "Search on" })
-    expect((site as HTMLSelectElement).value).toBe("web")
-    await user.selectOptions(site, "youtube")
+    await pickSite(user, dialog, "Google Search", "YouTube")
+    await ask(user, dialog, "how tides work")
+
+    await within(dialog).findByRole("button", {
+      name: "Add Tide tables explained",
+    })
+    expect(sent).toEqual([
+      {
+        path: "/workspaces/1/documents/web/search",
+        body: { query: "how tides work", source: "youtube", page: 0 },
+      },
+    ])
+  })
+
+  it("searches the site picked on the start screen", async () => {
+    const user = userEvent.setup()
+    const sent = serving()
+    render(<WebHarness />)
+    const dialog = await openDialog(user)
+
+    await user.click(within(dialog).getByRole("button", { name: "YouTube" }))
+    expect(document.activeElement).toBe(box(dialog))
     await ask(user, dialog, "how tides work")
 
     await within(dialog).findByRole("button", {
@@ -307,10 +341,7 @@ describe("adding sources from the web", () => {
     render(<WebHarness />)
     const dialog = await openDialog(user)
 
-    await user.selectOptions(
-      within(dialog).getByRole("combobox", { name: "Search on" }),
-      "amazon"
-    )
+    await pickSite(user, dialog, "Google Search", "Amazon")
     await ask(user, dialog, PAGE)
 
     await within(dialog).findByRole("button", { name: `Add ${PAGE}` })

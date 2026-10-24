@@ -9,7 +9,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Select } from "@/components/ui/select"
+import { ArrowRightIcon } from "@/components/ui/icons"
+import { ScrollFade } from "@/components/ui/scroll-fade"
 import { Spinner } from "@/components/ui/spinner"
 import { Textarea } from "@/components/ui/textarea"
 import { useLicense } from "@/features/license/use-license"
@@ -18,7 +19,8 @@ import { intl } from "@/i18n/intl"
 import type { WebGroup } from "./api"
 import { pastedLinks } from "./pasted-links"
 import { refusalText } from "./refusal-text"
-import { SEARCH_SITES, searchSiteName, type SearchSite } from "./search-sites"
+import { searchSiteName, type SearchSite } from "./search-sites"
+import { SearchSitePicker } from "./search-site-picker"
 import { ShowMoreBar } from "./show-more-bar"
 import type { WebSources } from "./use-web-sources"
 import { WebLicenseOffer } from "./web-license-offer"
@@ -26,6 +28,7 @@ import { webProblem, type WebProblem } from "./web-problem"
 import type { RowActions, RowState } from "./row-actions"
 import { WebListPanel } from "./web-list-panel"
 import { WebResultRows } from "./web-result-rows"
+import { WebSearchStart } from "./web-search-start"
 
 // Per request, as the API takes them.
 const MAX_LINKS = 20
@@ -83,6 +86,7 @@ export function AddFromWebDialog({
     () => new Set()
   )
   const run = useRef<AbortController | null>(null)
+  const box = useRef<HTMLTextAreaElement>(null)
 
   const pasted = pastedLinks(text)
   const addable = [...(groups ?? []), ...lists.values()]
@@ -296,7 +300,8 @@ export function AddFromWebDialog({
         setLoadingMore(new Set())
       }}
     >
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-2xl">
+      {/* A fixed height: the box stays put while results scroll beneath it. */}
+      <DialogContent className="flex h-[min(42rem,calc(100dvh-2rem))] flex-col select-none sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>
             {intl.formatMessage({
@@ -318,30 +323,17 @@ export function AddFromWebDialog({
             onOpenLicense={web.onOpenLicense}
           />
         ) : (
-          <div className="flex min-w-0 flex-col gap-4">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
+            {/* One box like the chat composer's: the text, then where it searches. */}
             <form
-              className="flex items-start gap-2"
+              className="shrink-0 rounded-2xl border bg-card p-1.5 shadow-sm transition-colors focus-within:border-ring/40 hover:border-ring/40"
               onSubmit={(event) => void submit(event)}
             >
-              <Select
-                className="h-9 w-36"
-                value={site}
-                aria-label={intl.formatMessage({
-                  id: "sources_web_site_aria",
-                  defaultMessage: "Search on",
-                })}
-                onChange={(event) => setSite(event.target.value as SearchSite)}
-              >
-                {SEARCH_SITES.map((choice) => (
-                  <option key={choice} value={choice}>
-                    {searchSiteName(choice)}
-                  </option>
-                ))}
-              </Select>
               <Textarea
+                ref={box}
                 value={text}
                 rows={1}
-                className="max-h-40 min-h-9 resize-none"
+                className="max-h-40 min-h-11 resize-none border-0 bg-transparent px-2 py-2.5 shadow-none select-text focus-visible:border-0 dark:bg-transparent"
                 aria-label={intl.formatMessage({
                   id: "sources_web_box_aria",
                   defaultMessage: "Search or paste links",
@@ -363,21 +355,47 @@ export function AddFromWebDialog({
                 onChange={(event) => setText(event.target.value)}
                 onKeyDown={submitOnEnter}
               />
-              <Button type="submit" disabled={!text.trim() || busy !== null}>
-                {pasted.links.length > 0
-                  ? intl.formatMessage({
-                      id: "sources_web_open_links_button",
-                      defaultMessage: "Open links",
-                    })
-                  : intl.formatMessage({
-                      id: "sources_web_search_button",
-                      defaultMessage: "Search",
-                    })}
-              </Button>
+              <div className="flex items-center justify-between gap-2">
+                <SearchSitePicker site={site} onSiteChange={setSite} />
+                <Button
+                  type="submit"
+                  size="icon-lg"
+                  className="rounded-xl"
+                  disabled={!text.trim() || busy !== null}
+                  aria-label={
+                    pasted.links.length > 0
+                      ? intl.formatMessage({
+                          id: "sources_web_open_links_button",
+                          defaultMessage: "Open links",
+                        })
+                      : intl.formatMessage({
+                          id: "sources_web_search_button",
+                          defaultMessage: "Search",
+                        })
+                  }
+                >
+                  {busy ? <Spinner /> : <ArrowRightIcon />}
+                </Button>
+              </div>
             </form>
+            {notLinks.length > 0 ? (
+              <ul className="flex shrink-0 flex-col gap-1 text-sm text-muted-foreground">
+                {notLinks.map((notLink) => (
+                  <li key={notLink} className="min-w-0 truncate">
+                    <span className="text-foreground">{notLink}</span>{" "}
+                    {refusalText("not_a_link")}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            {problem && problem.kind !== "license" ? (
+              <p role="alert" className="shrink-0 text-sm text-destructive">
+                {problemText(problem)}
+              </p>
+            ) : null}
             {busy ? (
-              <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Spinner />
+              <p className="flex flex-1 flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
+                <Spinner className="size-5" />
                 {busy === "searching"
                   ? intl.formatMessage({
                       id: "sources_web_searching_status",
@@ -388,24 +406,11 @@ export function AddFromWebDialog({
                       defaultMessage: "Opening links. This can take a minute.",
                     })}
               </p>
-            ) : null}
-            {notLinks.length > 0 ? (
-              <ul className="flex flex-col gap-1 text-sm text-muted-foreground">
-                {notLinks.map((notLink) => (
-                  <li key={notLink} className="min-w-0 truncate">
-                    <span className="text-foreground">{notLink}</span>{" "}
-                    {refusalText("not_a_link")}
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-            {problem && problem.kind !== "license" ? (
-              <p role="alert" className="text-sm text-destructive">
-                {problemText(problem)}
-              </p>
-            ) : null}
-            {groups && !busy ? (
-              <div className="flex max-h-[60dvh] flex-col gap-2 overflow-y-auto rounded-lg border p-1">
+            ) : groups ? (
+              <ScrollFade
+                className="flex-1 rounded-lg border"
+                viewportClassName="flex flex-col gap-2 p-1"
+              >
                 {groups.map((group, index) =>
                   group.link ? (
                     <WebListPanel
@@ -417,7 +422,7 @@ export function AddFromWebDialog({
                   ) : group.results.length === 0 ? (
                     <p
                       key={`rows-${index}`}
-                      className="px-3 py-6 text-center text-sm text-muted-foreground"
+                      className="flex flex-1 items-center justify-center px-3 py-6 text-center text-sm text-muted-foreground"
                     >
                       {intl.formatMessage({
                         id: "sources_web_results_empty",
@@ -440,8 +445,16 @@ export function AddFromWebDialog({
                     </div>
                   )
                 )}
-              </div>
-            ) : null}
+              </ScrollFade>
+            ) : (
+              <WebSearchStart
+                site={site}
+                onSiteChange={(next) => {
+                  setSite(next)
+                  box.current?.focus()
+                }}
+              />
+            )}
           </div>
         )}
         <DialogFooter>
