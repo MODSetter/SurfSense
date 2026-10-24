@@ -91,7 +91,7 @@ def _tool(
     return tool_function
 
 
-# The arguments each real tool takes, read off plugins/remote/proprietary/*/server.py:
+# The arguments each real tool takes, read off backend/plugins/proprietary/*/server.py:
 # a puller that sends one the real tool does not take fails here too.
 REAL_PARAMS: dict[tuple[str, str], tuple[str, ...]] = {
     ("google-search", "scrape"): (

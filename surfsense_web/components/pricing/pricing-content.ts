@@ -54,7 +54,7 @@ import { DOWNLOADS_URL, REPO_URL } from "@/components/site/site-content";
  * `NEXT_PUBLIC_STRIPE_LICENSE_INDIVIDUAL_URL`. Empty falls back to `/contact`.
  *
  * The Payment Link is a one-off payment, not a subscription: fulfilment
- * (`surfsense_backend/app/license/purchase.py`) handles only a paid checkout
+ * (`backend/license/purchase.py`) handles only a paid checkout
  * session, so a recurring charge would never yield a new file. Renewal is a
  * new licence at the list price.
  *

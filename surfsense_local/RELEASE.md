@@ -61,7 +61,7 @@ git add surfsense_local/VERSION \
   surfsense_local/backend/pyproject.toml surfsense_local/backend/uv.lock \
   surfsense_local/frontend/package.json surfsense_local/electron/package.json \
   surfsense_web/lib/app-release.ts \
-  surfsense_backend/app/license/release.py
+  backend/license/release.py
 git commit -m "chore(local): release 2.3.0"
 git push origin dev
 ```

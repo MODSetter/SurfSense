@@ -102,7 +102,7 @@ Connect them in **Settings › Plugins**.
 | **Walmart** | Read Walmart products, search results and reviews |
 | **Indeed** | Read job listings on Indeed |
 
-**Third-party.** MCP servers from the [plugin registry](plugins/registry), such as DeepWiki and Notion, or any you add by URL. No license needed; they stay off until you allow them.
+**Third-party.** MCP servers from the [plugin registry](backend/plugins/registry), such as DeepWiki and Notion, or any you add by URL. No license needed; they stay off until you allow them.
 
 ## How it compares
 

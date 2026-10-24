@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: in-progress
 code:
   - homepage/
   - docker/scripts/
@@ -127,7 +127,7 @@ backend/
 
 ### The license portal
 
-The license code ([portal](../../architecture/license/portal.md)) has no tables, migrations, auth or Celery; Keygen and Stripe are its record ([ADR 0024](../../adr/0024-portal-without-accounts.md)). It ports file for file into `backend/license/`, and `app/mailer/` into `backend/mailer/`, from FastAPI to Starlette and from `app.config` to `os.environ` under the same setting names.
+The license code ([portal](../../architecture/license/portal.md)) has no tables, migrations, auth or Celery; Keygen and Stripe are its record ([ADR 0024](../../adr/0024-portal-without-accounts.md)). It ports file for file into `backend/license/`, and `app/mailer/` into `backend/mailer/`, on FastAPI, which becomes the backend's app, and from `app.config` to `os.environ` under the same setting names.
 
 | Moves | From |
 |---|---|
@@ -161,7 +161,7 @@ The Coolify service answers `https://plugins.surfsense.com,https://api.surfsense
 
 What the routes need from `server/`:
 
-- **CORS** for `https://www.surfsense.com`, exposing `Content-Disposition`, which the license download reads, on `/api/v1` only. The plugin host has none today.
+- **CORS** for `https://www.surfsense.com`, exposing `Content-Disposition`, which the license download reads, on the whole app; plugins are called by the desktop app, never a page. The plugin host has none today.
 - **The client IP.** The rate limits trust `CF-Connecting-IP`, then `X-Real-IP`; the Coolify proxy passes one of them.
 
 ### `/health` answers the legacy desktop
@@ -175,9 +175,10 @@ Each of these breaks unless it changes in the same pull request or at its merge:
 | What | Change |
 |---|---|
 | Coolify's two builds | The backend from `backend/` with `server/Dockerfile`, the registry from `backend/plugins/registry/`; set when the move reaches the branch Coolify deploys from |
-| [`proprietary/LICENSE`](../../../plugins/remote/proprietary/LICENSE) | Its Licensed Work, `plugins/remote/proprietary/**`, becomes `backend/plugins/proprietary/**`, approved by that folder's code owners |
+| [`proprietary/LICENSE`](../../../backend/plugins/proprietary/LICENSE) | Its Licensed Work, `plugins/remote/proprietary/**`, becomes `backend/plugins/proprietary/**`, approved by that folder's code owners |
 | The site's `/terms` and `/plugins` | `/terms` names the same folder, and `/plugins` links to `tree/main/plugins/registry`; both take the new paths |
 | Five workflows, `CODEOWNERS`, `AGENTS.md`, `plugins/README.md`, and every doc and comment naming the old paths | The new paths; `check_docs.py` fails on a dead link left behind |
+| The desktop backend, which installs the bundles' manifest rules from `../../plugins/bundles/core/manifest`, and in development reads the bundle SDK and the registry from the checkout | `backend/plugins/bundles/core/manifest` in its `pyproject.toml` and `uv.lock`, and the two development paths; an image that installs the desktop backend copies that folder in |
 
 ## The homepage
 

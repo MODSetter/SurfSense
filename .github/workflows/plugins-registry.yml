@@ -1,11 +1,11 @@
 name: Plugins Registry
 
-# plugins/registry/: the third-party plugin list, its icons, its check and the
+# backend/plugins/registry/: the third-party plugin list, its icons, its check and the
 # OAuth files the registry container serves.
 # - Pull requests: check the entry rules and icons, then connect to each plugin
 #   the pull request adds or changes. A maintainer connects each new listing on
 #   dev, signing in where it needs it, and reviews its tools before it reaches main.
-# - Dev: write plugins/registry/published/, a copy of plugins.json stamped with
+# - Dev: write backend/plugins/registry/published/, a copy of plugins.json stamped with
 #   generated_at and each icon's SHA-256, and plugins.json.sig, its signature.
 #   The release pull request from dev carries it to main, which the registry
 #   container is built from, so nothing pushes to main. The source list is never
@@ -18,8 +18,8 @@ on:
   push:
     branches: [dev]
     paths:
-      - 'plugins/registry/plugins.json'
-      - 'plugins/registry/icons/**'
+      - 'backend/plugins/registry/plugins.json'
+      - 'backend/plugins/registry/icons/**'
   # Checks the list on any branch; on dev, also signs it again.
   workflow_dispatch:
 
@@ -57,13 +57,13 @@ jobs:
         with:
           filters: |
             registry_changed:
-              - 'plugins/registry/**'
+              - 'backend/plugins/registry/**'
               - 'surfsense_local/backend/modules/plugins/lists/first_party/plugins.json'
               - '.github/workflows/plugins-registry.yml'
               - '.github/workflows/plugins-registry-submission.yml'
               - '.github/ISSUE_TEMPLATE/plugin-submit.yml'
             published_changed:
-              - 'plugins/registry/published/plugins.json*'
+              - 'backend/plugins/registry/published/plugins.json*'
 
   # Only the sign job writes the signed copy. The release pull request from dev
   # into main carries that job's commits, so it is let through.
@@ -77,10 +77,22 @@ jobs:
       !(github.head_ref == 'dev' && github.base_ref == 'main')
 
     steps:
-      - name: Fail
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+
+      # The checkout is the pull request merged into its base, its first parent. A file
+      # moved with identical content is not an edit; -M100% counts any other change as one.
+      - name: Fail on a hand edit
         run: |
-          echo "::error::plugins/registry/published/ is written by the sign job on dev only. Edit plugins/registry/plugins.json instead."
-          exit 1
+          edited=$(git diff --name-only --diff-filter=AM -M100% HEAD^1 HEAD \
+            | grep -E '^backend/plugins/registry/published/plugins\.json' || true)
+          if [ -n "$edited" ]; then
+            echo "::error::backend/plugins/registry/published/ is written by the sign job on dev only. Edit backend/plugins/registry/plugins.json instead."
+            echo "$edited"
+            exit 1
+          fi
 
   check-registry:
     name: Check registry
@@ -106,24 +118,24 @@ jobs:
           python-version: '3.12'
 
       - name: Install dependencies
-        working-directory: plugins/registry/check
+        working-directory: backend/plugins/registry/check
         run: uv sync
 
       - name: Lint
-        working-directory: plugins/registry/check
+        working-directory: backend/plugins/registry/check
         run: uv run ruff check .
 
       - name: Check formatting
-        working-directory: plugins/registry/check
+        working-directory: backend/plugins/registry/check
         run: uv run ruff format --check .
 
       - name: Run tests
-        working-directory: plugins/registry/check
+        working-directory: backend/plugins/registry/check
         run: uv run pytest
 
       # Ids are unique across both lists, so it reads the first-party list too.
       - name: Check the entry rules and icons
-        working-directory: plugins/registry/check
+        working-directory: backend/plugins/registry/check
         run: uv run python -m registry_check static
 
       # Connects to each plugin the pull request adds or changes, after the entry
@@ -135,10 +147,10 @@ jobs:
           github.event_name == 'pull_request' ||
           (github.event_name == 'workflow_dispatch' &&
           startsWith(github.ref, 'refs/heads/registry/plugin-submission-'))
-        working-directory: plugins/registry/check
+        working-directory: backend/plugins/registry/check
         run: |
           base="$RUNNER_TEMP/base-plugins.json"
-          git show HEAD^1:plugins/registry/plugins.json > "$base" 2>/dev/null \
+          git show HEAD^1:backend/plugins/registry/plugins.json > "$base" 2>/dev/null \
             || echo '{"schema_version": 1, "plugins": []}' > "$base"
           uv run python -m registry_check live --base "$base"
 
@@ -148,7 +160,7 @@ jobs:
           node-version: 24
 
       - name: Test the OAuth callback page
-        run: node --test 'plugins/registry/oauth/tests/*.test.mjs'
+        run: node --test 'backend/plugins/registry/oauth/tests/*.test.mjs'
 
   sign:
     name: Sign the registry
@@ -180,22 +192,22 @@ jobs:
           python-version: '3.12'
 
       - name: Install dependencies
-        working-directory: plugins/registry/check
+        working-directory: backend/plugins/registry/check
         run: uv sync
 
       # Never sign a list that would not pass review.
       - name: Check the entry rules and icons
-        working-directory: plugins/registry/check
+        working-directory: backend/plugins/registry/check
         run: uv run python -m registry_check static
 
       - name: Sign
-        working-directory: plugins/registry/check
+        working-directory: backend/plugins/registry/check
         env:
           REGISTRY_SIGNING_KEY: ${{ secrets.REGISTRY_SIGNING_KEY }}
         run: uv run python -m registry_check sign
 
       - name: Verify with the public key
-        working-directory: plugins/registry/check
+        working-directory: backend/plugins/registry/check
         env:
           REGISTRY_VERIFY_COMMITTED: '1'
         run: |
@@ -204,7 +216,7 @@ jobs:
 
       - name: Commit the signed list
         run: |
-          git add plugins/registry/published/plugins.json plugins/registry/published/plugins.json.sig
+          git add backend/plugins/registry/published/plugins.json backend/plugins/registry/published/plugins.json.sig
           if git diff --cached --quiet; then
             echo "Nothing to sign."
             exit 0

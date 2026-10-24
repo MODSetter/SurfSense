@@ -95,7 +95,7 @@ SurfSense는 업로드할 수 없는 문서를 위한 무료 오픈소스 데스
 | **Walmart** | Walmart 상품, 검색 결과, 리뷰 읽기 |
 | **Indeed** | Indeed의 채용 공고 읽기 |
 
-**서드파티.** [플러그인 레지스트리](plugins/registry)에 있는 DeepWiki, Notion 같은 MCP 서버 또는 URL로 직접 추가한 서버입니다. 라이선스는 필요 없으며, 허용하기 전까지 꺼져 있습니다.
+**서드파티.** [플러그인 레지스트리](backend/plugins/registry)에 있는 DeepWiki, Notion 같은 MCP 서버 또는 URL로 직접 추가한 서버입니다. 라이선스는 필요 없으며, 허용하기 전까지 꺼져 있습니다.
 
 ## 비교
 

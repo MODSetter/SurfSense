@@ -733,7 +733,7 @@ answers where the paid line falls; and the maintainer posts the Show HN that
 week. Still open:
 
 1. **Which licence terms does a local job plugin carry?** The Business Source
-   License in `plugins/remote/proprietary/` grants production use to anyone
+   License in `backend/plugins/proprietary/` grants production use to anyone
    who does not resell the work. That suits code on SurfSense's server, but on
    the user's machine it would let a business run a job plugin without paying.
    The choice is a Business Source License with a narrower Additional Use

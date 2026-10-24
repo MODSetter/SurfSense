@@ -57,7 +57,7 @@ In order:
 7. **Community** and **License**. License says Apache-2.0 and links `LICENSE`.
    Since 15 Oct 2026 the root `LICENSE` is the plain Apache text with no
    preamble, so GitHub's About panel names the license instead of showing "View
-   license". The two folders under the BSL 1.1, `plugins/remote/proprietary/` and
+   license". The two folders under the BSL 1.1, `backend/plugins/proprietary/` and
    `surfsense_backend/app/proprietary/`, each say so in their own `LICENSE`; the
    README does not list them.
 

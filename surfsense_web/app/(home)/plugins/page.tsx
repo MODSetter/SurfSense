@@ -18,7 +18,7 @@ import { registryPlugins } from "./registry-plugins";
  */
 
 const canonicalUrl = "https://www.surfsense.com/plugins";
-const registryUrl = `${REPO_URL}/tree/main/plugins/registry`;
+const registryUrl = `${REPO_URL}/tree/main/backend/plugins/registry`;
 /** A form a bot checks and turns into the registry pull request; no git for the publisher. */
 const submitUrl = `${REPO_URL}/issues/new?template=plugin-submit.yml`;
 

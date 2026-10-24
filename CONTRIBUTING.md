@@ -25,7 +25,7 @@ This repo holds four products. Clone it once, then open the README for the produ
 | MCP server | [`surfsense_mcp/README.md`](surfsense_mcp/README.md) |
 | API / scrapers | [`surfsense_backend/README.md`](surfsense_backend/README.md) |
 | Self-host web UI | [`surfsense_web/README.md`](surfsense_web/README.md) |
-| A plugin, your MCP server listed in the app | [`plugins/registry/README.md`](plugins/registry/README.md) |
+| A plugin, your MCP server listed in the app | [`backend/plugins/registry/README.md`](backend/plugins/registry/README.md) |
 
 The web UI needs the API running. Desktop does not. MCP talks to any backend over HTTP.
 
@@ -55,7 +55,7 @@ Small, focused PRs are easier to review.
 - After editing anything under `docs/` or `plans/`, run `python scripts/check_docs.py`.
 - [Allow edits from maintainers](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/allowing-changes-to-a-pull-request-branch-created-from-a-fork) lets us help on the branch.
 - New files follow [AGENTS.md](AGENTS.md). Existing packages do not need a layout rewrite unless that is the issue.
-- `surfsense_backend/app/proprietary/` and `plugins/remote/proprietary/` are Business Source License 1.1, and only maintainers change them. A pull request from anyone else that touches them is closed.
+- `surfsense_backend/app/proprietary/` and `backend/plugins/proprietary/` are Business Source License 1.1, and only maintainers change them. A pull request from anyone else that touches them is closed.
 - Keep `.env` and secrets out of the commit.
 
 ## Review and merge

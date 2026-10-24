@@ -241,7 +241,7 @@ to `surfsense_local/`. A check in the app can be stripped by a fork, so what
 holds is delivery to a valid license plus the plugin's license terms.
 
 **Where premium plugins live.** `surfsense_backend` shrinks to two things:
-the license server ([`app/license/`](../../surfsense_backend/app/license/),
+the license server ([`backend/license/`](../../backend/license/),
 which already issues Keygen licenses) and the premium plugins, such as the
 scraper client, kept in
 [`app/proprietary/`](../../surfsense_backend/app/proprietary/LICENSE) under
@@ -264,7 +264,7 @@ infrastructure stay Apache-2.0 in `surfsense_local/`. A job plugin touches
 customer files, so it runs on the user's machine as a local paid bundle, not on
 the plugin host (As built, below). Its license terms are open: the Business
 Source License in
-[`plugins/remote/proprietary/LICENSE`](../../plugins/remote/proprietary/LICENSE)
+[`backend/plugins/proprietary/LICENSE`](../../backend/plugins/proprietary/LICENSE)
 grants production use to anyone who does not resell the work, which would let a
 business run a local job plugin without a license. The choice, a narrower
 Additional Use Grant or a closed license, is made with the lawyer

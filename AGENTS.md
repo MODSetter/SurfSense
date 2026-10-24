@@ -12,7 +12,7 @@ Desktop app plus scraper API. Five trees:
 | `surfsense_web` | Next.js hosted UI |
 | `surfsense_local` | Electron desktop |
 | `surfsense_mcp` | MCP server over the REST API |
-| `plugins` | SurfSense's own plugin servers ([plugin host](docs/architecture/plugin-host.md)) and the [registry](docs/architecture/plugin-registry.md). `bundles/` holds the earlier, local design's SDK and tooling, deferred |
+| `backend` | The one SurfSense backend, one process run by `server/`: the [license portal](docs/architecture/license/portal.md) in `license/`, its `mailer/`, and `plugins/`, which holds SurfSense's own plugin servers ([plugin host](docs/architecture/plugin-host.md)) and the [registry](docs/architecture/plugin-registry.md); `plugins/bundles/` holds the earlier, local design's SDK and tooling, deferred |
 
 The hosted service has been export-only since the 2.0.0 launch on 18 Sep 2026, and its user data is purged on 18 Oct 2026 ([sunset](docs/architecture/sunset.md)). Product direction is local + API.
 
@@ -66,15 +66,15 @@ cd surfsense_local/electron && pnpm dev
 # MCP
 cd surfsense_mcp && uv sync
 
-# plugin host: SurfSense's own plugins, from plugins/remote/
-cd plugins/remote/host && uv sync
-cd plugins/remote && uv run --project host python -m host
+# backend/: the one backend: the license portal and SurfSense's own plugins
+cd backend && uv sync
+cd backend && PYTHONPATH=plugins uv run python -m server
 
 # bundles (deferred): the manifest rules, the SDK, the surfsense-plugins command
-cd plugins/bundles/core/manifest && uv sync
-cd plugins/bundles/core/sdk && uv sync
-cd plugins/bundles/core/sdk && uv run pyright
-cd plugins/bundles/core/cli && uv sync
+cd backend/plugins/bundles/core/manifest && uv sync
+cd backend/plugins/bundles/core/sdk && uv sync
+cd backend/plugins/bundles/core/sdk && uv run pyright
+cd backend/plugins/bundles/core/cli && uv sync
 
 # compose (dev and self-host, not production)
 docker compose -f docker/docker-compose.yml
@@ -92,11 +92,11 @@ pre-commit run --all-files
 | Web unit | `cd surfsense_web && pnpm test:unit` |
 | Web e2e | `cd surfsense_web && pnpm test:e2e` |
 | MCP | `cd surfsense_mcp && uv run pytest` |
-| Plugin host | `cd plugins/remote/host && uv run pytest` |
-| Bundles: manifest rules | `cd plugins/bundles/core/manifest && uv run pytest -m unit` |
-| Bundles: SDK | `cd plugins/bundles/core/sdk && uv run pytest -m unit` |
-| Bundles: SDK against the app | `cd plugins/bundles/core/sdk && uv run pytest -m contract` (starts the backend; `uv sync` it first) |
-| Bundles: CLI | `cd plugins/bundles/core/cli && uv run pytest` (starts the backend; `uv sync` it first) |
+| `backend/` | `cd backend && uv run pytest` |
+| Bundles: manifest rules | `cd backend/plugins/bundles/core/manifest && uv run pytest -m unit` |
+| Bundles: SDK | `cd backend/plugins/bundles/core/sdk && uv run pytest -m unit` |
+| Bundles: SDK against the app | `cd backend/plugins/bundles/core/sdk && uv run pytest -m contract` (starts the desktop backend; `uv sync` it first) |
+| Bundles: CLI | `cd backend/plugins/bundles/core/cli && uv run pytest` (starts the desktop backend; `uv sync` it first) |
 | Desktop | `cd surfsense_local/electron && pnpm test` |
 CI: `.github/workflows/`. New behavior: one failing test, then the minimum code to pass it. Use the `tdd` skill. Tests hit public seams, not internals.
 
@@ -108,7 +108,7 @@ Follow [CONTRIBUTING.md](CONTRIBUTING.md). The parts agents miss:
 - `gh pr create --body` skips the PR template. Keep its headings: What, Why, `Fixes #`, How to test.
 - Commit messages and PR titles are Conventional Commits, `type(scope): summary`. The commitizen hook runs only where it is installed; CI does not run it.
 - A new feature starts as a proposal PR in `docs/proposals/`, not as code.
-- `surfsense_backend/app/proprietary/` and `plugins/remote/proprietary/` are Business Source License 1.1 and changed only by maintainers: ask one before changing them. A change to `docs/contracts/` needs the owners of both sides.
+- `surfsense_backend/app/proprietary/` and `backend/plugins/proprietary/` are Business Source License 1.1 and changed only by maintainers: ask one before changing them. A change to `docs/contracts/` needs the owners of both sides.
 
 ## Skills
 
