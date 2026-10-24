@@ -129,7 +129,7 @@ jobs:
       # The checkout is the pull request merged into its base, its first parent.
       - name: Refuse changes to proprietary code
         run: |
-          changed=$(git diff --name-only HEAD^1 HEAD -- surfsense_backend/app/proprietary backend/plugins/proprietary)
+          changed=$(git diff --name-only HEAD^1 HEAD -- backend/plugins/proprietary)
           if [ -n "$changed" ]; then
             echo "::error::Only SurfSense's maintainers change proprietary/ (Business Source License 1.1). See CONTRIBUTING.md."
             echo "$changed"

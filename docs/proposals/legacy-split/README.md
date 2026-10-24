@@ -33,10 +33,10 @@ Legacy is being phased out. A branch keeps `dev` and `main` free of it from the 
 
 ### Cutting it
 
-1. The backend and website moves land first, so the branch is cut from a tree whose legacy code no longer serves anything live.
-2. `legacy` is cut at that commit ([Order](#order)).
-3. On `legacy`, everything that still ships is deleted: `surfsense_local/`, `backend/`, `website/`, `docker/local/`, and their workflows (`release-local.yml`, `desktop-tests.yml`, `build-audiocpp.yml`, `build-sdcpp.yml`, `notarization-credentials.yml`, the `plugins-*` workflows, `release-stats.yml`).
-4. On `dev`, the legacy code is deleted: `surfsense_backend/`, `surfsense_web/`, `surfsense_mcp/`, `docker/*` except `local/`, the root `VERSION`, `scripts/bump-version.{sh,ps1}`, `docker-build.yml` and `docker-tests.yml`. It leaves `main` with the next release merge.
+1. `legacy` was cut from `dev` at #2338's merge, before the backend move.
+2. On `legacy`, #2339 deleted everything that still ships: `surfsense_local/`, `plugins/`, `docs/`, `plans/` and their workflows (`release-local.yml`, `desktop-tests.yml`, `build-audiocpp.yml`, `build-sdcpp.yml`, `notarization-credentials.yml`, the `plugins-*` workflows, `release-stats.yml`), and released `legacy-v0.0.41`.
+3. On `dev`, #2340 deleted `docker-build.yml` and `docker-tests.yml`.
+4. On `dev`, the legacy code is then deleted: `surfsense_backend/`, `surfsense_mcp/`, `docker/*` except `keygen/`, which builds production's Keygen CE, the root `VERSION` and `scripts/bump-version.{sh,ps1}`. `surfsense_web/` follows the [website split](#the-website). Each leaves `main` with the next release merge.
 
 ### What stays on `legacy`
 
@@ -214,15 +214,13 @@ The backend lands first, in its own pull request into `dev`:
 1. `plugins/` moves to `backend/plugins/`, `server/` assembles the process, and everything in [What the move changes with it](#what-the-move-changes-with-it) changes with it, with the job that builds the images.
 2. The license portal and the mailer into `backend/license/` and `backend/mailer/`.
 
-Then one pull request into `dev`, in commits that each leave CI green:
+Then, each its own pull request into `dev`:
 
-3. The website split.
-4. The legacy code deleted, the narrowed `release-local.yml` without its `legacy-update-bridge` job, the CI and hook changes, the sunset docs deleted, and the repointed doc links.
+3. The legacy code deleted except `surfsense_web/`, with the hook, `CODEOWNERS` and doc-link changes. The cutover finishes before this reaches `main`, or Coolify's hosted `surfsense_backend` has no source to rebuild from.
+4. The website split, then `surfsense_web/` deleted, the narrowed `release-local.yml` without its `legacy-update-bridge` job, and the sunset docs deleted.
 5. The Docker steps 4 to 14.
 
-The `legacy` branch is cut from the second pull request's branch at commit 3, before commit 4 deletes anything, and trimmed in its own commit on `legacy`.
-
-The backend's pull request adds `architecture/backend.md` and updates `portal.md`, `plugin-host.md`, `plugin-registry.md`, ADR 0024, ADR 0054 and the root `AGENTS.md`. After the second, `architecture/` gains `website.md` and `docker.md`; the root README and both `AGENTS.md` files are updated, the root one dropping its boundaries on carving out hosted code and on the legacy compose; this proposal and the Docker proposal are deleted.
+The backend's pull request adds `architecture/backend.md` and updates `portal.md`, `plugin-host.md`, `plugin-registry.md`, ADR 0024, ADR 0054 and the root `AGENTS.md`. The deletion drops the root `AGENTS.md`'s boundaries on carving out hosted code and on the legacy compose. After the website split, `architecture/` gains `website.md` and `docker.md`, the root README and both `AGENTS.md` files are updated, and this proposal and the Docker proposal are deleted.
 
 ## Cutover
 

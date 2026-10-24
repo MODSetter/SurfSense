@@ -4,17 +4,15 @@ Nearest `AGENTS.md` wins. Edit this file, not `CLAUDE.md` (`CLAUDE.md` is a syml
 
 ## Overview
 
-Desktop app plus scraper API. Five trees:
+Desktop app plus SurfSense's own backend. Three trees:
 
 | Tree | Role |
 |------|------|
-| `surfsense_backend` | FastAPI API |
-| `surfsense_web` | Next.js hosted UI |
+| `surfsense_web` | Next.js site at `www.surfsense.com`; its app routes are the legacy hosted UI, left until the [website split](docs/proposals/legacy-split/README.md#the-website) |
 | `surfsense_local` | Electron desktop |
-| `surfsense_mcp` | MCP server over the REST API |
 | `backend` | The one SurfSense backend, one process run by `server/`: the [license portal](docs/architecture/license/portal.md) in `license/`, its `mailer/`, and `plugins/`, which holds SurfSense's own plugin servers ([plugin host](docs/architecture/plugin-host.md)) and the [registry](docs/architecture/plugin-registry.md); `plugins/bundles/` holds the earlier, local design's SDK and tooling, deferred |
 
-The hosted service has been export-only since the 2.0.0 launch on 18 Sep 2026, and its user data is purged on 18 Oct 2026 ([sunset](docs/architecture/sunset.md)). Product direction is local + API.
+The hosted service closed on 18 Oct 2026, when its user data was purged. The self-hosted stack, `surfsense_backend`, `surfsense_mcp` and `docker/`, lives only on the `legacy` branch ([legacy split](docs/proposals/legacy-split/README.md)). Product direction is local + API.
 
 ## Code organization
 
@@ -50,11 +48,6 @@ The tree is inconsistent. New work follows this. Old work stays until a task exp
 ## Commands
 
 ```bash
-# backend
-cd surfsense_backend && uv sync
-cd surfsense_backend && uv run ruff check .
-cd surfsense_backend && uv run pytest -m unit
-
 # web
 cd surfsense_web && pnpm install
 cd surfsense_web && pnpm dev
@@ -62,9 +55,6 @@ cd surfsense_web && pnpm format
 
 # desktop
 cd surfsense_local/electron && pnpm dev
-
-# MCP
-cd surfsense_mcp && uv sync
 
 # backend/: the one backend: the license portal and SurfSense's own plugins
 cd backend && uv sync
@@ -76,9 +66,6 @@ cd backend/plugins/bundles/core/sdk && uv sync
 cd backend/plugins/bundles/core/sdk && uv run pyright
 cd backend/plugins/bundles/core/cli && uv sync
 
-# compose (dev and self-host, not production)
-docker compose -f docker/docker-compose.yml
-
 # hooks
 pre-commit run --all-files
 ```
@@ -87,11 +74,7 @@ pre-commit run --all-files
 
 | Area | Command |
 |------|---------|
-| Backend unit | `cd surfsense_backend && uv run pytest -m unit` |
-| Backend integration | `cd surfsense_backend && uv run pytest -m integration` |
 | Web unit | `cd surfsense_web && pnpm test:unit` |
-| Web e2e | `cd surfsense_web && pnpm test:e2e` |
-| MCP | `cd surfsense_mcp && uv run pytest` |
 | `backend/` | `cd backend && uv run pytest` |
 | Bundles: manifest rules | `cd backend/plugins/bundles/core/manifest && uv run pytest -m unit` |
 | Bundles: SDK | `cd backend/plugins/bundles/core/sdk && uv run pytest -m unit` |
@@ -108,7 +91,7 @@ Follow [CONTRIBUTING.md](CONTRIBUTING.md). The parts agents miss:
 - `gh pr create --body` skips the PR template. Keep its headings: What, Why, `Fixes #`, How to test.
 - Commit messages and PR titles are Conventional Commits, `type(scope): summary`. The commitizen hook runs only where it is installed; CI does not run it.
 - A new feature starts as a proposal PR in `docs/proposals/`, not as code.
-- `surfsense_backend/app/proprietary/` and `backend/plugins/proprietary/` are Business Source License 1.1 and changed only by maintainers: ask one before changing them. A change to `docs/contracts/` needs the owners of both sides.
+- `backend/plugins/proprietary/` is Business Source License 1.1 and changed only by maintainers: ask one before changing it. A change to `docs/contracts/` needs the owners of both sides.
 
 ## Skills
 
@@ -118,7 +101,7 @@ Canonical dir: `.agents/skills/`. `.claude/skills` is a symlink to it.
 |-------|------|
 | `tdd` | New behavior or a bug fix with a testable seam |
 | `codebase-design` | Module shape, seam, depth — `tdd` depends on this vocabulary |
-| `fastapi` | FastAPI / Pydantic work. Symlink into the installed wheel; repair the **same** root link after a FastAPI or Python bump. Do not keep `surfsense_backend/.agents/`. |
+| `fastapi` | FastAPI / Pydantic work. Symlink into the installed wheel; repair the **same** root link, into `surfsense_local/backend/.venv`, after a FastAPI or Python bump. |
 | `frontend-workflow` | Frontend work in `surfsense_web` and `surfsense_local/frontend`: React/Next performance, color tokens, UI polish, motion. Bundles `react-performance/`, `color/`, `polish/`, `motion/`, and `base-ui.md` for Base UI in `surfsense_local/frontend`; routes out to `shadcn`. |
 | `shadcn` | UI components in a tree with `components.json`. Standalone — it inspects the project live and grants its own CLI, which only works as a discovered skill. Load it after `frontend-workflow`, not instead of it. |
 | `translate` | Interface strings in `surfsense_local`: adding a message in code (`en.json` is generated from it), moving hard-coded text into messages, translating Japanese and German. Holds the key shape, tone and glossary. |
@@ -144,8 +127,7 @@ its lock entry is valid.
 
 ## Boundaries
 
-- Do not carve hosted code out of backend/web until the purge on 18 Oct 2026. The export window and the purge script run on that code until then.
-- Do not drop SearxNG, sandbox, OpenSandbox, or zero-cache from compose until a new compose is defined.
+- Legacy self-hosted fixes go in a pull request into `legacy`, never `dev`.
 - Edit the root `README.md` directly. The draft at `plans/community-local/seo/drafts/README.md` shipped on 18 Sep 2026 and is kept only for history. Anything added to the README replaces something — its length was measured against the eight biggest repos in this category. Make the same change in every `README.<locale>.md`, section for section; [`06-repo-readme.md`](plans/community-local/seo/06-repo-readme.md#the-readme-since-9-oct-2026) has the rules, where each format-table cell is checked, and how to replace the demo video.
 - Do not commit, push or open a PR unless asked.
 

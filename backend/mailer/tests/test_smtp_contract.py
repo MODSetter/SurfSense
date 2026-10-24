@@ -5,10 +5,11 @@ conversation and the MIME round trip are otherwise never executed -- the code
 most likely to be wrong in production is the code with no coverage. This test
 sends through the real path and asks the receiving server what arrived.
 
-Run it against the dev-stack Mailpit:
+Run it against a local Mailpit:
 
-    docker compose -f docker/docker-compose.dev.yml --profile mail up -d mailpit
-    SMTP_INTEGRATION=1 pytest tests/integration/mailer
+    docker run -d --rm -p 127.0.0.1:1025:1025 -p 127.0.0.1:8025:8025 \
+        -e MP_SMTP_AUTH_ACCEPT_ANY=1 -e MP_SMTP_AUTH_ALLOW_INSECURE=1 axllent/mailpit:v1.21
+    SMTP_INTEGRATION=1 uv run pytest mailer/tests/test_smtp_contract.py
 
 What it still does not cover: STARTTLS negotiation and ``login()`` (Mailpit
 here accepts plaintext without credentials), and deliverability -- a verified

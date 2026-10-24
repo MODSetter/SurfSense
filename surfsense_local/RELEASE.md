@@ -40,7 +40,7 @@ Set-Content surfsense_local/VERSION '2.3.0' -NoNewline -Encoding ascii
 
 ### 2. Copy it through the tree
 
-Writes electron, frontend, backend, the website download pin, and the license-email pin, then refreshes `uv.lock` when `uv` is on the `PATH`. It needs bash and a Python that runs. Do **not** reach for `scripts/bump-version.*` at the repo root — that is the hosted stack's own version line and it will not touch this app.
+Writes electron, frontend, backend, the website download pin, and the license-email pin, then refreshes `uv.lock` when `uv` is on the `PATH`. It needs bash and a Python that runs.
 
 ```bash
 surfsense_local/scripts/bump-version.sh

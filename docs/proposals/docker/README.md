@@ -98,7 +98,7 @@ The code, in `surfsense_local/`:
 CI is `.github/workflows/docker-local.yml`.
 
 - **Every file of the new stack is in `docker/local/`, and nothing outside it in `docker/` changes.** The new stack reads nothing from the legacy files and the legacy stack reads nothing from `docker/local/`, so either can change or be deleted without touching the other.
-- **`docker/local/`, not the top of `docker/`.** [`install.sh`](../../../docker/scripts/install.sh) downloads `docker/docker-compose.yml`, `docker/.env.example`, `docker/proxy/Caddyfile` and five more by path from `main`, so a new file at any of those paths reaches every legacy install. The folder name is fixed from the start, because this stack's own install script will be fetched by its path too. Retiring the legacy stack deletes its files and leaves `docker/local/` where it is.
+- **`docker/local/`, not the top of `docker/`.** [`install.sh`](https://github.com/MODSetter/SurfSense/blob/legacy/docker/scripts/install.sh) downloads `docker/docker-compose.yml`, `docker/.env.example`, `docker/proxy/Caddyfile` and five more by path from `main`, so a new file at any of those paths reaches every legacy install. The folder name is fixed from the start, because this stack's own install script will be fetched by its path too. Retiring the legacy stack deletes its files and leaves `docker/local/` where it is.
 - **Code stays in its tree.** `docker/local/` holds only what Docker reads; the supervisor, the checks and the settings are application code in `surfsense_local/`.
 - **Runtime staging is shared.** The Dockerfile runs the desktop's pinned fetch and compile scripts with the image's targets, so the pins cannot drift between the two.
 

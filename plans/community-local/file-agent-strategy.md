@@ -244,7 +244,7 @@ holds is delivery to a valid license plus the plugin's license terms.
 the license server ([`backend/license/`](../../backend/license/),
 which already issues Keygen licenses) and the premium plugins, such as the
 scraper client, kept in
-[`app/proprietary/`](../../surfsense_backend/app/proprietary/LICENSE) under
+[`app/proprietary/`](https://github.com/MODSetter/SurfSense/blob/legacy/surfsense_backend/app/proprietary/LICENSE) under
 the Business Source License 1.1, which the root
 [`LICENSE`](../../LICENSE) already carves out of Apache-2.0. The license server
 delivers a premium plugin only to a valid license; the app downloads it after

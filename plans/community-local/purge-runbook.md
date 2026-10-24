@@ -9,7 +9,7 @@
 reversible by unsetting a variable; this is not. The snapshot in stage 1 is the only way back, and
 it exists for exactly thirty days before stage 6 destroys it. Do not start without it.
 
-The work is done by [`scripts/purge_hosted_accounts.py`](../../surfsense_backend/scripts/purge_hosted_accounts.py),
+The work is done by [`scripts/purge_hosted_accounts.py`](https://github.com/MODSetter/SurfSense/blob/261edd605ba67f19e47a5e1b6852e2ef045235af/surfsense_backend/scripts/purge_hosted_accounts.py),
 which loops over `erase_account` — the same function support already uses for one account. That is
 deliberate: a bulk `DELETE` drops the rows and leaves blobs and knowledge stores on disk forever,
 which is not what a deletion promise means.
