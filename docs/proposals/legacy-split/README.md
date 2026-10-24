@@ -34,9 +34,9 @@ Legacy is being phased out. A branch keeps `dev` and `main` free of it from the 
 ### Cutting it
 
 1. `legacy` was cut from `dev` at #2338's merge, before the backend move.
-2. On `legacy`, #2339 deleted everything that still ships: `surfsense_local/`, `plugins/`, `docs/`, `plans/` and their workflows (`release-local.yml`, `desktop-tests.yml`, `build-audiocpp.yml`, `build-sdcpp.yml`, `notarization-credentials.yml`, the `plugins-*` workflows, `release-stats.yml`), and released `legacy-v0.0.41`.
+2. On `legacy`, #2339 deleted everything that still ships: `surfsense_local/`, `plugins/`, `docs/`, `plans/` and their workflows (`release-local.yml`, `desktop-tests.yml`, `build-audiocpp.yml`, `build-sdcpp.yml`, `notarization-credentials.yml`, the `plugins-*` workflows, `release-stats.yml`). It also removed sunset mode and the hosted account export, both dead on a self-hosted install, and released `legacy-v0.0.41`.
 3. On `dev`, #2340 deleted `docker-build.yml` and `docker-tests.yml`.
-4. On `dev`, the legacy code is then deleted: `surfsense_backend/`, `surfsense_mcp/`, `docker/*` except `keygen/`, which builds production's Keygen CE, the root `VERSION` and `scripts/bump-version.{sh,ps1}`. `surfsense_web/` follows the [website split](#the-website). Each leaves `main` with the next release merge.
+4. On `dev`, #2341 deleted the legacy code: `surfsense_backend/`, `surfsense_mcp/`, `docker/*` except `keygen/`, which builds production's Keygen CE, the root `VERSION` and `scripts/bump-version.{sh,ps1}`, and turned `surfsense_web/` into `website/` ([the website](#the-website)). It leaves `main` with the next release merge.
 
 ### What stays on `legacy`
 
@@ -51,7 +51,7 @@ Scoped by branch, not by path:
 | Workflow, on `legacy` | Change |
 |---|---|
 | `docker-tests.yml` | `pull_request: branches: [legacy]` |
-| `docker-build.yml` | `legacy-v*` tags and `workflow_dispatch` only, no branch-push builds; refuses a tag that does not match `VERSION` |
+| `docker-build.yml` | builds every image on pull requests and pushes to `legacy` without pushing; publishes only from a `legacy-v*` tag, and refuses one that does not match `VERSION` |
 | `code-quality.yml` | `pull_request: branches: [legacy]` |
 
 - **Tags are `legacy-v0.0.41`, never `v0.0.41`.** Tags are repo-wide, and a `v0.0.41` would sit beside `v2.2.3`.
@@ -189,7 +189,9 @@ Each of these breaks unless it changes in the same pull request or at its merge:
 
 `website/` is a Next.js app deployed on Vercel at `www.surfsense.com`. It is named for everything it serves, not only the home page, and does not nest a `homepage/` inside a `homepage/`.
 
-| Moves | From `surfsense_web/` |
+`surfsense_web/` was renamed to `website/` and pruned to what the site serves, rather than copied into a new app, so every kept file keeps its history. What it keeps:
+
+| Keeps | From `surfsense_web/` |
 |---|---|
 | Routes | `app/(home)/**` except `login/`, `register/` and `sunset/`; `app/docs`; `app/api/search`; `sitemap.ts`, `robots.ts`, `not-found.tsx` |
 | Desktop services | `app/api/updates`, `app/api/usage`, serving `updates.` and `usage.surfsense.com` ([updates](../../architecture/updates.md), [contract 5](../../contracts/05-desktop-telemetry.md)) |
@@ -198,7 +200,7 @@ Each of these breaks unless it changes in the same pull request or at its merge:
 | Lib | `app-release.ts`, `release-assets.ts`, `free-models`, `docs-redirects.ts`, `posthog/`, `features/funnel-attribution/` |
 | Assets | `public/` except `connectors/` and `infographic-styles/` |
 
-- **Shared pieces are copied.** The public chat imports the homepage navbar, `changelog-timeline` imports homepage primitives, and the app's sidebar reads announcements. The `legacy` branch keeps its own copies.
+- **One of each.** One font (Instrument Sans, on `<body>`), one button (`HomeButton`) and one icon set (Hugeicons, also shadcn's `iconLibrary`). Biome is the only linter. Light by default, through fumadocs' theme.
 - **`/sunset` does not move.** Its route and `lib/sunset.ts` stay in `surfsense_web` and go with it; the website drops its links and redirects to it.
 - **Paths that point at `surfsense_web`:** Vercel's root directory, the banner image in all 11 READMEs, `surfsense_local/scripts/bump-version.sh` (writes `app-release.ts`) and `surfsense_local/RELEASE.md` (changelog entries).
 - **Tests.** The unit tests for downloads, checkout, docs redirects, funnel attribution and the update feed move with their code. No e2e spec covers marketing pages today.
@@ -214,13 +216,14 @@ The backend lands first, in its own pull request into `dev`:
 1. `plugins/` moves to `backend/plugins/`, `server/` assembles the process, and everything in [What the move changes with it](#what-the-move-changes-with-it) changes with it, with the job that builds the images.
 2. The license portal and the mailer into `backend/license/` and `backend/mailer/`.
 
-Then, each its own pull request into `dev`:
+Steps 1 and 2 landed in #2337. Then, into `dev`:
 
-3. The legacy code deleted except `surfsense_web/`, with the hook, `CODEOWNERS` and doc-link changes. The cutover finishes before this reaches `main`, or Coolify's hosted `surfsense_backend` has no source to rebuild from.
-4. The website split, then `surfsense_web/` deleted, the narrowed `release-local.yml` without its `legacy-update-bridge` job, and the sunset docs deleted.
-5. The Docker steps 4 to 14.
+3. #2341: the legacy code deleted, and `surfsense_web/` split into `website/`, with the hook, `CODEOWNERS` and doc-link changes. The cutover finishes before this reaches `main`, or Coolify's hosted `surfsense_backend` has no source to rebuild from.
+4. A desktop release that drops the cloud-import link to `/sunset`, with `release-local.yml` narrowed to `v[1-9]*` and its `legacy-update-bridge` job removed. It ships before the website goes live without `/sunset`. The sunset docs are deleted with it.
+5. The website restructured into feature folders, its own pull request.
+6. The Docker steps 4 to 14.
 
-The backend's pull request adds `architecture/backend.md` and updates `portal.md`, `plugin-host.md`, `plugin-registry.md`, ADR 0024, ADR 0054 and the root `AGENTS.md`. The deletion drops the root `AGENTS.md`'s boundaries on carving out hosted code and on the legacy compose. After the website split, `architecture/` gains `website.md` and `docker.md`, the root README and both `AGENTS.md` files are updated, and this proposal and the Docker proposal are deleted.
+The backend's pull request adds `architecture/backend.md` and updates `portal.md`, `plugin-host.md`, `plugin-registry.md`, ADR 0024, ADR 0054 and the root `AGENTS.md`. The deletion drops the root `AGENTS.md`'s boundaries on carving out hosted code and on the legacy compose. #2341 updates the root `AGENTS.md` and repoints the README banners at `website/`. Still to come: `architecture/` gains `website.md` and `docker.md`, and this proposal and the Docker proposal are deleted once the Docker steps are done.
 
 ## Cutover
 
