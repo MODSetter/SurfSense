@@ -71,6 +71,7 @@ from modules.chat.runs.registry import ChatRuns
 from modules.chat.runs.run import Run, RunState
 from modules.chat.runs.stream import event_stream
 from modules.chat.schemas import MessageCreate
+from modules.chat.title import TITLE_MAX_CHARACTERS
 from modules.events.broker import EventBroker
 from modules.llm.resolution import ModelResolutionError
 from modules.plugins.license_verdict.license_refresh import refresh_license_verdict
@@ -83,8 +84,6 @@ logger = logging.getLogger(__name__)
 # means opencode is gone rather than restarting.
 RECONNECTS = 20
 _RECONNECT_SECONDS = 0.5
-# As long as a chat title runs before it is cut, so a thread reads the same in the list.
-TITLE_CHARS = 60
 _DONE = b"data: [DONE]\n\n"
 
 
@@ -615,10 +614,11 @@ def first_title(thread: ChatThread, text: str) -> str | None:
     """A name for a thread still called "New chat", from its first message."""
     if (thread.title or "").casefold() != "new chat":
         return None
+    # As long as a chat's own title may be, so both read alike in the list.
     words = " ".join(text.split())
-    return (
-        words if len(words) <= TITLE_CHARS else words[: TITLE_CHARS - 1].rstrip() + "…"
-    )
+    if len(words) <= TITLE_MAX_CHARACTERS:
+        return words
+    return words[: TITLE_MAX_CHARACTERS - 1].rstrip() + "…"
 
 
 def _reload(session: Session, thread_id: int) -> ChatThread | None:
