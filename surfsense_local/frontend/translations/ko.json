@@ -230,6 +230,8 @@
   "chat_runtime_load_threads_toast": "채팅을 불러오지 못했습니다",
   "chat_runtime_rename_toast": "채팅 이름을 변경하지 못했습니다",
   "chat_runtime_unexpected_error": "예기치 않은 오류가 발생했습니다",
+  "chat_scope_save_body": "다음 메시지와 함께 전송됩니다.",
+  "chat_scope_save_error": "이 채팅이 사용하는 소스를 저장하지 못했습니다",
   "chat_thread_panel_conversation_aria": "대화",
   "chat_thread_panel_delete_label": "채팅 삭제",
   "chat_thread_panel_header_aria": "채팅",

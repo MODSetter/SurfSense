@@ -230,6 +230,8 @@
   "chat_runtime_load_threads_toast": "No se pudieron cargar tus chats",
   "chat_runtime_rename_toast": "No se pudo cambiar el nombre del chat",
   "chat_runtime_unexpected_error": "Se produjo un error inesperado",
+  "chat_scope_save_body": "Se enviarán igualmente con tu próximo mensaje.",
+  "chat_scope_save_error": "No se pudo guardar qué fuentes usa este chat",
   "chat_thread_panel_conversation_aria": "Conversación",
   "chat_thread_panel_delete_label": "Eliminar chat",
   "chat_thread_panel_header_aria": "Chat",

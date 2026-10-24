@@ -230,6 +230,8 @@
   "chat_runtime_load_threads_toast": "无法加载你的对话",
   "chat_runtime_rename_toast": "无法重命名对话",
   "chat_runtime_unexpected_error": "发生了意外错误",
+  "chat_scope_save_body": "它们会随下一条消息一起发送。",
+  "chat_scope_save_error": "无法保存此对话使用的来源",
   "chat_thread_panel_conversation_aria": "对话",
   "chat_thread_panel_delete_label": "删除对话",
   "chat_thread_panel_header_aria": "对话",

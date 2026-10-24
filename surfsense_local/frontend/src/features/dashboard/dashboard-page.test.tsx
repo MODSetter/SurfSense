@@ -9,6 +9,8 @@ import {
 } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
+import { toast } from "sonner"
+
 import { ThemeProvider } from "@/components/theme-provider"
 import { DETAIL_RAIL_WIDTH, MAIN_RAIL_WIDTH } from "@/components/ui/slide-rail"
 import { TooltipProvider } from "@/components/ui/tooltip"
@@ -21,6 +23,11 @@ import {
   RIGHT_PANEL_KEY,
 } from "./chrome-prefs"
 import { DashboardPage } from "./dashboard-page"
+
+vi.mock("sonner", () => ({
+  Toaster: () => null,
+  toast: { error: vi.fn(), info: vi.fn(), success: vi.fn() },
+}))
 
 const workspace = {
   id: 1,
@@ -1793,6 +1800,449 @@ describe("dashboard chat", () => {
         excluded_document_ids: [],
       },
     })
+  })
+
+  /**
+   * Two folders and two sources, two chats, one with a stored scope; what the panel shows for
+   * each. `storeStatus` is how a store of ticks is answered, and `holdThreads` keeps the thread
+   * list from answering until it resolves.
+   */
+  function scopedChats({
+    storeStatus = 200,
+    holdThreads,
+    holdCreate,
+    reply,
+  }: {
+    storeStatus?: number
+    holdThreads?: Promise<void>
+    /** Delays the thread opened for a new chat. */
+    holdCreate?: Promise<void>
+    /** The reply to a message on thread 10, as a stream the test feeds. */
+    reply?: ReadableStream<Uint8Array>
+  } = {}) {
+    const filed = (id: number, title: string, folderId: number) => ({
+      id,
+      title,
+      document_type: "FILE",
+      mime_type: null,
+      status: "ready",
+      error_message: null,
+      created_at: "2026-09-05T00:00:00Z",
+      updated_at: "2026-09-05T00:00:00Z",
+      folder_id: folderId,
+    })
+    const thread = (id: number, title: string, source_scope: unknown) => ({
+      id,
+      workspace_id: 1,
+      title,
+      uses_agent: false,
+      source_scope,
+      created_at: "2026-09-05T00:00:00Z",
+      updated_at: "2026-09-05T00:00:00Z",
+    })
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = String(input)
+        if (path === "/llm/providers") {
+          return Response.json([
+            { name: "llamacpp", healthy: true, can_download: true },
+          ])
+        }
+        if (path === "/llm/catalog/local") {
+          return Response.json({ rows: [], recommended_id: null })
+        }
+        if (path === "/license/status") {
+          return Response.json({ state: "none" })
+        }
+        if (
+          path ===
+          "/workspaces/1/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0"
+        ) {
+          return Response.json([
+            filed(20, "Guide.txt", 1),
+            filed(21, "Paper.txt", 2),
+          ])
+        }
+        if (path === "/workspaces/1/folders") {
+          return Response.json([
+            { id: 1, parent_id: null, name: "Library" },
+            { id: 2, parent_id: 1, name: "Research" },
+          ])
+        }
+        if (path === "/workspaces/1/chat/threads" && !init?.method) {
+          await holdThreads
+          return Response.json([
+            thread(10, "Research only", {
+              all: false,
+              folder_ids: [2],
+              excluded_folder_ids: [],
+              document_ids: [],
+              excluded_document_ids: [],
+            }),
+            thread(11, "Everything", null),
+          ])
+        }
+        if (path === "/workspaces/1/chat/threads" && init?.method === "POST") {
+          const body = JSON.parse(String(init.body)) as { source_scope?: unknown }
+          await holdCreate
+          return Response.json(
+            thread(12, "Scoped draft", body.source_scope ?? null),
+            { status: 201 }
+          )
+        }
+        if (path === "/chat/threads/12/messages" && init?.method === "POST") {
+          return Response.json({ detail: "down" }, { status: 503 })
+        }
+        if (
+          path === "/chat/threads/10/messages" &&
+          init?.method === "POST" &&
+          reply !== undefined
+        ) {
+          return new Response(reply, {
+            headers: { "Content-Type": "text/event-stream" },
+          })
+        }
+        if (
+          (path === "/chat/threads/10/source-scope" ||
+            path === "/chat/threads/12/source-scope") &&
+          init?.method === "PUT"
+        ) {
+          if (storeStatus !== 200) {
+            return Response.json({ detail: "down" }, { status: storeStatus })
+          }
+          return Response.json({
+            source_scope: JSON.parse(String(init.body)),
+            counts: { ready: 2, indexing: 0, failed: 0, removed: 0 },
+          })
+        }
+        return Response.json([])
+      }
+    )
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+    const page = (
+      <TooltipProvider>
+        <DashboardPage
+          initialProviderAvailable={true}
+          selection={{
+            model_type: "text_gen",
+            provider: "llamacpp",
+            connection_id: null,
+            name: "Qwen3-1.7B-Q4_K_M",
+            updated_at: "2026-09-05T00:00:00Z",
+          }}
+          initialWorkspaces={[workspace]}
+          onModelSelected={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+    // Base UI's checkbox is a button; its state is what it tells assistive technology.
+    const state = (box: HTMLElement) => box.getAttribute("aria-checked")
+    const folder = (name: string) =>
+      state(screen.getByRole("checkbox", { name: `Select folder ${name}` }))
+    const sourceRow = (title: string) =>
+      state(screen.getByRole("checkbox", { name: `Select ${title}` }))
+    const click = (name: string) =>
+      user.click(screen.getByRole("checkbox", { name }))
+    const open = async (title: string) => {
+      await user.click(screen.getByRole("button", { name: "Chats" }))
+      await user.click(await screen.findByRole("button", { name: title }))
+    }
+
+    return { fetchMock, user, page, folder, sourceRow, click, open }
+  }
+
+  it("opens a chat with the sources it stored", async () => {
+    const { user, page, folder, sourceRow, open } = scopedChats()
+    render(page)
+    await screen.findByRole("treeitem", { name: "Research" })
+    await user.click(screen.getByRole("button", { name: "Expand Research" }))
+
+    // The stored scope ticks the folder it names and nothing beside it.
+    await open("Research only")
+    await waitFor(() => expect(folder("Research")).toBe("true"))
+    expect(sourceRow("Guide.txt")).toBe("false")
+    expect(sourceRow("Paper.txt")).toBe("true")
+
+    // A thread that never stored ticks uses every source.
+    await open("Everything")
+    await waitFor(() => expect(sourceRow("Guide.txt")).toBe("true"))
+    expect(folder("Research")).toBe("true")
+  })
+
+  it("stores a tick made in an open chat on it, and shows it again on return", async () => {
+    const { fetchMock, user, page, folder, sourceRow, click, open } =
+      scopedChats()
+    render(page)
+    await screen.findByRole("treeitem", { name: "Research" })
+    await user.click(screen.getByRole("button", { name: "Expand Research" }))
+    await open("Research only")
+    await waitFor(() => expect(sourceRow("Guide.txt")).toBe("false"))
+
+    await click("Select Guide.txt")
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(
+          ([path, init]) =>
+            path === "/chat/threads/10/source-scope" && init?.method === "PUT"
+        )
+      ).toBe(true)
+    )
+    const stored = fetchMock.mock.calls.find(
+      ([path, init]) =>
+        path === "/chat/threads/10/source-scope" && init?.method === "PUT"
+    )
+    expect(JSON.parse(String(stored?.[1]?.body))).toEqual({
+      all: false,
+      folder_ids: [2],
+      excluded_folder_ids: [],
+      document_ids: [20],
+      excluded_document_ids: [],
+    })
+    await open("Everything")
+    await waitFor(() => expect(sourceRow("Guide.txt")).toBe("true"))
+    await open("Research only")
+    await waitFor(() => expect(sourceRow("Guide.txt")).toBe("true"))
+    expect(folder("Research")).toBe("true")
+  })
+
+  it("keeps a tick made while the chat's entry was still on its way, and stores it", async () => {
+    let listThreads = () => {}
+    const { fetchMock, user, page, folder, sourceRow, click } = scopedChats({
+      holdThreads: new Promise<void>((resolve) => {
+        listThreads = resolve
+      }),
+    })
+    rememberOpenThread(1, 10)
+    render(page)
+    await screen.findByRole("treeitem", { name: "Research" })
+    await user.click(screen.getByRole("button", { name: "Expand Research" }))
+
+    // The sources are here before the chat's own entry: a tick now is for this chat.
+    await click("Select folder Research")
+    await waitFor(() => expect(folder("Research")).toBe("false"))
+    listThreads()
+    await screen.findByRole("button", { name: "Research only" })
+    expect(folder("Research")).toBe("false")
+    expect(sourceRow("Guide.txt")).toBe("true")
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.filter(
+          ([path, init]) =>
+            path === "/chat/threads/10/source-scope" && init?.method === "PUT"
+        )
+      ).toHaveLength(1)
+    )
+  })
+
+  it("says so when a tick could not be stored on the chat", async () => {
+    const { user, page, sourceRow, click, open } = scopedChats({
+      storeStatus: 503,
+    })
+    render(page)
+    await screen.findByRole("treeitem", { name: "Research" })
+    await user.click(screen.getByRole("button", { name: "Expand Research" }))
+    await open("Research only")
+    await waitFor(() => expect(sourceRow("Guide.txt")).toBe("false"))
+    await click("Select Guide.txt")
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        "Couldn’t save which sources this chat uses",
+        expect.objectContaining({
+          description: "They go with your next message anyway.",
+        })
+      )
+    )
+    // The tick stays on screen: the next message sends it anyway.
+    expect(sourceRow("Guide.txt")).toBe("true")
+  })
+
+  it("holds a tick made while the chat's reply runs, and stores it once the reply ends", async () => {
+    const encoder = new TextEncoder()
+    let feed: ReadableStreamDefaultController<Uint8Array> | null = null
+    const reply = new ReadableStream<Uint8Array>({
+      start(controller) {
+        feed = controller
+        controller.enqueue(
+          encoder.encode(
+            'data: {"type":"accepted","user_message_id":100,"assistant_message_id":101,"user_created_at":"2026-09-05T00:00:00Z"}\n\n'
+          )
+        )
+      },
+    })
+    const { fetchMock, user, page, sourceRow, click, open } = scopedChats({
+      reply,
+    })
+    const stores = () =>
+      fetchMock.mock.calls.filter(
+        ([path, init]) =>
+          path === "/chat/threads/10/source-scope" && init?.method === "PUT"
+      )
+    render(page)
+    await screen.findByRole("treeitem", { name: "Research" })
+    await user.click(screen.getByRole("button", { name: "Expand Research" }))
+    await open("Research only")
+    await waitFor(() => expect(sourceRow("Guide.txt")).toBe("false"))
+
+    await user.type(screen.getByRole("textbox", { name: "Message" }), "Go")
+    await user.click(screen.getByRole("button", { name: "Send message" }))
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(
+          ([path, init]) =>
+            path === "/chat/threads/10/messages" && init?.method === "POST"
+        )
+      ).toBe(true)
+    )
+    // The reply is still coming in: the tick shows, but is not stored yet,
+    // since the agent's tools would follow it mid-turn.
+    await click("Select Guide.txt")
+    await waitFor(() => expect(sourceRow("Guide.txt")).toBe("true"))
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(stores()).toHaveLength(0)
+
+    feed!.enqueue(
+      encoder.encode(
+        'data: {"type":"completed","assistant_completed_at":"2026-09-05T00:00:01Z","text":"Done"}\n\ndata: [DONE]\n\n'
+      )
+    )
+    feed!.close()
+    await waitFor(() => expect(stores()).toHaveLength(1))
+    expect(JSON.parse(String(stores()[0]?.[1]?.body))).toEqual({
+      all: false,
+      folder_ids: [2],
+      excluded_folder_ids: [],
+      document_ids: [20],
+      excluded_document_ids: [],
+    })
+    expect(sourceRow("Guide.txt")).toBe("true")
+  })
+
+  it("stores a tick made while a new chat's thread was opening on that thread, not on the next chat", async () => {
+    let opened = () => {}
+    const { fetchMock, user, page, folder, sourceRow, click } = scopedChats({
+      holdCreate: new Promise<void>((resolve) => {
+        opened = resolve
+      }),
+    })
+    render(page)
+    await screen.findByRole("treeitem", { name: "Research" })
+    await user.click(screen.getByRole("button", { name: "Expand Research" }))
+    await click("Select folder Research")
+    await waitFor(() => expect(folder("Research")).toBe("false"))
+
+    await user.type(screen.getByRole("textbox", { name: "Message" }), "Scoped")
+    await user.click(screen.getByRole("button", { name: "Send message" }))
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(
+          ([path, init]) =>
+            path === "/workspaces/1/chat/threads" && init?.method === "POST"
+        )
+      ).toBe(true)
+    )
+    // The thread is still opening: a tick now is for it, not for the draft.
+    await click("Select Guide.txt")
+    await waitFor(() => expect(sourceRow("Guide.txt")).toBe("false"))
+    opened()
+
+    await screen.findByRole("button", { name: "Scoped draft" })
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.filter(
+          ([path, init]) =>
+            path === "/chat/threads/12/source-scope" && init?.method === "PUT"
+        )
+      ).toHaveLength(1)
+    )
+    const stored = fetchMock.mock.calls.find(
+      ([path, init]) =>
+        path === "/chat/threads/12/source-scope" && init?.method === "PUT"
+    )
+    expect(JSON.parse(String(stored?.[1]?.body))).toEqual({
+      all: true,
+      folder_ids: [],
+      excluded_folder_ids: [2],
+      document_ids: [],
+      excluded_document_ids: [20],
+    })
+    expect(folder("Research")).toBe("false")
+    expect(sourceRow("Guide.txt")).toBe("false")
+    expect(localStorage.getItem("surfsense:draft-scope:1:v1")).toBeNull()
+
+    // The next new chat starts over.
+    await user.click(screen.getByRole("button", { name: "New chat" }))
+    await waitFor(() => expect(folder("Research")).toBe("true"))
+    expect(sourceRow("Guide.txt")).toBe("true")
+  })
+
+  it("opens a new chat's thread with its ticks, which outlive a first message that fails", async () => {
+    const { fetchMock, user, page, folder, sourceRow, click, open } =
+      scopedChats()
+    render(page)
+    await screen.findByRole("treeitem", { name: "Research" })
+    await user.click(screen.getByRole("button", { name: "Expand Research" }))
+    await click("Select folder Research")
+    await waitFor(() => expect(folder("Research")).toBe("false"))
+    expect(localStorage.getItem("surfsense:draft-scope:1:v1")).not.toBeNull()
+
+    await user.type(screen.getByRole("textbox", { name: "Message" }), "Scoped")
+    await user.click(screen.getByRole("button", { name: "Send message" }))
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(
+          ([path, init]) =>
+            path === "/chat/threads/12/messages" && init?.method === "POST"
+        )
+      ).toBe(true)
+    )
+    // The thread was opened with the ticks, so the draft is spent even though
+    // the message never reached the backend.
+    const opened = fetchMock.mock.calls.find(
+      ([path, init]) =>
+        path === "/workspaces/1/chat/threads" && init?.method === "POST"
+    )
+    expect(JSON.parse(String(opened?.[1]?.body))).toEqual({
+      title: "New chat",
+      source_scope: {
+        all: true,
+        folder_ids: [],
+        excluded_folder_ids: [2],
+        document_ids: [],
+        excluded_document_ids: [],
+      },
+    })
+    expect(localStorage.getItem("surfsense:draft-scope:1:v1")).toBeNull()
+    expect(folder("Research")).toBe("false")
+
+    // Coming back to it shows those ticks; a new chat starts over.
+    await open("Everything")
+    await waitFor(() => expect(folder("Research")).toBe("true"))
+    await open("Scoped draft")
+    await waitFor(() => expect(folder("Research")).toBe("false"))
+    await user.click(screen.getByRole("button", { name: "New chat" }))
+    await waitFor(() => expect(folder("Research")).toBe("true"))
+    expect(sourceRow("Guide.txt")).toBe("true")
+  })
+
+  it("starts a new chat from every source and keeps what it unticks across a remount", async () => {
+    const { user, page, folder, sourceRow, click, open } = scopedChats()
+    const first = render(page)
+    await screen.findByRole("treeitem", { name: "Research" })
+    await user.click(screen.getByRole("button", { name: "Expand Research" }))
+    await open("Research only")
+    await waitFor(() => expect(sourceRow("Guide.txt")).toBe("false"))
+
+    await user.click(screen.getByRole("button", { name: "New chat" }))
+    await waitFor(() => expect(sourceRow("Guide.txt")).toBe("true"))
+    await click("Select folder Research")
+    await waitFor(() => expect(folder("Research")).toBe("false"))
+    first.unmount()
+    render(page)
+    await screen.findByRole("treeitem", { name: "Research" })
+    await user.click(screen.getByRole("button", { name: "Expand Research" }))
+    await waitFor(() => expect(folder("Research")).toBe("false"))
+    expect(sourceRow("Guide.txt")).toBe("true")
   })
 
   it("sends a turn with thinking off once the composer switch is off", async () => {

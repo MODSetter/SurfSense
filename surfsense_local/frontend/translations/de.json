@@ -230,6 +230,8 @@
   "chat_runtime_load_threads_toast": "Deine Chats konnten nicht geladen werden",
   "chat_runtime_rename_toast": "Chat konnte nicht umbenannt werden",
   "chat_runtime_unexpected_error": "Ein unerwarteter Fehler ist aufgetreten",
+  "chat_scope_save_body": "Sie werden mit deiner nächsten Nachricht trotzdem gesendet.",
+  "chat_scope_save_error": "Welche Quellen dieser Chat nutzt, konnte nicht gespeichert werden",
   "chat_thread_panel_conversation_aria": "Unterhaltung",
   "chat_thread_panel_delete_label": "Chat löschen",
   "chat_thread_panel_header_aria": "Chat",
