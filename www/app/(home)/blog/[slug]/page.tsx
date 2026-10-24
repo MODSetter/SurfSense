@@ -1,4 +1,5 @@
 import { loader } from "fumadocs-core/source";
+import type { MDXComponents } from "mdx/types";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
@@ -29,9 +30,7 @@ interface BlogData {
 	tags?: string[];
 	// Populated by Fumadocs when `lastModifiedTime: "git"` is set in source.config.ts.
 	lastModified?: Date;
-	body: React.ComponentType<{
-		components?: Record<string, React.ComponentType>;
-	}>;
+	body: React.ComponentType<{ components?: MDXComponents }>;
 }
 
 interface BlogPageItem {

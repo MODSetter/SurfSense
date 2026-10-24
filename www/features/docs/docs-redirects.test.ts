@@ -5,23 +5,25 @@ import test from "node:test";
 
 // Run with: pnpm exec tsx --test features/docs/docs-redirects.test.ts
 
-// The copy Next matches routes with, so these assertions cannot drift from
-// runtime behaviour. There is no standalone `path-to-regexp` in the tree.
-import { compile, pathToRegexp } from "next/dist/compiled/path-to-regexp";
+// The functions Next's server resolves `redirects()` with, called with its options, so these
+// assertions cannot drift from runtime behaviour.
+import { getPathMatch } from "next/dist/shared/lib/router/utils/path-match";
+import { prepareDestination } from "next/dist/shared/lib/router/utils/prepare-destination";
 import { CURRENT_DOCS_PATH, docsRedirects, LEGACY_DOCS_PATH } from "./docs-redirects";
 
 const matchers = docsRedirects.map((rule) => ({
-	regexp: pathToRegexp(rule.source, []),
-	// Next compiles destinations unvalidated, which is what lets a single
-	// `:path` hold a multi-segment value like `connectors/native/reddit`.
-	toDestination: compile(rule.destination, { validate: false }),
+	match: getPathMatch(rule.source, { strict: true, removeUnnamedParams: true }),
+	destination: rule.destination,
 }));
 
 /** Applies the rules the way Next does: first match wins, or no redirect. */
 function redirect(pathname: string): string | null {
-	for (const { regexp, toDestination } of matchers) {
-		const match = regexp.exec(pathname);
-		if (match) return toDestination({ path: match[1] });
+	for (const { match, destination } of matchers) {
+		const params = match(pathname);
+		if (params) {
+			return prepareDestination({ appendParamsToQuery: false, destination, params, query: {} })
+				.parsedDestination.pathname;
+		}
 	}
 	return null;
 }

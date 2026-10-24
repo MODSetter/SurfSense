@@ -69,6 +69,17 @@ repos:
         pass_filenames: false
         stages: [pre-commit]
 
+      # Type check for www, whole app, on the same trigger. `pnpm typecheck`
+      # first generates the MDX collections and Next's route types, which a
+      # fresh clone does not have.
+      - id: tsc-www
+        name: tsc-www
+        entry: bash -c 'cd www && pnpm typecheck'
+        language: system
+        files: ^www/
+        pass_filenames: false
+        stages: [pre-commit]
+
   # Links, tables and proposal status across docs/ and plans/. Every file, every
   # run: a deleted or renamed file breaks links in docs nobody touched.
   - repo: local

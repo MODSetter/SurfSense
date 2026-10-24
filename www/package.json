@@ -18,6 +18,7 @@
 		"debug:browser": "cross-env NODE_OPTIONS=--inspect next dev --turbopack",
 		"debug:server": "cross-env NODE_OPTIONS=--inspect=0.0.0.0:9229 next dev --turbopack",
 		"postinstall": "fumadocs-mdx",
+		"typecheck": "fumadocs-mdx && next typegen && tsc --noEmit",
 		"test:unit": "tsx --test \"app/**/*.test.ts\" \"features/**/*.test.ts\""
 	},
 	"dependencies": {

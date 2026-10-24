@@ -3,15 +3,18 @@ import test from "node:test";
 
 // Run with: pnpm exec tsx --test features/downloads/install-script-redirects.test.ts
 
-// The copy Next matches routes with, so these assertions cannot drift from
-// runtime behaviour.
-import { pathToRegexp } from "next/dist/compiled/path-to-regexp";
+// The matcher Next's server resolves `redirects()` with, called with its options, so these
+// assertions cannot drift from runtime behaviour.
+import { getPathMatch } from "next/dist/shared/lib/router/utils/path-match";
 import { installScriptRedirects } from "./install-script-redirects";
 
 /** Applies the rules the way Next does: first match wins, or no redirect. */
 function redirect(pathname: string) {
 	return (
-		installScriptRedirects.find((rule) => pathToRegexp(rule.source, []).exec(pathname)) ?? null
+		installScriptRedirects.find(
+			(rule) =>
+				getPathMatch(rule.source, { strict: true, removeUnnamedParams: true })(pathname) !== false
+		) ?? null
 	);
 }
 
