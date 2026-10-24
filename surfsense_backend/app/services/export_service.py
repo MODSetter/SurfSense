@@ -1,30 +1,22 @@
 """Service for exporting knowledge base content as a ZIP archive."""
 
 import asyncio
-import json
 import logging
 import os
 import re
 import tempfile
 import zipfile
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
-from typing import Any
+from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy.orm import selectinload
 
 from app.db import (
-    ARTIFACT_API_SOURCE,
     Chunk,
     Document,
     DocumentType,
     Folder,
-    NewChatMessageRole,
-    NewChatThread,
-    Workspace,
-    WorkspaceMembership,
 )
 from app.services.folder_service import get_folder_subtree_ids
 from app.services.okf import (
@@ -38,7 +30,6 @@ from app.services.okf import (
     folder_to_log,
     okf_type,
 )
-from app.utils.content_utils import extract_text_content
 
 logger = logging.getLogger(__name__)
 
@@ -66,32 +57,6 @@ _CHAT_ROLES = frozenset({"user", "assistant"})
 def _sanitize_filename(title: str) -> str:
     safe = "".join(c if c.isalnum() or c in " -_." else "_" for c in title).strip()
     return safe[:80] or "document"
-
-
-def _citation_payloads(text: str) -> list[str]:
-    payloads: list[str] = []
-    for raw in _CITATION_RE.findall(text):
-        raw = raw.strip()
-        if _CITATION_ID_LIST_RE.fullmatch(raw):
-            payloads.extend(piece.strip() for piece in raw.split(","))
-        else:
-            payloads.append(raw)
-    return payloads
-
-
-def flatten_message_text(
-    text: str, title_by_payload: dict[str, str]
-) -> tuple[str, list[dict[str, str]]]:
-    """Strip ``[citation:…]`` markers and collect distinct titles in first-seen order."""
-    citations: list[dict[str, str]] = []
-    seen: set[str] = set()
-    for payload in _citation_payloads(text):
-        title = title_by_payload.get(payload)
-        if not title or title in seen:
-            continue
-        seen.add(title)
-        citations.append({"title": title})
-    return _CITATION_RE.sub("", text), citations
 
 
 def _iso(value: datetime | None) -> str | None:
@@ -467,199 +432,4 @@ async def build_export_zip(
     except Exception:
         if os.path.exists(tmp_path):
             os.unlink(tmp_path)
-        raise
-
-
-async def _member_workspaces(session: AsyncSession, user_id: Any) -> list[Workspace]:
-    not_deleting = ~Workspace.name.startswith("[DELETING] ")
-    result = await session.execute(
-        select(Workspace)
-        .join(
-            WorkspaceMembership,
-            WorkspaceMembership.workspace_id == Workspace.id,
-        )
-        .where(WorkspaceMembership.user_id == user_id, not_deleting)
-        .order_by(Workspace.id)
-    )
-    return list(result.scalars().unique().all())
-
-
-async def _citation_titles(
-    session: AsyncSession, workspace_id: int, payloads: set[str]
-) -> dict[str, str]:
-    chunk_ids: list[int] = []
-    for payload in payloads:
-        if not _CHUNK_ID_RE.fullmatch(payload):
-            continue
-        try:
-            chunk_id = int(payload)
-        except ValueError:  # past Python's int-string digit limit
-            continue
-        if _INT32_MIN <= chunk_id <= _INT32_MAX:
-            chunk_ids.append(chunk_id)
-    if not chunk_ids:
-        return {}
-    result = await session.execute(
-        select(Chunk.id, Document.title)
-        .join(Document, Document.id == Chunk.document_id)
-        .where(Chunk.id.in_(chunk_ids), Document.workspace_id == workspace_id)
-    )
-    return {str(chunk_id): title for chunk_id, title in result.all()}
-
-
-def _role_value(role: Any) -> str:
-    return role.value if isinstance(role, NewChatMessageRole) else str(role)
-
-
-async def flatten_workspace_chats(
-    session: AsyncSession, workspace_id: int
-) -> list[dict[str, Any]]:
-    """Flatten new_chat JSONB into contract-3 chats.json threads."""
-    result = await session.execute(
-        select(NewChatThread)
-        .where(
-            NewChatThread.workspace_id == workspace_id,
-            NewChatThread.source != ARTIFACT_API_SOURCE,
-        )
-        .options(selectinload(NewChatThread.messages))
-        .order_by(NewChatThread.id)
-    )
-    threads = list(result.scalars().unique().all())
-
-    payloads: set[str] = set()
-    for thread in threads:
-        for message in thread.messages:
-            if _role_value(message.role) not in _CHAT_ROLES:
-                continue
-            payloads.update(_citation_payloads(extract_text_content(message.content)))
-    title_by_payload = await _citation_titles(session, workspace_id, payloads)
-
-    exported: list[dict[str, Any]] = []
-    for thread in threads:
-        messages_out: list[dict[str, Any]] = []
-        ordered = sorted(thread.messages, key=lambda item: (item.created_at, item.id))
-        for message in ordered:
-            role = _role_value(message.role)
-            if role not in _CHAT_ROLES:
-                continue
-            text, citations = flatten_message_text(
-                extract_text_content(message.content), title_by_payload
-            )
-            if not text.strip() and not citations:
-                continue
-            messages_out.append(
-                {
-                    "role": role,
-                    "text": text,
-                    "citations": citations,
-                    "created_at": _iso(message.created_at),
-                }
-            )
-        if not messages_out:
-            continue
-        exported.append(
-            {
-                "id": thread.id,
-                "title": thread.title,
-                "created_at": _iso(thread.created_at),
-                "messages": messages_out,
-            }
-        )
-    return exported
-
-
-def _manifest_first_zip(staging_path: str, manifest: dict[str, Any]) -> str:
-    fd, final_path = tempfile.mkstemp(suffix=".zip")
-    os.close(fd)
-    try:
-        with zipfile.ZipFile(final_path, "w", zipfile.ZIP_DEFLATED) as dst:
-            dst.writestr(
-                "manifest.json",
-                json.dumps(manifest, ensure_ascii=False, indent=2),
-            )
-            if os.path.getsize(staging_path) > 0:
-                with zipfile.ZipFile(staging_path, "r") as src:
-                    for info in src.infolist():
-                        dst.writestr(info, src.read(info.filename))
-    except Exception:
-        if os.path.exists(final_path):
-            os.unlink(final_path)
-        raise
-    finally:
-        if os.path.exists(staging_path):
-            os.unlink(staging_path)
-    return final_path
-
-
-async def build_account_export_zip(session: AsyncSession, user_id: Any) -> ExportResult:
-    """Build a contract-3 ZIP of every workspace the user is a member of."""
-    workspaces = await _member_workspaces(session, user_id)
-    fd, staging_path = tempfile.mkstemp(suffix=".zip")
-    os.close(fd)
-    fresh = True
-    manifest_workspaces: list[dict[str, Any]] = []
-    skipped_titles: list[str] = []
-
-    try:
-        for workspace in workspaces:
-            prefix = f"workspaces/{workspace.id}/documents"
-            written = await _export_workspace_markdown(
-                session,
-                workspace.id,
-                staging_path,
-                path_prefix=prefix,
-                fresh=fresh,
-            )
-            if written.wrote:
-                fresh = False
-
-            chats = await flatten_workspace_chats(session, workspace.id)
-            chats_path = f"workspaces/{workspace.id}/chats.json"
-            await _write_zip_entries(
-                staging_path,
-                [(chats_path, json.dumps(chats, ensure_ascii=False, indent=2))],
-                fresh=fresh,
-            )
-            fresh = False
-
-            skipped_titles.extend(row.title for row in written.skipped)
-            manifest_workspaces.append(
-                {
-                    "id": workspace.id,
-                    "name": workspace.name,
-                    "created_at": _iso(workspace.created_at),
-                    "chats": chats_path,
-                    "documents": [
-                        {
-                            "id": doc.id,
-                            "path": doc.path,
-                            "title": doc.title,
-                            "source": doc.source,
-                            "created_at": doc.created_at,
-                        }
-                        for doc in written.documents
-                    ],
-                    "skipped": [
-                        {"id": row.id, "title": row.title, "reason": row.reason}
-                        for row in written.skipped
-                    ],
-                }
-            )
-
-        manifest = {
-            "format": _ACCOUNT_FORMAT,
-            "exported_at": datetime.now(UTC).isoformat(),
-            "workspaces": manifest_workspaces,
-        }
-        zip_path = _manifest_first_zip(staging_path, manifest)
-        staging_path = ""
-        return ExportResult(
-            zip_path=zip_path,
-            export_name="surfsense-export",
-            zip_size=os.path.getsize(zip_path),
-            skipped_docs=skipped_titles,
-        )
-    except Exception:
-        if staging_path and os.path.exists(staging_path):
-            os.unlink(staging_path)
         raise
