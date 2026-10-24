@@ -147,7 +147,7 @@ gh run list --workflow release-channels.yml --limit 1
 
 ## What that starts
 
-A `v*` tag starts `.github/workflows/release-local.yml`. electron-builder uploads Mac / Windows / Linux installers onto the **draft** (`releaseType` defaults to draft), `legacy-update-bridge` adds v0.0.40's manifests, and `release-extras` adds the install scripts, the apt repository and `SHA256SUMS`. Publish only after all of those succeed. The `snap` job runs beside them and holds none of them up.
+A `v[1-9]*` tag starts `.github/workflows/release-local.yml`; a `v0.*` tag never does. electron-builder uploads Mac / Windows / Linux installers onto the **draft** (`releaseType` defaults to draft), `legacy-update-bridge` adds v0.0.40's manifests, and `release-extras` adds the install scripts, the apt repository and `SHA256SUMS`. Publish only after all of those succeed. The `snap` job runs beside them and holds none of them up.
 
 | Audience | How they get this build |
 |----------|-------------------------|
