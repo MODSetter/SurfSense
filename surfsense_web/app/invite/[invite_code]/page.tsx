@@ -131,7 +131,7 @@ export default function InviteAcceptPage() {
 	}, [isLoggedIn, inviteCode]);
 
 	return (
-		<div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-background via-background to-primary/5">
+		<div className="min-h-app-screen flex items-center justify-center p-4 bg-gradient-to-br from-background via-background to-primary/5">
 			{/* Background decoration */}
 			<div className="absolute inset-0 overflow-hidden pointer-events-none">
 				<div className="absolute -top-1/2 -right-1/2 w-full h-full bg-gradient-to-bl from-primary/10 via-transparent to-transparent rounded-full blur-3xl" />

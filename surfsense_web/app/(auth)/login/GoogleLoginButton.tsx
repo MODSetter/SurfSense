@@ -53,7 +53,7 @@ export function GoogleLoginButton() {
 		window.location.href = buildBackendUrl("/auth/google/authorize-redirect");
 	};
 	return (
-		<section className="py-20 md:py-28 flex min-h-screen items-center justify-center">
+		<section className="flex min-h-app-screen items-center justify-center px-6 py-20 md:px-0 md:py-28">
 			<div className="mx-auto flex w-full max-w-md flex-col items-center text-center">
 				<Logo className="h-14 w-14 rounded-md transition-all md:h-16 md:w-16" />
 				<h1 className="mt-6 mb-8 text-3xl leading-tight font-semibold tracking-tight text-balance md:text-4xl">

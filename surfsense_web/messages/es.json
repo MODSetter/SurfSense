@@ -889,5 +889,12 @@
 		"not_found_title": "Este chat ha sido eliminado.",
 		"click_here": "Haz clic aquí",
 		"sign_in_prompt": "para iniciar sesión en SurfSense y comenzar el tuyo."
+	},
+	"desktop_app_banner": {
+		"label": "Anuncio de SurfSense 2.0",
+		"message": "SurfSense 2.0 es una aplicación de escritorio que se ejecuta en tu equipo.",
+		"message_short": "SurfSense 2.0 ya es una aplicación de escritorio",
+		"link": "Ver anuncio",
+		"dismiss": "Descartar"
 	}
 }

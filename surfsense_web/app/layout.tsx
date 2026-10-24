@@ -3,6 +3,7 @@ import "./globals.css";
 import { Roboto } from "next/font/google";
 import Script from "next/script";
 import { DesktopUpdateToast } from "@/components/desktop/desktop-update-toast";
+import { DesktopAppBanner } from "@/components/desktop-app-banner/desktop-app-banner";
 import { AuthCutoverPurge } from "@/components/providers/AuthCutoverPurge";
 import { GlobalLoadingProvider } from "@/components/providers/GlobalLoadingProvider";
 import { I18nProvider } from "@/components/providers/I18nProvider";
@@ -80,6 +81,7 @@ export default function RootLayout({
 								storageKey="surfsense-theme"
 							>
 								<PlatformProvider>
+									<DesktopAppBanner />
 									<ReactQueryClientProvider>
 										<AuthCutoverPurge />
 										<ZeroProvider>

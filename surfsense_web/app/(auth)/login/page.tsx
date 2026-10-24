@@ -8,8 +8,9 @@ import { toast } from "sonner";
 import { Logo } from "@/components/Logo";
 import { useRuntimeConfig } from "@/components/providers/runtime-config";
 import { Button } from "@/components/ui/button";
+import { useSession } from "@/hooks/use-session";
 import { getAuthErrorDetails, shouldRetry } from "@/lib/auth-errors";
-import { setRedirectPath } from "@/lib/auth-utils";
+import { getPostLoginRedirectPath, setRedirectPath } from "@/lib/auth-utils";
 import { GoogleLoginButton } from "./GoogleLoginButton";
 import { LocalLoginForm } from "./LocalLoginForm";
 
@@ -20,6 +21,14 @@ function LoginContent() {
 	const { authType } = useRuntimeConfig();
 	const [urlError, setUrlError] = useState<{ title: string; message: string } | null>(null);
 	const searchParams = useSearchParams();
+	const session = useSession();
+
+	// Already signed in: go where a fresh sign-in would.
+	useEffect(() => {
+		if (session.status === "authenticated") {
+			router.replace(getPostLoginRedirectPath());
+		}
+	}, [router, session.status]);
 
 	useEffect(() => {
 		// Check for various URL parameters that might indicate success or error states
@@ -99,7 +108,7 @@ function LoginContent() {
 	}
 
 	return (
-		<section className="py-20 md:py-28 flex min-h-screen items-center justify-center">
+		<section className="flex min-h-app-screen items-center justify-center px-6 py-20 md:px-0 md:py-28">
 			<div className="mx-auto flex w-full max-w-md flex-col items-center text-center">
 				<Logo priority className="h-14 w-14 rounded-md transition-all md:h-16 md:w-16" />
 				<h1 className="mt-6 mb-2 text-3xl leading-tight font-semibold tracking-tight text-balance md:text-4xl">

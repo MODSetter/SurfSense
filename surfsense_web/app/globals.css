@@ -6,6 +6,22 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* The banner's one-line height, from the first paint: waiting for its measured
+ * height would move every full-height page once JavaScript loads. */
+:root:has([data-app-banner]) {
+	--app-banner-height: 37px;
+}
+
+/* The screen height less the desktop-app banner (`--app-banner-height`, set by
+ * `DesktopAppBanner`), for pages that fill the window. */
+@utility h-app-screen {
+	height: calc(100vh - var(--app-banner-height, 0px));
+}
+
+@utility min-h-app-screen {
+	min-height: calc(100vh - var(--app-banner-height, 0px));
+}
+
 @theme {
 	--font-sans: var(--font-roboto);
 	/* No monospace webfont is loaded; this is a system stack, not a second

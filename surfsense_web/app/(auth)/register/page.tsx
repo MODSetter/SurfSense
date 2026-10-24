@@ -158,7 +158,7 @@ export default function RegisterPage() {
 
 	return (
 		<div className="relative w-full overflow-hidden">
-			<div className="mx-auto flex h-screen max-w-lg flex-col items-center justify-center px-6 md:px-0">
+			<div className="mx-auto flex min-h-app-screen max-w-lg flex-col items-center justify-center px-6 md:px-0">
 				<Logo priority className="h-14 w-14 rounded-md transition-all md:h-16 md:w-16" />
 				<h1 className="mt-6 mb-2 text-center text-3xl leading-tight font-semibold tracking-tight text-balance md:text-4xl">
 					{t("create_account")}

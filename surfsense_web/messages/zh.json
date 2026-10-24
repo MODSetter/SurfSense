@@ -889,5 +889,12 @@
 		"not_found_title": "此对话已被删除。",
 		"click_here": "点击这里",
 		"sign_in_prompt": "登录 SurfSense 开始您自己的对话。"
+	},
+	"desktop_app_banner": {
+		"label": "SurfSense 2.0 公告",
+		"message": "SurfSense 2.0 是一款在你的电脑上运行的桌面应用。",
+		"message_short": "SurfSense 2.0 现已推出桌面应用",
+		"link": "查看公告",
+		"dismiss": "关闭"
 	}
 }

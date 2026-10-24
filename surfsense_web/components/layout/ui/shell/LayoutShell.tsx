@@ -434,7 +434,7 @@ export function LayoutShell({
 		return (
 			<SidebarProvider value={sidebarContextValue}>
 				<TooltipProvider delayDuration={0}>
-					<div className={cn("flex h-screen w-full flex-col bg-panel", className)}>
+					<div className={cn("flex h-app-screen w-full flex-col bg-panel", className)}>
 						<Header
 							mobileMenuTrigger={<MobileSidebarTrigger onClick={() => setMobileMenuOpen(true)} />}
 						/>
@@ -533,7 +533,7 @@ export function LayoutShell({
 	return (
 		<SidebarProvider value={sidebarContextValue}>
 			<TooltipProvider delayDuration={0}>
-				<div className={cn("flex h-screen w-full flex-col overflow-hidden bg-rail", className)}>
+				<div className={cn("flex h-app-screen w-full flex-col overflow-hidden bg-rail", className)}>
 					{isMacDesktop ? (
 						<MacDesktopTitleBar
 							isSidebarCollapsed={isCollapsed}

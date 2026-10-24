@@ -30,7 +30,7 @@ export default function OnboardPage() {
 	const isReady = setupStatus?.status === "ready";
 
 	return (
-		<div className="flex min-h-screen select-none flex-col items-center justify-center bg-main-panel p-4">
+		<div className="flex min-h-app-screen select-none flex-col items-center justify-center bg-main-panel p-4">
 			<div className="w-full max-w-3xl space-y-6 text-center">
 				<Logo className="mx-auto h-12 w-12" />
 				<div className="space-y-2">
