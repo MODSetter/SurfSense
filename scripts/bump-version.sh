@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# Version line for the hosted / Docker stack: root VERSION, `v0.*` tags,
-# docker-build.yml. The desktop app is a separate line on its own number --
-# surfsense_local/VERSION and surfsense_local/scripts/bump-version.sh.
+# Version line for the legacy stack: root VERSION, `legacy-v*` tags,
+# docker-build.yml.
 #
 # Keep in step with bump-version.ps1 next to it; the two bump the same files.
 

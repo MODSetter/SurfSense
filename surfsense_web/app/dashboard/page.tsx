@@ -17,7 +17,7 @@ function ErrorScreen({ message }: { message: string }) {
 	const router = useRouter();
 
 	return (
-		<div className="flex min-h-screen flex-col items-center justify-center gap-4 px-4">
+		<div className="flex min-h-app-screen flex-col items-center justify-center gap-4 px-4">
 			<motion.div
 				initial={{ opacity: 0, y: 20 }}
 				animate={{ opacity: 1, y: 0 }}
@@ -45,7 +45,7 @@ function EmptyState({ onCreateClick }: { onCreateClick: () => void }) {
 	const t = useTranslations("workspace");
 
 	return (
-		<div className="flex min-h-screen flex-col items-center justify-center gap-4 p-4">
+		<div className="flex min-h-app-screen flex-col items-center justify-center gap-4 p-4">
 			<motion.div
 				initial={{ opacity: 0, y: 20 }}
 				animate={{ opacity: 1, y: 0 }}

@@ -17,8 +17,8 @@ calls. None of them touch production code.
    `X-E2E-Scenario` middleware.
 2. The fakes themselves are **strict**: every class implements
    `__getattr__` that raises `NotImplementedError` on unknown surface.
-   Adding a new SDK call site without updating the fake fails CI loudly.
-3. CI sets `HTTPS_PROXY=http://127.0.0.1:1` plus sentinel API keys
+   Adding a new SDK call site without updating the fake fails the run loudly.
+3. The hermetic run sets `HTTPS_PROXY=http://127.0.0.1:1` plus sentinel API keys
    (`COMPOSIO_API_KEY=e2e-deny-real-call-sentinel`). Any leaked outbound
    HTTP call fails before reaching the network.
 
@@ -74,7 +74,7 @@ pnpm test:e2e             # dev server (fast iteration)
 pnpm test:e2e:headed      # show the browser
 pnpm test:e2e:ui          # Playwright UI mode
 pnpm test:e2e:debug       # Playwright Inspector
-pnpm test:e2e:prod        # build + start (matches CI exactly)
+pnpm test:e2e:prod        # production build + start
 pnpm test:e2e:report      # open the last HTML report
 ```
 
@@ -90,10 +90,10 @@ To debug a single journey:
 pnpm test:e2e:headed connectors/composio/drive/journey.spec.ts
 ```
 
-### Hermetic alternative (matches CI)
+### Hermetic alternative
 
-To reproduce the CI environment exactly: backend and Celery in containers
-with L3 egress denied, replace steps 1–3 with:
+For a fully hermetic run (backend and Celery in containers, with L3 egress
+denied), replace steps 1–3 with:
 
 ```bash
 docker compose -f docker/docker-compose.e2e.yml up -d --build --wait

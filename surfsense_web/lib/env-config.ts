@@ -85,18 +85,3 @@ export function detectEnvironment(): "SurfSense Cloud" | "self-hosted" {
 // App version - defaults to package.json version
 // Can be overridden at build time with NEXT_PUBLIC_APP_VERSION for full git tag version
 export const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || packageJson.version;
-
-// Global announcement banner. Useful for planned downtime / maintenance notices.
-// Toggle on Vercel via NEXT_PUBLIC_GLOBAL_ANNOUNCEMENT_ENABLED ("true" to show) and
-// set the copy with NEXT_PUBLIC_GLOBAL_ANNOUNCEMENT_MESSAGE.
-export const GLOBAL_ANNOUNCEMENT_ENABLED =
-	process.env.NEXT_PUBLIC_GLOBAL_ANNOUNCEMENT_ENABLED === "true";
-
-export const GLOBAL_ANNOUNCEMENT_MESSAGE =
-	process.env.NEXT_PUBLIC_GLOBAL_ANNOUNCEMENT_MESSAGE ?? "";
-
-// The announcement pill above the homepage headline. Distinct from the
-// maintenance banner above. Toggle via NEXT_PUBLIC_TOP_ANNOUNCEMENT_ENABLED
-// ("true" to show); the name predates the pill, kept so deployments keep
-// working. The copy and link are fixed in HomeAnnouncement.
-export const TOP_ANNOUNCEMENT_ENABLED = process.env.NEXT_PUBLIC_TOP_ANNOUNCEMENT_ENABLED === "true";

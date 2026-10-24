@@ -1,6 +1,0 @@
-{
-	"title": "Messaging Channels",
-	"icon": "MessageCircle",
-	"pages": ["telegram", "whatsapp", "slack", "discord", "docker", "troubleshooting"],
-	"defaultOpen": false
-}

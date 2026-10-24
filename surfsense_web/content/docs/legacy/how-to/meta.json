@@ -1,6 +1,0 @@
-{
-	"title": "How to",
-	"pages": ["mcp-server", "zero-sync", "realtime-collaboration", "web-search"],
-	"icon": "Compass",
-	"defaultOpen": false
-}

@@ -68,7 +68,7 @@ PG14_IMAGE="pgvector/pgvector:pg14"
 
 # ── Defaults ──────────────────────────────────────────────────────────────────
 OLD_DB_USER="surfsense"
-OLD_DB_PASSWORD="surfsense"
+OLD_DB_PASSWORD="surfsense"  # pragma: allowlist secret
 OLD_DB_NAME="surfsense"
 AUTO_YES=false
 
@@ -323,7 +323,7 @@ success "Secret key: ${KEY_FILE}"
 printf "\n"
 info "Next step — run install.sh from this same directory:"
 printf "\n"
-printf "${CYAN}  curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash${NC}\n"
+printf "${CYAN}  curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/legacy/docker/scripts/install.sh | bash${NC}\n"
 printf "\n"
 info "install.sh will detect the dump, restore your data into PostgreSQL 17,"
 info "and start the full SurfSense stack automatically."

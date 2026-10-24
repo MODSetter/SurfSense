@@ -889,5 +889,12 @@
 		"not_found_title": "Este chat foi excluído.",
 		"click_here": "Clique aqui",
 		"sign_in_prompt": "para entrar no SurfSense e começar o seu."
+	},
+	"desktop_app_banner": {
+		"label": "Anúncio do SurfSense 2.0",
+		"message": "O SurfSense 2.0 é um aplicativo de desktop que roda no seu computador.",
+		"message_short": "O SurfSense 2.0 agora é um aplicativo de desktop",
+		"link": "Ver anúncio",
+		"dismiss": "Dispensar"
 	}
 }

@@ -889,5 +889,12 @@
 		"not_found_title": "This chat has been deleted.",
 		"click_here": "Click here",
 		"sign_in_prompt": "to log in to SurfSense and start your own."
+	},
+	"desktop_app_banner": {
+		"label": "SurfSense 2.0 announcement",
+		"message": "SurfSense 2.0 is a desktop app that runs on your machine.",
+		"message_short": "SurfSense 2.0 is now a desktop app",
+		"link": "See announcement",
+		"dismiss": "Dismiss"
 	}
 }

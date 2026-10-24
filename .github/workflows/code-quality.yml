@@ -1,13 +1,12 @@
 name: Code Quality Checks
 
-# Checks that belong to no product, on every PR: file hygiene, docs and
-# secrets. A PR touching only docs/, .github/ or scripts/ starts neither
-# product workflow, so these must not live in one. Each product lints, scans
-# and tests itself: docker-tests.yml and desktop-tests.yml.
+# Checks that belong to no tree, on every PR: file hygiene and secrets. A PR
+# touching only .github/ or scripts/ does not start docker-tests.yml, so these
+# must not live in it.
 
 on:
   pull_request:
-    branches: [main, dev]
+    branches: [legacy]
     types: [opened, synchronize, reopened, ready_for_review]
 
 concurrency:
@@ -46,11 +45,11 @@ jobs:
           restore-keys: |
             pre-commit-
 
-      # Named, not skipped around, so a hook added for one product never runs
-      # here. Each product lints and scans its own code in its own workflow.
+      # Named, not skipped around, so a hook added for one tree never runs
+      # here. docker-tests.yml lints and scans the code.
       - name: Run file quality checks on changed files
         env:
-          HOOKS: check-yaml check-json check-toml check-merge-conflict check-added-large-files debug-statements check-case-conflict check-docs
+          HOOKS: check-yaml check-json check-toml check-merge-conflict check-added-large-files debug-statements check-case-conflict
         run: |
           if git show-ref --verify --quiet refs/heads/${{ github.base_ref }}; then
             RANGE="--from-ref ${{ github.base_ref }} --to-ref HEAD"
@@ -98,7 +97,7 @@ jobs:
             pre-commit-security-
 
       # Secrets are a leak wherever they land, so this scans every PR. bandit
-      # is per product: docker-tests.yml and desktop-tests.yml run their own.
+      # runs in docker-tests.yml.
       - name: Scan changed files for secrets
         run: |
           if git show-ref --verify --quiet refs/heads/${{ github.base_ref }}; then
@@ -129,7 +128,7 @@ jobs:
       # The checkout is the pull request merged into its base, its first parent.
       - name: Refuse changes to proprietary code
         run: |
-          changed=$(git diff --name-only HEAD^1 HEAD -- surfsense_backend/app/proprietary plugins/remote/proprietary)
+          changed=$(git diff --name-only HEAD^1 HEAD -- surfsense_backend/app/proprietary)
           if [ -n "$changed" ]; then
             echo "::error::Only SurfSense's maintainers change proprietary/ (Business Source License 1.1). See CONTRIBUTING.md."
             echo "$changed"

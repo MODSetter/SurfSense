@@ -65,7 +65,6 @@ from app.routes.users_routes import router as users_router
 from app.routes.zero_context_routes import router as zero_context_router
 from app.schemas import UserCreate, UserRead
 from app.session_events import register_session_hooks
-from app.sunset import SunsetWriteBlockMiddleware, is_sunset_mode, sunset_url
 from app.users import SECRET, allow_any_principal, auth_backend, fastapi_users
 from app.utils.perf import log_system_snapshot
 
@@ -907,10 +906,6 @@ allowed_origins.extend(
     ]
 )
 
-# A no-op whenever SUNSET_MODE is unset, which is every self-host install.
-# Registered first, so it runs inside CORS and a refused write still carries
-# the headers the browser needs to read it.
-app.add_middleware(SunsetWriteBlockMiddleware)
 app.add_middleware(CsrfOriginMiddleware)
 app.add_middleware(
     CORSMiddleware,
@@ -1218,17 +1213,8 @@ app.include_router(crud_router, prefix="/api/v1", tags=["crud"])
 @app.get("/health", tags=["health"])
 @limiter.exempt
 async def health_check():
-    """Lightweight liveness probe exempt from rate limiting.
-
-    Also carries the sunset flag legacy desktop clients read once at startup
-    (``docs/contracts/04-sunset-flag.md``). The flag is read
-    per request, so flipping it never needs a deploy.
-    """
-    return {
-        "status": "ok",
-        "sunset": is_sunset_mode(),
-        "sunset_url": sunset_url(),
-    }
+    """Lightweight liveness probe exempt from rate limiting."""
+    return {"status": "ok"}
 
 
 @app.get("/ready", tags=["health"])

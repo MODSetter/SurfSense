@@ -148,7 +148,7 @@ export function DashboardClientLayout({
 
 	if (setupError) {
 		return (
-			<div className="flex flex-col items-center justify-center min-h-screen space-y-4">
+			<div className="flex flex-col items-center justify-center min-h-app-screen space-y-4">
 				<Card className="w-[400px] bg-background/60 backdrop-blur-sm border-destructive/20">
 					<CardHeader className="pb-2">
 						<CardTitle className="text-xl font-medium text-destructive">

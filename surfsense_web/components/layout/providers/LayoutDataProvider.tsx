@@ -19,15 +19,12 @@ import { toast } from "sonner";
 import { currentThreadAtom, resetCurrentThreadAtom } from "@/atoms/chat/current-thread.atom";
 import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
 import { statusInboxItemsAtom } from "@/atoms/inbox/status-inbox.atom";
-import { announcementsDialogAtom } from "@/atoms/layout/dialogs.atom";
 import { rightPanelCollapsedAtom } from "@/atoms/layout/right-panel.atom";
 import { removeChatTabAtom, syncChatTabAtom } from "@/atoms/tabs/tabs.atom";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { deleteWorkspaceMutationAtom } from "@/atoms/workspaces/workspace-mutation.atoms";
 import { workspaceLimitsAtom, workspacesAtom } from "@/atoms/workspaces/workspace-query.atoms";
 import { ActionLogDialog } from "@/components/agent-action-log/action-log-dialog";
-import { AnnouncementSpotlight } from "@/components/announcements/AnnouncementSpotlight";
-import { AnnouncementsDialog } from "@/components/announcements/AnnouncementsDialog";
 import { ActiveChatStreamRunner } from "@/components/chat/active-chat-stream-runner";
 import {
 	AlertDialog,
@@ -51,7 +48,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { useActivateChatThread } from "@/hooks/use-activate-chat-thread";
-import { useAnnouncements } from "@/hooks/use-announcements";
 import { useInbox } from "@/hooks/use-inbox";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { getChatUrl, type ResolvedTab } from "@/hooks/use-resolved-tabs";
@@ -93,9 +89,6 @@ export function LayoutDataProvider({
 	const pathname = usePathname();
 	const { theme, setTheme } = useTheme();
 	const isMobile = useIsMobile();
-
-	// Announcements
-	const { unreadCount: announcementUnreadCount } = useAnnouncements();
 
 	// Desktop Documents panel state. Mobile uses the /documents workspace route.
 	const [isDocumentsSidebarOpen, setIsDocumentsSidebarOpen] = useAtom(documentsSidebarOpenAtom);
@@ -319,7 +312,7 @@ export function LayoutDataProvider({
 	// Navigation items
 	// Automations, Artifacts and Documents are rendered explicitly below "New
 	// chat" in the sidebar. Documents is a mobile workspace destination;
-	// notifications and announcements live in the avatar rail/dropdown.
+	// notifications live in the avatar rail/dropdown.
 	const isAutomationsActive = pathname?.includes("/automations") === true;
 	const isArtifactsActive = pathname?.endsWith("/artifacts") === true;
 	const isPlaygroundRoute = pathname?.includes("/playground") === true;
@@ -392,15 +385,9 @@ export function LayoutDataProvider({
 		setIsCreateWorkspaceDialogOpen(true);
 	}, [isAtWorkspaceLimit, maxWorkspacesPerUser]);
 
-	const setAnnouncementsDialog = useSetAtom(announcementsDialogAtom);
-
 	const handleUserSettings = useCallback(() => {
 		router.push(`/dashboard/${workspaceId}/user-settings/profile`);
 	}, [router, workspaceId]);
-
-	const handleAnnouncements = useCallback(() => {
-		setAnnouncementsDialog(true);
-	}, [setAnnouncementsDialog]);
 
 	const handleWorkspaceSettings = useCallback(
 		(space: Workspace) => {
@@ -749,8 +736,6 @@ export function LayoutDataProvider({
 				onSettings={handleSettings}
 				onManageMembers={handleManageMembers}
 				onUserSettings={handleUserSettings}
-				onAnnouncements={handleAnnouncements}
-				announcementUnreadCount={announcementUnreadCount}
 				onLogout={handleLogout}
 				theme={theme}
 				setTheme={setTheme}
@@ -946,9 +931,6 @@ export function LayoutDataProvider({
 				open={isCreateWorkspaceDialogOpen}
 				onOpenChange={setIsCreateWorkspaceDialogOpen}
 			/>
-
-			<AnnouncementsDialog />
-			<AnnouncementSpotlight />
 
 			{/* Agent action log + revert dialog */}
 			<ActionLogDialog />

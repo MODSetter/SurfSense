@@ -37,9 +37,7 @@ repos:
             .*alembic\.ini|
             .*alembic/versions/.*\.py|
             .*\.mdx$|
-            .*/messages/.*\.json$|
-            surfsense_local/backend/modules/llm/catalog/(local|remote)/manifest/models\.json|
-            plugins/registry/published/plugins\.json
+            .*/messages/.*\.json$
           )$
 
   # Python Backend Hooks (surfsense_backend) - Using Ruff for linting and formatting.
@@ -58,8 +56,7 @@ repos:
         files: ^surfsense_backend/
         exclude: ^surfsense_backend/(test_.*\.py|.*test.*\.py)
 
-  # One hook per product, each with an alias, so each product's CI runs only
-  # its own: `pre-commit run bandit-docker` or `pre-commit run bandit-desktop`.
+  # Aliased so CI can run it alone: `pre-commit run bandit-docker`.
   - repo: https://github.com/PyCQA/bandit
     rev: 1.9.4
     hooks:
@@ -69,12 +66,6 @@ repos:
         files: ^surfsense_backend/
         args: ['-f', 'json', '--severity-level', 'high', '--confidence-level', 'high']
         exclude: ^surfsense_backend/(tests/|test_.*\.py|.*test.*\.py|alembic/)
-      - id: bandit
-        alias: bandit-desktop
-        name: bandit (surfsense_local/backend)
-        files: ^surfsense_local/backend/
-        args: ['-f', 'json', '--severity-level', 'high', '--confidence-level', 'high']
-        exclude: ^surfsense_local/backend/(tests/|alembic/)
 
   # Biome hooks for TypeScript/JavaScript projects
   - repo: local
@@ -89,48 +80,6 @@ repos:
         entry: bash -c 'cd surfsense_web && pnpm exec biome check --diagnostic-level=error .'
         language: system
         files: ^surfsense_web/
-        pass_filenames: false
-        stages: [pre-commit]
-
-  # Links, tables and proposal status across docs/ and plans/. Every file, every
-  # run: a deleted or renamed file breaks links in docs nobody touched.
-  - repo: local
-    hooks:
-      - id: check-docs
-        name: check-docs
-        entry: python scripts/check_docs.py
-        language: python
-        pass_filenames: false
-        always_run: true
-        stages: [pre-commit]
-
-  # The desktop app's translation catalogs. formatjs-extract regenerates
-  # en.json from the code, so a stale en.json fails the commit as a modified
-  # file. formatjs-verify: every key translated, no extra keys, the same
-  # placeholders and tags. check-translations adds the SurfSense rules. The
-  # first two run the app's own scripts, so @formatjs/cli's version lives only
-  # in surfsense_local/frontend/package.json.
-  - repo: local
-    hooks:
-      - id: formatjs-extract
-        name: formatjs-extract
-        entry: pnpm --dir surfsense_local/frontend translations:extract
-        language: system
-        files: ^surfsense_local/frontend/(src/|translations/en\.json)
-        pass_filenames: false
-        stages: [pre-commit]
-      - id: formatjs-verify
-        name: formatjs-verify
-        entry: pnpm --dir surfsense_local/frontend translations:verify
-        language: system
-        files: ^surfsense_local/frontend/translations/
-        pass_filenames: false
-        stages: [pre-commit]
-      - id: check-translations
-        name: check-translations
-        entry: node scripts/check_translations.mjs
-        language: system
-        files: ^surfsense_local/frontend/(translations/|src/features/)
         pass_filenames: false
         stages: [pre-commit]
 

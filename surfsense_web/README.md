@@ -34,9 +34,9 @@ pnpm dev
 
 App: http://localhost:3000
 
-Match `AUTH_TYPE` with the backend. Leave `SUNSET_MODE` unset.
+Match `AUTH_TYPE` with the backend.
 
-Live document/chat updates need [zero-cache](content/docs/manual-installation.mdx). Most UI PRs can run without it; the page just will not refresh itself.
+Live document/chat updates need [zero-cache](https://www.surfsense.com/docs/legacy/manual-installation). Most UI PRs can run without it; the page just will not refresh itself.
 
 ## Tests
 

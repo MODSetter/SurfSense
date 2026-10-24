@@ -889,5 +889,12 @@
 		"not_found_title": "이 채팅은 삭제되었습니다.",
 		"click_here": "여기를 클릭",
 		"sign_in_prompt": "하여 SurfSense에 로그인하고 나만의 채팅을 시작해보세요."
+	},
+	"desktop_app_banner": {
+		"label": "SurfSense 2.0 공지",
+		"message": "SurfSense 2.0은 내 컴퓨터에서 실행되는 데스크톱 앱입니다.",
+		"message_short": "SurfSense 2.0이 이제 데스크톱 앱입니다",
+		"link": "공지 보기",
+		"dismiss": "닫기"
 	}
 }

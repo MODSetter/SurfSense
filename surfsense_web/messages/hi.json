@@ -889,5 +889,12 @@
 		"not_found_title": "यह चैट हटा दिया गया है।",
 		"click_here": "यहां क्लिक करें",
 		"sign_in_prompt": "SurfSense में लॉगिन करने और अपना शुरू करने के लिए।"
+	},
+	"desktop_app_banner": {
+		"label": "SurfSense 2.0 की घोषणा",
+		"message": "SurfSense 2.0 एक डेस्कटॉप ऐप है जो आपकी मशीन पर चलता है।",
+		"message_short": "SurfSense 2.0 अब एक डेस्कटॉप ऐप है",
+		"link": "घोषणा देखें",
+		"dismiss": "खारिज करें"
 	}
 }

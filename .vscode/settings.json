@@ -1,10 +1,6 @@
 {
 	"biome.requireConfiguration": true,
 	"deepscan.ignoreConfirmWarning": true,
-	"python.defaultInterpreterPath": "${workspaceFolder}/surfsense_local/backend/.venv/bin/python",
-	"basedpyright.analysis.extraPaths": [
-		"${workspaceFolder}/surfsense_local/backend",
-		"${workspaceFolder}/plugins/bundles/core/sdk"
-	],
+	"python.defaultInterpreterPath": "${workspaceFolder}/surfsense_backend/.venv/bin/python",
 	"python-envs.pythonProjects": []
 }

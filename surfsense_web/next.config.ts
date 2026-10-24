@@ -1,49 +1,12 @@
 import path from "node:path";
-import { createMDX } from "fumadocs-mdx/next";
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
-import { docsRedirects } from "./lib/docs-redirects";
-import { installScriptRedirects } from "./lib/install-script-redirects";
-
-// The per-scraper marketing pages gave way to each plugin's page under /plugins.
-const LISTED_SCRAPERS = [
-	"google-search",
-	"web-crawl",
-	"reddit",
-	"youtube",
-	"instagram",
-	"tiktok",
-	"google-maps",
-	"amazon",
-	"walmart",
-	"indeed",
-];
 
 // Create the next-intl plugin
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
-// TODO: Separate app routes (/login, /dashboard) from marketing routes
-// (landing page, /contact, /pricing, /docs) so the desktop build only
-// ships what desktop users actually need.
 const nextConfig: NextConfig = {
 	output: "standalone",
-	async redirects() {
-		return [
-			// /mcp-connector was split into the two MCP directions; the external
-			// (client) side kept the original content.
-			{ source: "/mcp-connector", destination: "/external-mcp-connectors", permanent: true },
-			// The connectors index was renamed to /plugins, which is what the
-			// product calls them everywhere else.
-			{ source: "/connectors", destination: "/plugins", permanent: true },
-			...LISTED_SCRAPERS.map((id) => ({
-				source: `/${id}`,
-				destination: `/plugins/${id}`,
-				permanent: true,
-			})),
-			...docsRedirects,
-			...installScriptRedirects,
-		];
-	},
 	outputFileTracingRoot: path.join(__dirname, ".."),
 	reactStrictMode: false,
 	typescript: {
@@ -115,7 +78,4 @@ const nextConfig: NextConfig = {
 	},
 };
 
-// Wrap the config with MDX and next-intl plugins
-const withMDX = createMDX({});
-
-export default withNextIntl(withMDX(nextConfig));
+export default withNextIntl(nextConfig);
