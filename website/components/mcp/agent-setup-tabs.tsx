@@ -1,8 +1,8 @@
 "use client";
 
-import { Check, Copy } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { CheckIcon, Copy01Icon } from "@/components/ui/icons";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
 	API_KEY_PLACEHOLDER,
@@ -34,7 +34,7 @@ function CopyButton({ text }: { text: string }) {
 			onClick={handleCopy}
 			aria-label={copied ? "Configuration copied" : "Copy configuration"}
 		>
-			{copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+			{copied ? <CheckIcon className="size-3.5" /> : <Copy01Icon className="size-3.5" />}
 		</Button>
 	);
 }

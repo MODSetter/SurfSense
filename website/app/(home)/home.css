@@ -61,11 +61,6 @@ html:has(.ss-home) {
 	--home-divider: color-mix(in oklab, var(--border) 90%, black);
 	--input: #d6d6d6;
 	--ring: #2e2e2e;
-	--chart-1: #f26a4b;
-	--chart-2: #1e1e1e;
-	--chart-3: #626262;
-	--chart-4: #9b9b9b;
-	--chart-5: #c9c9c9;
 	--radius: 0.5rem;
 
 	/* Space between the screen edge and the content column, matching `px-6
@@ -604,21 +599,4 @@ html:has(.ss-home) {
 		animation-name: none !important;
 	}
 	/* biome-ignore-end lint/complexity/noImportantStyles: see above */
-}
-
-/* `SignInButton` hardcodes a white pill and also renders on /login and
- * /register, so it is restyled here, scoped to the marketing shell. */
-.ss-home .runtime-auth-local,
-.ss-home .runtime-auth-google {
-	border-radius: var(--radius);
-	border-color: var(--border);
-	background-color: transparent;
-	color: var(--foreground);
-	box-shadow: none;
-}
-
-.ss-home .runtime-auth-local:hover,
-.ss-home .runtime-auth-google:hover {
-	background-color: var(--accent);
-	color: var(--accent-foreground);
 }

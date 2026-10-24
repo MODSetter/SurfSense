@@ -1,39 +1,38 @@
 import { loader } from "fumadocs-core/source";
-import {
-	BookOpen,
-	ClipboardCheck,
-	Compass,
-	Container,
-	Cpu,
-	Download,
-	FlaskConical,
-	Heart,
-	MessageCircle,
-	Radar,
-	Unplug,
-	Wrench,
-} from "lucide-react";
 import { createElement } from "react";
 import { docs } from "@/.source/server";
+import {
+	BookOpen01Icon,
+	BubbleChatIcon,
+	ClipboardCheckIcon,
+	Compass01Icon,
+	ContainerIcon,
+	CpuIcon,
+	DownloadIcon,
+	FavouriteIcon,
+	FlaskConicalIcon,
+	Radar01Icon,
+	UnplugIcon,
+	Wrench01Icon,
+} from "@/components/ui/icons";
 
-/** Explicit whitelist of Lucide icons used in docs frontmatter / meta.json.
- * Importing the full `icons` barrel would pull every Lucide icon (~1 400 SVGs)
- * into the docs bundle even though only a handful are referenced. Add new icons
- * here as docs pages are added.
+/**
+ * The icons docs frontmatter and meta.json name, by those names. A whitelist,
+ * so the docs bundle carries only these; add one here when a page names it.
  */
 const DOCS_ICONS: Record<string, React.ComponentType> = {
-	BookOpen,
-	ClipboardCheck,
-	Compass,
-	Container,
-	Cpu,
-	Download,
-	FlaskConical,
-	Heart,
-	MessageCircle,
-	Radar,
-	Unplug,
-	Wrench,
+	BookOpen: BookOpen01Icon,
+	ClipboardCheck: ClipboardCheckIcon,
+	Compass: Compass01Icon,
+	Container: ContainerIcon,
+	Cpu: CpuIcon,
+	Download: DownloadIcon,
+	FlaskConical: FlaskConicalIcon,
+	Heart: FavouriteIcon,
+	MessageCircle: BubbleChatIcon,
+	Radar: Radar01Icon,
+	Unplug: UnplugIcon,
+	Wrench: Wrench01Icon,
 };
 
 export const source = loader({

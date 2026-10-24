@@ -4,19 +4,19 @@ description: Connect SurfSense to your tools and services
 ---
 
 import { Card, Cards } from 'fumadocs-ui/components/card';
-import { Zap, Cable } from 'lucide-react';
+import { CableIcon, ZapIcon } from '@/components/ui/icons';
 
 Connectors bring data into SurfSense — either as searchable knowledge or as live tools the AI agent can use during chat. There are two kinds:
 
 <Cards>
   <Card
-    icon={<Zap />}
+    icon={<ZapIcon />}
     title="Native Connectors"
     description="SurfSense's built-in scraper APIs: Reddit, YouTube, Instagram, TikTok, Google Maps, Google Search, Indeed, Amazon, Walmart, and Web Crawl — usable in chat, the API Playground, or via REST"
     href="/docs/legacy/connectors/native"
   />
   <Card
-    icon={<Cable />}
+    icon={<CableIcon />}
     title="External Connectors"
     description="Third-party integrations: Notion, Slack, Linear, Jira, Google, GitHub, Obsidian, and more"
     href="/docs/legacy/connectors/external"

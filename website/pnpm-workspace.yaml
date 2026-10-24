@@ -11,8 +11,6 @@ allowBuilds:
   unrs-resolver: true
 
 minimumReleaseAge: 10080
-minimumReleaseAgeExclude:
-  - lucide-react
 
 # Security floors for transitive dependencies whose parents pin a vulnerable
 # version. Each stays inside the major its dependents use.

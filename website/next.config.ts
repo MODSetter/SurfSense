@@ -61,7 +61,12 @@ const nextConfig: NextConfig = {
 		contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
 	},
 	experimental: {
-		optimizePackageImports: ["lucide-react", "@tabler/icons-react", "date-fns", "motion"],
+		optimizePackageImports: [
+			"@hugeicons/core-free-icons",
+			"@tabler/icons-react",
+			"date-fns",
+			"motion",
+		],
 	},
 	// Turbopack config (used during `next dev --turbopack`)
 	turbopack: {

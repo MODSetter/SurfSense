@@ -1,8 +1,8 @@
 "use client";
 
-import { ArrowRight } from "lucide-react";
 import Link, { type LinkProps } from "next/link";
 import type * as React from "react";
+import { ArrowRightIcon } from "@/components/ui/icons";
 
 type FlowButtonProps = {
 	text?: string;
@@ -19,7 +19,7 @@ export function FlowButton({ text = "Modern Button", className, ...props }: Flow
 	const content = (
 		<>
 			{/* Left arrow (arr-2) */}
-			<ArrowRight className="absolute w-4 h-4 left-[-25%] stroke-primary fill-none z-[9] group-hover:left-4 group-hover:stroke-primary-foreground transition-all duration-[800ms] ease-[cubic-bezier(0.34,1.56,0.64,1)]" />
+			<ArrowRightIcon className="absolute w-4 h-4 left-[-25%] stroke-primary fill-none z-9 group-hover:left-4 group-hover:stroke-primary-foreground transition-all duration-800 ease-[cubic-bezier(0.34,1.56,0.64,1)]" />
 
 			{/* Text */}
 			<span className="relative z-[1] -translate-x-3 group-hover:translate-x-3 transition-all duration-[800ms] ease-out">
@@ -30,7 +30,7 @@ export function FlowButton({ text = "Modern Button", className, ...props }: Flow
 			<span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-primary rounded-[50%] opacity-0 group-hover:w-[220px] group-hover:h-[220px] group-hover:opacity-100 transition-all duration-[800ms] ease-[cubic-bezier(0.19,1,0.22,1)]" />
 
 			{/* Right arrow (arr-1) */}
-			<ArrowRight className="absolute w-4 h-4 right-4 stroke-primary fill-none z-[9] group-hover:right-[-25%] group-hover:stroke-primary-foreground transition-all duration-[800ms] ease-[cubic-bezier(0.34,1.56,0.64,1)]" />
+			<ArrowRightIcon className="absolute w-4 h-4 right-4 stroke-primary fill-none z-9 group-hover:right-[-25%] group-hover:stroke-primary-foreground transition-all duration-800 ease-[cubic-bezier(0.34,1.56,0.64,1)]" />
 		</>
 	);
 
