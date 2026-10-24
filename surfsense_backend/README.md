@@ -28,7 +28,7 @@ uv run main.py --reload
 API: http://localhost:8000  
 Docs: http://localhost:8000/docs
 
-`.env.example` is the config map. For local Docker Postgres the default `DATABASE_URL` already matches `deps-only`. Set `SECRET_KEY` to something of your own. Leave `SUNSET_MODE` unset.
+`.env.example` is the config map. For local Docker Postgres the default `DATABASE_URL` already matches `deps-only`. Set `SECRET_KEY` to something of your own.
 
 Uploads, connectors, and other background work need a worker in a second terminal:
 
