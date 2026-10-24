@@ -9,10 +9,7 @@
 @custom-variant dark (&:is(.dark *):not(.ss-home, .ss-home *));
 
 @theme {
-	--font-sans: var(--font-roboto);
-	/* No monospace webfont is loaded; this is a system stack, not a second
-	 * bundled font. Previously pointed at --font-geist-mono, which nothing
-	 * defines, so every font-mono usage silently fell back to Roboto. */
+	/* No monospace webfont is loaded; a system stack. */
 	--font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 

@@ -1,10 +1,9 @@
 import { Fraunces } from "next/font/google";
 import { getStarCount, STARS_HREF } from "@/components/site/github-stars";
-import { siteSansFont } from "@/components/site/site-sans-font";
 import { SiteShell } from "@/components/site/site-shell";
 import "./home.css";
 
-// Brand wordmark only; loaded here so the app routes never fetch it.
+// Brand wordmark only; loaded here so only the marketing pages fetch it.
 const fraunces = Fraunces({
 	subsets: ["latin"],
 	axes: ["SOFT", "WONK", "opsz"],
@@ -27,9 +26,7 @@ export default async function HomePageLayout({ children }: { children: React.Rea
 	const starCount = await getStarCount();
 
 	return (
-		<div
-			className={`${fraunces.variable} ${siteSansFont.variable} ${siteSansFont.className} contents`}
-		>
+		<div className={`${fraunces.variable} contents`}>
 			<SiteShell starCount={starCount} starsHref={STARS_HREF}>
 				{children}
 			</SiteShell>

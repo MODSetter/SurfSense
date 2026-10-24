@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { RootProvider } from "fumadocs-ui/provider/next";
-import { Roboto } from "next/font/google";
 import { PostHogProvider } from "@/components/providers/PostHogProvider";
 import {
 	OrganizationJsonLd,
@@ -9,17 +8,8 @@ import {
 	WebSiteJsonLd,
 } from "@/components/seo/json-ld";
 import { GlobalAnnouncement } from "@/components/site/global-announcement";
+import { siteSansFont } from "@/components/site/site-sans-font";
 import { cn } from "@/lib/utils";
-
-const roboto = Roboto({
-	subsets: ["latin"],
-	weight: ["400", "500", "700"],
-	// "optional": use Roboto only if it's ready almost immediately; otherwise
-	// keep the fallback for this page view. "swap" (the default) always swaps
-	// in Roboto once it arrives, which produced a visible font jump on load.
-	display: "optional",
-	variable: "--font-roboto",
-});
 
 /**
  * Viewport configuration for mobile keyboard handling.
@@ -105,7 +95,11 @@ export default function RootLayout({
 				<SoftwareApplicationJsonLd />
 			</head>
 			<body
-				className={cn(roboto.className, roboto.variable, "bg-background antialiased h-full w-full")}
+				className={cn(
+					siteSansFont.className,
+					siteSansFont.variable,
+					"bg-background antialiased h-full w-full"
+				)}
 			>
 				<PostHogProvider>
 					{/* Light by default. The marketing pages keep their own light palette
