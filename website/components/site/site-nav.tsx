@@ -112,7 +112,10 @@ export function SiteNav({ starCount, starsHref }: { starCount: number | null; st
 
 	return (
 		<>
-			<header ref={headerRef} className="ss-home-nav sticky top-0 z-50 px-6 py-3 md:px-10">
+			<header
+				ref={headerRef}
+				className="ss-home-nav sticky top-(--fd-banner-height,0px) z-50 px-6 py-3 md:px-10"
+			>
 				<div aria-hidden="true" className="ss-home-nav-blur">
 					<span />
 					<span />

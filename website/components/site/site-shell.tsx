@@ -1,7 +1,6 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { GlobalAnnouncement } from "@/components/homepage/global-announcement";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteNav } from "@/components/site/site-nav";
 import { SiteSmoothScroll } from "@/components/site/site-smooth-scroll";
@@ -87,12 +86,9 @@ export function SiteShell({
 					: "bg-linear-to-b from-gray-50 to-gray-100 text-gray-900 dark:from-black dark:to-gray-900 dark:text-white"
 			)}
 		>
-			<GlobalAnnouncement />
-
 			{/* Above every branch, so it is one element in one slot for every route.
 			    React keeps it mounted across navigations and only the content below
-			    changes. SiteNav also renders the announcement bar, just above its
-			    sticky header. */}
+			    changes. */}
 			<SiteNav starCount={starCount} starsHref={starsHref} />
 			{!isAuthPage ? <SiteSmoothScroll /> : null}
 

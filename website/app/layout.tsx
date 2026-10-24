@@ -8,6 +8,7 @@ import {
 	SoftwareApplicationJsonLd,
 	WebSiteJsonLd,
 } from "@/components/seo/json-ld";
+import { GlobalAnnouncement } from "@/components/site/global-announcement";
 import { Toaster } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 
@@ -118,6 +119,7 @@ export default function RootLayout({
 							storageKey: "surfsense-site-theme",
 						}}
 					>
+						<GlobalAnnouncement />
 						{children}
 						<Toaster />
 					</RootProvider>

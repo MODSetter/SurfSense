@@ -80,14 +80,18 @@ export function detectEnvironment(): "SurfSense Cloud" | "self-hosted" {
 	return "self-hosted";
 }
 
-// Global announcement banner. Useful for planned downtime / maintenance notices.
-// Toggle on Vercel via NEXT_PUBLIC_GLOBAL_ANNOUNCEMENT_ENABLED ("true" to show) and
-// set the copy with NEXT_PUBLIC_GLOBAL_ANNOUNCEMENT_MESSAGE.
+// Global announcement banner at the top of every page. Toggle on Vercel via
+// NEXT_PUBLIC_GLOBAL_ANNOUNCEMENT_ENABLED ("true" to show), set the copy with
+// NEXT_PUBLIC_GLOBAL_ANNOUNCEMENT_MESSAGE, and the colour with
+// NEXT_PUBLIC_GLOBAL_ANNOUNCEMENT_TONE: "info" (default) or "warning".
 export const GLOBAL_ANNOUNCEMENT_ENABLED =
 	process.env.NEXT_PUBLIC_GLOBAL_ANNOUNCEMENT_ENABLED === "true";
 
 export const GLOBAL_ANNOUNCEMENT_MESSAGE =
 	process.env.NEXT_PUBLIC_GLOBAL_ANNOUNCEMENT_MESSAGE ?? "";
+
+export const GLOBAL_ANNOUNCEMENT_TONE: "info" | "warning" =
+	process.env.NEXT_PUBLIC_GLOBAL_ANNOUNCEMENT_TONE === "warning" ? "warning" : "info";
 
 // The announcement pill above the homepage headline. Distinct from the
 // maintenance banner above. Toggle via NEXT_PUBLIC_TOP_ANNOUNCEMENT_ENABLED
