@@ -37,7 +37,7 @@ jobs:
           TAG: ${{ github.event.release.tag_name || inputs.tag }}
         run: |
           set -euo pipefail
-          # v0.* is the legacy desktop and beta-v* the hosted stack (docker-build.yml).
+          # v0.* is the legacy desktop, and beta-v* the retired hosted stack.
           if ! [[ "$TAG" =~ ^v[1-9][0-9]*\.[0-9]+\.[0-9]+$ ]]; then
             echo "::notice::$TAG is not a desktop release tag (vX.Y.Z from v1 on), so no channel is told."
             exit 0

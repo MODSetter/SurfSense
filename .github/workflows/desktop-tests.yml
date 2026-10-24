@@ -1,7 +1,7 @@
 name: Desktop Tests
 
-# surfsense_local, the desktop app. docker-tests.yml covers surfsense_backend
-# and surfsense_web; code-quality.yml the checks that belong to no product.
+# surfsense_local, the desktop app. code-quality.yml holds the checks that
+# belong to no product.
 
 on:
   pull_request:

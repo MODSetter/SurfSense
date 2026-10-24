@@ -7,7 +7,7 @@
 
 ## Context
 
-The legacy self-host stack is `surfsense_backend` and `surfsense_web` with Postgres, Redis, Zero, SearxNG and OpenSandbox, built by [`docker-build.yml`](../../.github/workflows/docker-build.yml). Product direction is the desktop app, and self-hosters need a way to run it on a server, which ADR 0004 ruled out. ADR 0004 also kept the API on `127.0.0.1` because nothing authenticates a request, and binding it wider would make connection URLs an SSRF boundary.
+The legacy self-host stack is `surfsense_backend` and `surfsense_web` with Postgres, Redis, Zero, SearxNG and OpenSandbox, built by [`docker-build.yml`](https://github.com/MODSetter/SurfSense/blob/legacy/.github/workflows/docker-build.yml). Product direction is the desktop app, and self-hosters need a way to run it on a server, which ADR 0004 ruled out. ADR 0004 also kept the API on `127.0.0.1` because nothing authenticates a request, and binding it wider would make connection URLs an SSRF boundary.
 
 ## Decision
 

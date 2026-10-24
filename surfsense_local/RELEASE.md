@@ -76,13 +76,6 @@ Before merging, re-check every cell of the root README's format table against `d
 gh pr create --base main --head dev --title "[Local|Release] Release desktop 2.3.0"
 ```
 
-The merge also starts Build and Push Docker Images (`docker-build.yml`) on `main`, because the bump touches `surfsense_backend` and `surfsense_web`. It builds the hosted stack's images, not the desktop release. If its jobs fail on a registry outage, as 2.2.0's did when Docker Hub's token service answered 504, re-run them once the registry answers:
-
-```bash
-gh run list --workflow docker-build.yml --branch main --limit 1
-gh run rerun <run-id> --failed
-```
-
 ### 5. Tag the merge and open a draft release
 
 Tag must be `v` + the `VERSION` file (CI fails if they disagree), on the commit the merge made on `main`. Pushing the tag starts Desktop Release. Push it yourself: `--verify-tag` makes `gh` stop when the remote lacks the tag, rather than create one on the default branch's head. Notes start at the **previous 2.x release** — the last one you shipped. `--draft` so CI can attach installers before anyone sees it.
