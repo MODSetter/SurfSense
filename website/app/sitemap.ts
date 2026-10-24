@@ -67,8 +67,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 		},
 		{ url: `${BASE_URL}/privacy`, lastModified, changeFrequency: "monthly", priority: 0.3 },
 		{ url: `${BASE_URL}/terms`, lastModified, changeFrequency: "monthly", priority: 0.3 },
-		{ url: `${BASE_URL}/login`, lastModified, changeFrequency: "monthly", priority: 0.5 },
-		{ url: `${BASE_URL}/register`, lastModified, changeFrequency: "monthly", priority: 0.5 },
 	];
 
 	// The static catalog rather than the hosted anon-chat endpoint, which is

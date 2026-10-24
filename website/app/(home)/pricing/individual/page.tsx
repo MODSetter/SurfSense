@@ -17,9 +17,8 @@ import {
  * and the Stripe Payment Link, which needs no account. Its job is that nobody
  * reaches Stripe unsure what they are buying.
  *
- * Rendered in the site design (listed in `SITE_DESIGN_ROUTES`), public through
- * the `/pricing` prefix in `lib/public-routes.ts`, so the sunset redirect
- * leaves it alone. Copy and its sources are in `individual-content.ts`.
+ * Rendered in the site design (listed in `SITE_DESIGN_ROUTES`). Copy and its
+ * sources are in `individual-content.ts`.
  */
 
 const canonicalUrl = "https://www.surfsense.com/pricing/individual";

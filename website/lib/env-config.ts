@@ -6,8 +6,6 @@
  * like Electron, where there is no bundled Caddy origin.
  */
 
-import packageJson from "../package.json";
-
 // Build-time fallback for packaged clients. Docker/runtime deployments default to
 // local auth unless AUTH_TYPE/NEXT_PUBLIC_AUTH_TYPE explicitly selects Google.
 export const BUILD_TIME_AUTH_TYPE = process.env.NEXT_PUBLIC_AUTH_TYPE || "LOCAL";
@@ -81,10 +79,6 @@ export function detectEnvironment(): "SurfSense Cloud" | "self-hosted" {
 	}
 	return "self-hosted";
 }
-
-// App version - defaults to package.json version
-// Can be overridden at build time with NEXT_PUBLIC_APP_VERSION for full git tag version
-export const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || packageJson.version;
 
 // Global announcement banner. Useful for planned downtime / maintenance notices.
 // Toggle on Vercel via NEXT_PUBLIC_GLOBAL_ANNOUNCEMENT_ENABLED ("true" to show) and

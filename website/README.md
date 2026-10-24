@@ -1,42 +1,24 @@
-# SurfSense web
+# SurfSense website
 
-Next.js UI for the self-host stack (App Router, `pnpm`).
+The site at `www.surfsense.com`: the homepage, docs, blog, changelog, announcements, pricing, the license pages, and the routes the desktop app calls, `/api/updates` (behind `updates.surfsense.com`) and `/api/usage` (behind `usage.surfsense.com`). Next.js App Router, deployed on Vercel from this folder.
 
-This is not the desktop UI. Desktop frontend lives in [`surfsense_local/frontend/`](../surfsense_local/frontend/).
+The desktop UI lives in [`surfsense_local/frontend/`](../surfsense_local/frontend/). The hosted web app and the self-hosted stack are on the [`legacy` branch](https://github.com/MODSetter/SurfSense/tree/legacy).
 
 ## You need
 
-- Node.js 20+ and [pnpm](https://pnpm.io/installation) (not npm)
-- The API in [`surfsense_backend/`](../surfsense_backend/README.md) on http://localhost:8000
+- Node.js 24 and [pnpm](https://pnpm.io/installation)
 
 ## Run it
 
 ```bash
 cp .env.example .env
-```
-
-In `.env`, point at a backend on your machine (the example file uses Docker hostnames):
-
-```bash
-NEXT_PUBLIC_FASTAPI_BACKEND_URL=http://localhost:8000
-SURFSENSE_BACKEND_INTERNAL_URL=http://localhost:8000
-AUTH_TYPE=LOCAL
-ETL_SERVICE=DOCLING
-DEPLOYMENT_MODE=self-hosted
-```
-
-Then:
-
-```bash
 pnpm install
 pnpm dev
 ```
 
-App: http://localhost:3000
+Site: http://localhost:3000
 
-Match `AUTH_TYPE` with the backend. Leave `SUNSET_MODE` unset.
-
-Live document/chat updates need [zero-cache](content/docs/manual-installation.mdx). Most UI PRs can run without it; the page just will not refresh itself.
+The license pages call the license portal in [`backend/`](../backend/) at `NEXT_PUBLIC_FASTAPI_BACKEND_URL`. Every other page runs without it.
 
 ## Tests
 
@@ -44,5 +26,3 @@ Live document/chat updates need [zero-cache](content/docs/manual-installation.md
 pnpm test:unit
 pnpm format
 ```
-
-Playwright needs Postgres, Redis, the API, and a worker. See [tests/README.md](tests/README.md).

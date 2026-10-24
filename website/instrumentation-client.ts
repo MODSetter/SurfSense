@@ -5,7 +5,7 @@ import posthog from "posthog-js";
  *
  * The same bundle ships in two contexts:
  *   1. A normal browser session on surfsense.com  -> platform = "web"
- *   2. The retired 0.0.x desktop app, which loads /sunset -> platform = "desktop"
+ *   2. The retired 0.0.x desktop app, opening a site page -> platform = "desktop"
  *
  * The site never takes that app's machine identifier as its PostHog ID, so a
  * visit is never linked to a machine.

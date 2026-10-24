@@ -2,26 +2,13 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { RootProvider } from "fumadocs-ui/provider/next";
 import { Roboto } from "next/font/google";
-import Script from "next/script";
-import { AnnouncementToastProvider } from "@/components/announcements/AnnouncementToastProvider";
-import { DesktopUpdateToast } from "@/components/desktop/desktop-update-toast";
-import { AuthCutoverPurge } from "@/components/providers/AuthCutoverPurge";
-import { GlobalLoadingProvider } from "@/components/providers/GlobalLoadingProvider";
-import { I18nProvider } from "@/components/providers/I18nProvider";
 import { PostHogProvider } from "@/components/providers/PostHogProvider";
-import { ZeroProvider } from "@/components/providers/ZeroProvider";
 import {
 	OrganizationJsonLd,
 	SoftwareApplicationJsonLd,
 	WebSiteJsonLd,
 } from "@/components/seo/json-ld";
-import { ThemeProvider } from "@/components/theme/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
-import { LocaleProvider } from "@/contexts/LocaleContext";
-import { PlatformProvider } from "@/contexts/platform-context";
-import { BUILD_TIME_AUTH_TYPE } from "@/lib/env-config";
-import { ReactQueryClientProvider } from "@/lib/query-client/query-client.provider";
-import { getRuntimeAuthInitScript, resolveRuntimeAuthUiMode } from "@/lib/runtime-auth-config";
 import { cn } from "@/lib/utils";
 
 const roboto = Roboto({
@@ -109,58 +96,31 @@ export default function RootLayout({
 }: Readonly<{
 	children: React.ReactNode;
 }>) {
-	// Using client-side i18n
-	// Language can be switched dynamically through LanguageSwitcher component
-	// Locale state is managed by LocaleContext and persisted in localStorage
 	return (
-		<html
-			lang="en"
-			data-surfsense-auth-type={resolveRuntimeAuthUiMode(BUILD_TIME_AUTH_TYPE)}
-			suppressHydrationWarning
-		>
+		<html lang="en" suppressHydrationWarning>
 			<head>
-				<Script id="surfsense-runtime-auth-init" strategy="beforeInteractive">
-					{getRuntimeAuthInitScript(BUILD_TIME_AUTH_TYPE)}
-				</Script>
 				<link rel="preconnect" href="https://api.github.com" />
 				<OrganizationJsonLd />
 				<WebSiteJsonLd />
 				<SoftwareApplicationJsonLd />
 			</head>
 			<body
-				className={cn(roboto.className, roboto.variable, "bg-[#141414] antialiased h-full w-full ")}
+				className={cn(roboto.className, roboto.variable, "bg-background antialiased h-full w-full")}
 			>
 				<PostHogProvider>
-					<LocaleProvider>
-						<I18nProvider>
-							{/* Dark is the only supported palette. storageKey is bumped off "theme"
-							    so a "light" value saved by the removed toggle cannot come back
-							    through resolvedTheme and leave Monaco, toasts and code blocks
-							    light on a dark page. */}
-							<ThemeProvider
-								attribute="class"
-								enableSystem={false}
-								disableTransitionOnChange
-								defaultTheme="dark"
-								forcedTheme="dark"
-								storageKey="surfsense-theme"
-							>
-								<PlatformProvider>
-									<RootProvider>
-										<ReactQueryClientProvider>
-											<AuthCutoverPurge />
-											<ZeroProvider>
-												<GlobalLoadingProvider>{children}</GlobalLoadingProvider>
-											</ZeroProvider>
-										</ReactQueryClientProvider>
-										<DesktopUpdateToast />
-										<Toaster />
-										<AnnouncementToastProvider />
-									</RootProvider>
-								</PlatformProvider>
-							</ThemeProvider>
-						</I18nProvider>
-					</LocaleProvider>
+					{/* Light by default. The marketing pages keep their own light palette
+					    in `.ss-home` whatever this resolves to. A fresh storageKey, so a
+					    "dark" the hosted app's old toggle saved under "theme" is ignored. */}
+					<RootProvider
+						theme={{
+							defaultTheme: "light",
+							enableSystem: false,
+							storageKey: "surfsense-site-theme",
+						}}
+					>
+						{children}
+						<Toaster />
+					</RootProvider>
 				</PostHogProvider>
 			</body>
 		</html>

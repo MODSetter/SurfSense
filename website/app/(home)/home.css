@@ -8,10 +8,10 @@
  *
  * The palette re-points the shared token names (`--card`, `--border`, ...)
  * inside `.ss-home`, so `bg-card` and every shadcn component on a marketing
- * page pick up these values while the app keeps the ones in `globals.css`.
- * Values are the `:root` (light) block of the canonical palette
+ * page pick up these values while the docs and the 404 page keep the ones in
+ * `globals.css`. Values are the `:root` (light) block of the canonical palette
  * (`.agents/skills/frontend-workflow/color/PALETTE.css`), pinned: the marketing
- * site is light for every visitor, though the app itself is forced dark.
+ * site is light for every visitor, whatever theme <html> carries.
  */
 
 /* Repeated so the order holds even if this file loads before Tailwind's: the

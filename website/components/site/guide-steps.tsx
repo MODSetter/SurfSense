@@ -9,9 +9,8 @@ import { cn } from "@/lib/utils";
  * on one side and that step's screenshot on the other, in the homepage's
  * "What you get" row shape.
  *
- * Shared by `/sunset` and `/license/activate` so the two guides stay the same
- * page shape. Both hold the same kind of instruction and a reader may well
- * follow one after the other.
+ * Shared by `/license/activate` and `/pricing/individual` so the two guides
+ * stay the same page shape.
  *
  * `shot` is optional, and a step without one runs its prose across the whole
  * card rather than beside an empty half. Steps whose action is on this site

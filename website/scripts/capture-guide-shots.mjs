@@ -1,8 +1,7 @@
 /**
- * Regenerates the desktop-app screenshots the two guide pages carry:
- * `/sunset` (importing cloud data) and `/license/activate`.
+ * Regenerates the desktop-app screenshots `/license/activate` carries.
  *
- * Run it against a desktop app already running in dev, from `surfsense_web`:
+ * Run it against a desktop app already running in dev, from `website`:
  *
  *   node scripts/capture-guide-shots.mjs
  *   SIDECAR=http://127.0.0.1:52316 node scripts/capture-guide-shots.mjs
@@ -82,33 +81,6 @@ async function shotTopDialog(path) {
 		clip: { x: box.x + 4, y: box.y + 4, width: box.width - 8, height: box.height - 8 },
 	});
 }
-
-await load();
-
-// ---- /sunset ----------------------------------------------------------------
-
-// The bottom-left corner, not the whole window: scaled into half a column, a
-// 1280-wide screenshot renders the gear at about four pixels.
-await page.screenshot({
-	path: "public/sunset/03-settings.png",
-	clip: { x: 0, y: 566, width: 352, height: 234 },
-});
-
-await openSettings("General");
-await page.getByRole("heading", { name: "Import from SurfSense cloud" }).waitFor();
-await page.waitForTimeout(1200);
-await page.getByRole("dialog").screenshot({ path: "public/sunset/04-general.png" });
-
-const importRow = await page.evaluate(() => {
-	const heading = [...document.querySelectorAll("h3")].find((node) =>
-		node.textContent?.includes("Import from SurfSense cloud")
-	);
-	const row = heading?.closest("div.mt-8") ?? heading?.parentElement?.parentElement;
-	if (!row) throw new Error("import row not found");
-	const rect = row.getBoundingClientRect();
-	return { x: rect.x - 20, y: rect.y - 20, width: rect.width + 40, height: rect.height + 40 };
-});
-await page.screenshot({ path: "public/sunset/05-upload.png", clip: importRow });
 
 // ---- /license/activate ------------------------------------------------------
 

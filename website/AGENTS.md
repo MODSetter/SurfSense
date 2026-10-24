@@ -1,6 +1,6 @@
-# surfsense_web
+# website
 
-Next.js App Router, `pnpm`, Biome. Root `AGENTS.md` owns organization and TDD.
+The site at `www.surfsense.com`, built by Vercel from this folder. Next.js App Router, `pnpm`, Biome. Root `AGENTS.md` owns organization and TDD.
 
 Package manager is **pnpm**, not npm or yarn.
 
@@ -11,9 +11,9 @@ Next.js docs for this installed version: `node_modules/next/dist/docs/`.
 ```bash
 pnpm install
 pnpm dev
+pnpm build
 pnpm format
 pnpm test:unit
-pnpm test:e2e
 ```
 
 ## Do
@@ -27,3 +27,4 @@ pnpm test:e2e
 
 - Do not add npm lockfiles.
 - Do not rewrite existing routes to the new layout unless that is the task.
+- Do not add accounts or app routes. The hosted app is on the `legacy` branch.

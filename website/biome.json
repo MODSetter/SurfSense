@@ -1,5 +1,5 @@
 {
-	"$schema": "https://biomejs.dev/schemas/2.4.6/schema.json",
+	"$schema": "https://biomejs.dev/schemas/2.5.15/schema.json",
 	"vcs": {
 		"enabled": true,
 		"clientKind": "git",
@@ -19,7 +19,8 @@
 			"!!playwright-report",
 			"!!blob-report",
 			"!!playwright/.auth",
-			"!app/(home)/plugins/first-party-plugins.json"
+			"!app/(home)/plugins/first-party-plugins.json",
+			"!**/*.svg"
 		],
 		"maxSize": 1048576
 	},
@@ -34,7 +35,7 @@
 	"linter": {
 		"enabled": true,
 		"rules": {
-			"recommended": true,
+			"preset": "recommended",
 			"suspicious": {
 				"noExplicitAny": "warn",
 				"noArrayIndexKey": "warn"

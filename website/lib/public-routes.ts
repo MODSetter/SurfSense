@@ -1,10 +1,8 @@
 /**
  * Which routes are reachable without a session.
  *
- * Kept apart from `auth-utils` so the edge middleware can import the predicate
- * without dragging in helpers that touch `window` and `localStorage`. Two
- * consumers rely on it: the auth redirect, and the sunset redirect, which
- * treats "public" as "part of the wind-down portal, leave it reachable".
+ * Kept apart from `auth-utils` so a predicate never drags in helpers that touch
+ * `window` and `localStorage`.
  */
 
 /** Path prefixes for routes that do not require auth (no current-user fetch, no redirect on 401) */
@@ -34,7 +32,6 @@ const PUBLIC_ROUTE_PREFIXES = [
 	"/changelog",
 	"/announcements",
 	"/blog",
-	"/sunset",
 	// The plugins gallery and each plugin's page, `/plugins/<id>`.
 	"/plugins",
 	"/connectors",

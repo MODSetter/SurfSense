@@ -1,7 +1,6 @@
 import path from "node:path";
 import { createMDX } from "fumadocs-mdx/next";
 import type { NextConfig } from "next";
-import createNextIntlPlugin from "next-intl/plugin";
 import { docsRedirects } from "./lib/docs-redirects";
 import { installScriptRedirects } from "./lib/install-script-redirects";
 
@@ -19,14 +18,7 @@ const LISTED_SCRAPERS = [
 	"indeed",
 ];
 
-// Create the next-intl plugin
-const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
-
-// TODO: Separate app routes (/login, /dashboard) from marketing routes
-// (landing page, /contact, /pricing, /docs) so the desktop build only
-// ships what desktop users actually need.
 const nextConfig: NextConfig = {
-	output: "standalone",
 	async redirects() {
 		return [
 			// /mcp-connector was split into the two MCP directions; the external
@@ -69,14 +61,7 @@ const nextConfig: NextConfig = {
 		contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
 	},
 	experimental: {
-		optimizePackageImports: [
-			"lucide-react",
-			"@tabler/icons-react",
-			"date-fns",
-			"@assistant-ui/react",
-			"@assistant-ui/react-markdown",
-			"motion",
-		],
+		optimizePackageImports: ["lucide-react", "@tabler/icons-react", "date-fns", "motion"],
 	},
 	// Turbopack config (used during `next dev --turbopack`)
 	turbopack: {
@@ -115,7 +100,6 @@ const nextConfig: NextConfig = {
 	},
 };
 
-// Wrap the config with MDX and next-intl plugins
 const withMDX = createMDX({});
 
-export default withNextIntl(withMDX(nextConfig));
+export default withMDX(nextConfig);

@@ -39,8 +39,6 @@ const SITE_DESIGN_ROUTES = new Set([
 	"/downloads",
 	"/changelog",
 	"/announcements",
-	"/login",
-	"/sunset",
 	"/external-mcp-connectors",
 	"/mcp-server",
 	"/privacy",

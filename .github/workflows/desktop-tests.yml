@@ -124,7 +124,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
         with:
-          # The desktop trees pin their own pnpm; surfsense_web pins its own.
+          # The desktop trees pin their own pnpm; website pins its own.
           package_json_file: surfsense_local/frontend/package.json
 
       # Node 24 matches @types/node ^24 and the Node that Electron 44 embeds.
@@ -184,7 +184,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
         with:
-          # The desktop trees pin their own pnpm; surfsense_web pins its own.
+          # The desktop trees pin their own pnpm; website pins its own.
           package_json_file: surfsense_local/electron/package.json
 
       # Node 24 matches @types/node ^24 and the Node that Electron 44 embeds.

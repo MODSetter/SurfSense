@@ -6,8 +6,8 @@
 
 @plugin "tailwind-scrollbar-hide";
 
-/* Not inside `.ss-home`: the marketing site is light for every visitor even
- * though the app forces `.dark` on <html>. */
+/* Not inside `.ss-home`: the marketing site is light for every visitor, even
+ * when <html> carries `.dark`. */
 @custom-variant dark (&:is(.dark *):not(.ss-home, .ss-home *));
 
 @theme {

@@ -103,8 +103,11 @@ export default function PrivacyPolicy() {
 					</p>
 					<p>
 						Our previously hosted web application is being retired. If you used it, the export and
-						deletion arrangements on <Link href="/sunset">the sunset page</Link> apply to that data
-						rather than this policy.
+						deletion arrangements in{" "}
+						<Link href="/announcements/2026-09-18-surfsense-2-desktop-app">
+							the SurfSense 2.0 announcement
+						</Link>{" "}
+						apply to that data rather than this policy.
 					</p>
 
 					<h2>2. The short version</h2>

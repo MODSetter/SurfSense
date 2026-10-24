@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 const ANNOUNCEMENT = {
 	tag: "New",
 	text: "SurfSense is moving to a local app",
-	href: "/sunset",
+	href: "/announcements/2026-09-18-surfsense-2-desktop-app",
 };
 
 /**

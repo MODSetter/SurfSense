@@ -56,16 +56,16 @@ repos:
   # Biome hooks for TypeScript/JavaScript projects
   - repo: local
     hooks:
-      # Biome check for surfsense_web. Runs only when a commit touches
-      # surfsense_web, then checks the whole app. The app's own Biome, so its
-      # version lives only in surfsense_web/package.json, as Biome's docs
-      # recommend; `pnpm exec` fails rather than fetch another version when
-      # the app's dependencies are not installed.
-      - id: biome-check-web
-        name: biome-check-web
-        entry: bash -c 'cd surfsense_web && pnpm exec biome check --diagnostic-level=error .'
+      # Biome check for website. Runs only when a commit touches website,
+      # then checks the whole app. The app's own Biome, so its version lives
+      # only in website/package.json, as Biome's docs recommend; `pnpm exec`
+      # fails rather than fetch another version when the app's dependencies
+      # are not installed.
+      - id: biome-check-website
+        name: biome-check-website
+        entry: bash -c 'cd website && pnpm exec biome check --diagnostic-level=error .'
         language: system
-        files: ^surfsense_web/
+        files: ^website/
         pass_filenames: false
         stages: [pre-commit]
 

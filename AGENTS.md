@@ -8,11 +8,11 @@ Desktop app plus SurfSense's own backend. Three trees:
 
 | Tree | Role |
 |------|------|
-| `surfsense_web` | Next.js site at `www.surfsense.com`; its app routes are the legacy hosted UI, left until the [website split](docs/proposals/legacy-split/README.md#the-website) |
+| `website` | Next.js site at `www.surfsense.com`, and the update feed and usage routes the desktop calls |
 | `surfsense_local` | Electron desktop |
 | `backend` | The one SurfSense backend, one process run by `server/`: the [license portal](docs/architecture/license/portal.md) in `license/`, its `mailer/`, and `plugins/`, which holds SurfSense's own plugin servers ([plugin host](docs/architecture/plugin-host.md)) and the [registry](docs/architecture/plugin-registry.md); `plugins/bundles/` holds the earlier, local design's SDK and tooling, deferred |
 
-The hosted service closed on 18 Oct 2026, when its user data was purged. The self-hosted stack, `surfsense_backend`, `surfsense_mcp` and `docker/`, lives only on the `legacy` branch ([legacy split](docs/proposals/legacy-split/README.md)). Product direction is local + API.
+The hosted service closed on 18 Oct 2026, when its user data was purged. The self-hosted stack, `surfsense_backend`, `surfsense_web`, `surfsense_mcp` and `docker/`, lives only on the `legacy` branch ([legacy split](docs/proposals/legacy-split/README.md)). Product direction is local + API.
 
 ## Code organization
 
@@ -48,10 +48,10 @@ The tree is inconsistent. New work follows this. Old work stays until a task exp
 ## Commands
 
 ```bash
-# web
-cd surfsense_web && pnpm install
-cd surfsense_web && pnpm dev
-cd surfsense_web && pnpm format
+# website
+cd website && pnpm install
+cd website && pnpm dev
+cd website && pnpm format
 
 # desktop
 cd surfsense_local/electron && pnpm dev
@@ -74,7 +74,7 @@ pre-commit run --all-files
 
 | Area | Command |
 |------|---------|
-| Web unit | `cd surfsense_web && pnpm test:unit` |
+| Website unit | `cd website && pnpm test:unit` |
 | `backend/` | `cd backend && uv run pytest` |
 | Bundles: manifest rules | `cd backend/plugins/bundles/core/manifest && uv run pytest -m unit` |
 | Bundles: SDK | `cd backend/plugins/bundles/core/sdk && uv run pytest -m unit` |
@@ -102,7 +102,7 @@ Canonical dir: `.agents/skills/`. `.claude/skills` is a symlink to it.
 | `tdd` | New behavior or a bug fix with a testable seam |
 | `codebase-design` | Module shape, seam, depth — `tdd` depends on this vocabulary |
 | `fastapi` | FastAPI / Pydantic work. Symlink into the installed wheel; repair the **same** root link, into `surfsense_local/backend/.venv`, after a FastAPI or Python bump. |
-| `frontend-workflow` | Frontend work in `surfsense_web` and `surfsense_local/frontend`: React/Next performance, color tokens, UI polish, motion. Bundles `react-performance/`, `color/`, `polish/`, `motion/`, and `base-ui.md` for Base UI in `surfsense_local/frontend`; routes out to `shadcn`. |
+| `frontend-workflow` | Frontend work in `website` and `surfsense_local/frontend`: React/Next performance, color tokens, UI polish, motion. Bundles `react-performance/`, `color/`, `polish/`, `motion/`, and `base-ui.md` for Base UI in `surfsense_local/frontend`; routes out to `shadcn`. |
 | `shadcn` | UI components in a tree with `components.json`. Standalone — it inspects the project live and grants its own CLI, which only works as a discovered skill. Load it after `frontend-workflow`, not instead of it. |
 | `translate` | Interface strings in `surfsense_local`: adding a message in code (`en.json` is generated from it), moving hard-coded text into messages, translating Japanese and German. Holds the key shape, tone and glossary. |
 
