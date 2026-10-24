@@ -60,13 +60,14 @@ Scoped by branch, not by path:
 - **A legacy tag starts no desktop release.** A tag runs the workflows in the commit it points at, and `legacy` has no `release-local.yml`.
 - **Branch protection on `legacy`** requires the legacy gates; the protection on `dev` and `main` no longer lists them.
 
-### The install scripts leave `main`
+### The install URLs pass to the new stack
 
-Nothing of the legacy stack stays on `dev` or `main`, the install and migrate scripts included.
+Nothing of the legacy stack stays on `dev` or `main`, the install and migrate scripts included. No stubs forward to `legacy`: the install paths on `main` are kept for the new stack's installer.
 
 - `docker/scripts/install.sh`, `install.ps1`, `migrate-database.sh` and `migrate-database.ps1` live on `legacy` only, and fetch from `legacy`.
-- The legacy docs' `curl …/main/docker/scripts/install.sh | bash` answers 404 once the deletion reaches `main`. The working command is `curl …/legacy/docker/scripts/install.sh | bash`.
-- `docker/local/scripts/` gets the new stack's own install script later; the paths do not collide.
+- `docker/scripts/install.sh` and `install.ps1` on `main` later install the [Docker image](../docker/README.md#files), so `curl …/main/docker/scripts/install.sh | bash` installs the new stack. Until then it answers 404 once the deletion reaches `main`.
+- Legacy installs use `curl …/legacy/docker/scripts/install.sh | bash`, which the legacy README and docs give.
+- The new installer stops on a machine with a legacy install, and points at the `legacy` command, rather than starting the new stack beside it.
 
 ### What the legacy web image needs
 
