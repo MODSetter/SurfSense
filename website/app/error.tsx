@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { Button } from "@/components/ui/button";
+import { HomeButton } from "@/components/homepage/home/home-button";
 
 export default function ErrorPage({
 	error,
@@ -31,9 +31,9 @@ export default function ErrorPage({
 				</div>
 			)}
 
-			<Button type="button" onClick={reset}>
+			<HomeButton type="button" size="lg" onClick={reset}>
 				Try again
-			</Button>
+			</HomeButton>
 		</div>
 	);
 }

@@ -3,12 +3,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { HomeBadge } from "@/components/homepage/home/home-badge";
 import { HomeButton } from "@/components/homepage/home/home-button";
+import { HomeDownloadButton } from "@/components/homepage/home/home-download-button";
 import { BreadcrumbNav } from "@/components/seo/breadcrumb-nav";
 import { FAQJsonLd, JsonLd } from "@/components/seo/json-ld";
 import { DOWNLOADS_URL } from "@/components/site/site-content";
 import { SiteFaqItem } from "@/components/site/site-faq-item";
 import { siteText } from "@/components/site/site-text";
-import { FlowButton } from "@/components/ui/flow-button";
 import { CheckIcon } from "@/components/ui/icons";
 import { FREE_MODELS, type FreeModel, freeModelLabel, isPublishedSlug } from "@/lib/free-models";
 import { cn } from "@/lib/utils";
@@ -236,7 +236,7 @@ export default async function FreeModelPage({ params }: PageProps) {
 					</p>
 
 					<div className="mt-10 flex justify-center">
-						<FlowButton href={DOWNLOADS_URL} text="Download for desktop" />
+						<HomeDownloadButton tone="dark" />
 					</div>
 
 					<p className={cn(siteText.body, "mx-auto mt-6 max-w-xl text-sm")}>

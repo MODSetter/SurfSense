@@ -3,7 +3,7 @@
 import "./globals.css";
 import posthog from "posthog-js";
 import { useEffect } from "react";
-import { Button } from "@/components/ui/button";
+import { HomeButton } from "@/components/homepage/home/home-button";
 
 export default function GlobalError({
 	error,
@@ -29,7 +29,9 @@ export default function GlobalError({
 						<p className="text-xs text-muted-foreground font-mono">Digest: {error.digest}</p>
 					)}
 
-					<Button onClick={reset}>Try again</Button>
+					<HomeButton type="button" size="lg" onClick={reset}>
+						Try again
+					</HomeButton>
 				</div>
 			</body>
 		</html>

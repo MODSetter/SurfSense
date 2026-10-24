@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { HomeButton } from "@/components/homepage/home/home-button";
 import { CheckIcon, Copy01Icon } from "@/components/ui/icons";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -27,15 +27,16 @@ function CopyButton({ text }: { text: string }) {
 	};
 
 	return (
-		<Button
+		<HomeButton
 			variant="ghost"
-			size="sm"
+			size="icon"
+			type="button"
 			className="absolute top-2 right-2 size-7 p-0"
 			onClick={handleCopy}
 			aria-label={copied ? "Configuration copied" : "Copy configuration"}
 		>
 			{copied ? <CheckIcon className="size-3.5" /> : <Copy01Icon className="size-3.5" />}
-		</Button>
+		</HomeButton>
 	);
 }
 
@@ -67,16 +68,17 @@ export function AgentSetupTabs({ options }: { options?: Partial<McpSnippetOption
 			<div className="flex flex-wrap items-center gap-3">
 				<div className="inline-flex rounded-lg border bg-muted/40 p-0.5">
 					{TRANSPORTS.map((t) => (
-						<Button
+						<HomeButton
 							key={t.id}
 							variant={t.id === transport ? "secondary" : "ghost"}
 							size="sm"
+							type="button"
 							className="h-7 px-3 text-xs"
 							onClick={() => setTransport(t.id)}
 							aria-pressed={t.id === transport}
 						>
 							{t.label}
-						</Button>
+						</HomeButton>
 					))}
 				</div>
 				<span className="text-xs text-muted-foreground">{active.hint}</span>
