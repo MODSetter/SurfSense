@@ -203,7 +203,7 @@ Each of these breaks unless it changes in the same pull request or at its merge:
 
 - **One of each.** One font (Instrument Sans, on `<body>`), one button (`HomeButton`) and one icon set (Hugeicons, also shadcn's `iconLibrary`). Biome is the only linter. Light by default, through fumadocs' theme.
 - **`/sunset` does not move.** Its route and `lib/sunset.ts` stay in `surfsense_web` and go with it; the website drops its links and redirects to it.
-- **`/mcp-server` goes.** `www.surfsense.com/mcp-server` sells the hosted MCP server at `mcp.surfsense.com`, which the cutover switches off; its setup snippets need API keys the purge removed and `surfsense_mcp`, now on `legacy` only. The page, `components/mcp/` and `lib/mcp/` are deleted, `/mcp-server` redirects to `/plugins`, and its sitemap and site-shell entries and the two links on `/external-mcp-connectors` go with it.
+- **`/mcp-server` goes.** `www.surfsense.com/mcp-server` sells the hosted MCP server at `mcp.surfsense.com`, which the cutover switches off; its setup snippets need API keys the purge removed and `surfsense_mcp`, now on `legacy` only. The page and the files beside it in `www/app/(home)/mcp-server/` are deleted, `/mcp-server` redirects to `/plugins`, and its sitemap and site-shell entries and the two links on `/external-mcp-connectors` go with it.
 - **Paths that point at `surfsense_web`:** Vercel's root directory, the banner image in all 11 READMEs, `surfsense_local/scripts/bump-version.sh` (writes `app-release.ts`) and `surfsense_local/RELEASE.md` (changelog entries).
 - **Tests.** The unit tests for downloads, checkout, docs redirects, funnel attribution and the update feed move with their code. No e2e spec covers marketing pages today.
 

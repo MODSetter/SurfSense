@@ -194,7 +194,7 @@ The Apple notarization credentials are checked by their own workflow, [`notariza
 
 The entitlements file also carries `com.apple.security.device.audio-input`, without which the hardened runtime keeps the microphone from the app and from its helpers, which inherit the file, and `mac.extendInfo` sets `NSMicrophoneUsageDescription`, the sentence macOS's microphone prompt shows: "SurfSense turns your speech into text on this computer." Electron's `systemPreferences.askForMediaAccess`, which the main process calls before the page opens the microphone, needs both: without the entitlement it can crash the app, and without the sentence the prompt shows Electron's own. [`scripts/mac-microphone.test.mjs`](../../surfsense_local/electron/scripts/mac-microphone.test.mjs) checks that both stay configured. Which page may use the microphone once macOS allows it is decided at runtime ([overview](overview.md#frontend)).
 
-The installer's version is the one the workflow resolved, passed as `-c.extraMetadata.version`. The tree carries it too: `surfsense_local/VERSION` is the one number, and `surfsense_local/scripts/bump-version.sh` writes it into the backend's `pyproject.toml`, both `package.json` files, the site's `lib/app-release.ts` and the backend's `app/license/release.py`, then refreshes `uv.lock`.
+The installer's version is the one the workflow resolved, passed as `-c.extraMetadata.version`. The tree carries it too: `surfsense_local/VERSION` is the one number, and `surfsense_local/scripts/bump-version.sh` writes it into the backend's `pyproject.toml`, both `package.json` files, `www/features/downloads/app-release.ts` and `backend/license/release.py`, then refreshes `uv.lock`.
 
 ## Linux packages
 
