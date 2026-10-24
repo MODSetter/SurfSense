@@ -1,7 +1,7 @@
-import { IconBrandGithub } from "@tabler/icons-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { HomeButton } from "@/components/homepage/home/home-button";
+import { GithubLogo } from "@/components/homepage/icons/github-logo";
 import { MarketingSection } from "@/components/marketing/section";
 import { BreadcrumbNav } from "@/components/seo/breadcrumb-nav";
 import { FAQJsonLd, JsonLd } from "@/components/seo/json-ld";
@@ -215,7 +215,7 @@ export default function ExternalMcpConnectorsPage() {
 										target="_blank"
 										rel="noopener noreferrer"
 									>
-										<IconBrandGithub className="size-4" />
+										<GithubLogo aria-hidden="true" className="size-4" />
 										GitHub
 									</Link>
 								</HomeButton>

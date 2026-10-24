@@ -1,4 +1,4 @@
-import { IconAlertTriangle, IconInfoCircle } from "@tabler/icons-react";
+import { Alert02Icon, InformationCircleIcon } from "@/components/ui/icons";
 import {
 	GLOBAL_ANNOUNCEMENT_ENABLED,
 	GLOBAL_ANNOUNCEMENT_MESSAGE,
@@ -10,10 +10,10 @@ import { cn } from "@/lib/utils";
 const HEIGHT = "2.5rem";
 
 const TONES = {
-	info: { className: "bg-(--notice) text-white", Icon: IconInfoCircle },
+	info: { className: "bg-(--notice) text-white", Icon: InformationCircleIcon },
 	warning: {
 		className: "border-b border-amber-300 bg-amber-100 text-amber-950",
-		Icon: IconAlertTriangle,
+		Icon: Alert02Icon,
 	},
 };
 

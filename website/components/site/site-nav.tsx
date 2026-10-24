@@ -1,6 +1,5 @@
 "use client";
 
-import { IconChevronDown } from "@tabler/icons-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -8,7 +7,7 @@ import { HomeButton } from "@/components/homepage/home/home-button";
 import { DOWNLOADS_URL, NAV_LINKS, NAV_RESOURCES } from "@/components/site/site-content";
 import { SiteStars } from "@/components/site/site-stars";
 import { siteText } from "@/components/site/site-text";
-import { MenuTwoLineIcon } from "@/components/ui/icons";
+import { ChevronDownIcon, MenuTwoLineIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 
 /**
@@ -142,7 +141,7 @@ export function SiteNav({ starCount, starsHref }: { starCount: number | null; st
 								onClick={() => setResourcesOpen((open) => !open)}
 							>
 								Resources
-								<IconChevronDown
+								<ChevronDownIcon
 									aria-hidden="true"
 									className={`size-3.5 shrink-0 transition-transform duration-150 ${
 										resourcesOpen ? "rotate-180" : ""

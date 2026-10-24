@@ -1,6 +1,7 @@
 import {
 	Agreement01Icon as Agreement01IconData,
 	AiSearchLinesIcon as AiSearchLinesIconData,
+	Alert02Icon as Alert02IconData,
 	ArrowRightIcon as ArrowRightIconData,
 	ArrowUp02Icon as ArrowUp02IconData,
 	ArrowUpRight01Icon as ArrowUpRight01IconData,
@@ -33,6 +34,7 @@ import {
 	FlaskConicalIcon as FlaskConicalIconData,
 	HistoryIcon as HistoryIconData,
 	Image01Icon as Image01IconData,
+	InformationCircleIcon as InformationCircleIconData,
 	Key01Icon as Key01IconData,
 	LaptopIcon as LaptopIconData,
 	LinkSquare02Icon as LinkSquare02IconData,
@@ -100,6 +102,7 @@ function createIcon(icon: IconData): Icon {
 }
 export const Agreement01Icon = createIcon(Agreement01IconData);
 export const AiSearchLinesIcon = createIcon(AiSearchLinesIconData);
+export const Alert02Icon = createIcon(Alert02IconData);
 export const ArrowRightIcon = createIcon(ArrowRightIconData);
 export const ArrowUp02Icon = createIcon(ArrowUp02IconData);
 export const ArrowUpRight01Icon = createIcon(ArrowUpRight01IconData);
@@ -132,6 +135,7 @@ export const File02Icon = createIcon(File02IconData);
 export const FlaskConicalIcon = createIcon(FlaskConicalIconData);
 export const HistoryIcon = createIcon(HistoryIconData);
 export const Image01Icon = createIcon(Image01IconData);
+export const InformationCircleIcon = createIcon(InformationCircleIconData);
 export const Key01Icon = createIcon(Key01IconData);
 export const LaptopIcon = createIcon(LaptopIconData);
 export const LinkSquare02Icon = createIcon(LinkSquare02IconData);
