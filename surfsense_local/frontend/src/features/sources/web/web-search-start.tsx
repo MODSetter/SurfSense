@@ -4,8 +4,10 @@ import {
   EmptyContent,
   EmptyDescription,
   EmptyHeader,
+  EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
+import { GlobalSearchIcon } from "@/components/ui/icons"
 import { intl } from "@/i18n/intl"
 
 import { SearchSiteLogo } from "./search-site-logo"
@@ -22,6 +24,10 @@ export function WebSearchStart({
   return (
     <Empty className="border border-dashed">
       <EmptyHeader>
+        {/* The license offer's icon, so both states of this space read as one. */}
+        <EmptyMedia variant="icon">
+          <GlobalSearchIcon />
+        </EmptyMedia>
         <EmptyTitle>
           {intl.formatMessage({
             id: "sources_web_start_title",

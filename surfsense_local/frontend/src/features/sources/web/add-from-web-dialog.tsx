@@ -9,7 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { ArrowRightIcon } from "@/components/ui/icons"
+import { ArrowRight02Icon } from "@/components/ui/icons"
 import { ScrollFade } from "@/components/ui/scroll-fade"
 import { Spinner } from "@/components/ui/spinner"
 import { Textarea } from "@/components/ui/textarea"
@@ -21,7 +21,7 @@ import { pastedLinks } from "./pasted-links"
 import { refusalText } from "./refusal-text"
 import { searchSiteName, type SearchSite } from "./search-sites"
 import { SearchSitePicker } from "./search-site-picker"
-import { ShowMoreBar } from "./show-more-bar"
+import { ShowMoreButton } from "./show-more-button"
 import type { WebSources } from "./use-web-sources"
 import { WebLicenseOffer } from "./web-license-offer"
 import { webProblem, type WebProblem } from "./web-problem"
@@ -374,7 +374,7 @@ export function AddFromWebDialog({
                         })
                   }
                 >
-                  {busy ? <Spinner /> : <ArrowRightIcon />}
+                  {busy ? <Spinner /> : <ArrowRight02Icon />}
                 </Button>
               </div>
             </form>
@@ -436,8 +436,7 @@ export function AddFromWebDialog({
                         actions={actions}
                       />
                       {searched && index === 0 && group.more ? (
-                        <ShowMoreBar
-                          tinted={false}
+                        <ShowMoreButton
                           loading={loadingMore.has(SEARCH)}
                           onClick={() => void showMoreSearch()}
                         />

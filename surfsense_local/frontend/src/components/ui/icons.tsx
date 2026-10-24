@@ -9,6 +9,7 @@ import {
   ArrowExpand01Icon as ArrowExpand01IconData,
   ArrowLeftIcon as ArrowLeftIconData,
   ArrowRightIcon as ArrowRightIconData,
+  ArrowRight02Icon as ArrowRight02IconData,
   ArrowUpRight01Icon as ArrowUpRight01IconData,
   ArrowUp02Icon as ArrowUp02IconData,
   ChartScatterIcon as ChartScatterIconData,
@@ -137,6 +138,7 @@ export const ArrowDownIcon = createIcon(ArrowDownIconData)
 export const ArrowExpand01Icon = createIcon(ArrowExpand01IconData)
 export const ArrowLeftIcon = createIcon(ArrowLeftIconData)
 export const ArrowRightIcon = createIcon(ArrowRightIconData)
+export const ArrowRight02Icon = createIcon(ArrowRight02IconData)
 export const ArrowUp02Icon = createIcon(ArrowUp02IconData)
 export const BanIcon = createIcon(BanIconData)
 export const BotIcon = createIcon(BotIconData)

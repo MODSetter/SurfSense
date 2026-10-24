@@ -72,7 +72,7 @@ A pull that fails marks the note `failed` with a sentence the panel shows:
   - A row to add has **Add**, which turns into "Added", or "Already in Sources" for a link added before.
   - A list row has **Open**, which shows its items in a panel beneath that row, headed by the list's name, its badge and how many items it shows. A pasted list link gets the same panel, named by its link.
   - A short link says why it can't be added.
-  - A list group has **Show more** while the list has more.
+  - A list group, and a search, has **Show more** after its last row while it has more.
 - **Add all.** It adds every row not yet added, 20 per request. The dialog stays open until **Close**, and the new sources appear in Sources at once.
 - **Licence offer.** With no license, or an expired one, as `GET /license/status` reports, the dialog opens on an offer instead of the search: **Start a free trial** and **License settings**. A refusal from the plugin host on the way shows the same offer, with the host's reason.
 

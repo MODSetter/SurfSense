@@ -44,7 +44,7 @@ export function SearchSitePicker({
           </Button>
         }
       />
-      <DropdownMenuContent align="start" className="w-52">
+      <DropdownMenuContent align="start" className="w-52 select-none">
         <DropdownMenuGroup>
           <DropdownMenuLabel>
             {intl.formatMessage({
