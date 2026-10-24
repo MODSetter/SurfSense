@@ -174,22 +174,8 @@ describe("importing a SurfSense cloud export", () => {
       })
     ).toBeTruthy()
     expect(screen.getByRole("button", { name: "Upload" })).toBeTruthy()
-    const openExternal = vi.fn(async () => undefined)
-    vi.stubGlobal("surfsense", {
-      apiUrl: "",
-      platform: "darwin",
-      openDocument: vi.fn(async () => ""),
-      revealDocument: vi.fn(async () => ""),
-      openExternal,
-    })
-    const exportLink = screen.getByRole("link", {
-      name: "Open SurfSense cloud",
-    })
-    const sunset =
-      "https://surfsense.com/sunset?utm_source=desktop&utm_medium=app&utm_content=cloud_import"
-    expect(exportLink.getAttribute("href")).toBe(sunset)
-    await user.click(exportLink)
-    expect(openExternal).toHaveBeenCalledWith(sunset)
+    // The hosted service and its export page are gone; only the upload stays.
+    expect(screen.queryByRole("link", { name: "Open SurfSense cloud" })).toBeNull()
 
     await user.upload(
       screen.getByLabelText("Import from SurfSense cloud"),

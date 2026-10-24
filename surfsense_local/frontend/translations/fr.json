@@ -1208,7 +1208,6 @@
   "settings_general_body": "Gérez l’apparence et le comportement de SurfSense sur cet appareil.",
   "settings_general_cloud_import_body": "Envoyez le fichier ZIP que vous avez exporté depuis SurfSense Cloud.",
   "settings_general_cloud_import_info_aria": "En savoir plus sur l’import depuis SurfSense Cloud",
-  "settings_general_cloud_import_link": "Ouvrir SurfSense Cloud",
   "settings_general_cloud_import_title": "Importer depuis SurfSense Cloud",
   "settings_general_cloud_import_tooltip": "Vos espaces de travail, dossiers et chats sont repris. Les documents arrivent sous forme de texte et sont indexés après l’import. Les fichiers d’origine et les artefacts générés restent dans le cloud.",
   "settings_general_language_body": "Choisissez la langue utilisée par SurfSense sur cet appareil.",

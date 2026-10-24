@@ -1208,7 +1208,6 @@
   "settings_general_body": "管理 SurfSense 在这台设备上的外观和行为。",
   "settings_general_cloud_import_body": "上传你从 SurfSense 云端导出的 ZIP 文件。",
   "settings_general_cloud_import_info_aria": "关于从 SurfSense 云端导入的更多信息",
-  "settings_general_cloud_import_link": "打开 SurfSense 云端",
   "settings_general_cloud_import_title": "从 SurfSense 云端导入",
   "settings_general_cloud_import_tooltip": "你的工作区、文件夹和对话会一起导入。文档以文本形式导入，导入后会建立索引。原始文件和生成的产物会留在云端。",
   "settings_general_language_body": "选择 SurfSense 在这台设备上使用的语言。",

@@ -1208,7 +1208,6 @@
   "settings_general_body": "Настройте, как SurfSense выглядит и ведёт себя на этом устройстве.",
   "settings_general_cloud_import_body": "Загрузите ZIP, который вы экспортировали из облака SurfSense.",
   "settings_general_cloud_import_info_aria": "Подробнее об импорте из облака SurfSense",
-  "settings_general_cloud_import_link": "Открыть облако SurfSense",
   "settings_general_cloud_import_title": "Импорт из облака SurfSense",
   "settings_general_cloud_import_tooltip": "Вместе с ним переносятся ваши рабочие области, папки и чаты. Документы приходят текстом и индексируются после импорта. Исходные файлы и созданные артефакты остаются в облаке.",
   "settings_general_language_body": "Выберите язык, который SurfSense использует на этом устройстве.",

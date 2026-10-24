@@ -1208,7 +1208,6 @@
   "settings_general_body": "이 기기에서 SurfSense의 모양과 동작을 관리합니다.",
   "settings_general_cloud_import_body": "SurfSense 클라우드에서 내보낸 ZIP을 업로드하세요.",
   "settings_general_cloud_import_info_aria": "SurfSense 클라우드에서 가져오기에 대한 자세한 정보",
-  "settings_general_cloud_import_link": "SurfSense 클라우드 열기",
   "settings_general_cloud_import_title": "SurfSense 클라우드에서 가져오기",
   "settings_general_cloud_import_tooltip": "워크스페이스, 폴더, 채팅이 함께 넘어옵니다. 문서는 텍스트로 들어오며 가져온 뒤에 인덱싱됩니다. 원본 파일과 생성물은 클라우드에 남습니다.",
   "settings_general_language_body": "이 기기에서 SurfSense가 사용할 언어를 선택합니다.",
