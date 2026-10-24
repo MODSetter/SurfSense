@@ -4,7 +4,6 @@ import {
 	Check,
 	ChevronRight,
 	ChevronUp,
-	Download,
 	ExternalLink,
 	Info,
 	Languages,
@@ -34,13 +33,9 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useLocaleContext } from "@/contexts/LocaleContext";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import { usePlatform } from "@/hooks/use-platform";
-import { GITHUB_RELEASES_URL, usePrimaryDownload } from "@/lib/desktop-download-utils";
 import { APP_VERSION } from "@/lib/env-config";
-import { trackDesktopDownloadClicked } from "@/lib/posthog/events";
 import { getUserAvatarColor, getUserInitials } from "@/lib/user-avatar";
 import { cn } from "@/lib/utils";
 import type { User } from "../../types/layout.types";
@@ -63,7 +58,7 @@ const THEMES = [
 ];
 
 const LEARN_MORE_LINKS = [
-	{ key: "documentation" as const, href: "https://www.surfsense.com/docs" },
+	{ key: "documentation" as const, href: "https://www.surfsense.com/docs/legacy" },
 	{ key: "github" as const, href: "https://github.com/MODSetter/SurfSense" },
 ];
 
@@ -145,17 +140,12 @@ export function SidebarUserProfile({
 }: SidebarUserProfileProps) {
 	const t = useTranslations("sidebar");
 	const { locale, setLocale } = useLocaleContext();
-	const { isDesktop } = usePlatform();
 	const isDesktopViewport = useMediaQuery("(min-width: 768px)");
-	const { os, primary, isMobileOS } = usePrimaryDownload();
 	const [isLoggingOut, setIsLoggingOut] = useState(false);
 	const [mobileSubmenu, setMobileSubmenu] = useState<MobileProfileSubmenu | null>(null);
 	const bgColor = getUserAvatarColor(user.email);
 	const initials = getUserInitials(user.email);
 	const displayName = user.name || user.email.split("@")[0];
-	const downloadUrl = primary?.url ?? GITHUB_RELEASES_URL;
-	const downloadLabel = t("download_for_os", { os });
-	const showDownloadCta = !isDesktop && !isMobileOS && isDesktopViewport;
 	const useMobileSubmenus = !isDesktopViewport;
 
 	const handleLanguageChange = (newLocale: "en" | "es" | "pt" | "hi" | "zh" | "ko") => {
@@ -299,7 +289,7 @@ export function SidebarUserProfile({
 					{t("learn_more")}
 				</DropdownMenuSubTrigger>
 				<DropdownMenuPortal>
-					<DropdownMenuSubContent className="min-w-[180px] gap-1">
+					<DropdownMenuSubContent className="min-w-45 gap-1">
 						{LEARN_MORE_LINKS.map((link) => (
 							<DropdownMenuItem key={link.key} asChild>
 								<a href={link.href} target="_blank" rel="noopener noreferrer">
@@ -418,33 +408,6 @@ export function SidebarUserProfile({
 			<div className="relative w-full px-1.5 py-2 before:absolute before:inset-x-1.5 before:top-0 before:h-px before:bg-border">
 				<div className="flex flex-col items-center gap-2">
 					{topContent}
-					{showDownloadCta && (
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<Button
-									asChild
-									variant="ghost"
-									size="icon"
-									className="h-10 w-10 rounded-lg bg-muted hover:bg-accent"
-								>
-									<a
-										href={downloadUrl}
-										target="_blank"
-										rel="noopener noreferrer"
-										aria-label={downloadLabel}
-										onClick={() =>
-											trackDesktopDownloadClicked({ os, placement: "sidebar_collapsed" })
-										}
-									>
-										<Download className="h-4 w-4" strokeWidth={2.5} />
-									</a>
-								</Button>
-							</TooltipTrigger>
-							<TooltipContent side="right" sideOffset={8}>
-								{downloadLabel}
-							</TooltipContent>
-						</Tooltip>
-					)}
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
 							<Button
@@ -500,15 +463,6 @@ export function SidebarUserProfile({
 
 							{renderLearnMoreSubmenu()}
 
-							{!isDesktop && !isMobileOS && (
-								<DropdownMenuItem asChild className="font-medium">
-									<a href={downloadUrl} target="_blank" rel="noopener noreferrer">
-										<Download className="h-4 w-4" strokeWidth={2.5} />
-										{downloadLabel}
-									</a>
-								</DropdownMenuItem>
-							)}
-
 							<DropdownMenuSeparator />
 
 							<DropdownMenuItem onClick={handleLogout} disabled={isLoggingOut}>
@@ -530,23 +484,6 @@ export function SidebarUserProfile({
 	// Expanded view
 	return (
 		<div className="border-t">
-			{showDownloadCta && (
-				<Button
-					asChild
-					variant="ghost"
-					className="mx-2 mt-2 mb-1 h-10 w-[calc(100%-1rem)] justify-start gap-2 rounded-md bg-muted px-3 text-sm font-semibold hover:bg-accent"
-				>
-					<a
-						href={downloadUrl}
-						target="_blank"
-						rel="noopener noreferrer"
-						onClick={() => trackDesktopDownloadClicked({ os, placement: "sidebar_expanded" })}
-					>
-						<Download className="h-4 w-4" strokeWidth={2.5} />
-						{downloadLabel}
-					</a>
-				</Button>
-			)}
 			<DropdownMenu>
 				<DropdownMenuTrigger asChild>
 					<Button
@@ -604,15 +541,6 @@ export function SidebarUserProfile({
 					{renderLanguageSubmenu()}
 
 					{renderLearnMoreSubmenu()}
-
-					{!isDesktop && (
-						<DropdownMenuItem asChild className="font-medium">
-							<a href={downloadUrl} target="_blank" rel="noopener noreferrer">
-								<Download className="h-4 w-4" strokeWidth={2.5} />
-								{downloadLabel}
-							</a>
-						</DropdownMenuItem>
-					)}
 
 					<DropdownMenuSeparator />
 

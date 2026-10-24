@@ -14,10 +14,6 @@ RUN corepack enable pnpm
 # Copy package files
 COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml* .npmrc* ./
 
-# First copy the config file and content to avoid fumadocs-mdx postinstall error
-COPY source.config.ts ./
-COPY content ./content
-
 # Install dependencies with frozen lockfile
 RUN pnpm i --frozen-lockfile
 
@@ -25,12 +21,6 @@ RUN pnpm i --frozen-lockfile
 # Rebuild the source code only when needed
 FROM base AS builder
 WORKDIR /app
-
-# git is required by the fumadocs-mdx lastModified plugin during `next build`.
-# The .git directory is dockerignored, so git commands exit non-zero and the
-# plugin falls back gracefully — but the binary itself must exist to avoid
-# "spawn git ENOENT" failures.
-RUN apk add --no-cache git
 
 # Enable pnpm
 RUN corepack enable pnpm

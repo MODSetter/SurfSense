@@ -1,14 +1,10 @@
 @import "tailwindcss";
-@import "fumadocs-ui/css/neutral.css";
-@import "fumadocs-ui/css/preset.css";
 
 @plugin "tailwindcss-animate";
 
 @plugin "tailwind-scrollbar-hide";
 
-/* Not inside `.ss-home`: the marketing site is light for every visitor even
- * though the app forces `.dark` on <html>. */
-@custom-variant dark (&:is(.dark *):not(.ss-home, .ss-home *));
+@custom-variant dark (&:is(.dark *));
 
 @theme {
 	--font-sans: var(--font-roboto);

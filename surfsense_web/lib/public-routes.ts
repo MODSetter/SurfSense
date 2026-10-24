@@ -2,9 +2,7 @@
  * Which routes are reachable without a session.
  *
  * Kept apart from `auth-utils` so the edge middleware can import the predicate
- * without dragging in helpers that touch `window` and `localStorage`. Two
- * consumers rely on it: the auth redirect, and the sunset redirect, which
- * treats "public" as "part of the wind-down portal, leave it reachable".
+ * without dragging in helpers that touch `window` and `localStorage`.
  */
 
 /** Path prefixes for routes that do not require auth (no current-user fetch, no redirect on 401) */
@@ -13,33 +11,8 @@ const PUBLIC_ROUTE_PREFIXES = [
 	"/register",
 	"/auth",
 	"/desktop/login",
-	"/docs",
 	"/public",
-	"/free",
 	"/invite",
-	"/contact",
-	"/downloads",
-	// The license portal and the post-purchase success page. There is no
-	// account to sign in to, and the buyer lands on /license/success straight
-	// from Stripe -- a login redirect there loses them their license file.
-	"/license",
-	"/pricing",
-	// The cross-cutting professional page. A marketing route missing from this
-	// list still renders, but only on the client: `ZeroProvider` mounts the
-	// authenticated sync provider for it, which emits no SSR HTML, so a crawler
-	// sees an empty shell.
-	"/private-ai-for-business",
-	"/privacy",
-	"/terms",
-	"/changelog",
-	"/announcements",
-	"/blog",
-	"/sunset",
-	// The plugins gallery and each plugin's page, `/plugins/<id>`.
-	"/plugins",
-	"/connectors",
-	"/mcp-server",
-	"/external-mcp-connectors",
 ];
 
 /**

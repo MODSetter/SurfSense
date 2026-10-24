@@ -257,7 +257,7 @@ export const GithubConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting
 												>
 													<SelectValue placeholder="Select frequency" />
 												</SelectTrigger>
-												<SelectContent className="z-[100]">
+												<SelectContent className="z-100">
 													<SelectItem value="5" className="text-xs sm:text-sm">
 														Every 5 minutes
 													</SelectItem>
@@ -293,7 +293,7 @@ export const GithubConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting
 			{/* Documentation Link */}
 			<div>
 				<Link
-					href="/docs/legacy/connectors/external/github"
+					href="https://www.surfsense.com/docs/legacy/connectors/external/github"
 					target="_blank"
 					rel="noopener noreferrer"
 					className="text-xs sm:text-sm font-medium underline underline-offset-4 hover:text-primary transition-colors inline-flex items-center gap-1.5"

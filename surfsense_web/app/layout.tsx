@@ -1,20 +1,13 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import { RootProvider } from "fumadocs-ui/provider/next";
 import { Roboto } from "next/font/google";
 import Script from "next/script";
-import { AnnouncementToastProvider } from "@/components/announcements/AnnouncementToastProvider";
 import { DesktopUpdateToast } from "@/components/desktop/desktop-update-toast";
 import { AuthCutoverPurge } from "@/components/providers/AuthCutoverPurge";
 import { GlobalLoadingProvider } from "@/components/providers/GlobalLoadingProvider";
 import { I18nProvider } from "@/components/providers/I18nProvider";
 import { PostHogProvider } from "@/components/providers/PostHogProvider";
 import { ZeroProvider } from "@/components/providers/ZeroProvider";
-import {
-	OrganizationJsonLd,
-	SoftwareApplicationJsonLd,
-	WebSiteJsonLd,
-} from "@/components/seo/json-ld";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { LocaleProvider } from "@/contexts/LocaleContext";
@@ -49,59 +42,8 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-	metadataBase: new URL("https://www.surfsense.com"),
-	alternates: {
-		canonical: "https://www.surfsense.com",
-	},
-	title: "SurfSense: Open-Source NotebookLM Alternative & Web Research",
-	description:
-		"The open-source NotebookLM alternative. Research the open web with live data from Reddit, YouTube, TikTok, Indeed & more, through one platform, API, or MCP server.",
-	keywords: [
-		"open web research platform",
-		"web research for AI agents",
-		"live web data for agents",
-		"web scraping API",
-		"reddit scraper api",
-		"youtube scraper api",
-		"deep research agent",
-		"mcp server",
-		"agent harness",
-		"open source NotebookLM alternative",
-		"SurfSense",
-	],
-	openGraph: {
-		title: "SurfSense - NotebookLM for Open Web Research",
-		description:
-			"The open-source NotebookLM alternative. Research the open web with live data from Reddit, YouTube, TikTok, Indeed & more, through one platform, API, or MCP server.",
-		url: "https://www.surfsense.com",
-		siteName: "SurfSense",
-		type: "website",
-		images: [
-			{
-				url: "/og-image.png",
-				width: 1200,
-				height: 630,
-				alt: "SurfSense, the air-gapped open-source NotebookLM alternative",
-			},
-		],
-		locale: "en_US",
-	},
-	twitter: {
-		card: "summary_large_image",
-		title: "SurfSense - NotebookLM for Open Web Research",
-		description:
-			"The open-source NotebookLM alternative. Research the open web with live data from Reddit, YouTube, TikTok, Indeed & more, through one platform, API, or MCP server.",
-		creator: "@SurfSenseAI",
-		site: "@SurfSenseAI",
-		images: [
-			{
-				url: "/og-image.png",
-				width: 1200,
-				height: 630,
-				alt: "SurfSense, the air-gapped open-source NotebookLM alternative",
-			},
-		],
-	},
+	title: "SurfSense",
+	description: "Self-hosted SurfSense.",
 };
 
 export default function RootLayout({
@@ -122,41 +64,30 @@ export default function RootLayout({
 				<Script id="surfsense-runtime-auth-init" strategy="beforeInteractive">
 					{getRuntimeAuthInitScript(BUILD_TIME_AUTH_TYPE)}
 				</Script>
-				<link rel="preconnect" href="https://api.github.com" />
-				<OrganizationJsonLd />
-				<WebSiteJsonLd />
-				<SoftwareApplicationJsonLd />
 			</head>
 			<body
-				className={cn(roboto.className, roboto.variable, "bg-[#141414] antialiased h-full w-full ")}
+				className={cn(roboto.className, roboto.variable, "bg-background antialiased h-full w-full")}
 			>
 				<PostHogProvider>
 					<LocaleProvider>
 						<I18nProvider>
-							{/* Dark is the only supported palette. storageKey is bumped off "theme"
-							    so a "light" value saved by the removed toggle cannot come back
-							    through resolvedTheme and leave Monaco, toasts and code blocks
-							    light on a dark page. */}
+							{/* Dark until the user picks Light or System in the sidebar. */}
 							<ThemeProvider
 								attribute="class"
-								enableSystem={false}
+								enableSystem
 								disableTransitionOnChange
 								defaultTheme="dark"
-								forcedTheme="dark"
 								storageKey="surfsense-theme"
 							>
 								<PlatformProvider>
-									<RootProvider>
-										<ReactQueryClientProvider>
-											<AuthCutoverPurge />
-											<ZeroProvider>
-												<GlobalLoadingProvider>{children}</GlobalLoadingProvider>
-											</ZeroProvider>
-										</ReactQueryClientProvider>
-										<DesktopUpdateToast />
-										<Toaster />
-										<AnnouncementToastProvider />
-									</RootProvider>
+									<ReactQueryClientProvider>
+										<AuthCutoverPurge />
+										<ZeroProvider>
+											<GlobalLoadingProvider>{children}</GlobalLoadingProvider>
+										</ZeroProvider>
+									</ReactQueryClientProvider>
+									<DesktopUpdateToast />
+									<Toaster />
 								</PlatformProvider>
 							</ThemeProvider>
 						</I18nProvider>

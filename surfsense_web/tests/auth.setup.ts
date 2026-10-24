@@ -1,6 +1,5 @@
 import path from "node:path";
 import { expect, test as setup } from "@playwright/test";
-import { announcements } from "../lib/announcements/announcements-data";
 import { acquireTestToken } from "./helpers/api/auth";
 
 /**
@@ -9,11 +8,8 @@ import { acquireTestToken } from "./helpers/api/auth";
  * fallback) and persists it as the session cookie so every test in the
  * chromium project starts already authenticated.
  *
- * Also pre-seeds the localStorage flags that gate the two new-user UI
- * overlays so they never intercept clicks in journeys:
- *   - `surfsense_announcements_state` — the blocking AnnouncementSpotlight
- *     dialog (e.g. "Introducing AI Automations") plus its toasts.
- *   - `surfsense-tour-<userId>` — the OnboardingTour spotlight for new users.
+ * Also pre-seeds `surfsense-tour-<userId>` so the OnboardingTour spotlight
+ * for new users never intercepts clicks in journeys.
  */
 
 const authFile = path.join(__dirname, "..", "playwright", ".auth", "user.json");
@@ -21,7 +17,6 @@ const authFile = path.join(__dirname, "..", "playwright", ".auth", "user.json");
 const PORT = process.env.PORT || "3000";
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || `http://localhost:${PORT}`;
 const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "surfsense_session";
-const ANNOUNCEMENTS_KEY = "surfsense_announcements_state";
 
 /** Decode the user id (`sub`) from a JWT without verifying the signature. */
 function decodeUserId(token: string): string | null {
@@ -41,11 +36,6 @@ setup("authenticate", async ({ page, request }) => {
 	expect(access_token, "Failed to acquire e2e bearer token").toBeTruthy();
 
 	const userId = decodeUserId(access_token);
-	// Mark every known announcement read + toasted so spotlight/toast
-	// announcements never overlay the dashboard during journeys. Sourced
-	// from the real data file so future announcements are covered too.
-	const announcementIds = announcements.map((a) => a.id);
-	const announcementState = { readIds: announcementIds, toastedIds: announcementIds };
 
 	await page.context().addCookies([
 		{
@@ -58,17 +48,12 @@ setup("authenticate", async ({ page, request }) => {
 	]);
 
 	await page.addInitScript(
-		({ announcementsKey, state, uid }) => {
-			localStorage.setItem(announcementsKey, JSON.stringify(state));
+		({ uid }) => {
 			if (uid) {
 				localStorage.setItem(`surfsense-tour-${uid}`, "true");
 			}
 		},
-		{
-			announcementsKey: ANNOUNCEMENTS_KEY,
-			state: announcementState,
-			uid: userId,
-		}
+		{ uid: userId }
 	);
 
 	// Use a public page so the init script can write localStorage without

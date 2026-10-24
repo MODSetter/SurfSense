@@ -1,0 +1,225 @@
+"use client";
+
+import { useAtom } from "jotai";
+import { AnimatePresence, motion } from "motion/react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { useState } from "react";
+import { loginMutationAtom } from "@/atoms/auth/auth-mutation.atoms";
+import { useRuntimeConfig } from "@/components/providers/runtime-config";
+import { Button } from "@/components/ui/button";
+import { ViewIcon, ViewOffSlashIcon } from "@/components/ui/icons";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Spinner } from "@/components/ui/spinner";
+import { getAuthErrorDetails, isNetworkError } from "@/lib/auth-errors";
+import { getPostLoginRedirectPath } from "@/lib/auth-utils";
+import { ValidationError } from "@/lib/error";
+import { trackLoginAttempt, trackLoginFailure } from "@/lib/posthog/events";
+
+export function LocalLoginForm() {
+	const t = useTranslations("auth");
+	const [username, setUsername] = useState("");
+	const [password, setPassword] = useState("");
+	const [showPassword, setShowPassword] = useState(false);
+	const [error, setError] = useState<{
+		title: string | null;
+		message: string | null;
+	}>({
+		title: null,
+		message: null,
+	});
+	const { authType } = useRuntimeConfig();
+	const router = useRouter();
+	const [{ mutateAsync: login, isPending: isLoggingIn }] = useAtom(loginMutationAtom);
+
+	const handleSubmit = async (e: React.FormEvent) => {
+		e.preventDefault();
+		setError({ title: null, message: null }); // Clear any previous errors
+
+		// Track login attempt
+		trackLoginAttempt("local");
+
+		try {
+			await login({
+				username,
+				password,
+				grant_type: "password",
+			});
+
+			// auth_login_success is now emitted server-side
+			// (UserManager.on_after_login) — authoritative vs. optimistic.
+
+			// Small delay to show success message
+			setTimeout(() => {
+				router.push(getPostLoginRedirectPath());
+			}, 500);
+		} catch (err) {
+			if (err instanceof ValidationError) {
+				trackLoginFailure("local", err.message);
+				setError({ title: err.name, message: err.message });
+				return;
+			}
+
+			// Use auth-errors utility to get proper error details
+			let errorCode = "UNKNOWN_ERROR";
+
+			if (err instanceof Error) {
+				errorCode = err.message;
+			} else if (isNetworkError(err)) {
+				errorCode = "NETWORK_ERROR";
+			}
+
+			// Track login failure
+			trackLoginFailure("local", errorCode);
+
+			// Get detailed error information from auth-errors utility
+			const errorDetails = getAuthErrorDetails(errorCode);
+
+			// Set persistent error display
+			setError({
+				title: errorDetails.title,
+				message: errorDetails.description,
+			});
+		}
+	};
+
+	return (
+		<div className="w-full max-w-md">
+			<form onSubmit={handleSubmit} className="space-y-3 md:space-y-4">
+				{/* Error Display */}
+				<AnimatePresence>
+					{error?.title && (
+						<motion.div
+							initial={{ opacity: 0, y: -10, scale: 0.95 }}
+							animate={{ opacity: 1, y: 0, scale: 1 }}
+							exit={{ opacity: 0, y: -10, scale: 0.95 }}
+							transition={{ duration: 0.3 }}
+							className="rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-destructive shadow-sm"
+						>
+							<div className="flex items-start gap-3">
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									width="18"
+									height="18"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									strokeWidth="2"
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									className="flex-shrink-0 mt-0.5 text-destructive"
+								>
+									<title>Error Icon</title>
+									<circle cx="12" cy="12" r="10" />
+									<line x1="15" y1="9" x2="9" y2="15" />
+									<line x1="9" y1="9" x2="15" y2="15" />
+								</svg>
+								<div className="flex-1 min-w-0">
+									<p className="text-sm font-semibold mb-1">{error.title}</p>
+									<p className="text-sm text-destructive">{error.message}</p>
+								</div>
+								<Button
+									variant="ghost"
+									size="icon"
+									onClick={() => {
+										setError({ title: null, message: null });
+									}}
+									className="size-6 flex-shrink-0 text-destructive hover:bg-transparent hover:text-destructive/90"
+									aria-label="Dismiss error"
+									type="button"
+								>
+									<svg
+										xmlns="http://www.w3.org/2000/svg"
+										width="16"
+										height="16"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										strokeWidth="2"
+										strokeLinecap="round"
+										strokeLinejoin="round"
+									>
+										<title>Close</title>
+										<line x1="18" y1="6" x2="6" y2="18" />
+										<line x1="6" y1="6" x2="18" y2="18" />
+									</svg>
+								</Button>
+							</div>
+						</motion.div>
+					)}
+				</AnimatePresence>
+
+				<div>
+					<Label htmlFor="email">{t("email")}</Label>
+					<Input
+						id="email"
+						type="email"
+						autoComplete="username"
+						required
+						maxLength={254}
+						placeholder="you@example.com"
+						value={username}
+						onChange={(e) => setUsername(e.target.value)}
+						aria-invalid={!!error.title}
+						className="mt-1"
+						disabled={isLoggingIn}
+					/>
+				</div>
+
+				<div>
+					<Label htmlFor="password">{t("password")}</Label>
+					<div className="relative mt-1">
+						<Input
+							id="password"
+							type={showPassword ? "text" : "password"}
+							autoComplete="current-password"
+							required
+							placeholder="Enter your password"
+							value={password}
+							onChange={(e) => setPassword(e.target.value)}
+							aria-invalid={!!error.title}
+							className="pr-10"
+							disabled={isLoggingIn}
+						/>
+						<Button
+							type="button"
+							variant="ghost"
+							size="icon"
+							onClick={() => setShowPassword((prev) => !prev)}
+							className="absolute inset-y-0 right-0 h-full w-10 text-muted-foreground hover:bg-transparent hover:text-foreground"
+							aria-label={showPassword ? t("hide_password") : t("show_password")}
+						>
+							{showPassword ? (
+								<ViewOffSlashIcon className="h-4 w-4" />
+							) : (
+								<ViewIcon className="h-4 w-4" />
+							)}
+						</Button>
+					</div>
+				</div>
+
+				<Button type="submit" size="lg" disabled={isLoggingIn} className="relative w-full">
+					<span className={isLoggingIn ? "invisible" : ""}>{t("sign_in")}</span>
+					{isLoggingIn && (
+						<span className="absolute inset-0 flex items-center justify-center">
+							<Spinner size="sm" className="text-primary-foreground" />
+						</span>
+					)}
+				</Button>
+			</form>
+
+			{authType === "LOCAL" && (
+				<div className="mt-4 text-center text-sm">
+					<p className="text-muted-foreground">
+						{t("dont_have_account")}{" "}
+						<Link href="/register" className="font-medium text-primary hover:text-primary/90">
+							{t("sign_up")}
+						</Link>
+					</p>
+				</div>
+			)}
+		</div>
+	);
+}

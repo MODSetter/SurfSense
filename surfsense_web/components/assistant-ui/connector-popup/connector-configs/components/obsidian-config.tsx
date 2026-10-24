@@ -6,7 +6,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { connectorsApiService, type ObsidianStats } from "@/lib/apis/connectors-api.service";
 import type { ConnectorConfigProps } from "../index";
 
-const OBSIDIAN_SETUP_DOCS_URL = "/docs/legacy/connectors/external/obsidian";
+const OBSIDIAN_SETUP_DOCS_URL =
+	"https://www.surfsense.com/docs/legacy/connectors/external/obsidian";
 
 function formatTimestamp(value: unknown): string {
 	if (typeof value !== "string" || !value) return "—";

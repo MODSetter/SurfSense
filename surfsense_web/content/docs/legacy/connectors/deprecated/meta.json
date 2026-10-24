@@ -1,5 +1,0 @@
-{
-	"title": "Deprecated",
-	"pages": ["discord", "microsoft-teams", "luma", "baidu-search", "elasticsearch", "web-crawler"],
-	"defaultOpen": false
-}

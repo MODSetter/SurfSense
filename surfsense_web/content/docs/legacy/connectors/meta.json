@@ -1,6 +1,0 @@
-{
-	"title": "Connectors",
-	"icon": "Unplug",
-	"pages": ["native", "external", "deprecated"],
-	"defaultOpen": false
-}
