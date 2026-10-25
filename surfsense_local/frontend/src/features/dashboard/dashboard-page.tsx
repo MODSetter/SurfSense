@@ -60,7 +60,7 @@ import {
 } from "@/features/office-support/office-offer"
 import { StudioPanel } from "@/features/studio/studio-panel"
 import { useStudio } from "@/features/studio/use-studio"
-import { UpdateButton } from "@/features/updates/update-settings"
+import { TitleBarUpdate } from "@/features/updates/title-bar-update"
 import type { Workspace } from "@/features/workspaces/api"
 import { useWorkspaces } from "@/features/workspaces/use-workspaces"
 import { useStableCallback } from "@/hooks/use-stable-callback"
@@ -385,7 +385,7 @@ function WorkspaceDashboard({
       <OpenArtifactContext.Provider value={openArtifact}>
         <div className="titlebar-controls">
           <div className="titlebar-controls-end">
-            <UpdateButton />
+            <TitleBarUpdate />
             <Tooltip>
               <TooltipTrigger
                 render={

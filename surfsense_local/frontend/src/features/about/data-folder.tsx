@@ -32,29 +32,29 @@ export function DataFolder() {
   }
 
   return (
-    <div className="mt-8 flex flex-col gap-1">
-      <h3 className="text-sm font-medium">
-        {intl.formatMessage({
-          id: "about_data_folder_title",
-          defaultMessage: "Your data",
-        })}
-      </h3>
-      <p className="text-sm text-pretty text-muted-foreground">
-        {intl.formatMessage({
-          id: "about_data_folder_body",
-          defaultMessage:
-            "Models, workspaces and settings are kept here, not in the folder SurfSense is installed in.",
-        })}
-      </p>
-      <code className="text-sm break-all">{folder}</code>
-      <div className="mt-1">
-        <Button type="button" variant="outline" onClick={() => void open()}>
+    <div className="mt-8 flex items-start justify-between gap-8">
+      <div className="flex min-w-0 flex-col gap-1">
+        <h3 className="text-sm font-medium">
           {intl.formatMessage({
-            id: "about_data_folder_open_button",
-            defaultMessage: "Open folder",
+            id: "about_data_folder_title",
+            defaultMessage: "Your data",
           })}
-        </Button>
+        </h3>
+        <p className="text-sm text-pretty text-muted-foreground">
+          {intl.formatMessage({
+            id: "about_data_folder_body",
+            defaultMessage:
+              "Models, workspaces and settings are kept here, not in the folder SurfSense is installed in.",
+          })}
+        </p>
+        <code className="text-sm break-all">{folder}</code>
       </div>
+      <Button type="button" variant="outline" onClick={() => void open()}>
+        {intl.formatMessage({
+          id: "about_data_folder_open_button",
+          defaultMessage: "Open folder",
+        })}
+      </Button>
     </div>
   )
 }

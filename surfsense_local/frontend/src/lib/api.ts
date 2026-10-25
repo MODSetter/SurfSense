@@ -112,7 +112,7 @@ export type UpdateState =
   | { status: "idle" }
   | { status: "checking" }
   | { status: "up-to-date" }
-  | { status: "downloading"; version: string }
+  | { status: "downloading"; version: string; percent: number | null }
   | { status: "ready"; version: string }
   | { status: "error"; message: string }
 

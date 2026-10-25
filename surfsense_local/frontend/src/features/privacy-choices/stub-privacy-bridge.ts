@@ -77,7 +77,15 @@ export function stubPrivacyBridge(
       calls.push(
         `first-run:updates=${choices.updates},usage=${choices.usageStatistics}`
       )
-      push({ ...state, firstRunAsked: true })
+      // Main stores both answers with the flag, as Settings would.
+      push({
+        updates: { ...state.updates, automatic: choices.updates },
+        usageStatistics: {
+          ...state.usageStatistics,
+          enabled: choices.usageStatistics,
+        },
+        firstRunAsked: true,
+      })
     },
     onStateChanged: (listener) => {
       listeners.add(listener)

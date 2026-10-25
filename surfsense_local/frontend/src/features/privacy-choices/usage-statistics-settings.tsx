@@ -1,6 +1,8 @@
 import { Switch } from "@/components/ui/switch"
 import { intl } from "@/i18n/intl"
 
+import { usageText } from "./choice-text"
+import { DetailsTooltip } from "./details-tooltip"
 import { usageLockedText } from "./locked-text"
 import { usePrivacyState } from "./use-privacy-state"
 import { WhatsSentDialog } from "./whats-sent-dialog"
@@ -11,6 +13,7 @@ export function UsageStatisticsSettings() {
   if (!state) return null
 
   const usage = state.usageStatistics
+  const text = usageText(state)
   const locked = usageLockedText(state)
   const title = intl.formatMessage({
     id: "privacy_choices_usage_settings_title",
@@ -19,16 +22,12 @@ export function UsageStatisticsSettings() {
   return (
     <div className="mt-8 flex items-start justify-between gap-8">
       <div className="flex flex-col gap-1">
-        <h3 className="text-sm font-medium">{title}</h3>
+        <div className="flex items-center gap-1.5">
+          <h3 className="text-sm font-medium">{title}</h3>
+          <DetailsTooltip label={text.label} details={text.details} />
+        </div>
         <p className="text-sm text-pretty text-muted-foreground">
-          {intl.formatMessage(
-            {
-              id: "privacy_choices_usage_settings_body",
-              defaultMessage:
-                "Once a day, tell {host} this install was used, and once a week add counts in ranges, such as how many chats and sources. Never documents, prompts, file names, model names, hosts, your license key or an ID.",
-            },
-            { host: usage.host }
-          )}
+          {text.summary}
         </p>
         {locked ? (
           <p className="text-sm text-muted-foreground">{locked}</p>
