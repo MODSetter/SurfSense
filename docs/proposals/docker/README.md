@@ -13,6 +13,10 @@ code:
   - surfsense_local/backend/modules/plugins/lists/registry/registry_origin.py
   - surfsense_local/frontend/src/lib/api.ts
   - surfsense_local/frontend/src/features/models/remote/connections/claude/
+  - surfsense_local/frontend/src/features/plugins/sign-in/
+  - surfsense_local/backend/modules/plugins/remote/sign_in/oauth/
+  - surfsense_local/backend/modules/llm/subscriptions/chatgpt/
+  - backend/plugins/registry/oauth/callback.html
   - surfsense_local/backend/modules/llm/subscriptions/claude/status.py
   - .github/workflows/docker-surfsense.yml
   - .github/workflows/desktop-tests.yml
@@ -50,6 +54,7 @@ surfsense container                         one port: 80, or 80 and 443 with a d
    │    /                →  frontend/dist
    │    /api/*           →  127.0.0.1:<api>, prefix stripped
    │    /api/internal/*  →  403
+   │    /plugins/oauth/callback, /plugins/oauth/client.json, /callback  →  the API (sign-ins)
    └─ bootSidecars       sidecars/boot.ts, the same call Electron makes
       ├─ api                     127.0.0.1:<free port>
       ├─ worker ingest, worker studio, worker plugins
@@ -174,7 +179,8 @@ Caddy is the one door in. A published port reaches the container's interface, ne
 
 - **The `Host` check is the guard.** The container cannot see how Compose published its port, but it sees the address each request was sent to. Without a password, a request to the LAN address or a domain is refused, so an unauthenticated instance cannot be reached from the network by accident. The same check stops DNS rebinding against `localhost`, which Ollama (CVE-2024-28224) and Vite (CVE-2025-24010) each had to add after the fact.
 - **The password is hashed at start.** The headless entry runs `caddy hash-password` on `SURFSENSE_PASSWORD`, so nobody handles a bcrypt string. The SPA, the API and the SSE streams are one origin, so the browser sends the credentials on all of them.
-- **HTTPS.** A public domain gets an automatic certificate; `SURFSENSE_TLS=internal` uses Caddy's own CA on a LAN. Dictation needs it beyond `localhost`: browsers allow the microphone only in a secure context.
+- **HTTPS beyond `localhost`.** A public domain gets an automatic certificate; `SURFSENSE_TLS=internal` uses Caddy's own CA on a LAN. Any access from another machine takes one of them: the password would otherwise cross the network in the clear, browsers allow the microphone only in a secure context, and OAuth allows a plain-HTTP redirect only to loopback ([Sign-ins](#sign-ins)).
+- **Three root paths reach the API besides `/api/*`:** the sign-in callbacks and the instance's client document ([Sign-ins](#sign-ins)), each matched exactly, behind the same `Host` check and password.
 - **`/api/internal/*` is refused.** Workers reach `/internal/events` and the transcription routes on loopback and never through Caddy.
 - **Every sidecar binds `127.0.0.1`.** Only Caddy listens on the container's network.
 - **CORS.** The API answers `*` today, because the desktop renderer loads from `file://` ([`api/main.py`](../../../surfsense_local/backend/api/main.py)). The allowed origins come from `SURFSENSE_LOCAL_CORS_ORIGINS`, defaulting to `*` for the desktop. The image sets it empty: everything is same-origin, so no other site can read a response.
@@ -211,6 +217,47 @@ SurfSense ships no Claude Code ([`locate.py`](../../../surfsense_local/backend/m
   **Open install guide** opens the Docker section of the docs instead of Anthropic's desktop guide.
 - **No redirect.** Claude Code signs in by a code pasted back into the terminal, so the browser can be on any machine.
 - **Commands by service name.** `docker compose exec surfsense` runs as the image's user, the one the API runs as, and needs no container name.
+
+## Sign-ins
+
+A sign-in ends where the provider sends the browser back, and in Docker that browser may be on the host or on another machine. One rule holds for every OAuth sign-in: **the callback lands on the address the user's browser is already on**, its origin, under a client the provider allows to redirect there. The frontend sends `window.location.origin` when it starts a sign-in; the API accepts only an origin Caddy allows, and builds the redirect from it, never from a guess about where the browser is.
+
+| The browser's origin | Example |
+|---|---|
+| loopback, on the Docker host | `http://localhost:3929` |
+| a public domain | `https://surfsense.example.com` |
+| a LAN address, with HTTPS | `https://surfsense.lan` |
+
+The redirect never goes anywhere else. In particular, the hosted page at `plugins.surfsense.com/oauth/callback` stays loopback-only: forwarding to an origin named in `state` would let anyone start a sign-in as SurfSense's client with their own PKCE verifier and collect the code, which PKCE does not stop when the attacker made the request.
+
+### Plugins
+
+Every plugin, SurfSense's own, Notion or a custom server, signs in to `<origin>/plugins/oauth/callback` as the first of these identities its provider accepts. The desktop is the loopback case of the same order.
+
+| Order | Client | Works when |
+|---|---|---|
+| 1 | a client ID metadata document listing that callback: SurfSense's hosted `plugins.surfsense.com/oauth/client.json` for a loopback origin, whose page forwards to `127.0.0.1:<the origin's port>`; the instance's own `<origin>/plugins/oauth/client.json` for a public one | the provider supports CIMD and can fetch the document |
+| 2 | dynamic registration with that callback | the provider supports DCR; it fetches nothing, so a LAN origin works |
+| 3 | the user's own app, registered with that callback ([`own_app.py`](../../../surfsense_local/backend/modules/plugins/remote/sign_in/oauth/own_app.py)) | the provider takes only registered apps |
+| 4 | paste-back: a `state` that asks for it makes the hosted page show the result instead of forwarding, and the sign-in dialog takes it | everything above refused |
+
+- **Notion fits the first two.** `mcp.notion.com` advertises both `client_id_metadata_document_supported` and a `registration_endpoint`, as the MCP authorization spec asks, so a loopback or public origin signs in through CIMD and a LAN origin through DCR.
+- **The packaged switch decides less.** [`sign_in_client.py`](../../../surfsense_local/backend/modules/plugins/remote/sign_in/oauth/sign_in_client.py) picks SurfSense's hosted client when packaged and its own loopback callback otherwise; it picks by origin instead.
+- **Paste-back is safe from the user's own tab.** The code is useless without the PKCE verifier, which never leaves the API, and the sign-in the user pastes into is one the API started.
+
+### ChatGPT
+
+ChatGPT signs in as OpenAI's client ([Sign in with ChatGPT for open-source apps](https://developers.openai.com/siwc/token-sharing-open-source)), which documents only a loopback redirect, so it follows the rule as far as OpenAI allows.
+
+- **Loopback origin.** The redirect is `http://127.0.0.1:<the origin's port>/callback`, which Caddy routes to the API; in a container the API answers `/callback` itself instead of opening [`loopback.py`](../../../surfsense_local/backend/modules/llm/subscriptions/chatgpt/loopback.py)'s listener on a port the browser cannot reach. OpenAI accepts any loopback port.
+- **Remote origin.** If OpenAI's registration accepts `<origin>/callback`, the same as above. If it accepts only loopback, the dialog takes the address the failed redirect left in the address bar, and the API finishes the exchange with its verifier; a device-code flow would replace that, should OpenAI offer one for these clients.
+- **An SSH tunnel** (`ssh -L 3929:localhost:3929 <server>`) makes any remote browser a loopback one, where every sign-in is automatic.
+
+### To verify while building
+
+- Whether OpenAI's registration accepts a non-loopback HTTPS redirect, with a throwaway registration, before ChatGPT's remote path is built.
+- Whether Notion's dynamic registration accepts any HTTPS redirect, which a LAN origin depends on.
+- The hosted page's forward, end to end, which no test exercises today ([plugins](../../architecture/plugins.md#known-gaps)): the Docker smoke job signs in against a stand-in provider through Caddy.
 
 ## Data and license
 
@@ -323,7 +370,7 @@ In order; each step depends on the one before it and leaves something that runs.
 
 **The first container.**
 
-5. The CPU image and compose on amd64, with the localhost-only access file, opencode and no local model runtimes: upload, ingest and chat through a remote connection work.
+5. The CPU image and compose on amd64, with the localhost-only access file, opencode and no local model runtimes: upload, ingest and chat through a remote connection work, and plugin and ChatGPT sign-ins finish from a browser on the host.
 6. `docker-surfsense.yml`: the build, the smoke job, and the release jobs, with `latest` moving on publish.
 
 **Local models, one runtime at a time.**
@@ -335,15 +382,11 @@ In order; each step depends on the one before it and leaves something that runs.
 **Access beyond localhost.**
 
 10. The password and the allowed hosts.
-11. HTTPS.
+11. HTTPS, and sign-ins from another machine: the instance's own client document and the paste-back fallback.
 
 **GPU images**, steps 12 to 14 in [`gpu.md`](gpu.md): `-cuda` on amd64. `linux/arm64` follows once `runtimes/` stages each runtime for it, with `-cuda13`.
 
 Then the maintainers write `architecture/docker.md`, update the root README, both `AGENTS.md` files and `RELEASE.md`, and delete this proposal.
-
-## Open questions
-
-- Sign-in flows that return to a loopback address: ChatGPT sign-in listens on a port inside the container, and plugin sign-in returns through `plugins.surfsense.com`. Neither has been tried from a host browser.
 
 ## Not in scope
 
