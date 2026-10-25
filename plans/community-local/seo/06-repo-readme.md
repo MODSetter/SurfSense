@@ -30,7 +30,7 @@ In order:
    and edits your documents, on your machine.", which leads with the edit, as
    the [file agent strategy](../file-agent-strategy.md#the-headline) asks. Then
    the link row, Trendshift and the language row.
-2. **The demo video** (below), one paragraph, the download table and the sunset
+2. **The demo videos** (below), one paragraph, the download table and the sunset
    callout, which goes on 18 Oct 2026 here and in every translation. Since
    22 Oct 2026 the table links `https://www.surfsense.com/downloads/<platform>?src=readme`
    rather than GitHub's `/releases/latest/download/`: the site counts the
@@ -100,13 +100,15 @@ translations with any cell that moves:
 | Place images in new documents | [`list_images.py`](../../../surfsense_local/backend/modules/agent/tool_endpoint/list_images.py) |
 | Word and PowerPoint to PDF with Office support, which is never in the installer | [`convert_document.py`](../../../surfsense_local/backend/modules/agent/tool_endpoint/convert_document.py), [office pack](../../../docs/architecture/office-pack.md) |
 
-**The demo video** is a GitHub upload, not a file in the repo: a
+**The demo videos** are GitHub uploads, not files in the repo: each a
 `github.com/user-attachments/assets/...` URL alone on its line, which GitHub
-plays inline. All eleven READMEs use the same one. To replace it, drag an MP4
-under 10 MB into any comment box in this repo, copy the `user-attachments` link
-GitHub writes, and swap the URL in every README.
+plays inline. All eleven READMEs use the same two. Each sits under a bold
+caption on its own line, translated in each README: the videos are stacked, so a
+caption below one would read as the title of the next. To replace one, drag an
+MP4 under 10 MB into any comment box in this repo, copy the `user-attachments`
+link GitHub writes, and swap the URL in every README.
 
-The video, added on 9 Oct 2026, shows the agent redlining a city contract as a
+The first video, added on 9 Oct 2026, shows the agent redlining a city contract as a
 revised copy, with tracked changes and a comment on each change. It is step 4 of
 the Boston demo plan, `references/demo-data/Boston-demo-plan.md`, which git
 ignores along with its sources and the credits for them; the plan names Qwen3.8
@@ -130,6 +132,9 @@ ignores along with its sources and the credits for them; the plan names Qwen3.8
   billed. The rehearsal's own check, a scratch test never committed, failed one
   run on how it worded the mutual right ("the City or the Contractor"), which
   the copy does hold. The run folders are in `references/live-runs/rehearsal/`.
+
+The second video, added on 25 Oct 2026, shows **Add from the web** adding
+sources, then the agent turning them into an HTML web page.
 
 ## Project description
 

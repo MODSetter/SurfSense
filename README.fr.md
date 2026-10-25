@@ -38,7 +38,13 @@
   </p>
 </div>
 
+**Annotez un contrat avec des modifications suivies et des commentaires**
+
 https://github.com/user-attachments/assets/88326b9d-e763-46db-9635-75f9df9e8682
+
+**Ajoutez des sources depuis le web, puis transformez-les en page web**
+
+https://github.com/user-attachments/assets/073577b7-f055-4f59-8540-330bd764aeb0
 
 SurfSense est une application de bureau gratuite et open source pour les documents que vous ne pouvez pas téléverser. Un agent IA dans l'esprit de NotebookLM, axé sur la confidentialité, qui fait des recherches dans vos documents, les transforme et les modifie, sur votre machine. L'index reste sur votre disque, vous choisissez le modèle, local ou distant, et il n'y a pas de compte à créer.
 

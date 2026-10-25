@@ -38,7 +38,13 @@
   </p>
 </div>
 
+**用修订和批注批改合同**
+
 https://github.com/user-attachments/assets/88326b9d-e763-46db-9635-75f9df9e8682
+
+**从网上添加来源，再把它们做成网页**
+
+https://github.com/user-attachments/assets/073577b7-f055-4f59-8540-330bd764aeb0
 
 SurfSense 是一款免费开源的桌面应用，专为那些不能上传的文档而做。它是一个注重隐私、类似 NotebookLM 的 AI 智能体，在你自己的电脑上研究、转换和编辑你的文档。索引留在你的硬盘里，模型由你来选，本地或远程都可以，而且不需要账号。
 
