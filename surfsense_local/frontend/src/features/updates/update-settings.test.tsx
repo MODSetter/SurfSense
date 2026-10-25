@@ -59,7 +59,7 @@ describe("UpdateSettings", () => {
     expect(await screen.findByText("Checking…")).toBeTruthy()
     bridge.push({ status: "up-to-date" })
     expect(await screen.findByText("SurfSense is up to date")).toBeTruthy()
-    bridge.push({ status: "downloading", version: "1.0.1" })
+    bridge.push({ status: "downloading", version: "1.0.1", percent: null })
     expect(await screen.findByText("Downloading 1.0.1…")).toBeTruthy()
     bridge.push({ status: "error", message: "net::ERR_INTERNET_DISCONNECTED" })
     expect((await screen.findByRole("alert")).textContent).toContain(
