@@ -1,7 +1,7 @@
 name: Desktop Tests
 
-# surfsense_local, the desktop app. docker-tests.yml covers surfsense_backend
-# and surfsense_web; code-quality.yml the checks that belong to no product.
+# surfsense_local, the desktop app. code-quality.yml holds the checks that
+# belong to no product.
 
 on:
   pull_request:
@@ -44,9 +44,9 @@ jobs:
             backend:
               - 'surfsense_local/backend/**'
               # The backend starts plugins on this SDK, and its tests run real ones.
-              - 'plugins/bundles/core/sdk/**'
+              - 'backend/plugins/bundles/core/sdk/**'
               # The backend reads installed manifests with these rules.
-              - 'plugins/bundles/core/manifest/**'
+              - 'backend/plugins/bundles/core/manifest/**'
               - 'docs/contracts/**'
               - '.pre-commit-config.yaml'
               - '.github/workflows/desktop-tests.yml'
@@ -124,7 +124,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
         with:
-          # The desktop trees pin their own pnpm; surfsense_web pins its own.
+          # The desktop trees pin their own pnpm; www pins its own.
           package_json_file: surfsense_local/frontend/package.json
 
       # Node 24 matches @types/node ^24 and the Node that Electron 44 embeds.
@@ -184,7 +184,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
         with:
-          # The desktop trees pin their own pnpm; surfsense_web pins its own.
+          # The desktop trees pin their own pnpm; www pins its own.
           package_json_file: surfsense_local/electron/package.json
 
       # Node 24 matches @types/node ^24 and the Node that Electron 44 embeds.

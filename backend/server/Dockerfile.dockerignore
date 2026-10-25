@@ -1,0 +1,15 @@
+# Read beside the Dockerfile; the build context is backend/.
+# The deferred bundles never ship, and the registry has its own image.
+plugins/bundles/
+plugins/registry/
+
+# No tests, sample plugins or local state in the image.
+**/tests/
+**/.venv/
+**/__pycache__/
+**/.pytest_cache/
+**/.ruff_cache/
+**/.env
+**/.DS_Store
+# The usage meter's file from a local run.
+usage/

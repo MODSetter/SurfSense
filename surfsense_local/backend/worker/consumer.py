@@ -8,6 +8,7 @@ from shared.db import import_models
 from shared.queue import import_tasks, ingest_queue, plugins_queue, studio_queue
 from worker.document_script.leftover_run_folders import remove_leftover_run_folders
 from worker.interrupted_documents import fail_interrupted_documents
+from worker.interrupted_pulls import fail_interrupted_pulls
 from worker.wait_for_schema import wait_for_schema
 
 # Studio jobs wait on a model: overlap them. Ingest jobs saturate the CPU: one.
@@ -36,6 +37,7 @@ def consume(name: str) -> None:
     wait_for_schema()
     if queue is plugins_queue:
         fail_interrupted_runs()
+        fail_interrupted_pulls()
     elif queue is ingest_queue:
         fail_interrupted_documents({DocumentType.FILE, DocumentType.NOTE})
     else:

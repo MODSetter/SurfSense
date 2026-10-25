@@ -1,5 +1,4 @@
 .flashrank_cache*
-./surfsense_backend/podcasts/
 .env
 node_modules/
 .ruff_cache/
@@ -11,21 +10,6 @@ debug.log
 references/
 references
 specs/
-
-# Source/tests packages: exempt from the broad "references" scratch-folder ignore above.
-!surfsense_backend/app/agents/chat/runtime/references/
-!surfsense_backend/tests/unit/agents/chat/runtime/references/
-
-# Playwright (E2E test artifacts)
-surfsense_web/playwright/.auth/
-surfsense_web/playwright-report/
-surfsense_web/test-results/
-surfsense_web/blob-report/
-
-# Local Remotion harness fixtures and tests
-docker/sandbox/remotion/fixtures/
-docker/sandbox/remotion/tests/
-docker/sandbox/remotion/progress.json
 
 content_research/
 automation-design-plan.md

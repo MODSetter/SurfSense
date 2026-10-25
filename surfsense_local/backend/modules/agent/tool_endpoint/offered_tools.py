@@ -19,6 +19,7 @@ from modules.agent.tool_endpoint.pdf_stamp import PDF_STAMP
 from modules.agent.tool_endpoint.read_document import READ_DOCUMENT
 from modules.agent.tool_endpoint.render_document import RENDER_DOCUMENT
 from modules.agent.tool_endpoint.revise_document import REVISE_DOCUMENT
+from modules.agent.tool_endpoint.save_page import SAVE_PAGE
 from modules.agent.tool_endpoint.search_sources import SEARCH_SOURCES
 from modules.agent.tool_endpoint.source_pages import SOURCE_PAGES
 from modules.agent.tool_endpoint.tool import (
@@ -43,6 +44,7 @@ TOOLS: dict[str, Tool] = {
         SEARCH_SOURCES,
         CREATE_ARTIFACT,
         RENDER_DOCUMENT,
+        SAVE_PAGE,
         READ_DOCUMENT,
         LIST_IMAGES,
         SOURCE_PAGES,

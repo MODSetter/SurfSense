@@ -1,11 +1,15 @@
+"""Studio's Web page: a model at the agent's bar writes it, any other fills a template (ADR 0066)."""
+
 import html
 
 from modules.llm import prompting
 from modules.llm.profile import Tier
 from modules.llm.resolution import ResolvedGeneration
+from worker.studio.office.document.strength import writes_script
 from worker.studio.shared import generate
 from worker.studio.shared.artifact import Built, Source
 from worker.studio.shared.text import as_list, as_text, parse_json, slug
+from worker.studio.web.html.written import page as written
 
 MIME = "text/html"
 # The frontier prompt leaves the count to the material, so the ceiling is kept here.
@@ -15,6 +19,9 @@ SECTIONS = 10
 def render(
     model: ResolvedGeneration, sources: list[Source], user_prompt: str | None
 ) -> Built:
+    # The same measure that lets a model write a Word script lets it write a page.
+    if writes_script(model.selection):
+        return written.draft(model, sources, user_prompt)
     return build(
         generate.run_model(model, prompt(model.tier, user_prompt), sources), sources
     )

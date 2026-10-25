@@ -38,7 +38,7 @@ const studioErrorText: Record<string, () => string> = {
     intl.formatMessage({
       id: "studio_error_not_refinable",
       defaultMessage:
-        "Only a Word document or PDF made in Studio can be refined.",
+        "Only a Word document, PDF or web page made in Studio can be refined.",
     }),
   agent_made: () =>
     intl.formatMessage({

@@ -504,16 +504,17 @@ async def test_an_entry_taking_only_registered_apps_is_kept_needing_the_users_ow
     assert plugin["source"] == "registry"
 
 
-async def test_an_entrys_transport_is_listed(
+async def test_a_registry_naming_a_transport_still_lists(
     client: AsyncClient, registry: StandInRegistry
 ) -> None:
-    """An entry on the older SSE transport says so; one without says nothing."""
+    """An older list may name SSE; the app speaks Streamable HTTP alone, and reads no transport."""
     registry.publish([entry("notes", transport="sse"), entry("keyed")])
     await allow_third_party(client)
 
     listed = (await client.get("/plugins/registry")).json()["plugins"]
 
-    assert [p["transport"] for p in listed] == ["sse", "streamable_http"]
+    assert [p["id"] for p in listed] == ["notes", "keyed"]
+    assert all("transport" not in p for p in listed)
 
 
 @pytest.mark.third_party_off

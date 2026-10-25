@@ -10,6 +10,7 @@
 import { existsSync } from "node:fs"
 import { delimiter, join } from "node:path"
 
+import { oneSpelling } from "./opencode-folder-spelling.ts"
 import { opencodeFolders } from "./opencode-home.ts"
 import { exe } from "./platform.ts"
 import type { SidecarContext, SidecarSpec } from "./types.ts"
@@ -20,12 +21,9 @@ export const OPENCODE_SIDECAR = "opencode"
 export const CONFIG_FILE = "opencode.json"
 
 // What the operating system must still provide for the server and its shell.
-// Home and proxies are not among them: those are set below.
+// Home, temp and proxies are not among them: those are set below.
 const FROM_THE_SYSTEM = [
   "PATH",
-  "TMPDIR",
-  "TEMP",
-  "TMP",
   "LANG",
   "LC_ALL",
   "LC_CTYPE",
@@ -36,18 +34,13 @@ const FROM_THE_SYSTEM = [
   "PATHEXT",
 ]
 
-// Each fetch opencode would make on its own, switched off
-// (docs/proposals/agent/03-opencode.md, No network).
+// What 2.x still switches off from its environment; the rest of what it would
+// fetch or load on its own is switched off in the configuration
+// (docs/architecture/packaging.md).
 const SWITCHED_OFF = [
   "OPENCODE_DISABLE_MODELS_FETCH",
-  "OPENCODE_DISABLE_SHARE",
-  "OPENCODE_DISABLE_LSP_DOWNLOAD",
-  "OPENCODE_DISABLE_AUTOUPDATE",
-  "OPENCODE_DISABLE_DEFAULT_PLUGINS",
-  "OPENCODE_PURE",
-  "OPENCODE_DISABLE_PROJECT_CONFIG",
-  "OPENCODE_DISABLE_EXTERNAL_SKILLS",
   "OPENCODE_DISABLE_CLAUDE_CODE",
+  "OPENCODE_CONFIG_PROJECT_DISABLE",
 ]
 
 // The discard port: nothing a desktop runs listens there, so a fetch fails
@@ -66,15 +59,16 @@ export function configPath(agentDir: string): string {
 
 /** Null until it can run: a build staged, and the API's configuration on disk. */
 export function opencodeSpec(ctx: SidecarContext): SidecarSpec | null {
-  const { opencodeBinariesDir, opencodePort, opencodePassword, agentDir } = ctx
+  const { opencodeBinariesDir, opencodePort, opencodePassword } = ctx
   if (
     opencodeBinariesDir == null ||
     opencodePort == null ||
     opencodePassword == null ||
-    agentDir == null
+    ctx.agentDir == null
   ) {
     return null
   }
+  const agentDir = oneSpelling(ctx.agentDir)
   const binary = binaryPath(ctx)
   if (!existsSync(binary) || !existsSync(configPath(agentDir))) return null
 
@@ -118,12 +112,13 @@ function opencodeEnvironment(
     XDG_DATA_HOME: folders.data,
     XDG_CACHE_HOME: folders.cache,
     XDG_STATE_HOME: folders.state,
+    // Its scratch folder is $TMPDIR/opencode, shared with the user's own opencode.
+    TMPDIR: folders.temp,
+    TEMP: folders.temp,
+    TMP: folders.temp,
     OPENCODE_CONFIG: configPath(agentDir),
-    OPENCODE_SERVER_PASSWORD: password,
+    OPENCODE_PASSWORD: password,
     ...Object.fromEntries(SWITCHED_OFF.map((flag) => [flag, "1"])),
-    // A case the npm stub misses fails at once, rather than waiting on retries.
-    npm_config_audit: "false",
-    npm_config_fetch_retries: "0",
     HTTP_PROXY: proxy,
     HTTPS_PROXY: proxy,
     ALL_PROXY: proxy,

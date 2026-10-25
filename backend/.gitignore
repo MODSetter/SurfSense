@@ -1,0 +1,6 @@
+__pycache__/
+.venv/
+.pytest_cache/
+.ruff_cache/
+# The usage meter's file from a local run of python -m server.
+/usage/

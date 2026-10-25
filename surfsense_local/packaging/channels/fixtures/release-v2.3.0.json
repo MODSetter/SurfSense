@@ -1,0 +1,28 @@
+{
+  "url": "https://api.github.com/repos/MODSetter/SurfSense/releases/250000001",
+  "html_url": "https://github.com/MODSetter/SurfSense/releases/tag/v2.3.0",
+  "id": 250000001,
+  "tag_name": "v2.3.0",
+  "target_commitish": "main",
+  "name": "v2.3.0",
+  "draft": false,
+  "prerelease": false,
+  "created_at": "2026-11-04T09:12:00Z",
+  "published_at": "2026-11-04T10:21:34Z",
+  "assets": [
+    { "name": "SurfSense-arm64.dmg", "state": "uploaded", "size": 1357516813, "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111", "browser_download_url": "https://github.com/MODSetter/SurfSense/releases/download/v2.3.0/SurfSense-arm64.dmg" },
+    { "name": "SurfSense-arm64.dmg.blockmap", "state": "uploaded", "size": 1416302, "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222", "browser_download_url": "https://github.com/MODSetter/SurfSense/releases/download/v2.3.0/SurfSense-arm64.dmg.blockmap" },
+    { "name": "SurfSense-arm64.zip", "state": "uploaded", "size": 1340021118, "digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333", "browser_download_url": "https://github.com/MODSetter/SurfSense/releases/download/v2.3.0/SurfSense-arm64.zip" },
+    { "name": "SurfSense-Setup.exe", "state": "uploaded", "size": 1216797720, "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "browser_download_url": "https://github.com/MODSetter/SurfSense/releases/download/v2.3.0/SurfSense-Setup.exe" },
+    { "name": "SurfSense-Setup.exe.blockmap", "state": "uploaded", "size": 1270532, "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "browser_download_url": "https://github.com/MODSetter/SurfSense/releases/download/v2.3.0/SurfSense-Setup.exe.blockmap" },
+    { "name": "SurfSense.AppImage", "state": "uploaded", "size": 1462521628, "digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444", "browser_download_url": "https://github.com/MODSetter/SurfSense/releases/download/v2.3.0/SurfSense.AppImage" },
+    { "name": "SurfSense.deb", "state": "uploaded", "size": 1345595320, "digest": "sha256:5555555555555555555555555555555555555555555555555555555555555555", "browser_download_url": "https://github.com/MODSetter/SurfSense/releases/download/v2.3.0/SurfSense.deb" },
+    { "name": "SurfSense.rpm", "state": "uploaded", "size": 1349882514, "digest": "sha256:6666666666666666666666666666666666666666666666666666666666666666", "browser_download_url": "https://github.com/MODSetter/SurfSense/releases/download/v2.3.0/SurfSense.rpm" },
+    { "name": "stable.yml", "state": "uploaded", "size": 361, "digest": "sha256:7777777777777777777777777777777777777777777777777777777777777777", "browser_download_url": "https://github.com/MODSetter/SurfSense/releases/download/v2.3.0/stable.yml" },
+    { "name": "stable-mac.yml", "state": "uploaded", "size": 547, "digest": "sha256:8888888888888888888888888888888888888888888888888888888888888888", "browser_download_url": "https://github.com/MODSetter/SurfSense/releases/download/v2.3.0/stable-mac.yml" },
+    { "name": "stable-linux.yml", "state": "uploaded", "size": 712, "digest": "sha256:9999999999999999999999999999999999999999999999999999999999999999", "browser_download_url": "https://github.com/MODSetter/SurfSense/releases/download/v2.3.0/stable-linux.yml" },
+    { "name": "SHA256SUMS", "state": "uploaded", "size": 1210, "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "browser_download_url": "https://github.com/MODSetter/SurfSense/releases/download/v2.3.0/SHA256SUMS" },
+    { "name": "install.sh", "state": "uploaded", "size": 13278, "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "browser_download_url": "https://github.com/MODSetter/SurfSense/releases/download/v2.3.0/install.sh" },
+    { "name": "install.ps1", "state": "uploaded", "size": 9789, "digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", "browser_download_url": "https://github.com/MODSetter/SurfSense/releases/download/v2.3.0/install.ps1" }
+  ]
+}

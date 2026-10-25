@@ -214,6 +214,128 @@ describe("egress prompt", () => {
     expect(dialog.textContent).not.toContain("excerpts of your documents")
   })
 
+  it("tells the truth about update checks: version, system and architecture, no ID, GitHub behind", async () => {
+    render(<EgressPrompt />)
+
+    void askEgress({
+      destination: "app_updates",
+      host: "updates.surfsense.com",
+      allow: async () => undefined,
+    })
+
+    const dialog = await screen.findByRole("alertdialog", {
+      name: "Allow SurfSense to check for updates?",
+    })
+    expect(dialog.textContent).toContain("asks updates.surfsense.com")
+    expect(dialog.textContent).toContain(
+      "the app’s name and version, your operating system and its architecture, and no ID"
+    )
+    expect(dialog.textContent).toContain(
+      "asks github.com instead, sending only your IP address and the app’s name"
+    )
+    // Every host the answer reaches, the download's included.
+    expect(dialog.textContent).toContain(
+      "githubusercontent.com, also sees your IP address"
+    )
+    expect(dialog.textContent).toContain("the next time you quit")
+  })
+
+  it("describes GitHub's releases for an app whose updater reads them directly", async () => {
+    render(<EgressPrompt />)
+
+    void askEgress({
+      destination: "app_updates",
+      host: "github.com",
+      purpose: "github_releases",
+      allow: async () => undefined,
+    })
+
+    const dialog = await screen.findByRole("alertdialog", {
+      name: "Allow SurfSense to check for updates?",
+    })
+    expect(dialog.textContent).toContain(
+      "reads the list of releases on github.com"
+    )
+    expect(dialog.textContent).toContain("githubusercontent.com")
+    expect(dialog.textContent).not.toContain("updates.surfsense.com")
+  })
+
+  it("names a policy's mirror as the only update host", async () => {
+    render(<EgressPrompt />)
+
+    void askEgress({
+      destination: "app_updates",
+      host: "updates.example.org",
+      purpose: "update_mirror",
+      allow: async () => undefined,
+    })
+
+    const dialog = await screen.findByRole("alertdialog", {
+      name: "Allow SurfSense to check for updates?",
+    })
+    expect(dialog.textContent).toContain(
+      "the update server your organization set"
+    )
+    expect(dialog.textContent).not.toContain("github.com")
+  })
+
+  it.each(["plugin_registry", "plugin"])(
+    "says SurfSense's plugin host gets the license key for paid plugins (%s)",
+    async (purpose) => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () =>
+          Response.json(
+            {
+              detail: {
+                code: "egress_disabled",
+                message: "off",
+                destination: "host:plugins.surfsense.com",
+                host: "plugins.surfsense.com",
+                purpose,
+              },
+            },
+            { status: 403 }
+          )
+        )
+      )
+      render(<EgressPrompt />)
+
+      void requestVoid("/plugins/registry/1", { method: "POST" }).catch(
+        () => {}
+      )
+
+      const dialog = await screen.findByRole("alertdialog")
+      expect(dialog.textContent).toContain("your license key")
+    }
+  )
+
+  it("never mentions a license key to a third-party plugin's host", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json(
+          {
+            detail: {
+              code: "egress_disabled",
+              message: "off",
+              destination: "host:mcp.notes.example",
+              host: "mcp.notes.example",
+              purpose: "plugin",
+            },
+          },
+          { status: 403 }
+        )
+      )
+    )
+    render(<EgressPrompt />)
+
+    void requestVoid("/plugins/custom", { method: "POST" }).catch(() => {})
+
+    const dialog = await screen.findByRole("alertdialog")
+    expect(dialog.textContent).not.toContain("license key")
+  })
+
   it("cancelling leaves the call refused", async () => {
     const calls = stubApi()
     const user = userEvent.setup()

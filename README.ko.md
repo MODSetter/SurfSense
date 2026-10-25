@@ -11,7 +11,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Discord](https://img.shields.io/discord/1359368468260192417?label=Discord)](https://discord.gg/ejRNvftDp9)
 
-  <a href="https://www.surfsense.com/"><img alt="SurfSense, 네트워크와 분리해 쓰는 오픈소스 NotebookLM 대안" src="surfsense_web/public/homepage/banner.png" /></a>
+  <a href="https://www.surfsense.com/"><img alt="SurfSense, 네트워크와 분리해 쓰는 오픈소스 NotebookLM 대안" src="www/public/homepage/banner.png" /></a>
 
   <h1>SurfSense</h1>
 
@@ -38,15 +38,21 @@
   </p>
 </div>
 
+**추적된 변경과 메모로 계약서를 레드라인 처리합니다**
+
 https://github.com/user-attachments/assets/88326b9d-e763-46db-9635-75f9df9e8682
+
+**웹에서 소스를 추가하고 웹 페이지로 만듭니다**
+
+https://github.com/user-attachments/assets/073577b7-f055-4f59-8540-330bd764aeb0
 
 SurfSense는 업로드할 수 없는 문서를 위한 무료 오픈소스 데스크톱 앱입니다. 프라이버시를 중시하는 NotebookLM 스타일의 AI 에이전트로, 내 컴퓨터에서 문서를 조사하고, 변환하고, 편집합니다. 색인은 내 디스크에 남고, 모델은 로컬이든 원격이든 내가 고르며, 만들 계정도 없습니다.
 
 | 플랫폼 | 다운로드 |
 |---|---|
-| **Windows** x64 | [SurfSense-Setup.exe](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense-Setup.exe) |
-| **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense-arm64.dmg) |
-| **Linux** x64 | [AppImage](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense.AppImage) · [deb](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense.deb) |
+| **Windows** x64 | [SurfSense-Setup.exe](https://www.surfsense.com/downloads/windows?src=readme) |
+| **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
+| **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
 
 > [!NOTE]
 > **호스팅 웹 앱을 쓰셨나요?** 2026년 10월 18일 전에 워크스페이스를 내보낸 다음 이 앱으로 가져오세요. 자세한 내용은 [종료 안내 페이지](https://www.surfsense.com/sunset)에 있습니다.
@@ -95,7 +101,7 @@ SurfSense는 업로드할 수 없는 문서를 위한 무료 오픈소스 데스
 | **Walmart** | Walmart 상품, 검색 결과, 리뷰 읽기 |
 | **Indeed** | Indeed의 채용 공고 읽기 |
 
-**서드파티.** [플러그인 레지스트리](plugins/registry)에 있는 DeepWiki, Notion 같은 MCP 서버 또는 URL로 직접 추가한 서버입니다. 라이선스는 필요 없으며, 허용하기 전까지 꺼져 있습니다.
+**서드파티.** [플러그인 레지스트리](backend/plugins/registry)에 있는 DeepWiki, Notion 같은 MCP 서버 또는 URL로 직접 추가한 서버입니다. 라이선스는 필요 없으며, 허용하기 전까지 꺼져 있습니다.
 
 ## 비교
 

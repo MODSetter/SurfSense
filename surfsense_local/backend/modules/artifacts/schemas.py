@@ -35,7 +35,7 @@ class StudioJobCreate(BaseModel):
 
 
 class RefineRequest(BaseModel):
-    """What to change in a Word document or PDF; the whole spec is rewritten for it."""
+    """What to change in a Word document, a PDF or a written web page; the whole spec is rewritten for it."""
 
     instruction: Annotated[
         str, StringConstraints(strip_whitespace=True, min_length=1, max_length=2000)
@@ -158,7 +158,7 @@ class ArtifactRead(BaseModel):
     # None for an artifact that keeps no spec and so has no versions.
     version: ArtifactVersionRead | None = None
     spec_kind: SpecKind | None = None
-    # Whether Refine may rewrite this version: a ready Word or PDF Studio made.
+    # Whether Refine may rewrite this version: a ready Word or PDF Studio made, or a web page a model wrote there.
     refinable: bool = False
 
     @classmethod

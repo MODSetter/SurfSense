@@ -11,7 +11,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Discord](https://img.shields.io/discord/1359368468260192417?label=Discord)](https://discord.gg/ejRNvftDp9)
 
-  <a href="https://www.surfsense.com/"><img alt="SurfSense，可物理隔离运行的开源 NotebookLM 替代品" src="surfsense_web/public/homepage/banner.png" /></a>
+  <a href="https://www.surfsense.com/"><img alt="SurfSense，可物理隔离运行的开源 NotebookLM 替代品" src="www/public/homepage/banner.png" /></a>
 
   <h1>SurfSense</h1>
 
@@ -38,15 +38,21 @@
   </p>
 </div>
 
+**用修订和批注批改合同**
+
 https://github.com/user-attachments/assets/88326b9d-e763-46db-9635-75f9df9e8682
+
+**从网上添加来源，再把它们做成网页**
+
+https://github.com/user-attachments/assets/073577b7-f055-4f59-8540-330bd764aeb0
 
 SurfSense 是一款免费开源的桌面应用，专为那些不能上传的文档而做。它是一个注重隐私、类似 NotebookLM 的 AI 智能体，在你自己的电脑上研究、转换和编辑你的文档。索引留在你的硬盘里，模型由你来选，本地或远程都可以，而且不需要账号。
 
 | 平台 | 下载 |
 |---|---|
-| **Windows** x64 | [SurfSense-Setup.exe](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense-Setup.exe) |
-| **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense-arm64.dmg) |
-| **Linux** x64 | [AppImage](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense.AppImage) · [deb](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense.deb) |
+| **Windows** x64 | [SurfSense-Setup.exe](https://www.surfsense.com/downloads/windows?src=readme) |
+| **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
+| **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
 
 > [!NOTE]
 > **用过托管版 Web 应用？** 请在 2026 年 10 月 18 日之前导出你的工作区，再导入到这里。详见[下线说明页](https://www.surfsense.com/sunset)。
@@ -94,7 +100,7 @@ SurfSense 是一款免费开源的桌面应用，专为那些不能上传的文�
 | **Walmart** | 读取 Walmart 商品、搜索结果和评价 |
 | **Indeed** | 读取 Indeed 上的职位信息 |
 
-**第三方：** 来自[插件注册表](plugins/registry)的 MCP 服务器，例如 DeepWiki 和 Notion，或者你通过网址添加的任意服务器。不需要许可证；在你允许之前，它们一直保持关闭。
+**第三方：** 来自[插件注册表](backend/plugins/registry)的 MCP 服务器，例如 DeepWiki 和 Notion，或者你通过网址添加的任意服务器。不需要许可证；在你允许之前，它们一直保持关闭。
 
 ## SurfSense 与同类工具对比
 

@@ -55,11 +55,11 @@ jobs:
           python-version: '3.12'
 
       - name: Install dependencies
-        working-directory: plugins/registry/check
+        working-directory: backend/plugins/registry/check
         run: uv sync
 
       - name: Check the submission
-        working-directory: plugins/registry/check
+        working-directory: backend/plugins/registry/check
         env:
           ISSUE_BODY: ${{ github.event.issue.body }}
         run: |
@@ -117,12 +117,12 @@ jobs:
           python-version: '3.12'
 
       - name: Install dependencies
-        working-directory: plugins/registry/check
+        working-directory: backend/plugins/registry/check
         run: uv sync
 
       # Checked again: the issue may have changed since the maintainer read it.
       - name: Write the entry and its icon
-        working-directory: plugins/registry/check
+        working-directory: backend/plugins/registry/check
         env:
           ISSUE_BODY: ${{ github.event.issue.body }}
         run: |
@@ -148,7 +148,7 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git switch -c "$branch"
-          git add plugins/registry/plugins.json plugins/registry/icons
+          git add backend/plugins/registry/plugins.json backend/plugins/registry/icons
           git commit -m "feat(registry): list $name" -m "Fixes #$ISSUE"
           # Accepting again after an edit replaces the branch; its pull request follows.
           git push --force origin "HEAD:refs/heads/$branch"

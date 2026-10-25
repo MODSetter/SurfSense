@@ -1,0 +1,453 @@
+"""Offline resilience tests for the Instagram fetch seam and fan-out worker pool.
+
+No network. Fake sessions drive the ``csrftoken`` warm-up + rotate-on-block +
+backoff paths deterministically (in live runs the first IP warms and returns
+200s, so these branches rarely fire). Mirrors the reddit sibling's
+``test_fetch_resilience.py`` shape, adapted to Instagram's cookie warm-up.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
+from proprietary.instagram import fetch, scraper
+from proprietary.instagram.fetch import (
+    InstagramAccessBlockedError,
+    _current_session,
+    fetch_json,
+)
+from proprietary.instagram.tests.profile_pages import profile_pages
+
+_PAYLOAD = {"data": {"user": {"username": "natgeo"}}}
+
+
+class _FakePage:
+    def __init__(
+        self, status: int, *, cookies: dict | None = None, payload=None, url=None
+    ):
+        self.status = status
+        self.cookies = cookies or {}
+        self.url = url
+        self._payload = payload if payload is not None else _PAYLOAD
+
+    def json(self):
+        return self._payload
+
+    @property
+    def body(self) -> str:
+        return json.dumps(self._payload)
+
+
+class _FakeSession:
+    """One 'IP': the warm-up GET mints csrftoken per flag; endpoint GETs return ``status``."""
+
+    def __init__(
+        self,
+        status: int = 200,
+        *,
+        csrftoken: bool = True,
+        payload=None,
+        login_wall: bool = False,
+        rate_limited: bool = False,
+    ) -> None:
+        self.status = status
+        self.csrftoken = csrftoken
+        self.payload = payload
+        self.login_wall = login_wall
+        self.rate_limited = rate_limited
+        self.json_calls = 0
+        self.warm_calls = 0
+
+    async def get(self, url, headers=None, cookies=None):
+        if url.rstrip("/") == "https://www.instagram.com":
+            self.warm_calls += 1
+            ck = {"csrftoken": "x", "mid": "y"} if self.csrftoken else {}
+            return _FakePage(200, cookies=ck)
+        self.json_calls += 1
+        # A soft login wall: 200, but the final URL is the login page.
+        final = "https://www.instagram.com/accounts/login/" if self.login_wall else url
+        if self.rate_limited:
+            # The same redirect, flagged as a rate-limit exit (live, 2026-10-22).
+            final = (
+                "https://www.instagram.com/accounts/login/"
+                "?next=https%3A%2F%2Fwww.instagram.com%2Fnatgeo%2F&is_from_rle"
+            )
+        return _FakePage(self.status, payload=self.payload, url=final)
+
+
+class _FakeHolder:
+    """Holder whose ``rotate()`` advances to the next fake session (a new IP)."""
+
+    def __init__(self, sessions: list[_FakeSession]) -> None:
+        self._sessions = sessions
+        self.session = sessions[0]
+        self.rotations = 0
+        self.warmed = False
+
+    async def rotate(self):
+        self.rotations += 1
+        self.session = self._sessions[min(self.rotations, len(self._sessions) - 1)]
+        self.warmed = False  # cookies bind to the IP: re-warm on the fresh one
+        return self.session
+
+    async def pace(self) -> None:
+        return None
+
+    async def close(self) -> None:
+        return None
+
+
+def _no_sleep(monkeypatch) -> None:
+    async def _noop(_seconds):
+        return None
+
+    monkeypatch.setattr(fetch.asyncio, "sleep", _noop)
+
+
+async def test_warms_then_returns_json():
+    holder = _FakeHolder([_FakeSession(200, csrftoken=True)])
+    token = _current_session.set(holder)
+    try:
+        result = await fetch_json(
+            "api/v1/users/web_profile_info/", {"username": "natgeo"}
+        )
+    finally:
+        _current_session.reset(token)
+    assert result == _PAYLOAD
+    assert holder.rotations == 0
+    assert holder.session.warm_calls == 1  # warmed exactly once
+
+
+async def test_rotates_when_warm_fails_then_succeeds():
+    holder = _FakeHolder(
+        [_FakeSession(200, csrftoken=False), _FakeSession(200, csrftoken=True)]
+    )
+    token = _current_session.set(holder)
+    try:
+        result = await fetch_json("api/v1/users/web_profile_info/")
+    finally:
+        _current_session.reset(token)
+    assert result == _PAYLOAD
+    assert holder.rotations == 1
+
+
+async def test_raises_when_no_ip_can_warm():
+    holder = _FakeHolder(
+        [_FakeSession(200, csrftoken=False) for _ in range(fetch._MAX_ROTATIONS + 1)]
+    )
+    token = _current_session.set(holder)
+    try:
+        raised = False
+        try:
+            await fetch_json("api/v1/users/web_profile_info/")
+        except InstagramAccessBlockedError:
+            raised = True
+    finally:
+        _current_session.reset(token)
+    assert raised
+    assert holder.rotations == fetch._MAX_ROTATIONS
+
+
+async def test_rotates_and_rewarms_on_403():
+    holder = _FakeHolder([_FakeSession(403), _FakeSession(200)])
+    token = _current_session.set(holder)
+    try:
+        result = await fetch_json("api/v1/users/web_profile_info/")
+    finally:
+        _current_session.reset(token)
+    assert result == _PAYLOAD
+    assert holder.rotations == 1
+    assert holder.session.warm_calls == 1  # re-warmed on the fresh IP
+
+
+async def test_rotates_on_401_login_wall():
+    holder = _FakeHolder([_FakeSession(401), _FakeSession(200)])
+    token = _current_session.set(holder)
+    try:
+        result = await fetch_json("api/v1/users/web_profile_info/")
+    finally:
+        _current_session.reset(token)
+    assert result == _PAYLOAD
+    assert holder.rotations == 1
+
+
+async def test_login_redirect_fails_fast_without_rotating():
+    # A 302 -> /accounts/login/ (served 200) is an endpoint-level wall: rotating
+    # never clears it, so we raise immediately instead of burning IP rotations.
+    # A second healthy session is present to prove we do NOT fall through to it.
+    holder = _FakeHolder([_FakeSession(200, login_wall=True), _FakeSession(200)])
+    token = _current_session.set(holder)
+    try:
+        raised = False
+        try:
+            await fetch_json("api/v1/users/web_profile_info/", {"username": "natgeo"})
+        except InstagramAccessBlockedError:
+            raised = True
+    finally:
+        _current_session.reset(token)
+    assert raised
+    assert holder.rotations == 0  # fail fast: no rotation burned
+
+
+async def test_404_returns_none_without_rotating():
+    holder = _FakeHolder([_FakeSession(404), _FakeSession(200)])
+    token = _current_session.set(holder)
+    try:
+        result = await fetch_json("api/v1/users/web_profile_info/")
+    finally:
+        _current_session.reset(token)
+    assert result is None
+    assert holder.rotations == 0
+
+
+async def test_429_backs_off_without_rotating(monkeypatch):
+    _no_sleep(monkeypatch)
+    session = _FakeSession(429)
+
+    async def _get(url, headers=None, cookies=None):
+        if url.rstrip("/") == "https://www.instagram.com":
+            session.warm_calls += 1
+            return _FakePage(200, cookies={"csrftoken": "x"})
+        session.json_calls += 1
+        return _FakePage(429 if session.json_calls == 1 else 200)
+
+    session.get = _get  # type: ignore[method-assign]
+    holder = _FakeHolder([session])
+    token = _current_session.set(holder)
+    try:
+        result = await fetch_json("api/v1/users/web_profile_info/")
+    finally:
+        _current_session.reset(token)
+    assert result == _PAYLOAD
+    assert holder.rotations == 0
+
+
+async def test_persistent_403_raises_blocked(monkeypatch):
+    _no_sleep(monkeypatch)
+    holder = _FakeHolder([_FakeSession(403) for _ in range(fetch._MAX_ROTATIONS + 1)])
+    token = _current_session.set(holder)
+    try:
+        raised = False
+        try:
+            await fetch_json("api/v1/users/web_profile_info/")
+        except InstagramAccessBlockedError:
+            raised = True
+    finally:
+        _current_session.reset(token)
+    assert raised
+    assert holder.rotations == fetch._MAX_ROTATIONS
+
+
+class _TrackingHolder:
+    """Fake fan-out session holder that records whether it was closed."""
+
+    def __init__(self) -> None:
+        self.closed = False
+
+    async def close(self) -> None:
+        self.closed = True
+
+
+async def test_fan_out_closes_all_sessions_on_early_stop(monkeypatch):
+    holders: list[_TrackingHolder] = []
+
+    async def _fake_open():
+        h = _TrackingHolder()
+        holders.append(h)
+        return h
+
+    @asynccontextmanager
+    async def _fake_bind(_holder):
+        yield _holder
+
+    monkeypatch.setattr(scraper, "open_proxy_holder", _fake_open)
+    monkeypatch.setattr(scraper, "bind_proxy_holder", _fake_bind)
+
+    async def _job(n: int) -> AsyncIterator[dict]:
+        for i in range(5):
+            yield {"job": n, "i": i}
+
+    jobs = [_job(n) for n in range(20)]
+    gen = scraper.fan_out(jobs, concurrency=4)
+    collected = []
+    async for item in gen:
+        collected.append(item)
+        if len(collected) >= 3:
+            break
+    await gen.aclose()
+
+    assert len(collected) >= 3
+    assert holders, "workers should have opened sessions"
+    assert all(h.closed for h in holders), "a worker leaked its proxy session"
+
+
+async def test_fan_out_empty_jobs_is_noop():
+    out = [x async for x in scraper.fan_out([])]
+    assert out == []
+
+
+async def _install_fake_holders(monkeypatch) -> None:
+    async def _fake_open():
+        return _TrackingHolder()
+
+    @asynccontextmanager
+    async def _fake_bind(_holder):
+        yield _holder
+
+    monkeypatch.setattr(scraper, "open_proxy_holder", _fake_open)
+    monkeypatch.setattr(scraper, "bind_proxy_holder", _fake_bind)
+
+
+async def _blocked_job() -> AsyncIterator[dict]:
+    raise InstagramAccessBlockedError("login wall")
+    yield {}  # unreachable; makes this an async generator
+
+
+async def test_fan_out_all_blocked_raises_without_deadlock(monkeypatch):
+    # Regression: a blocked worker used to strand its exception on a dead task
+    # and deadlock the consumer on results.get(). When EVERY target is blocked
+    # (zero items), it must surface InstagramAccessBlockedError, not hang.
+    await _install_fake_holders(monkeypatch)
+
+    raised = False
+    try:
+        async with asyncio.timeout(5):  # fail fast if the deadlock regresses
+            async for _ in scraper.fan_out([_blocked_job()], concurrency=1):
+                pass
+    except InstagramAccessBlockedError:
+        raised = True
+    assert raised, "fully-blocked run must surface the 403, not deadlock"
+
+
+async def test_fan_out_partial_results_survive_one_blocked_target(monkeypatch):
+    # Q2: one blocked target must NOT abort the batch — the good target's items
+    # come through and no exception is raised (aggregation, not a transaction).
+    await _install_fake_holders(monkeypatch)
+
+    async def _good_job() -> AsyncIterator[dict]:
+        for i in range(3):
+            yield {"id": f"good:{i}"}
+
+    async with asyncio.timeout(5):
+        items = [
+            item
+            async for item in scraper.fan_out(
+                [_blocked_job(), _good_job()], concurrency=2
+            )
+        ]
+    assert [it["id"] for it in items] == ["good:0", "good:1", "good:2"]
+
+
+async def test_scrape_instagram_closes_sessions_when_limit_stops_inflight_workers(
+    monkeypatch,
+):
+    """Hitting ``limit`` must tear down the whole fan-out chain deterministically.
+
+    Regression: closing the outer ``iter_instagram`` generator does NOT
+    synchronously close the inner ``fan_out`` it loops over — CPython defers that
+    to async-gen GC — so without an explicit ``aclosing`` the collector's early
+    ``break`` leaked every warm proxy session that was still mid-fetch. The
+    ``fan_out``-direct test misses this because instant jobs self-drain before
+    cancellation ever runs; here each fetch yields to the loop so workers are
+    genuinely in-flight when the limit trips.
+    """
+    holders: list[_TrackingHolder] = []
+
+    async def _fake_open():
+        h = _TrackingHolder()
+        holders.append(h)
+        return h
+
+    @asynccontextmanager
+    async def _fake_bind(_holder):
+        yield _holder
+
+    async def _fetch(path, params=None):
+        await asyncio.sleep(0)  # yield control: keep sibling workers in-flight
+        username = path.split("/", 1)[0]
+        return profile_pages(username, list(range(5))).get(path)
+
+    monkeypatch.setattr(scraper, "open_proxy_holder", _fake_open)
+    monkeypatch.setattr(scraper, "bind_proxy_holder", _fake_bind)
+    monkeypatch.setattr(scraper, "fetch_html", _fetch)
+
+    model = scraper.InstagramScrapeInput(
+        resultsType="posts",
+        directUrls=[f"https://www.instagram.com/acct{i}/" for i in range(50)],
+        resultsLimit=5,
+    )
+    items = await scraper.scrape_instagram(model, limit=3)
+
+    assert len(items) == 3
+    assert holders, "workers should have opened sessions"
+    assert all(h.closed for h in holders), "early stop leaked a proxy session"
+
+
+async def test_discover_profile_is_anonymous_handle_lookup():
+    # keyword search (topsearch) is login-walled, so a profile/user query resolves
+    # as a DIRECT handle lookup against the anonymous profile endpoint — no network
+    # here, just the URL resolution, so no session/monkeypatch needed.
+    targets = await scraper._discover("messi", search_type="user", limit=10)
+    assert [(t.kind, t.value) for t in targets] == [("profile", "messi")]
+
+
+async def test_discover_nonhandle_routes_through_google(monkeypatch):
+    # A non-handle profile query goes through Google (site:instagram.com) and
+    # classifies the organic results into profile targets (the only kind now).
+    async def _fake_scrape_serps(input_model, *, limit=None):
+        assert input_model.site == "instagram.com"
+        return [
+            {
+                "organicResults": [
+                    {"url": "https://www.instagram.com/natgeo/"},
+                    {"url": "https://www.instagram.com/p/Cabc/"},  # wrong kind
+                ]
+            }
+        ]
+
+    monkeypatch.setattr(scraper, "scrape_serps", _fake_scrape_serps)
+    targets = await scraper._discover(
+        "national geographic", search_type="profile", limit=10
+    )
+    assert [(t.kind, t.value) for t in targets] == [("profile", "natgeo")]
+
+
+async def test_a_rate_limit_redirect_to_the_login_page_moves_to_a_fresh_exit():
+    """``is_from_rle`` is an exit asking too often, not a page needing a login."""
+    holder = _FakeHolder([_FakeSession(429, rate_limited=True), _FakeSession(200)])
+    token = _current_session.set(holder)
+    try:
+        result = await fetch.fetch_html("natgeo/")
+    finally:
+        _current_session.reset(token)
+    assert result is not None
+    assert holder.rotations == 1
+
+
+async def test_a_page_read_asks_for_no_warm_up_first():
+    """Every logged-out page works as an exit's first request (probe 2026-10-23).
+
+    The home page was fetched for its csrftoken, which only the JSON API needs.
+    """
+    holder = _FakeHolder([_FakeSession(200)])
+    token = _current_session.set(holder)
+    try:
+        page = await fetch.fetch_html("natgeo/")
+    finally:
+        _current_session.reset(token)
+    assert page is not None
+    assert holder.session.warm_calls == 0
+    assert holder.session.json_calls == 1
+
+
+async def test_the_json_api_still_warms_for_its_csrftoken():
+    holder = _FakeHolder([_FakeSession(200)])
+    token = _current_session.set(holder)
+    try:
+        await fetch.fetch_json("api/v1/users/web_profile_info/", {"username": "x"})
+    finally:
+        _current_session.reset(token)
+    assert holder.session.warm_calls == 1

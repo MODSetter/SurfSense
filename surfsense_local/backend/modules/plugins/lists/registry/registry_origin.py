@@ -4,7 +4,9 @@ import sys
 from pathlib import Path
 
 # surfsense_local/backend/modules/plugins/lists/registry/ -> the repository root.
-REPOSITORY_REGISTRY = Path(__file__).resolve().parents[6] / "plugins" / "registry"
+REPOSITORY_REGISTRY = (
+    Path(__file__).resolve().parents[6] / "backend" / "plugins" / "registry"
+)
 
 
 def reads_repository() -> bool:

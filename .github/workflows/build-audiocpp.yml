@@ -65,7 +65,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: surfsense_local/electron/audiocpp
-          key: audiocpp-${{ runner.os }}-${{ hashFiles('surfsense_local/electron/scripts/audiocpp/*.mjs', 'surfsense_local/electron/scripts/msvc-runtime.mjs', 'surfsense_local/electron/scripts/pinned-download.mjs') }}
+          key: audiocpp-${{ runner.os }}-${{ hashFiles('surfsense_local/electron/scripts/audiocpp/**/*.mjs', 'surfsense_local/electron/scripts/msvc-runtime.mjs', 'surfsense_local/electron/scripts/pinned-download.mjs') }}
 
       - name: Install GCC 13
         # audio.cpp requires it, and 22.04 has GCC 11. This job, not the
@@ -88,9 +88,11 @@ jobs:
       - name: Gate on the app's Linux floor
         if: runner.os == 'Linux' && steps.cache.outputs.cache-hit != 'true'
         working-directory: surfsense_local/electron/audiocpp
-        # The floor is glibc 2.34, RHEL 9, whose libgcc_s is GCC 11's: nothing
-        # after GCC_7.0.0. The runner's libstdc++ is the PPA's, newer than a
-        # user's, so only this gate, not the voicing test, catches a dynamic one.
+        # glibc 2.34 and RHEL 9's GCC 11 libgcc_s, nothing after GCC_7.0.0:
+        # stricter than the app's Linux floor, glibc 2.35 and GCC 12's libstdc++,
+        # which the backend and llama.cpp set (docs/architecture/packaging.md).
+        # The runner's libstdc++ is the PPA's, newer than a user's, so only this
+        # gate, not the voicing test, catches a dynamic one.
         run: |
           files=$(for f in audiocpp_server *.so*; do [ -L "$f" ] || echo "$f"; done)
           too_new=$(for f in $files; do objdump -T "$f"; done | grep -oE '(GLIBC|GCC)_[0-9.]+[0-9]' | sort -Vu | while read -r v; do

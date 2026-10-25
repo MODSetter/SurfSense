@@ -13,7 +13,6 @@ import pytest_asyncio
 import uvicorn
 from fastapi import FastAPI
 from mcp.client.client import Client
-from mcp.client.sse import sse_client
 from mcp.client.streamable_http import streamable_http_client
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
@@ -37,7 +36,6 @@ from tests.integration.plugins.routes.test_oauth_sign_in import approve_in_brows
 from tests.mcp_test_server import (
     RecordingHeaders,
     RecordingMethods,
-    RequiringHeader,
     RequiringToken,
     notes_server,
     serving,
@@ -260,33 +258,6 @@ async def test_a_call_refused_for_a_missing_scope_records_what_the_plugin_needs(
     (plugin,) = (await gateway.http.get("/plugins")).json()
     assert plugin["check_failure"] == "sign_in"
     assert plugin["needs_scopes"] == ["notes:write"]
-
-
-async def test_a_plugin_on_the_older_sse_transport_is_called_through_the_gateway(
-    gateway: Gateway,
-) -> None:
-    """Its stream's endpoint points back at the gateway, so each message carries the key."""
-    recorded = RecordingHeaders(
-        RequiringHeader(notes_server().sse_app(), "x-api-key", "k-1"), "x-api-key"
-    )
-    with serving(recorded) as base:
-        await gateway.http.put("/plugins/third-party", json={"allowed": True})
-        added = await gateway.http.post(
-            "/plugins/custom",
-            json={
-                "url": f"{base}/sse",
-                "name": "Notes",
-                "headers": [{"name": "x-api-key", "value": "k-1"}],
-            },
-        )
-        assert added.status_code == 201, added.text
-        url, headers = given_server("notes", WHERE, gateway.launch_key)
-
-        async with Client(sse_client(url, headers=headers)) as runtime:
-            result = await runtime.call_tool("search", {"query": "old"})
-
-    assert result.content[0].text == "found old"
-    assert set(recorded.authorizations) == {"k-1"}
 
 
 # A host the plugin's entry declares, which the user's consent covers.

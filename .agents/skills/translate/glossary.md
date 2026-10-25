@@ -4,7 +4,7 @@ One term per concept, so the app says the same thing everywhere. Terms marked wi
 
 ## Stays in English
 
-SurfSense, Studio, Markdown, llama.cpp, GGUF, Hugging Face, API, MCP, the HTTP sign-in schemes Bearer and Basic, and every model and provider name.
+SurfSense, Studio, Markdown, llama.cpp, GGUF, Hugging Face, API, MCP, MCP's transports SSE and Streamable HTTP, the HTTP sign-in schemes Bearer and Basic, the package managers Scoop, AUR, Snap Store, Flatpak, Nix and apt, and every model and provider name.
 
 `workspace` is the one product word languages disagree on, and each keeps its own habit: German and Brazilian Portuguese write Workspace, because both say it routinely and the translation is three times as wide in the sidebar; Japanese writes ワークスペース, since `マイWorkspace` reads as a mistake; the rest translate it.
 
@@ -61,6 +61,8 @@ SurfSense, Studio, Markdown, llama.cpp, GGUF, Hugging Face, API, MCP, the HTTP s
 | server (a model server) | サーバー | 서버 | 服务器 | सर्वर | Server | servidor | serveur | servidor | сервер |
 | provider | プロバイダー | 제공업체 | 提供商 | प्रोवाइडर | Anbieter | proveedor | fournisseur | provedor | провайдер |
 | this computer | このコンピューター | 이 컴퓨터 | 这台电脑 | यह कंप्यूटर | dieser Computer | este equipo | cet ordinateur | este computador | этот компьютер |
+| license key (the user’s key, which the app sends to SurfSense’s plugin service to be checked) | ライセンスキー | 라이선스 키 | 许可证密钥 | लाइसेंस कुंजी | Lizenzschlüssel | clave de licencia | clé de licence | chave de licença | лицензионный ключ |
+| usage statistics (the opt-in daily and weekly report of counts in ranges) | 利用統計 | 사용 통계 | 使用统计 | उपयोग आंकड़े | Nutzungsstatistiken | estadísticas de uso | statistiques d’utilisation | estatísticas de uso | статистика использования |
 | retry | 再試行 | 다시 시도 | 重试 | फिर से कोशिश करें | Erneut versuchen | Reintentar | Réessayer | Tentar novamente | Повторить |
 | plugin (an MCP server whose tools the agent can use) | プラグイン | 플러그인 | 插件 | प्लगइन | Plugin | plugin | plugin | plugin | плагин |
 | third-party (a plugin SurfSense does not publish) | サードパーティ | 서드파티 | 第三方 | थर्ड-पार्टी | Drittanbieter- | de terceros | tiers | de terceiros | сторонний |
@@ -76,8 +78,10 @@ SurfSense, Studio, Markdown, llama.cpp, GGUF, Hugging Face, API, MCP, the HTTP s
 | subscription (using a ChatGPT plan instead of a key) | サブスクリプション | 구독 | 订阅 | सब्सक्रिप्शन | Abo | suscripción | abonnement | assinatura | подписка |
 | terminal (where the user runs `claude`, the command that stays in English) | ターミナル | 터미널 | 终端 | टर्मिनल | Terminal | terminal (una) | terminal | terminal | терминал |
 | header (an HTTP header a plugin's server reads, such as its key in `x-api-key`) | ヘッダー | 헤더 | 请求头 | हेडर | Header | encabezado | en-tête | cabeçalho | заголовок |
+| package manager (installs and updates SurfSense in place of its own updater) | パッケージマネージャー | 패키지 관리자 | 软件包管理器 | पैकेज मैनेजर | Paketmanager | gestor de paquetes | gestionnaire de paquets | gerenciador de pacotes | менеджер пакетов |
 | OAuth app (a user's own, registered with a provider) | OAuthアプリ | OAuth 앱 | OAuth 应用 | OAuth ऐप | OAuth-App | app OAuth | app OAuth | app OAuth | приложение OAuth |
 | client ID (of an OAuth app) | クライアントID | 클라이언트 ID | 客户端 ID | क्लाइंट आईडी | Client-ID | ID de cliente | ID client | ID do cliente | ID клиента |
+| link (a web address the user adds as a source) | リンク | 링크 | 链接 | लिंक | Link | enlace | lien | link | ссылка |
 | client secret (of an OAuth app) | クライアントシークレット | 클라이언트 시크릿 | 客户端密钥 | क्लाइंट सीक्रेट | Client-Secret | secreto de cliente | secret client | segredo do cliente | секрет клиента |
 | scope (an OAuth permission) | スコープ | 범위 | 权限范围 | स्कोप | Scope | ámbito | portée | escopo | область доступа |
 | callback address (where a provider sends the browser back) | コールバックアドレス | 콜백 주소 | 回调地址 | कॉलबैक पता | Callback-Adresse | dirección de callback | adresse de rappel | endereço de callback | адрес обратного вызова |

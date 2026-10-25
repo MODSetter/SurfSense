@@ -136,7 +136,7 @@ Missing any one of them would make the embedder swappable, which is the failure 
 
 A live search filtered to `sentence-similarity` and `feature-extraction`. The onboarding search that exists today ([`hugging-face-search.tsx`](../../surfsense_local/frontend/src/features/onboarding/model-step/local/hugging-face-search.tsx)) goes through the llama.cpp engine and reads GGUF files, so this is a second search beside it, reading different files.
 
-- **Runnable means ONNX.** The API process ships onnxruntime without torch ([`api.spec`](../../surfsense_local/backend/bundling/api.spec)), so a repo with only safetensors is shown as not runnable.
+- **Runnable means ONNX.** The API process ships onnxruntime without torch ([`api_inputs.py`](../../surfsense_local/backend/bundling/api_inputs.py)), so a repo with only safetensors is shown as not runnable.
 - **Which file.** A generic int8 file (`model_int8.onnx`, `model_quantized.onnx`) first, then the full-precision `onnx/model.onnx` or `model.onnx`; otherwise the repo is refused. A file's external data (`.onnx_data`) downloads with it. Never a file tuned for one CPU (`*avx2*`, `*avx512*`, `*arm64*`), an `O1` to `O4` optimised variant, or an `fp16`, `q4` or `bnb4` build: fp16 runs slowly on a CPU and the rest are made for other hardware or runtimes. A bad quantisation is caught by the probe and the sanity check.
 - **Refused:** gated repos, repos Hugging Face's security scan flags, and repos without a `tokenizer.json`.
 - **Evidence:** the repo's pipeline tag and its sentence-transformers files. A repo that ships them is `declared`; one with only the tag is `inferred`.

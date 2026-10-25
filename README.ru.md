@@ -11,7 +11,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Discord](https://img.shields.io/discord/1359368468260192417?label=Discord)](https://discord.gg/ejRNvftDp9)
 
-  <a href="https://www.surfsense.com/"><img alt="SurfSense, изолированная от сети альтернатива NotebookLM с открытым кодом" src="surfsense_web/public/homepage/banner.png" /></a>
+  <a href="https://www.surfsense.com/"><img alt="SurfSense, изолированная от сети альтернатива NotebookLM с открытым кодом" src="www/public/homepage/banner.png" /></a>
 
   <h1>SurfSense</h1>
 
@@ -38,15 +38,21 @@
   </p>
 </div>
 
+**Отредактируйте договор с отслеживаемыми изменениями и комментариями**
+
 https://github.com/user-attachments/assets/88326b9d-e763-46db-9635-75f9df9e8682
+
+**Добавьте источники из интернета и превратите их в веб-страницу**
+
+https://github.com/user-attachments/assets/073577b7-f055-4f59-8540-330bd764aeb0
 
 SurfSense — бесплатное настольное приложение с открытым кодом для документов, которые нельзя загрузить наружу. Это ИИ-агент в духе NotebookLM, созданный с упором на приватность: он исследует, преобразует и редактирует ваши документы на вашем компьютере. Индекс остаётся на вашем диске, модель, локальную или удалённую, выбираете вы, а аккаунта нет вовсе.
 
 | Платформа | Скачать |
 |---|---|
-| **Windows** x64 | [SurfSense-Setup.exe](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense-Setup.exe) |
-| **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense-arm64.dmg) |
-| **Linux** x64 | [AppImage](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense.AppImage) · [deb](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense.deb) |
+| **Windows** x64 | [SurfSense-Setup.exe](https://www.surfsense.com/downloads/windows?src=readme) |
+| **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
+| **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
 
 > [!NOTE]
 > **Пользовались размещённым веб-приложением?** Экспортируйте рабочие области до 18 октября 2026 года и импортируйте их в это приложение. Подробности на [странице закрытия](https://www.surfsense.com/sunset).
@@ -95,7 +101,7 @@ SurfSense — бесплатное настольное приложение с 
 | **Walmart** | Читает карточки товаров, результаты поиска и отзывы на Walmart |
 | **Indeed** | Читает вакансии на Indeed |
 
-**Сторонние.** MCP-серверы из [реестра плагинов](plugins/registry), например DeepWiki и Notion, или любые другие, которые вы добавите по URL. Лицензия не нужна; они остаются выключенными, пока вы их не разрешите.
+**Сторонние.** MCP-серверы из [реестра плагинов](backend/plugins/registry), например DeepWiki и Notion, или любые другие, которые вы добавите по URL. Лицензия не нужна; они остаются выключенными, пока вы их не разрешите.
 
 ## Сравнение
 

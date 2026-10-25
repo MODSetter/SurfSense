@@ -32,6 +32,7 @@ from modules.chat.router import router as chat_router
 from modules.chat.runs.registry import ChatRuns
 from modules.chat.runs.router import router as chat_runs_router
 from modules.documents.router import router as documents_router
+from modules.documents.web_sources.router import router as web_sources_router
 from modules.egress.router import router as egress_router
 from modules.egress.service import EgressDeniedError
 from modules.embedding.active import EmbeddingNotChosenError
@@ -73,6 +74,8 @@ from modules.plugins.routes import router as plugins_router
 from modules.resource_usage.router import router as resource_usage_router
 from modules.runtime_packs.office.router import router as office_pack_router
 from modules.source_scope.router import router as source_scope_router
+from modules.usage_statistics.activity_counts import begin_counting
+from modules.usage_statistics.router import router as usage_statistics_router
 from modules.workspaces.router import router as workspaces_router
 from modules.workspaces.seed import ensure_default_workspace
 from shared.config import get_agent_settings, get_llm_settings, get_storage_settings
@@ -117,6 +120,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             ensure_default_workspace(session)
             settle_interrupted_turns(session)
             session.commit()
+            begin_counting(session)
         app.state.session_factory = session_factory
         # A thread too: a large subtree takes a while, and it is out of every
         # scope and the tree meanwhile.
@@ -238,6 +242,7 @@ def create_app() -> FastAPI:
     app.include_router(health_router)
     app.include_router(workspaces_router)
     app.include_router(documents_router)
+    app.include_router(web_sources_router)
     app.include_router(folders_router)
     app.include_router(llm_router)
     app.include_router(model_route_router)
@@ -255,6 +260,7 @@ def create_app() -> FastAPI:
     app.include_router(embedding_router)
     app.include_router(embedding_huggingface_router)
     app.include_router(resource_usage_router)
+    app.include_router(usage_statistics_router)
     app.include_router(office_pack_router)
     # Before `/plugins/{id}/...`, which would otherwise take `registry` or `license` for an id.
     app.include_router(plugin_registry_router)

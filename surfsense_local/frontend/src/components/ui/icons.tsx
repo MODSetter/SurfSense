@@ -6,9 +6,11 @@ import {
   AiImageEditIcon as AiImageEditIconData,
   AiSearchLinesIcon as AiSearchLinesIconData,
   ArrowDownIcon as ArrowDownIconData,
+  ArrowDown02Icon as ArrowDown02IconData,
   ArrowExpand01Icon as ArrowExpand01IconData,
   ArrowLeftIcon as ArrowLeftIconData,
   ArrowRightIcon as ArrowRightIconData,
+  ArrowRight02Icon as ArrowRight02IconData,
   ArrowUpRight01Icon as ArrowUpRight01IconData,
   ArrowUp02Icon as ArrowUp02IconData,
   ChartScatterIcon as ChartScatterIconData,
@@ -49,6 +51,7 @@ import {
   FolderOpenIcon as FolderOpenIconData,
   FolderTransferIcon as FolderTransferIconData,
   FolderUploadIcon as FolderUploadIconData,
+  GlobalSearchIcon as GlobalSearchIconData,
   Image01Icon as Image01IconData,
   InformationCircleIcon as InformationCircleIconData,
   GridViewIcon as GridViewIconData,
@@ -133,9 +136,11 @@ export const AiEditingIcon = createIcon(AiEditingIconData)
 export const AiImageEditIcon = createIcon(AiImageEditIconData)
 export const AiSearchLinesIcon = createIcon(AiSearchLinesIconData)
 export const ArrowDownIcon = createIcon(ArrowDownIconData)
+export const ArrowDown02Icon = createIcon(ArrowDown02IconData)
 export const ArrowExpand01Icon = createIcon(ArrowExpand01IconData)
 export const ArrowLeftIcon = createIcon(ArrowLeftIconData)
 export const ArrowRightIcon = createIcon(ArrowRightIconData)
+export const ArrowRight02Icon = createIcon(ArrowRight02IconData)
 export const ArrowUp02Icon = createIcon(ArrowUp02IconData)
 export const BanIcon = createIcon(BanIconData)
 export const BotIcon = createIcon(BotIconData)
@@ -175,6 +180,7 @@ export const FolderAddIcon = createIcon(FolderAddIconData)
 export const FolderOpenIcon = createIcon(FolderOpenIconData)
 export const FolderTransferIcon = createIcon(FolderTransferIconData)
 export const FolderUploadIcon = createIcon(FolderUploadIconData)
+export const GlobalSearchIcon = createIcon(GlobalSearchIconData)
 export const Image01Icon = createIcon(Image01IconData)
 export const AudioWaveformIcon = createIcon(AudioWaveformIconData)
 export const PlayIcon = createIcon(PlayIconData)

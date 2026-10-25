@@ -26,7 +26,8 @@ export type Plugin = {
   auth_type: "none" | "token" | "headers" | "license" | "oauth"
   /** A `headers` plugin's header names; their values never come back from the API. */
   header_names: string[]
-  /** `sse` for a server on the older HTTP+SSE transport, found when it connected. */
+  /** `sse` for a plugin added on the older HTTP+SSE transport, which no engine speaks:
+   * it stays until the user replaces it with its Streamable HTTP address. */
   transport: "streamable_http" | "sse"
   /** Scopes the server's `insufficient_scope` asked for; Sign in asks for them. */
   needs_scopes: string[]
@@ -141,7 +142,6 @@ export type RegistryEntry = {
   }[]
   /** An `oauth` plugin whose provider takes only apps registered in advance. */
   user_client: boolean
-  transport: "streamable_http" | "sse"
   hosts: string[]
   /** The host every call goes to; an OAuth plugin's other hosts see only the sign-in. */
   server_host: string

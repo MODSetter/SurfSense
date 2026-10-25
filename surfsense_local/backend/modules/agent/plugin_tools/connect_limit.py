@@ -6,3 +6,6 @@ not the turn's.
 """
 
 CONNECT_SECONDS = 25
+# opencode's own wait for a server it is given, inside the turn's, so opencode
+# reports the server failed before the turn stops waiting on it.
+OPENCODE_CONNECT_SECONDS = 20

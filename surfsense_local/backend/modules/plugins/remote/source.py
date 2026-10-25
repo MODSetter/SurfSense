@@ -2,17 +2,11 @@
 
 from modules.plugins.gateway.source_tool import SourceTool
 from modules.plugins.remote.mcp_client.session import McpSession
-from modules.plugins.remote.mcp_client.transports import STREAMABLE_HTTP, Transport
 
 
 class RemoteMcpSource:
-    def __init__(
-        self,
-        url: str,
-        headers: dict[str, str] | None = None,
-        transport: Transport = STREAMABLE_HTTP,
-    ) -> None:
-        self._session = McpSession(url, headers, transport)
+    def __init__(self, url: str, headers: dict[str, str] | None = None) -> None:
+        self._session = McpSession(url, headers)
 
     async def list_tools(self) -> list[SourceTool]:
         return [

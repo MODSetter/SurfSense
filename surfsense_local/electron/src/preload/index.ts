@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from "electron"
 
 import type { MicrophoneAccess } from "../main/microphone/system-access.ts"
+import type { PrivacyState } from "../main/privacy-choices/privacy-controller.ts"
 
 // main passes the API base URL via additionalArguments; read it back off argv
 const FLAG = "--surfsense-api-url="
@@ -57,6 +58,35 @@ contextBridge.exposeInMainWorld("surfsense", {
       ipcRenderer.on("updates:check-requested", wrapped)
       return () =>
         ipcRenderer.removeListener("updates:check-requested", wrapped)
+    },
+  },
+  // Update checks and usage statistics: what each sends, where, and the switches
+  // (contract 05, part C). State is null outside the app's own window.
+  privacy: {
+    getState: (): Promise<PrivacyState | null> =>
+      ipcRenderer.invoke("privacy:state"),
+    setUsageStatistics: async (enabled: boolean): Promise<void> => {
+      await ipcRenderer.invoke("privacy:set-usage-statistics", enabled)
+    },
+    // The updates bridge's own switch, so both bridges stay one setting.
+    setUpdatesAutomatic: async (enabled: boolean): Promise<void> => {
+      await ipcRenderer.invoke("updates:set-automatic", enabled)
+    },
+    // The exact next report, built but not sent.
+    previewUsageReport: (): Promise<unknown> =>
+      ipcRenderer.invoke("privacy:preview-usage-report"),
+    completeFirstRun: async (choices: {
+      updates: boolean
+      usageStatistics: boolean
+    }): Promise<void> => {
+      await ipcRenderer.invoke("privacy:complete-first-run", choices)
+    },
+    onStateChanged: (
+      listener: (state: PrivacyState) => void
+    ): (() => void) => {
+      const wrapped = (_event: unknown, state: PrivacyState) => listener(state)
+      ipcRenderer.on("privacy:state-changed", wrapped)
+      return () => ipcRenderer.removeListener("privacy:state-changed", wrapped)
     },
   },
   setTitleBarOverlay: (overlay: {

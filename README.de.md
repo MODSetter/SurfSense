@@ -11,7 +11,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Discord](https://img.shields.io/discord/1359368468260192417?label=Discord)](https://discord.gg/ejRNvftDp9)
 
-  <a href="https://www.surfsense.com/"><img alt="SurfSense, die netzgetrennte Open-Source-Alternative zu NotebookLM" src="surfsense_web/public/homepage/banner.png" /></a>
+  <a href="https://www.surfsense.com/"><img alt="SurfSense, die netzgetrennte Open-Source-Alternative zu NotebookLM" src="www/public/homepage/banner.png" /></a>
 
   <h1>SurfSense</h1>
 
@@ -38,15 +38,21 @@
   </p>
 </div>
 
+**Einen Vertrag mit nachverfolgten Änderungen und Kommentaren redigieren**
+
 https://github.com/user-attachments/assets/88326b9d-e763-46db-9635-75f9df9e8682
+
+**Quellen aus dem Web hinzufügen und daraus eine Webseite machen**
+
+https://github.com/user-attachments/assets/073577b7-f055-4f59-8540-330bd764aeb0
 
 SurfSense ist eine kostenlose Open-Source-Desktop-App für Dokumente, die du nicht hochladen kannst. Ein auf Datenschutz ausgelegter KI-Agent im Stil von NotebookLM, der auf deinem Rechner in deinen Dokumenten recherchiert, sie umwandelt und bearbeitet. Der Index bleibt auf deiner Festplatte, du wählst das Modell, lokal oder remote, und es gibt kein Konto.
 
 | Plattform | Download |
 |---|---|
-| **Windows** x64 | [SurfSense-Setup.exe](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense-Setup.exe) |
-| **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense-arm64.dmg) |
-| **Linux** x64 | [AppImage](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense.AppImage) · [deb](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense.deb) |
+| **Windows** x64 | [SurfSense-Setup.exe](https://www.surfsense.com/downloads/windows?src=readme) |
+| **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
+| **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
 
 > [!NOTE]
 > **Die gehostete Web-App genutzt?** Exportiere deine Workspaces vor dem 18. Oktober 2026 und importiere sie hier. Siehe [die Abschaltungsseite](https://www.surfsense.com/sunset).
@@ -94,7 +100,7 @@ Verbinde sie unter **Einstellungen › Plugins**.
 | **Walmart** | Walmart-Produkte, Suchergebnisse und Bewertungen lesen |
 | **Indeed** | Stellenanzeigen auf Indeed lesen |
 
-**Drittanbieter.** MCP-Server aus der [Plugin-Registry](plugins/registry), etwa DeepWiki und Notion, oder jeder, den du per URL hinzufügst. Keine Lizenz nötig; sie bleiben aus, bis du sie erlaubst.
+**Drittanbieter.** MCP-Server aus der [Plugin-Registry](backend/plugins/registry), etwa DeepWiki und Notion, oder jeder, den du per URL hinzufügst. Keine Lizenz nötig; sie bleiben aus, bis du sie erlaubst.
 
 ## SurfSense im Vergleich
 

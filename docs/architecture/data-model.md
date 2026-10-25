@@ -59,10 +59,10 @@ The API seeds one workspace, "My Workspace", at startup when none exists. Deleti
 | `document_type` | `FILE` (uploaded or imported), `NOTE` (written in the app), `ARTIFACT` (a Studio body) |
 | `status` | `pending` by default; `cancelled` arrived in `0011` |
 | `error_message` | why a job failed, at most 500 characters; cleared by retry and by a later success |
-| `content` | the markdown body: extracted text, the note itself, or an artifact's body |
+| `content` | the markdown body: extracted text, the note itself, or an artifact's body; null for a link's note until its pull writes it |
 | `content_hash` | SHA-256 of a file's bytes, equal to `dedup_key` for an uploaded or imported file; `0025` copied it from `dedup_key`; null for notes and artifacts |
 | `dedup_key` | SHA-256 of an uploaded or imported file's bytes; null for notes and artifacts |
-| `document_metadata` | JSON: `mime_type`, `size_bytes`, `suffix` for files; import adds `folder_path`, `source` and the hosted ids; a recording's ingest adds `transcription`, `{language, duration_s, model}` once transcribed or `{awaiting: true}` while it waits for a speech model ([`documents.md`](documents.md#recordings)) |
+| `document_metadata` | JSON: `mime_type`, `size_bytes`, `suffix` for files; import adds `folder_path`, `source` and the hosted ids; a recording's ingest adds `transcription`, `{language, duration_s, model}` once transcribed or `{awaiting: true}` while it waits for a speech model ([`documents.md`](documents.md#recordings)); a link added from the web is a note with `source_url`, `puller`, `plugin_id` and `fetched_at` ([`web-sources.md`](web-sources.md)) |
 | `embedding_index_id` | foreign key to `embedding_indexes`: the index its chunks were embedded into; null until its first ingest |
 | `folder_id` | foreign key to `folders`, `ON DELETE SET NULL`, from `0025`: every `FILE` and `NOTE` is filed; null is an unfiled artifact, or a source the backstop unfiled, which scopes and the tree treat as the top of the Library |
 | `created_at`, `updated_at` | |
@@ -183,6 +183,7 @@ One row per run of a plugin's action. What the run produced is not here: the plu
 ├── surfsense.db
 ├── backups/<from>-<to>.db       the database as it was before a migration; the newest two are kept
 ├── huey.db                       three queues, ingest, studio and plugins, in one file
+├── usage-counts.json             hourly counts for usage statistics, pruned after 40 days, no content
 └── data/
     └── workspaces/<workspace_id>/
         ├── documents/<document_id>/

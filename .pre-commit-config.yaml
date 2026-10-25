@@ -9,7 +9,8 @@ repos:
       - id: check-yaml
         args: [--multi, --unsafe]
       - id: check-json
-        exclude: '(tsconfig\.json|\.vscode/.*\.json)$'
+        # TypeScript configs are JSON with comments, as tsc reads them.
+        exclude: '(tsconfig(\.[^/]*)?\.json|\.vscode/.*\.json)$'
       - id: check-toml
       - id: check-merge-conflict
       - id: check-added-large-files
@@ -38,36 +39,13 @@ repos:
             .*\.mdx$|
             .*/messages/.*\.json$|
             surfsense_local/backend/modules/llm/catalog/(local|remote)/manifest/models\.json|
-            plugins/registry/published/plugins\.json
+            backend/plugins/registry/published/plugins\.json
           )$
 
-  # Python Backend Hooks (surfsense_backend) - Using Ruff for linting and formatting.
-  # Same ruff as surfsense_backend/uv.lock, so the hook and `uv run ruff` agree;
-  # bump both together.
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.8
-    hooks:
-      - id: ruff
-        name: ruff-check
-        files: ^surfsense_backend/
-        exclude: ^surfsense_backend/(test_.*\.py|.*test.*\.py)
-        args: [--fix]
-      - id: ruff-format
-        name: ruff-format
-        files: ^surfsense_backend/
-        exclude: ^surfsense_backend/(test_.*\.py|.*test.*\.py)
-
-  # One hook per product, each with an alias, so each product's CI runs only
-  # its own: `pre-commit run bandit-docker` or `pre-commit run bandit-desktop`.
+  # Aliased so desktop-tests.yml runs it alone: `pre-commit run bandit-desktop`.
   - repo: https://github.com/PyCQA/bandit
     rev: 1.9.4
     hooks:
-      - id: bandit
-        alias: bandit-docker
-        name: bandit (surfsense_backend)
-        files: ^surfsense_backend/
-        args: ['-f', 'json', '--severity-level', 'high', '--confidence-level', 'high']
-        exclude: ^surfsense_backend/(tests/|test_.*\.py|.*test.*\.py|alembic/)
       - id: bandit
         alias: bandit-desktop
         name: bandit (surfsense_local/backend)
@@ -78,16 +56,27 @@ repos:
   # Biome hooks for TypeScript/JavaScript projects
   - repo: local
     hooks:
-      # Biome check for surfsense_web. Runs only when a commit touches
-      # surfsense_web, then checks the whole app. The app's own Biome, so its
-      # version lives only in surfsense_web/package.json, as Biome's docs
-      # recommend; `pnpm exec` fails rather than fetch another version when
-      # the app's dependencies are not installed.
-      - id: biome-check-web
-        name: biome-check-web
-        entry: bash -c 'cd surfsense_web && pnpm exec biome check --diagnostic-level=error .'
+      # Biome check for www. Runs only when a commit touches www,
+      # then checks the whole app. The app's own Biome, so its version lives
+      # only in www/package.json, as Biome's docs recommend; `pnpm exec`
+      # fails rather than fetch another version when the app's dependencies
+      # are not installed.
+      - id: biome-check-www
+        name: biome-check-www
+        entry: bash -c 'cd www && pnpm exec biome check --diagnostic-level=error .'
         language: system
-        files: ^surfsense_web/
+        files: ^www/
+        pass_filenames: false
+        stages: [pre-commit]
+
+      # Type check for www, whole app, on the same trigger. `pnpm typecheck`
+      # first generates the MDX collections and Next's route types, which a
+      # fresh clone does not have.
+      - id: tsc-www
+        name: tsc-www
+        entry: bash -c 'cd www && pnpm typecheck'
+        language: system
+        files: ^www/
         pass_filenames: false
         stages: [pre-commit]
 

@@ -11,7 +11,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Discord](https://img.shields.io/discord/1359368468260192417?label=Discord)](https://discord.gg/ejRNvftDp9)
 
-  <a href="https://www.surfsense.com/"><img alt="SurfSense، بديل NotebookLM المعزول عن الشبكة والمفتوح المصدر" src="surfsense_web/public/homepage/banner.png" /></a>
+  <a href="https://www.surfsense.com/"><img alt="SurfSense، بديل NotebookLM المعزول عن الشبكة والمفتوح المصدر" src="www/public/homepage/banner.png" /></a>
 
   <h1>SurfSense</h1>
 
@@ -38,15 +38,21 @@
   </p>
 </div>
 
+**مراجعة عقد بتغييرات متعقَّبة وتعليقات**
+
 https://github.com/user-attachments/assets/88326b9d-e763-46db-9635-75f9df9e8682
+
+**إضافة مصادر من الويب، ثم تحويلها إلى صفحة ويب**
+
+https://github.com/user-attachments/assets/073577b7-f055-4f59-8540-330bd764aeb0
 
 يُعد SurfSense تطبيق سطح مكتب مجانيًا ومفتوح المصدر للمستندات التي لا يمكن رفعها. وهو وكيل ذكاء اصطناعي يركّز على الخصوصية، على طريقة NotebookLM، يبحث في المستندات ويحوّلها ويحرّرها على الجهاز نفسه. يبقى الفهرس على القرص، ويُختار النموذج بحسب الرغبة، محليًا كان أو بعيدًا، ولا حساب أصلًا.
 
 | المنصة | التنزيل |
 |---|---|
-| **Windows** x64 | [SurfSense-Setup.exe](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense-Setup.exe) |
-| **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense-arm64.dmg) |
-| **Linux** x64 | [AppImage](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense.AppImage) · [deb](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense.deb) |
+| **Windows** x64 | [SurfSense-Setup.exe](https://www.surfsense.com/downloads/windows?src=readme) |
+| **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
+| **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
 
 > [!NOTE]
 > **هل استُخدم تطبيق الويب المستضاف؟** تُصدَّر مساحات العمل قبل 18 أكتوبر 2026، ثم تُستورد هنا. التفاصيل في [صفحة الإيقاف](https://www.surfsense.com/sunset).
@@ -94,7 +100,7 @@ https://github.com/user-attachments/assets/88326b9d-e763-46db-9635-75f9df9e8682
 | **Walmart** | قراءة منتجات Walmart ونتائج البحث فيه والمراجعات |
 | **Indeed** | قراءة إعلانات الوظائف على Indeed |
 
-**من جهات خارجية** (Third-party). خوادم MCP من [سجل الإضافات](plugins/registry)، مثل DeepWiki وNotion، أو أي خادم يُضاف عبر عنوان URL. لا تتطلب رخصة، وتبقى معطّلة إلى أن يُسمح بها.
+**من جهات خارجية** (Third-party). خوادم MCP من [سجل الإضافات](backend/plugins/registry)، مثل DeepWiki وNotion، أو أي خادم يُضاف عبر عنوان URL. لا تتطلب رخصة، وتبقى معطّلة إلى أن يُسمح بها.
 
 ## كيف يقارن بغيره
 

@@ -3,7 +3,8 @@
 import hashlib
 import re
 
-# opencode adds `plugins_`, and providers allow 64 characters in all.
+# Providers allow a tool name 64 characters, and opencode does not shorten one;
+# this leaves room under it.
 MAX_LENGTH = 55
 HASH_LENGTH = 8
 

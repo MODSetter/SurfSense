@@ -6,7 +6,7 @@ import test from "node:test"
 
 import { audiocppSpec, SERVER_CONFIG } from "./audiocpp.ts"
 import { exe, isWindows } from "./platform.ts"
-import { apiSpec, workerSpec } from "./python.ts"
+import { apiSpec, BACKEND_BINARY, WORKER_QUEUES, workerSpec } from "./python.ts"
 import type { SidecarContext } from "./types.ts"
 
 /** A packaged build with audio.cpp staged and the API's config written. */
@@ -70,6 +70,35 @@ test("under pnpm dev a worker is the app's own child, so it dies with the app", 
   assert.deepEqual(worker.args, ["worker.py", "studio"])
 })
 
+test("packaged, the API and every worker run the one frozen backend with their role", () => {
+  // One binary carries both roles; the first argument picks one, and a
+  // missing or unknown role exits instead of starting a server.
+  const ctx = withAudio()
+  const binary = join(ctx.binariesDir, "backend", exe(BACKEND_BINARY))
+
+  const api = apiSpec(ctx)
+
+  assert.equal(api.cmd, binary)
+  assert.deepEqual(api.args, ["api"])
+  for (const queue of WORKER_QUEUES) {
+    const worker = workerSpec(ctx, queue)
+
+    assert.equal(worker.cmd, binary, queue)
+    assert.deepEqual(worker.args, ["worker", queue])
+  }
+})
+
+test("every backend queue has its worker, links from the web included", () => {
+  // A queue nothing drains holds its jobs forever: links added from the web
+  // stayed pending until the plugins queue got its worker.
+  assert.deepEqual([...WORKER_QUEUES], ["ingest", "studio", "plugins"])
+
+  const plugins = workerSpec(withAudio(), "plugins")
+
+  assert.equal(plugins.name, "worker-plugins")
+  assert.deepEqual(plugins.args.slice(-1), ["plugins"])
+})
+
 /** The context boot builds on a host where opencode is staged. */
 function withAgent(): SidecarContext {
   return {
@@ -98,7 +127,7 @@ test("the API is told where to run the proxy opencode's connections go through",
 
 test("a worker is never told the agent's password", () => {
   // Plugin runs start from a worker's environment; the password opens the agent's API.
-  for (const queue of ["ingest", "studio"] as const) {
+  for (const queue of WORKER_QUEUES) {
     const worker = workerSpec(withAgent(), queue).env
 
     assert.equal(worker.SURFSENSE_LOCAL_OPENCODE_PASSWORD, undefined, queue)
@@ -115,7 +144,7 @@ test("the API is told the key Electron presents when it prints Word previews", (
 })
 
 test("a worker is never told the snapshot key", () => {
-  for (const queue of ["ingest", "studio"] as const) {
+  for (const queue of WORKER_QUEUES) {
     const worker = workerSpec(withAgent(), queue).env
 
     assert.equal(worker.SURFSENSE_LOCAL_DOCX_SNAPSHOT_KEY, undefined, queue)
@@ -146,7 +175,7 @@ test("the API is told where the speech recognition server is", () => {
 
 test("a worker is never told where the speech recognition server is", () => {
   // Every request goes through the API's gate, which puts dictation first.
-  for (const queue of ["ingest", "studio"] as const) {
+  for (const queue of WORKER_QUEUES) {
     const worker = workerSpec(withTranscription(), queue).env
 
     assert.equal(worker.SURFSENSE_LOCAL_TRANSCRIPTION_BASE_URL, undefined, queue)

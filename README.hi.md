@@ -11,7 +11,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Discord](https://img.shields.io/discord/1359368468260192417?label=Discord)](https://discord.gg/ejRNvftDp9)
 
-  <a href="https://www.surfsense.com/"><img alt="SurfSense, एयर-गैप्ड, ओपन-सोर्स NotebookLM विकल्प" src="surfsense_web/public/homepage/banner.png" /></a>
+  <a href="https://www.surfsense.com/"><img alt="SurfSense, एयर-गैप्ड, ओपन-सोर्स NotebookLM विकल्प" src="www/public/homepage/banner.png" /></a>
 
   <h1>SurfSense</h1>
 
@@ -38,15 +38,21 @@
   </p>
 </div>
 
+**ट्रैक किए गए बदलावों और टिप्पणियों के साथ अनुबंध रेडलाइन करें**
+
 https://github.com/user-attachments/assets/88326b9d-e763-46db-9635-75f9df9e8682
+
+**वेब से स्रोत जोड़ें, फिर उनसे एक वेब पेज बनाएं**
+
+https://github.com/user-attachments/assets/073577b7-f055-4f59-8540-330bd764aeb0
 
 SurfSense एक मुफ़्त, ओपन-सोर्स डेस्कटॉप ऐप है, उन दस्तावेज़ों के लिए जिन्हें आप अपलोड नहीं कर सकते। यह प्राइवेसी को केंद्र में रखकर बना, NotebookLM जैसा AI एजेंट है, जो आपके दस्तावेज़ों पर रिसर्च करता है, उन्हें ट्रांसफ़ॉर्म और एडिट करता है, और यह सब आपकी अपनी मशीन पर। इंडेक्स आपकी डिस्क पर रहता है, मॉडल आप चुनते हैं, चाहे लोकल हो या रिमोट, और कोई अकाउंट नहीं है।
 
 | प्लैटफ़ॉर्म | डाउनलोड |
 |---|---|
-| **Windows** x64 | [SurfSense-Setup.exe](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense-Setup.exe) |
-| **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense-arm64.dmg) |
-| **Linux** x64 | [AppImage](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense.AppImage) · [deb](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense.deb) |
+| **Windows** x64 | [SurfSense-Setup.exe](https://www.surfsense.com/downloads/windows?src=readme) |
+| **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
+| **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
 
 > [!NOTE]
 > **होस्टेड वेब ऐप इस्तेमाल करते थे?** 18 अक्टूबर 2026 से पहले अपने वर्कस्पेस एक्सपोर्ट करें और उन्हें यहाँ इम्पोर्ट कर लें। [सनसेट पेज](https://www.surfsense.com/sunset) देखें।
@@ -94,7 +100,7 @@ SurfSense एक मुफ़्त, ओपन-सोर्स डेस्क�
 | **Walmart** | Walmart के प्रोडक्ट, खोज के नतीजे और रिव्यू पढ़ना |
 | **Indeed** | Indeed पर नौकरियों की लिस्टिंग पढ़ना |
 
-**थर्ड-पार्टी।** [प्लगइन रजिस्ट्री](plugins/registry) के MCP सर्वर, जैसे DeepWiki और Notion, या कोई भी सर्वर जिसे आप URL से जोड़ें। इनके लिए लाइसेंस की ज़रूरत नहीं; जब तक आप अनुमति न दें, ये बंद रहते हैं।
+**थर्ड-पार्टी।** [प्लगइन रजिस्ट्री](backend/plugins/registry) के MCP सर्वर, जैसे DeepWiki और Notion, या कोई भी सर्वर जिसे आप URL से जोड़ें। इनके लिए लाइसेंस की ज़रूरत नहीं; जब तक आप अनुमति न दें, ये बंद रहते हैं।
 
 ## दूसरों से तुलना
 

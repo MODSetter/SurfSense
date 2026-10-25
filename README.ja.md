@@ -11,7 +11,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Discord](https://img.shields.io/discord/1359368468260192417?label=Discord)](https://discord.gg/ejRNvftDp9)
 
-  <a href="https://www.surfsense.com/"><img alt="SurfSense。ネットワークから切り離して使える、オープンソースの NotebookLM 代替" src="surfsense_web/public/homepage/banner.png" /></a>
+  <a href="https://www.surfsense.com/"><img alt="SurfSense。ネットワークから切り離して使える、オープンソースの NotebookLM 代替" src="www/public/homepage/banner.png" /></a>
 
   <h1>SurfSense</h1>
 
@@ -38,15 +38,21 @@
   </p>
 </div>
 
+**契約書に変更履歴とコメントで朱入れ**
+
 https://github.com/user-attachments/assets/88326b9d-e763-46db-9635-75f9df9e8682
+
+**ウェブからソースを追加して、Webページに仕上げる**
+
+https://github.com/user-attachments/assets/073577b7-f055-4f59-8540-330bd764aeb0
 
 SurfSense は、アップロードできない文書のための、無料のオープンソース・デスクトップアプリです。プライバシーを重視した NotebookLM のような AI エージェントが、手元の文書を自分のマシン上で調査し、変換し、編集します。索引は自分のディスクに残り、モデルはローカルでもリモートでも自分で選べます。アカウントも要りません。
 
 | プラットフォーム | ダウンロード |
 |---|---|
-| **Windows** x64 | [SurfSense-Setup.exe](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense-Setup.exe) |
-| **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense-arm64.dmg) |
-| **Linux** x64 | [AppImage](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense.AppImage) · [deb](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense.deb) |
+| **Windows** x64 | [SurfSense-Setup.exe](https://www.surfsense.com/downloads/windows?src=readme) |
+| **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
+| **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
 
 > [!NOTE]
 > **ホスト版の Web アプリを使っていましたか？** 2026 年 10 月 18 日より前にワークスペースをエクスポートし、こちらにインポートしてください。詳細は[提供終了のページ](https://www.surfsense.com/sunset)をご覧ください。
@@ -94,7 +100,7 @@ SurfSense は、アップロードできない文書のための、無料のオ�
 | **Walmart** | Walmart の商品、検索結果、レビューを読み取る |
 | **Indeed** | Indeed の求人情報を読み取る |
 
-**サードパーティ。** [プラグインレジストリ](plugins/registry)にある DeepWiki や Notion などの MCP サーバーや、URL を指定して自分で追加したサーバーです。ライセンスは不要で、許可するまではオフのままです。
+**サードパーティ。** [プラグインレジストリ](backend/plugins/registry)にある DeepWiki や Notion などの MCP サーバーや、URL を指定して自分で追加したサーバーです。ライセンスは不要で、許可するまではオフのままです。
 
 ## SurfSenseの比較
 

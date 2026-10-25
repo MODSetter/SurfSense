@@ -48,6 +48,7 @@ import {
 } from "@/features/settings/settings-dialog"
 import { SourcesPanel } from "@/features/sources/sources-panel"
 import { useSources } from "@/features/sources/use-sources"
+import { useWebSources } from "@/features/sources/web/use-web-sources"
 import { getFileViewer } from "@/features/file-viewers/registry"
 import { SourcePreviewPanel } from "@/features/source-preview/source-preview-panel"
 import { ArtifactList } from "@/features/studio/artifact-list"
@@ -59,7 +60,7 @@ import {
 } from "@/features/office-support/office-offer"
 import { StudioPanel } from "@/features/studio/studio-panel"
 import { useStudio } from "@/features/studio/use-studio"
-import { UpdateButton } from "@/features/updates/update-settings"
+import { TitleBarUpdate } from "@/features/updates/title-bar-update"
 import type { Workspace } from "@/features/workspaces/api"
 import { useWorkspaces } from "@/features/workspaces/use-workspaces"
 import { useStableCallback } from "@/hooks/use-stable-callback"
@@ -135,6 +136,11 @@ function WorkspaceDashboard({
     readSourcePreview(workspace.id)
   )
   const sources = useSources(workspace.id)
+  const webSources = useWebSources(
+    workspace.id,
+    sources.addCreated,
+    onOpenLicense
+  )
   // Which formats Studio offers is the server's answer to what is selected,
   // so it has to be asked again when that changes. The chat model is named
   // here directly; the image model is chosen inside the settings dialog and
@@ -264,6 +270,7 @@ function WorkspaceDashboard({
           onRename={sources.rename}
           folderActions={sources.folderActions}
           notes={sourceNotes}
+          web={webSources}
           transcriptionPaces={sources.transcriptionPaces}
           onOpenSpeechSettings={openSpeechSettings}
         />
@@ -293,6 +300,7 @@ function WorkspaceDashboard({
       sources.rename,
       sources.folderActions,
       sourceNotes,
+      webSources,
       sources.transcriptionPaces,
       openSpeechSettings,
     ]
@@ -377,7 +385,7 @@ function WorkspaceDashboard({
       <OpenArtifactContext.Provider value={openArtifact}>
         <div className="titlebar-controls">
           <div className="titlebar-controls-end">
-            <UpdateButton />
+            <TitleBarUpdate />
             <Tooltip>
               <TooltipTrigger
                 render={

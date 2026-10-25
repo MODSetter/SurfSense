@@ -80,6 +80,10 @@ from modules.llm.subscriptions.plan_usage_frame import plan_usage_frame
 from modules.source_scope.resolve import resolve_scope
 from modules.source_scope.schemas import SourceScope
 from modules.source_scope.thread_scope import store_thread_scope, thread_scope
+from modules.usage_statistics.activity_counts import (
+    count_agent_turn,
+    count_chat_answer,
+)
 from modules.workspaces.dependencies import WorkspaceDep
 from shared.search import Hit, retrieve
 
@@ -268,9 +272,12 @@ async def send_message(
         # new session of the same, hands over.
         taking = await transact(session, selected_engine)
         handover = await take_over(session, thread, taking, launch_key)
-        return await taking.run_turn(
+        started = await taking.run_turn(
             session, thread, payload, launch_key, place, handover
         )
+        # Counted once the engine took the turn; a refused one raised above.
+        await count_agent_turn()
+        return started
     resolved, history, hits, retried, scope_record, indexing = await transact(
         session, _ground, thread, payload
     )
@@ -530,6 +537,9 @@ async def send_message(
                         ending,
                     )
                     assistant_completed_at = _iso(assistant_message.completed_at)
+                    # Only a reply with text counts as the model having answered.
+                    if parts:
+                        await count_chat_answer(selected.provider)
 
         if not parts:
             if not failed:

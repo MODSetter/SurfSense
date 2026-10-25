@@ -4,6 +4,8 @@ name: Desktop Release
 # them to a GitHub Release on the `stable` channel. The legacy 0.0.x desktop
 # reads `latest*.yml`; the `legacy-update-bridge` job below puts those back on
 # every release so it keeps landing on v0.0.40 and its sunset redirect.
+# `release-extras` then adds the install scripts, the apt repository and, last,
+# SHA256SUMS. `snap` packs the Snap Store build; nothing waits on it.
 #
 # Trigger: push a tag like `v2.0.0`, matching surfsense_local/VERSION. Or run
 # manually for a dry run.
@@ -11,7 +13,8 @@ name: Desktop Release
 on:
   push:
     tags:
-      - "v*"
+      # Not v0.*: the 0.0.x line is the legacy stack, tagged legacy-v*.
+      - "v[1-9]*"
   workflow_dispatch:
     inputs:
       version:
@@ -39,6 +42,10 @@ jobs:
   sdcpp:
     uses: ./.github/workflows/build-sdcpp.yml
 
+  # All three compile it; the build job installs it over PyPI's cv2.
+  opencv:
+    uses: ./.github/workflows/build-opencv.yml
+
   # Before the release build: a lapsed Apple agreement fails here in seconds.
   notarization:
     uses: ./.github/workflows/notarization-credentials.yml
@@ -47,14 +54,17 @@ jobs:
     secrets: inherit
 
   build:
-    needs: [audiocpp, sdcpp, notarization]
+    needs: [audiocpp, sdcpp, notarization, opencv]
     runs-on: ${{ matrix.os }}
+    outputs:
+      # Every leg resolves the same number; the snap job stamps it on the snap.
+      version: ${{ steps.version.outputs.VERSION }}
     strategy:
       fail-fast: false
       matrix:
         include:
           # Pinned: `ubuntu-latest` migrates to 26.04 and would silently raise
-          # the AppImage's glibc floor. llama.cpp's Vulkan build needs 2.34.
+          # the Linux floor, which is this image's: glibc 2.35 and GCC 12's libstdc++.
           - os: ubuntu-22.04
             platform: --linux
             electron_cache: ~/.cache/electron
@@ -153,54 +163,41 @@ jobs:
         working-directory: surfsense_local/backend
         run: uv sync
 
+      - name: Fetch the minimal OpenCV build
+        uses: actions/download-artifact@v8
+        with:
+          name: opencv-${{ runner.os }}
+          path: surfsense_local/backend/opencv-wheel
+
+      # The same cv2 with only the modules the app calls, which build-opencv.yml
+      # checked answers every call as PyPI's wheel does. A later `uv run` would
+      # sync PyPI's wheel back, so UV_NO_SYNC keeps the venv as it is from here.
+      - name: Swap in the minimal OpenCV
+        working-directory: surfsense_local/backend
+        run: |
+          uv pip install --python .venv --no-deps --reinstall opencv-wheel/*.whl
+          echo "UV_NO_SYNC=1" >> "$GITHUB_ENV"
+          uv run --no-sync python - <<'PY'
+          import re
+
+          import cv2
+
+          built = re.search(r"To be built:\s*(.*)", cv2.getBuildInformation())[1].split()
+          print("cv2 modules:", *built)
+          assert built == ["core", "flann", "geometry", "imgcodecs", "imgproc", "python3"], built
+          PY
+
       - name: Refuse to build with the test signing key
         working-directory: surfsense_local/backend
         # addopts pins -m 'not packaging'; the later -m on the command line wins.
         run: uv run pytest tests/packaging/test_license_key.py -m packaging
 
-      - name: Freeze API + worker binaries
+      - name: Freeze the backend binary
         working-directory: surfsense_local/backend
         run: uv run scripts/build_binaries.py
 
-      - name: Smoke the frozen Docling vision runtime
-        run: |
-          WORKER="./surfsense_local/backend/dist/worker/worker"
-          if [ "$RUNNER_OS" = "Windows" ]; then WORKER="${WORKER}.exe"; fi
-          "$WORKER" --check-vision-runtime
-          "$WORKER" --check-scan-ocr
-
-      # A script is not analysed when the worker is frozen, so a library the
-      # spec leaves out shows only when a script runs in the shipped worker;
-      # the same holds for the decode child's miniaudio.
-      - name: Run document scripts and decode a recording in the frozen worker
-        working-directory: surfsense_local/backend
-        # addopts pins -m 'not packaging'; the later -m on the command line wins.
-        run: |
-          WORKER="dist/worker/worker"
-          if [ "$RUNNER_OS" = "Windows" ]; then WORKER="${WORKER}.exe"; fi
-          SURFSENSE_TEST_FROZEN_WORKER="$WORKER" uv run pytest tests/packaging/test_frozen_document_scripts.py -m packaging
-
-      - name: Smoke the frozen API
-        run: |
-          set -e
-          API="./surfsense_local/backend/dist/api/api"
-          if [ "$RUNNER_OS" = "Windows" ]; then API="${API}.exe"; fi
-          export SURFSENSE_LOCAL_DATA_DIR="$RUNNER_TEMP/ss-api-smoke"
-          export SURFSENSE_LOCAL_PORT=8137
-          "$API" &
-          PID=$!
-          cleanup() { kill "$PID" 2>/dev/null || true; }
-          trap cleanup EXIT
-          for i in $(seq 1 60); do
-            if curl -fsS "http://127.0.0.1:8137/health" >/dev/null; then
-              echo "health OK"
-              exit 0
-            fi
-            sleep 1
-          done
-          echo "::error::frozen API never became healthy"
-          exit 1
-
+      # Before the frozen checks: OCR and Docling read only the pack's models,
+      # and the bundle carries no copy of its own.
       - name: Stage embedding, voice, voice activity, and Docling parser packs
         working-directory: surfsense_local/backend
         run: |
@@ -208,6 +205,47 @@ jobs:
           uv run scripts/fetch_bundled_voice.py models
           uv run scripts/fetch_silero_vad.py models
           uv run scripts/fetch_docling_models.py models
+
+      - name: Smoke the frozen Docling vision runtime and scan OCR
+        working-directory: surfsense_local/backend
+        run: |
+          BIN="dist/backend/surfsense-backend"
+          if [ "$RUNNER_OS" = "Windows" ]; then BIN="${BIN}.exe"; fi
+          "$BIN" --check-vision-runtime
+          SURFSENSE_LOCAL_MODELS_DIR="$PWD/models" "$BIN" --check-scan-ocr
+
+      # Both roles boot from the one binary, the API role cannot reach the
+      # worker's stack, and what the bundle leaves out stays out.
+      - name: Run both roles of the frozen backend
+        working-directory: surfsense_local/backend
+        # addopts pins -m 'not packaging'; the later -m on the command line wins.
+        run: |
+          BIN="dist/backend/surfsense-backend"
+          if [ "$RUNNER_OS" = "Windows" ]; then BIN="${BIN}.exe"; fi
+          SURFSENSE_TEST_FROZEN_BACKEND="$BIN" uv run pytest tests/packaging/test_real_binaries.py -m packaging
+
+      # The bundle ships torch as bytecode and only the transformers models the
+      # layout engine loads: Docling must read a table and a scan exactly as the
+      # source tree does.
+      - name: Compare the frozen Docling reading with source
+        working-directory: surfsense_local/backend
+        run: |
+          BIN="dist/backend/surfsense-backend"
+          if [ "$RUNNER_OS" = "Windows" ]; then BIN="${BIN}.exe"; fi
+          SURFSENSE_TEST_FROZEN_BACKEND="$BIN" SURFSENSE_LOCAL_MODELS_DIR="$PWD/models" \
+            uv run pytest tests/packaging/test_frozen_docling_reading.py -m packaging
+
+      # A script is not analysed when the backend is frozen, so a library the
+      # spec leaves out shows only when a script runs in the shipped binary;
+      # the same holds for the decode child's miniaudio, and for any native
+      # extension a strip step broke.
+      - name: Run document scripts and decode a recording in the frozen worker
+        working-directory: surfsense_local/backend
+        # addopts pins -m 'not packaging'; the later -m on the command line wins.
+        run: |
+          BIN="dist/backend/surfsense-backend"
+          if [ "$RUNNER_OS" = "Windows" ]; then BIN="${BIN}.exe"; fi
+          SURFSENSE_TEST_FROZEN_BACKEND="$BIN" uv run pytest tests/packaging/test_frozen_document_scripts.py tests/packaging/test_frozen_native_extensions.py -m packaging
 
       - name: Build frontend SPA
         working-directory: surfsense_local/frontend
@@ -263,6 +301,16 @@ jobs:
         working-directory: surfsense_local/electron
         run: pnpm build:notices
 
+      # The rpm target shells out to rpmbuild. Installed after the backend is
+      # frozen, so nothing it pulls in can reach the bundle.
+      - name: Install rpmbuild (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          if ! command -v rpmbuild >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends rpm
+          fi
+
       - name: Package installer
         working-directory: surfsense_local/electron
         env:
@@ -314,13 +362,23 @@ jobs:
           esac
           node scripts/opencode/check-stage.mjs "$DIR"
 
+      # electron-builder only warns when an extraResources folder is missing.
+      - name: Smoke the packaged backend (Windows)
+        if: runner.os == 'Windows'
+        working-directory: surfsense_local/electron
+        run: |
+          BIN=release/win-unpacked/resources/backend/surfsense-backend.exe
+          test -f "$BIN"
+          "$BIN" --check-retrieval-runtime
+          "$BIN" --check-vision-runtime
+
       - name: Smoke the frozen API (Linux)
         if: matrix.os == 'ubuntu-22.04'
         run: |
           set -e
           export SURFSENSE_LOCAL_DATA_DIR="$RUNNER_TEMP/ss-smoke"
           export SURFSENSE_LOCAL_PORT=8137
-          ./surfsense_local/electron/release/linux-unpacked/resources/backend/api/api &
+          ./surfsense_local/electron/release/linux-unpacked/resources/backend/surfsense-backend api &
           API=$!
           for i in $(seq 1 60); do
             if curl -fsS "http://127.0.0.1:8137/health" >/dev/null; then
@@ -359,6 +417,10 @@ jobs:
           test -f "$DIR/espeak/libespeak-ng.so"
           test -d "$DIR/espeak/espeak-ng-data"
           test -f "$DIR/espeak/COPYING"
+          # The trimmed data keeps a script-switch target and drops a language no
+          # curated voice reaches (scripts/audiocpp/espeak/dictionaries.mjs).
+          test -f "$DIR/espeak/espeak-ng-data/te_dict"
+          test ! -e "$DIR/espeak/espeak-ng-data/cmn_dict"
 
       - name: Smoke the bundled sd.cpp (Linux)
         if: matrix.os == 'ubuntu-22.04'
@@ -386,12 +448,72 @@ jobs:
           path: |
             surfsense_local/electron/release/*.AppImage
             surfsense_local/electron/release/*.deb
+            surfsense_local/electron/release/*.rpm
             surfsense_local/electron/release/*.dmg
             surfsense_local/electron/release/*.zip
             surfsense_local/electron/release/*.exe
             surfsense_local/electron/release/*.blockmap
             surfsense_local/electron/release/*.yml
           if-no-files-found: ignore
+
+      # The snap job packs this same app on Ubuntu 24.04, the host a core24 build
+      # needs. tar keeps the modes and symlinks an artifact upload drops. The snap
+      # leaves out package-type and app-update.yml: the store updates it, not
+      # electron-updater. Neither step can fail this job: the snap is informational.
+      - name: Archive the packaged Linux app for the snap
+        if: runner.os == 'Linux'
+        continue-on-error: true
+        working-directory: surfsense_local/electron/release
+        run: |
+          tar --anchored \
+            --exclude=linux-unpacked/resources/package-type \
+            --exclude=linux-unpacked/resources/app-update.yml \
+            -cf - linux-unpacked | zstd -T0 -3 -q -o "$RUNNER_TEMP/linux-unpacked.tar.zst"
+
+      - name: Upload the packaged Linux app for the snap
+        if: runner.os == 'Linux'
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: linux-unpacked
+          path: ${{ runner.temp }}/linux-unpacked.tar.zst
+          compression-level: 0
+          retention-days: 3
+          if-no-files-found: error
+
+      # The dmg is LZFSE (electron-builder.yml `dmg.format`). Checks hdiutil made it
+      # so, that it verifies and mounts, that the app inside is signed, and times the
+      # verify and the copy out a user waits through.
+      - name: Smoke the dmg (macOS)
+        if: runner.os == 'macOS'
+        working-directory: surfsense_local/electron
+        run: |
+          set -euo pipefail
+          DMG=release/SurfSense-arm64.dmg
+          hdiutil imageinfo "$DMG" | grep -E '^Format: ULFO$'
+          time hdiutil verify "$DMG"
+          MNT=$(mktemp -d)
+          time hdiutil attach "$DMG" -nobrowse -readonly -noautoopen -mountpoint "$MNT"
+          trap 'hdiutil detach "$MNT" -force >/dev/null 2>&1 || true' EXIT
+          test -d "$MNT/SurfSense.app"
+          codesign --verify --deep --strict --verbose=2 "$MNT/SurfSense.app"
+          COPY=$(mktemp -d)
+          time ditto "$MNT/SurfSense.app" "$COPY/SurfSense.app"
+          # The backend a Mac user launches: stripped, then signed with the
+          # hardened runtime. Every frozen check above ran it before signing.
+          BIN="$COPY/SurfSense.app/Contents/Resources/backend/surfsense-backend"
+          test -x "$BIN"
+          "$BIN" --check-retrieval-runtime
+          "$BIN" --check-vision-runtime
+          rm -rf "$COPY"
+
+      # Last, after the upload and the dmg's checks, so a run over budget still
+      # keeps its installers and still checks them. Fails when an installer is
+      # missing or over its budget in scripts/installer-size-budgets.json;
+      # prints every size either way.
+      - name: Check installer sizes
+        working-directory: surfsense_local/electron
+        run: node scripts/check-installer-size.mjs
 
   # GitHub's Latest badge is on 2.x, but the legacy 0.0.x desktop resolves
   # updates through /releases/latest and reads latest*.yml from whatever that
@@ -427,3 +549,231 @@ jobs:
           gh release upload "${GITHUB_REF#refs/tags/}" \
             latest.yml latest-mac.yml latest-linux.yml \
             --repo "${GITHUB_REPOSITORY}" --clobber
+
+  # Informational: no job needs it and its failure fails no run, so the snap can
+  # never hold up an installer. On a tag it lands on the Snap Store's candidate
+  # channel; release-channels.yml promotes it to stable once the release is out.
+  snap:
+    needs: build
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      # The app, its copies in the snap's stage and prime, and the snap itself can
+      # outgrow the runner's free disk; the preinstalled SDKs below are never used here.
+      - name: Make room on the runner
+        run: |
+          df -h /
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h /
+
+      - name: Fetch the packaged Linux app
+        uses: actions/download-artifact@v8
+        with:
+          name: linux-unpacked
+          path: ${{ runner.temp }}
+
+      - name: Unpack the packaged Linux app
+        working-directory: surfsense_local/electron
+        run: |
+          mkdir -p release
+          tar --zstd -xf "$RUNNER_TEMP/linux-unpacked.tar.zst" -C release
+          rm "$RUNNER_TEMP/linux-unpacked.tar.zst"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          package_json_file: surfsense_local/electron/package.json
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: surfsense_local/electron/pnpm-lock.yaml
+
+      # Only electron-builder runs here, on an app that is already packaged.
+      - name: Install electron-builder
+        working-directory: surfsense_local/electron
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      # unsquashfs is for the checks below.
+      - name: Install snapcraft
+        run: |
+          sudo snap install snapcraft --classic
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends squashfs-tools
+
+      # snapcraft builds in an LXD container, not on this host: destructive mode
+      # drops electron-builder's GNOME extension, which brings GTK, Mesa and the
+      # fonts. Docker's FORWARD policy here would cut the container off the network.
+      - name: Set up LXD
+        run: |
+          sudo groupadd --force --system lxd
+          sudo usermod --append --groups lxd "$(id -un)"
+          sudo snap install lxd
+          sudo lxd waitready --timeout=300
+          sudo lxd init --auto
+          sudo iptables -P FORWARD ACCEPT
+
+      # As this user, not root: a new sudo session picks up the lxd group added
+      # above, and PATH keeps setup-node's node and /snap/bin.
+      - name: Package the snap
+        working-directory: surfsense_local/electron
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          sudo -u "$(id -un)" -E env "PATH=$PATH" ./node_modules/.bin/electron-builder --linux snap \
+            --prepackaged release/linux-unpacked \
+            --publish never \
+            -c.npmRebuild=false \
+            -c.extraMetadata.version="$VERSION" \
+            -c.snapcraft.core24.useLXD=true
+
+      - name: Check the snap
+        working-directory: surfsense_local/electron/release
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          set -euo pipefail
+          unsquashfs -l SurfSense.snap > "$RUNNER_TEMP/snap-files.txt"
+          grep -qx 'squashfs-root/app/surfsense-local' "$RUNNER_TEMP/snap-files.txt"
+          # Strict confinement runs it with --no-sandbox, so the setuid helper must be gone.
+          if grep -q '/chrome-sandbox$' "$RUNNER_TEMP/snap-files.txt"; then
+            echo "::error::the snap still carries chrome-sandbox"; exit 1
+          fi
+          if grep -qE '/resources/(package-type|app-update\.yml)$' "$RUNNER_TEMP/snap-files.txt"; then
+            echo "::error::the snap carries an electron-updater file; the store updates it"; exit 1
+          fi
+          SNAP_YAML=$(unsquashfs -cat SurfSense.snap meta/snap.yaml)
+          grep -qx 'confinement: strict' <<<"$SNAP_YAML"
+          INFO=$(snap info ./SurfSense.snap)
+          echo "$INFO"
+          grep -qE '^name:[[:space:]]+surfsense-local$' <<<"$INFO"
+          grep -qE "^version:[[:space:]]+${VERSION}([[:space:]]|$)" <<<"$INFO"
+
+      - name: Upload the snap
+        uses: actions/upload-artifact@v7
+        with:
+          name: surfsense-local-snap
+          path: surfsense_local/electron/release/SurfSense.snap
+          compression-level: 0
+          if-no-files-found: error
+
+      - name: Check for Snap Store credentials
+        id: store
+        if: github.event_name == 'push'
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+        run: |
+          if [ -n "$SNAPCRAFT_STORE_CREDENTIALS" ]; then
+            echo "upload=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::SNAPCRAFT_STORE_CREDENTIALS is not set: the snap stays on this run, and the Snap Store keeps its last build."
+          fi
+
+      - name: Upload to the Snap Store's candidate channel
+        if: steps.store.outputs.upload == 'true'
+        working-directory: surfsense_local/electron/release
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+        run: snapcraft upload --release=candidate SurfSense.snap
+
+  # While the release is still a draft, after every upload above: the install
+  # scripts, the apt repository built from the deb on the draft, and last
+  # SHA256SUMS over every asset. Anything uploaded after this job leaves
+  # SHA256SUMS stale; re-run the job then.
+  release-extras:
+    if: github.event_name == 'push'
+    needs: [build, legacy-update-bridge]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      TAG: ${{ github.ref_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      # A re-run after the undraft would re-sign the apt files under users' feet.
+      - name: Refuse a published release
+        run: |
+          if [ "$(gh release view "$TAG" --json isDraft --jq .isDraft)" != true ]; then
+            echo "::error::$TAG is already published; this job only fills the draft."; exit 1
+          fi
+
+      - name: Attach the install scripts
+        run: |
+          gh release upload "$TAG" \
+            surfsense_local/packaging/install/install.sh \
+            surfsense_local/packaging/install/install.ps1 \
+            --clobber
+
+      - name: Check for the apt signing key
+        id: apt
+        env:
+          APT_GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -n "$APT_GPG_PRIVATE_KEY" ]; then
+            echo "sign=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # apt sources follow Latest, so once one release has served the repository, every release must.
+          LATEST_ASSETS=$(gh api "repos/$GH_REPO/releases/latest" --jq '.assets[].name')
+          if grep -qx InRelease <<<"$LATEST_ASSETS"; then
+            echo "::error::APT_GPG_PRIVATE_KEY is not set, but Latest serves an apt repository: publishing $TAG without one would fail every apt user's apt update."
+            exit 1
+          fi
+          echo "::notice::APT_GPG_PRIVATE_KEY is not set and Latest serves no apt repository, so this release carries none either."
+
+      # From the deb on the draft, never a rebuild: Packages pins its exact bytes.
+      - name: Build the apt repository from the draft's deb
+        if: steps.apt.outputs.sign == 'true'
+        env:
+          APT_GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
+          APT_GPG_PASSPHRASE: ${{ secrets.APT_GPG_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          if ! command -v apt-ftparchive >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends apt-utils
+          fi
+          gh release download "$TAG" --pattern SurfSense.deb --dir "$RUNNER_TEMP/deb"
+          bash surfsense_local/packaging/apt/build-apt-repo.sh "$RUNNER_TEMP/deb/SurfSense.deb" "$RUNNER_TEMP/apt"
+          gh release upload "$TAG" "$RUNNER_TEMP"/apt/* --clobber
+
+      # Drafts are missing from /releases/tags/<tag>, so the list is read whole.
+      # A digest can trail its upload by a moment, hence the retries.
+      - name: Write SHA256SUMS from the draft's asset digests
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            gh api --paginate --slurp "repos/$GH_REPO/releases?per_page=100" > "$RUNNER_TEMP/releases.json"
+            if node surfsense_local/packaging/checksums/write-sha256sums.mjs \
+              --releases "$RUNNER_TEMP/releases.json" --tag "$TAG" --out "$RUNNER_TEMP/SHA256SUMS"; then
+              break
+            fi
+            if [ "$attempt" = 3 ]; then exit 1; fi
+            sleep 20
+          done
+          cat "$RUNNER_TEMP/SHA256SUMS"
+          # The API's digests against bytes this job holds.
+          mkdir "$RUNNER_TEMP/held"
+          cp surfsense_local/packaging/install/install.sh surfsense_local/packaging/install/install.ps1 "$RUNNER_TEMP/held/"
+          if [ -d "$RUNNER_TEMP/apt" ]; then
+            cp "$RUNNER_TEMP"/apt/* "$RUNNER_TEMP/held/"
+            ln "$RUNNER_TEMP/deb/SurfSense.deb" "$RUNNER_TEMP/held/SurfSense.deb"
+          fi
+          (cd "$RUNNER_TEMP/held" && sha256sum --check --ignore-missing "$RUNNER_TEMP/SHA256SUMS")
+          gh release upload "$TAG" "$RUNNER_TEMP/SHA256SUMS" --clobber

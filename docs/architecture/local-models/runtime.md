@@ -347,7 +347,7 @@ logs one line per reply from it, such as `qwen3 reused 5442 of 5476 prompt
 tokens` ([`prompt_reuse.py`](../../../surfsense_local/backend/modules/llm/providers/prompt_reuse.py)),
 so a prompt that stopped matching what the runtime holds shows as a number
 rather than as a slow answer. Nothing is asked for it, and nothing leaves the
-machine ([ADR 0016](../../adr/0016-no-telemetry.md)).
+machine; the opt-in usage report carries no such number ([ADR 0070](../../adr/0070-opt-in-id-less-update-checks-and-usage-statistics.md)).
 
 ## The provider
 
@@ -464,7 +464,14 @@ runtime:
   a grandchild process as well as the sidecar; `electron-builder.yml` sets
   `entitlementsInherit`.
 - The release workflow pins `ubuntu-22.04`. `ubuntu-latest` migrates and would
-  silently raise the AppImage's glibc floor; the Vulkan build needs 2.34.
+  silently raise the Linux floor. The pinned Linux archive needs glibc 2.34 and,
+  from the host, GCC 12's libstdc++ (`GLIBCXX_3.4.30`); with the backend's
+  glibc 2.35 that is Ubuntu 22.04, Debian 12, current Fedora and EL10 or later,
+  not RHEL 9 ([packaging](../packaging.md#the-linux-floor)).
+- llama.cpp's Linux libraries, `libggml-base` and every `libggml-cpu-*`, link
+  the host's `libgomp.so.1`, which the archive does not carry. The deb depends
+  on `libgomp1`, the rpm on `(libgomp or libgomp1)`, the Fedora and EL name or
+  openSUSE's, and the snap stages `libgomp1`; the AppImage declares nothing.
 - On Windows, `vulkan-1.dll` is in `System32` on a stock install, so nothing is
   bundled for it.
 - Quitting reaps the whole tree. On Windows the supervisor runs
@@ -472,7 +479,7 @@ runtime:
   `b11050` with a model resident, it terminated four processes depth first with
   no survivors. On macOS and Linux each sidecar is spawned in its own process
   group, which receives `SIGTERM` and then `SIGKILL` after 5 s.
-- `bundling/api.spec` ships `modules/llm/catalog/local/manifest/models.json` at
+- `bundling/api_inputs.py` ships `modules/llm/catalog/local/manifest/models.json` at
   `modules/llm/catalog/local/manifest`. The manifest is read by path, so the analyser cannot see
   it, and a packaging test asserts it is bundled.
 - Release CI stages the runtime with `node scripts/fetch-llamacpp.mjs`, and on
@@ -488,9 +495,14 @@ The rest of the installer is in [`../packaging.md`](../packaging.md).
   because resolving it never touches the sidecar. An install still downloads and
   ends with "Downloaded. It becomes available once the runtime restarts."
 - **No Vulkan loader.** `dlopen` fails, ggml skips the backend silently, and the
-  CPU runs. The `.deb` recommends `libvulkan1`, so apt installs the loader by
-  default on Debian and Ubuntu; a user who declines recommends, or runs the
-  AppImage, which carries no dependency metadata, gets this.
+  CPU runs. The `.deb` recommends `libvulkan1` and the `.rpm` `vulkan-loader`,
+  so apt and dnf install the loader by default, and the snap stages it; a user
+  who declines weak dependencies, or runs the AppImage, which carries no
+  dependency metadata, gets this.
+- **No OpenMP runtime.** Without the host's `libgomp.so.1` the dynamic loader
+  cannot load `libggml-base`, so `llama-server` exits at once and the runtime is
+  missing as above. Only the AppImage can reach this: the deb and the rpm
+  depend on the library and the snap stages it.
 - **A GPU exists and ggml cannot see it.** Reported as `broken_install` rather
   than badged as a CPU-only machine ([`fit.md`](fit.md)).
 - **A quantized cache without a working flash-attention kernel.** llama.cpp falls

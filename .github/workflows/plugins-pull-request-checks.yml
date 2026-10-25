@@ -1,6 +1,6 @@
 name: Plugins Pull Request Checks
 
-# plugins/remote/: the plugin host and every plugin it runs. plugins/bundles/:
+# backend/: the one backend, its license portal, its plugin host and every plugin it runs. backend/plugins/bundles/:
 # the bundle SDK, its tooling and the example, deferred with
 # docs/proposals/plugins/bundles/, whose manifest rules, SDK and CLI it checks.
 
@@ -27,6 +27,7 @@ jobs:
       sdk_or_app_changed: ${{ steps.changed_paths.outputs.sdk_or_app_changed }}
       cli_changed: ${{ steps.changed_paths.outputs.cli_changed }}
       plugin_host_changed: ${{ steps.changed_paths.outputs.plugin_host_changed }}
+      images_changed: ${{ steps.changed_paths.outputs.images_changed }}
 
     steps:
       - name: Checkout code
@@ -40,24 +41,44 @@ jobs:
         with:
           filters: |
             manifest_rules_changed:
-              - 'plugins/bundles/core/manifest/**'
+              - 'backend/plugins/bundles/core/manifest/**'
               - '.github/workflows/plugins-pull-request-checks.yml'
             sdk_changed:
-              - 'plugins/bundles/core/sdk/**'
+              - 'backend/plugins/bundles/core/sdk/**'
               - '.github/workflows/plugins-pull-request-checks.yml'
             # Either side can break the other: a route the SDK calls, or the SDK.
             sdk_or_app_changed:
-              - 'plugins/bundles/core/sdk/**'
+              - 'backend/plugins/bundles/core/sdk/**'
               - 'surfsense_local/backend/**'
               - '.github/workflows/plugins-pull-request-checks.yml'
             # invoke runs the SDK and the example against the real app.
             cli_changed:
-              - 'plugins/bundles/core/**'
-              - 'plugins/bundles/example/**'
+              - 'backend/plugins/bundles/core/**'
+              - 'backend/plugins/bundles/example/**'
               - 'surfsense_local/backend/**'
               - '.github/workflows/plugins-pull-request-checks.yml'
             plugin_host_changed:
-              - 'plugins/remote/**'
+              - 'backend/server/**'
+              - 'backend/license/**'
+              - 'backend/mailer/**'
+              - 'backend/plugins/host/**'
+              - 'backend/plugins/mcp_server/**'
+              - 'backend/plugins/proprietary/**'
+              - 'backend/pyproject.toml'
+              - 'backend/uv.lock'
+              - 'backend/ruff.toml'
+              - '.github/workflows/plugins-pull-request-checks.yml'
+            # What either image copies in: a wrong path fails here, not at Coolify's build.
+            images_changed:
+              - 'backend/server/**'
+              - 'backend/license/**'
+              - 'backend/mailer/**'
+              - 'backend/plugins/host/**'
+              - 'backend/plugins/mcp_server/**'
+              - 'backend/plugins/proprietary/**'
+              - 'backend/plugins/registry/**'
+              - 'backend/pyproject.toml'
+              - 'backend/uv.lock'
               - '.github/workflows/plugins-pull-request-checks.yml'
 
   check-manifest-rules:
@@ -70,7 +91,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
 
-      # The Python the app ships to plugins, per plugins/bundles/core/build-targets.json.
+      # The Python the app ships to plugins, per backend/plugins/bundles/core/build-targets.json.
       - name: Setup uv
         uses: astral-sh/setup-uv@v10.2.0
         with:
@@ -78,19 +99,19 @@ jobs:
           python-version: '3.12'
 
       - name: Install dependencies
-        working-directory: plugins/bundles/core/manifest
+        working-directory: backend/plugins/bundles/core/manifest
         run: uv sync
 
       - name: Lint
-        working-directory: plugins/bundles/core/manifest
+        working-directory: backend/plugins/bundles/core/manifest
         run: uv run ruff check .
 
       - name: Check formatting
-        working-directory: plugins/bundles/core/manifest
+        working-directory: backend/plugins/bundles/core/manifest
         run: uv run ruff format --check .
 
       - name: Run unit tests
-        working-directory: plugins/bundles/core/manifest
+        working-directory: backend/plugins/bundles/core/manifest
         run: uv run pytest -m unit
 
   check-sdk:
@@ -103,7 +124,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
 
-      # The Python the app ships to plugins, per plugins/bundles/core/build-targets.json.
+      # The Python the app ships to plugins, per backend/plugins/bundles/core/build-targets.json.
       - name: Setup uv
         uses: astral-sh/setup-uv@v10.2.0
         with:
@@ -111,24 +132,24 @@ jobs:
           python-version: '3.12'
 
       - name: Install dependencies
-        working-directory: plugins/bundles/core/sdk
+        working-directory: backend/plugins/bundles/core/sdk
         run: uv sync
 
       - name: Lint
-        working-directory: plugins/bundles/core/sdk
+        working-directory: backend/plugins/bundles/core/sdk
         run: uv run ruff check .
 
       - name: Check formatting
-        working-directory: plugins/bundles/core/sdk
+        working-directory: backend/plugins/bundles/core/sdk
         run: uv run ruff format --check .
 
       # Strict, because every plugin is type-checked against what the SDK declares.
       - name: Check types
-        working-directory: plugins/bundles/core/sdk
+        working-directory: backend/plugins/bundles/core/sdk
         run: uv run pyright
 
       - name: Run unit tests
-        working-directory: plugins/bundles/core/sdk
+        working-directory: backend/plugins/bundles/core/sdk
         run: uv run pytest -m unit
 
   check-sdk-against-the-app:
@@ -153,11 +174,11 @@ jobs:
         run: uv sync
 
       - name: Install the SDK's dependencies
-        working-directory: plugins/bundles/core/sdk
+        working-directory: backend/plugins/bundles/core/sdk
         run: uv sync
 
       - name: Run contract tests
-        working-directory: plugins/bundles/core/sdk
+        working-directory: backend/plugins/bundles/core/sdk
         run: uv run pytest -m contract
 
   check-cli:
@@ -182,19 +203,19 @@ jobs:
         run: uv sync
 
       - name: Install dependencies
-        working-directory: plugins/bundles/core/cli
+        working-directory: backend/plugins/bundles/core/cli
         run: uv sync
 
       - name: Lint
-        working-directory: plugins/bundles/core/cli
+        working-directory: backend/plugins/bundles/core/cli
         run: uv run ruff check .
 
       - name: Check formatting
-        working-directory: plugins/bundles/core/cli
+        working-directory: backend/plugins/bundles/core/cli
         run: uv run ruff format --check .
 
       - name: Run tests
-        working-directory: plugins/bundles/core/cli
+        working-directory: backend/plugins/bundles/core/cli
         run: uv run pytest
 
   check-plugin-host:
@@ -222,18 +243,47 @@ jobs:
           python-version: '3.12'
 
       - name: Install dependencies
-        working-directory: plugins/remote/host
+        working-directory: backend
         run: uv sync
 
-      # plugins/remote/ is the import root: the host, mcp_server/ and proprietary/.
+      # The backend's own code; bundles/ and registry/check/ are checked by their own jobs.
       - name: Lint
-        working-directory: plugins/remote/host
-        run: uv run ruff check ..
+        working-directory: backend
+        run: uv run ruff check server license mailer plugins/host plugins/mcp_server plugins/proprietary
 
       - name: Check formatting
-        working-directory: plugins/remote/host
-        run: uv run ruff format --check ..
+        working-directory: backend
+        run: uv run ruff format --check server license mailer plugins/host plugins/mcp_server plugins/proprietary
 
       - name: Run tests
-        working-directory: plugins/remote/host
+        working-directory: backend
         run: uv run pytest
+
+  build-images:
+    name: Build images
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.images_changed == 'true'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      # Built as Coolify builds them, and never pushed.
+      - name: Build the backend image
+        uses: docker/build-push-action@v7
+        with:
+          context: backend
+          file: backend/server/Dockerfile
+          push: false
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,scope=backend,mode=max
+
+      - name: Build the registry image
+        uses: docker/build-push-action@v7
+        with:
+          context: backend/plugins/registry
+          push: false

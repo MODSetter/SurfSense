@@ -37,7 +37,6 @@ class RegistryEntryRead(BaseModel):
     auth_headers: list[EntryHeaderRead] = []
     # An `oauth` entry whose provider takes only apps registered in advance.
     user_client: bool = False
-    transport: str = "streamable_http"
     hosts: list[str]
     # The host every call goes to; the rest, an OAuth plugin's, see only the sign-in.
     server_host: str
@@ -91,7 +90,6 @@ def read_registry(session: Session, current: CurrentRegistry) -> RegistryRead:
                     for h in entry.auth.headers or []
                 ],
                 user_client=entry.auth.user_client,
-                transport=entry.transport or "streamable_http",
                 hosts=entry.hosts,
                 server_host=_server_host(entry.url),
                 sign_in_hosts=[
