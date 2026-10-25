@@ -23,7 +23,7 @@ At the desktop's pins, upstream llama.cpp (`b11050`) publishes Linux builds for 
 ## Consequences
 
 - A release compiles sd.cpp once per variant, and one of those is CUDA; audio.cpp comes from the desktop release's artifact.
-- Hosts need driver 570 or newer for `-cuda`, or 525 or newer with an RTX 30 or RTX 40. A host that cannot reach either runs the CPU image.
+- Hosts need CUDA 12.8's driver floor for `-cuda`, 570.26 on Linux and 570.65 on Windows, which the image enforces through `NVIDIA_REQUIRE_CUDA`. A host that cannot reach it runs the CPU image.
 - A legacy self-hoster with `SURFSENSE_VARIANT=cuda126` changes it to `cuda`.
 - Older cards compile PTX on their first run, so the image keeps the driver's cache in `/data`.
 - Voice runs on the CPU in every variant, as on the desktop.

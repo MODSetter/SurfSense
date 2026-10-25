@@ -23,7 +23,7 @@ The desktop app ships Vulkan and no CUDA because of installer size ([ADR 0012](.
 | `X.Y.Z-cuda13`, `latest-cuda13` | 13.3 | later | later | Turing (RTX 20) to Blackwell |
 
 - **`-cuda` is the GPU image.** CUDA 12.8 covers every NVIDIA card CUDA 12 supports, Blackwell included, so on amd64 a CUDA 13 image adds only a newer driver floor.
-- **`-cuda13` comes with arm64.** Upstream's only arm64 CUDA build of llama.cpp is 13.3, so one variant name covers arm64 boards (Jetson, Grace) and amd64 hosts that want CUDA 13. CUDA 13 drops Maxwell, Pascal and Volta, so `-cuda` stays the default.
+- **`-cuda13` comes with arm64.** Upstream's only arm64 CUDA build of llama.cpp is 13.3, so one variant name covers arm64 boards (Jetson, Grace) and amd64 hosts that want CUDA 13. CUDA 13 drops Maxwell, Pascal and Volta and needs the R610 driver branch, so `-cuda` stays the default.
 - **No `-cuda126`.** The legacy image had it for GPU torch, whose cu126 wheels serve older drivers ([`docker-build.yml`](https://github.com/MODSetter/SurfSense/blob/legacy/.github/workflows/docker-build.yml) on `legacy`). Here torch stays on the CPU, and upstream ships no CUDA 12.6 llama.cpp, so the variant would compile llama.cpp and sd.cpp on every release for hosts on drivers 560 to 569. A legacy self-hoster with `SURFSENSE_VARIANT=cuda126` sets `cuda`.
 
 ## What runs on the GPU
@@ -74,7 +74,9 @@ Each image carries only its own ggml backend: CPU, or CUDA, never CUDA and Vulka
 ## The host
 
 - **Linux:** the NVIDIA driver and the NVIDIA Container Toolkit. **Windows:** the NVIDIA driver and Docker Desktop on WSL2, which passes the card through.
-- **Driver.** CUDA 12.8 needs driver 570 or newer. RTX 30 and RTX 40 cards, whose device code is in the build, also run on 12.x drivers from 525 under CUDA's minor version compatibility; older cards run from PTX, which needs 570. Driver 580, NVIDIA's last branch for Maxwell, Pascal and Volta, meets that.
+- **Driver.** `-cuda` needs **570.26 or newer** on Linux and **570.65 or newer** on Windows, CUDA 12.8's floors in [NVIDIA's release notes](https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html). Driver 580, NVIDIA's last branch for Maxwell, Pascal and Volta, meets them. CUDA's minor version compatibility would let some 12.x drivers from 525 run it, but NVIDIA's own CUDA 12.8 images refuse those on GeForce cards, and so does this one.
+- **One floor, kept beside the pin.** `runtimes/` holds the CUDA version with its Linux and Windows floors next to the llama.cpp asset it comes from, and a test fails if the asset's CUDA version and the floor's disagree. A bump that moves llama.cpp to a new CUDA changes the floor in the same commit; the installer, the image and the docs all read it.
+- **The image enforces it.** The final image sets `NVIDIA_REQUIRE_CUDA=cuda>=12.8`, as NVIDIA's CUDA images do, so the NVIDIA Container Toolkit refuses to start it on an older driver, before anything runs. The image is plain Ubuntu, so nothing sets this unless it does.
 - **The first run on an older card.** The driver compiles the PTX for Maxwell to Ampere on first use, which takes minutes, and caches it. The image sets `CUDA_CACHE_PATH=/data/cache/cuda`, so the cache survives an update instead of being rebuilt in every new container.
 - **The image asks for compute only:** `NVIDIA_DRIVER_CAPABILITIES=compute,utility`.
 
@@ -82,7 +84,7 @@ Each image carries only its own ggml backend: CPU, or CUDA, never CUDA and Vulka
 
 Compose and the image cannot see the host's card, so the variant is chosen before the container starts, in one of two ways.
 
-- **The installer detects it.** `docker/scripts/install.sh` checks for a working `nvidia-smi`, for the NVIDIA Container Toolkit (`docker info`, `nvidia-ctk`) and for a driver new enough for `-cuda`, as the legacy installer's `host_has_nvidia_gpu`, `gpu_runtime_available` and `recommend_cuda_variant` do. With all three, it writes `SURFSENSE_VARIANT=cuda` and starts Compose with the GPU file. With a card but no toolkit, it installs the CPU image and says how to enable the card. `--gpu`, `--cpu`, `--variant=cpu|cuda` and `--gpu-count=N|all` override it.
+- **The installer detects it.** `docker/scripts/install.sh` checks for a working `nvidia-smi`, for the NVIDIA Container Toolkit (`docker info`, `nvidia-ctk`) and for a driver at or above the pinned floor (`nvidia-smi --query-gpu=driver_version`), as the legacy installer's `host_has_nvidia_gpu`, `gpu_runtime_available` and `recommend_cuda_variant` do. With all three, it writes `SURFSENSE_VARIANT=cuda` and starts Compose with the GPU file. With a card but no toolkit, or a driver below the floor, it installs the CPU image and says what to update. `--gpu`, `--cpu`, `--variant=cpu|cuda` and `--gpu-count=N|all` override it.
 - **By hand.** `SURFSENSE_VARIANT=cuda` in `.env`, and `docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d`; or `docker run --gpus all ghcr.io/modsetter/surfsense:latest-cuda`.
 
 Users pull the published images; building one (`--build-arg VARIANT=cuda`) is for contributors.
@@ -124,13 +126,9 @@ These continue the [Docker proposal's steps](README.md#steps), after the CPU ima
 
 12. `-cuda` on amd64: llama.cpp from upstream's CUDA 12.8 build, sd.cpp's `cuda` variant, the GPU override file and `CUDA_CACHE_PATH`.
 13. The no-GPU refusal.
-14. On real hardware: a chat turn and an image on `-cuda`, on an RTX 30 or newer and on a GTX 10 or RTX 20 card, with the fit estimate reading the card's memory and the `q8_0` KV cache on fused kernels.
+14. On real hardware: a chat turn and an image on `-cuda`, on an RTX 30 or newer and on a GTX 10 or RTX 20 card, one of them on a driver at the floor, with the fit estimate reading the card's memory and the `q8_0` KV cache on fused kernels; and the toolkit refusing the image on a driver below it.
 
 **Later, with arm64:** the CPU image on arm64, and `-cuda13` on arm64 and amd64.
-
-## Open questions
-
-- The driver floors above, against NVIDIA's compatibility table, before the docs state them.
 
 ## Not in scope
 

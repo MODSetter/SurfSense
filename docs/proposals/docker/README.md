@@ -61,6 +61,19 @@ volume /data = SURFSENSE_LOCAL_DATA_DIR
 
 One container, because the stack assumes one machine: SQLite and the Huey queue share a filesystem, the SSE broker is in memory, workers post to `/internal/events` on loopback ([`worker/notify.py`](../../../surfsense_local/backend/worker/notify.py)), and egress exempts only loopback. Split across containers, each of those breaks; in one, none changes.
 
+### Networks
+
+| Network | What is on it | Who reaches it |
+|---|---|---|
+| The container's loopback | the API, the workers, the model servers and opencode, each on a free port | processes in the container only |
+| Compose's default bridge | the container's interface, with only Caddy listening, on `:80` and, with a domain, `:443` | the host, through the published port |
+| The published port | `${SURFSENSE_BIND:-127.0.0.1}:${SURFSENSE_PORT:-3929}` → `80` | the host machine alone by default; the LAN with `SURFSENSE_BIND=0.0.0.0` |
+| Outbound | NAT through the bridge | remote providers, model downloads and the plugin host, under the backend's egress rules |
+
+- **No container talks to another.** The legacy services reached each other by name on the Compose network (`db`, `redis`, `backend`); here every call stays on loopback.
+- **Two locks on the way in.** Docker publishes on the host's loopback unless `SURFSENSE_BIND` widens it, and Caddy refuses a non-local `Host` until a password is set ([Caddy and access](#caddy-and-access)).
+- **No Docker socket.** The legacy OpenSandbox mounted `/var/run/docker.sock`, which is root on the host; this container needs nothing from the host but the volume and, on `-cuda`, the card ([`gpu.md`](gpu.md)).
+
 ## One core, two entries
 
 `surfsense_local` is split by what runs where, as Actual Budget, Element and Trilium split theirs ([ADR 0072](../../adr/0072-the-desktop-and-the-container-are-two-entries-over-one-core.md)):
@@ -148,6 +161,8 @@ Inside the image, the repository's layout under `/app`, so every relative path t
 | `/data/` | the volume |
 
 ## Caddy and access
+
+Caddy is the one door in. A published port reaches the container's interface, never its loopback, so something must listen there and forward inward, and the API cannot be that: nothing authenticates it, and `/internal/events` is protected only by its loopback bind (ADR 0035). Caddy also serves `frontend/dist`, which Electron loads from disk on the desktop, on the same origin as `/api`, and holds the `Host` check, the password and HTTPS, so none of that is application code. It runs as one more sidecar in the container, not as a service of its own.
 
 | Setting | Caddy answers | Auth |
 |---|---|---|
