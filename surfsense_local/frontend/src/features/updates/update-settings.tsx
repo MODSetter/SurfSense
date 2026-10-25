@@ -1,10 +1,4 @@
 import { Button } from "@/components/ui/button"
-import { DownloadCircle02Icon } from "@/components/ui/icons"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
 import { updatesText } from "@/features/privacy-choices/choice-text"
 import { DetailsTooltip } from "@/features/privacy-choices/details-tooltip"
 import { updatesLockedText } from "@/features/privacy-choices/locked-text"
@@ -156,49 +150,5 @@ export function UpdateSettings() {
         </Button>
       )}
     </div>
-  )
-}
-
-/**
- * Sits in the title bar and appears only once an update has been downloaded
- * and is waiting. Shaped exactly like the right-panel toggle beside it — ghost,
- * same size — so only the color sets it apart.
- *
- * The title bar is `position: fixed`, so this button is out of the document
- * flow: rendering nothing costs no space and cannot disturb the layout around
- * it.
- */
-export function UpdateButton() {
-  const state = useUpdateState()
-  if (state.status !== "ready") return null
-  const label = intl.formatMessage(
-    {
-      id: "updates_title_bar_restart_tooltip",
-      defaultMessage: "Restart to install {version}",
-    },
-    {
-      version: state.version,
-    }
-  )
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label={label}
-            className="pointer-events-auto size-6 text-notice hover:text-notice"
-            onClick={() => void updatesBridge()?.install()}
-          >
-            <DownloadCircle02Icon />
-          </Button>
-        }
-      />
-      <TooltipContent side="bottom" collisionPadding={8}>
-        {label}
-      </TooltipContent>
-    </Tooltip>
   )
 }

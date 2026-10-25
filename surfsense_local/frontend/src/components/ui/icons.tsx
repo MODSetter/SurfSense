@@ -6,6 +6,7 @@ import {
   AiImageEditIcon as AiImageEditIconData,
   AiSearchLinesIcon as AiSearchLinesIconData,
   ArrowDownIcon as ArrowDownIconData,
+  ArrowDown02Icon as ArrowDown02IconData,
   ArrowExpand01Icon as ArrowExpand01IconData,
   ArrowLeftIcon as ArrowLeftIconData,
   ArrowRightIcon as ArrowRightIconData,
@@ -135,6 +136,7 @@ export const AiEditingIcon = createIcon(AiEditingIconData)
 export const AiImageEditIcon = createIcon(AiImageEditIconData)
 export const AiSearchLinesIcon = createIcon(AiSearchLinesIconData)
 export const ArrowDownIcon = createIcon(ArrowDownIconData)
+export const ArrowDown02Icon = createIcon(ArrowDown02IconData)
 export const ArrowExpand01Icon = createIcon(ArrowExpand01IconData)
 export const ArrowLeftIcon = createIcon(ArrowLeftIconData)
 export const ArrowRightIcon = createIcon(ArrowRightIconData)

@@ -11,19 +11,23 @@ const GITHUB_HOST = "github.com"
 /**
  * The one way to check: Settings › About, the sidebar's update row and the app
  * menu. Settings › Network promises a check is refused until allowed, so while
- * update checks are off it asks first, naming where the check goes.
+ * update checks are off it asks first, naming where the check goes. Resolves
+ * to whether a check was started.
  */
 export function useCheckForUpdates() {
   const { prefs, setAutomatic } = useUpdatePrefs()
-  return async () => {
+  return async (): Promise<boolean> => {
     const updates = updatesBridge()
-    if (!updates) return
+    if (!updates) return false
     const bridge = privacyBridge()
     const privacy = bridge ? await bridge.getState().catch(() => null) : null
     // A policy that turned updates off leaves nothing to ask or check.
-    if (privacy?.updates.locked) return
+    if (privacy?.updates.locked) return false
     const current = prefs ?? (await updates.prefs())
-    if (current.automatic) return void updates.check()
+    if (current.automatic) {
+      await updates.check()
+      return true
+    }
     const allowed = await askEgress({
       destination: "app_updates",
       host: bridge ? (privacy?.updates.host ?? UPDATE_HOST) : GITHUB_HOST,
@@ -36,5 +40,6 @@ export function useCheckForUpdates() {
       allow: () => setAutomatic(true),
     })
     if (allowed) await updates.check()
+    return allowed
   }
 }

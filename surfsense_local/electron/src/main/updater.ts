@@ -24,7 +24,8 @@ export type UpdateState =
   | { status: "idle" }
   | { status: "checking" }
   | { status: "up-to-date" }
-  | { status: "downloading"; version: string }
+  // percent: whole percents, null until the download's size is known.
+  | { status: "downloading"; version: string; percent: number | null }
   | { status: "ready"; version: string }
   | { status: "error"; message: string }
 
@@ -104,8 +105,15 @@ export function attachUpdater(
   // `updater.channel`, whose setter turns on allowDowngrade.
   updater.setFeedURL(surfSenseFeedOptions(feed))
   updater.on("update-available", (info: { version: string }) => {
-    set({ status: "downloading", version: info.version })
+    set({ status: "downloading", version: info.version, percent: null })
     updater.downloadUpdate().catch(() => undefined)
+  })
+  // Sent once per whole percent, so the window is not redrawn many times a second.
+  updater.on("download-progress", (progress: { percent: number; total: number }) => {
+    if (current.status !== "downloading") return
+    const percent =
+      progress.total > 0 ? Math.min(100, Math.max(0, Math.floor(progress.percent))) : null
+    if (percent !== current.percent) set({ ...current, percent })
   })
   updater.on("update-downloaded", (info: { version: string }) => {
     set({ status: "ready", version: info.version })

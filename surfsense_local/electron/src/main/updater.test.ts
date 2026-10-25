@@ -64,13 +64,44 @@ test("a found update is downloaded and offered, and waits for a restart or a qui
   assert.deepEqual(fake.calls, ["check", "download"])
   assert.deepEqual(states, [
     { status: "checking" },
-    { status: "downloading", version: "1.0.1" },
+    { status: "downloading", version: "1.0.1", percent: null },
     { status: "ready", version: "1.0.1" },
   ])
   assert.deepEqual(updates.state(), { status: "ready", version: "1.0.1" })
 
   updates.install()
   assert.deepEqual(fake.calls, ["check", "download", "install"])
+})
+
+test("a download reports its progress in whole percents, once per step", async () => {
+  const fake = fakeAutoUpdater()
+  const states: UpdateState[] = []
+  const updates = attachUpdater(fake.updater, (state) => states.push(state), FEED)
+
+  await updates.check()
+  fake.emit("update-available", { version: "1.0.1" })
+  for (const percent of [0.4, 12.2, 12.9, 64.5, 100])
+    fake.emit("download-progress", { percent, total: 1000 })
+  // No size known yet, so no percentage to show.
+  fake.emit("download-progress", { percent: 0, total: 0 })
+
+  assert.deepEqual(
+    states.slice(1).map((state) => (state.status === "downloading" ? state.percent : state.status)),
+    [null, 0, 12, 64, 100, null]
+  )
+  assert.deepEqual(updates.state(), { status: "downloading", version: "1.0.1", percent: null })
+})
+
+test("progress after the download finished leaves it ready", async () => {
+  const fake = fakeAutoUpdater()
+  const updates = attachUpdater(fake.updater, () => undefined, FEED)
+
+  await updates.check()
+  fake.emit("update-available", { version: "1.0.1" })
+  fake.emit("update-downloaded", { version: "1.0.1" })
+  fake.emit("download-progress", { percent: 100, total: 1000 })
+
+  assert.deepEqual(updates.state(), { status: "ready", version: "1.0.1" })
 })
 
 test("checks go through SurfSense's feed provider, with no headers left for downloads", () => {
