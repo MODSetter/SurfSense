@@ -8,7 +8,7 @@
  * No React and no directives, so server and client code can both import it.
  */
 
-export const APP_RELEASE_VERSION = "2.2.3";
+export const APP_RELEASE_VERSION = "2.2.4";
 
 export const APP_RELEASE_TAG = `v${APP_RELEASE_VERSION}`;
 
