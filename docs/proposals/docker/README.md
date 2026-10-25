@@ -12,6 +12,8 @@ code:
   - surfsense_local/backend/api/main.py
   - surfsense_local/backend/modules/plugins/lists/registry/registry_origin.py
   - surfsense_local/frontend/src/lib/api.ts
+  - surfsense_local/frontend/src/features/models/remote/connections/claude/
+  - surfsense_local/backend/modules/llm/subscriptions/claude/status.py
   - .github/workflows/docker-surfsense.yml
   - .github/workflows/desktop-tests.yml
   - .github/workflows/build-audiocpp.yml
@@ -99,7 +101,7 @@ surfsense_local/
 
 1. **The context.** `context-from-env.ts` sets all ten `BootContext` fields: `packaged: false`, the backend and runtime folders under `/app`, `dataDir` from `SURFSENSE_LOCAL_DATA_DIR` (default `/data`), and the models folder.
 2. **The secret, before boot.** `SURFSENSE_LOCAL_SECRET` from the environment, else `/data/secret`, created once with mode 0600 and never regenerated. Node settles it before any Python starts, so four processes never race to create the file that [`shared/secrets.py`](../../../surfsense_local/backend/shared/secrets.py) falls back to.
-3. **The packaged-only environment.** `HF_HUB_OFFLINE=1`, which [`python.ts`](../../../surfsense_local/electron/src/main/sidecars/python.ts) sets only when `packaged` is true, and `SURFSENSE_LOCAL_SIGNED_REGISTRY=1` (below).
+3. **The container's environment.** `HF_HUB_OFFLINE=1`, which [`python.ts`](../../../surfsense_local/electron/src/main/sidecars/python.ts) sets only when `packaged` is true; `SURFSENSE_LOCAL_SIGNED_REGISTRY=1` (below); `SURFSENSE_LOCAL_RUNTIME=docker`, which the API reports where an answer differs in a container; and `HOME=/data/home`, created if missing, so what a user installs in the container keeps across updates ([Claude subscriptions](#claude-subscriptions)).
 4. **No previews.** Word and web-page previews render in a hidden `BrowserWindow`, so headless passes no `docxSnapshotKey`, and the agent skips previews instead of waiting 30 s for each.
 5. **Boot and health.** `bootSidecars`, then `/health` within 60 s, then Caddy as one more sidecar. It writes `/data/api-url` as `announceApiUrl` does, so `surfsense-plugins invoke` works inside the container.
 6. **Signals and exit.** SIGTERM and SIGINT stop the watchers, then every child's process group. The API exiting stops the container with a non-zero code, so Compose's `restart:` applies; any other sidecar is restarted by the supervisor, as on the desktop.
@@ -189,8 +191,26 @@ Every bridge call is already optional (`window.surfsense?.…`). The build for t
 | electron-updater | hidden; updating is pulling a newer tag |
 | Keychain secret ([ADR 0018](../../adr/0018-keychain-envelope-encryption.md)) | `SURFSENSE_LOCAL_SECRET`, else `/data/secret` ([the headless entry](#the-headless-entry)) |
 | Word and web-page previews | off: they render in a hidden `BrowserWindow` |
+| Claude subscription, through the user's own Claude Code | the same, with Claude Code installed in the container ([below](#claude-subscriptions)) |
 | Session log, About details, crash toast | hidden |
 | Theme, locale, external links | the browser fallbacks that exist |
+
+### Claude subscriptions
+
+SurfSense ships no Claude Code ([`locate.py`](../../../surfsense_local/backend/modules/llm/subscriptions/claude/locate.py)), in the image as on the desktop. The user installs it in the container and signs in there, and SurfSense finds it as it does on a desktop.
+
+- **Where it lives.** Anthropic's installer puts `claude` in `~/.local/bin`, which `locate.py` searches, and the sign-in in `~/.claude`. With `HOME` on `/data`, both survive an image update, and Claude Code's own updates land there too.
+- **Where the user learns how.** Clicking the Claude subscription connection opens [`claude-dialog.tsx`](../../../surfsense_local/frontend/src/features/models/remote/connections/claude/claude-dialog.tsx), which reads Claude Code's state from the API and says what to do next, with **Check again**. Its steps say "on this computer" and "open a terminal", which in Docker point at the host. When the API reports `SURFSENSE_LOCAL_RUNTIME=docker`, the claude status says so, and each state shows the container's commands, each with a copy button:
+
+  | State | In Docker |
+  |---|---|
+  | `not_installed` | `docker compose exec surfsense sh -c 'curl -fsSL https://claude.ai/install.sh \| bash'`, then the sign-in below, then Check again |
+  | `signed_out` | `docker compose exec -it surfsense claude`, then `/login` with the Claude account |
+  | `too_old` | the install command again, which updates it |
+
+  **Open install guide** opens the Docker section of the docs instead of Anthropic's desktop guide.
+- **No redirect.** Claude Code signs in by a code pasted back into the terminal, so the browser can be on any machine.
+- **Commands by service name.** `docker compose exec surfsense` runs as the image's user, the one the API runs as, and needs no container name.
 
 ## Data and license
 
@@ -198,7 +218,7 @@ Every bridge call is already optional (`window.surfsense?.…`). The build for t
 - Migrations run when the API starts, after a backup to `backups/` ([ADR 0005](../../adr/0005-hand-written-migrations.md)); workers never migrate.
 - The license is entered in the app and kept in the database, verified offline with the keys built into the image. It has no machine binding ([ADR 0019](../../adr/0019-offline-licenses.md)), so the same license works on a desktop and a server, and it gates the same things.
 - The Office runtime pack downloads into `runtime/office/` on first use, as on the desktop; the image carries the system libraries LibreOffice needs.
-- The container runs as a non-root `surfsense` user, which owns `/data`.
+- The container runs as a non-root `surfsense` user, which owns `/data`, `HOME` included.
 
 ## The image
 
@@ -324,7 +344,6 @@ Then the maintainers write `architecture/docker.md`, update the root README, bot
 ## Open questions
 
 - Sign-in flows that return to a loopback address: ChatGPT sign-in listens on a port inside the container, and plugin sign-in returns through `plugins.surfsense.com`. Neither has been tried from a host browser.
-- Claude subscriptions need the `claude` CLI, which the image does not carry.
 
 ## Not in scope
 
