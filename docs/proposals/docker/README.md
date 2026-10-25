@@ -2,23 +2,28 @@
 status: in-progress
 tracking: https://github.com/MODSetter/SurfSense/issues/2100
 code:
-  - docker/local/
+  - docker/surfsense/
   - docker/scripts/
-  - surfsense_local/electron/src/main/sidecars/
-  - surfsense_local/electron/scripts/
+  - surfsense_local/sidecars/
+  - surfsense_local/runtimes/
+  - surfsense_local/headless/
   - surfsense_local/electron/src/main/index.ts
-  - surfsense_local/electron/src/headless/
   - surfsense_local/backend/api/config.py
   - surfsense_local/backend/api/main.py
+  - surfsense_local/backend/modules/plugins/lists/registry/registry_origin.py
   - surfsense_local/frontend/src/lib/api.ts
-  - .github/workflows/docker-local.yml
+  - .github/workflows/docker-surfsense.yml
+  - .github/workflows/desktop-tests.yml
+  - .github/workflows/build-audiocpp.yml
+  - .github/workflows/build-sdcpp.yml
+  - .github/workflows/release-local.yml
 ---
 
 # Running SurfSense in Docker
 
-> The desktop app's stack, minus Electron, as one container: a supervisor shared with Electron runs the API, the workers and the model servers on loopback, and Caddy is the only thing listening. It replaces the legacy self-host compose. The decision is [ADR 0035](../../adr/0035-docker-compose-runs-the-desktop-stack.md); GPU images are in [`gpu.md`](gpu.md).
+> The desktop app's stack, minus Electron, as one container. `surfsense_local` becomes one core with two entries: Electron for the desktop, a headless Node entry for the container. The headless entry runs the same supervisor as Electron, which starts the API, the workers, the model servers and opencode on loopback; Caddy is the only thing listening. It replaces the legacy self-host compose. The decisions are [ADR 0035](../../adr/0035-docker-compose-runs-the-desktop-stack.md), [ADR 0072](../../adr/0072-the-desktop-and-the-container-are-two-entries-over-one-core.md) and [ADR 0073](../../adr/0073-the-docker-gpu-image-is-one-cuda-12-8-variant-from-upstream-builds.md); GPU images are in [`gpu.md`](gpu.md).
 
-**Status, 11 Oct 2026:** [steps](#steps) 1 to 3 are built: the CORS origins setting ([#2122](https://github.com/MODSetter/SurfSense/pull/2122)), the `VITE_API_BASE` fallback ([#2134](https://github.com/MODSetter/SurfSense/pull/2134)), and boot and the watchers in `sidecars/` with no Electron import ([#2215](https://github.com/MODSetter/SurfSense/pull/2215)).
+**Status, 25 Oct 2026:** [steps](#steps) 1 to 3 are built: the CORS origins setting ([#2122](https://github.com/MODSetter/SurfSense/pull/2122)), the `VITE_API_BASE` fallback ([#2134](https://github.com/MODSetter/SurfSense/pull/2134)), and boot and the watchers in `sidecars/` with no Electron import ([#2215](https://github.com/MODSetter/SurfSense/pull/2215)). A patch for the headless entry is on [#2104](https://github.com/MODSetter/SurfSense/issues/2104); step 4 builds on it.
 
 ## What changes
 
@@ -29,44 +34,70 @@ code:
 | Accounts | yes | no: one user, as on the desktop |
 | Models | remote providers | the desktop catalog: llama.cpp, sd.cpp, audio.cpp, plus remote connections |
 | Data | Postgres and an object store | one `/data` volume, the desktop's `~/.surfsense` layout |
-| License | none | the desktop's offline Keygen file |
+| License | none | the desktop's offline Keygen license |
 | Port | `3929` | `3929` |
+| Updates | Watchtower or a manual pull | pulling a newer tag; no in-app updater |
 
 ## The container
 
 ```text
 surfsense container                         one port: 80, or 80 and 443 with a domain
-├─ tini, PID 1
-└─ supervisor (Node, shared with Electron)
+├─ tini -g, PID 1
+└─ node headless/main.ts
    ├─ caddy             0.0.0.0:80/443, the only listener
-   │    /           →   frontend/dist
-   │    /api/*      →   127.0.0.1:<api>, prefix stripped
+   │    /                →  frontend/dist
+   │    /api/*           →  127.0.0.1:<api>, prefix stripped
    │    /api/internal/*  →  403
-   ├─ api               127.0.0.1:<free port>
-   ├─ worker ingest, worker studio
-   ├─ llama-server      127.0.0.1:<free port>
-   ├─ audiocpp_server   once audio/server.json names a model
-   └─ sd-server         once an image model is chosen
+   └─ bootSidecars       sidecars/boot.ts, the same call Electron makes
+      ├─ api                     127.0.0.1:<free port>
+      ├─ worker ingest, worker studio, worker plugins
+      ├─ llama-server            127.0.0.1:<free port>
+      ├─ audiocpp_server         once audio/server.json names a model
+      ├─ audiocpp transcription  once audio/transcription.json names a model
+      ├─ sd-server               once an image model is chosen
+      └─ opencode, its proxy     once agent/opencode.json exists
 volume /data = SURFSENSE_LOCAL_DATA_DIR
 ```
 
 One container, because the stack assumes one machine: SQLite and the Huey queue share a filesystem, the SSE broker is in memory, workers post to `/internal/events` on loopback ([`worker/notify.py`](../../../surfsense_local/backend/worker/notify.py)), and egress exempts only loopback. Split across containers, each of those breaks; in one, none changes.
 
-## The supervisor, shared with Electron
+## One core, two entries
 
-The sidecar specs and the process supervisor in [`electron/src/main/sidecars/`](../../../surfsense_local/electron/src/main/sidecars/) already import only Node. Since [#2215](https://github.com/MODSetter/SurfSense/pull/2215), boot ([`boot.ts`](../../../surfsense_local/electron/src/main/sidecars/boot.ts)) and the watchers live in `sidecars/` and take their paths as a context, which [`index.ts`](../../../surfsense_local/electron/src/main/index.ts) builds from `app.isPackaged` and `process.resourcesPath`.
+`surfsense_local` is split by what runs where, as Actual Budget, Element and Trilium split theirs ([ADR 0072](../../adr/0072-the-desktop-and-the-container-are-two-entries-over-one-core.md)):
 
-- Boot and the watchers move into `sidecars/`, taking their paths as a context instead of reading Electron. The watchers restart llama-server when `models/models.ini` changes, restart audiocpp when `audio/server.json` changes, and start or stop sd-server from `/llm/image/local/runtime`.
-- `electron/src/headless/` is the container's entry. It builds that context from the environment, runs the start-up checks, boots, waits for `/health`, then starts Caddy as one more sidecar. It forwards SIGTERM to every child. Node 24 runs it as TypeScript, as the package's tests already run, so it has no build step.
-- Electron keeps the window, the keychain, the updater and `shell`.
-- The Python sidecars run from a venv in the image, not PyInstaller. [`python.ts`](../../../surfsense_local/electron/src/main/sidecars/python.ts) already runs `backendDir/.venv` outside a packaged build, so the headless context points `backendDir` at `/app/backend` and sets the packaged-only environment, such as `HF_HUB_OFFLINE`, itself.
-- There is no shell entrypoint. The checks live in `headless/`, tested with `node:test` like the rest of the sidecar code; the image runs `tini -- node /app/electron/src/headless/main.ts`.
+```text
+surfsense_local/
+  backend/     core: the API and the workers (Python)
+  frontend/    core: the UI (React)
+  sidecars/    core: boot, the sidecar specs, the supervisor, the watchers, net, the session log
+  runtimes/    core: the pinned staging of llama.cpp, sd.cpp, audio.cpp and opencode
+  electron/    desktop entry: the window, IPC, the keychain, the updater, previews, electron-builder
+  headless/    container entry: the context from the environment, Caddy, the GPU check, signals
+```
 
-One implementation means a fix to sidecar handling lands in both.
+- **`sidecars/` imports only Node.** It is today's [`electron/src/main/sidecars/`](../../../surfsense_local/electron/src/main/sidecars/), with `net.ts`, `session-log/session-log.ts` and `session-log/main-warn.ts`, which boot already imports. `session-log-ipc.ts` and `updater-log.ts` stay in `electron/`. A test fails on any `electron` import under `sidecars/`, so the boundary does not depend on review.
+- **`runtimes/` is shared staging.** `fetch-llamacpp.mjs`, `llamacpp/`, `sdcpp/`, `audiocpp/`, `opencode/`, `not-staged/`, `pinned-download.mjs`, `msvc-runtime.mjs` and `check-sidecars.mjs` move out of `electron/scripts/`. Each takes a target and an output folder; with neither, it stages for the host into `electron/<runtime>/` as today, so electron-builder, the build artifacts and the packaged layout do not change.
+- **`electron/` and `headless/` both call `bootSidecars`.** [`index.ts`](../../../surfsense_local/electron/src/main/index.ts) builds its context from `app.isPackaged` and `process.resourcesPath`; `headless/context-from-env.ts` builds it from the environment. A fix to sidecar handling lands in both.
+- **Node 24 runs `sidecars/` and `headless/` as TypeScript**, with no build step, as the electron package's tests run today. Each folder has its own `package.json` and `node:test` suite.
+
+## The headless entry
+
+`headless/main.ts` does what `index.ts` does around boot, without a window:
+
+1. **The context.** `context-from-env.ts` sets all ten `BootContext` fields: `packaged: false`, the backend and runtime folders under `/app`, `dataDir` from `SURFSENSE_LOCAL_DATA_DIR` (default `/data`), and the models folder.
+2. **The secret, before boot.** `SURFSENSE_LOCAL_SECRET` from the environment, else `/data/secret`, created once with mode 0600 and never regenerated. Node settles it before any Python starts, so four processes never race to create the file that [`shared/secrets.py`](../../../surfsense_local/backend/shared/secrets.py) falls back to.
+3. **The packaged-only environment.** `HF_HUB_OFFLINE=1`, which [`python.ts`](../../../surfsense_local/electron/src/main/sidecars/python.ts) sets only when `packaged` is true, and `SURFSENSE_LOCAL_SIGNED_REGISTRY=1` (below).
+4. **No previews.** Word and web-page previews render in a hidden `BrowserWindow`, so headless passes no `docxSnapshotKey`, and the agent skips previews instead of waiting 30 s for each.
+5. **Boot and health.** `bootSidecars`, then `/health` within 60 s, then Caddy as one more sidecar. It writes `/data/api-url` as `announceApiUrl` does, so `surfsense-plugins invoke` works inside the container.
+6. **Signals and exit.** SIGTERM and SIGINT stop the watchers, then every child's process group. The API exiting stops the container with a non-zero code, so Compose's `restart:` applies; any other sidecar is restarted by the supervisor, as on the desktop.
+
+### The backend's packaged switch
+
+A venv backend reads `sys.frozen` as false, and [`registry_origin.reads_repository()`](../../../surfsense_local/backend/modules/plugins/lists/registry/registry_origin.py) then trusts the repository's unsigned plugin registry and sends plugin sign-in to a loopback callback. `reads_repository()` also returns false when `SURFSENSE_LOCAL_SIGNED_REGISTRY` is set, so the image reads the signed registry from the plugin host, as a packaged desktop does. The other `sys.frozen` checks choose how a subprocess is started, and a venv is right for them.
 
 ## Files
 
-The new stack, in `docker/local/`:
+The new stack, in `docker/surfsense/`:
 
 | Path | Holds |
 |---|---|
@@ -79,41 +110,41 @@ The new stack, in `docker/local/`:
 | `caddy/access-local.caddy` | access without a password, for `localhost` hosts only |
 | `caddy/access-password.caddy` | `basic_auth` and the allowed hosts |
 
-Its installer, later, in `docker/scripts/`: `install.sh` and `install.ps1`, at the legacy installer's paths ([legacy split](../legacy-split/README.md#the-install-urls-pass-to-the-new-stack)).
+Its installer, later, in `docker/scripts/`: `install.sh` and `install.ps1`, at the legacy installer's paths ([legacy split](../legacy-split/README.md#the-install-urls-pass-to-the-new-stack)). It picks the CPU or CUDA image from the host's card ([`gpu.md`](gpu.md#choosing-the-variant)).
 
 The code, in `surfsense_local/`:
 
 | Path | Holds |
 |---|---|
-| `electron/src/main/sidecars/boot.ts` | boot, moved out of `index.ts`, with its paths as a context |
-| `electron/src/main/sidecars/watch-generation-preset.ts` | restarts llama-server when `models.ini` changes |
-| `electron/src/main/sidecars/watch-audio-models.ts` | restarts audiocpp when `server.json` changes |
-| `electron/src/main/sidecars/watch-image-model.ts` | starts, restarts or stops sd-server for the selected image model |
-| `electron/src/headless/main.ts` | the container's entry: checks, boot, `/health`, Caddy, signals |
-| `electron/src/headless/context-from-env.ts` | the `/data` and `/app` paths and the secret |
-| `electron/src/headless/caddy.ts` | Caddy as a `SidecarSpec`; hashes the password |
-| `electron/src/headless/gpu-check.ts` | the no-GPU refusal ([`gpu.md`](gpu.md)) |
-| `electron/scripts/` | runtime staging, extended for the image's targets |
+| `sidecars/` | moved from `electron/src/main/sidecars/`, with `net.ts` and the session log |
+| `sidecars/no-electron.test.ts` | fails on an `electron` import anywhere under `sidecars/` |
+| `runtimes/` | moved from `electron/scripts/`, with a target and an output folder for the image |
+| `headless/main.ts` | the container's entry: the secret, boot, `/health`, Caddy, signals |
+| `headless/context-from-env.ts` | the `/data` and `/app` paths, the secret and the packaged-only environment |
+| `headless/caddy.ts` | Caddy as a `SidecarSpec`; hashes the password |
+| `headless/gpu-check.ts` | the no-GPU refusal ([`gpu.md`](gpu.md)) |
+| `electron/src/main/index.ts` | imports `../../../sidecars/`; nothing else changes |
+| `backend/modules/plugins/lists/registry/registry_origin.py` | `SURFSENSE_LOCAL_SIGNED_REGISTRY` |
 | `backend/api/config.py` | `SURFSENSE_LOCAL_CORS_ORIGINS` |
 | `frontend/src/lib/api.ts` | the `VITE_API_BASE` fallback |
 
-CI is `.github/workflows/docker-local.yml`.
+CI is `.github/workflows/docker-surfsense.yml`.
 
-- **Every file of the new stack is in `docker/local/`, except its installer.** The new stack reads nothing from the legacy files and the legacy stack reads nothing from `docker/local/`, so either can change or be deleted without touching the other.
-- **`docker/local/`, not the top of `docker/`.** Copies of the legacy [`install.sh`](https://github.com/MODSetter/SurfSense/blob/legacy/docker/scripts/install.sh) from before 0.0.41 download `docker/docker-compose.yml`, `docker/.env.example`, `docker/proxy/Caddyfile` and five more by path from `main`, so a new file at any of those paths would reach a legacy install. The folder name is fixed from the start, because the installer fetches this stack's files by their paths too.
+- **`docker/surfsense/`, named after the image.** `docker/` holds one folder per image, as `docker/keygen/` already is, and no file of this stack sits at a path copies of the legacy [`install.sh`](https://github.com/MODSetter/SurfSense/blob/legacy/docker/scripts/install.sh) from before 0.0.41 download from `main` (`docker/docker-compose.yml`, `docker/.env.example`, `docker/proxy/Caddyfile` and five more). The folder name is fixed from the start, because the installer fetches this stack's files by their paths.
 - **The installer takes the legacy one's paths.** The one-line commands the legacy docs handed out, `…/main/docker/scripts/install.sh` and `install.ps1`, install this stack once it ships.
-- **Code stays in its tree.** `docker/local/` holds only what Docker reads; the supervisor, the checks and the settings are application code in `surfsense_local/`.
-- **Runtime staging is shared.** The Dockerfile runs the desktop's pinned fetch and compile scripts with the image's targets, so the pins cannot drift between the two.
+- **`docker/surfsense/` holds only what Docker reads.** The supervisor, the checks and the settings are application code in `surfsense_local/`.
+- **The build context is the repository root.** The backend depends on `../../backend/plugins/bundles/core/manifest` ([`pyproject.toml`](../../../surfsense_local/backend/pyproject.toml)) and reads the plugin SDK from `backend/plugins/bundles/core/sdk`, so `surfsense_local/` alone cannot build it. The ignore list admits only `surfsense_local/` and those two folders.
 
-Inside the image:
+Inside the image, the repository's layout under `/app`, so every relative path the backend resolves holds unchanged:
 
 | Path | Holds |
 |---|---|
-| `/app/backend/` | the source and its `.venv` |
-| `/app/frontend/dist/` | built with `VITE_API_BASE=/api` |
-| `/app/electron/src/` | `sidecars/`, `headless/`, `session-log/` |
-| `/app/runtimes/` | `llamacpp/`, `sdcpp/`, `audiocpp/`: one GPU backend per variant |
-| `/app/models/` | bge-small, the Docling pack, Kokoro |
+| `/app/surfsense_local/backend/` | the source and its `.venv` |
+| `/app/surfsense_local/frontend/dist/` | built with `VITE_API_BASE=/api` |
+| `/app/surfsense_local/sidecars/`, `headless/` | the supervisor and the entry |
+| `/app/surfsense_local/runtimes/` | `llamacpp/`, `sdcpp/`, `audiocpp/`, `opencode/`: one GPU backend per variant |
+| `/app/surfsense_local/models/` | bge-small, the Docling pack, Kokoro, Silero VAD |
+| `/app/backend/plugins/bundles/core/` | `manifest/` and `sdk/` |
 | `/data/` | the volume |
 
 ## Caddy and access
@@ -124,52 +155,55 @@ Inside the image:
 | `SURFSENSE_PASSWORD` | the hosts in `SURFSENSE_ALLOWED_HOSTS`, or any | `basic_auth` |
 | `SURFSENSE_DOMAIN` also | that domain | `basic_auth`, over HTTPS |
 
-- **The `Host` check is the guard.** The container cannot see how Compose published its port, but it sees the address each request was sent to. Without a password, a request to the LAN address or a domain is refused, so an unauthenticated instance cannot be reached from the network by accident. The same check stops DNS rebinding against `localhost`.
+- **The `Host` check is the guard.** The container cannot see how Compose published its port, but it sees the address each request was sent to. Without a password, a request to the LAN address or a domain is refused, so an unauthenticated instance cannot be reached from the network by accident. The same check stops DNS rebinding against `localhost`, which Ollama (CVE-2024-28224) and Vite (CVE-2025-24010) each had to add after the fact.
 - **The password is hashed at start.** The headless entry runs `caddy hash-password` on `SURFSENSE_PASSWORD`, so nobody handles a bcrypt string. The SPA, the API and the SSE streams are one origin, so the browser sends the credentials on all of them.
-- **HTTPS.** A public domain gets an automatic certificate; `SURFSENSE_TLS=internal` uses Caddy's own CA on a LAN.
-- **`/api/internal/*` is refused.** Workers reach `/internal/events` on loopback and never through Caddy.
+- **HTTPS.** A public domain gets an automatic certificate; `SURFSENSE_TLS=internal` uses Caddy's own CA on a LAN. Dictation needs it beyond `localhost`: browsers allow the microphone only in a secure context.
+- **`/api/internal/*` is refused.** Workers reach `/internal/events` and the transcription routes on loopback and never through Caddy.
+- **Every sidecar binds `127.0.0.1`.** Only Caddy listens on the container's network.
 - **CORS.** The API answers `*` today, because the desktop renderer loads from `file://` ([`api/main.py`](../../../surfsense_local/backend/api/main.py)). The allowed origins come from `SURFSENSE_LOCAL_CORS_ORIGINS`, defaulting to `*` for the desktop. The image sets it empty: everything is same-origin, so no other site can read a response.
 - **Streaming.** Caddy flushes `text/event-stream` responses immediately, so chat and live updates stream unchanged. It sets no body limit; uploads stay capped by the API at 500 MB.
 - **Behind the user's own proxy**, leave `SURFSENSE_DOMAIN` empty, set the password, and point the proxy at port 80.
 
 ## The frontend without Electron
 
-Every bridge call is already optional (`window.surfsense?.…`). The build for the image sets `VITE_API_BASE=/api`, and [`lib/api.ts`](../../../surfsense_local/frontend/src/lib/api.ts) reads `window.surfsense?.apiUrl ?? import.meta.env.VITE_API_BASE ?? ""`.
+Every bridge call is already optional (`window.surfsense?.…`). The build for the image sets `VITE_API_BASE=/api`, and [`lib/api.ts`](../../../surfsense_local/frontend/src/lib/api.ts) reads `window.surfsense?.apiUrl ?? import.meta.env.VITE_API_BASE ?? ""`. The app has no client-side router, so Caddy serves `index.html` at `/` with no deep-link fallback.
 
 | Desktop | In Docker |
 |---|---|
 | Open, Show in folder | download through `GET .../documents/{id}/original`; PDFs preview in the app ([source preview](../source-preview.md)) |
 | electron-updater | hidden; updating is pulling a newer tag |
-| Keychain secret ([ADR 0018](../../adr/0018-keychain-envelope-encryption.md)) | `SURFSENSE_LOCAL_SECRET` from the environment, else the `DATA_DIR/secret` file [`shared/secrets.py`](../../../surfsense_local/backend/shared/secrets.py) already falls back to |
+| Keychain secret ([ADR 0018](../../adr/0018-keychain-envelope-encryption.md)) | `SURFSENSE_LOCAL_SECRET`, else `/data/secret` ([the headless entry](#the-headless-entry)) |
+| Word and web-page previews | off: they render in a hidden `BrowserWindow` |
 | Session log, About details, crash toast | hidden |
 | Theme, locale, external links | the browser fallbacks that exist |
 
 ## Data and license
 
-- `/data` holds what `~/.surfsense` holds: `surfsense.db`, `huey.db`, `models/`, `images/`, `audio/`, `data/workspaces/`, `plugins/`, `imports/`. Backing up is copying the volume.
-- Migrations run when the API starts ([ADR 0005](../../adr/0005-hand-written-migrations.md)); workers never migrate.
-- The license is a file in `/data`, verified offline with the keys built into the image. It has no machine binding ([ADR 0019](../../adr/0019-offline-licenses.md)), so the same file works on a desktop and a server, and it gates the same things.
+- `/data` holds what `~/.surfsense` holds: `surfsense.db`, `huey.db`, `secret`, `models/`, `embeddings/`, `images/`, `audio/`, `agent/`, `data/workspaces/`, `plugins/`, `plugin-registry/`, `imports/`, `backups/`, `runtime/office/`. Backing up is copying the volume.
+- Migrations run when the API starts, after a backup to `backups/` ([ADR 0005](../../adr/0005-hand-written-migrations.md)); workers never migrate.
+- The license is entered in the app and kept in the database, verified offline with the keys built into the image. It has no machine binding ([ADR 0019](../../adr/0019-offline-licenses.md)), so the same license works on a desktop and a server, and it gates the same things.
+- The Office runtime pack downloads into `runtime/office/` on first use, as on the desktop; the image carries the system libraries LibreOffice needs.
+- The container runs as a non-root `surfsense` user, which owns `/data`.
 
 ## The image
 
-`docker/local/Dockerfile`, context `surfsense_local/`, on Ubuntu 24.04: the upstream llama.cpp and sd.cpp Linux builds need a recent glibc.
+`docker/surfsense/Dockerfile`, context the repository root, on Ubuntu 24.04: the upstream llama.cpp and sd.cpp Linux builds need a recent glibc.
 
 | Stage | Produces |
 |---|---|
 | `frontend` | `pnpm build` with `VITE_API_BASE=/api` |
-| `backend` | `uv sync` into `/app/.venv`; torch from the CPU index, as [`pyproject.toml`](../../../surfsense_local/backend/pyproject.toml) pins on Linux |
-| `runtimes` | llama.cpp, sd.cpp and audio.cpp with eSpeak, staged by the desktop's own pinned fetch and build scripts |
-| `models` | bge-small, the Docling parser pack and Kokoro, by the desktop's fetch scripts |
-| `headless` | the supervisor entry |
-| `runtime` | the above, Node, Caddy and tini |
+| `backend` | `uv sync` into the backend's `.venv`; torch from the CPU index, as [`pyproject.toml`](../../../surfsense_local/backend/pyproject.toml) pins on Linux |
+| `runtimes` | llama.cpp and opencode with ripgrep from upstream, sd.cpp from the desktop's recipe, and audio.cpp with eSpeak as the desktop builds it, staged by `runtimes/` with the image's target and variant ([`gpu.md`](gpu.md#where-each-runtime-comes-from)) |
+| `models` | bge-small, the Docling parser pack, Kokoro and Silero VAD, by the backend's fetch scripts |
+| `runtime` | the above, `sidecars/`, `headless/`, Node 24, Caddy and tini |
 
-- `linux/amd64` and `linux/arm64`.
+- `linux/amd64` first. `linux/arm64` follows once `runtimes/` has pinned `linux-arm64` builds of each runtime; today every staging script knows `linux-x64` only.
 - Several GB: torch and Docling, plus about 1 GB of bundled models. Generation weights download at run time into `/data`, as on the desktop.
-- `HEALTHCHECK` calls `/health` through loopback.
+- `HEALTHCHECK` calls `/health` through loopback, with a start period long enough for the first migration.
 
 ## Compose
 
-`docker/local/docker-compose.yml`:
+`docker/surfsense/docker-compose.yml`:
 
 ```yaml
 services:
@@ -183,27 +217,61 @@ services:
       SURFSENSE_PASSWORD: ${SURFSENSE_PASSWORD:-}
       SURFSENSE_ALLOWED_HOSTS: ${SURFSENSE_ALLOWED_HOSTS:-}
       SURFSENSE_DOMAIN: ${SURFSENSE_DOMAIN:-}
+    stop_grace_period: 30s
     restart: unless-stopped
 volumes:
   surfsense_data:
 ```
 
-A GPU override file sits beside it ([`gpu.md`](gpu.md)).
+`stop_grace_period` covers the supervisor's stop, which sends SIGKILL to a child 5 s after SIGTERM; Docker's default of 10 s is too tight with ten children. A GPU override file sits beside it ([`gpu.md`](gpu.md)).
 
 ## CI
 
-A new workflow, `docker-local.yml`. The legacy images build from [`docker-build.yml` on the `legacy` branch](https://github.com/MODSetter/SurfSense/blob/legacy/.github/workflows/docker-build.yml), on `legacy-v*` tags.
+### The move
 
-- Runs on the desktop's release tags, `v[1-9]*`, and on `dev` pushes that touch `surfsense_local/**` or `docker/local/**`.
-- The same shape as today: build by digest per architecture and variant, require both architectures on a release, merge into one manifest.
-- Tags: the version, `latest`, the branch, `git-<sha>`, each with the variant suffix.
-- A smoke job starts the CPU image, waits for `/health` through Caddy, and checks that a non-local `Host` is refused without a password.
+Moving `sidecars/` and `runtimes/` changes the desktop's workflows in the same pull request; the packaged app does not change.
+
+| Workflow | Change |
+|---|---|
+| `desktop-tests.yml` | the `electron` filter adds `surfsense_local/sidecars/**`, `runtimes/**` and `headless/**`, and the job runs their tests; job names stay, so the required checks still match |
+| `build-audiocpp.yml`, `build-sdcpp.yml` | `on.paths`, the script paths and the cache keys follow `runtimes/`; the staged folder and the artifacts stay in `electron/` |
+| `release-local.yml` | the staging steps call `runtimes/`; the smoke steps, which read `release/…/resources/`, do not change |
+| `CODEOWNERS` | adds `sidecars/`, `runtimes/` and `headless/` |
+
+`release-local.yml` runs only on a tag, so the pull request runs its `workflow_dispatch` dry run before it merges. The moved scripts change the sd.cpp and audio.cpp cache keys, so that run compiles both once.
+
+### The image
+
+`docker-surfsense.yml`, beside `release-local.yml`. The legacy images build from [`docker-build.yml` on the `legacy` branch](https://github.com/MODSetter/SurfSense/blob/legacy/.github/workflows/docker-build.yml), on `legacy-v*` tags.
+
+- Pull requests and `dev` pushes that touch what the Dockerfile copies in (`docker/surfsense/**`, `surfsense_local/{backend,frontend,sidecars,runtimes,headless}/**`, `backend/plugins/bundles/core/**`) build the image without pushing. A `changes` job and a gate keep it a required check.
+- Build by digest per architecture and variant, then merge into one manifest per variant.
+- A smoke job starts the CPU image, waits for `/health` through Caddy, and checks that a non-local `Host` is refused without a password. Nothing is pushed unless it passes.
+
+## Releases
+
+The image releases with the desktop app: one version, `surfsense_local/VERSION`, one tag, and one moment it goes live ([`RELEASE.md`](../../../surfsense_local/RELEASE.md)).
+
+| When | The desktop | The image |
+|---|---|---|
+| `vX.Y.Z` tag pushed | `release-local.yml` builds a draft release | `docker-surfsense.yml` builds, smokes and pushes `X.Y.Z` and `X.Y.Z-<variant>` |
+| draft published by hand | GitHub's Latest moves; the in-app updater offers it | a `release: published` job points `latest`, `X.Y`, `latest-<variant>` and `X.Y-<variant>` at the `X.Y.Z` digests |
+| `dev` push | nothing | `dev` and `git-<sha>`, for testing |
+| `workflow_dispatch` | a dry run | a dry run, pushing nothing |
+
+- **`latest` moves on publish, not on the tag.** It is a retag of the digests the tag built and smoked (`docker buildx imagetools create`), with no rebuild. Until the draft is published, only someone asking for `:X.Y.Z` gets the new image; a draft that is deleted reaches nobody on `latest`.
+- **`latest` is the auto-updater.** Self-hosters run Watchtower or a scheduled `docker compose pull`, as the legacy installer set up, so `latest` gets the same gate as the desktop's updater.
+- **Pre-releases never move `latest`.** The publish job skips a release marked pre-release or a version with a suffix (`-rc.1`); its exact tag is pushed and nothing else.
+- **A person publishes.** GitHub starts no workflow from an event that `GITHUB_TOKEN` caused, so the release is published with a maintainer's login, as `RELEASE.md` already does; publishing from a workflow would need an app token.
+- **The two release independently.** A failed image build does not block the desktop release, nor the reverse; `RELEASE.md` checks `ghcr.io/modsetter/surfsense:latest` against the new version's digest after publishing.
+- **The names stay apart.** The legacy images keep `surfsense-backend`, `surfsense-web` and `surfsense-sandbox` on `legacy-v*` tags, so no tag is shared.
 
 ## Leaving the legacy stack
 
-1. **Now:** the new image ships beside the legacy one, and both are documented.
-2. **After 18 Oct 2026:** the root README points self-hosters at the new compose, and the legacy compose is marked deprecated.
-3. **Later:** `surfsense-web`, `surfsense-sandbox` and the self-host services leave CI and `docker/`. The license and scraper API backend stays.
+The legacy stack is on the `legacy` branch only ([legacy split](../legacy-split/README.md)), with `legacy-v0.0.41` its final release.
+
+1. **When the image ships:** the root README and `docker/scripts/install.*` point self-hosters at it.
+2. **Then:** the legacy docs name the image as the replacement.
 
 A legacy self-hoster moves their data with the markdown export and import ([ADR 0022](../../adr/0022-markdown-only-cloud-import.md)).
 
@@ -216,31 +284,36 @@ In order; each step depends on the one before it and leaves something that runs.
 1. The CORS origins setting.
 2. The `VITE_API_BASE` fallback.
 3. Boot and the watchers move into `sidecars/`, with no Electron import.
-4. The headless entry: on a dev machine, it starts the API and the workers.
+4. One core, two entries: `sidecars/` and `runtimes/` move out of `electron/`, with the test against Electron imports and the CI changes, then the headless entry in `headless/` and the signed-registry switch, with every doc link into the moved folders repointed. One pull request, in commits that each leave CI green, the moves as renames; the `release-local.yml` dry run passes before it merges. On a dev machine, the headless entry starts the API and the three workers, and Ctrl-C stops every child.
 
 **The first container.**
 
-5. The CPU image and compose, with the localhost-only access file and no local model runtimes: upload, ingest and chat through a remote connection work.
-6. `docker-local.yml`: amd64 and arm64, and the smoke job.
+5. The CPU image and compose on amd64, with the localhost-only access file, opencode and no local model runtimes: upload, ingest and chat through a remote connection work.
+6. `docker-surfsense.yml`: the build, the smoke job, and the release jobs, with `latest` moving on publish.
 
 **Local models, one runtime at a time.**
 
-7. llama.cpp.
+7. llama.cpp, with the `cpu` variant in `runtimes/`: the Linux staging is Vulkan-only today ([`gpu.md`](gpu.md#what-runtimes-gains)).
 8. audio.cpp.
-9. sd.cpp.
+9. sd.cpp, with its `cpu` recipe.
 
 **Access beyond localhost.**
 
 10. The password and the allowed hosts.
 11. HTTPS.
 
-**GPU images**, steps 12 to 14 in [`gpu.md`](gpu.md).
+**GPU images**, steps 12 to 14 in [`gpu.md`](gpu.md): `-cuda` on amd64. `linux/arm64` follows once `runtimes/` stages each runtime for it, with `-cuda13`.
 
-Then the maintainers write `architecture/docker.md`, update the root README and both `AGENTS.md` files, and delete this proposal.
+Then the maintainers write `architecture/docker.md`, update the root README, both `AGENTS.md` files and `RELEASE.md`, and delete this proposal.
+
+## Open questions
+
+- Sign-in flows that return to a loopback address: ChatGPT sign-in listens on a port inside the container, and plugin sign-in returns through `plugins.surfsense.com`. Neither has been tried from a host browser.
+- Claude subscriptions need the `claude` CLI, which the image does not carry.
 
 ## Not in scope
 
 - Accounts, several users, several API replicas.
 - A sandbox for Studio's model-written code beyond the container.
-- The plugins worker, which Electron does not start yet either.
+- Word and web-page previews.
 - A Vulkan or ROCm image for AMD and Intel GPUs.

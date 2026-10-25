@@ -1,6 +1,6 @@
 # ADR 0035: The desktop app's stack also ships as one Docker container, with Caddy as its only listener
 
-- **Status:** Accepted
+- **Status:** Accepted; its CUDA variant names superseded by [ADR 0073](0073-the-docker-gpu-image-is-one-cuda-12-8-variant-from-upstream-builds.md)
 - **Date:** 2026-10-01
 - **Supersedes:** [ADR 0004](0004-desktop-app-is-its-own-tree.md) in part: Docker Compose leaves its out-of-scope list, and its loopback rule is narrowed to the API. [ADR 0012](0012-vulkan-only-gpu-backend.md) in part: Docker images may carry CUDA.
 - **Source:** [Docker proposal](../proposals/docker/README.md), [GPU images](../proposals/docker/gpu.md)

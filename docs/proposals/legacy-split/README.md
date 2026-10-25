@@ -3,7 +3,7 @@ status: in-progress
 code:
   - www/
   - docker/scripts/
-  - docker/local/
+  - docker/surfsense/
   - backend/
   - surfsense_local/scripts/bump-version.sh
   - .github/workflows/
@@ -24,7 +24,7 @@ code:
 | marketing routes inside `surfsense_web` | `www/`, its own Next.js app on Vercel |
 | sunset mode, `/sunset` and the sunset `/health` | removed |
 | `surfsense_backend`, `surfsense_web`, `surfsense_mcp`, `docker/*` | the `legacy` branch only |
-| `docker/local/` (not yet built) | `docker/local/`, unchanged |
+| `docker/surfsense/` (not yet built) | `docker/surfsense/`, unchanged |
 | root `VERSION` (`0.0.40`) | `VERSION` on the `legacy` branch (`0.0.41`) |
 
 ## The legacy branch
@@ -77,19 +77,19 @@ Its `/` was the homepage. On `legacy`, `/` redirects to `/login`.
 
 - The desktop app and the new image share one version, today `2.2.3`, in `surfsense_local/VERSION`.
 - `release-local.yml` narrows from `v*` to `v[1-9]*`, so an old `v0.*` tag never starts a desktop release.
-- `docker-local.yml` releases on `v[1-9]*`.
+- `docker-surfsense.yml` releases on `v[1-9]*`, and moves `latest` when the release is published ([Docker releases](../docker/README.md#releases)).
 - Legacy keeps `0.0.41` in `VERSION` on its branch, bumped by hand for a fix.
 
 ## CI outside the legacy branch
 
 | Workflow | Starts on |
 |---|---|
-| `docker-local.yml` | `v[1-9]*` tags; `dev` pushes and pull requests, with a `changes` job and a gate |
+| `docker-surfsense.yml` | `v[1-9]*` tags and published releases; `dev` pushes and pull requests, with a `changes` job and a gate |
 | `www.yml` | `www/**` |
 | `release-local.yml` | `v[1-9]*` tags |
 | `desktop-tests.yml`, `plugins-*`, `code-quality.yml`, `release-stats.yml` | as today |
 
-- **`docker-local.yml` keeps the gate pattern.** One `changes` job filters on what the Dockerfile copies in (`docker/local/**`, `surfsense_local/backend/**`, `surfsense_local/frontend/**`, `surfsense_local/electron/src/{main/sidecars,headless,session-log}/**`, `surfsense_local/electron/scripts/**`) and the other jobs skip. The gate reports either way, so it can be a required check. This narrows the [Docker proposal's](../docker/README.md#ci) `surfsense_local/**`.
+- **`docker-surfsense.yml` keeps the gate pattern.** One `changes` job filters on what the Dockerfile copies in (`docker/surfsense/**`, `surfsense_local/{backend,frontend,sidecars,runtimes,headless}/**`, `backend/plugins/bundles/core/**`) and the other jobs skip. The gate reports either way, so it can be a required check. This narrows the [Docker proposal's](../docker/README.md#ci) `surfsense_local/**`.
 - **`www.yml`** filters at the workflow level with `paths:`, so it is not a required check.
 - **The `plugins-*` workflows keep their names and their jobs' names**, so the required checks still match; only their paths change to `backend/`. `plugins-pull-request-checks.yml` gains a job that builds the backend and registry images on pull requests touching `backend/**`, without pushing, so a wrong path in a Dockerfile fails the pull request rather than Coolify's build.
 - **`.pre-commit-config.yaml`** drops the ruff, bandit and biome hooks for `surfsense_backend` and `surfsense_web`, and adds biome for `^www/`. `.github/CODEOWNERS` drops their entries.

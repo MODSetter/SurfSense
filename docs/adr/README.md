@@ -69,7 +69,7 @@ The Date is the day the decision was first written down. Source links are permal
 | 0032 | [The index and the question are split by one tokenizer, FTS5's own, and it keeps a word's combining marks](0032-one-tokenizer-for-index-and-question.md) | Accepted |
 | 0033 | [Every candidate is scored on its own cosine, because a chunk the vector leg did not reach is unmeasured rather than unrelated](0033-every-candidate-is-scored-on-its-own-cosine.md) | Accepted |
 | 0034 | [Whether a chat model reads images is llama.cpp's own answer for a local model and the catalog's for a remote one, and it is stored nowhere](0034-vision-is-the-runtimes-answer-stored-nowhere.md) | Accepted |
-| 0035 | [The desktop app's stack also ships as one Docker container, with Caddy as its only listener](0035-docker-compose-runs-the-desktop-stack.md) | Accepted |
+| 0035 | [The desktop app's stack also ships as one Docker container, with Caddy as its only listener](0035-docker-compose-runs-the-desktop-stack.md) | Accepted, CUDA variant names superseded by 0073 |
 | 0036 | [The index records which embedder built it, and the embedder is fixed once per install](0036-the-index-records-its-embedder.md) | Accepted, amended by 0058 |
 | 0037 | [Curated embedders are a fourth engine in the local catalog, and embedding is a type, never a slot](0037-embedding-is-a-type-not-a-slot.md) | Accepted |
 | 0038 | [A ChatGPT plan is a connection signed in through OpenAI's open-source flow, not the Codex CLI's client](0038-chatgpt-plans-sign-in-through-openai-not-codex.md) | Accepted, its request body superseded by 0050, its Claude consequence by 0057 |
@@ -100,3 +100,5 @@ The Date is the day the decision was first written down. Source links are permal
 | 0069 | [On opencode 2.x the agent calls tools natively, holds the plugin tools its task needs from a catalogue of every ready plugin, and no plugin speaks SSE](0069-opencode-calls-tools-natively-and-holds-what-a-turn-needs.md) | Accepted |
 | 0070 | [The app may send opt-in, ID-less update checks and usage statistics](0070-opt-in-id-less-update-checks-and-usage-statistics.md) | Accepted |
 | 0071 | [Package managers ship the GitHub release files, and a package manager that installs SurfSense owns its updates](0071-package-managers-ship-the-release-files-and-own-their-updates.md) | Accepted |
+| 0072 | [The desktop app and the Docker container are two entries over one core, and the supervisor and runtime staging leave `electron/`](0072-the-desktop-and-the-container-are-two-entries-over-one-core.md) | Accepted |
+| 0073 | [The Docker GPU image is one CUDA 12.8 variant, with `-cuda13` to follow for arm64, and each runtime has one source shared with the desktop](0073-the-docker-gpu-image-is-one-cuda-12-8-variant-from-upstream-builds.md) | Accepted |
