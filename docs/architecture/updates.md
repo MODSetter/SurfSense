@@ -12,7 +12,7 @@ How to cut a release is in [`surfsense_local/RELEASE.md`](../../surfsense_local/
 
 Updates are a call the app makes on its own, so they are off until the user turns them on.
 
-- A new install asks in onboarding's Privacy choices step, beside usage statistics, with neither answer chosen for the user ([usage statistics](usage-statistics.md#consent)). An install that finished onboarding earlier keeps the setting it had.
+- A new install asks in onboarding's first step, Privacy choices, beside usage statistics, with neither answer chosen for the user ([usage statistics](usage-statistics.md#consent)). An install that finished onboarding earlier keeps the setting it had.
 - The preference is `updates.json` in Electron's user data: `automatic`, false by default; `lastCheckedAt`, which Settings › Network shows as the App updates row's last call; and `lastAutomaticDay`, the UTC day of the last automatic check.
 - The automatic check runs at most once a UTC day: at launch, and from an hourly tick once the day turns while the app stays open. The day is marked only once a check reads a manifest, from either host. A check that reads none is tried again on the hourly tick, at most three times a UTC day. A day's automatic checks therefore approximate the installs open that day, with no identifier on the wire; a retry after a failed check can add a second event from one install.
 - Check now in Settings › About, the sidebar's update row and Check for Updates… in the macOS app menu share one check (`useCheckForUpdates`), which asks first while `automatic` is off, naming the host it asks. The menu shows only that prompt; the sidebar and Settings show the progress. Allow turns `automatic` on, which also enables the daily check.

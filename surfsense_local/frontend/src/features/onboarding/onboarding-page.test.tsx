@@ -1342,6 +1342,16 @@ describe("the privacy choices", () => {
     await screen.findByRole("heading", { name: "Privacy choices" })
   }
 
+  // The full description is the title's tooltip.
+  async function hoverDetails(
+    user: ReturnType<typeof userEvent.setup>,
+    label: string
+  ) {
+    await user.hover(screen.getByRole("button", { name: label }))
+    const tooltip = await screen.findByRole("tooltip")
+    return tooltip.textContent ?? ""
+  }
+
   function choice(row: string, answer: "Yes" | "No") {
     return within(screen.getByRole("group", { name: row })).getByRole(
       "button",
@@ -1356,8 +1366,9 @@ describe("the privacy choices", () => {
     render(<OnboardingPage onComplete={() => undefined} />)
 
     await toPrivacyStep(user)
-    // Not a model step: the progress bar starts after it.
-    expect(screen.queryByLabelText(/Onboarding step/)).toBeNull()
+    // The first step like any other: counted, with no way back to the welcome.
+    expect(screen.getByLabelText("Onboarding step 1 of 7")).toBeTruthy()
+    expect(screen.queryByRole("button", { name: "Back" })).toBeNull()
     for (const row of ["Check for updates", "Share usage statistics"])
       for (const answer of ["Yes", "No"] as const)
         expect(choice(row, answer).getAttribute("aria-pressed")).toBe("false")
@@ -1387,17 +1398,32 @@ describe("the privacy choices", () => {
     render(<OnboardingPage onComplete={() => undefined} />)
 
     await toPrivacyStep(user)
+    // One line each; the hosts are in the info icon's description.
     const updates = screen.getByRole("region", { name: "Check for updates" })
-    expect(updates.textContent).toContain("updates.surfsense.com")
-    expect(updates.textContent).toContain("github.com")
-    expect(updates.textContent).toContain("no ID")
-    // The download and where it comes from, as the update prompt says.
-    expect(updates.textContent).toContain("your IP address")
-    expect(updates.textContent).toContain("githubusercontent.com")
-    expect(updates.textContent).toContain("the next time you quit")
+    expect(updates.textContent).toContain("No ID sent.")
+    expect(updates.textContent).not.toContain("updates.surfsense.com")
     const usage = screen.getByRole("region", { name: "Share usage statistics" })
-    expect(usage.textContent).toContain("usage.surfsense.com")
     expect(usage.textContent).toContain(
+      "Never your documents, prompts or an ID."
+    )
+
+    // Every host, and the download, as the update prompt says.
+    const updatesDetails = await hoverDetails(
+      user,
+      "What an update check sends"
+    )
+    expect(updatesDetails).toContain("updates.surfsense.com")
+    expect(updatesDetails).toContain("github.com")
+    expect(updatesDetails).toContain("your IP address")
+    expect(updatesDetails).toContain("githubusercontent.com")
+    expect(updatesDetails).toContain("the next time you quit")
+    await user.unhover(
+      screen.getByRole("button", { name: "What an update check sends" })
+    )
+    await waitFor(() => expect(screen.queryByRole("tooltip")).toBeNull())
+    const usageDetails = await hoverDetails(user, "What usage statistics send")
+    expect(usageDetails).toContain("usage.surfsense.com")
+    expect(usageDetails).toContain(
       "Never documents, prompts, file names, model names, hosts, your license key or an ID."
     )
   })
@@ -1411,7 +1437,7 @@ describe("the privacy choices", () => {
     await toPrivacyStep(user)
     const usage = screen.getByRole("region", { name: "Share usage statistics" })
     await user.click(
-      within(usage).getByRole("button", { name: "See exactly what’s sent" })
+      within(usage).getByRole("button", { name: "See the exact report" })
     )
 
     const dialog = await screen.findByRole("dialog", {
@@ -1433,7 +1459,7 @@ describe("the privacy choices", () => {
     await toPrivacyStep(user)
     const updates = screen.getByRole("region", { name: "Check for updates" })
     await user.click(
-      within(updates).getByRole("button", { name: "See exactly what’s sent" })
+      within(updates).getByRole("button", { name: "See the exact request" })
     )
 
     const dialog = await screen.findByRole("dialog", {
@@ -1490,7 +1516,12 @@ describe("the privacy choices", () => {
     expect(updates.textContent).toContain("Updates come from the Snap Store")
     expect(updates.textContent).not.toContain("Once a day")
     expect(
-      within(updates).queryByRole("button", { name: "See exactly what’s sent" })
+      within(updates).queryByRole("button", { name: "See the exact request" })
+    ).toBeNull()
+    expect(
+      within(updates).queryByRole("button", {
+        name: "What an update check sends",
+      })
     ).toBeNull()
     expect(
       screen.queryByRole("group", { name: "Check for updates" })
@@ -1521,16 +1552,50 @@ describe("the privacy choices", () => {
     ).toBeNull()
   })
 
-  it("never asks an install that already answered", async () => {
+  it("asks an install that already answered again, with its answers chosen", async () => {
     vi.stubGlobal("fetch", backend())
-    stubPrivacyBridge({ firstRunAsked: true })
+    stubPrivacyBridge({
+      firstRunAsked: true,
+      updates: { automatic: true },
+      usageStatistics: { enabled: false },
+    })
     const user = userEvent.setup()
     render(<OnboardingPage onComplete={() => undefined} />)
 
-    // Whether or not its answer was read before the welcome was left.
-    await toChatStep(user)
+    await toPrivacyStep(user)
     expect(
-      screen.queryByRole("heading", { name: "Privacy choices" })
-    ).toBeNull()
+      choice("Check for updates", "Yes").getAttribute("aria-pressed")
+    ).toBe("true")
+    expect(
+      choice("Share usage statistics", "No").getAttribute("aria-pressed")
+    ).toBe("true")
+    expect(
+      screen.getByRole("button", { name: "Continue" }).hasAttribute("disabled")
+    ).toBe(false)
+  })
+
+  it("goes back to the choices from the first model step, keeping them", async () => {
+    vi.stubGlobal("fetch", backend({ selections: { ...chatChosen } }))
+    stubPrivacyBridge()
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+
+    await toPrivacyStep(user)
+    await user.click(choice("Check for updates", "No"))
+    await user.click(choice("Share usage statistics", "Yes"))
+    await user.click(screen.getByRole("button", { name: "Continue" }))
+    await screen.findByRole("heading", {
+      name: "Choose a text generation model",
+    })
+    expect(screen.getByLabelText("Onboarding step 2 of 7")).toBeTruthy()
+
+    await user.click(screen.getByRole("button", { name: "Back" }))
+    await screen.findByRole("heading", { name: "Privacy choices" })
+    expect(choice("Check for updates", "No").getAttribute("aria-pressed")).toBe(
+      "true"
+    )
+    expect(
+      choice("Share usage statistics", "Yes").getAttribute("aria-pressed")
+    ).toBe("true")
   })
 })

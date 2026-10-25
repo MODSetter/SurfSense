@@ -5,11 +5,13 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { updatesText } from "@/features/privacy-choices/choice-text"
+import { DetailsTooltip } from "@/features/privacy-choices/details-tooltip"
 import { updatesLockedText } from "@/features/privacy-choices/locked-text"
 import { usePrivacyState } from "@/features/privacy-choices/use-privacy-state"
 import { WhatsSentDialog } from "@/features/privacy-choices/whats-sent-dialog"
 import { intl } from "@/i18n/intl"
-import type { PrivacyState, UpdateState } from "@/lib/api"
+import type { UpdateState } from "@/lib/api"
 
 import { useCheckForUpdates } from "./use-check-for-updates"
 import {
@@ -56,35 +58,6 @@ function statusText(state: UpdateState) {
   }
 }
 
-// Where checks go: SurfSense's feed with GitHub behind it, or a policy's mirror.
-function bodyText(state: PrivacyState | null | undefined) {
-  // No privacy bridge: an Electron main that still reads GitHub's releases.
-  if (state === null)
-    return intl.formatMessage({
-      id: "updates_settings_github_body",
-      defaultMessage:
-        "Free updates from GitHub. Once you allow update checks, SurfSense also checks each time it starts.",
-    })
-  const updates = state?.updates
-  if (updates && updates.fallbackHost === null)
-    return intl.formatMessage(
-      {
-        id: "updates_settings_mirror_body",
-        defaultMessage:
-          "Free updates from {host}, the update server your organization set. Once you allow update checks, SurfSense asks it once a day.",
-      },
-      { host: updates.host }
-    )
-  return intl.formatMessage(
-    {
-      id: "updates_settings_body",
-      defaultMessage:
-        "Free updates. Once you allow update checks, SurfSense asks {host} once a day, and github.com whenever {host} cannot answer.",
-    },
-    { host: updates?.host ?? "updates.surfsense.com" }
-  )
-}
-
 export function UpdateSettings() {
   const updates = updatesBridge()
   const state = useUpdateState()
@@ -99,20 +72,38 @@ export function UpdateSettings() {
   // A package manager's install never asks the feed, so there is no daily
   // check to describe and no request to show.
   const channelLocked = privacy?.updates.lockedReason === "channel"
+  const described = privacy && !channelLocked ? updatesText(privacy) : null
   return (
     <div className="mt-8 flex items-start justify-between gap-8">
       <div className="flex flex-col gap-1">
-        <h3 className="text-sm font-medium">
-          {intl.formatMessage({
-            id: "updates_settings_title",
-            defaultMessage: "App updates",
-          })}
-        </h3>
-        {channelLocked ? null : (
+        <div className="flex items-center gap-1.5">
+          <h3 className="text-sm font-medium">
+            {intl.formatMessage({
+              id: "updates_settings_title",
+              defaultMessage: "App updates",
+            })}
+          </h3>
+          {described ? (
+            <DetailsTooltip
+              label={described.label}
+              details={described.details}
+            />
+          ) : null}
+        </div>
+        {described ? (
           <p className="text-sm text-pretty text-muted-foreground">
-            {bodyText(privacy)}
+            {described.summary}
           </p>
-        )}
+        ) : privacy === null ? (
+          // No privacy bridge: an Electron main that still reads GitHub's releases.
+          <p className="text-sm text-pretty text-muted-foreground">
+            {intl.formatMessage({
+              id: "updates_settings_github_body",
+              defaultMessage:
+                "Free updates from GitHub. Once you allow update checks, SurfSense also checks each time it starts.",
+            })}
+          </p>
+        ) : null}
         {locked ? (
           <p className="text-sm text-muted-foreground">{locked}</p>
         ) : null}

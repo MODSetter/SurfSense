@@ -115,13 +115,59 @@ describe("App updates in Settings › About", () => {
     stubPrivacyBridge({
       updates: { host: "updates.example.org", fallbackHost: null },
     })
+    const user = userEvent.setup()
     render(<UpdateSettings />)
 
     expect(
       await screen.findByText(
-        "Free updates from updates.example.org, the update server your organization set. Once you allow update checks, SurfSense asks it once a day."
+        "Checks your organization’s update server once a day. No ID sent."
       )
     ).toBeTruthy()
+    await user.hover(
+      screen.getByRole("button", { name: "What an update check sends" })
+    )
+    const details = (await screen.findByRole("tooltip")).textContent
+    expect(details).toContain("updates.example.org")
+    expect(details).not.toContain("github.com")
+  })
+
+  it("says each in one line, with the full description behind the info icon", async () => {
+    stubPrivacyBridge()
+    const user = userEvent.setup()
+    render(
+      <>
+        <UpdateSettings />
+        <UsageStatisticsSettings />
+      </>
+    )
+
+    expect(
+      await screen.findByText(
+        "Checks for a newer version once a day. No ID sent."
+      )
+    ).toBeTruthy()
+    expect(
+      screen.getByText(
+        "A daily count of how SurfSense is used, in ranges. Never your documents, prompts or an ID."
+      )
+    ).toBeTruthy()
+
+    await user.hover(
+      screen.getByRole("button", { name: "What an update check sends" })
+    )
+    expect((await screen.findByRole("tooltip")).textContent).toContain(
+      "githubusercontent.com"
+    )
+    await user.unhover(
+      screen.getByRole("button", { name: "What an update check sends" })
+    )
+    await waitFor(() => expect(screen.queryByRole("tooltip")).toBeNull())
+    await user.hover(
+      screen.getByRole("button", { name: "What usage statistics send" })
+    )
+    expect((await screen.findByRole("tooltip")).textContent).toContain(
+      "Never documents, prompts, file names, model names, hosts, your license key or an ID."
+    )
   })
 
   it("holds Check now when a policy turned update checks off", async () => {
