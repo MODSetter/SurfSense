@@ -62,8 +62,8 @@ One source per runtime, shared with the desktop: what the desktop takes from ups
 
 The staging scripts know one Linux build today, the desktop's Vulkan one, so even the CPU image needs this, from step 7, when it first stages llama.cpp:
 
-- [`fetch-llamacpp.mjs`](../../../surfsense_local/electron/scripts/fetch-llamacpp.mjs) pins only `ubuntu-vulkan-x64` for `linux-x64`, and its `checkConfiguration()` throws on any Linux asset without `vulkan`.
-- [`sdcpp/recipe.mjs`](../../../surfsense_local/electron/scripts/sdcpp/recipe.mjs) compiles Linux with `-DSD_VULKAN=ON` and nothing else.
+- [`fetch-llamacpp.mjs`](../../../surfsense_local/runtimes/fetch-llamacpp.mjs) pins only `ubuntu-vulkan-x64` for `linux-x64`, and its `checkConfiguration()` throws on any Linux asset without `vulkan`.
+- [`sdcpp/recipe.mjs`](../../../surfsense_local/runtimes/sdcpp/recipe.mjs) compiles Linux with `-DSD_VULKAN=ON` and nothing else.
 
 Each script takes a variant beside its target: `linux-x64` with `cpu` or `cuda`, and later `linux-arm64` and `cuda13`. A llama.cpp variant gets its own pinned asset and SHA-256; an sd.cpp variant gets its own CMake flags (`-DSD_CUDA=ON`, or neither for the CPU) in the same recipe. The Vulkan rule in `checkConfiguration()` covers the desktop's targets only. With no variant, a script stages the desktop's build as today, so the installers do not change. Without a CPU variant, the CPU image would carry Vulkan binaries and `libvulkan` only to fall back to the CPU.
 

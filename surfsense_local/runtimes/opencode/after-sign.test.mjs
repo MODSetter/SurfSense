@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url"
 
 import afterSign from "./after-sign.mjs"
 
-const ELECTRON = fileURLToPath(new URL("../..", import.meta.url))
+const ELECTRON = fileURLToPath(new URL("../../electron", import.meta.url))
 
 /** What electron-builder hands the hook: the packager places resources under appOutDir. */
 function context(t) {
@@ -40,9 +40,9 @@ test("a build made with opencode off is not checked, since it carries none", asy
 
 test("electron-builder.yml runs it after signing, and electron-builder loads it as the hook", async () => {
   const hook = configuredHook()
-  assert.equal(hook, "./scripts/opencode/after-sign.mjs")
+  assert.equal(hook, "../runtimes/opencode/after-sign.mjs")
   // Loaded the way electron-builder loads a hook named by path.
-  const builder = createRequire(createRequire(import.meta.url).resolve("electron-builder"))
+  const builder = createRequire(createRequire(join(ELECTRON, "package.json")).resolve("electron-builder"))
   const { resolveFunction } = builder("app-builder-lib/out/util/resolve")
   assert.equal(await resolveFunction("module", join(ELECTRON, hook), "afterSign", ELECTRON), afterSign)
 })

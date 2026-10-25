@@ -8,7 +8,7 @@ arguments each model gets, and every byte downloaded from Hugging Face. The
 shaping rule is to assume nothing worked until something says it did, because
 llama.cpp's common failures exit 0 and look like success.
 
-**Code:** [`surfsense_local/backend/modules/llm/providers/llamacpp/`](../../../surfsense_local/backend/modules/llm/providers/llamacpp/), [`surfsense_local/sidecars/llamacpp.ts`](../../../surfsense_local/sidecars/llamacpp.ts), [`surfsense_local/sidecars/watch-generation-preset.ts`](../../../surfsense_local/sidecars/watch-generation-preset.ts) (preset watcher), [`surfsense_local/electron/scripts/fetch-llamacpp.mjs`](../../../surfsense_local/electron/scripts/fetch-llamacpp.mjs)
+**Code:** [`surfsense_local/backend/modules/llm/providers/llamacpp/`](../../../surfsense_local/backend/modules/llm/providers/llamacpp/), [`surfsense_local/sidecars/llamacpp.ts`](../../../surfsense_local/sidecars/llamacpp.ts), [`surfsense_local/sidecars/watch-generation-preset.ts`](../../../surfsense_local/sidecars/watch-generation-preset.ts) (preset watcher), [`surfsense_local/runtimes/fetch-llamacpp.mjs`](../../../surfsense_local/runtimes/fetch-llamacpp.mjs)
 **Decisions:** [ADR 0011](../../adr/0011-llama-cpp-local-runtime.md), [ADR 0012](../../adr/0012-vulkan-only-gpu-backend.md), [ADR 0015](../../adr/0015-openai-compatible-connections.md), [ADR 0049](../../adr/0049-prompts-grow-at-the-end.md)
 
 How each model's window and cache precision are chosen is in
@@ -482,7 +482,7 @@ runtime:
 - `bundling/api_inputs.py` ships `modules/llm/catalog/local/manifest/models.json` at
   `modules/llm/catalog/local/manifest`. The manifest is read by path, so the analyser cannot see
   it, and a packaging test asserts it is bundled.
-- Release CI stages the runtime with `node scripts/fetch-llamacpp.mjs`, and on
+- Release CI stages the runtime with `node ../runtimes/fetch-llamacpp.mjs`, and on
   Linux runs the packaged `llama-server --list-devices` from
   `resources/llamacpp/`.
 

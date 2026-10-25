@@ -261,12 +261,12 @@ jobs:
 
       - name: Stage llama.cpp
         working-directory: surfsense_local/electron
-        run: node scripts/fetch-llamacpp.mjs
+        run: node ../runtimes/fetch-llamacpp.mjs
 
-      # On by default (scripts/opencode/enabled.mjs): every installer carries the agent.
+      # On by default (runtimes/opencode/enabled.mjs): every installer carries the agent.
       - name: Stage opencode
         working-directory: surfsense_local/electron
-        run: node scripts/opencode/stage.mjs
+        run: node ../runtimes/opencode/stage.mjs
 
       - name: Fetch the audio.cpp build
         if: runner.os != 'macOS'
@@ -279,7 +279,7 @@ jobs:
         working-directory: surfsense_local/electron
         run: |
           if [ -f audiocpp.tar ]; then tar -xf audiocpp.tar && rm audiocpp.tar; fi
-          node scripts/audiocpp/stage.mjs --strict
+          node ../runtimes/audiocpp/stage.mjs --strict
 
       - name: Fetch the sd.cpp build
         if: runner.os != 'Windows'
@@ -292,7 +292,7 @@ jobs:
         working-directory: surfsense_local/electron
         run: |
           if [ -f sdcpp.tar ]; then tar -xf sdcpp.tar && rm sdcpp.tar; fi
-          node scripts/sdcpp/stage.mjs --strict
+          node ../runtimes/sdcpp/stage.mjs --strict
 
       # After every staging step, since the native notices read the staged
       # folders. Fails when an npm, Python or native dependency has no licence
@@ -348,7 +348,7 @@ jobs:
 
           "${CMD[@]}"
 
-      # electron-builder's afterSign hook (scripts/opencode/after-sign.mjs) already
+      # electron-builder's afterSign hook (runtimes/opencode/after-sign.mjs) already
       # ran this on macOS and Windows once the app was signed, before any installer
       # was made or uploaded. Linux signs nothing and skips that hook, so this is
       # its check of the packaged copy, and a second look on the other two.
@@ -360,7 +360,7 @@ jobs:
             Windows) DIR=release/win-unpacked/resources/opencode ;;
             macOS) DIR=release/mac-arm64/SurfSense.app/Contents/Resources/opencode ;;
           esac
-          node scripts/opencode/check-stage.mjs "$DIR"
+          node ../runtimes/opencode/check-stage.mjs "$DIR"
 
       # electron-builder only warns when an extraResources folder is missing.
       - name: Smoke the packaged backend (Windows)
@@ -418,7 +418,7 @@ jobs:
           test -d "$DIR/espeak/espeak-ng-data"
           test -f "$DIR/espeak/COPYING"
           # The trimmed data keeps a script-switch target and drops a language no
-          # curated voice reaches (scripts/audiocpp/espeak/dictionaries.mjs).
+          # curated voice reaches (runtimes/audiocpp/espeak/dictionaries.mjs).
           test -f "$DIR/espeak/espeak-ng-data/te_dict"
           test ! -e "$DIR/espeak/espeak-ng-data/cmn_dict"
 

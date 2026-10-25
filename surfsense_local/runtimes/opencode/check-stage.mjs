@@ -2,7 +2,7 @@
 // its stage before the swap, and after-sign.mjs the signed copy before any
 // installer is made, because signing can break an executable. Release CI checks
 // the folder each installer carries:
-//   node scripts/opencode/check-stage.mjs <folder>
+//   node ../runtimes/opencode/check-stage.mjs <folder>
 import { execFileSync } from "node:child_process"
 import { existsSync, mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
