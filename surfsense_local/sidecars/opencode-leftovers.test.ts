@@ -5,7 +5,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import test from "node:test"
 
-import { getFreePort } from "../net.ts"
+import { getFreePort } from "./net.ts"
 import { recordOpencode, stopLeftoverOpencode } from "./opencode-leftovers.ts"
 import { isWindows } from "./platform.ts"
 

@@ -7,8 +7,8 @@
 import type { ChildProcess } from "node:child_process"
 import { join } from "node:path"
 
-import { sessionLog } from "../session-log/session-log.ts"
-import { warnMain } from "../session-log/main-warn.ts"
+import { sessionLog } from "./session-log/session-log.ts"
+import { warnMain } from "./session-log/main-warn.ts"
 import {
   AUDIOCPP_TRANSCRIPTION_SIDECAR,
   TRANSCRIPTION_CONFIG,

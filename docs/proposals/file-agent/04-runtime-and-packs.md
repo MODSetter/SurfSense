@@ -12,7 +12,7 @@ code:
   - surfsense_local/backend/tests/packaging/
   - surfsense_local/electron/electron-builder.yml
   - surfsense_local/electron/build/entitlements.python.plist
-  - surfsense_local/electron/src/main/sidecars/python.ts
+  - surfsense_local/sidecars/python.ts
   - surfsense_local/electron/src/main/updater.ts
   - surfsense_local/electron/scripts/fonts/
   - surfsense_local/electron/scripts/python/
@@ -53,13 +53,13 @@ Facts below were checked on 3 Oct 2026 in this repo, in the local Windows build 
 - The frozen API has no lxml, docx or openpyxl, but it has `tarfile`, `lzma`, `httpx` and `psutil` (**measured**, same method on `api.exe`). [`api_inputs.py`](../../../surfsense_local/backend/bundling/api_inputs.py) adds the two `models.json` manifests and the prompt folders as data, and nothing from `backend/plugins/bundles/core/`.
 - The frozen worker is not a Python. [`worker.py`](../../../surfsense_local/backend/worker.py) accepts a queue name or `--check-vision-runtime`, and calls `multiprocessing.freeze_support()`. It imports `worker.consumer` (Huey, the models, the queues) at module top, before it reads `argv`. The API already re-executes itself for its device probe, because "The frozen build has no interpreter to run `-m` with" ([`main.py`](../../../surfsense_local/backend/main.py) `probe_devices`). A frozen worker that only prints its usage starts in 0.8 to 1.7 s (**measured**, three runs), and that includes the consumer's imports.
 - An idle Studio worker holds a 77 MB working set and 541 MB of private memory on Windows (**measured**, `worker.exe studio` after 20 s).
-- Packaged, the Python sidecars run with `cwd` set to the resources folder ([`python.ts`](../../../surfsense_local/electron/src/main/sidecars/python.ts) `pythonCmd`). The local `win-unpacked/resources/` holds a stray `output.pdf`, most likely a model-written ReportLab script that wrote a relative path ([`runner.py`](https://github.com/MODSetter/SurfSense/blob/0847e12f723394ff8343e586c074d6ebb3541fed/surfsense_local/backend/worker/studio/office/runner.py) runs model code with `exec()`).
+- Packaged, the Python sidecars run with `cwd` set to the resources folder ([`python.ts`](../../../surfsense_local/sidecars/python.ts) `pythonCmd`). The local `win-unpacked/resources/` holds a stray `output.pdf`, most likely a model-written ReportLab script that wrote a relative path ([`runner.py`](https://github.com/MODSetter/SurfSense/blob/0847e12f723394ff8343e586c074d6ebb3541fed/surfsense_local/backend/worker/studio/office/runner.py) runs model code with `exec()`).
 - Ingest commits before it parses ("drop it before parsing"), so [`parsing.py`](../../../surfsense_local/backend/worker/ingestion/parsing.py) `markdown_for()` runs outside any transaction ([`pipeline.py`](../../../surfsense_local/backend/worker/ingestion/pipeline.py) `_ingest`).
 
 ### Interpreters and JavaScript
 
 - [`plugin_interpreter.py`](../../../surfsense_local/backend/modules/plugins/bundles/plugin_interpreter.py) `plugin_python()` returns `sys.executable`, with the comment "The packaged worker is not a Python, so the app will ship one for plugins." Plugins therefore run only in development today. The design pins python-build-standalone CPython at [`build-targets.json`](../../../backend/plugins/bundles/core/build-targets.json) `"python": "3.12"` for `windows-x64`, `macos-arm64` and `linux-x64` ([plugin interpreter](../plugins/bundles/python/01-interpreter.md)). The staging script it names, `fetch-plugin-python.mjs`, does not exist. Plugin dependencies may be compiled wheels, installed after the app is ([plugin packaging](../plugins/bundles/release/01-packaging.md)).
-- opencode's environment puts opencode's own folder, then the system `PATH`, on `PATH` ([`opencode.ts`](../../../surfsense_local/electron/src/main/sidecars/opencode.ts) `opencodeEnvironment`). `python` in the agent's shell is the user's own, or on Windows the Store stub. Its proxies point at `127.0.0.1:9`, so nothing it starts can install packages.
+- opencode's environment puts opencode's own folder, then the system `PATH`, on `PATH` ([`opencode.ts`](../../../surfsense_local/sidecars/opencode.ts) `opencodeEnvironment`). `python` in the agent's shell is the user's own, or on Windows the Store stub. Its proxies point at `127.0.0.1:9`, so nothing it starts can install packages.
 - Two JavaScript runtimes already ship. `ELECTRON_RUN_AS_NODE=1 electron.exe` reports Node 24.20.0 on Electron 44.2.0, and `BUN_BE_BUN=1 opencode.exe --version` reports Bun 1.3.14 (**measured** on the staged binaries). Neither ships npm.
 - No Electron fuses are configured: nothing in `src/`, `scripts/` or `electron-builder.yml` mentions fuses, and nothing in the app sets `ELECTRON_RUN_AS_NODE` (**measured**, grep). electron-builder 26.16.1, the pinned version, supports `electronFuses`, `win.signExts`, `mac.signIgnore` and `mac.binaries`, but not per-file entitlements (its `configuration.d.ts` and `macOptions.d.ts`).
 

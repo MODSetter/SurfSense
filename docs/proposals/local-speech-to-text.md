@@ -124,7 +124,7 @@ Others considered, with the cards' speed in transcribe.cpp on a Ryzen 7 PRO 4750
 
 ### The transcription server
 
-`sidecars/audiocpp-transcription.ts` returns a spec for the same binary as [`audiocpp.ts`](../../surfsense_local/electron/src/main/sidecars/audiocpp.ts), with its own config, port and flags, and no eSpeak:
+`sidecars/audiocpp-transcription.ts` returns a spec for the same binary as [`audiocpp.ts`](../../surfsense_local/sidecars/audiocpp.ts), with its own config, port and flags, and no eSpeak:
 
 | Flag | Value | Why |
 |---|---|---|
@@ -136,9 +136,9 @@ Others considered, with the cards' speed in transcribe.cpp on a Ryzen 7 PRO 4750
 | `--min-free-memory-mb` | 1024 | a backstop behind the app's own check |
 | `--no-ui` | | as for voices |
 
-- **Watcher.** `sidecars/watch-transcription-models.ts` follows the file as [`watch-audio-models.ts`](../../surfsense_local/electron/src/main/sidecars/watch-audio-models.ts) does: start when it exists, restart when it changes, stop when it is gone. Unlike the TTS server, it also restarts after a crash, at most once per 10 s, as [`boot.ts`](../../surfsense_local/electron/src/main/sidecars/boot.ts) restarts opencode. After 3 crashes in 5 minutes it stops trying; status then reports `transcription_unavailable`, and a recording that fails on it reads "The speech recognition engine stopped". Today a crashed audio server only notifies the renderer.
+- **Watcher.** `sidecars/watch-transcription-models.ts` follows the file as [`watch-audio-models.ts`](../../surfsense_local/sidecars/watch-audio-models.ts) does: start when it exists, restart when it changes, stop when it is gone. Unlike the TTS server, it also restarts after a crash, at most once per 10 s, as [`boot.ts`](../../surfsense_local/sidecars/boot.ts) restarts opencode. After 3 crashes in 5 minutes it stops trying; status then reports `transcription_unavailable`, and a recording that fails on it reads "The speech recognition engine stopped". Today a crashed audio server only notifies the renderer.
 - **`transcription.json` is written only when its bytes change**, so an API start, a voice install or a delete never restarts it.
-- **Only the API is told where it is.** [`python.ts`](../../surfsense_local/electron/src/main/sidecars/python.ts) adds `SURFSENSE_LOCAL_TRANSCRIPTION_BASE_URL` to the API's environment alone, as it does for opencode. Workers reach it through the API.
+- **Only the API is told where it is.** [`python.ts`](../../surfsense_local/sidecars/python.ts) adds `SURFSENSE_LOCAL_TRANSCRIPTION_BASE_URL` to the API's environment alone, as it does for opencode. Workers reach it through the API.
 - **Settings › Resources** already files every `audiocpp_server` process under its audio.cpp row ([`engines.py`](../../surfsense_local/backend/modules/resource_usage/engines.py)), so the second one counts there with no change.
 
 **Why a second process.** One server under today's flags fails four ways:

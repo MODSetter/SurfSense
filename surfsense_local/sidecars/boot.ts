@@ -11,7 +11,7 @@ import { randomBytes } from "node:crypto"
 import { existsSync, mkdirSync, rmSync, statSync } from "node:fs"
 import { join } from "node:path"
 
-import { getFreePort, waitForHealth } from "../net.ts"
+import { getFreePort, waitForHealth } from "./net.ts"
 import { audiocppSpec } from "./audiocpp.ts"
 import { audiocppTranscriptionSpec } from "./audiocpp-transcription.ts"
 import { llamacppSpec } from "./llamacpp.ts"

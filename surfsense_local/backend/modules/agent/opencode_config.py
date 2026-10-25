@@ -18,7 +18,7 @@ PROVIDER = "surfsense"
 AGENT = "surfsense"
 # The agent opencode would name a session with; SurfSense names every session itself.
 TITLE_AGENT = "title"
-# The file electron/src/main/sidecars/opencode.ts watches, in the agent folder.
+# The file sidecars/opencode.ts watches, in the agent folder.
 CONFIG_FILE = "opencode.json"
 
 # opencode never asks for more than this per answer, whatever the limit says.

@@ -6,7 +6,7 @@ import { join } from "node:path"
 import { Writable } from "node:stream"
 import test from "node:test"
 
-import { sessionLog } from "../session-log/session-log.ts"
+import { sessionLog } from "./session-log/session-log.ts"
 import { isWindows } from "./platform.ts"
 import { createEcho, startOne, stopNamed, terminal, type Sidecars } from "./supervisor.ts"
 import type { SidecarSpec } from "./types.ts"

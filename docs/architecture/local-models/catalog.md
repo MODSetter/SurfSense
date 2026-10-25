@@ -43,7 +43,7 @@ of them.
 `GET /llm/catalog/local` returns llama.cpp's rows, then sd.cpp's, audio.cpp's and onnxruntime's.
 sd.cpp's are the six curated image models and two video models, only when Electron handed the API an
 images folder, which it does only when it staged sd-server, in dev or packaged
-([`sidecars/boot.ts`](../../../surfsense_local/electron/src/main/sidecars/boot.ts); [packaging](../packaging.md)).
+([`sidecars/boot.ts`](../../../surfsense_local/sidecars/boot.ts); [packaging](../packaging.md)).
 audio.cpp's are the three curated voice models and the two speech recognisers,
 Nemotron 3.5 ASR Streaming 0.6B and Canary 180M Flash, only when Electron handed the API an audio
 folder, which it does only when it staged audio.cpp's server.

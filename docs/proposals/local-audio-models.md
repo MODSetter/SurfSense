@@ -6,7 +6,7 @@ code:
   - surfsense_local/backend/modules/artifacts/podcast/
   - surfsense_local/backend/scripts/local_manifest/
   - surfsense_local/backend/alembic/versions/
-  - surfsense_local/electron/src/main/sidecars/
+  - surfsense_local/sidecars/
   - surfsense_local/electron/scripts/
   - .github/workflows/
   - surfsense_local/frontend/src/features/models/

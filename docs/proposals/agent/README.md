@@ -7,7 +7,7 @@ code:
   - surfsense_local/backend/worker/studio/
   - surfsense_local/backend/worker/ingestion/
   - surfsense_local/electron/scripts/
-  - surfsense_local/electron/src/main/sidecars/
+  - surfsense_local/sidecars/
   - surfsense_local/frontend/src/features/chat/
   - surfsense_local/frontend/src/features/agent/
 ---
