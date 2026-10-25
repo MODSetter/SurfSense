@@ -123,8 +123,8 @@ export function PrivacyStep({
                     topic="updates"
                     state={state}
                     label={intl.formatMessage({
-                      id: "onboarding_privacy_updates_exact_request_button",
-                      defaultMessage: "See the exact request",
+                      id: "onboarding_privacy_updates_whats_sent_button",
+                      defaultMessage: "Show exactly what’s sent",
                     })}
                   />
                 )
@@ -154,8 +154,8 @@ export function PrivacyStep({
                   topic="usage"
                   state={state}
                   label={intl.formatMessage({
-                    id: "onboarding_privacy_usage_exact_report_button",
-                    defaultMessage: "See the exact report",
+                    id: "onboarding_privacy_usage_whats_sent_button",
+                    defaultMessage: "Show exactly what’s sent",
                   })}
                 />
               }

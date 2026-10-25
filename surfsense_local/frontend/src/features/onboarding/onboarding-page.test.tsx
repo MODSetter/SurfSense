@@ -1437,7 +1437,7 @@ describe("the privacy choices", () => {
     await toPrivacyStep(user)
     const usage = screen.getByRole("region", { name: "Share usage statistics" })
     await user.click(
-      within(usage).getByRole("button", { name: "See the exact report" })
+      within(usage).getByRole("button", { name: "Show exactly what’s sent" })
     )
 
     const dialog = await screen.findByRole("dialog", {
@@ -1459,7 +1459,7 @@ describe("the privacy choices", () => {
     await toPrivacyStep(user)
     const updates = screen.getByRole("region", { name: "Check for updates" })
     await user.click(
-      within(updates).getByRole("button", { name: "See the exact request" })
+      within(updates).getByRole("button", { name: "Show exactly what’s sent" })
     )
 
     const dialog = await screen.findByRole("dialog", {
@@ -1516,7 +1516,9 @@ describe("the privacy choices", () => {
     expect(updates.textContent).toContain("Updates come from the Snap Store")
     expect(updates.textContent).not.toContain("Once a day")
     expect(
-      within(updates).queryByRole("button", { name: "See the exact request" })
+      within(updates).queryByRole("button", {
+        name: "Show exactly what’s sent",
+      })
     ).toBeNull()
     expect(
       within(updates).queryByRole("button", {
