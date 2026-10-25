@@ -65,14 +65,14 @@ A pull that fails marks the note `failed` with a sentence the panel shows:
 
 ## The dialog
 
-[`add-from-web-dialog.tsx`](../../surfsense_local/frontend/src/features/sources/web/add-from-web-dialog.tsx) has one box, **Search Google or paste links**, over the rows it found. Enter submits and Shift+Enter starts a new line.
+[`add-from-web-dialog.tsx`](../../surfsense_local/frontend/src/features/sources/web/add-from-web-dialog.tsx) has one box, **Search Google or paste links**, over the rows it found. Enter submits and Shift+Enter starts a new line. The dialog keeps one height: the box stays put and the rows scroll beneath it. Before the first search, the space under the box offers every site, one click each.
 
-- **The box.** Text with a link in it opens the links, up to 20; anything else is a search on the site chosen beside the box: Google Search, the default, YouTube, TikTok, Google Maps, Amazon, Walmart or Indeed. Pasted links open by their own site whatever is chosen, and a new dialog starts on Google Search. Links can be one per line or several on a line. A link without `https://` counts when it starts with `www.` or has a path, such as `youtube.com/@name`, and every word on its line is a link, so a search like "node.js tutorial" stays a search. A line with no link is named back, and nothing is sent for it.
+- **The box.** Text with a link in it opens the links, up to 20; anything else is a search on the site chosen in the menu under the text: Google Search, the default, YouTube, TikTok, Google Maps, Amazon, Walmart or Indeed. Pasted links open by their own site whatever is chosen, and a new dialog starts on Google Search. Links can be one per line or several on a line. A link without `https://` counts when it starts with `www.` or has a path, such as `youtube.com/@name`, and every word on its line is a link, so a search like "node.js tutorial" stays a search. A line with no link is named back, and nothing is sent for it.
 - **Rows.** Each row shows its title, its site and, for a site with its own puller, a badge naming it, such as YouTube.
   - A row to add has **Add**, which turns into "Added", or "Already in Sources" for a link added before.
   - A list row has **Open**, which shows its items in a panel beneath that row, headed by the list's name, its badge and how many items it shows. A pasted list link gets the same panel, named by its link.
   - A short link says why it can't be added.
-  - A list group has **Show more** while the list has more.
+  - A list group, and a search, has **Show more** after its last row while it has more.
 - **Add all.** It adds every row not yet added, 20 per request. The dialog stays open until **Close**, and the new sources appear in Sources at once.
 - **Licence offer.** With no license, or an expired one, as `GET /license/status` reports, the dialog opens on an offer instead of the search: **Start a free trial** and **License settings**. A refusal from the plugin host on the way shows the same offer, with the host's reason.
 

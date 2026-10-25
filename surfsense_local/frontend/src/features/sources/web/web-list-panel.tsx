@@ -4,7 +4,7 @@ import { intl } from "@/i18n/intl"
 import type { WebGroup } from "./api"
 import { pullerName } from "./puller-names"
 import type { RowActions } from "./row-actions"
-import { ShowMoreBar } from "./show-more-bar"
+import { ShowMoreButton } from "./show-more-button"
 import { WebResultRows } from "./web-result-rows"
 
 /** A list's items in one panel, named after the list, so they read as one group. */
@@ -23,7 +23,6 @@ export function WebListPanel({
     <section
       role="group"
       aria-label={title}
-      // No overflow clip: it would stop Show more sticking to the scroll box.
       className="flex flex-col rounded-lg border bg-muted/40"
     >
       <header className="flex min-w-0 items-center gap-2 border-b px-3 py-2">
@@ -53,8 +52,7 @@ export function WebListPanel({
         <WebResultRows results={group.results} actions={actions} />
       )}
       {group.more ? (
-        <ShowMoreBar
-          tinted
+        <ShowMoreButton
           loading={actions.loadingMore.has(link)}
           onClick={() => actions.onMore(link)}
         />
