@@ -38,7 +38,13 @@
   </p>
 </div>
 
+**추적된 변경과 메모로 계약서를 레드라인 처리합니다**
+
 https://github.com/user-attachments/assets/88326b9d-e763-46db-9635-75f9df9e8682
+
+**웹에서 소스를 추가하고 웹 페이지로 만듭니다**
+
+https://github.com/user-attachments/assets/073577b7-f055-4f59-8540-330bd764aeb0
 
 SurfSense는 업로드할 수 없는 문서를 위한 무료 오픈소스 데스크톱 앱입니다. 프라이버시를 중시하는 NotebookLM 스타일의 AI 에이전트로, 내 컴퓨터에서 문서를 조사하고, 변환하고, 편집합니다. 색인은 내 디스크에 남고, 모델은 로컬이든 원격이든 내가 고르며, 만들 계정도 없습니다.
 

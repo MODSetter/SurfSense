@@ -4,8 +4,9 @@
   release whose installers carry the agent.
   The format table is checked against origin/dev c5ff7938a, which v2.2.0 contains; re-check
   each cell against the release commit before a release.
-  The demo video under the header is a GitHub upload, not a file in the repo. To replace it, drag an
-  MP4 under 10 MB into any comment box in this repo, copy the user-attachments link and swap the URL.
+  The demo videos under the header are GitHub uploads, not files in the repo, each under a bold
+  caption on its own line. To replace one, drag an MP4 under 10 MB into any comment box in this
+  repo, copy the user-attachments link and swap the URL.
   Every README.<locale>.md follows this file section for section and names the app's UI in
   the words of surfsense_local/frontend/translations/<locale>.json (Arabic: the English in
   parentheses); change them together.
@@ -46,7 +47,13 @@
   </p>
 </div>
 
+**Redline a contract with tracked changes and comments**
+
 https://github.com/user-attachments/assets/88326b9d-e763-46db-9635-75f9df9e8682
+
+**Add sources from the web, then turn them into a web page**
+
+https://github.com/user-attachments/assets/073577b7-f055-4f59-8540-330bd764aeb0
 
 SurfSense is a free, open-source desktop app for documents you can't upload. A privacy-focused, NotebookLM-style AI agent that researches, transforms and edits your documents, on your machine. The index stays on your disk, you pick the model, local or remote, and there is no account.
 
