@@ -171,12 +171,12 @@ export default function PrivacyPolicy() {
 							10-49, for the past seven days: chat turns, agent turns, whether a local or a remote
 							model answered, the documents in your library, Studio outputs, plugin calls, and how
 							far setup got. During the first week every report carries those counts, for the time
-							since installation. The first report adds your computer's memory, graphics card maker
-							and graphics memory, also in ranges, and whether SurfSense's model runtime can use the
-							graphics card; during the first week that is sent again only while part of it is
-							unknown. It never sends documents, prompts, file names, model names, model hosts, your
-							licence key or an identifier. Settings shows the exact next daily report and the last
-							report sent.
+							since installation. The first daily report adds your computer's memory, graphics card
+							maker and graphics memory, also in ranges, and whether SurfSense's model runtime can
+							use the graphics card; during the first week that is sent again only while part of it
+							is unknown, and only when it changed. It never sends documents, prompts, file names,
+							model names, model hosts, your licence key or an identifier. Settings shows the exact
+							next daily report and the last report sent.
 						</li>
 						<li>
 							<strong>Model search and downloads, to huggingface.co.</strong> Searching sends what
