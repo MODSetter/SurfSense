@@ -130,3 +130,87 @@ async def test_a_site_with_no_search_of_its_own_is_refused(
     )
 
     assert found.status_code == 422
+
+
+def reddit_found(arguments: dict) -> list[dict]:
+    """Reddit's best matching posts, as many as asked for."""
+    return [
+        {
+            "dataType": "post",
+            "title": f"Tides, thread {n}",
+            "url": f"https://www.reddit.com/r/oceanography/comments/t{n}/tides/",
+            "username": "seaschool",
+            "communityName": "r/oceanography",
+        }
+        for n in range(1, arguments.get("max_posts", 10) + 1)
+    ]
+
+
+async def test_a_search_on_reddit_finds_posts_to_add(
+    client: AsyncClient, workspace_id: int, scraper_host: ScraperHost
+) -> None:
+    """Posts only, without their comments, which come when one is added."""
+    scraper_host.start({("reddit", "scrape"): reddit_found})
+    await import_license(client, "individual.lic")
+
+    found = await client.post(
+        search_url(workspace_id), json={"query": "tides", "source": "reddit"}
+    )
+
+    assert found.status_code == 200, found.text
+    assert found.json()["results"][0] == {
+        "url": "https://www.reddit.com/r/oceanography/comments/t1/tides/",
+        "title": "Tides, thread 1",
+        "description": "r/oceanography · u/seaschool",
+        "site": "www.reddit.com",
+        "puller": "reddit",
+        "fit": "one",
+    }
+    assert scraper_host.calls == [
+        (
+            "reddit",
+            "scrape",
+            {
+                "search_queries": ["tides"],
+                "skip_comments": True,
+                "max_posts": 20,
+                "max_items": 20,
+            },
+        )
+    ]
+
+
+async def test_a_search_on_instagram_finds_profiles_to_open(
+    client: AsyncClient, workspace_id: int, scraper_host: ScraperHost
+) -> None:
+    """Instagram's own search is behind its login, so a search finds accounts."""
+    scraper_host.start(
+        {
+            ("instagram", "details"): lambda _: [
+                {
+                    "detailKind": "profile",
+                    "url": "https://www.instagram.com/seaschool/",
+                    "username": "seaschool",
+                    "fullName": "Sea School",
+                    "followersCount": 12000,
+                }
+            ]
+        }
+    )
+    await import_license(client, "individual.lic")
+
+    found = await client.post(
+        search_url(workspace_id), json={"query": "tides", "source": "instagram"}
+    )
+
+    assert found.status_code == 200, found.text
+    assert found.json()["results"] == [
+        {
+            "url": "https://www.instagram.com/seaschool/",
+            "title": "Sea School",
+            "description": "@seaschool · 12,000 followers",
+            "site": "www.instagram.com",
+            "puller": "instagram",
+            "fit": "list",
+        }
+    ]

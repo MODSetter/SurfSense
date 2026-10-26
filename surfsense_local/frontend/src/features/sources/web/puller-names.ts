@@ -6,6 +6,8 @@ const PULLER_NAMES: Record<string, string> = {
   amazon: "Amazon",
   walmart: "Walmart",
   indeed: "Indeed",
+  reddit: "Reddit",
+  instagram: "Instagram",
 }
 
 /** Null for a page Web Crawl reads: nothing to say beyond its site. */

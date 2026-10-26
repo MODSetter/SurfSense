@@ -38,7 +38,7 @@ export function WebSearchStart({
           {intl.formatMessage({
             id: "sources_web_start_body",
             defaultMessage:
-              "Pick where to search, or paste links to pages, videos, channels and products.",
+              "Pick where to search, or paste links to pages, videos, posts, channels and products.",
           })}
         </EmptyDescription>
       </EmptyHeader>

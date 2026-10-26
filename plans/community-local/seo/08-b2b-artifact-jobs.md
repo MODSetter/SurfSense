@@ -16,7 +16,7 @@ it.
 
 **Revised 22 Oct 2026: the B2B jobs are paid plugins.** The maintainer decided
 that each B2B job ships as a plugin that runs on the user's machine and unlocks
-with a SurfSense licence, the 30-day trial included, while the app, the general
+with a SurfSense licence, the 14-day trial included, while the app, the general
 agent, the engines and the shared job infrastructure stay free and open source
 ([ADR 0067](../../../docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md)). That
 replaces this document's earlier rule that every job and its content stay free.
@@ -64,7 +64,7 @@ forums and Upwork, and is cited inline. The product facts were checked against
    paid hooks were wrappers around the jobs. Businesses already pay for the
    jobs: self-serve questionnaire tools at $50 to $249 a month, Loopio about
    $24K a year for small teams. So each B2B job ships as a plugin that runs on
-   the user's machine and unlocks with a SurfSense licence, the 30-day trial
+   the user's machine and unlocks with a SurfSense licence, the 14-day trial
    included. The app, the general agent, the engines and the shared job
    infrastructure stay free and open source. Team features and Enterprise
    assurance sit on top, later.
@@ -530,7 +530,7 @@ Decided 22 Oct 2026
 ([ADR 0067](../../../docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md)): the free
 layer distributes and the paid jobs earn.
 
-| free, in the app (Apache-2.0) | paid job plugins (licence required, 30-day trial included) |
+| free, in the app (Apache-2.0) | paid job plugins (licence required, 14-day trial included) |
 |---|---|
 | Q&A with citations, Studio, the general agent and its format skills | the security questionnaire |
 | every engine: Word revisions as tracked changes, Excel and PowerPoint revisions, PDF tools, OCR, speech-to-text, data analysis | RFP, RFI and DDQ responses |
@@ -553,7 +553,7 @@ examples name contracts and redlining, so a follow-up rewords them.
    the scraper plugins, priority support and, since 21 Oct 2026, one feature
    build request a year. Whether business jobs ship inside it at that price or
    in a business licence at a higher one is open question 2. The trial gives
-   every user the jobs for 30 days, so the job catalogue in the app is where a
+   every user the jobs for 14 days, so the job catalogue in the app is where a
    business user meets the paid layer.
 2. **Public-data plugins** inside the same licence, on the existing plugin host,
    because only queries and public records pass through. One experiment, capped
@@ -631,7 +631,7 @@ assumption under a ceiling of about 5,000 US searches.
 - The free layer through organic search, user posts and creators: the Cowork
   alternative, decks and reports from the user's files, converters, OCR and
   transcription. Its outputs are not confidential, so people can show them. In
-  the app, the job catalogue offers each paid job with its 30-day trial.
+  the app, the job catalogue offers each paid job with its 14-day trial.
 - Ten design partners (five MSP, MSSP or vCISO firms; five security or IT
   leads at 20 to 500-person software vendors) and two proposal managers or
   consultancies, recruited through a call in the README and GitHub
@@ -695,7 +695,7 @@ Either way:
 - **Through December.** Items 3 to 5 in point releases; local rows once a 24–32
   GB machine or rented GPU is confirmed.
 - **At the beta.** The job ships as a paid plugin on frontier models with an
-  n=3 row, and the 30-day trial covers design partners, who run it on their own
+  n=3 row, and the 14-day trial covers design partners, who run it on their own
   questionnaires. Settle the price (open question 2) before the first trials
   end.
 - **About six weeks after the beta.** Run the quality and pay checks below;

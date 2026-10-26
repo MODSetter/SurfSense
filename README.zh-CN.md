@@ -87,7 +87,7 @@ SurfSense 是一款免费开源的桌面应用，专为那些不能上传的文�
 
 在**设置 › 插件**中连接它们。
 
-**SurfSense 提供：** 这些插件读取公开网页，不需要你自己的账号，但需要 SurfSense 许可证。[下载应用](https://www.surfsense.com/downloads)并在应用里填写你的邮箱，即可免费获得 30 天的许可证。
+**SurfSense 提供：** 这些插件读取公开网页，不需要你自己的账号，但需要 SurfSense 许可证。[下载应用](https://www.surfsense.com/downloads)并在应用里填写你的邮箱，即可免费获得 14 天的许可证。
 
 | 插件 | 功能 |
 |---|---|

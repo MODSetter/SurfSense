@@ -226,7 +226,7 @@ describe("License settings", () => {
     // Each says which place in the app it came from; no version is read here.
     expect(bridge.openExternal.mock.calls).toEqual([
       [
-        "https://www.surfsense.com/downloads?utm_source=desktop&utm_medium=app&utm_content=license_trial",
+        "https://www.surfsense.com/pricing?utm_source=desktop&utm_medium=app&utm_content=license_trial",
       ],
       [
         "https://www.surfsense.com/pricing?utm_source=desktop&utm_medium=app&utm_content=license_pricing",

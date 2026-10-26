@@ -12,7 +12,8 @@ import { capabilityLabel } from "./capability-label"
 export function ModelCapabilitySummary() {
   const selection = useSelection("text_gen")
   const capability = selection.data?.capability
-  if (!capability) return null
+  // Dev builds only, like the model picker's level badge.
+  if (!import.meta.env.DEV || !capability) return null
   // Listed at the agent level without a run: said once, never as a pass.
   const assumed = capability.measured?.assumed === true
 

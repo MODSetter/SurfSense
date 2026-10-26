@@ -45,7 +45,7 @@ In order:
    because what the agent does to the user's own files is now the pitch.
 5. **Plugins**, added on 15 Oct 2026 once SurfSense's plugins shipped (2.2.1):
    where to connect them, a table of the eight first-party ones with the app's
-   one-line descriptions, which need a license, with the free 30-day one claimed
+   one-line descriptions, which need a license, with the free 14-day one claimed
    on `/downloads`, and third-party ones, which need none. It replaced **Star
    history**, under the rule that anything added replaces something, and sits
    above the comparison, as the maintainer asked.

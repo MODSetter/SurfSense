@@ -1408,7 +1408,7 @@
   "sources_web_show_more_button": "Show more",
   "sources_web_site_menu_label": "Search on",
   "sources_web_site_trigger_aria": "Search on {site}. Change site.",
-  "sources_web_start_body": "Pick where to search, or paste links to pages, videos, channels and products.",
+  "sources_web_start_body": "Pick where to search, or paste links to pages, videos, posts, channels and products.",
   "sources_web_start_title": "Find sources on the web",
   "sources_web_unreachable_error": "SurfSense couldn’t reach the web just now. Try again in a moment.",
   "speech_setup_card_download_button": "Download and set up",

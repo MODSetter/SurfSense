@@ -72,14 +72,14 @@ def test_trial_mail_carries_the_pinned_installers_and_the_configured_length(
     from license.release import APP_RELEASE_TAG
     from license.settings import config
 
-    monkeypatch.setattr(config, "LICENSE_TRIAL_DAYS", 30)
+    monkeypatch.setattr(config, "LICENSE_TRIAL_DAYS", 14)
 
     message = build_license_email("trial", to="a@b.test", certificates=("CERT",))
 
     assert f"v={APP_RELEASE_TAG}" in message.text_body
     assert "/releases/latest" not in message.text_body
-    assert message.subject == "Your SurfSense 30-day trial license"
-    assert "30-day" in message.text_body
+    assert message.subject == "Your SurfSense 14-day trial license"
+    assert "14-day" in message.text_body
 
 
 @pytest.mark.parametrize("kind", ["purchase", "resend", "trial"])

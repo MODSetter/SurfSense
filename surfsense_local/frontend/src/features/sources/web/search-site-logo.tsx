@@ -12,6 +12,8 @@ const SITE_PLUGIN = {
   amazon: "amazon",
   walmart: "walmart",
   indeed: "indeed",
+  reddit: "reddit",
+  instagram: "instagram",
 } as const satisfies Record<SearchSite, string>
 
 /** The site's own logo, served with SurfSense's plugins. */
