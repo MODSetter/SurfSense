@@ -1,12 +1,14 @@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { CheckIcon } from "@/components/ui/icons"
+import { OverflowTooltip } from "@/components/ui/overflow-tooltip"
 import { Spinner } from "@/components/ui/spinner"
 import { intl } from "@/i18n/intl"
 
 import type { WebResult } from "./api"
 import { pullerName } from "./puller-names"
 import { refusalText } from "./refusal-text"
+import { ResultLink } from "./result-link"
 import type { RowActions, RowState } from "./row-actions"
 import { WebListPanel } from "./web-list-panel"
 
@@ -48,7 +50,14 @@ function RowText({ result }: { result: WebResult }) {
     <div className="flex min-w-0 flex-1 flex-col gap-0.5">
       <span className="line-clamp-1 font-medium break-all">{result.title}</span>
       <span className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
-        <span className="truncate">{result.site}</span>
+        <OverflowTooltip
+          label={result.url}
+          render={
+            <ResultLink href={result.url} className="truncate">
+              {result.url}
+            </ResultLink>
+          }
+        />
         {name ? <Badge variant="secondary">{name}</Badge> : null}
       </span>
       {result.description ? (

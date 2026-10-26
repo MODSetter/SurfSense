@@ -261,7 +261,28 @@ describe("adding sources from the web", () => {
       { path: "/workspaces/1/documents/web", body: { urls: [PAGE] } },
     ])
     expect(screen.getByRole("dialog")).toBeTruthy()
-    expect(await screen.findByText(PAGE)).toBeTruthy()
+    // In Sources, not only in the row that added it.
+    await waitFor(() =>
+      expect(
+        screen.getAllByText(PAGE).some((text) => !dialog.contains(text))
+      ).toBe(true)
+    )
+  })
+
+  it("shows each result's whole link, and opens it in the browser", async () => {
+    const openExternal = vi.fn<(url: string) => Promise<void>>(
+      async () => undefined
+    )
+    window.surfsense = { ...window.surfsense!, openExternal }
+    const user = userEvent.setup()
+    serving()
+    render(<WebHarness />)
+    const dialog = await openDialog(user)
+
+    await ask(user, dialog, "tides")
+    await user.click(await within(dialog).findByRole("link", { name: VIDEO }))
+
+    expect(openExternal).toHaveBeenCalledExactlyOnceWith(VIDEO)
   })
 
   it("searches the web unless another site is chosen under the box", async () => {
