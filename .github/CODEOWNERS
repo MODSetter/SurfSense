@@ -24,6 +24,7 @@
 /surfsense_local/electron/                      @CREDO23 @AnishSarkar22
 /surfsense_local/sidecars/                      @CREDO23 @AnishSarkar22
 /surfsense_local/runtimes/                      @CREDO23 @AnishSarkar22
+/surfsense_local/headless/                      @CREDO23 @AnishSarkar22
 /surfsense_local/RELEASE.md                     @CREDO23 @AnishSarkar22
 /.github/workflows/release-local.yml            @CREDO23 @AnishSarkar22
 

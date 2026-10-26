@@ -36,7 +36,7 @@ import {
   type ThemePreference,
 } from "./theme-prefs.ts"
 import { loadWindowState, saveWindowState } from "./window-state.ts"
-import { announceApiUrl, withdrawApiUrl } from "./api-url/announce-api-url.ts"
+import { announceApiUrl, withdrawApiUrl } from "../../../sidecars/api-url/announce-api-url.ts"
 import { applyLocalePreference } from "./i18n/app-locale.ts"
 import { loadLocalePreference } from "./i18n/locale-prefs.ts"
 import { registerLocaleHandlers } from "./i18n/locale-ipc.ts"

@@ -28,7 +28,7 @@
     "build:opencode": "node ../runtimes/opencode/stage.mjs",
     "build:notices": "node scripts/notices/npm.mjs && node scripts/notices/native.mjs && uv --directory ../backend run scripts/write_python_notices.py ../electron/licenses/fragments && uv --directory ../backend run scripts/write_model_notices.py ../electron/licenses/fragments && node scripts/notices/merge.mjs",
     "dist": "pnpm build:llamacpp && pnpm build:sdcpp --strict && pnpm build:audiocpp --strict && pnpm build:opencode && pnpm build:frontend && pnpm build:binaries && pnpm build:model && pnpm build:voice && pnpm build:vad && pnpm build:parser && pnpm build:notices && pnpm build && electron-builder",
-    "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/main/*.test.ts src/main/**/*.test.ts scripts/*.test.mjs scripts/**/*.test.mjs \"../packaging/**/*.test.mjs\" \"../sidecars/**/*.test.ts\" \"../runtimes/*.test.mjs\" \"../runtimes/**/*.test.mjs\"",
+    "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/main/*.test.ts src/main/**/*.test.ts scripts/*.test.mjs scripts/**/*.test.mjs \"../packaging/**/*.test.mjs\" \"../sidecars/**/*.test.ts\" \"../runtimes/*.test.mjs\" \"../runtimes/**/*.test.mjs\" \"../headless/**/*.test.ts\"",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "check:sidecars": "node ../sidecars/check-sidecars.mjs"
   },

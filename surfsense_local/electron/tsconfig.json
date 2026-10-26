@@ -13,5 +13,5 @@
     "verbatimModuleSyntax": true,
     "resolveJsonModule": true
   },
-  "include": ["src", "../sidecars", "electron.vite.config.ts"]
+  "include": ["src", "../sidecars", "../headless", "electron.vite.config.ts"]
 }
