@@ -348,7 +348,7 @@ jobs:
 
           "${CMD[@]}"
 
-      # electron-builder's afterSign hook (runtimes/opencode/after-sign.mjs) already
+      # electron-builder's afterSign hook (electron/scripts/opencode/after-sign.mjs) already
       # ran this on macOS and Windows once the app was signed, before any installer
       # was made or uploaded. Linux signs nothing and skips that hook, so this is
       # its check of the packaged copy, and a second look on the other two.

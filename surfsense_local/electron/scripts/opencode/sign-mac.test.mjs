@@ -4,7 +4,7 @@ import test from "node:test"
 
 /** `mac.signIgnore` in electron-builder.yml, as the regexes electron-builder makes of it. */
 function signIgnore() {
-  const yml = readFileSync(new URL("../../electron/electron-builder.yml", import.meta.url), "utf8").replace(/\r\n/g, "\n")
+  const yml = readFileSync(new URL("../../electron-builder.yml", import.meta.url), "utf8").replace(/\r\n/g, "\n")
   const mac = yml.match(/^mac:\n((?:[ \t]+.*\n|\n)*)/m)?.[1] ?? ""
   const list = mac.match(/^  signIgnore:\n((?:    - .*\n)*)/m)?.[1] ?? ""
   return list
