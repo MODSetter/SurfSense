@@ -11,7 +11,8 @@ import {
 } from "./first-week.ts"
 import { sentHardware, type PrivacyFile, type PrivacyStore } from "./privacy-file.ts"
 import { buildUsageReport, type UsageReport } from "./report-body.ts"
-import { furthestStep, setupReportDue } from "./setup-progress.ts"
+import { furthestStep, setupReportDue, setupStep } from "./setup-progress.ts"
+import { countSetupTry, refusedSetupTry, setupTryAllowed } from "./setup-tries.ts"
 
 // Contract 05, part B: one accepted daily report per UTC day, three tries at
 // most, 10 s each, and never more than 4 KB.
@@ -118,8 +119,14 @@ export function createUsageReporter(deps: {
     platform !== null &&
     os !== null
 
-  /** "sent" only once the endpoint accepted it; `retry` says when the next try comes. */
-  const post = async (body: UsageReport, retry: string): Promise<AttemptResult> => {
+  /**
+   * "sent" only once the endpoint accepted it; "refused" is a 4xx answer, which
+   * the same body would get again. `retry` says when the next try comes.
+   */
+  const post = async (
+    body: UsageReport,
+    retry: { failed: string; refused?: string }
+  ): Promise<AttemptResult | "refused"> => {
     const what = `${body.trigger} usage report`
     const json = JSON.stringify(body)
     if (Buffer.byteLength(json) > MAX_BODY_BYTES) {
@@ -143,13 +150,15 @@ export function createUsageReporter(deps: {
         signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
       })
       if (!reply.ok) {
-        log(`${what} to ${host} not accepted (HTTP ${reply.status}), ${retry}`)
-        return "failed"
+        const refused = reply.status >= 400 && reply.status < 500
+        const next = (refused && retry.refused) || retry.failed
+        log(`${what} to ${host} not accepted (HTTP ${reply.status}), ${next}`)
+        return refused ? "refused" : "failed"
       }
       return "sent"
     } catch (error) {
       const reason = error instanceof Error && error.name === "TimeoutError" ? "timed out" : "unreachable"
-      log(`${what} to ${host} ${reason}, ${retry}`)
+      log(`${what} to ${host} ${reason}, ${retry.failed}`)
       return "failed"
     }
   }
@@ -178,8 +187,8 @@ export function createUsageReporter(deps: {
     try {
       const body = await build(file, at, "daily")
       if (body === null) return "skipped"
-      const result = await post(body, `try ${tries + 1} of 3 today`)
-      if (result !== "sent") return result
+      const result = await post(body, { failed: `try ${tries + 1} of 3 today` })
+      if (result !== "sent") return result === "refused" ? "failed" : result
       deps.store.update((current) => ({ ...accepted(current, body, at), lastReport: reportPeriod(at) }))
       log(`daily usage report sent to ${host}`)
       deps.onSent?.()
@@ -197,10 +206,26 @@ export function createUsageReporter(deps: {
     const at = now()
     if (!allowed(file) || !inFirstWeek(file.firstRunAt, at)) return "skipped"
     const body = await build(file, at, "setup")
-    if (body === null || !setupReportDue(body.week?.onboarding, deps.store.read().onboardingReported)) {
+    const step = setupStep(body?.week?.onboarding)
+    const { onboardingReported, setupTries } = deps.store.read()
+    if (
+      body === null ||
+      step === null ||
+      !setupReportDue(step, onboardingReported) ||
+      !setupTryAllowed(setupTries, step, at)
+    ) {
       return "skipped"
     }
-    const result = await post(body, "checked again in 5 minutes")
+    const tries = countSetupTry(setupTries, step, at)
+    deps.store.update((current) => ({ ...current, setupTries: tries }))
+    const result = await post(body, {
+      failed: `try ${tries.count} of 3 today for ${step}, an hour apart`,
+      refused: `${step} not tried again today`,
+    })
+    if (result === "refused") {
+      deps.store.update((current) => ({ ...current, setupTries: refusedSetupTry(step, at) }))
+      return "failed"
+    }
     if (result !== "sent") return result
     // Never lastReport or attempts: the daily report still goes today.
     deps.store.update((current) => accepted(current, body, at))

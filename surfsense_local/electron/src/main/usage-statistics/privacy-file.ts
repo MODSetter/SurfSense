@@ -1,6 +1,7 @@
 import { readFileSync, renameSync, writeFileSync } from "node:fs"
 
 import { setupStep, type SetupStep } from "./setup-progress.ts"
+import { parseSetupTries, type SetupTries } from "./setup-tries.ts"
 
 /** The UTC day, ISO week and month of the last report that was accepted. */
 export type ReportPeriod = { day: string; week: string; month: string }
@@ -9,9 +10,9 @@ export type ReportPeriod = { day: string; week: string; month: string }
 export type SentHardware = { gpu: string; vram_gb: string; gpu_runtime: string | null }
 
 /**
- * userData/privacy.json (contract 05, part C). `attempts`, `onboardingReported`
- * and `hardwareSent` are local only: three tries per UTC day across restarts,
- * and what decides the first week's setup reports and hardware.
+ * userData/privacy.json (contract 05, part C). `attempts`, `onboardingReported`,
+ * `hardwareSent` and `setupTries` are local only: the daily and setup reports'
+ * tries across restarts, and what decides the first week's setup reports and hardware.
  */
 export type PrivacyFile = {
   /** null: never asked. */
@@ -24,6 +25,7 @@ export type PrivacyFile = {
   /** The furthest setup step any accepted report carried. */
   onboardingReported: SetupStep | null
   hardwareSent: SentHardware | null
+  setupTries: SetupTries | null
 }
 
 export type PrivacyStore = {
@@ -99,6 +101,7 @@ export function parsePrivacyFile(value: unknown, now: Date): PrivacyFile {
     onboardingReported:
       setupStep(file.onboardingReported) ?? setupStep(record(lastBody?.week)?.onboarding),
     hardwareSent: sentHardware(file.hardwareSent) ?? sentHardware(lastBody?.hardware),
+    setupTries: parseSetupTries(file.setupTries),
   }
 }
 

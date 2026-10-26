@@ -312,18 +312,106 @@ test("a setup step counts as reported only once a report carrying it is accepted
 
   assert.equal(await app.usage.checkSetup(), "failed")
   app.reply("timeout")
+  app.at("2026-10-21T10:00:00Z")
   assert.equal(await app.usage.checkSetup(), "failed")
   assert.equal(app.file().onboardingReported, null)
   assert.equal(app.file().lastSent, null)
   assert.equal(app.sent(), 0)
 
   app.reply(204)
+  app.at("2026-10-21T11:00:00Z")
   assert.equal(await app.usage.checkSetup(), "sent")
   assert.equal(app.file().onboardingReported, "model_chosen")
   assert.equal(await app.usage.checkSetup(), "skipped")
   assert.equal(app.posts.length, 3)
   assert.equal(app.file().attempts, null)
 })
+
+test("a setup step not accepted is tried three times a UTC day, an hour apart, across restarts", async () => {
+  const app = reporter({ summary: atStep("model_chosen"), reply: 503 })
+
+  assert.equal(await app.usage.checkSetup(), "failed")
+  app.at("2026-10-21T09:55:00Z")
+  assert.equal(await app.usage.checkSetup(), "skipped")
+  app.at("2026-10-21T10:00:00Z")
+  assert.equal(await app.usage.checkSetup(), "failed")
+  const restarted = reporter({
+    file: app.file(),
+    summary: atStep("model_chosen"),
+    reply: "timeout",
+    at: "2026-10-21T10:30:00Z",
+  })
+  assert.equal(await restarted.usage.checkSetup(), "skipped")
+  restarted.at("2026-10-21T11:00:00Z")
+  assert.equal(await restarted.usage.checkSetup(), "failed")
+  restarted.at("2026-10-21T23:59:00Z")
+  assert.equal(await restarted.usage.checkSetup(), "skipped")
+  assert.equal(app.posts.length + restarted.posts.length, 3)
+
+  restarted.reply(204)
+  restarted.at("2026-10-22T00:00:00Z")
+  assert.equal(await restarted.usage.checkSetup(), "sent")
+  assert.equal(restarted.file().onboardingReported, "model_chosen")
+  // The daily report's own tries are untouched.
+  assert.equal(restarted.file().attempts, null)
+})
+
+test("a setup report the endpoint refuses with a 4xx is not tried again that UTC day", async () => {
+  const app = reporter({ summary: atStep("model_chosen"), reply: 400 })
+
+  assert.equal(await app.usage.checkSetup(), "failed")
+  app.reply(204)
+  for (const at of ["10:00", "16:00", "23:55"]) {
+    app.at(`2026-10-21T${at}:00Z`)
+    assert.equal(await app.usage.checkSetup(), "skipped")
+  }
+  app.at("2026-10-22T00:00:00Z")
+  assert.equal(await app.usage.checkSetup(), "sent")
+
+  assert.equal(app.posts.length, 2)
+})
+
+test("a later setup step gets its own tries", async () => {
+  const app = reporter({ summary: atStep("model_chosen"), reply: 429 })
+  await app.usage.checkSetup()
+
+  app.summary(atStep("model_ready"))
+  app.reply(204)
+  app.at("2026-10-21T09:05:00Z")
+  assert.equal(await app.usage.checkSetup(), "sent")
+
+  assert.deepEqual(
+    app.bodies().map((body) => body.week.onboarding),
+    ["model_chosen", "model_ready"]
+  )
+})
+
+const FAILING_DAY: Array<[Reply, number]> = [
+  [503, 3],
+  ["timeout", 3],
+  [400, 1],
+]
+
+for (const [reply, posts] of FAILING_DAY) {
+  test(`a day of five-minute checks against an endpoint answering ${reply} sends ${posts} setup report(s)`, async () => {
+    const app = reporter({
+      file: { lastReport: { day: "2026-10-21", week: "2026-W43", month: "2026-10" } },
+      summary: atStep("model_chosen"),
+      reply,
+      at: "2026-10-21T00:00:00Z",
+    })
+    app.usage.start()
+    const check = app.timers.find((timer) => timer.ms === 300_000)!
+
+    for (let minute = 0; minute < 24 * 60; minute += 5) {
+      app.at(new Date(Date.parse("2026-10-21T00:00:00Z") + minute * 60_000).toISOString())
+      check.run()
+      await settle()
+    }
+
+    assert.equal(app.posts.length, posts)
+  })
+}
 
 test("a step a daily report carried already sends no setup report", async () => {
   const app = reporter({ summary: atStep("first_source") })

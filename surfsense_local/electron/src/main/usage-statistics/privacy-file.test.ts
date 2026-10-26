@@ -33,6 +33,7 @@ test("a new install has never been asked, and its first run is stamped once", ()
       attempts: null,
       onboardingReported: null,
       hardwareSent: null,
+      setupTries: null,
     })
     assert.equal(later.firstRunAt, "2026-10-21T09:00:00.000Z")
     assert.equal(JSON.parse(readFileSync(path, "utf8")).firstRunAt, first.firstRunAt)
@@ -68,6 +69,7 @@ test("junk on disk reads as never set", () => {
         attempts: { day: "2026-10-21", count: "3" },
         onboardingReported: "unknown",
         hardwareSent: { gpu: 1, vram_gb: "8-11" },
+        setupTries: { step: "unknown", at: NOW.toISOString(), count: 1 },
       },
       NOW
     ),
@@ -80,8 +82,20 @@ test("junk on disk reads as never set", () => {
       attempts: null,
       onboardingReported: null,
       hardwareSent: null,
+      setupTries: null,
     }
   )
+  for (const setupTries of [
+    { step: "model_chosen", at: "never", count: 1 },
+    { step: "model_chosen", at: NOW.toISOString(), count: "1" },
+  ]) {
+    assert.equal(parsePrivacyFile({ setupTries }, NOW).setupTries, null)
+  }
+})
+
+test("the setup report's tries are kept", () => {
+  const setupTries = { step: "model_ready", at: NOW.toISOString(), count: 2 }
+  assert.deepEqual(parsePrivacyFile({ setupTries }, NOW).setupTries, setupTries)
 })
 
 test("what the reports carried is kept, and a file from before it was kept reads it from the last report", () => {
