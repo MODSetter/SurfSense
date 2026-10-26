@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
+import { HomeBadge } from "@/components/site/home-badge";
+import { sectionSpacing } from "@/components/site/home-section-spacing";
 import { SiteFaqItem } from "@/components/site/site-faq-item";
 import { siteText } from "@/components/site/site-text";
 import { cn } from "@/components/ui/cn";
@@ -8,9 +10,8 @@ import { ArrowRightIcon } from "@/components/ui/icons";
 import { LicenseDownload } from "./license-download";
 
 /**
- * Rendered in the site design, same as `/license`; see that page's comment.
- * The install steps and the "lost the file" note are the same FAQ pattern
- * used there.
+ * Rendered in the site design, same as `/license`: the homepage's centred
+ * heads, and the install steps and "lost the file" note as its FAQ pattern.
  */
 
 export const metadata: Metadata = {
@@ -53,33 +54,30 @@ const FAQ: { question: string; answer: React.ReactNode }[] = [
 export default function LicenseSuccessPage() {
 	return (
 		<>
-			<section className="py-20 md:py-28">
-				<div className="mx-auto max-w-2xl text-center">
-					<h1 className={siteText.display}>Thanks, you are all set</h1>
-					<p className={cn(siteText.lede, "mx-auto mt-6 max-w-xl")}>
-						Your license file is below. Save it now: it is the thing that unlocks plugins and
-						priority support, and we have also emailed you a copy.
-					</p>
-				</div>
-			</section>
-
-			<section className="border-t border-border py-16">
-				<div className="max-w-xl">
+			{/* The download sits in the hero, where /license and /downloads put their pill. */}
+			<section className={cn("text-center", sectionSpacing.head)}>
+				<HomeBadge>Thank you</HomeBadge>
+				<h1 className={cn(siteText.display, "mt-4")}>Thanks, you are all set</h1>
+				<p className={cn(siteText.lede, "mx-auto mt-6 max-w-xl")}>
+					Your license file is below. Save it now: it is the thing that unlocks plugins and priority
+					support, and we have also emailed you a copy.
+				</p>
+				<div className="mt-10">
 					<Suspense fallback={null}>
 						<LicenseDownload />
 					</Suspense>
 				</div>
 			</section>
 
-			<section className="border-t border-border" aria-labelledby="ss-license-success-faq-label">
-				<div className="border-b border-border pt-10 pb-8 md:pt-40">
-					<p className={siteText.eyebrow}>Next steps</p>
-					<h2 id="ss-license-success-faq-label" className={cn(siteText.h2, "mt-2")}>
+			<section className={sectionSpacing.foot} aria-labelledby="ss-license-success-faq-label">
+				<div className={cn("text-center", sectionSpacing.head)}>
+					<HomeBadge>Next steps</HomeBadge>
+					<h2 id="ss-license-success-faq-label" className={cn(siteText.h2, "mt-4")}>
 						Installing it
 					</h2>
 				</div>
 
-				<div className="ss-home-grid">
+				<div className="ss-home-grid mt-10 border-t border-border lg:mt-14">
 					{FAQ.map((item) => (
 						<SiteFaqItem key={item.question} question={item.question}>
 							<p className={siteText.body}>{item.answer}</p>

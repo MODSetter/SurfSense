@@ -1,15 +1,17 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { type GuideStep, GuideSteps } from "@/components/site/guide-steps";
+import { HomeBadge } from "@/components/site/home-badge";
+import { sectionSpacing } from "@/components/site/home-section-spacing";
 import { SiteFaqItem } from "@/components/site/site-faq-item";
 import { siteText } from "@/components/site/site-text";
 import { cn } from "@/components/ui/cn";
 
 /**
- * Rendered in the site design: the palette, ruled column, navigation and
- * footer all come from `app/(home)/layout.tsx`; the page itself is Tailwind
- * plus the shared `siteText` styles. Listed in `SITE_DESIGN_ROUTES` in
- * `components/site/site-shell.tsx`.
+ * Rendered in the site design: the palette, column, navigation and footer all
+ * come from `app/(home)/layout.tsx`; the page uses the homepage's centred heads,
+ * laid out like `/pricing/individual`, which shares `GuideSteps`. Listed in
+ * `SITE_DESIGN_ROUTES` in `components/site/site-shell.tsx`.
  *
  * The one place the activation steps live. All three license emails link here
  * (`app/license/email/message.py`), as do `/license` and `/license/success`,
@@ -146,37 +148,37 @@ const FAQ: { question: string; answer: React.ReactNode }[] = [
 export default function LicenseActivatePage() {
 	return (
 		<>
-			<section className="py-20 md:py-28">
-				<div className="mx-auto max-w-2xl text-center">
-					<h1 className={siteText.display}>Activate your license</h1>
-					<p className={cn(siteText.lede, "mx-auto mt-6 max-w-xl")}>
-						Your license is a file, not an account. SurfSense checks it on your own machine, so it
-						works offline and on every computer you install the app on. Only the paid plugins send
-						its key, to our plugin service, which checks it.
-					</p>
-				</div>
+			<section className={cn("text-center", sectionSpacing.head)}>
+				<HomeBadge>Activation</HomeBadge>
+				<h1 className={cn(siteText.display, "mt-4")}>Activate your license</h1>
+				<p className={cn(siteText.lede, "mx-auto mt-6 max-w-xl")}>
+					Your license is a file, not an account. SurfSense checks it on your own machine, so it
+					works offline and on every computer you install the app on. Only the paid plugins send its
+					key, to our plugin service, which checks it.
+				</p>
 			</section>
 
-			<section className="border-t border-border" aria-labelledby="ss-activate-steps">
-				<div className="border-b border-border pt-10 pb-8 md:pt-40">
-					<p className={siteText.eyebrow}>Activation</p>
-					<h2 id="ss-activate-steps" className={cn(siteText.h2, "mt-2")}>
+			<section className={sectionSpacing.foot} aria-labelledby="ss-activate-steps">
+				<div className={cn("text-center", sectionSpacing.head)}>
+					<HomeBadge>Five steps</HomeBadge>
+					<h2 id="ss-activate-steps" className={cn(siteText.h2, "mt-4")}>
 						Five steps to an active license
 					</h2>
 				</div>
-
-				<GuideSteps steps={STEPS} />
+				<div className="mt-10 lg:mt-14">
+					<GuideSteps steps={STEPS} />
+				</div>
 			</section>
 
-			<section className="border-t border-border" aria-labelledby="ss-activate-faq">
-				<div className="border-b border-border pt-10 pb-8 md:pt-40">
-					<p className={siteText.eyebrow}>FAQ</p>
-					<h2 id="ss-activate-faq" className={cn(siteText.h2, "mt-2")}>
+			<section className={sectionSpacing.foot} aria-labelledby="ss-activate-faq">
+				<div className={cn("text-center", sectionSpacing.head)}>
+					<HomeBadge>FAQ</HomeBadge>
+					<h2 id="ss-activate-faq" className={cn(siteText.h2, "mt-4")}>
 						If something is wrong
 					</h2>
 				</div>
 
-				<div className="ss-home-grid">
+				<div className="ss-home-grid mt-10 border-t border-border lg:mt-14">
 					{FAQ.map((item) => (
 						<SiteFaqItem key={item.question} question={item.question}>
 							<p className={siteText.body}>{item.answer}</p>
