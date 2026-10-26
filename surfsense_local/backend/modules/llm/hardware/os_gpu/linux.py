@@ -21,6 +21,26 @@ _VIRTUAL_VENDORS = frozenset(
     }
 )
 
+# sysfs gives a card's vendor id, not its name, so the maker stands in for one.
+_VENDOR_NAMES = {"0x10de": "NVIDIA", "0x1002": "AMD", "0x8086": "Intel"}
+
+
+def adapter_names(sysfs_root: Path = SYSFS_ROOT) -> list[str] | None:
+    """Each real card's maker, its raw vendor id when unmapped; None without DRM."""
+    if not sysfs_root.is_dir():
+        return None
+
+    names = []
+    for card in sorted(sysfs_root.glob("card[0-9]*")):
+        vendor = card / "device" / "vendor"
+        try:
+            value = vendor.read_text().strip().lower()
+        except OSError:
+            continue
+        if value not in _VIRTUAL_VENDORS:
+            names.append(_VENDOR_NAMES.get(value, value))
+    return names
+
 
 def reports_gpu(sysfs_root: Path = SYSFS_ROOT) -> bool | None:
     """True when a real card is present, False when none is, None when unknown.
@@ -29,16 +49,6 @@ def reports_gpu(sysfs_root: Path = SYSFS_ROOT) -> bool | None:
     without DRM tells us nothing about the hardware, and guessing False would
     call a broken driver install a CPU only machine.
     """
-    if not sysfs_root.is_dir():
-        return None
-
-    for card in sorted(sysfs_root.glob("card[0-9]*")):
-        vendor = card / "device" / "vendor"
-        try:
-            value = vendor.read_text().strip().lower()
-        except OSError:
-            continue
-        if value not in _VIRTUAL_VENDORS:
-            return True
-    # Either no cards at all, or only virtual ones. Both mean no GPU to reach.
-    return False
+    names = adapter_names(sysfs_root)
+    # No cards at all, or only virtual ones, both mean no GPU to reach.
+    return None if names is None else bool(names)

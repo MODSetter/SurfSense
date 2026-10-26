@@ -46,8 +46,8 @@ def parse_adapters(output: str) -> list[str]:
     return adapters
 
 
-def reports_gpu() -> bool | None:
-    """True when a real adapter is listed, False when none is, None when unknown."""
+def adapter_names() -> list[str] | None:
+    """The real adapters Windows lists, or None when PowerShell cannot answer."""
     try:
         finished = subprocess.run(
             _COMMAND,
@@ -60,4 +60,10 @@ def reports_gpu() -> bool | None:
         return None
     if finished.returncode != 0:
         return None
-    return bool(parse_adapters(finished.stdout))
+    return parse_adapters(finished.stdout)
+
+
+def reports_gpu() -> bool | None:
+    """True when a real adapter is listed, False when none is, None when unknown."""
+    names = adapter_names()
+    return None if names is None else bool(names)
