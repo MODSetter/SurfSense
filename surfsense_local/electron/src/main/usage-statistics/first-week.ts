@@ -36,6 +36,20 @@ export function carriesHardware(input: {
   return input.firstWeek && input.sent !== null && partlyUnknown(input.sent)
 }
 
+/** A first-week resend that would repeat the block already sent says nothing new. */
+export function repeatsSentHardware(
+  hardware: { gpu: string; vram_gb: string; gpu_runtime: string } | null,
+  sent: SentHardware | null
+): boolean {
+  return (
+    hardware !== null &&
+    sent !== null &&
+    hardware.gpu === sent.gpu &&
+    hardware.vram_gb === sent.vram_gb &&
+    hardware.gpu_runtime === sent.gpu_runtime
+  )
+}
+
 // A block sent before gpu_runtime existed (null) never said whether the runtime reaches the card.
 function partlyUnknown(sent: SentHardware): boolean {
   return (

@@ -18,6 +18,10 @@ export function setupStep(value: unknown): SetupStep | null {
   return rank(value) >= 0 ? (value as SetupStep) : null
 }
 
+export function setupFinished(reported: SetupStep | null): boolean {
+  return reported === SETUP_STEPS[SETUP_STEPS.length - 1]
+}
+
 /** The later of the step reported so far and the one a report just carried. */
 export function furthestStep(reported: SetupStep | null, carried: unknown): SetupStep | null {
   return rank(carried) > rank(reported) ? (carried as SetupStep) : reported

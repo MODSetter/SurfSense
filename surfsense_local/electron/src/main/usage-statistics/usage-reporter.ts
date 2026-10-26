@@ -6,12 +6,13 @@ import {
   carriesHardware,
   carriesWeek,
   inFirstWeek,
+  repeatsSentHardware,
   weekSince,
   type ReportTrigger,
 } from "./first-week.ts"
 import { sentHardware, type PrivacyFile, type PrivacyStore } from "./privacy-file.ts"
 import { buildUsageReport, type UsageReport } from "./report-body.ts"
-import { furthestStep, setupReportDue, setupStep } from "./setup-progress.ts"
+import { furthestStep, setupFinished, setupReportDue, setupStep } from "./setup-progress.ts"
 import { countSetupTry, refusedSetupTry, setupTryAllowed } from "./setup-tries.ts"
 
 // Contract 05, part B: one accepted daily report per UTC day, three tries at
@@ -95,7 +96,7 @@ export function createUsageReporter(deps: {
     const firstWeek = inFirstWeek(file.firstRunAt, at)
     const flags = trigger === "daily" ? activeFlags(file.lastReport, at) : NO_FLAGS
     const summary = await deps.summary(weekSince(file.firstRunAt, at))
-    return buildUsageReport({
+    const report = buildUsageReport({
       appVersion,
       platform,
       os,
@@ -108,6 +109,11 @@ export function createUsageReporter(deps: {
       locale: deps.locale(),
       totalMemoryBytes: deps.totalMemoryBytes(),
     })
+    // A card the runtime cannot reach keeps its VRAM unknown all week: resend only a change.
+    const firstDaily = trigger === "daily" && flags.first
+    return !firstDaily && repeatsSentHardware(report.hardware, file.hardwareSent)
+      ? { ...report, hardware: null }
+      : report
   }
 
   // Only an explicit yes sends: off, never asked, a policy, DO_NOT_TRACK or a
@@ -205,6 +211,8 @@ export function createUsageReporter(deps: {
     const file = deps.store.read()
     const at = now()
     if (!allowed(file) || !inFirstWeek(file.firstRunAt, at)) return "skipped"
+    // Setup's last step is reported: nothing is left for a check to find.
+    if (setupFinished(file.onboardingReported)) return "skipped"
     const body = await build(file, at, "setup")
     const step = setupStep(body?.week?.onboarding)
     const { onboardingReported, setupTries } = deps.store.read()

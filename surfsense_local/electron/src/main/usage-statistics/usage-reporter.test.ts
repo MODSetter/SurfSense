@@ -226,7 +226,7 @@ test("after the first week the week block comes once per ISO week, covering the 
   assert.equal(app.summaries[1], "2026-10-20T09:00:00.000Z")
 })
 
-test("in the first week the hardware goes again only while part of it was unknown", async () => {
+test("in the first week the hardware goes again only while part of it was unknown, and only when it changed", async () => {
   const app = reporter({ summary: atStep("first_answer", UNREACHABLE_GPU) })
 
   await app.usage.attempt()
@@ -244,7 +244,8 @@ test("in the first week the hardware goes again only while part of it was unknow
 
   assert.deepEqual(
     app.bodies().map((body) => body.hardware),
-    [UNREACHABLE_GPU, UNREACHABLE_GPU, SUMMARY.hardware, null, null]
+    // Day two repeats day one's block, so it is left out; the fixed card is sent.
+    [UNREACHABLE_GPU, null, SUMMARY.hardware, null, null]
   )
 })
 
@@ -441,6 +442,16 @@ for (const [why, summary] of NO_STEP) {
     assert.equal(app.file().onboardingReported, null)
   })
 }
+
+test("once setup's last step is reported, the check reads nothing more", async () => {
+  const app = reporter({ summary: atStep("first_answer") })
+  assert.equal(await app.usage.checkSetup(), "sent")
+  const reads = app.summaries.length
+
+  app.at("2026-10-21T10:00:00Z")
+  assert.equal(await app.usage.checkSetup(), "skipped")
+  assert.equal(app.summaries.length, reads)
+})
 
 test("setup reports stop when the first week ends, without reading anything", async () => {
   const lastMoment = reporter({ summary: atStep("model_chosen"), at: "2026-10-27T07:59:59Z" })
