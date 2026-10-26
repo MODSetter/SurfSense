@@ -73,7 +73,7 @@ export function LicenseDownload() {
 
 	if (!sessionId) {
 		return (
-			<p className="text-sm text-destructive">
+			<p className="mx-auto max-w-sm text-sm text-destructive">
 				This link is missing its checkout reference. Use the copy we emailed you, or request it
 				again at{" "}
 				<a className={siteText.link} href="/license">
@@ -85,26 +85,32 @@ export function LicenseDownload() {
 	}
 
 	return (
-		<div className="flex flex-col gap-3">
-			<HomeButton onClick={download} disabled={state === "loading"} className="self-start">
-				{state === "loading" ? <Spinner size="sm" /> : null}
-				{state === "loading" ? "Preparing" : "Download license file"}
+		// Centred under the hero, the button sized like the email pills' on /license and /downloads.
+		<div className="flex flex-col items-center gap-5">
+			<HomeButton
+				onClick={download}
+				disabled={state === "loading"}
+				size="xl"
+				className="relative rounded-full px-5"
+			>
+				<span className={state === "loading" ? "opacity-0" : ""}>Download license file</span>
+				{state === "loading" ? <Spinner size="sm" className="absolute" /> : null}
 			</HomeButton>
 			{state === "ready" ? (
-				<p className={cn(siteText.body, "text-sm")}>
+				<p className={cn(siteText.body, "max-w-sm text-sm")}>
 					Saved as <code className="font-mono">{LICENSE_FILENAME}</code>. A copy is on its way to
 					your email as well.
 				</p>
 			) : null}
 			{state === "missing" ? (
-				<p className="text-sm text-destructive">
+				<p className="max-w-sm text-sm text-destructive">
 					We cannot find a license for this checkout yet. Payment can take a moment to settle, so
 					wait a few seconds and press the button again. If it keeps failing, contact support with
 					your payment details.
 				</p>
 			) : null}
 			{state === "error" ? (
-				<p className="text-sm text-destructive">
+				<p className="max-w-sm text-sm text-destructive">
 					Something went wrong preparing your file. Press the button to try again, or request it at{" "}
 					<a className={siteText.link} href="/license">
 						surfsense.com/license
