@@ -1,10 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useId, useState } from "react";
 import { HomeButton } from "@/components/site/home-button";
 import { siteText } from "@/components/site/site-text";
 import { cn } from "@/components/ui/cn";
 import { Spinner } from "@/components/ui/spinner";
+import { fireConfetti } from "@/features/celebration/confetti-burst";
 import { currentChannel } from "@/features/funnel-attribution/current-channel";
 import { trackTrialRequested } from "@/features/funnel-attribution/funnel-events";
 import { trialOutcome } from "@/features/funnel-attribution/trial-outcome";
@@ -17,11 +19,8 @@ import { buildBackendUrl } from "@/features/license/backend-url";
  * is part of the free plan and a licence file is inert without the app the
  * same page hands you.
  *
- * Tailwind plus the shared `siteText` styles, like the rest of the site design:
- * a flush hairline-bordered panel rather than a floating shadcn `Card`, and
- * plain inputs styled like the blog search box, so this page reads as part of
- * the same document as the homepage and pricing rather than an older surface
- * left behind.
+ * Both are the same `EmailPill`, the homepage's rounded field-and-button, so
+ * the two pages read as one site rather than an older surface left behind.
  */
 
 type Outcome = { kind: "ok" | "error"; message: string } | null;
@@ -52,34 +51,6 @@ async function postJson(path: string, body: Record<string, string>): Promise<Res
 	});
 }
 
-function EmailField({
-	id,
-	value,
-	onChange,
-}: {
-	id: string;
-	value: string;
-	onChange: (value: string) => void;
-}) {
-	return (
-		<div className="flex flex-col items-center gap-2">
-			<label htmlFor={id} className="text-sm font-medium">
-				Email address
-			</label>
-			<input
-				id={id}
-				type="email"
-				autoComplete="email"
-				placeholder="you@company.com"
-				value={value}
-				onChange={(event) => onChange(event.target.value)}
-				required
-				className="w-100 max-w-full rounded-(--radius) border border-border bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-			/>
-		</div>
-	);
-}
-
 /**
  * The hero's inline variant: label goes to screen readers only, since the
  * placeholder plus the adjacent submit button already say what the field is
@@ -108,23 +79,78 @@ function InlineEmailField({
 				value={value}
 				onChange={(event) => onChange(event.target.value)}
 				required
-				className="min-w-0 flex-1 bg-transparent py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground"
+				className="min-w-0 flex-1 bg-transparent px-3.5 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground sm:px-0"
 			/>
 		</>
 	);
 }
 
 /**
- * `ResendForm`'s wrapper, unlabelled and unboxed: it sits directly in
- * `/license`'s hero, under an h1 and a lede that already mark it off, so a
- * border around the form too would be a second frame around the same thing.
+ * Both forms' field and button as one pill, like the site's search pills, so
+ * `/license` and `/downloads` cannot drift apart. The ring sits on the pill
+ * because the field inside has no border of its own.
+ *
+ * Below `sm` it stacks: at 320 px a side-by-side "Send my license" leaves the
+ * field about 87 px, too narrow for an address.
  */
-function FormPanel({ description, children }: { description: string; children: React.ReactNode }) {
+function EmailPill({
+	id,
+	email,
+	onEmailChange,
+	busy,
+	label,
+	onSubmit,
+}: {
+	id: string;
+	email: string;
+	onEmailChange: (value: string) => void;
+	busy: boolean;
+	label: string;
+	onSubmit: (event: React.FormEvent) => void;
+}) {
 	return (
-		<div className="flex flex-col items-center text-center">
-			<p className={cn(siteText.body, "text-sm")}>{description}</p>
-			<div className="mt-5 flex flex-col items-center">{children}</div>
-		</div>
+		<form
+			onSubmit={onSubmit}
+			className="flex w-full max-w-md flex-col gap-2 rounded-3xl border border-border bg-card p-1.5 shadow-xs focus-within:ring-3 focus-within:ring-ring/50 sm:flex-row sm:items-center sm:rounded-full sm:pl-5"
+		>
+			<InlineEmailField id={id} value={email} onChange={onEmailChange} />
+			<HomeButton
+				type="submit"
+				size="xl"
+				disabled={busy}
+				className="relative w-full shrink-0 rounded-full px-5 sm:w-auto"
+			>
+				<span className={busy ? "opacity-0" : ""}>{label}</span>
+				{busy ? <Spinner size="sm" className="absolute" /> : null}
+			</HomeButton>
+		</form>
+	);
+}
+
+/**
+ * The line under a pill: the outcome once there is one, the note until then.
+ * A sent file points on to the activation steps, which the email also links.
+ */
+function PillMessage({ outcome, note }: { outcome: Outcome; note: string }) {
+	if (!outcome && !note) return null;
+	return (
+		<p
+			className={
+				outcome?.kind === "error"
+					? "max-w-sm text-sm text-destructive"
+					: cn(siteText.body, "max-w-sm text-sm")
+			}
+		>
+			{outcome ? outcome.message : note}
+			{outcome?.kind === "ok" ? (
+				<>
+					{" "}
+					<Link className={siteText.link} href="/license/activate">
+						Activate it when it arrives
+					</Link>
+				</>
+			) : null}
+		</p>
 	);
 }
 
@@ -161,24 +187,17 @@ export function ResendForm() {
 	}
 
 	return (
-		<FormPanel description="Enter the email address you bought with. We will send your license file back to that inbox.">
-			<form onSubmit={handleSubmit} className="flex flex-col items-center gap-4">
-				<EmailField id={`resend-email-${id}`} value={email} onChange={setEmail} />
-				<HomeButton type="submit" size="xl" disabled={busy}>
-					{busy ? <Spinner size="sm" /> : null}
-					{busy ? "Sending" : "Send my license"}
-				</HomeButton>
-				{outcome ? (
-					<p
-						className={
-							outcome.kind === "ok" ? cn(siteText.body, "text-sm") : "text-sm text-destructive"
-						}
-					>
-						{outcome.message}
-					</p>
-				) : null}
-			</form>
-		</FormPanel>
+		<div className="mt-10 flex flex-col items-center gap-5">
+			<EmailPill
+				id={`resend-email-${id}`}
+				email={email}
+				onEmailChange={setEmail}
+				busy={busy}
+				label="Send my license"
+				onSubmit={handleSubmit}
+			/>
+			<PillMessage outcome={outcome} note="" />
+		</div>
 	);
 }
 
@@ -210,6 +229,8 @@ export function TrialForm({
 			status = response.status;
 			if (response.ok) {
 				setOutcome({ kind: "ok", message: TRIAL_SENT });
+				// No once-flag: the same address cannot be sent a second trial (409).
+				fireConfetti();
 			} else if (response.status === 409) {
 				// Unlike resend, trial can report its outcome: it has to say
 				// "already claimed", so there is nothing to keep secret.
@@ -243,34 +264,22 @@ export function TrialForm({
 
 	return (
 		<div className="mt-10 flex flex-col items-center gap-5">
-			{/* One pill, field and button together, like the site's search pills; the
-			    ring sits on the pill because the field inside has no border of its own. */}
-			<form
+			<EmailPill
+				id={`trial-email-${id}`}
+				email={email}
+				onEmailChange={setEmail}
+				busy={busy}
+				label={label}
 				onSubmit={handleSubmit}
-				className="flex w-full max-w-md items-center gap-2 rounded-full border border-border bg-card py-1.5 pr-1.5 pl-5 shadow-xs focus-within:ring-3 focus-within:ring-ring/50"
-			>
-				<InlineEmailField id={`trial-email-${id}`} value={email} onChange={setEmail} />
-				<HomeButton
-					type="submit"
-					size="xl"
-					disabled={busy}
-					className="relative shrink-0 rounded-full px-5"
-				>
-					<span className={busy ? "opacity-0" : ""}>{label}</span>
-					{busy ? <Spinner size="sm" className="absolute" /> : null}
-				</HomeButton>
-			</form>
-			{outcome || note ? (
-				<p
-					className={
-						outcome?.kind === "error"
-							? "max-w-sm text-sm text-destructive"
-							: cn(siteText.body, "max-w-sm text-sm")
-					}
-				>
-					{outcome ? outcome.message : note}
-				</p>
-			) : null}
+			/>
+			<PillMessage outcome={outcome} note={note} />
+			{/* Always shown: someone whose trial or purchase email went missing lands here too. */}
+			<p className={cn(siteText.body, "text-sm")}>
+				Already have a license?{" "}
+				<Link className={siteText.link} href="/license">
+					Resend it
+				</Link>
+			</p>
 		</div>
 	);
 }

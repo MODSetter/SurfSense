@@ -1,0 +1,57 @@
+---
+date: "2026-10-26"
+version: "2.2.4"
+---
+
+## What's New in v2.2.4
+
+v2.2.4 adds sources straight from the web, lets the agent design its own web pages, moves the agent to opencode 2.1.2 so every plugin is within its reach, and makes the installers 12 to 18% smaller. Get it from the [downloads page](/downloads).
+
+### Add sources from the web
+
+- **Add from the web**: + › Add from the web… has one box. Search, or paste links, and add each result as a source. A channel, profile or search page opens into its items. Each link is read in the background by the plugin for its site: YouTube, TikTok, Google Maps, Amazon, Walmart or Indeed, and Web Crawl for any other page. It needs a SurfSense license.
+- **Search a site's own search**: The picker under the box searches Google, YouTube, TikTok, Google Maps, Amazon, Walmart or Indeed, each shown with its logo. Results have Show more.
+
+### Web pages the agent writes
+
+- **Pages the model designs**: Ask for a web page in an Agentic chat and the agent writes a styled page, with charts and interactive figures, and saves it to Studio with screenshots it checks its work against.
+- **Studio's Web page button**: With a model strong enough for Agentic mode, Web page writes the whole page and offers Refine. Smaller models keep the plain template.
+- **No network in any web page**: A web page in SurfSense can't load anything from the internet, open a popup or navigate away, so a page built from your sources can't send them anywhere.
+
+### Agent
+
+- **opencode 2.1.2**: The agent's runtime moves from opencode 1.18.34 to 2.1.2. Threads from earlier versions open as before, after a short import on the first start.
+- **Every plugin within reach**: "Not all of X's tools fit this turn" is gone. When a chat has more tools than fit, the agent sees every plugin by name and loads the one it needs mid-turn, shown as "Loaded X's tools".
+- **One stuck plugin no longer blocks the rest**: Plugins connect one at a time, so a server that hangs no longer makes the others show Couldn't reach.
+
+### Plugins
+
+- **Reddit and Instagram are back**: Both are listed again. They read the pages a logged-out visitor sees, and Reddit can read a user's posts and comments and search one subreddit.
+- **Streamable HTTP only**: An address ending in `/sse` is refused as you type it. A plugin added over SSE in an earlier version shows SSE not supported, with how to replace it.
+
+### Privacy and updates
+
+- **Your choice, asked up front**: Onboarding starts with Privacy choices: whether to check for updates, and whether to send usage statistics. Nothing is preselected, and each row shows exactly what it sends. Settings › About has both switches.
+- **Usage statistics, off unless you say yes**: At most one report a day, with no ID. Once a week it adds ranges, such as how many chats and sources you had. Never your documents, prompts, file names, model names or license key. Show exactly what's sent, in Settings › About, has the next report and the last one sent.
+- **No install ID on update checks**: Update checks go through updates.surfsense.com, which counts them, and straight to GitHub whenever it can't be reached. They no longer send the install ID earlier versions did.
+- **Updates in the title bar**: A pill beside the right panel toggle shows a download's progress, then Update. Clicking it restarts into the new version. On a Mac, Check for Updates… in the menu says when you're up to date.
+
+### Smaller downloads
+
+- **Smaller installers**: Against v2.2.3, the Windows installer is 147 MB smaller, the Mac dmg 240 MB, the AppImage 245 MB and the deb 240 MB.
+- **Smaller updates, from the next one**: Updates after v2.2.4 download only what changed, about 128 MB on Windows instead of the whole installer.
+
+### No longer broken
+
+- **Deep numbered lists in Studio Word files**: A list nested past level three keeps its parent's count.
+- **The composer's buttons stay put**: In a long message, the composer's buttons no longer scroll away with the text.
+
+### Known issues
+
+- **The update to v2.2.4 is a full download**: Earlier versions download every update whole, so this one is the full installer. Updates after it are smaller.
+- **SSE plugins stop working**: opencode 2.x speaks Streamable HTTP only. Remove an SSE plugin and add the provider's `/mcp` address instead.
+
+### Developers
+
+- **Decisions**: [ADR 0066](https://github.com/MODSetter/SurfSense/blob/main/docs/adr/0066-web-pages-are-html-the-model-writes-without-network.md) makes web pages HTML the model writes, with no network. [ADR 0068](https://github.com/MODSetter/SurfSense/blob/main/docs/adr/0068-surfsense-calls-its-own-plugins-to-pull-a-link-into-sources.md) pulls a link into Sources through SurfSense's own plugins. [ADR 0069](https://github.com/MODSetter/SurfSense/blob/main/docs/adr/0069-opencode-calls-tools-natively-and-holds-what-a-turn-needs.md) has opencode call tools natively and hold what a turn needs. [ADR 0070](https://github.com/MODSetter/SurfSense/blob/main/docs/adr/0070-opt-in-id-less-update-checks-and-usage-statistics.md) adds opt-in, ID-less update checks and usage statistics.
+- **Turning it off for a machine**: `DO_NOT_TRACK=1` or `SURFSENSE_NO_TELEMETRY=1` forces usage statistics off. A `policy.json` in `%ProgramData%/SurfSense`, `/Library/Application Support/SurfSense` or `/etc/surfsense` can turn update checks or usage statistics off, or send update checks to your own mirror with `updateFeed`.

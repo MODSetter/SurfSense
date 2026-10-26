@@ -45,7 +45,7 @@ export function GuideSteps({ steps }: { steps: GuideStep[] }) {
 							{index + 1}
 						</span>
 						<h3 className={cn(siteText.h3, "mt-5")}>{step.title}</h3>
-						<p className={cn(siteText.body, "mt-3 max-w-xl")}>{step.body}</p>
+						<p className={cn(siteText.body, "mt-3", step.shot && "max-w-xl")}>{step.body}</p>
 						{step.control}
 						{step.action ? (
 							<p className="mt-5">
