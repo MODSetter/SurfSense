@@ -99,7 +99,9 @@ class ProviderConnection(Base):
     __tablename__ = "provider_connections"
     __table_args__ = (
         CheckConstraint("provider = 'openai_compatible'", name="provider"),
-        CheckConstraint("auth_kind IN ('api_key', 'chatgpt')", name="auth_kind"),
+        CheckConstraint(
+            "auth_kind IN ('api_key', 'chatgpt', 'claude_plan')", name="auth_kind"
+        ),
         UniqueConstraint("label"),
     )
 
@@ -112,6 +114,7 @@ class ProviderConnection(Base):
     catalog_provider: Mapped[str] = mapped_column(server_default="custom")
     api_key_ciphertext: Mapped[bytes | None]
     # `chatgpt` signs in with a ChatGPT account: no key, OAuth tokens instead.
+    # `claude_plan` holds nothing: the user's own Claude Code keeps the sign-in.
     auth_kind: Mapped[str] = mapped_column(server_default="api_key")
     # Encrypted JSON of the token set; NULL on a `chatgpt` row means signed out.
     oauth_ciphertext: Mapped[bytes | None]

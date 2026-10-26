@@ -6,7 +6,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy import Engine
 
-from modules.chat import router as chat_router
+from modules.agent.engines import opencode_engine
 from modules.chat.models import ChatThread
 from modules.llm.capability.modes import carried_to_next_model
 from modules.llm.model_type import ModelType
@@ -103,7 +103,9 @@ async def test_a_pick_is_remembered_for_the_model_it_was_made_on(
         await asyncio.to_thread(select_another)
         return "ses_1"
 
-    monkeypatch.setattr(chat_router, "open_agent_session", another_model_while_starting)
+    monkeypatch.setattr(
+        opencode_engine, "open_agent_session", another_model_while_starting
+    )
 
     status, thread = await _open(client, mode="agentic", remember=True)
 
@@ -152,7 +154,7 @@ async def test_agentic_when_the_agent_does_not_start_is_a_503_and_no_thread(
     async def not_ready(*_args: object) -> None:
         return None
 
-    monkeypatch.setattr(chat_router, "open_agent_session", not_ready)
+    monkeypatch.setattr(opencode_engine, "open_agent_session", not_ready)
     _select(engine, "gpt-4o-mini")
 
     status, body = await _open(client, mode="agentic", remember=True)
@@ -171,7 +173,7 @@ async def test_with_no_mode_a_model_whose_agent_does_not_start_opens_a_chat(
     async def not_ready(*_args: object) -> None:
         return None
 
-    monkeypatch.setattr(chat_router, "open_agent_session", not_ready)
+    monkeypatch.setattr(opencode_engine, "open_agent_session", not_ready)
     _select(engine, "claude-opus-5-5", "anthropic")
 
     status, thread = await _open(client)

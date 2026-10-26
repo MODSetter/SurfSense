@@ -130,6 +130,87 @@ def test_word_keeps_emphasis_lists_and_links_as_word_structure() -> None:
     assert table.style.name == "Table Grid"
 
 
+def _shown_numbers(document: docx.document.Document) -> dict[str, int]:
+    """The number Word shows on each numbered paragraph.
+
+    Word counts on through a list style's abstract list, across every w:num on
+    it, unless a w:num restarts it with a startOverride.
+    """
+    numbering = document.part.numbering_part.element
+    counts: dict[int, int] = {}
+    seen: set[int] = set()
+    shown: dict[str, int] = {}
+    for paragraph in document.paragraphs:
+        if not paragraph.style.name.startswith("List Number"):
+            continue
+        p_pr = paragraph._p.pPr
+        num_pr = p_pr.numPr if p_pr is not None else None
+        if num_pr is None:
+            num_pr = paragraph.style.element.pPr.numPr
+        num = numbering.num_having_numId(num_pr.numId.val)
+        abstract = num.abstractNumId.val
+        if num.numId not in seen:
+            seen.add(num.numId)
+            for override in num.lvlOverride_lst:
+                if override.ilvl == 0 and override.startOverride is not None:
+                    counts[abstract] = override.startOverride.val - 1
+        counts[abstract] = counts.get(abstract, 0) + 1
+        shown[paragraph.text] = counts[abstract]
+    return shown
+
+
+def test_each_numbered_list_in_word_counts_from_one() -> None:
+    """A second list, top-level or nested under another item, restarts at 1 as in the PDF."""
+    markdown = (
+        "1. Sign the contract\n2. Start the pilot\n3. Review\n\n"
+        "Then, for the rollout:\n\n"
+        "1. Hire drivers\n2. Open depots\n\n"
+        "- Phase one\n  1. Survey\n  2. Quote\n- Phase two\n  1. Build\n"
+    )
+
+    shown = _shown_numbers(_word(markdown_to_word(markdown, {})))
+
+    assert shown == {
+        "Sign the contract": 1,
+        "Start the pilot": 2,
+        "Review": 3,
+        "Hire drivers": 1,
+        "Open depots": 2,
+        "Survey": 1,
+        "Quote": 2,
+        "Build": 1,
+    }
+
+
+def test_a_list_nested_past_the_third_level_leaves_its_parents_count_alone() -> None:
+    """A fourth level reuses the third level's style, but not its count."""
+    markdown = (
+        "1. Alpha\n"
+        "   1. Bravo\n"
+        "      1. Charlie\n"
+        "         1. Delta\n"
+        "         2. Echo\n"
+        "            1. Foxtrot\n"
+        "         3. Golf\n"
+        "      2. Hotel\n"
+        "      3. India\n"
+    )
+
+    shown = _shown_numbers(_word(markdown_to_word(markdown, {})))
+
+    assert shown == {
+        "Alpha": 1,
+        "Bravo": 1,
+        "Charlie": 1,
+        "Delta": 1,
+        "Echo": 2,
+        "Foxtrot": 1,
+        "Golf": 3,
+        "Hotel": 2,
+        "India": 3,
+    }
+
+
 def test_a_known_source_figure_is_placed_in_both_formats(tmp_path: Path) -> None:
     """An image: reference to a figure on the shelf places its PNG."""
     markdown = "# Logo\n\n![Halvorsen logo](image:12-1)\n"

@@ -46,7 +46,7 @@ Both producers:
 
 The plugin host answers a refusal itself, before the request reaches the plugin. The capabilities routes also:
 
-- Count requests per license (instrumentation only, no cap yet). The plugin host does not count yet.
+- Count requests per license (instrumentation only, no cap yet). The plugin host counts each `tools/call` per license, with no cap either ([usage meter](../architecture/plugin-host.md#usage-meter)).
 - Resolve a valid key to a **synthetic user and workspace created for that license on first call** (email = the licensee email from Keygen metadata). Authz, run storage and rate limits then run unchanged against that workspace. Credit metering is off for license callers.
 - **No account linking.** The synthetic user is keyed on the license, never matched to a hosted account that happens to share the email. Hosted user data is purged at T+30; these rows are not user data and survive it.
 
@@ -61,7 +61,7 @@ The plugin host answers a refusal itself, before the request reaches the plugin.
 
 ## Tests each side owns
 
-- Plugin host: each Keygen status maps to the documented status and `reason`, the five-minute cache, the 24-hour grace and its end once a key is refused, and `GET /license` answering once for every paid plugin ([`license_check/tests/`](../../plugins/remote/proprietary/license_check/tests/)).
+- Plugin host: each Keygen status maps to the documented status and `reason`, the five-minute cache, the 24-hour grace and its end once a key is refused, and `GET /license` answering once for every paid plugin ([`license_check/tests/`](../../backend/plugins/proprietary/license_check/tests/)).
 - App: the key on every request to the plugin host and on none elsewhere, a missing or expired license recorded with its reason, and the verdict asked once of `GET /license`, a missing route changing nothing ([`test_first_party_plugins.py`](../../surfsense_local/backend/tests/integration/plugins/routes/test_first_party_plugins.py)).
 - Backend, once built: each Keygen status maps to the documented status and `reason`; the 24-hour fallback serves a cached key when the Keygen client raises; a first call for an unseen key creates exactly one synthetic user and workspace, and a second call reuses them.
 - MCP, once built: a `401` or `403` shows `reason`; a `503` is treated as transient.

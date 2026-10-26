@@ -32,7 +32,7 @@ async def test_disconnecting_keeps_the_plugin_and_its_tool_settings_but_not_its_
         plugin = await _disconnected(client)
 
     assert plugin["disconnected"] is True
-    assert plugin["auth_type"] == "token"
+    assert plugin["auth_type"] == "headers"
     assert {t["name"]: t["enabled"] for t in plugin["tools"]} == {
         "search": True,
         "count": False,

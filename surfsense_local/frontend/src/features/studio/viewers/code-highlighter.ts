@@ -1,13 +1,14 @@
 import {
+  createBundledHighlighter,
+  type HighlighterGeneric,
+  type ThemeRegistrationAny,
+} from "shiki/core"
+import { createJavaScriptRegexEngine } from "shiki/engine/javascript"
+import {
   bundledLanguages,
   bundledLanguagesInfo,
-  createHighlighter,
   type BundledLanguage,
-  type BundledTheme,
-  type Highlighter,
-  type ThemeRegistrationAny,
-} from "shiki"
-import { createJavaScriptRegexEngine } from "shiki/engine/javascript"
+} from "shiki/langs"
 import type { CodeHighlighterPlugin, ThemeInput } from "streamdown"
 
 // @streamdown/code's highlighter, with the same engine, themes, languages and
@@ -15,9 +16,23 @@ import type { CodeHighlighterPlugin, ThemeInput } from "streamdown"
 // given until reload, every partial state of a streamed block among them.
 const CACHED_BLOCKS = 100
 
+// Also assistant-ui's default, which chat replies ask for instead of getThemes().
 const THEMES: [ThemeInput, ThemeInput] = ["github-light", "github-dark"]
 
+// Every language, but only the themes above: Shiki's own createHighlighter
+// would ship its 63 other themes and the Oniguruma wasm engine, never loaded.
+const bundledThemes = {
+  "github-light": () => import("shiki/themes/github-light.mjs"),
+  "github-dark": () => import("shiki/themes/github-dark.mjs"),
+}
+type BundledTheme = keyof typeof bundledThemes
+type Highlighter = HighlighterGeneric<BundledLanguage, BundledTheme>
+
 const engine = createJavaScriptRegexEngine({ forgiving: true })
+const createHighlighter = createBundledHighlighter<
+  BundledLanguage,
+  BundledTheme
+>({ langs: bundledLanguages, themes: bundledThemes, engine: () => engine })
 const aliases: Record<string, string> = Object.fromEntries(
   bundledLanguagesInfo.flatMap((info) =>
     (info.aliases ?? []).map((alias) => [alias, info.id])

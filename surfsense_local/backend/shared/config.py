@@ -140,8 +140,9 @@ class AgentSettings(BaseSettings):
 
     opencode_url: str | None = None
     opencode_password: str | None = None
-    # Where opencode's proxy variables point: the API tunnels a ready plugin's host there.
-    plugin_proxy_port: int | None = None
+    # Where opencode's proxy variables point: the API refuses every host there, so opencode
+    # reaches only loopback, where its model, its tools and the plugin gateway are.
+    opencode_proxy_port: int | None = None
     # A developer's switch: SURFSENSE_LOCAL_AGENT_UNTESTED_MODELS=1 makes Agentic the
     # default for every model the user has not picked a mode for, and lifts the
     # window floor; a stated no on tool calls, or no opencode, still keeps it out.

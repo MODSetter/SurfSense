@@ -1,13 +1,13 @@
 # ADR 0035: The desktop app's stack also ships as one Docker container, with Caddy as its only listener
 
-- **Status:** Accepted
+- **Status:** Accepted; its CUDA variant names superseded by [ADR 0073](0073-the-docker-gpu-image-is-one-cuda-12-8-variant-from-upstream-builds.md)
 - **Date:** 2026-10-01
 - **Supersedes:** [ADR 0004](0004-desktop-app-is-its-own-tree.md) in part: Docker Compose leaves its out-of-scope list, and its loopback rule is narrowed to the API. [ADR 0012](0012-vulkan-only-gpu-backend.md) in part: Docker images may carry CUDA.
 - **Source:** [Docker proposal](../proposals/docker/README.md), [GPU images](../proposals/docker/gpu.md)
 
 ## Context
 
-The legacy self-host stack is `surfsense_backend` and `surfsense_web` with Postgres, Redis, Zero, SearxNG and OpenSandbox, built by [`docker-build.yml`](../../.github/workflows/docker-build.yml). Product direction is the desktop app, and self-hosters need a way to run it on a server, which ADR 0004 ruled out. ADR 0004 also kept the API on `127.0.0.1` because nothing authenticates a request, and binding it wider would make connection URLs an SSRF boundary.
+The legacy self-host stack is `surfsense_backend` and `surfsense_web` with Postgres, Redis, Zero, SearxNG and OpenSandbox, built by [`docker-build.yml`](https://github.com/MODSetter/SurfSense/blob/legacy/.github/workflows/docker-build.yml). Product direction is the desktop app, and self-hosters need a way to run it on a server, which ADR 0004 ruled out. ADR 0004 also kept the API on `127.0.0.1` because nothing authenticates a request, and binding it wider would make connection URLs an SSRF boundary.
 
 ## Decision
 

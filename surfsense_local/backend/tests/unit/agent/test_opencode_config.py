@@ -39,6 +39,10 @@ def written(path: Path) -> dict:
     return json.loads(path.read_text())
 
 
+def _model(config: dict) -> dict:
+    return next(iter(config["providers"]["surfsense"]["models"].values()))
+
+
 def test_opencode_reaches_only_the_model_endpoint_with_the_launch_key(
     tmp_path: Path,
 ) -> None:
@@ -47,11 +51,14 @@ def test_opencode_reaches_only_the_model_endpoint_with_the_launch_key(
     write_opencode_config(path, setup())
 
     config = written(path)
-    provider = config["provider"]["surfsense"]
-    assert provider["npm"] == "@ai-sdk/openai-compatible"
-    assert provider["options"]["baseURL"] == ENDPOINT
-    assert provider["options"]["apiKey"] == "launch-key"
-    assert config["enabled_providers"] == ["surfsense"]
+    provider = config["providers"]["surfsense"]
+    assert provider["package"] == "@opencode/ai/providers/openai-compatible"
+    assert provider["settings"]["baseURL"] == ENDPOINT
+    assert provider["settings"]["apiKey"] == "launch-key"
+    assert config["policies"][:2] == [
+        {"action": "provider.use", "resource": "*", "effect": "deny"},
+        {"action": "provider.use", "resource": "surfsense", "effect": "allow"},
+    ]
 
 
 def test_a_responses_model_is_reached_through_openais_own_provider(
@@ -61,10 +68,10 @@ def test_a_responses_model_is_reached_through_openais_own_provider(
     path = tmp_path / "opencode.json"
     write_opencode_config(path, replace(setup(), route="responses"))
 
-    provider = written(path)["provider"]["surfsense"]
-    assert provider["npm"] == "@ai-sdk/openai"
-    assert provider["options"]["baseURL"] == ENDPOINT
-    assert provider["options"]["apiKey"] == "launch-key"
+    provider = written(path)["providers"]["surfsense"]
+    assert provider["package"] == "@opencode/ai/providers/openai"
+    assert provider["settings"]["baseURL"] == ENDPOINT
+    assert provider["settings"]["apiKey"] == "launch-key"
 
 
 def test_every_request_names_the_selected_model_titles_included(tmp_path: Path) -> None:
@@ -73,12 +80,10 @@ def test_every_request_names_the_selected_model_titles_included(tmp_path: Path) 
     write_opencode_config(path, setup(model="Qwen3-8B-UD-Q4_K_XL"))
 
     config = written(path)
-    assert config["model"] == "surfsense/Qwen3-8B-UD-Q4_K_XL"
-    assert config["small_model"] == "surfsense/Qwen3-8B-UD-Q4_K_XL"
-    assert (
-        config["provider"]["surfsense"]["models"]["Qwen3-8B-UD-Q4_K_XL"]["tool_call"]
-        is True
-    )
+    chosen = {"providerID": "surfsense", "model": "Qwen3-8B-UD-Q4_K_XL"}
+    assert config["model"] == chosen
+    assert config["agents"]["title"]["model"] == chosen
+    assert _model(config)["capabilities"]["tools"] is True
 
 
 def test_a_model_that_reads_images_is_shown_the_pages_the_agent_opens(
@@ -88,81 +93,104 @@ def test_a_model_that_reads_images_is_shown_the_pages_the_agent_opens(
     path = tmp_path / "opencode.json"
     write_opencode_config(path, setup(reads_images=True))
 
-    model = next(iter(written(path)["provider"]["surfsense"]["models"].values()))
-    assert model["modalities"] == {"input": ["text", "image"], "output": ["text"]}
-    assert model["attachment"] is True
+    assert _model(written(path))["capabilities"]["input"] == ["text", "image"]
 
 
-def test_a_model_that_reads_no_images_declares_none(tmp_path: Path) -> None:
-    """opencode then tells the model it cannot see the image, rather than sending one it refuses."""
+def test_a_model_that_reads_no_images_says_so(tmp_path: Path) -> None:
+    """opencode assumes a model it does not know reads images, and would send it some."""
     path = tmp_path / "opencode.json"
     write_opencode_config(path, setup(reads_images=False))
 
-    model = next(iter(written(path)["provider"]["surfsense"]["models"].values()))
-    assert "modalities" not in model
-    assert "attachment" not in model
+    assert _model(written(path))["capabilities"]["input"] == ["text"]
 
 
 @pytest.mark.parametrize(
-    ("window", "output", "reserved"),
+    ("window", "output", "buffer", "keep"),
     [
-        # The worked example: output is a quarter of the window, the reserve 8,192.
-        (32768, 8192, 8192),
-        # A large window: output stops at opencode's own 32,000 cap.
-        (200000, 32000, 20000),
-        # A small one: the reserve never exceeds what one answer can take.
-        (8192, 2048, 2048),
+        # The worked example: output is a quarter of the window, the buffer 8,192.
+        (32768, 8192, 8192, 4096),
+        # A large window: output stops at opencode's own 32,000 cap, keep at its default.
+        (200000, 32000, 20000, 15000),
+        # A small one: the buffer never exceeds what one answer can take.
+        (8192, 2048, 2048, 1024),
     ],
 )
 def test_limits_follow_the_window_the_model_was_loaded_with(
-    tmp_path: Path, window: int, output: int, reserved: int
+    tmp_path: Path, window: int, output: int, buffer: int, keep: int
 ) -> None:
-    """Without limits opencode never compacts; with input set it honours the reserve."""
+    """Without limits opencode never compacts; with input set it honours the buffer,
+    and keeps less than half a small window word for word."""
     path = tmp_path / "opencode.json"
     write_opencode_config(path, setup(window=window))
 
     config = written(path)
-    model = next(iter(config["provider"]["surfsense"]["models"].values()))
-    assert model["limit"] == {"context": window, "input": window, "output": output}
-    assert config["compaction"] == {"auto": True, "reserved": reserved}
+    assert _model(config)["limit"] == {
+        "context": window,
+        "input": window,
+        "output": output,
+    }
+    assert config["compaction"] == {
+        "auto": True,
+        "buffer": buffer,
+        "keep": {"tokens": keep},
+    }
+
+
+def _decides(rules: list[dict], action: str, resource: str) -> str:
+    """opencode's rule (core/src/permission.ts): '*' is any text, '\\' is '/', and
+    the last rule that matches wins; none asks."""
+
+    def matches(pattern: str) -> bool:
+        pattern = re.escape(pattern.replace("\\", "/")).replace(r"\*", ".*")
+        return re.fullmatch(pattern, resource.replace("\\", "/"), re.S) is not None
+
+    effects = [
+        rule["effect"]
+        for rule in rules
+        if rule["action"] == action and matches(rule["resource"])
+    ]
+    return effects[-1] if effects else "ask"
 
 
 def test_the_agent_has_no_shell_and_writes_only_to_outputs(tmp_path: Path) -> None:
-    """Document scripts reach the runner through a tool; no other program runs (ADR 0039)."""
+    """Document scripts reach the runner through a tool; no other program runs (ADR 0039).
+
+    An edit inside the thread's folder is named relative to it.
+    """
     path = tmp_path / "opencode.json"
     write_opencode_config(path, setup())
 
-    config = written(path)
-    permission = config["permission"]
-    assert permission["bash"] == "deny"
-    # opencode spells an edit's path relative to "/", without the drive.
-    (skills,) = config["skills"]["paths"]
-    skills = Path(skills).relative_to(Path(skills).anchor).as_posix()
-    agent = "Users/me/SurfSense/workspaces/1/agent"
-    work = f"{agent}/threads/7"
-    rules = permission["edit"]
-    assert _opencode_decides(rules, f"{work}/outputs/report.md") == "allow"
-    assert _opencode_decides(rules, f"{work}/outputs/drafts/a.md") == "allow"
+    rules = written(path)["permissions"]
+    assert _decides(rules, "edit", "outputs/report.md") == "allow"
+    assert _decides(rules, "edit", "outputs/drafts/a.md") == "allow"
     for refused in (
-        f"{work}/sources/Plan [1].md",
-        f"{work}/sources/Library/outputs/a.md",
-        f"{work}/sources/R/outputs/a.md",
-        f"{work}/sources/agent/threads/7/outputs/x.md",
-        f"{work}/.opencode/agent/threads/7/outputs/x.md",
-        f"{work}/outputs/agents.md",
-        f"{work}/outputs/AGENTS.md",
-        f"{work}/outputs/drafts/Context.md",
-        f"{work}/outputs/CLAUDE.md",
-        # Where every thread once worked.
-        f"{agent}/outputs/a.md",
-        f"{agent}/sources/Plan [1].md",
-        "Users/me/SurfSense/agent/opencode/data/opencode/tool-output/agent/threads/7/outputs/x",
-        f"{skills}/x/agent/threads/7/outputs/SKILL.md",
-        "Users/me/elsewhere.md",
+        "sources/Plan [1].md",
+        "sources/Library/outputs/a.md",
+        "sources/agent/threads/7/outputs/x.md",
+        ".opencode/agent/threads/7/outputs/x.md",
+        "outputs/.opencode/agents/x.md",
+        "outputs/agents.md",
+        "outputs/AGENTS.md",
+        "AGENTS.md",
+        "C:/Users/me/SurfSense/agent/threads/8/outputs/a.md",
+        "/Users/me/elsewhere.md",
     ):
-        assert _opencode_decides(rules, refused) == "deny", refused
-    for tool in ("webfetch", "websearch", "task", "question"):
-        assert permission[tool] == "deny", tool
+        assert _decides(rules, "edit", refused) == "deny", refused
+    for tool in ("shell", "execute", "subagent", "question", "webfetch", "websearch"):
+        assert _decides(rules, tool, "*") == "deny", tool
+
+
+def test_no_session_rule_can_lift_the_shell_or_the_network(tmp_path: Path) -> None:
+    """Policies hold where a saved approval or a session's own rules could not."""
+    path = tmp_path / "opencode.json"
+    write_opencode_config(path, setup())
+
+    policies = written(path)["policies"]
+    assert [
+        p["resource"]
+        for p in policies
+        if p["action"] == "tool.use" and p["effect"] == "deny"
+    ] == ["shell", "webfetch", "websearch", "subagent"]
 
 
 @pytest.mark.parametrize("route", ["chat_completions", "responses"])
@@ -175,61 +203,54 @@ def test_only_surfsenses_own_skills_load_from_the_shipped_folder(
     write_opencode_config(path, replace(setup(), route=route))
 
     config = written(path)
-    (skills,) = config["skills"]["paths"]
-    for name in (
+    (skills,) = config["skills"]
+    names = (
         "surfsense-documents",
         "surfsense-revisions",
         "surfsense-data",
         "surfsense-pdf",
-    ):
+        "surfsense-html",
+    )
+    for name in names:
         assert (Path(skills) / name / "SKILL.md").is_file()
-    assert list(config["permission"]["skill"].items()) == [
-        ("*", "deny"),
-        ("surfsense-documents", "allow"),
-        ("surfsense-revisions", "allow"),
-        ("surfsense-data", "allow"),
-        ("surfsense-pdf", "allow"),
-    ]
+    rules = config["permissions"]
+    assert _decides(rules, "skill", "opencode") == "deny"
+    for name in names:
+        assert _decides(rules, "skill", name) == "allow", name
+    assert "-opencode.skill" in config["plugins"]
 
 
-def test_outside_its_folder_the_agent_reads_only_the_skills(tmp_path: Path) -> None:
-    """A skill may point at files beside it; every other folder outside stays shut."""
-    path = tmp_path / "opencode.json"
-    write_opencode_config(path, setup())
-
-    config = written(path)
-    (skills,) = config["skills"]["paths"]
-    assert list(config["permission"]["external_directory"].items()) == [
-        ("*", "deny"),
-        (str(Path(skills) / "*"), "allow"),
-        ("*/../*", "deny"),
-    ]
-
-
-def _opencode_decides(rules: dict[str, str], folder_glob: str) -> str:
-    """opencode's rule: '*' is any text, '\\' is '/', and the last rule that matches wins."""
-
-    def matches(pattern: str) -> bool:
-        pattern = re.escape(pattern.replace("\\", "/")).replace(r"\*", ".*")
-        return re.fullmatch(pattern, folder_glob.replace("\\", "/"), re.S) is not None
-
-    return [action for pattern, action in rules.items() if matches(pattern)][-1]
-
-
-def test_a_path_that_climbs_out_of_the_skills_folder_is_refused(
+def test_outside_its_folder_the_agent_reads_only_the_skills_and_long_output(
     tmp_path: Path,
 ) -> None:
-    """On macOS and Linux opencode checks an absolute path as written, '..' and all."""
+    """A skill may point at files beside it, and opencode names the file a cut
+    result was kept in; every other folder outside stays shut."""
     path = tmp_path / "opencode.json"
     write_opencode_config(path, setup())
 
     config = written(path)
-    (skills,) = config["skills"]["paths"]
-    rules = config["permission"]["external_directory"]
+    rules = config["permissions"]
+    (skills,) = config["skills"]
     skills = skills.replace("\\", "/")
-    assert _opencode_decides(rules, f"{skills}/surfsense-documents/*") == "allow"
-    climbing = f"{skills}/../../../../../Users/me/.ssh/*"
-    assert _opencode_decides(rules, climbing) == "deny"
+    kept = (tmp_path / "opencode" / "data" / "opencode" / "tool-output").as_posix()
+    assert _decides(rules, "external_directory", f"{skills}/surfsense-pdf/*") == "allow"
+    assert _decides(rules, "external_directory", f"{kept}/*") == "allow"
+    for refused in (f"{tmp_path.as_posix()}/*", "/Users/me/.ssh/*"):
+        assert _decides(rules, "external_directory", refused) == "deny", refused
+
+
+def test_opencodes_own_plugins_stay_out(tmp_path: Path) -> None:
+    """Loopback probes for other model servers, and a hint to use `execute`."""
+    path = tmp_path / "opencode.json"
+    write_opencode_config(path, setup())
+
+    assert written(path)["plugins"] == [
+        "-opencode.provider.ollama",
+        "-opencode.provider.lmstudio",
+        "-opencode.provider.vllm",
+        "-opencode.skill",
+        "-opencode.tools",
+    ]
 
 
 def test_sharing_snapshots_and_updates_are_off_and_waiting_is_long(
@@ -240,14 +261,22 @@ def test_sharing_snapshots_and_updates_are_off_and_waiting_is_long(
     write_opencode_config(path, setup())
 
     config = written(path)
-    assert (config["share"], config["snapshot"], config["autoupdate"]) == (
+    assert (config["share"], config["snapshots"], config["update"]) == (
         "disabled",
         False,
-        False,
+        "disable",
     )
-    options = config["provider"]["surfsense"]["options"]
-    assert options["headerTimeout"] is False
-    assert options["chunkTimeout"] > 300_000
+    settings = config["providers"]["surfsense"]["settings"]
+    assert settings["headerTimeout"] is False
+    assert settings["chunkTimeout"] > 300_000
+
+
+def test_the_agent_keeps_its_plan(tmp_path: Path) -> None:
+    """2.x offers `todowrite` only when asked to, and the thread shows its plan."""
+    path = tmp_path / "opencode.json"
+    write_opencode_config(path, setup())
+
+    assert written(path)["experimental"] == {"todo": True}
 
 
 def test_surfsenses_own_agent_is_the_default(tmp_path: Path) -> None:
@@ -256,10 +285,10 @@ def test_surfsenses_own_agent_is_the_default(tmp_path: Path) -> None:
     write_opencode_config(path, setup())
 
     config = written(path)
-    agent = config["agent"][config["default_agent"]]
+    agent = config["agents"][config["default_agent"]]
     assert agent["mode"] == "primary"
-    assert "outputs" in agent["prompt"]
-    assert len(agent["prompt"]) < 4000
+    assert "outputs" in agent["system"]
+    assert len(agent["system"]) < 4000
 
 
 @pytest.mark.skipif(os.name == "nt", reason="Windows has no POSIX file modes")
@@ -272,7 +301,7 @@ def test_only_surfsense_can_read_the_file_that_holds_the_key(tmp_path: Path) -> 
 
 
 def test_an_unchanged_configuration_is_not_rewritten(tmp_path: Path) -> None:
-    """Every rewrite restarts opencode, ending whatever turn is running."""
+    """opencode reloads on every write, which a turn then waits on."""
     path = tmp_path / "opencode.json"
     assert write_opencode_config(path, setup()) is True
     before = path.stat().st_mtime_ns
@@ -288,7 +317,7 @@ def test_the_prompt_names_the_tools_as_opencode_shows_them(tmp_path: Path) -> No
     write_opencode_config(path, setup())
 
     config = written(path)
-    prompt = config["agent"][config["default_agent"]]["prompt"]
+    prompt = config["agents"][config["default_agent"]]["system"]
     for tool in (
         "surfsense_search_sources",
         "surfsense_create_artifact",
@@ -305,7 +334,7 @@ def test_the_prompt_asks_for_no_shell(tmp_path: Path) -> None:
     write_opencode_config(path, setup())
 
     config = written(path)
-    prompt = config["agent"][config["default_agent"]]["prompt"]
+    prompt = config["agents"][config["default_agent"]]["system"]
     assert "shell command" not in prompt.lower()
     assert "approve" not in prompt.lower()
 

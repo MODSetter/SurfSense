@@ -9,6 +9,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from modules.agent.agent_threads.steps import tool_output
 from modules.agent.plugin_tools.turn_plugins import opencode_tool_name
 from modules.chat.models import ChatThread
 from modules.documents.models import Document, DocumentStatus, DocumentType
@@ -19,8 +20,8 @@ from modules.source_roots.managed_root import ensure_managed_root
 def save_result(
     session: Session, thread: ChatThread, part: dict[str, Any]
 ) -> tuple[Document, bool]:
-    """The note, and whether it is new."""
-    found = _plugin_tool(session, str(part.get("tool")))
+    """The note, and whether it is new; `part` is the call as the engine stored it."""
+    found = _plugin_tool(session, str(part.get("name")))
     if found is None:
         raise HTTPException(
             status.HTTP_409_CONFLICT, "only a connected plugin's step is saved"
@@ -44,7 +45,7 @@ def save_result(
         "fetched_at": datetime.now(UTC).isoformat(),
         "plugin_call": call,
     }
-    content = str(state.get("output") or "")
+    content = tool_output(state) or ""
     note = session.scalars(
         select(Document).where(
             Document.workspace_id == thread.workspace_id,

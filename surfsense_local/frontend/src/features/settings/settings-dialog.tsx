@@ -1,4 +1,4 @@
-import type { ComponentType, MouseEvent } from "react"
+import type { ComponentType } from "react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -79,14 +79,6 @@ export type SettingsSectionId =
   | "license"
   | "about"
   | "report-issue"
-
-const CLOUD_EXPORT_URL = "https://surfsense.com/sunset"
-
-function openCloudExport(event: MouseEvent<HTMLAnchorElement>) {
-  if (!window.surfsense?.openExternal) return
-  event.preventDefault()
-  void window.surfsense.openExternal(CLOUD_EXPORT_URL)
-}
 
 function GeneralSettings({
   onImported,
@@ -192,18 +184,6 @@ function GeneralSettings({
                 "Upload the ZIP you exported from SurfSense cloud.",
             })}
           </p>
-          <a
-            href={CLOUD_EXPORT_URL}
-            target="_blank"
-            rel="noreferrer"
-            onClick={openCloudExport}
-            className="w-fit text-sm text-muted-foreground underline underline-offset-3 hover:text-foreground"
-          >
-            {intl.formatMessage({
-              id: "settings_general_cloud_import_link",
-              defaultMessage: "Open SurfSense cloud",
-            })}
-          </a>
         </div>
         <ImportBundleButton onImported={onImported} />
       </div>

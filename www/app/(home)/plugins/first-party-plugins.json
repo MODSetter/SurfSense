@@ -1,0 +1,222 @@
+{
+  "schema_version": 1,
+  "plugins": [
+    {
+      "id": "google-search",
+      "kind": "remote",
+      "name": "Google Search",
+      "description": "Search Google and read its results, ads and related questions.",
+      "author": "SurfSense",
+      "url": "https://plugins.surfsense.com/google-search/mcp",
+      "auth": {
+        "type": "license"
+      },
+      "hosts": [
+        "plugins.surfsense.com"
+      ],
+      "access": "license",
+      "icon": "google-search.svg",
+      "tools": [
+        "scrape"
+      ],
+      "added": "2026-10",
+      "about": "Connect Google Search to SurfSense to bring live web results into your chats, so answers can draw on what the web says today, not only on your sources. Search Google and read the results as you would see them, with ads, People Also Ask, the AI Overview and related searches. Useful for checking current facts, comparing options, or finding the pages worth reading on a topic."
+    },
+    {
+      "id": "web-crawl",
+      "kind": "remote",
+      "name": "Web Crawl",
+      "description": "Read a web page, or crawl a whole site into clean text.",
+      "author": "SurfSense",
+      "url": "https://plugins.surfsense.com/web-crawl/mcp",
+      "auth": {
+        "type": "license"
+      },
+      "hosts": [
+        "plugins.surfsense.com"
+      ],
+      "access": "license",
+      "icon": "web-crawl.svg",
+      "tools": [
+        "crawl"
+      ],
+      "added": "2026-10",
+      "about": "Connect Web Crawl to SurfSense to read the web as clean, readable text. Open any public page, or follow a site’s links to read many of its pages at once, then summarize, compare or ask questions about what you found. Useful for summarizing articles, comparing products across sites, or answering questions from a product’s documentation. Pages behind a login or a paywall stay out of reach."
+    },
+    {
+      "id": "reddit",
+      "kind": "remote",
+      "name": "Reddit",
+      "description": "Read Reddit posts, their comments and whole subreddits.",
+      "author": "SurfSense",
+      "url": "https://plugins.surfsense.com/reddit/mcp",
+      "auth": {
+        "type": "license"
+      },
+      "hosts": [
+        "plugins.surfsense.com"
+      ],
+      "access": "license",
+      "icon": "reddit.svg",
+      "tools": [
+        "scrape"
+      ],
+      "added": "2026-10",
+      "about": "Connect Reddit to SurfSense to see what people are really saying about a topic, a product or a question. Read public posts with their full comment threads, or go through a whole community to find what it discusses most, all anonymously and without your Reddit account. Useful for gauging opinion before a purchase, researching a market, or finding answers buried in long threads."
+    },
+    {
+      "id": "youtube",
+      "kind": "remote",
+      "name": "YouTube",
+      "description": "Read YouTube videos, channels and their comments.",
+      "author": "SurfSense",
+      "url": "https://plugins.surfsense.com/youtube/mcp",
+      "auth": {
+        "type": "license"
+      },
+      "hosts": [
+        "plugins.surfsense.com"
+      ],
+      "access": "license",
+      "icon": "youtube.svg",
+      "tools": [
+        "scrape",
+        "comments"
+      ],
+      "added": "2026-10",
+      "about": "Connect YouTube to SurfSense to work with videos without watching every one. Read public videos, channels and playlists with their subtitles, and the comments and replies under a video. Useful for summarizing a talk or tutorial, pulling quotes from an interview, or seeing how viewers reacted to a launch."
+    },
+    {
+      "id": "instagram",
+      "kind": "remote",
+      "name": "Instagram",
+      "description": "Read Instagram profiles and their posts.",
+      "author": "SurfSense",
+      "url": "https://plugins.surfsense.com/instagram/mcp",
+      "auth": {
+        "type": "license"
+      },
+      "hosts": [
+        "plugins.surfsense.com"
+      ],
+      "access": "license",
+      "icon": "instagram.svg",
+      "tools": [
+        "scrape",
+        "details"
+      ],
+      "added": "2026-10",
+      "about": "Connect Instagram to SurfSense to look into public accounts from your chats. Read public posts and reels from a profile or a link, find profiles by search, and see a profile’s bio, follower and post counts and latest posts, without your own Instagram account. Useful for researching creators and brands, tracking a campaign, or comparing accounts in a niche."
+    },
+    {
+      "id": "tiktok",
+      "kind": "remote",
+      "name": "TikTok",
+      "description": "Read TikTok videos and their comments, search users, and see what is trending.",
+      "author": "SurfSense",
+      "url": "https://plugins.surfsense.com/tiktok/mcp",
+      "auth": {
+        "type": "license"
+      },
+      "hosts": [
+        "plugins.surfsense.com"
+      ],
+      "access": "license",
+      "icon": "tiktok.svg",
+      "tools": [
+        "scrape",
+        "comments",
+        "trending",
+        "user_search"
+      ],
+      "added": "2026-10",
+      "about": "Connect TikTok to SurfSense to follow what is happening on the platform from your chats. Read public videos from links, profiles or hashtags with their comments, see what is trending right now, and find accounts by keyword, without your own TikTok account. Useful for spotting trends early, researching creators, or seeing how people respond to a product or topic."
+    },
+    {
+      "id": "google-maps",
+      "kind": "remote",
+      "name": "Google Maps",
+      "description": "Find places on Google Maps and read their reviews.",
+      "author": "SurfSense",
+      "url": "https://plugins.surfsense.com/google-maps/mcp",
+      "auth": {
+        "type": "license"
+      },
+      "hosts": [
+        "plugins.surfsense.com"
+      ],
+      "access": "license",
+      "icon": "google-maps.svg",
+      "tools": [
+        "scrape",
+        "reviews"
+      ],
+      "added": "2026-10",
+      "about": "Connect Google Maps to SurfSense to research places from your chats. Find businesses and locations with their address, hours, rating and photos, and read their reviews along with the owners’ replies. Useful for comparing places before you visit, checking up on a business, or learning what customers praise and complain about."
+    },
+    {
+      "id": "amazon",
+      "kind": "remote",
+      "name": "Amazon",
+      "description": "Read Amazon products and search results.",
+      "author": "SurfSense",
+      "url": "https://plugins.surfsense.com/amazon/mcp",
+      "auth": {
+        "type": "license"
+      },
+      "hosts": [
+        "plugins.surfsense.com"
+      ],
+      "access": "license",
+      "icon": "amazon.svg",
+      "tools": [
+        "scrape"
+      ],
+      "added": "2026-10",
+      "about": "Connect Amazon to SurfSense to research products from your chats. Read product pages and search results with prices, offers from other sellers, best-seller rankings and the reviews on the page, without your Amazon account, so nothing is ever bought. Useful for comparing products, watching prices, or summarizing what buyers say before you choose."
+    },
+    {
+      "id": "walmart",
+      "kind": "remote",
+      "name": "Walmart",
+      "description": "Read Walmart products, search results and reviews.",
+      "author": "SurfSense",
+      "url": "https://plugins.surfsense.com/walmart/mcp",
+      "auth": {
+        "type": "license"
+      },
+      "hosts": [
+        "plugins.surfsense.com"
+      ],
+      "access": "license",
+      "icon": "walmart.svg",
+      "tools": [
+        "scrape",
+        "reviews"
+      ],
+      "added": "2026-10",
+      "about": "Connect Walmart to SurfSense to research products from your chats. Read product pages, search and category listings, prices, sellers, variants and availability, and page through a product’s reviews, without your Walmart account, so nothing is ever bought. Useful for comparing products, checking stock and prices, or summarizing what buyers report."
+    },
+    {
+      "id": "indeed",
+      "kind": "remote",
+      "name": "Indeed",
+      "description": "Read job listings on Indeed.",
+      "author": "SurfSense",
+      "url": "https://plugins.surfsense.com/indeed/mcp",
+      "auth": {
+        "type": "license"
+      },
+      "hosts": [
+        "plugins.surfsense.com"
+      ],
+      "access": "license",
+      "icon": "indeed.svg",
+      "tools": [
+        "scrape"
+      ],
+      "added": "2026-10",
+      "about": "Connect Indeed to SurfSense to research jobs from your chats. Read public job postings with their title, company, location, salary and full description, without your Indeed account, so nothing is ever applied for. Useful for comparing roles, gauging pay for a position, or tracking which companies are hiring."
+    }
+  ]
+}

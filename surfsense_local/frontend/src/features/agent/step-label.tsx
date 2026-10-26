@@ -149,6 +149,39 @@ export function stepLabel(
       }
       break
     }
+    case "surfsense_save_page": {
+      const made = step.artifact
+      if (made) {
+        return (made.created ?? made.version === 1)
+          ? intl.formatMessage(
+              {
+                id: "agent_steps_save_page_created_label",
+                defaultMessage: "Created <doc>{title}</doc> v{version, number}",
+              },
+              { title: made.title, version: made.version, doc: documentTitle }
+            )
+          : intl.formatMessage(
+              {
+                id: "agent_steps_save_page_updated_label",
+                defaultMessage:
+                  "Updated <doc>{title}</doc> to v{version, number}",
+              },
+              { title: made.title, version: made.version, doc: documentTitle }
+            )
+      }
+      // Running, refused or failed: the title it was asked for.
+      const title = text(input.title)
+      if (title) {
+        return intl.formatMessage(
+          {
+            id: "agent_steps_save_page_label",
+            defaultMessage: "Saved the web page <doc>{title}</doc>",
+          },
+          { title, doc: documentTitle }
+        )
+      }
+      break
+    }
     case "surfsense_convert_document": {
       const made = step.artifact
       return made
@@ -280,6 +313,33 @@ export function stepLabel(
         },
         { action: text(input.action) ?? "other" }
       )
+    // A plugin's tools held for the agent: asked for by name or by a search, or
+    // loaded when it called one of them it did not hold.
+    case "surfsense_loaded_tools":
+    case "surfsense_open_plugin":
+    case "surfsense_find_tools": {
+      const plugin = text(step.loaded_plugin)
+      if (plugin) {
+        return intl.formatMessage(
+          {
+            id: "agent_steps_loaded_tools_label",
+            defaultMessage: "Loaded {plugin}’s tools",
+          },
+          { plugin }
+        )
+      }
+      const query = text(input.query)
+      if (query) {
+        return intl.formatMessage(
+          {
+            id: "agent_steps_find_tools_label",
+            defaultMessage: "Looked for tools to {task}",
+          },
+          { task: query }
+        )
+      }
+      break
+    }
     case "glob":
       if (pattern) {
         return intl.formatMessage(

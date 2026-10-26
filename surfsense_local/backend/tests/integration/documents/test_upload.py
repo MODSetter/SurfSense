@@ -12,6 +12,7 @@ from modules.documents.recordings.progress_file import (
     TranscriptionProgress,
     write_progress,
 )
+from modules.documents.tasks import PRIORITY_INTERACTIVE
 from shared.config import get_storage_settings
 from shared.queue import ingest_queue
 
@@ -185,6 +186,43 @@ async def test_a_recording_is_queued_and_an_opus_voice_note_is_turned_away(
     assert len(ingest_queue.pending()) == 2
 
 
+async def test_a_batch_is_queued_cheapest_first(
+    client: AsyncClient, workspace_id: int
+) -> None:
+    """Huey runs equal priorities in the order queued, so a dropped batch
+    becomes usable text first, then smallest first, recordings last."""
+    tone = Path(__file__).resolve().parents[2] / "fixtures" / "audio" / "tone.mp3"
+    response = await client.post(
+        f"/workspaces/{workspace_id}/documents/upload",
+        files=[
+            ("files", ("standup.mp3", tone.read_bytes(), "audio/mpeg")),
+            ("files", ("big.pdf", b"%PDF-" + b"x" * 20_000, "application/pdf")),
+            ("files", ("notes.md", b"# notes\n" + b"y" * 50_000, "text/markdown")),
+            ("files", ("small.pdf", b"%PDF-1.7 small", "application/pdf")),
+            ("files", ("todo.txt", b"call Ann", "text/plain")),
+        ],
+    )
+
+    created = response.json()["created"]
+    assert [document["title"] for document in created] == [
+        "standup.mp3",
+        "big.pdf",
+        "notes.md",
+        "small.pdf",
+        "todo.txt",
+    ]
+    title_of = {document["id"]: document["title"] for document in created}
+    queued = ingest_queue.pending()
+    assert [title_of[job.args[0]] for job in queued] == [
+        "todo.txt",
+        "notes.md",
+        "small.pdf",
+        "big.pdf",
+        "standup.mp3",
+    ]
+    assert {job.priority for job in queued} == {PRIORITY_INTERACTIVE}
+
+
 async def test_a_queued_recording_reports_how_far_its_transcription_came(
     client: AsyncClient, workspace_id: int
 ) -> None:
@@ -349,6 +387,33 @@ async def test_a_deleted_document_takes_its_file(
     )
 
     assert stored_files(data_dir) == []
+
+
+async def test_an_upload_given_a_deleted_documents_id_starts_with_its_folder_empty(
+    client: AsyncClient, workspace_id: int, data_dir: Path
+) -> None:
+    """SQLite gives the highest id out again, and a delete leaves a file it cannot
+    remove, as one held open on Windows: the new document must not read it."""
+    first = await client.post(
+        f"/workspaces/{workspace_id}/documents/upload",
+        files={"files": ("report.pdf", b"%PDF-1.7", "application/pdf")},
+    )
+    deleted = first.json()["created"][0]["id"]
+    await client.delete(f"/workspaces/{workspace_id}/documents/{deleted}")
+    left = get_storage_settings().document_dir(workspace_id, deleted)
+    (left / "figures").mkdir(parents=True)
+    (left / "report.pdf").write_bytes(b"%PDF-1.7")
+    (left / "figures" / "figures.json").write_text(
+        '{"version": 1, "figures": []}', encoding="utf-8"
+    )
+
+    second = await client.post(
+        f"/workspaces/{workspace_id}/documents/upload",
+        files={"files": ("budget.pdf", b"%PDF-1.7 budget", "application/pdf")},
+    )
+
+    assert second.json()["created"][0]["id"] == deleted
+    assert [path.name for path in stored_files(data_dir)] == ["budget.pdf"]
 
 
 async def test_a_deleted_workspace_takes_every_file(

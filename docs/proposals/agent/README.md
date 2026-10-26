@@ -7,7 +7,7 @@ code:
   - surfsense_local/backend/worker/studio/
   - surfsense_local/backend/worker/ingestion/
   - surfsense_local/electron/scripts/
-  - surfsense_local/electron/src/main/sidecars/
+  - surfsense_local/sidecars/
   - surfsense_local/frontend/src/features/chat/
   - surfsense_local/frontend/src/features/agent/
 ---
@@ -26,7 +26,7 @@ Every fact here links to where it was checked: this repo, opencode `v1.18.34` (c
 |---|---|---|---|
 | **Engine choice** | [`01-which-engine.md`](01-which-engine.md) | which engine a selected model gets | the capability data the catalogs already carry |
 | **Tools** | [`02-tools.md`](02-tools.md) | search, read and create-artifact functions both engines call | functions that exist today |
-| **opencode** | [`03-opencode.md`](03-opencode.md) | packaging, launch, the model endpoint, the backend's client, network lockdown, permissions, working folders, the conversation | the tools |
+| **opencode** | built: [agent](../../architecture/agent.md) | packaging, launch, the model endpoint, the backend's client, network lockdown, permissions, working folders, the conversation | the tools |
 | **Workflows** | [`04-workflows.md`](04-workflows.md) | Studio's structured output, the formatting pass, the text fallback | nothing; can start now |
 | **Sources folder** | [`05-sources-folder.md`](05-sources-folder.md) | linking a folder on disk as the Sources root | nothing; independent |
 
@@ -46,7 +46,7 @@ The [file agent proposal](../file-agent/README.md#locked-decisions-of-the-agent-
 | opencode and the network | None beyond loopback. Its fetches are switched off, its dependencies are shipped, and its proxy variables point at a loopback port nothing listens on. Settings › Network gains nothing. |
 | Models | opencode reaches every model, local and remote, through one SurfSense endpoint, so keys and egress checks stay in SurfSense. |
 | Where the agent appears | In the chat panel. A thread gets its engine when it is created, from the selected model, and keeps it ([`01-which-engine.md`](01-which-engine.md)). |
-| The agent's conversation | Kept by opencode, in its database inside SurfSense's data folder. The thread stores the opencode session id ([`03-opencode.md`](03-opencode.md)). |
+| The agent's conversation | Kept by opencode, in its database inside SurfSense's data folder. The thread stores the opencode session id ([agent](../../architecture/agent.md#folders)). |
 | Model-written code | Runs on the user's machine without a sandbox; the agent asks before every shell command, and SurfSense never answers "always" ([ADR 0028](../../adr/0028-model-written-code-runs-with-approval.md)). A sandbox is later work for licensed users. |
 | Undo | Not in this phase. opencode snapshots are off, and the agent writes only inside SurfSense's own output folder. |
 | Sources on disk | A linked folder is indexed in place and watched. Git is not the storage. |

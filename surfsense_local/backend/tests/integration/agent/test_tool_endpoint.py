@@ -5,6 +5,7 @@ from typing import Any
 import pytest
 from sqlalchemy import Engine, select
 
+from modules.chat.models import AgentEngineKind, ChatThread
 from modules.chunks.models import Chunk
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.llm.model_type import ModelType
@@ -85,6 +86,7 @@ async def test_it_offers_its_tools_with_flat_schemas(tools: ToolEndpoint) -> Non
         "search_sources",
         "create_artifact",
         "render_document",
+        "save_page",
         "read_document",
         "list_images",
         "convert_document",
@@ -101,6 +103,9 @@ async def test_it_offers_its_tools_with_flat_schemas(tools: ToolEndpoint) -> Non
     # Office files and PDFs are scripts the agent renders, kept as versions it can edit.
     assert not {"docx", "pdf", "pptx", "xlsx"} & set(studio_formats["enum"])
     assert not {"docx", "pptx", "xlsx"} & set(studio_formats["description"].split())
+    # A web page is the agent's own HTML, kept with save_page (ADR 0066).
+    assert "html" not in studio_formats["enum"]
+    assert listed["save_page"]["required"] == ["path", "title"]
     render = listed["render_document"]
     assert render["required"] == ["title", "format", "script"]
     assert render["properties"]["format"]["enum"] == ["docx", "pdf", "pptx", "xlsx"]
@@ -163,6 +168,7 @@ async def test_a_model_that_reads_images_is_also_offered_source_pages(
         "search_sources",
         "create_artifact",
         "render_document",
+        "save_page",
         "read_document",
         "list_images",
         "source_pages",
@@ -516,3 +522,23 @@ async def test_a_call_naming_nothing_says_what_to_name(tools: ToolEndpoint) -> N
     assert "quiz" in no_format["result"]["content"][0]["text"]
     assert no_sources["result"]["isError"] is True
     assert "sources/" in no_sources["result"]["content"][0]["text"]
+
+
+async def test_a_claude_code_thread_is_offered_the_tools_that_show_images(
+    tools: ToolEndpoint,
+) -> None:
+    """Every Claude model reads images; opencode's configuration describes opencode's model."""
+    workspace_id = await tools.workspace()
+    with tools.sessions() as session:
+        thread = ChatThread(
+            workspace_id=workspace_id,
+            agent_engine=AgentEngineKind.CLAUDE_CODE,
+            claude_session_id="s-1",
+        )
+        session.add(thread)
+        session.commit()
+        thread_id = thread.id
+
+    reply = await tools.request(workspace_id, "tools/list", thread=thread_id)
+
+    assert "source_pages" in {tool["name"] for tool in reply["result"]["tools"]}

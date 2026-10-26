@@ -38,7 +38,9 @@ async def listed_after_refresh(
 
     def address(s: Session) -> tuple[str, dict[str, str]] | None:
         plugin = s.get(InstalledPlugin, plugin_id)
-        return None if plugin is None else (plugin.url, sign_in_headers(s, plugin))
+        if plugin is None:
+            return None
+        return plugin.url, sign_in_headers(s, plugin)
 
     found = await transact(session, address)
     return listed if found is None else await list_once(*found)

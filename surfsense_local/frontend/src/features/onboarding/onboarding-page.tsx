@@ -4,24 +4,27 @@ import { Button } from "@/components/ui/button"
 import { ArrowRightIcon } from "@/components/ui/icons"
 import surfSenseLogo from "@/surfsense-logo.svg"
 
-import { Stepper, StepperIndicator, StepperItem } from "@/components/ui/stepper"
+import { Progress } from "@/components/ui/progress"
 import type { ModelSelection } from "@/features/models/selection/api"
+import { usePrivacyState } from "@/features/privacy-choices/use-privacy-state"
 import { intl } from "@/i18n/intl"
 
 import { ModelStep } from "./model-step/model-step"
 import type { OnboardingStepKind } from "./model-step/kinds/step-kind"
 import { OnboardingDither } from "./onboarding-dither"
+import { PrivacyStep } from "./privacy-step/privacy-step"
 import { useFinishOnboarding } from "./use-finish-onboarding"
 
 /**
- * The steps, in order, and the ones the dots count. The welcome is still
- * onboarding, and still gated by the same marker, but it is an introduction,
- * not a step to complete. Whichever step is last finishes onboarding.
+ * The model steps, in order. The privacy choices come before them as the first
+ * step the progress bar counts. The welcome is still onboarding, and still gated
+ * by the same marker, but it is an introduction, not a step to complete.
+ * Whichever step is last finishes onboarding.
  *
  * The embedding model comes last and is the one step that is not a slot: its
  * choice is sent with the finish that fixes it, never held across steps.
  */
-const STEPS = [
+const MODEL_STEPS = [
   "text_gen",
   "image_gen",
   "image_edit",
@@ -30,11 +33,12 @@ const STEPS = [
   "embedding",
 ] as const satisfies readonly OnboardingStepKind[]
 
-type Step = (typeof STEPS)[number]
+type ModelStepKind = (typeof MODEL_STEPS)[number]
+type Step = "privacy" | ModelStepKind
 type Screen = "welcome" | Step
 
 /** Finishing needs a chat model, so only this step cannot be skipped. */
-const REQUIRED_STEP: Step = "text_gen"
+const REQUIRED_STEP: ModelStepKind = "text_gen"
 
 function OnboardingBrand() {
   return (
@@ -56,42 +60,32 @@ function OnboardingBrand() {
   )
 }
 
-function OnboardingProgress({ screen }: { screen: Step }) {
-  const step = STEPS.indexOf(screen) + 1
+function OnboardingProgress({
+  screen,
+  steps,
+}: {
+  screen: Step
+  steps: readonly Step[]
+}) {
+  const step = steps.indexOf(screen) + 1
+  const label = intl.formatMessage(
+    {
+      id: "onboarding_progress_aria",
+      defaultMessage: "Onboarding step {step, number} of {total, number}",
+    },
+    {
+      step,
+      total: steps.length,
+    }
+  )
   return (
-    <Stepper
+    <Progress
       value={step}
-      aria-label={intl.formatMessage(
-        {
-          id: "onboarding_progress_aria",
-          defaultMessage: "Onboarding step {step, number} of {total, number}",
-        },
-        {
-          step,
-          total: STEPS.length,
-        }
-      )}
-      className="mx-auto max-w-28 gap-1.5"
-    >
-      {STEPS.map((item, index) => (
-        <StepperItem key={item} step={index + 1} className="flex-1">
-          <StepperIndicator
-            asChild
-            className="h-1 w-full rounded-full bg-border"
-          >
-            <span className="sr-only">
-              {intl.formatMessage(
-                {
-                  id: "onboarding_progress_step_aria",
-                  defaultMessage: "Step {step, number}",
-                },
-                { step: index + 1 }
-              )}
-            </span>
-          </StepperIndicator>
-        </StepperItem>
-      ))}
-    </Stepper>
+      max={steps.length}
+      aria-label={label}
+      getAriaValueText={() => label}
+      className="mx-auto w-full max-w-28 **:data-[slot=progress-indicator]:rounded-full **:data-[slot=progress-indicator]:duration-300 **:data-[slot=progress-indicator]:ease-out **:data-[slot=progress-track]:bg-border **:data-[slot=progress-indicator]:motion-reduce:transition-none"
+    />
   )
 }
 
@@ -184,20 +178,22 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
   )
 }
 
-/** One step in the order of `STEPS`: the last one finishes, the rest move on. */
+/** One model step in the order of `steps`: the last one finishes, the rest move on. */
 function OnboardingStep({
   step,
+  steps,
   onGo,
   onComplete,
 }: {
-  step: Step
+  step: ModelStepKind
+  steps: readonly Step[]
   onGo: (step: Step) => void
   onComplete: (selection: ModelSelection) => void
 }) {
   const { finish, finishing, error } = useFinishOnboarding(onComplete)
-  const index = STEPS.indexOf(step)
-  const previous = STEPS[index - 1]
-  const next = STEPS[index + 1]
+  const index = steps.indexOf(step)
+  const previous = steps[index - 1]
+  const next = steps[index + 1]
   // The last step finishes, sending its value: the embedding choice, or null.
   const advance = (value: string | null) =>
     next ? onGo(next) : void finish(value)
@@ -219,7 +215,18 @@ export function OnboardingPage({
 }: {
   onComplete: (selection: ModelSelection) => void
 }) {
-  const [screen, setScreen] = useState<Screen>("welcome")
+  const [chosen, setScreen] = useState<Screen>("welcome")
+  const { state: privacy, failed: privacyUnreadable } = usePrivacyState()
+  // Always asked in the desktop app. Outside it there is nothing to save to,
+  // and an unreadable state skips it, leaving both off, rather than holding
+  // setup on an empty card.
+  const asksPrivacy = privacy !== null && !privacyUnreadable
+  const steps: readonly Step[] = asksPrivacy
+    ? ["privacy", ...MODEL_STEPS]
+    : MODEL_STEPS
+  // Left the welcome before the state was read, and it could not be.
+  const screen: Screen =
+    chosen === "privacy" && !asksPrivacy ? MODEL_STEPS[0] : chosen
 
   return (
     <main
@@ -230,19 +237,28 @@ export function OnboardingPage({
       <div className="mx-auto flex h-full max-h-190 min-h-0 w-full max-w-3xl flex-col gap-3">
         <OnboardingBrand />
         {screen === "welcome" ? (
-          // The dots' height, kept so the hero sits exactly where it did.
+          // The progress bar's height, kept so the hero sits exactly where it did.
           <div aria-hidden="true" className="h-1" />
         ) : (
-          <OnboardingProgress screen={screen} />
+          <OnboardingProgress screen={screen} steps={steps} />
         )}
         <div className="flex min-h-0 flex-1 items-center justify-center">
           {screen === "welcome" ? (
-            <WelcomeStep onNext={() => setScreen(STEPS[0])} />
+            <WelcomeStep onNext={() => setScreen(steps[0])} />
+          ) : screen === "privacy" ? (
+            // Shown once read; `screen` moves on by itself if it cannot be.
+            privacy ? (
+              <PrivacyStep
+                state={privacy}
+                onDone={() => setScreen(MODEL_STEPS[0])}
+              />
+            ) : null
           ) : (
             // Keyed so each step starts fresh rather than inheriting the last.
             <OnboardingStep
               key={screen}
               step={screen}
+              steps={steps}
               onGo={setScreen}
               onComplete={onComplete}
             />

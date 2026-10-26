@@ -15,7 +15,7 @@ describe("a refused Studio job", () => {
     // And from a refine, modules/artifacts/studio_documents/service.py.
     [
       "not_refinable",
-      "Only a Word document or PDF made in Studio can be refined.",
+      "Only a Word document, PDF or web page made in Studio can be refined.",
     ],
     [
       "agent_made",

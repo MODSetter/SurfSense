@@ -38,7 +38,7 @@ export function ServerVoices() {
   const { source, voices_page: page } = voices.data
   const listed = source === "server"
 
-  const submit = (event: React.FormEvent) => {
+  const submit = (event: React.SubmitEvent) => {
     event.preventDefault()
     const voice = draft.trim()
     if (!voice || add.isPending) return

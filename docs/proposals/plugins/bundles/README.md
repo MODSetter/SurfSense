@@ -1,19 +1,19 @@
 ---
 status: deferred
 code:
-  - plugins/bundles/core/
-  - plugins/bundles/example/
+  - backend/plugins/bundles/core/
+  - backend/plugins/bundles/example/
   - surfsense_local/backend/modules/plugins/bundles/runner/
   - .github/workflows/plugins-pull-request-checks.yml
 ---
 
 # Bundles: plugins that run on the user's machine
 
-> Deferred. Remote plugins are built ([plugins](../../../architecture/plugins.md)). A bundle is `kind: bundle` in the registry: an MCP server that runs on the user's computer, for offline and air-gapped use, local software, and private processing. It is picked up when something needs it ([what is not built](../README.md)).
+> Deferred. Remote plugins are built ([plugins](../../../architecture/plugins.md)). A bundle is `kind: bundle` in the registry: an MCP server that runs on the user's computer, for offline and air-gapped use, local software, and private processing. It is picked up when something needs it ([what is not built](../README.md)). Since 22 Oct 2026 SurfSense's B2B jobs need it, so it comes before the security questionnaire's beta ([below](#first-local-paid-bundles-surfsenses-b2b-jobs)).
 
-The files in this folder are the earlier design, written when a plugin was a sidebar action with a form that wrote notes into Sources. Its local-runtime parts are what bundles will build on, and some are built: the runner in [`modules/plugins/bundles/runner/`](../../../../surfsense_local/backend/modules/plugins/bundles/runner/), the SDK, the CLI's author commands and the manifest rules in [`plugins/bundles/core/`](../../../../plugins/bundles/core/). Where a file here disagrees with how remote plugins are built ([plugins](../../../architecture/plugins.md), [plugin registry](../../../architecture/plugin-registry.md)), they hold.
+The files in this folder are the earlier design, written when a plugin was a sidebar action with a form that wrote notes into Sources. Its local-runtime parts are what bundles will build on, and some are built: the runner in [`modules/plugins/bundles/runner/`](../../../../surfsense_local/backend/modules/plugins/bundles/runner/), the SDK, the CLI's author commands and the manifest rules in [`backend/plugins/bundles/core/`](../../../../backend/plugins/bundles/core/). Where a file here disagrees with how remote plugins are built ([plugins](../../../architecture/plugins.md), [plugin registry](../../../architecture/plugin-registry.md)), they hold.
 
-**Where a bundle lives.** A third party's bundle lives in its author's repository: its code, its manifest, and the files of each release, which the author attaches to a GitHub release there. This repository holds only its entry in [`plugins.json`](#the-bundle-entry), with each approved version's file URLs and sha256s, and never a copy of the code or the files. The exceptions are SurfSense's own: a bundle SurfSense publishes lives in `plugins/bundles/<id>/`, or `plugins/bundles/proprietary/` when paid, the teaching example in `plugins/bundles/example/`, and the tooling in `plugins/bundles/core/`.
+**Where a bundle lives.** A third party's bundle lives in its author's repository: its code, its manifest, and the files of each release, which the author attaches to a GitHub release there. This repository holds only its entry in [`plugins.json`](#the-bundle-entry), with each approved version's file URLs and sha256s, and never a copy of the code or the files. The exceptions are SurfSense's own: a bundle SurfSense publishes lives in `backend/plugins/bundles/<id>/`, or `backend/plugins/bundles/proprietary/` when paid, the teaching example in `backend/plugins/bundles/example/`, and the tooling in `backend/plugins/bundles/core/`.
 
 ## The bundle entry
 
@@ -89,7 +89,7 @@ What stays: a separate process with its environment built from scratch, declared
 
 ---
 
-The earlier design follows, unchanged apart from its links.
+The earlier design follows, unchanged apart from its links, a section on SurfSense's B2B jobs and an open question on license terms, both added on 22 Oct 2026.
 
 # The earlier design
 
@@ -109,15 +109,15 @@ Same letter can be picked up at the same time. A stream's own files are in order
 
 | Stream | Files | Owns | Starts from |
 |---|---|---|---|
-| **SDK** | [`sdk/01-library.md`](sdk/01-library.md) | `plugins/bundles/core/sdk/` and its contract tests | the protocol |
-| **CLI** | [`cli/01-author-commands.md`](cli/01-author-commands.md) | `plugins/bundles/core/cli/` and its author commands, `plugins/bundles/example/`, `plugins/README.md` | the SDK and the manifest rules |
+| **SDK** | [`sdk/01-library.md`](sdk/01-library.md) | `backend/plugins/bundles/core/sdk/` and its contract tests | the protocol |
+| **CLI** | [`cli/01-author-commands.md`](cli/01-author-commands.md) | `backend/plugins/bundles/core/cli/` and its author commands, `backend/plugins/bundles/example/`, `backend/plugins/README.md` | the SDK and the manifest rules |
 | **Runtime** | [`runtime/01-process.md`](runtime/01-process.md) | `surfsense_local/backend/modules/plugins/bundles/` runner, the `plugins` queue and its worker | the protocol. There is no result import: the plugin wrote through the API while it ran |
-| **Release** | [`release/01-packaging.md`](release/01-packaging.md), then [`release/02-pull-request-checks.md`](release/02-pull-request-checks.md), then [`release/03-publishing.md`](release/03-publishing.md), then [`release/04-plugin-directory-site.md`](release/04-plugin-directory-site.md) | the release jobs of `surfsense-plugins` in `plugins/bundles/core/cli/`, `build-targets.json`, the policy lists, the plugin workflows, the plugins repository | the protocol. Each file builds on the one before |
+| **Release** | [`release/01-packaging.md`](release/01-packaging.md), then [`release/02-pull-request-checks.md`](release/02-pull-request-checks.md), then [`release/03-publishing.md`](release/03-publishing.md), then [`release/04-plugin-directory-site.md`](release/04-plugin-directory-site.md) | the release jobs of `surfsense-plugins` in `backend/plugins/bundles/core/cli/`, `build-targets.json`, the policy lists, the plugin workflows, the plugins repository | the protocol. Each file builds on the one before |
 | **Install** | [`install/01-install-update-uninstall.md`](install/01-install-update-uninstall.md) | choosing a version, install, update, uninstall, the two download hosts | the protocol and the manifest rules. It can test against a fixture catalog before a release publishes a real one |
 | **App** | [`app/01-api.md`](app/01-api.md) and [`app/02-screen.md`](app/02-screen.md) | plugin routes, the plugin screen | the route list in `01`. The screen can be built against that list before the routes exist |
-| **Python** | [`python/01-interpreter.md`](python/01-interpreter.md) | the interpreter the packaged app spawns, `system_key()` | `plugins/bundles/core/build-targets.json`, which whichever stream lands first adds. Other streams use `uv`'s Python until this lands |
+| **Python** | [`python/01-interpreter.md`](python/01-interpreter.md) | the interpreter the packaged app spawns, `system_key()` | `backend/plugins/bundles/core/build-targets.json`, which whichever stream lands first adds. Other streams use `uv`'s Python until this lands |
 
-**Demo:** `surfsense-plugins invoke` runs `plugins/bundles/example` against a running app, and the API runs the same plugin as a subprocess and its `document.add()` shows up as a note. Nothing published is required for that demo.
+**Demo:** `surfsense-plugins invoke` runs `backend/plugins/bundles/example` against a running app, and the API runs the same plugin as a subprocess and its `document.add()` shows up as a note. Nothing published is required for that demo.
 
 **Ship:** an app release publishes real plugin files to `surfsense-plugin-releases`, the app installs from the catalog it bundled on all three platforms, including a plugin with a compiled dependency, a paid plugin stays locked without a license, and the directory site lists them.
 
@@ -125,8 +125,8 @@ Same letter can be picked up at the same time. A stream's own files are in order
 
 | Decision | Choice |
 |---|---|
-| Where source lives | `plugins/<id>/` in this repo. A third party contributes by pull request into `dev`. Everything maintainers own, the SDK, the tooling and the lifecycle files, sits in one folder beside the plugins, `plugins/bundles/core/`. |
-| Id | Folder name. `^[a-z][a-z0-9-]{0,63}$`. Unique. Immutable once published. `plugins/bundles/core/policy/reserved-plugin-ids.txt` plus the prefix `surfsense-` are ours, and a pull request may use one only when its author is the repo's owner or a collaborator. `author` is a field, not part of the id. |
+| Where source lives | `plugins/<id>/` in this repo. A third party contributes by pull request into `dev`. Everything maintainers own, the SDK, the tooling and the lifecycle files, sits in one folder beside the plugins, `backend/plugins/bundles/core/`. |
+| Id | Folder name. `^[a-z][a-z0-9-]{0,63}$`. Unique. Immutable once published. `backend/plugins/bundles/core/policy/reserved-plugin-ids.txt` plus the prefix `surfsense-` are ours, and a pull request may use one only when its author is the repo's owner or a collaborator. `author` is a field, not part of the id. |
 | Versioning | People write one version, the app's. The SDK and the protocol have none of their own. A release stamps each plugin that changed with the app's version; plugin version X runs on SurfSense X or newer ([`04-versioning.md`](04-versioning.md)). |
 | Publishing | Plugins are published with the app's releases, never from `dev`: uploaded when the release is tagged, live when it is published. A published version never changes. |
 | Hosting | GitHub Releases in a second public repository, `SurfSense-Inc/surfsense-plugin-releases`, written by a GitHub App with write access to that repository alone. Never this repository's releases: installed apps take its newest release as an app update. |
@@ -134,14 +134,14 @@ Same letter can be picked up at the same time. A stream's own files are in order
 | Talks to the app | Arguments and environment variables in, the app's own API over loopback while it runs, an exit code out. No socket of ours, no message protocol, no results file. Stdout is logs. |
 | Network | The plugin makes its own HTTP calls through `http` in the SDK, which refuses a host not in `hosts`. `hosts` is shown in the app and on the directory site. Before a plugin's first run, one egress consent prompt asks for every host in `hosts` not yet allowed, and the grants are listed and revocable in Settings → Network. This is a check, not enforcement: the app does not intercept connections, and a plugin that skips `http` is not checked. Loopback is not egress and does not belong in `hosts`. |
 | Dependencies | The author adds a library with `surfsense-plugins add`, which writes `requirements.in` and generates `requirements.txt` from it with every version and file hash. Packaging installs it for each platform on one Linux runner, from prebuilt wheels only: one `any` file when every platform gets the same files, one per platform otherwise. The user's machine never runs `pip` and never compiles. |
-| Platforms | `plugins/bundles/core/build-targets.json` lists the platforms and the Python version. A plugin works on all of them unless its optional `platforms` names fewer. The app lists only plugin versions it can run. |
-| SDK | `plugins/bundles/core/sdk/` in this repo. Not published to PyPI. The app ships that folder next to the plugin interpreter. A plugin's files do not contain it. Strictly typed. |
+| Platforms | `backend/plugins/bundles/core/build-targets.json` lists the platforms and the Python version. A plugin works on all of them unless its optional `platforms` names fewer. The app lists only plugin versions it can run. |
+| SDK | `backend/plugins/bundles/core/sdk/` in this repo. Not published to PyPI. The app ships that folder next to the plugin interpreter. A plugin's files do not contain it. Strictly typed. |
 | Code license | Every plugin is Apache-2.0 under the repository's `LICENSE`, ours and contributed alike. A plugin folder carries no license of its own, and a dependency must be one the Apache Software Foundation lets an Apache-2.0 work include. |
 | Access | `free` or `paid`. Community plugins are `free`. `paid` means one of ours, and it installs and runs only with an unexpired SurfSense license file: `individual`, `team`, or a `trial` for its term. No price field. |
 | Catalog | `plugin-catalog.json` keeps every published version of every plugin, and each app runs the newest one it can. The app bundles its own release's catalog, so the list is visible with no network. Refreshing it needs the same two hosts as installing, off by default. The plugins themselves are not bundled. |
 | Blocking | A version can be blocked, everywhere or from an app version: by a maintainer in `withdrawn-versions.txt`, or by the release's checks when a new app breaks it. The app says why and offers the version to use instead. |
 | Versions on disk | One. An update replaces the installed version and deletes the old one. |
-| Limits | 100 MB per plugin file unless a maintainer grants more in `plugins/bundles/core/policy/size-limit-exceptions.txt`. A run stops at its action's timeout: 30 minutes unless the action sets its own, up to 6 hours. |
+| Limits | 100 MB per plugin file unless a maintainer grants more in `backend/plugins/bundles/core/policy/size-limit-exceptions.txt`. A run stops at its action's timeout: 30 minutes unless the action sets its own, up to 6 hours. |
 | What a plugin can do | A facade in the SDK wraps the app's API, so a plugin calls `document.add()` and never a route. The SDK is the public contract; routes stay ours to rename. Complete within `workspace`, `document`, `artifact`, `model`, of which v1 ships `document`; the other three wait for their app routes. Never `license`, `egress`, `migration`. |
 | Declared or coded | Whatever the app must know before running a plugin, to show it, check it or ask the user for it, is declared in `manifest.json`. Whatever happens during a run is the plugin's code, through the SDK. The app never runs plugin code to find something out. |
 | What the user provides | Two kinds: an input, asked every run, of kind `string`, `number` or `boolean`; and a secret, set once in Settings and never shown again. The app draws both forms from the declarations. |
@@ -213,7 +213,18 @@ The client for the hosted scraper API ships as a `paid` plugin on this system, n
 - It declares the scraper API's host in `hosts`, so the user consents before its first run.
 - A trial license unlocks it, like any other `paid` plugin.
 
+## First local paid bundles: SurfSense's B2B jobs
+
+Added 22 Oct 2026. SurfSense's B2B jobs are the first planned `paid` bundles ([ADR 0067](../../../adr/0067-b2b-jobs-ship-as-paid-plugins.md)): the security questionnaire first, then RFP, RFI and DDQ responses from the same library, then bank statements into a ledger, medical chronologies and contract and lease registers, and the contract redline after them ([08](../../../../plans/community-local/seo/08-b2b-artifact-jobs.md#the-bets)). Later B2B jobs ship the same way.
+
+- Each runs on the user's machine. It installs and runs only with an unexpired SurfSense license, as the Access row in Locked decisions defines. The license server delivers it only to a valid license, never in the installer or the public plugin list.
+- When the license lapses, the job bundle stops and the app keeps working ([ADR 0019](../../../adr/0019-offline-licenses.md)). The user's libraries, own playbooks, outputs and revised copies open and export without a license.
+- A job bundle carries the job: its skill and agent, workflow steps, mappings, playbooks, templates, eval cases and gold corpus. That content is written outside the Apache-2.0 tree from its first commit, in a folder with its own license file, so the Code license row in Locked decisions does not apply to it. The general agent, the engines, the bundle runtime and the shared job infrastructure stay in the app, free under Apache-2.0.
+- The license check in the app can be stripped by a fork ([ADR 0019](../../../adr/0019-offline-licenses.md)). What holds is delivery and the bundle's license terms, which are still open (Open questions).
+- No job bundle ships before local paid bundles exist and the job-pack loader adds a bundle's skills and job agents ([02](../../file-agent/02-skills-and-engines.md#phases), phase 8, `provides.skills`). Both now come before the questionnaire's beta ([08](../../../../plans/community-local/seo/08-b2b-artifact-jobs.md#what-the-agent-needs-one-engine-for-many-jobs), item 11).
+
 ## Open questions
 
 - How a `paid` plugin gets the license key it sends as `Authorization: License <key>`. The protocol only passes secrets the user sets. The leading answer is one more context variable, passed only to reserved ids, when the scraper plugin is built.
 - Whether CI runs a plugin's own `tests/`, and against what. They would need a stub of the app that plugins can import, which the SDK builds for its own tests but does not publish yet.
+- Which license terms a local paid bundle carries. The Business Source License in [`backend/plugins/proprietary/LICENSE`](../../../../backend/plugins/proprietary/LICENSE) grants production use to anyone who does not resell the work. That suits code on SurfSense's server, but on the user's machine it would let a business run a job bundle without a license. The choice, a narrower Additional Use Grant or a closed license, is made with the lawyer before the first job bundle ships ([08, open question 1](../../../../plans/community-local/seo/08-b2b-artifact-jobs.md#open-questions-for-the-maintainer)).

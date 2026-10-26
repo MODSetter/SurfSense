@@ -42,19 +42,21 @@ async def test_switching_a_tool_of_an_unknown_plugin_is_a_404(
     assert missing.status_code == 404
 
 
-async def test_a_custom_plugin_waits_until_third_party_plugins_are_allowed(
+async def test_a_custom_plugin_is_held_while_third_party_plugins_are_off(
     client: AsyncClient, notes_url: str, engine: Engine
 ) -> None:
-    """A server added by URL is not reviewed by SurfSense, so it starts off like any other."""
+    """A server added by URL is not reviewed by SurfSense, so the switch holds it like any other."""
     await add_notes(client, notes_url)
+    assert offered(engine) == ["notes__search", "notes__count"]
 
+    await client.put("/plugins/third-party", json={"allowed": False})
     assert offered(engine) == []
 
     await client.put("/plugins/third-party", json={"allowed": True})
-
     assert offered(engine) == ["notes__search", "notes__count"]
 
 
+@pytest.mark.third_party_off
 async def test_the_screen_reads_whether_third_party_plugins_are_allowed(
     client: AsyncClient,
 ) -> None:

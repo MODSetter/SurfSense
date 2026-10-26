@@ -36,6 +36,8 @@ export function confineSnapshotSession(
     url.startsWith(ownFiles) ||
     // The page's own object URLs: a deck's pictures, made from the file it prints.
     url.startsWith("blob:") ||
+    // A web page's inline images and fonts; a data URL makes no request.
+    url.startsWith("data:") ||
     (devServerSocket !== undefined && url.startsWith(devServerSocket)) ||
     printing.includes(url)
 

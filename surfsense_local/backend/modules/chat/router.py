@@ -16,16 +16,16 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from api.dependencies import SessionDep, transact
-from modules.agent.agent_threads.forget_sessions import forget_thread
-from modules.agent.agent_threads.open_session import open_agent_session
-from modules.agent.agent_threads.thread_messages import agent_thread_messages
-from modules.agent.agent_threads.turn import RunPlace, agent_turn
+from modules.agent.agent_threads.turn import RunPlace
 from modules.agent.dependencies import LaunchKeyDep
 from modules.agent.engine_choice import (
     AgenticRefusedError,
     new_thread_mode,
     remember_thread_mode,
 )
+from modules.agent.engines.both_sessions import thread_turns_of
+from modules.agent.engines.handover.take_over import take_over
+from modules.agent.engines.thread_engine import every_engine, selected_engine
 from modules.agent.thread_folder.layout import remove_thread_folder
 from modules.chat.budget import (
     IMAGE_TOKENS,
@@ -70,15 +70,20 @@ from modules.llm.admission.waiting import wait_in_line
 from modules.llm.capability.modes import ChatMode
 from modules.llm.providers import llamacpp
 from modules.llm.providers.protocols import Generator
-from modules.llm.providers.types import Message
+from modules.llm.providers.types import Message, PlanUsage
 from modules.llm.resolution import (
     ModelResolutionError,
     ResolvedGeneration,
     resolve_generation,
 )
+from modules.llm.subscriptions.plan_usage_frame import plan_usage_frame
 from modules.source_scope.resolve import resolve_scope
 from modules.source_scope.schemas import SourceScope
 from modules.source_scope.thread_scope import store_thread_scope, thread_scope
+from modules.usage_statistics.activity_counts import (
+    count_agent_turn,
+    count_chat_answer,
+)
 from modules.workspaces.dependencies import WorkspaceDep
 from shared.search import Hit, retrieve
 
@@ -115,10 +120,9 @@ async def create_thread(
         session, _new_thread, workspace.id, payload.title, payload.source_scope
     )
     if opening.mode is ChatMode.AGENTIC:
-        session_id = await open_agent_session(session, thread, launch_key)
-        if session_id is not None:
-            await transact(session, _give_to_agent, thread, session_id)
-        elif payload.mode is ChatMode.AGENTIC:
+        engine = await transact(session, selected_engine)
+        opened = await engine.open_session(session, thread, launch_key)
+        if not opened and payload.mode is ChatMode.AGENTIC:
             await transact(session, _delete_thread, thread)
             raise HTTPException(
                 status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -182,7 +186,9 @@ async def list_messages(
 ) -> Sequence[ChatMessage] | list[dict]:
     if thread.uses_agent:
         answering = runs.get(thread.id) is not None
-        return await agent_thread_messages(session, thread, launch_key, answering)
+        return await thread_turns_of(
+            session, thread, launch_key, answering, every_engine()
+        )
     return await transact(session, _stored_turns, thread)
 
 
@@ -200,10 +206,10 @@ async def delete_thread(
     await run_in_threadpool(session.commit)
     await runs.stop(thread_id, STOP_SETTLE_SECONDS)
     folder = None
-    if thread.opencode_session_id is not None:
-        folder = await forget_thread(
-            workspace_id, thread_id, thread.opencode_session_id
-        )
+    # A thread that switched engines has a session in each.
+    for engine in every_engine():
+        if engine.has_session(thread):
+            folder = await engine.forget_thread(thread)
     await transact(session, _delete_thread, thread)
     store.remove_thread(workspace_id, thread_id)
     if folder is not None:
@@ -262,8 +268,17 @@ async def send_message(
         place = RunPlace(
             runs, request.app.state.session_factory, request.app.state.broker
         )
-        return await agent_turn(session, thread, payload, launch_key, place)
-    resolved, history, hits, retried, scope_record = await transact(
+        # The selected model decides the engine; crossing to the other, or to a
+        # new session of the same, hands over.
+        taking = await transact(session, selected_engine)
+        handover = await take_over(session, thread, taking, launch_key)
+        started = await taking.run_turn(
+            session, thread, payload, launch_key, place, handover
+        )
+        # Counted once the engine took the turn; a refused one raised above.
+        await count_agent_turn()
+        return started
+    resolved, history, hits, retried, scope_record, indexing = await transact(
         session, _ground, thread, payload
     )
     selected = resolved.selection
@@ -274,7 +289,7 @@ async def send_message(
     should_generate_title = (
         not history and (thread.title or "").casefold() == "new chat"
     )
-    grounding = build_context(hits, resolved.tier)
+    grounding = build_context(hits, resolved.tier, indexing)
     citations = grounding.citations
     logger.info(
         "chat: model %s/%s answering on the %s prompt (%s excerpts)",
@@ -427,6 +442,8 @@ async def send_message(
                         ):
                             run.set_state(RunState("queued", place))
                     run.set_state(RunState("running"))
+                    # Said once per reply, and again only if it changes.
+                    plan_said: PlanUsage | None = None
                     async for delta in generator.chat_deltas(
                         selected.name,
                         prompt.messages,
@@ -436,6 +453,11 @@ async def send_message(
                         # An endpoint that routes by it keeps the thread on one cache.
                         conversation=f"surfsense-thread-{thread.id}",
                     ):
+                        if delta.plan_usage is not None:
+                            if delta.plan_usage != plan_said:
+                                plan_said = delta.plan_usage
+                                yield _frame(plan_usage_frame(plan_said))
+                            continue
                         if delta.progress is not None:
                             yield _frame(
                                 {
@@ -515,6 +537,9 @@ async def send_message(
                         ending,
                     )
                     assistant_completed_at = _iso(assistant_message.completed_at)
+                    # Only a reply with text counts as the model having answered.
+                    if parts:
+                        await count_chat_answer(selected.provider)
 
         if not parts:
             if not failed:
@@ -647,17 +672,6 @@ def _new_thread(
     return thread
 
 
-def _give_to_agent(session: Session, thread: ChatThread, session_id: str) -> None:
-    """Record the opencode session that will hold the thread's turns.
-
-    Reloaded here, off the event loop: the write moves `updated_at`, which the
-    response reads.
-    """
-    thread.opencode_session_id = session_id
-    session.flush()
-    session.refresh(thread)
-
-
 def _stored_turns(session: Session, thread: ChatThread) -> Sequence[ChatMessage]:
     """A chat thread's turns, oldest first."""
     return session.scalars(
@@ -670,11 +684,11 @@ def _stored_turns(session: Session, thread: ChatThread) -> Sequence[ChatMessage]
 def _ground(
     session: Session, thread: ChatThread, payload: MessageCreate
 ) -> tuple[
-    ResolvedGeneration, Sequence[ChatMessage], list[Hit], list[ChatMessage], dict
+    ResolvedGeneration, Sequence[ChatMessage], list[Hit], list[ChatMessage], dict, int
 ]:
     """The model to answer with, the turns so far, the passages to cite, the
-    failed turn a retry replaces, and what the user turn records of the sources
-    it used."""
+    failed turn a retry replaces, what the user turn records of the sources it
+    used, and how many of them are still being read."""
     try:
         resolved = resolve_generation(session)
     except ModelResolutionError as error:
@@ -717,7 +731,9 @@ def _ground(
         document_ids=payload.document_ids,
         scope=scope,
     )
-    return resolved, history, hits, retried, record
+    # An explicit id list never counts any: it is refused above while one is not ready.
+    indexing = scope.counts.indexing if scope is not None else 0
+    return resolved, history, hits, retried, record, indexing
 
 
 # The endings a retry may replace. A stopped or completed reply is the

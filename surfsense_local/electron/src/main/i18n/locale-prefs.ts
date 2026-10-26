@@ -5,8 +5,8 @@ import { app } from "electron"
 
 import { isLocale, PSEUDO_LOCALE } from "./locales.ts"
 import type { LocalePreference } from "./resolve-locale.ts"
-import { warnMain } from "../session-log/main-warn.ts"
-import { sessionLog } from "../session-log/session-log.ts"
+import { warnMain } from "../../../../sidecars/session-log/main-warn.ts"
+import { sessionLog } from "../../../../sidecars/session-log/session-log.ts"
 
 function prefsPath(): string {
   return join(app.getPath("userData"), "locale-prefs.json")

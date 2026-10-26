@@ -487,7 +487,9 @@ async def test_the_sign_in_says_what_it_serves_and_names_hosts_until_allowed(
     monkeypatch.setattr(endpoints, "api_url", "https://api.example/v1")
 
     before = (await client.get("/llm/connections/chatgpt")).json()
-    await client.put("/egress/host:auth.example", json={"enabled": True})
+    await client.put(
+        "/egress", json={"destinations": ["host:auth.example"], "enabled": True}
+    )
     after = (await client.get("/llm/connections/chatgpt")).json()
 
     assert before == {

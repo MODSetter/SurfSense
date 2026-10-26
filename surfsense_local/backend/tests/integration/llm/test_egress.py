@@ -74,8 +74,78 @@ async def test_loopback_connections_are_not_egress(
 
 async def test_unknown_destination_is_rejected(client: AsyncClient) -> None:
     """Only destinations the app contacts can be toggled."""
-    reply = await client.put("/egress/keygen", json={"enabled": True})
+    reply = await client.put(
+        "/egress", json={"destinations": ["keygen"], "enabled": True}
+    )
     assert reply.status_code == 422
+
+
+async def test_one_answer_allows_every_host_it_names(client: AsyncClient) -> None:
+    """Allow in one question switches on each host it named, each its own row."""
+    reply = await client.put(
+        "/egress",
+        json={
+            "destinations": ["host:api.anthropic.com", "host:platform.claude.com"],
+            "enabled": True,
+        },
+    )
+
+    assert reply.status_code == 200, reply.text
+    assert {row["destination"]: row["enabled"] for row in reply.json()} == {
+        "host:api.anthropic.com": True,
+        "host:platform.claude.com": True,
+    }
+    listed = await _destinations(client)
+    assert listed["host:api.anthropic.com"]["enabled"] is True
+    assert listed["host:platform.claude.com"]["enabled"] is True
+
+
+async def test_an_answer_naming_one_bad_destination_allows_none(
+    client: AsyncClient,
+) -> None:
+    """All or nothing: a refused request switches no host, so what the user saw
+    fail is what is stored."""
+    reply = await client.put(
+        "/egress",
+        json={"destinations": ["host:api.anthropic.com", "keygen"], "enabled": True},
+    )
+
+    assert reply.status_code == 422
+    assert "host:api.anthropic.com" not in await _destinations(client)
+
+
+async def test_an_empty_answer_is_refused(client: AsyncClient) -> None:
+    """There is nothing to allow, so it can only be a caller's mistake."""
+    reply = await client.put("/egress", json={"destinations": [], "enabled": True})
+
+    assert reply.status_code == 422
+
+
+async def test_one_host_is_switched_off_alone(client: AsyncClient) -> None:
+    """Settings > Network turns one row off; the others stay as they were."""
+    await client.put(
+        "/egress",
+        json={
+            "destinations": ["host:api.anthropic.com", "host:platform.claude.com"],
+            "enabled": True,
+        },
+    )
+
+    await client.put(
+        "/egress",
+        json={"destinations": ["host:platform.claude.com"], "enabled": False},
+    )
+
+    listed = await _destinations(client)
+    assert listed["host:api.anthropic.com"]["enabled"] is True
+    assert listed["host:platform.claude.com"]["enabled"] is False
+
+
+async def test_the_one_host_route_is_gone(client: AsyncClient) -> None:
+    """One way to record consent, so the two can never drift apart."""
+    reply = await client.put("/egress/host:api.anthropic.com", json={"enabled": True})
+
+    assert reply.status_code in (404, 405)
 
 
 async def test_one_grant_covers_everything_sent_to_huggingface(
@@ -112,7 +182,9 @@ def _store(engine: Engine, *connections: dict) -> None:
 
 
 async def _allow(client: AsyncClient, destination: str) -> None:
-    reply = await client.put(f"/egress/{destination}", json={"enabled": True})
+    reply = await client.put(
+        "/egress", json={"destinations": [destination], "enabled": True}
+    )
     assert reply.status_code == 200, reply.text
 
 

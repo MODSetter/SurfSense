@@ -3,8 +3,8 @@ import { join } from "node:path"
 
 import { app, type BrowserWindow, type Rectangle, screen } from "electron"
 
-import { warnMain } from "./session-log/main-warn.ts"
-import { sessionLog } from "./session-log/session-log.ts"
+import { warnMain } from "../../../sidecars/session-log/main-warn.ts"
+import { sessionLog } from "../../../sidecars/session-log/session-log.ts"
 
 export type WindowState = {
   bounds: Rectangle

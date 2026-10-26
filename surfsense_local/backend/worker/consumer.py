@@ -8,6 +8,7 @@ from shared.db import import_models
 from shared.queue import import_tasks, ingest_queue, plugins_queue, studio_queue
 from worker.document_script.leftover_run_folders import remove_leftover_run_folders
 from worker.interrupted_documents import fail_interrupted_documents
+from worker.interrupted_pulls import fail_interrupted_pulls
 from worker.wait_for_schema import wait_for_schema
 
 # Studio jobs wait on a model: overlap them. Ingest jobs saturate the CPU: one.
@@ -21,6 +22,10 @@ _QUEUES = {
     "studio": (studio_queue, STUDIO_WORKERS),
     "plugins": (plugins_queue, PLUGIN_WORKERS),
 }
+# Longest wait between polls of an idle queue. Huey's default backs off to 10 s,
+# which an idle ingest worker took to notice an upload that is ready in about a
+# second once read; a poll is one query on huey.db, its own file.
+MAX_IDLE_POLL_SECONDS = {"ingest": 0.5, "studio": 1.0, "plugins": 1.0}
 
 
 def consume(name: str) -> None:
@@ -32,6 +37,7 @@ def consume(name: str) -> None:
     wait_for_schema()
     if queue is plugins_queue:
         fail_interrupted_runs()
+        fail_interrupted_pulls()
     elif queue is ingest_queue:
         fail_interrupted_documents({DocumentType.FILE, DocumentType.NOTE})
     else:
@@ -41,4 +47,9 @@ def consume(name: str) -> None:
     logging.getLogger(__name__).info(
         "%s: worker consuming with %s threads", name, workers
     )
-    Consumer(queue, workers=workers, worker_type="thread").run()
+    Consumer(
+        queue,
+        workers=workers,
+        worker_type="thread",
+        max_delay=MAX_IDLE_POLL_SECONDS[name],
+    ).run()

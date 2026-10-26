@@ -8,7 +8,7 @@ arguments each model gets, and every byte downloaded from Hugging Face. The
 shaping rule is to assume nothing worked until something says it did, because
 llama.cpp's common failures exit 0 and look like success.
 
-**Code:** [`surfsense_local/backend/modules/llm/providers/llamacpp/`](../../../surfsense_local/backend/modules/llm/providers/llamacpp/), [`surfsense_local/electron/src/main/sidecars/llamacpp.ts`](../../../surfsense_local/electron/src/main/sidecars/llamacpp.ts), [`surfsense_local/electron/src/main/sidecars/watch-generation-preset.ts`](../../../surfsense_local/electron/src/main/sidecars/watch-generation-preset.ts) (preset watcher), [`surfsense_local/electron/scripts/fetch-llamacpp.mjs`](../../../surfsense_local/electron/scripts/fetch-llamacpp.mjs)
+**Code:** [`surfsense_local/backend/modules/llm/providers/llamacpp/`](../../../surfsense_local/backend/modules/llm/providers/llamacpp/), [`surfsense_local/sidecars/llamacpp.ts`](../../../surfsense_local/sidecars/llamacpp.ts), [`surfsense_local/sidecars/watch-generation-preset.ts`](../../../surfsense_local/sidecars/watch-generation-preset.ts) (preset watcher), [`surfsense_local/runtimes/fetch-llamacpp.mjs`](../../../surfsense_local/runtimes/fetch-llamacpp.mjs)
 **Decisions:** [ADR 0011](../../adr/0011-llama-cpp-local-runtime.md), [ADR 0012](../../adr/0012-vulkan-only-gpu-backend.md), [ADR 0015](../../adr/0015-openai-compatible-connections.md), [ADR 0049](../../adr/0049-prompts-grow-at-the-end.md)
 
 How each model's window and cache precision are chosen is in
@@ -40,7 +40,7 @@ Router mode is what lets the sidecar boot on a clean machine. Measured at
 returns `{"data":[],"object":"list"}` against an empty directory. A router with
 three models discovered leaves VRAM unchanged from idle, in the plan's router
 lifecycle measurements, which do not record the platform. The directory itself
-must exist: a comment in `electron/src/main/sidecars/boot.ts` records that `llama-server`
+must exist: a comment in `sidecars/boot.ts` records that `llama-server`
 exits 1 when `--models-dir` does not exist, so Electron creates it before the
 first start.
 
@@ -62,7 +62,7 @@ reloading it costs the 10 to 26 s the warming below exists to hide.
 
 ## Sidecar flags
 
-`llamacppSpec()` in `electron/src/main/sidecars/llamacpp.ts` starts:
+`llamacppSpec()` in `sidecars/llamacpp.ts` starts:
 
 ```text
 llama-server
@@ -131,7 +131,7 @@ the app never ships. When the binary is not staged the sidecar does not start.
 Boot waits only on the API's health; the runtime's state shows through
 `GET /llm/providers`.
 
-`watchGenerationPreset()` in `electron/src/main/sidecars/watch-generation-preset.ts` polls the preset's size
+`watchGenerationPreset()` in `sidecars/watch-generation-preset.ts` polls the preset's size
 and mtime every 5 s and restarts the sidecar on a change, the same shape as
 `watchImageModel()` for sd-server: the API is the authority, and a change is
 user-initiated and rare.
@@ -347,7 +347,7 @@ logs one line per reply from it, such as `qwen3 reused 5442 of 5476 prompt
 tokens` ([`prompt_reuse.py`](../../../surfsense_local/backend/modules/llm/providers/prompt_reuse.py)),
 so a prompt that stopped matching what the runtime holds shows as a number
 rather than as a slow answer. Nothing is asked for it, and nothing leaves the
-machine ([ADR 0016](../../adr/0016-no-telemetry.md)).
+machine; the opt-in usage report carries no such number ([ADR 0070](../../adr/0070-opt-in-id-less-update-checks-and-usage-statistics.md)).
 
 ## The provider
 
@@ -464,7 +464,14 @@ runtime:
   a grandchild process as well as the sidecar; `electron-builder.yml` sets
   `entitlementsInherit`.
 - The release workflow pins `ubuntu-22.04`. `ubuntu-latest` migrates and would
-  silently raise the AppImage's glibc floor; the Vulkan build needs 2.34.
+  silently raise the Linux floor. The pinned Linux archive needs glibc 2.34 and,
+  from the host, GCC 12's libstdc++ (`GLIBCXX_3.4.30`); with the backend's
+  glibc 2.35 that is Ubuntu 22.04, Debian 12, current Fedora and EL10 or later,
+  not RHEL 9 ([packaging](../packaging.md#the-linux-floor)).
+- llama.cpp's Linux libraries, `libggml-base` and every `libggml-cpu-*`, link
+  the host's `libgomp.so.1`, which the archive does not carry. The deb depends
+  on `libgomp1`, the rpm on `(libgomp or libgomp1)`, the Fedora and EL name or
+  openSUSE's, and the snap stages `libgomp1`; the AppImage declares nothing.
 - On Windows, `vulkan-1.dll` is in `System32` on a stock install, so nothing is
   bundled for it.
 - Quitting reaps the whole tree. On Windows the supervisor runs
@@ -472,10 +479,10 @@ runtime:
   `b11050` with a model resident, it terminated four processes depth first with
   no survivors. On macOS and Linux each sidecar is spawned in its own process
   group, which receives `SIGTERM` and then `SIGKILL` after 5 s.
-- `bundling/api.spec` ships `modules/llm/catalog/local/manifest/models.json` at
+- `bundling/api_inputs.py` ships `modules/llm/catalog/local/manifest/models.json` at
   `modules/llm/catalog/local/manifest`. The manifest is read by path, so the analyser cannot see
   it, and a packaging test asserts it is bundled.
-- Release CI stages the runtime with `node scripts/fetch-llamacpp.mjs`, and on
+- Release CI stages the runtime with `node ../runtimes/fetch-llamacpp.mjs`, and on
   Linux runs the packaged `llama-server --list-devices` from
   `resources/llamacpp/`.
 
@@ -488,9 +495,14 @@ The rest of the installer is in [`../packaging.md`](../packaging.md).
   because resolving it never touches the sidecar. An install still downloads and
   ends with "Downloaded. It becomes available once the runtime restarts."
 - **No Vulkan loader.** `dlopen` fails, ggml skips the backend silently, and the
-  CPU runs. The `.deb` recommends `libvulkan1`, so apt installs the loader by
-  default on Debian and Ubuntu; a user who declines recommends, or runs the
-  AppImage, which carries no dependency metadata, gets this.
+  CPU runs. The `.deb` recommends `libvulkan1` and the `.rpm` `vulkan-loader`,
+  so apt and dnf install the loader by default, and the snap stages it; a user
+  who declines weak dependencies, or runs the AppImage, which carries no
+  dependency metadata, gets this.
+- **No OpenMP runtime.** Without the host's `libgomp.so.1` the dynamic loader
+  cannot load `libggml-base`, so `llama-server` exits at once and the runtime is
+  missing as above. Only the AppImage can reach this: the deb and the rpm
+  depend on the library and the snap stages it.
 - **A GPU exists and ggml cannot see it.** Reported as `broken_install` rather
   than badged as a CPU-only machine ([`fit.md`](fit.md)).
 - **A quantized cache without a working flash-attention kernel.** llama.cpp falls
@@ -522,7 +534,7 @@ test.
 
 Unit tests in
 [`surfsense_local/backend/tests/unit/llm/providers/llamacpp/`](../../../surfsense_local/backend/tests/unit/llm/providers/llamacpp/)
-run the provider against a fake router. [`surfsense_local/electron/src/main/sidecars/llamacpp.test.ts`](../../../surfsense_local/electron/src/main/sidecars/llamacpp.test.ts)
+run the provider against a fake router. [`surfsense_local/sidecars/llamacpp.test.ts`](../../../surfsense_local/sidecars/llamacpp.test.ts)
 holds the sidecar's working directory, `--models-autoload`, and the absence of a
 layer count, of `--reasoning-budget` and of `--sleep-idle-seconds`.
 

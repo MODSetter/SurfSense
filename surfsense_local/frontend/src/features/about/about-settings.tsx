@@ -1,3 +1,4 @@
+import { UsageStatisticsSettings } from "@/features/privacy-choices/usage-statistics-settings"
 import { SettingsSection } from "@/features/settings/settings-section"
 import { UpdateSettings } from "@/features/updates/update-settings"
 import { intl } from "@/i18n/intl"
@@ -5,12 +6,13 @@ import surfSenseLogo from "@/surfsense-logo.svg"
 
 import {
   DISCORD_URL,
-  DOCS_URL,
+  docsUrl,
   GITHUB_URL,
   LICENSE_URL,
   releaseNotesUrl,
 } from "./about-links"
 import { CopyVersionButton } from "./copy-version-button"
+import { DataFolder } from "./data-folder"
 import { ExternalLink } from "./external-link"
 import { useAppDetails } from "./use-app-details"
 
@@ -66,6 +68,8 @@ export function AboutSettings() {
     >
       <AppIdentity version={details?.version} />
       <UpdateSettings />
+      <UsageStatisticsSettings />
+      <DataFolder />
 
       <div className="mt-8 flex flex-col gap-1">
         <h3 className="text-sm font-medium">
@@ -83,7 +87,7 @@ export function AboutSettings() {
               })}
             </ExternalLink>
           ) : null}
-          <ExternalLink href={DOCS_URL}>
+          <ExternalLink href={docsUrl(details?.version)}>
             {intl.formatMessage({
               id: "about_docs_link",
               defaultMessage: "Documentation",

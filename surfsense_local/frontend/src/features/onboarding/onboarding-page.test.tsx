@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { EgressPrompt } from "@/features/egress/egress-prompt"
 import { fakeInstallApi } from "@/features/models/local/installs/fake-install-api"
+import { stubPrivacyBridge } from "@/features/privacy-choices/stub-privacy-bridge"
 import { render } from "@/test-utils"
 import { OnboardingPage } from "./onboarding-page"
 
@@ -351,8 +352,8 @@ function backend({
         },
       ])
     }
-    if (path.startsWith("/egress/") && init?.method === "PUT") {
-      return Response.json({})
+    if (path === "/egress" && init?.method === "PUT") {
+      return Response.json([])
     }
     if (path === "/llm/onboarding" && init?.method === "POST") {
       finished.push(init.body ? JSON.parse(String(init.body)) : null)
@@ -1297,7 +1298,11 @@ describe("the embedding model step", () => {
       expect(
         fetchMock.mock.calls.some(
           ([path, init]) =>
-            path === "/egress/host:huggingface.co" && init?.method === "PUT"
+            path === "/egress" &&
+            init?.method === "PUT" &&
+            JSON.parse(String(init.body)).destinations.includes(
+              "host:huggingface.co"
+            )
         )
       ).toBe(true)
     )
@@ -1324,5 +1329,275 @@ describe("the embedding model step", () => {
     expect(
       screen.queryByRole("button", { name: /^Download someone\/chat-model/ })
     ).toBeNull()
+  })
+})
+
+describe("the privacy choices", () => {
+  afterEach(() => {
+    delete window.surfsense
+  })
+
+  async function toPrivacyStep(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole("button", { name: "Start setting up" }))
+    await screen.findByRole("heading", { name: "Privacy choices" })
+  }
+
+  // The full description is the title's tooltip.
+  async function hoverDetails(
+    user: ReturnType<typeof userEvent.setup>,
+    label: string
+  ) {
+    await user.hover(screen.getByRole("button", { name: label }))
+    const tooltip = await screen.findByRole("tooltip")
+    return tooltip.textContent ?? ""
+  }
+
+  function choice(row: string, answer: "Yes" | "No") {
+    return within(screen.getByRole("group", { name: row })).getByRole(
+      "button",
+      { name: answer }
+    )
+  }
+
+  it("asks a new install right after the welcome, with nothing chosen for it", async () => {
+    vi.stubGlobal("fetch", backend({ selections: { ...chatChosen } }))
+    const bridge = stubPrivacyBridge()
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+
+    await toPrivacyStep(user)
+    // The first step like any other: counted, with no way back to the welcome.
+    expect(screen.getByLabelText("Onboarding step 1 of 7")).toBeTruthy()
+    expect(screen.queryByRole("button", { name: "Back" })).toBeNull()
+    for (const row of ["Check for updates", "Share usage statistics"])
+      for (const answer of ["Yes", "No"] as const)
+        expect(choice(row, answer).getAttribute("aria-pressed")).toBe("false")
+    const proceed = screen.getByRole("button", { name: "Continue" })
+    expect(proceed.hasAttribute("disabled")).toBe(true)
+
+    // One answer is not enough: each row is its own decision.
+    await user.click(choice("Check for updates", "Yes"))
+    expect(proceed.hasAttribute("disabled")).toBe(true)
+    await user.click(choice("Share usage statistics", "No"))
+    expect(
+      choice("Check for updates", "Yes").getAttribute("aria-pressed")
+    ).toBe("true")
+    expect(proceed.hasAttribute("disabled")).toBe(false)
+
+    await user.click(proceed)
+    await screen.findByRole("heading", {
+      name: "Choose a text generation model",
+    })
+    expect(bridge.calls).toContain("first-run:updates=true,usage=false")
+  })
+
+  it("says where each one goes and what it sends", async () => {
+    vi.stubGlobal("fetch", backend())
+    stubPrivacyBridge()
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+
+    await toPrivacyStep(user)
+    // One line each; the hosts are in the info icon's description.
+    const updates = screen.getByRole("region", { name: "Check for updates" })
+    expect(updates.textContent).toContain("No ID sent.")
+    expect(updates.textContent).not.toContain("updates.surfsense.com")
+    const usage = screen.getByRole("region", { name: "Share usage statistics" })
+    expect(usage.textContent).toContain(
+      "Never your documents, prompts or an ID."
+    )
+
+    // Every host, and the download, as the update prompt says.
+    const updatesDetails = await hoverDetails(
+      user,
+      "What an update check sends"
+    )
+    expect(updatesDetails).toContain("updates.surfsense.com")
+    expect(updatesDetails).toContain("github.com")
+    expect(updatesDetails).toContain("your IP address")
+    expect(updatesDetails).toContain("githubusercontent.com")
+    expect(updatesDetails).toContain("the next time you quit")
+    await user.unhover(
+      screen.getByRole("button", { name: "What an update check sends" })
+    )
+    await waitFor(() => expect(screen.queryByRole("tooltip")).toBeNull())
+    const usageDetails = await hoverDetails(user, "What usage statistics send")
+    expect(usageDetails).toContain("usage.surfsense.com")
+    expect(usageDetails).toContain(
+      "Never documents, prompts, file names, model names, hosts, your license key or an ID."
+    )
+  })
+
+  it("shows the next usage report, built but not sent", async () => {
+    vi.stubGlobal("fetch", backend())
+    const bridge = stubPrivacyBridge()
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+
+    await toPrivacyStep(user)
+    const usage = screen.getByRole("region", { name: "Share usage statistics" })
+    await user.click(
+      within(usage).getByRole("button", { name: "Show exactly what’s sent" })
+    )
+
+    const dialog = await screen.findByRole("dialog", {
+      name: "What usage statistics send",
+    })
+    const next = await within(dialog).findByLabelText("The next usage report")
+    expect(next.textContent).toContain('"schema": 1')
+    expect(dialog.textContent).toContain("Nothing sent yet.")
+    expect(bridge.calls).toContain("preview")
+    expect(bridge.calls.some((call) => call.startsWith("usage:"))).toBe(false)
+  })
+
+  it("lists the update request's only headers before any check", async () => {
+    vi.stubGlobal("fetch", backend())
+    stubPrivacyBridge()
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+
+    await toPrivacyStep(user)
+    const updates = screen.getByRole("region", { name: "Check for updates" })
+    await user.click(
+      within(updates).getByRole("button", { name: "Show exactly what’s sent" })
+    )
+
+    const dialog = await screen.findByRole("dialog", {
+      name: "What an update check sends",
+    })
+    for (const header of [
+      "User-Agent",
+      "X-SurfSense-Version",
+      "X-SurfSense-Platform",
+      "X-SurfSense-OS",
+    ])
+      expect(dialog.textContent).toContain(header)
+  })
+
+  it("takes a policy's lock as that row's answer", async () => {
+    vi.stubGlobal("fetch", backend({ selections: { ...chatChosen } }))
+    const bridge = stubPrivacyBridge({
+      usageStatistics: {
+        enabled: false,
+        locked: true,
+        lockedReason: "do_not_track",
+      },
+    })
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+
+    await toPrivacyStep(user)
+    expect(
+      screen.queryByRole("group", { name: "Share usage statistics" })
+    ).toBeNull()
+    expect(
+      screen.getByRole("region", { name: "Share usage statistics" }).textContent
+    ).toContain("DO_NOT_TRACK")
+
+    await user.click(choice("Check for updates", "No"))
+    await user.click(screen.getByRole("button", { name: "Continue" }))
+
+    await screen.findByRole("heading", {
+      name: "Choose a text generation model",
+    })
+    expect(bridge.calls).toContain("first-run:updates=false,usage=false")
+  })
+
+  it("says only that a package manager owns updates, with no check described", async () => {
+    vi.stubGlobal("fetch", backend({ selections: { ...chatChosen } }))
+    const bridge = stubPrivacyBridge({
+      updates: { locked: true, lockedReason: "channel", channel: "snap" },
+    })
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+
+    await toPrivacyStep(user)
+    const updates = screen.getByRole("region", { name: "Check for updates" })
+    expect(updates.textContent).toContain("Updates come from the Snap Store")
+    expect(updates.textContent).not.toContain("Once a day")
+    expect(
+      within(updates).queryByRole("button", {
+        name: "Show exactly what’s sent",
+      })
+    ).toBeNull()
+    expect(
+      within(updates).queryByRole("button", {
+        name: "What an update check sends",
+      })
+    ).toBeNull()
+    expect(
+      screen.queryByRole("group", { name: "Check for updates" })
+    ).toBeNull()
+
+    await user.click(choice("Share usage statistics", "Yes"))
+    await user.click(screen.getByRole("button", { name: "Continue" }))
+
+    await screen.findByRole("heading", {
+      name: "Choose a text generation model",
+    })
+    expect(bridge.calls).toContain("first-run:updates=false,usage=true")
+  })
+
+  it("goes on to the first step when the choices cannot be read", async () => {
+    vi.stubGlobal("fetch", backend())
+    stubPrivacyBridge()
+    window.surfsense!.privacy!.getState = async () => {
+      throw new Error("No handler registered for 'privacy:get-state'")
+    }
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+
+    // Nothing is switched on unasked, and setup is not held on an empty card.
+    await toChatStep(user)
+    expect(
+      screen.queryByRole("heading", { name: "Privacy choices" })
+    ).toBeNull()
+  })
+
+  it("asks an install that already answered again, with its answers chosen", async () => {
+    vi.stubGlobal("fetch", backend())
+    stubPrivacyBridge({
+      firstRunAsked: true,
+      updates: { automatic: true },
+      usageStatistics: { enabled: false },
+    })
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+
+    await toPrivacyStep(user)
+    expect(
+      choice("Check for updates", "Yes").getAttribute("aria-pressed")
+    ).toBe("true")
+    expect(
+      choice("Share usage statistics", "No").getAttribute("aria-pressed")
+    ).toBe("true")
+    expect(
+      screen.getByRole("button", { name: "Continue" }).hasAttribute("disabled")
+    ).toBe(false)
+  })
+
+  it("goes back to the choices from the first model step, keeping them", async () => {
+    vi.stubGlobal("fetch", backend({ selections: { ...chatChosen } }))
+    stubPrivacyBridge()
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+
+    await toPrivacyStep(user)
+    await user.click(choice("Check for updates", "No"))
+    await user.click(choice("Share usage statistics", "Yes"))
+    await user.click(screen.getByRole("button", { name: "Continue" }))
+    await screen.findByRole("heading", {
+      name: "Choose a text generation model",
+    })
+    expect(screen.getByLabelText("Onboarding step 2 of 7")).toBeTruthy()
+
+    await user.click(screen.getByRole("button", { name: "Back" }))
+    await screen.findByRole("heading", { name: "Privacy choices" })
+    expect(choice("Check for updates", "No").getAttribute("aria-pressed")).toBe(
+      "true"
+    )
+    expect(
+      choice("Share usage statistics", "Yes").getAttribute("aria-pressed")
+    ).toBe("true")
   })
 })

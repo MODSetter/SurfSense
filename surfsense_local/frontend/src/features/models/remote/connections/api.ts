@@ -9,8 +9,11 @@ export type Connection = {
   base_url: string
   catalog_provider: string
   has_api_key: boolean
-  /** `chatgpt` signs in with a ChatGPT account instead of a key. */
-  auth_kind: "api_key" | "chatgpt"
+  /**
+   * `chatgpt` signs in with a ChatGPT account instead of a key; `claude_plan`
+   * runs the user's own Claude Code, which keeps the sign-in.
+   */
+  auth_kind: "api_key" | "chatgpt" | "claude_plan"
   signed_in: boolean
   account_email: string | null
   /** The slots it can fill, decided by the backend; pickers only read it. */

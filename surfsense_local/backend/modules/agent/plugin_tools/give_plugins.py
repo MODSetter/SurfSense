@@ -1,6 +1,7 @@
-"""Before a turn: the folder's opencode holds exactly the ready plugins, and the session's rules say what each tool may do.
+"""Before a turn: the folder's opencode holds exactly the ready plugins; the session's
+rules, which tool_exposure/ writes, say which of their tools it may call.
 
-The servers are given all at once, each within ADD_SECONDS, so a turn waits for the
+The servers are given all at once, each within CONNECT_SECONDS, so a turn waits for the
 slowest rather than the sum, and a server that hangs is named unavailable alone.
 """
 
@@ -8,13 +9,17 @@ import asyncio
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
 
 import httpx
 
 from modules.agent.opencode_client import OpencodeClient
+from modules.agent.plugin_tools.connect_limit import (
+    CONNECT_SECONDS,
+    OPENCODE_CONNECT_SECONDS,
+)
 from modules.agent.plugin_tools.given_servers import digest, given_as, remember_given
 from modules.agent.plugin_tools.turn_plugins import TurnPlugin
+from modules.agent.plugin_tools.unavailable_plugin import UnavailablePlugin
 from modules.agent.tool_endpoint.registration import (
     PLUGIN_CALL_SECONDS,
     SERVER,
@@ -24,14 +29,6 @@ from modules.agent.tool_endpoint.registration import (
 logger = logging.getLogger(__name__)
 
 _SIGN_IN = {"needs_auth", "needs_client_registration"}
-# Under OpencodeClient's 30 s, so one server's hang fails its own add, not the turn's.
-ADD_SECONDS = 25
-
-
-@dataclass(frozen=True)
-class UnavailablePlugin:
-    title: str
-    reason: Literal["unreachable", "sign_in", "license"]
 
 
 @dataclass(frozen=True)
@@ -85,8 +82,9 @@ async def give_plugins(
                         if plugin.on_plugin_host
                         else TOOL_CALL_SECONDS
                     ),
+                    connect_seconds=OPENCODE_CONNECT_SECONDS,
                 ),
-                ADD_SECONDS,
+                CONNECT_SECONDS,
             )
         except (httpx.HTTPError, TimeoutError):
             logger.warning(
@@ -116,27 +114,6 @@ async def give_plugins(
     return Given(unavailable, sum(added for _, added in given), failed)
 
 
-async def set_plugin_rules(
-    client: OpencodeClient,
-    folder: Path,
-    session_id: str,
-    held: dict[str, str],
-    plugins: list[TurnPlugin],
-) -> None:
-    """Replace the session's rules, whichever servers could be given, so no earlier turn's allow survives."""
-    # Each server opencode holds is denied first, so a tool SurfSense has not
-    # reviewed is refused and left out of what the model is offered.
-    ready = {plugin.name for plugin in plugins}
-    rules = [_rule(f"{name}_*", "deny") for name in held.keys() - {SERVER} | ready]
-    for plugin in plugins:
-        rules += [_rule(tool, action) for tool, action in plugin.rules.items()]
-    await client.set_session_rules(folder, session_id, rules)
-
-
 def servers(plugins: list[TurnPlugin]) -> list[tuple[str, str]]:
     """What giving `plugins` sends opencode: two lists alike need no second giving."""
     return [(plugin.name, digest(plugin)) for plugin in plugins]
-
-
-def _rule(permission: str, action: str) -> dict[str, str]:
-    return {"permission": permission, "pattern": "*", "action": action}

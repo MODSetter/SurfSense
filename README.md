@@ -4,8 +4,9 @@
   release whose installers carry the agent.
   The format table is checked against origin/dev c5ff7938a, which v2.2.0 contains; re-check
   each cell against the release commit before a release.
-  The demo video under the header is a GitHub upload, not a file in the repo. To replace it, drag an
-  MP4 under 10 MB into any comment box in this repo, copy the user-attachments link and swap the URL.
+  The demo videos under the header are GitHub uploads, not files in the repo, each under a bold
+  caption on its own line. To replace one, drag an MP4 under 10 MB into any comment box in this
+  repo, copy the user-attachments link and swap the URL.
   Every README.<locale>.md follows this file section for section and names the app's UI in
   the words of surfsense_local/frontend/translations/<locale>.json (Arabic: the English in
   parentheses); change them together.
@@ -19,7 +20,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Discord](https://img.shields.io/discord/1359368468260192417?label=Discord)](https://discord.gg/ejRNvftDp9)
 
-  <a href="https://www.surfsense.com/"><img alt="SurfSense, the air-gapped open-source NotebookLM alternative" src="surfsense_web/public/homepage/banner.png" /></a>
+  <a href="https://www.surfsense.com/"><img alt="SurfSense, the air-gapped open-source NotebookLM alternative" src="www/public/homepage/banner.png" /></a>
 
   <h1>SurfSense</h1>
 
@@ -46,15 +47,21 @@
   </p>
 </div>
 
+**Redline a contract with tracked changes and comments**
+
 https://github.com/user-attachments/assets/88326b9d-e763-46db-9635-75f9df9e8682
+
+**Add sources from the web, then turn them into a web page**
+
+https://github.com/user-attachments/assets/073577b7-f055-4f59-8540-330bd764aeb0
 
 SurfSense is a free, open-source desktop app for documents you can't upload. A privacy-focused, NotebookLM-style AI agent that researches, transforms and edits your documents, on your machine. The index stays on your disk, you pick the model, local or remote, and there is no account.
 
 | Platform | Download |
 |---|---|
-| **Windows** x64 | [SurfSense-Setup.exe](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense-Setup.exe) |
-| **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense-arm64.dmg) |
-| **Linux** x64 | [AppImage](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense.AppImage) · [deb](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense.deb) |
+| **Windows** x64 | [SurfSense-Setup.exe](https://www.surfsense.com/downloads/windows?src=readme) |
+| **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
+| **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
 
 > [!NOTE]
 > **Used the hosted web app?** Export your workspaces before 18 October 2026 and import them here. See [the sunset page](https://www.surfsense.com/sunset).
@@ -77,6 +84,7 @@ SurfSense is a free, open-source desktop app for documents you can't upload. A p
 | **Images** PNG, JPEG, TIFF, BMP, WebP | ✓ text read by OCR³ | Images and infographics² | — | Place in new documents |
 | **Markdown**, plain text | ✓ | ✓ Markdown | — | — |
 | **HTML** | ✓ | ✓ web page | — | — |
+| **Recordings** WAV, MP3, FLAC, Ogg Vorbis | ✓ transcribed on your machine | — | — | — |
 | **Podcast** (audio) | — | ✓ with a transcript, voiced on your machine by default | — | — |
 | **Mind maps, flashcards, quizzes** | — | ✓ in the app | — | — |
 
@@ -101,7 +109,7 @@ Connect them in **Settings › Plugins**.
 | **Walmart** | Read Walmart products, search results and reviews |
 | **Indeed** | Read job listings on Indeed |
 
-**Third-party.** MCP servers from the [plugin registry](plugins/registry), such as DeepWiki and Notion, or any you add by URL. No license needed; they stay off until you allow them.
+**Third-party.** MCP servers from the [plugin registry](backend/plugins/registry), such as DeepWiki and Notion, or any you add by URL. No license needed; they stay off until you allow them.
 
 ## How it compares
 

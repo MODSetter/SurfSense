@@ -15,7 +15,11 @@ class JobCancelledError(Exception):
 
 class JobYieldedError(Exception):
     """The job gave the queue to other work and will finish later, from its
-    checkpoint: not a failure, and no Huey retry."""
+    checkpoint: not a failure, and no Huey retry. It queues again at `priority`."""
+
+    def __init__(self, priority: int) -> None:
+        super().__init__(priority)
+        self.priority = priority
 
 
 def cancel_ingest_job(session: Session, document: Document) -> bool:

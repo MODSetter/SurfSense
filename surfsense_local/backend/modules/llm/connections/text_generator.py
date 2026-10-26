@@ -7,6 +7,8 @@ from modules.llm.providers.openai_responses import ApiKey, ResponsesChatProvider
 from modules.llm.providers.protocols import Generator
 from modules.llm.subscriptions.chatgpt.account import CHATGPT
 from modules.llm.subscriptions.chatgpt.plan_models import plan_generator
+from modules.llm.subscriptions.claude.account import CLAUDE_PLAN
+from modules.llm.subscriptions.claude.plan_generator import claude_generator
 
 
 def connection_generator(
@@ -20,6 +22,8 @@ def connection_generator(
     the route is the model's own, as its provider's manifest entry records it."""
     if connection.auth_kind == CHATGPT:
         return plan_generator(engine, connection, reads_images=reads_images)
+    if connection.auth_kind == CLAUDE_PLAN:
+        return claude_generator(engine)
     if connection_route(connection, model) == "responses":
         return ResponsesChatProvider(
             connection.base_url, ApiKey(connection.api_key), reads_images=reads_images

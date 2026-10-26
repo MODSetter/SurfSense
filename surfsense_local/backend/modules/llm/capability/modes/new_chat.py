@@ -13,6 +13,7 @@ from modules.llm.capability.modes.mode import ChatMode
 from modules.llm.capability.modes.remembered import remembered_mode
 from modules.llm.capability.resolve import Capability, Reason, capability_of
 from modules.llm.models import SelectedModel
+from modules.llm.subscriptions.claude.account import CLAUDE_PLAN
 from shared.config import get_agent_settings
 
 __all__ = ["NewChatModes", "new_chat_modes"]
@@ -36,9 +37,13 @@ def new_chat_modes(selected: SelectedModel, facts: ToolFacts) -> NewChatModes:
     settings = get_agent_settings()
     switch = settings.agent_untested_models
     capability = capability_of(selected.name, selected.connection)
+    # A Claude plan's agent is the user's Claude Code, not opencode.
+    on_claude_code = (
+        selected.connection is not None and selected.connection.auth_kind == CLAUDE_PLAN
+    )
     blocked = (
         "agent_not_installed"
-        if not settings.has_opencode()
+        if not (on_claude_code or settings.has_opencode())
         else gate_block(facts, window_floor=not switch)
     )
     remembered = remembered_mode(selected)

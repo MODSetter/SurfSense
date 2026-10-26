@@ -20,7 +20,10 @@ import {
 import { CitationPanel } from "@/features/chat/citation-panel"
 import { consentPlaceholder } from "@/features/chat/model-issue"
 import { askEgress } from "@/features/egress/ask-egress"
-import { setDestinationEnabled } from "@/features/egress/api"
+import { setDestinationsEnabled } from "@/features/egress/api"
+import { ExtraUsageNotice } from "@/features/chat/extra-usage/extra-usage-notice"
+import { useExtraUsage } from "@/features/chat/extra-usage/extra-usage-store"
+import { useSelectedOnClaudePlan } from "@/features/chat/extra-usage/use-selected-on-claude-plan"
 import { ModelIssueNotice } from "@/features/chat/model-issue-notice"
 import {
   useBlockAgentic,
@@ -45,6 +48,7 @@ import {
 } from "@/features/settings/settings-dialog"
 import { SourcesPanel } from "@/features/sources/sources-panel"
 import { useSources } from "@/features/sources/use-sources"
+import { useWebSources } from "@/features/sources/web/use-web-sources"
 import { getFileViewer } from "@/features/file-viewers/registry"
 import { SourcePreviewPanel } from "@/features/source-preview/source-preview-panel"
 import { ArtifactList } from "@/features/studio/artifact-list"
@@ -56,7 +60,7 @@ import {
 } from "@/features/office-support/office-offer"
 import { StudioPanel } from "@/features/studio/studio-panel"
 import { useStudio } from "@/features/studio/use-studio"
-import { UpdateButton } from "@/features/updates/update-settings"
+import { TitleBarUpdate } from "@/features/updates/title-bar-update"
 import type { Workspace } from "@/features/workspaces/api"
 import { useWorkspaces } from "@/features/workspaces/use-workspaces"
 import { useStableCallback } from "@/hooks/use-stable-callback"
@@ -100,6 +104,7 @@ function WorkspaceDashboard({
   onModelIssueSettings,
   onAllowModelIssue,
   onModelRequired,
+  onModelCheck,
   onModelSelected,
   onOpenLicense,
   onOpenAudioSettings,
@@ -112,6 +117,7 @@ function WorkspaceDashboard({
   selection: ModelSelection | null
   providerAvailable: boolean
   modelIssue: ModelIssue | null
+  onModelCheck: () => void
   needsConsent: boolean
   onModelIssueSettings: () => void
   onAllowModelIssue: () => void
@@ -130,6 +136,11 @@ function WorkspaceDashboard({
     readSourcePreview(workspace.id)
   )
   const sources = useSources(workspace.id)
+  const webSources = useWebSources(
+    workspace.id,
+    sources.addCreated,
+    onOpenLicense
+  )
   // Which formats Studio offers is the server's answer to what is selected,
   // so it has to be asked again when that changes. The chat model is named
   // here directly; the image model is chosen inside the settings dialog and
@@ -163,6 +174,7 @@ function WorkspaceDashboard({
     newChatMode: useNewChatChoice(selection),
     onAgenticGate,
     onModelRequired,
+    onModelCheck,
   })
   const sourcePreview = sources.documents.find(
     (document) => document.id === sourcePreviewId
@@ -184,6 +196,9 @@ function WorkspaceDashboard({
 
   const composerHold =
     modelIssue && needsConsent ? consentPlaceholder(modelIssue) : undefined
+  // A model issue blocks sending, so it takes the composer's one notice first.
+  const extraUsage = useExtraUsage()
+  const onClaudePlan = useSelectedOnClaudePlan(selection)
 
   const closeInspect = () => setInspect(null)
   const startNewChat = () => {
@@ -255,6 +270,7 @@ function WorkspaceDashboard({
           onRename={sources.rename}
           folderActions={sources.folderActions}
           notes={sourceNotes}
+          web={webSources}
           transcriptionPaces={sources.transcriptionPaces}
           onOpenSpeechSettings={openSpeechSettings}
         />
@@ -284,6 +300,7 @@ function WorkspaceDashboard({
       sources.rename,
       sources.folderActions,
       sourceNotes,
+      webSources,
       sources.transcriptionPaces,
       openSpeechSettings,
     ]
@@ -368,7 +385,7 @@ function WorkspaceDashboard({
       <OpenArtifactContext.Provider value={openArtifact}>
         <div className="titlebar-controls">
           <div className="titlebar-controls-end">
-            <UpdateButton />
+            <TitleBarUpdate />
             <Tooltip>
               <TooltipTrigger
                 render={
@@ -485,6 +502,8 @@ function WorkspaceDashboard({
                       onAllow={needsConsent ? onAllowModelIssue : undefined}
                       onOpenSettings={onModelIssueSettings}
                     />
+                  ) : extraUsage && onClaudePlan ? (
+                    <ExtraUsageNotice usage={extraUsage} />
                   ) : null
                 }
                 blockedPlaceholder={composerHold}
@@ -675,6 +694,8 @@ export function DashboardPage({
     useState<SettingsSectionId>("general")
   // Bumped after egress is allowed from the notice, to check the model again.
   const [consents, setConsents] = useState(0)
+  // Bumped when a send is refused for a reason the check reports, so it says why.
+  const [refusedSends, setRefusedSends] = useState(0)
 
   // Set while Settings opens on Office support's consent, from a thread's offer.
   const [askOfficeConsent, setAskOfficeConsent] = useState(false)
@@ -703,7 +724,8 @@ export function DashboardPage({
   )
 
   // Checked when the model changes, when settings close (a key entered again,
-  // egress switched, a connection edited) and after egress is allowed.
+  // egress switched, a connection edited), after egress is allowed, and after a
+  // send was refused for Claude Code.
   useEffect(() => {
     if (!selection) return
     if (skipFirstCheck.current) {
@@ -718,7 +740,7 @@ export function DashboardPage({
       }
     )
     return () => controller.abort()
-  }, [selection, modelsVisited, consents])
+  }, [selection, modelsVisited, consents, refusedSends])
 
   const availability: Availability =
     selection && checked.key === modelKey(selection)
@@ -740,7 +762,7 @@ export function DashboardPage({
     void askEgress({
       destination,
       host: issue.host ?? "",
-      allow: () => setDestinationEnabled(destination, true),
+      allow: () => setDestinationsEnabled([destination], true),
     }).then((allowed) => {
       if (allowed) setConsents((count) => count + 1)
     })
@@ -791,6 +813,7 @@ export function DashboardPage({
             )
           }
           onModelRequired={() => openSettings("chat-models")}
+          onModelCheck={() => setRefusedSends((count) => count + 1)}
           onModelSelected={onModelSelected}
           onOpenLicense={() => openSettings("license")}
           onOpenAudioSettings={() => openSettings("audio-models")}

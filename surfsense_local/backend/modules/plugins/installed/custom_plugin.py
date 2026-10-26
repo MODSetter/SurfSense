@@ -15,6 +15,11 @@ from modules.plugins.installed.models import (
 from modules.plugins.installed.plugin_check import record_check
 from modules.plugins.lists.first_party.first_party_list import first_party_entries
 from modules.plugins.lists.registry.listed_ids import registry_ids
+from modules.plugins.remote.sign_in.headers.header_rules import SignInHeader
+from modules.plugins.remote.sign_in.headers.headers_credential import (
+    headers_auth,
+    write_headers,
+)
 
 # The agent's own tools are an MCP server by this name; a plugin under it would replace them.
 RESERVED_IDS = {"surfsense"}
@@ -47,7 +52,7 @@ def store_custom_plugin(
     plugin_id: str,
     name: str,
     url: str,
-    token: str | None,
+    headers: list[SignInHeader] | None,
     tools: list[SourceTool],
 ) -> InstalledPlugin:
     plugin = InstalledPlugin(
@@ -58,12 +63,11 @@ def store_custom_plugin(
         entry={
             "name": name,
             "hosts": [url_host(url)],
-            "auth": {"type": "token" if token else "none"},
+            "auth": headers_auth(headers) if headers else {"type": "none"},
         },
     )
-    if token:
-        plugin.credential_kind = "token"
-        plugin.credential = token
+    if headers:
+        write_headers(plugin, headers)
     session.add(plugin)
     session.flush()
     record_check(session, plugin, tools)

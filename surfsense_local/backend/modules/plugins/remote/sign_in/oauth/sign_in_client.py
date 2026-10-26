@@ -32,13 +32,17 @@ def sign_in_client(port: int) -> SignInClient:
 
 
 def client_metadata(
-    client: SignInClient, scopes: list[str] | None
+    client: SignInClient, scopes: list[str] | None, confidential: bool = False
 ) -> OAuthClientMetadata:
-    """A public client: PKCE protects the sign-in, and no secret ships in the app."""
+    """A public client: PKCE protects the sign-in, and no secret ships in the app.
+
+    `confidential` registers for a secret the provider issues to this install alone,
+    for a provider that registers no public client; it is kept with the sign-in.
+    """
     return OAuthClientMetadata(
         client_name="SurfSense",
         redirect_uris=[client.redirect_uri],
-        token_endpoint_auth_method="none",
+        token_endpoint_auth_method="client_secret_post" if confidential else "none",
         grant_types=["authorization_code", "refresh_token"],
         scope=" ".join(scopes) if scopes else None,
     )

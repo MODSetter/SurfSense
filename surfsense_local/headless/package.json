@@ -1,0 +1,5 @@
+{
+  "name": "surfsense-local-headless",
+  "private": true,
+  "type": "module"
+}

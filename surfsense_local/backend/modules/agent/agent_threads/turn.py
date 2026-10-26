@@ -1,7 +1,7 @@
 """One turn of an agent thread, run in the background in the chat's own frames.
 
 opencode holds the turn; this sends the message, relays what the session does
-until it is idle, then states the reply as opencode stored it. The turn is a
+until the turn ends, then states the reply as opencode stored it. The turn is a
 run: a window that hangs up stops following it, not the turn; Stop and quit
 end it.
 """
@@ -41,27 +41,29 @@ from modules.agent.plugin_tools.changed_tools import (
     check_after_turn,
     check_changed_tools,
 )
-from modules.agent.plugin_tools.give_plugins import (
-    UnavailablePlugin,
-    give_plugins,
-    servers,
-    set_plugin_rules,
-)
+from modules.agent.plugin_tools.give_plugins import give_plugins, servers
 from modules.agent.plugin_tools.mentions import (
     Mention,
     mention_note,
     mentioned_plugins,
 )
 from modules.agent.plugin_tools.refreshed_sign_ins import refresh_sign_ins
-from modules.agent.plugin_tools.stop_plugin_calls import (
-    HostCalls,
-    stop_plugin_calls,
-)
-from modules.agent.plugin_tools.thread_calls import thread_calls_token
+from modules.agent.plugin_tools.stop_plugin_calls import stop_plugin_calls
 from modules.agent.plugin_tools.turn_plugins import TurnPlugin, turn_plugins
+from modules.agent.plugin_tools.unavailable_plugin import UnavailablePlugin
 from modules.agent.thread_folder.sync import ThreadGoneError, sync_thread_folder
 from modules.agent.tool_endpoint.failed_renders import begin_turn
+from modules.agent.tool_endpoint.plugin_asks import plugin_tools
 from modules.agent.tool_endpoint.registration import SERVER, register_thread_tools
+from modules.agent.tool_exposure import holdings
+from modules.agent.tool_exposure.growing import hold_plugins
+from modules.agent.tool_exposure.holdings import Holding
+from modules.agent.tool_exposure.loaded_steps import (
+    as_loaded,
+    refused_tool,
+    with_loaded_plugin,
+)
+from modules.agent.tool_exposure.turn_holding import turn_holding
 from modules.chat.errors import classify_chat_error
 from modules.chat.models import ChatThread
 from modules.chat.runs.notify import notify_run
@@ -69,9 +71,11 @@ from modules.chat.runs.registry import ChatRuns
 from modules.chat.runs.run import Run, RunState
 from modules.chat.runs.stream import event_stream
 from modules.chat.schemas import MessageCreate
+from modules.chat.title import TITLE_MAX_CHARACTERS
 from modules.events.broker import EventBroker
 from modules.llm.resolution import ModelResolutionError
 from modules.plugins.license_verdict.license_refresh import refresh_license_verdict
+from modules.usage_statistics.activity_counts import count_agent_answer
 from shared.config import get_storage_settings
 
 logger = logging.getLogger(__name__)
@@ -80,8 +84,6 @@ logger = logging.getLogger(__name__)
 # means opencode is gone rather than restarting.
 RECONNECTS = 20
 _RECONNECT_SECONDS = 0.5
-# As long as a chat title runs before it is cut, so a thread reads the same in the list.
-TITLE_CHARS = 60
 _DONE = b"data: [DONE]\n\n"
 
 
@@ -92,15 +94,19 @@ class _Sending:
     text: str
     sources: TurnSources
     title: str | None
+    # What another engine did in this thread while opencode was away.
+    handover: str | None = None
 
 
 @dataclass(frozen=True)
 class _Tools:
-    """What the turn's opencode was given: the plugins mentioned, the plugins, and those it cannot use."""
+    """What the turn's opencode was given: the plugins mentioned, the plugins, those it
+    cannot use, and the tools it holds of them."""
 
     mentions: list[Mention]
     plugins: list[TurnPlugin]
     unavailable: list[UnavailablePlugin]
+    holding: Holding
 
 
 @dataclass(frozen=True)
@@ -119,6 +125,7 @@ async def agent_turn(
     payload: MessageCreate,
     launch_key: str,
     place: RunPlace,
+    handover: str | None = None,
 ) -> StreamingResponse:
     """Start the turn as a run and follow it, or refuse before anything is sent."""
     session_id = thread.opencode_session_id
@@ -146,13 +153,13 @@ async def agent_turn(
                 "The selected model cannot run the agent. Choose another model, "
                 "or start a new chat to use this one.",
             )
-        title = _first_title(thread, payload.text)
+        title = first_title(thread, payload.text)
         if title is not None:
             await transact(session, _rename, thread, title)
     except BaseException:
         await ready.client.close()
         raise
-    sending = _Sending(payload.text, sources, title)
+    sending = _Sending(payload.text, sources, title, handover)
     thread_id, workspace_id = thread.id, thread.workspace_id
 
     async def frames(run: Run) -> AsyncIterator[bytes]:
@@ -201,9 +208,9 @@ async def _stream(
     turn = TurnFrames(session_id)
     # Approvals asked and not yet answered: the turn waits on the user meanwhile.
     waiting: set[str] = set()
-    host_calls = HostCalls()
     sent = False
     plugins: list[TurnPlugin] = []
+    holding: Holding | None = None
     live_instances.turn_began(folder)
     try:
         # A big scope's first sync takes about 30 s: the thread says why it waits.
@@ -250,11 +257,14 @@ async def _stream(
             _drop(prepared)
             raise
         tools = await prepared
-        mentions, plugins, unavailable = (
+        mentions, plugins, unavailable, holding = (
             tools.mentions,
             tools.plugins,
             tools.unavailable,
+            tools.holding,
         )
+        # SurfSense's own tools and its gateway grow it while the turn runs.
+        holdings.begin(thread_id, holding)
         _log_preparation(thread_id, started, took)
         if unavailable:
             yield _frame(
@@ -272,19 +282,19 @@ async def _stream(
         failures = 0
         while not turn.finished:
             try:
-                async for event in client.events(folder):
+                async for event in client.events():
                     failures = 0
                     if event.type == "server.connected":
                         # Opened before sending, so not one of the turn's events is missed.
                         if not sent:
                             await client.send_turn(
-                                folder,
                                 session_id,
                                 sending.text,
                                 model=ready.model,
                                 notes=[
                                     note
                                     for note in (
+                                        sending.handover,
                                         sending.sources.note,
                                         mention_note(mentions),
                                     )
@@ -292,13 +302,13 @@ async def _stream(
                                 ],
                             )
                             sent = True
-                        elif await client.status(folder, session_id) == "idle":
+                        elif await client.status(session_id) == "idle":
                             turn.finished = True  # it ended while the stream was down
                             break
                         continue
                     for frame in turn.frames(event):
-                        _follow_approvals(run, waiting, frame)
-                        host_calls.follow(frame, plugins)
+                        frame = await _loaded(client, holding, frame)
+                        follow_approvals(run, waiting, frame)
                         if frame.get("artifact") is not None:
                             # Whether it made the document, as the stored step says.
                             await transact(
@@ -320,11 +330,13 @@ async def _stream(
 
         reply = None
         if turn.user_message_id is not None:
-            messages = await client.messages(folder, session_id)
+            messages = await client.messages(session_id)
             citations = await transact(
                 session, load_citations, workspace_id, searched_chunks(messages)
             )
             reply = turn_reply(messages, turn.user_message_id, citations)
+        if reply and reply["content"]["text"]:
+            await count_agent_answer(session)
         if reply and reply["content"]["citations"]:
             yield _frame({"type": "citations", "items": reply["content"]["citations"]})
         yield _frame(
@@ -362,19 +374,33 @@ async def _stream(
         with anyio.CancelScope(shield=True):
             if run.stop_requested and not turn.finished:
                 # opencode stores a Stop as it stores a quit: only this note tells them apart.
-                await _note_stop(client, folder, session_id, turn.user_message_id)
+                await _note_stop(client, session_id, turn.user_message_id)
                 await stop_plugin_calls(plugins)
-            else:
-                host_calls.end()
             if sent and not turn.finished:
                 try:
-                    await client.abort(folder, session_id)
+                    await client.abort(session_id)
                 except httpx.HTTPError:
                     logger.warning(
                         "could not stop agent turn in %s", session_id, exc_info=True
                     )
+            if holding is not None:
+                holdings.end(thread_id, holding)
             await live_instances.turn_ended(client, folder)
             await client.close()
+
+
+async def _loaded(client: OpencodeClient, holding: Holding | None, frame: dict) -> dict:
+    """A call to a plugin tool the turn did not hold: that plugin held, and the step
+    shown as loading it rather than as a failure. An asking tool's step is named by
+    the plugin it loaded."""
+    if frame.get("type") != "agent-step":
+        return frame
+    name = refused_tool(frame)
+    plugin = holding.plugin_of(name) if holding and name else None
+    if plugin is None or holding is None:
+        return with_loaded_plugin(frame)
+    await hold_plugins(client, holding, [plugin.name])
+    return as_loaded(frame, plugin.title)
 
 
 async def _prepare_tools(
@@ -387,7 +413,8 @@ async def _prepare_tools(
     text: str,
     took: dict[str, float],
 ) -> _Tools:
-    """SurfSense's tools and the ready plugins given to the folder's opencode, and the session's rules set.
+    """SurfSense's tools and the ready plugins given to the folder's opencode, and the
+    session's rules set for the tools the turn holds of them.
 
     In a session of its own, as it runs beside the sync. The plugins are given
     while their check runs; the rules wait for the check, so a tool it switched
@@ -404,8 +431,10 @@ async def _prepare_tools(
         ]
         mentions = await transact(session, mentioned_plugins, text)
         mentioned = frozenset(m.plugin_id for m in mentions)
-        calls_token = thread_calls_token(thread_id)
-        planned = await transact(session, turn_plugins, mentioned, calls_token)
+        planned = await transact(session, turn_plugins, where, launch_key)
+        # The catalogue as planned names the plugins; a check that changes them
+        # changes it at the next turn.
+        catalogue = (await plugin_tools(session)).catalogue()
         checked = asyncio.create_task(
             _timed(took, "check", check_changed_tools(sessions))
         )
@@ -428,6 +457,7 @@ async def _prepare_tools(
                     thread_id,
                     launch_key,
                     held.get(SERVER),
+                    catalogue,
                 ),
             )
         )
@@ -435,18 +465,28 @@ async def _prepare_tools(
         took["listed"] = await checked
         # Read as the check left them, not as rows the planned read still holds.
         session.expire_all()
-        plugins = await transact(session, turn_plugins, mentioned, calls_token)
+        plugins = await transact(session, turn_plugins, where, launch_key)
         added = given.added
         if servers(plugins) != servers(planned):
             # A server that failed already is not waited on twice.
             given = await give_plugins(client, folder, held, plugins, given.failed)
             added += given.added
         took["added"] = added
+        starting = await turn_holding(
+            session,
+            client,
+            session_id,
+            plugins,
+            set(held),
+            await plugin_tools(session),
+            text,
+            mentioned,
+        )
         try:
             await _timed(
                 took,
                 "rules",
-                set_plugin_rules(client, folder, session_id, held, plugins),
+                client.set_session_rules(session_id, starting.holding.rules()),
             )
         except httpx.HTTPError:
             if plugins or held.keys() - {SERVER}:
@@ -456,7 +496,8 @@ async def _prepare_tools(
                 raise
             logger.warning("%s's plugin rules were not set", folder, exc_info=True)
         took["registered"] = await registered
-    return _Tools(mentions, plugins, signed_out + licensed_out + given.unavailable)
+    unavailable = signed_out + licensed_out + given.unavailable
+    return _Tools(mentions, plugins, unavailable, starting.holding)
 
 
 async def _timed[T](took: dict[str, float], stage: str, work: Awaitable[T]) -> T:
@@ -507,7 +548,7 @@ def _drop(task: asyncio.Task | None) -> None:
 
 
 async def _note_stop(
-    client: OpencodeClient, folder: Path, session_id: str, user_message_id: str | None
+    client: OpencodeClient, session_id: str, user_message_id: str | None
 ) -> None:
     """Keep that the user stopped the reply; a failed write reads as interrupted,
     which offers Retry rather than hiding it."""
@@ -515,13 +556,13 @@ async def _note_stop(
         return
     try:
         await record_ending(
-            client, folder, session_id, reply_id(user_message_id), {"type": "stopped"}
+            client, session_id, reply_id(user_message_id), {"type": "stopped"}
         )
     except httpx.HTTPError:
         logger.warning("could not note the stop of %s's reply", session_id)
 
 
-def _follow_approvals(run: Run, waiting: set[str], frame: dict) -> None:
+def follow_approvals(run: Run, waiting: set[str], frame: dict) -> None:
     """Say the run needs approval while any request waits, and running once none does."""
     if frame["type"] == "permission-request":
         waiting.add(frame["id"])
@@ -569,14 +610,15 @@ async def _refuse_a_legacy_thread(
         raise HTTPException(status.HTTP_409_CONFLICT, LEGACY_TURN)
 
 
-def _first_title(thread: ChatThread, text: str) -> str | None:
+def first_title(thread: ChatThread, text: str) -> str | None:
     """A name for a thread still called "New chat", from its first message."""
     if (thread.title or "").casefold() != "new chat":
         return None
+    # As long as a chat's own title may be, so both read alike in the list.
     words = " ".join(text.split())
-    return (
-        words if len(words) <= TITLE_CHARS else words[: TITLE_CHARS - 1].rstrip() + "…"
-    )
+    if len(words) <= TITLE_MAX_CHARACTERS:
+        return words
+    return words[: TITLE_MAX_CHARACTERS - 1].rstrip() + "…"
 
 
 def _reload(session: Session, thread_id: int) -> ChatThread | None:

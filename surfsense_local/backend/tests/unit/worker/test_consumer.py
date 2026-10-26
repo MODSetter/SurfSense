@@ -48,6 +48,34 @@ def test_ingestion_runs_one_job_at_a_time_and_studio_several(
         consumer.consume("mail")
 
 
+def test_an_idle_queue_is_polled_at_least_every_second(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Huey backs off to 10 s idle; an upload read in a second must not wait that."""
+    polls: dict[object, float] = {}
+
+    class FakeConsumer:
+        def __init__(self, huey: object, max_delay: float, **_: object) -> None:
+            polls[huey] = max_delay
+
+        def run(self) -> None:
+            pass
+
+    monkeypatch.setattr(consumer, "Consumer", FakeConsumer)
+    monkeypatch.setattr(consumer, "wait_for_schema", lambda: None)
+    monkeypatch.setattr(consumer, "fail_interrupted_documents", lambda _kinds: None)
+    monkeypatch.setattr(consumer, "fail_interrupted_runs", lambda: None)
+    monkeypatch.setattr(consumer, "fail_interrupted_pulls", lambda: None)
+    monkeypatch.setattr(consumer, "remove_leftover_run_folders", lambda: None)
+
+    for name in ("ingest", "studio", "plugins"):
+        consumer.consume(name)
+
+    assert polls[queue.ingest_queue] <= 0.5
+    assert all(delay <= 1.0 for delay in polls.values())
+    assert len(polls) == 3
+
+
 def test_revoke_pending_skips_the_matching_job() -> None:
     """Cancel has to stop the queued copy, not just the row."""
     queue.ingest_queue.flush()

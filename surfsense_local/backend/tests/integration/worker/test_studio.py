@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from modules.artifacts.models import Artifact, ArtifactFileRole
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.llm.catalog.local.manifest import load_local_manifest
+from modules.llm.profile import Fingerprint, Tier
 from modules.llm.providers.audiocpp.memory import NotEnoughMemoryError
 from modules.llm.providers.audiocpp.speech import AudioCppSpeech, VoicedModel
 from modules.llm.providers.openai_compatible import NonRetryableImageError
@@ -170,10 +171,25 @@ def test_summary_becomes_a_searchable_markdown_body(
     assert keyword == 1
 
 
-def test_html_becomes_a_self_contained_web_page(
+def test_a_model_below_the_bar_fills_the_web_page_template(
     session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Web page: the model's JSON sections render to one escaped HTML file."""
+    """Web page from a model served on this computer: its JSON sections render to one escaped file."""
+    local = type(
+        "Selection",
+        (),
+        {
+            "provider": "llamacpp",
+            "name": "fake",
+            "connection": None,
+            "tier": Tier.COMPACT,
+            "fingerprint": Fingerprint("llamacpp", "fake"),
+        },
+    )()
+    monkeypatch.setattr(
+        "worker.studio.job.resolve_routed_generation",
+        lambda _session: ResolvedGeneration(local, None),
+    )
     seen = _capture_model(
         monkeypatch,
         '{"title": "Cassini", "sections": '
@@ -188,6 +204,29 @@ def test_html_becomes_a_self_contained_web_page(
         artifact.document.error_message
     )
     _one_file(artifact, "text/html", b"<!doctype")
+    assert "the mission timeline" in seen[0]
+
+
+def test_a_model_at_the_bar_writes_the_web_page_itself(
+    session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Web page from a remote model not measured: its own page, stored with the no-network policy."""
+    page = (
+        '<!doctype html><html lang="en"><head><title>Cassini</title></head>'
+        "<body><h1>Cassini reached Saturn</h1><p>In 2004.</p></body></html>"
+    )
+    seen = _capture_model(monkeypatch, f"```html\n{page}\n```")
+    artifact = make_artifact(session, fmt="html", prompt="the mission timeline")
+
+    run(artifact.id)
+
+    session.expire_all()
+    assert artifact.document.status is DocumentStatus.READY, (
+        artifact.document.error_message
+    )
+    _one_file(artifact, "text/html", b"<!doctype html><meta http-equiv=")
+    assert artifact.artifact_metadata["spec"]["text"] == page
+    assert artifact.document.title == "Cassini"
     assert "the mission timeline" in seen[0]
 
 

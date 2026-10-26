@@ -22,17 +22,15 @@
 /surfsense_local/backend/modules/egress/        @CREDO23
 /surfsense_local/backend/shared/secrets.py      @CREDO23
 /surfsense_local/electron/                      @CREDO23 @AnishSarkar22
+/surfsense_local/sidecars/                      @CREDO23 @AnishSarkar22
+/surfsense_local/runtimes/                      @CREDO23 @AnishSarkar22
+/surfsense_local/headless/                      @CREDO23 @AnishSarkar22
 /surfsense_local/RELEASE.md                     @CREDO23 @AnishSarkar22
 /.github/workflows/release-local.yml            @CREDO23 @AnishSarkar22
 
-/surfsense_backend/app/license/                 @CREDO23
-/surfsense_backend/app/mailer/                  @CREDO23
-/surfsense_backend/app/payments/                @CREDO23
-/surfsense_backend/app/sunset.py                @CREDO23
-/surfsense_backend/app/capabilities/            @AnishSarkar22 @MODSetter
-/surfsense_backend/app/proprietary/             @AnishSarkar22 @MODSetter
-/plugins/remote/proprietary/                    @AnishSarkar22 @MODSetter
-/plugins/registry/                              @AnishSarkar22 @MODSetter
+/backend/license/                               @CREDO23
+/backend/mailer/                                @CREDO23
+/backend/plugins/proprietary/                   @AnishSarkar22 @MODSetter
+/backend/plugins/registry/                      @AnishSarkar22 @MODSetter
 
-/surfsense_web/                                 @AnishSarkar22
-/surfsense_mcp/                                 @CREDO23
+/www/                                           @AnishSarkar22

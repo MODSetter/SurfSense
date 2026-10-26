@@ -65,6 +65,25 @@ describe("AboutSettings", () => {
     )
   })
 
+  it("tells surfsense.com where a docs visit came from, never GitHub", async () => {
+    const bridge = stubAboutBridge()
+    const user = userEvent.setup()
+    render(<AboutSettings />)
+
+    await screen.findByText("Version 2.0.2")
+    await user.click(screen.getByRole("link", { name: "Documentation" }))
+    await user.click(
+      screen.getByRole("link", { name: "Source code on GitHub" })
+    )
+
+    expect(bridge.openExternal.mock.calls).toEqual([
+      [
+        "https://www.surfsense.com/docs?utm_source=desktop&utm_medium=app&utm_content=about_docs&app_version=2.0.2",
+      ],
+      ["https://github.com/MODSetter/SurfSense"],
+    ])
+  })
+
   it("copies the bare version from beside it", async () => {
     stubAboutBridge()
     const user = userEvent.setup()

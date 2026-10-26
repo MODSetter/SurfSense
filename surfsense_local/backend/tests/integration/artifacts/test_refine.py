@@ -431,7 +431,7 @@ async def test_an_artifact_without_a_spec_cannot_be_refined(
 
     assert response.status_code == 409
     assert response.json()["detail"] == {
-        "message": "Only a Word document or PDF made in Studio can be refined.",
+        "message": "Only a Word document, PDF or web page a model wrote in Studio can be refined.",
         "code": "not_refinable",
     }
 

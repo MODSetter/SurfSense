@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "plugins": [
+    {
+      "id": "deepwiki",
+      "kind": "remote",
+      "verification": "verified",
+      "name": "DeepWiki",
+      "description": "Ask questions about public GitHub repositories and read their generated wikis.",
+      "author": "Cognition",
+      "url": "https://mcp.deepwiki.com/mcp",
+      "auth": {
+        "type": "none"
+      },
+      "hosts": [
+        "mcp.deepwiki.com"
+      ],
+      "access": "free",
+      "privacy_policy": "https://cognition.com/legal/privacy-policy",
+      "homepage": "https://deepwiki.com",
+      "icon": "deepwiki.svg",
+      "tools": [
+        "ask_wiki_question",
+        "read_wiki_contents",
+        "read_wiki_structure"
+      ],
+      "added": "2026-10",
+      "about": "Connect DeepWiki to SurfSense to understand any public GitHub repository without reading its code first. Ask questions about a repository and read the wiki DeepWiki generates for it, from its outline down to any page. Useful for getting up to speed on an unfamiliar codebase, comparing libraries, or checking how a project is put together before you depend on it."
+    },
+    {
+      "id": "notion",
+      "kind": "remote",
+      "verification": "verified",
+      "name": "Notion",
+      "description": "Search, read and edit the pages and databases in your Notion workspace.",
+      "author": "Notion",
+      "url": "https://mcp.notion.com/mcp",
+      "auth": {
+        "type": "oauth"
+      },
+      "hosts": [
+        "mcp.notion.com"
+      ],
+      "access": "free",
+      "privacy_policy": "https://www.notion.com/trust/privacy-policy",
+      "homepage": "https://developers.notion.com/guides/mcp/overview",
+      "icon": "notion.svg",
+      "tools": [
+        "notion-search",
+        "notion-get-tool-access",
+        "notion-get-self",
+        "notion-download-skill",
+        "notion-fetch",
+        "notion-create-file-upload",
+        "notion-create-attachment",
+        "notion-download-attachment",
+        "notion-create-pages",
+        "notion-update-page",
+        "notion-convert-page-to-skill",
+        "notion-move-pages",
+        "notion-delete-pages",
+        "notion-delete-databases",
+        "notion-restore-pages",
+        "notion-duplicate-page",
+        "notion-create-database",
+        "notion-create-folder",
+        "notion-update-data-source",
+        "notion-create-view",
+        "notion-update-view",
+        "notion-query-data-sources",
+        "notion-query-meeting-notes",
+        "notion-create-comment",
+        "notion-get-comments",
+        "notion-get-teams",
+        "notion-get-users",
+        "notion-get-async-task",
+        "notion-list-agents",
+        "notion-search-agents",
+        "notion-query-sessions",
+        "notion-search-sessions",
+        "notion-spawn-session",
+        "notion-get-session-status",
+        "notion-wait-session",
+        "notion-stop-session",
+        "notion-send-message-to-session",
+        "notion-list-session-events",
+        "notion-read-session-event"
+      ],
+      "added": "2026-10",
+      "about": "Connect Notion to SurfSense to work with your workspace from an Agentic chat. Search your pages and databases, read them in full, and create, update, move or comment on pages. You sign in with your own Notion account, and the agent sees only what that account can see. Some tools, such as AI search across connected apps, depend on your Notion plan."
+    }
+  ],
+  "removed": []
+}

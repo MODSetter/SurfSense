@@ -24,6 +24,7 @@ import { Spinner } from "@/components/ui/spinner"
 import type { LocalBuild, LocalRow } from "@/features/models/local/chat/api"
 import { useInstall } from "@/features/models/local/installs/use-install"
 import { ChatGPTOption } from "@/features/models/remote/connections/chatgpt/chatgpt-option"
+import { ClaudeOption } from "@/features/models/remote/connections/claude/claude-option"
 import { ConnectionDialog } from "@/features/models/remote/connections/connection-dialog"
 import { useConnectionsServing } from "@/features/models/remote/connections/use-connections"
 import { DeleteModelDialog } from "@/features/models/your-models/delete-model-dialog"
@@ -241,6 +242,14 @@ export function ModelStep({
               }
             />
             <ChatGPTOption
+              modelType={slot}
+              dense
+              onConnected={(connection) => {
+                setOpenServerId(connection.id)
+                setOnServer(true)
+              }}
+            />
+            <ClaudeOption
               modelType={slot}
               dense
               onConnected={(connection) => {
