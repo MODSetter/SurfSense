@@ -79,7 +79,17 @@ function startHeadless(t: TestContext, extraEnv: Record<string, string> = {}): R
   return { child, dataDir, log, exited, ready }
 }
 
-function recorded(log: string): Record<string, { pid: number; env: Record<string, string | undefined> }> {
+type Recorded = Record<string, { pid: number; env: Record<string, string | undefined> }>
+
+// Ready waits on the API alone, so a worker may not have started yet.
+const SIDECARS = 4
+
+/** Every fake's record, once all of them have written one. */
+async function recorded(log: string): Promise<Recorded> {
+  const deadline = Date.now() + 15_000
+  while (readdirSync(log).length < SIDECARS && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 50))
+  }
   return Object.fromEntries(
     readdirSync(log).map((file) => [file.replace(/\.json$/, ""), JSON.parse(readFileSync(join(log, file), "utf8"))]),
   )
@@ -101,7 +111,7 @@ test("ready once the API is healthy, with the API and three workers on the conta
   const url = await run.ready
   assert.equal(readFileSync(join(run.dataDir, "api-url"), "utf8"), url)
 
-  const children = recorded(run.log)
+  const children = await recorded(run.log)
   assert.deepEqual(Object.keys(children).sort(), ["api", "worker-ingest", "worker-plugins", "worker-studio"])
   const secret = readFileSync(join(run.dataDir, "secret"), "utf8").trim()
   for (const { env } of Object.values(children)) {
@@ -122,7 +132,7 @@ for (const signal of ["SIGTERM", "SIGINT"] as const) {
   test(`${signal} stops every child and exits 0`, { skip }, async (t) => {
     const run = startHeadless(t)
     await run.ready
-    const pids = Object.values(recorded(run.log)).map((c) => c.pid)
+    const pids = Object.values(await recorded(run.log)).map((c) => c.pid)
     run.child.kill(signal)
     assert.equal(await run.exited, 0)
     assert.deepEqual(pids.filter(alive), [])
@@ -133,7 +143,7 @@ for (const signal of ["SIGTERM", "SIGINT"] as const) {
 test("the API exiting stops the rest and exits non-zero, so the container restarts", { skip }, async (t) => {
   const run = startHeadless(t, { FAKE_API_EXIT_AFTER_MS: "700" })
   await run.ready
-  const pids = Object.values(recorded(run.log)).map((c) => c.pid)
+  const pids = Object.values(await recorded(run.log)).map((c) => c.pid)
   assert.notEqual(await run.exited, 0)
   assert.deepEqual(pids.filter(alive), [])
 })
