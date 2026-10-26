@@ -1408,7 +1408,7 @@
   "sources_web_show_more_button": "더 보기",
   "sources_web_site_menu_label": "검색할 곳",
   "sources_web_site_trigger_aria": "검색할 곳: {site}. 검색할 곳 바꾸기",
-  "sources_web_start_body": "검색할 곳을 고르거나 페이지, 동영상, 채널, 상품 링크를 붙여 넣으세요.",
+  "sources_web_start_body": "검색할 곳을 고르거나 페이지, 동영상, 게시물, 채널, 상품 링크를 붙여 넣으세요.",
   "sources_web_start_title": "웹에서 소스 찾기",
   "sources_web_unreachable_error": "SurfSense가 지금 웹에 연결하지 못했습니다. 잠시 후 다시 시도하세요.",
   "speech_setup_card_download_button": "다운로드 및 설정",

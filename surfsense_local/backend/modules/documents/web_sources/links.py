@@ -7,6 +7,8 @@ from modules.documents.web_sources.pullers import (
     amazon,
     google_maps,
     indeed,
+    instagram,
+    reddit,
     tiktok,
     walmart,
     web_page,
@@ -21,6 +23,8 @@ PULLERS = (
     amazon.PULLER,
     walmart.PULLER,
     indeed.PULLER,
+    reddit.PULLER,
+    instagram.PULLER,
 )
 
 

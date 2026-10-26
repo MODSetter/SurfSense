@@ -1408,7 +1408,7 @@
   "sources_web_show_more_button": "显示更多",
   "sources_web_site_menu_label": "搜索范围",
   "sources_web_site_trigger_aria": "搜索范围：{site}。更改搜索范围",
-  "sources_web_start_body": "选择搜索范围，或粘贴网页、视频、频道和商品的链接。",
+  "sources_web_start_body": "选择搜索范围，或粘贴网页、视频、帖子、频道和商品的链接。",
   "sources_web_start_title": "在网页上查找来源",
   "sources_web_unreachable_error": "SurfSense 暂时无法访问网页。请稍后重试。",
   "speech_setup_card_download_button": "下载并设置",
