@@ -1,8 +1,11 @@
+import { useState } from "react"
+
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { CheckIcon } from "@/components/ui/icons"
 import { OverflowTooltip } from "@/components/ui/overflow-tooltip"
 import { Spinner } from "@/components/ui/spinner"
+import { ExternalLinkDialog } from "@/features/external-links/external-link-dialog"
 import { intl } from "@/i18n/intl"
 
 import type { WebResult } from "./api"
@@ -47,6 +50,7 @@ export function WebResultRow({
 
 function RowText({ result }: { result: WebResult }) {
   const name = pullerName(result.puller)
+  const [confirming, setConfirming] = useState(false)
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-0.5">
       <span className="flex min-w-0 items-center gap-2">
@@ -61,12 +65,21 @@ function RowText({ result }: { result: WebResult }) {
         <OverflowTooltip
           label={result.url}
           render={
-            <ResultLink href={result.url} className="truncate">
+            <ResultLink
+              href={result.url}
+              onOpen={() => setConfirming(true)}
+              className="truncate"
+            >
               {result.url}
             </ResultLink>
           }
         />
       </span>
+      <ExternalLinkDialog
+        url={result.url}
+        open={confirming}
+        onOpenChange={setConfirming}
+      />
       {result.description ? <ResultDetails text={result.description} /> : null}
       {result.fit === "short_link" ? (
         <span className="text-sm text-muted-foreground">

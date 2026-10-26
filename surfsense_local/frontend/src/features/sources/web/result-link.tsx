@@ -2,17 +2,17 @@ import type { ComponentProps, MouseEvent } from "react"
 
 import { cn } from "@/lib/utils"
 
-// The desktop app refuses in-app navigation, so a click goes to the OS
-// browser through the bridge; a bare browser follows the href instead.
+// A result's address comes from a scraped page, so a click asks first, in the
+// app's link popup; the desktop app's openExternal drops every other site.
 export function ResultLink({
   href,
+  onOpen,
   className,
   ...props
-}: ComponentProps<"a"> & { href: string }) {
+}: ComponentProps<"a"> & { href: string; onOpen: () => void }) {
   const onClick = (event: MouseEvent<HTMLAnchorElement>) => {
-    if (!window.surfsense?.openExternal) return
     event.preventDefault()
-    void window.surfsense.openExternal(href)
+    onOpen()
   }
   return (
     <a

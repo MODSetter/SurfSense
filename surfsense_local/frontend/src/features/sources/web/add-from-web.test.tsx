@@ -269,11 +269,12 @@ describe("adding sources from the web", () => {
     )
   })
 
-  it("shows each result's whole link, and opens it in the browser", async () => {
-    const openExternal = vi.fn<(url: string) => Promise<void>>(
+  it("shows each result's whole link, and opens it in the browser once confirmed", async () => {
+    // Only the confirmed-link call opens any site; openExternal drops all but SurfSense's own.
+    const openConfirmedLink = vi.fn<(url: string) => Promise<void>>(
       async () => undefined
     )
-    window.surfsense = { ...window.surfsense!, openExternal }
+    window.surfsense = { ...window.surfsense!, openConfirmedLink }
     const user = userEvent.setup()
     serving()
     render(<WebHarness />)
@@ -281,8 +282,12 @@ describe("adding sources from the web", () => {
 
     await ask(user, dialog, "tides")
     await user.click(await within(dialog).findByRole("link", { name: VIDEO }))
+    const confirm = await screen.findByRole("dialog", {
+      name: "Open www.youtube.com?",
+    })
+    await user.click(within(confirm).getByRole("button", { name: "Open link" }))
 
-    expect(openExternal).toHaveBeenCalledExactlyOnceWith(VIDEO)
+    expect(openConfirmedLink).toHaveBeenCalledExactlyOnceWith(VIDEO)
   })
 
   it("shows a result's details apart, not joined by a typed dot", async () => {
