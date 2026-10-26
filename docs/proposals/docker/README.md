@@ -107,7 +107,7 @@ surfsense_local/
 1. **The context.** `context-from-env.ts` sets all ten `BootContext` fields: `packaged: false`, the backend and runtime folders under `/app`, `dataDir` from `SURFSENSE_LOCAL_DATA_DIR` (default `/data`), and the models folder.
 2. **The secret, before boot.** `SURFSENSE_LOCAL_SECRET` from the environment, else `/data/secret`, created once with mode 0600 and never regenerated. Node settles it before any Python starts, so four processes never race to create the file that [`shared/secrets.py`](../../../surfsense_local/backend/shared/secrets.py) falls back to.
 3. **The container's environment.** `HF_HUB_OFFLINE=1`, which [`python.ts`](../../../surfsense_local/sidecars/python.ts) sets only when `packaged` is true; `SURFSENSE_LOCAL_SIGNED_REGISTRY=1` (below); `SURFSENSE_LOCAL_RUNTIME=docker`, which the API reports where an answer differs in a container; and `HOME=/data/home`, created if missing, so what a user installs in the container keeps across updates ([Claude subscriptions](#claude-subscriptions)).
-4. **No previews.** Word and web-page previews render in a hidden `BrowserWindow`, so headless passes no `docxSnapshotKey`, and the agent skips previews instead of waiting 30 s for each.
+4. **No Electron previews, and no change for them.** Word and web-page previews render in a hidden `BrowserWindow`. With no desktop app polling for them, the API refuses a preview at once ([`docx_snapshots.py`](../../../surfsense_local/backend/modules/agent/previews/docx_snapshots.py)), and a Word file's or deck's pages still come from LibreOffice when Office support is on.
 5. **Boot and health.** `bootSidecars`, then `/health` within 60 s, then Caddy as one more sidecar. It writes `/data/api-url` as `announceApiUrl` does, so `surfsense-plugins invoke` works inside the container.
 6. **Signals and exit.** SIGTERM and SIGINT stop the watchers, then every child's process group. The API exiting stops the container with a non-zero code, so Compose's `restart:` applies; any other sidecar is restarted by the supervisor, as on the desktop.
 
@@ -196,7 +196,7 @@ Every bridge call is already optional (`window.surfsense?.…`). The build for t
 | Open, Show in folder | download through `GET .../documents/{id}/original`; PDFs preview in the app ([source preview](../source-preview.md)) |
 | electron-updater | hidden; updating is pulling a newer tag |
 | Keychain secret ([ADR 0018](../../adr/0018-keychain-envelope-encryption.md)) | `SURFSENSE_LOCAL_SECRET`, else `/data/secret` ([the headless entry](#the-headless-entry)) |
-| Word and web-page previews | off: they render in a hidden `BrowserWindow` |
+| Word and web-page previews | Word and decks through LibreOffice when Office support is on; otherwise none, refused at once |
 | Claude subscription, through the user's own Claude Code | the same, with Claude Code installed in the container ([below](#claude-subscriptions)) |
 | Session log, About details, crash toast | hidden |
 | Theme, locale, external links | the browser fallbacks that exist |
