@@ -163,19 +163,20 @@ export default function PrivacyPolicy() {
 						<li>
 							<strong>Usage statistics, to usage.surfsense.com.</strong> From version 2.2.4, only if
 							you opt in: one report a day, and, from version 2.2.5, during the install's first week
-							one more each time setup reaches a new step (at most four more). Each report sends the
-							app's version, platform, operating system and interface language, the week the app was
-							installed, why it was sent (the day's report or a new setup step), and whether this is
-							its first daily report ever, this week and this month. Once a week it adds counts in
-							ranges, such as 10-49, for the past seven days: chat turns, agent turns, whether a
-							local or a remote model answered, the documents in your library, Studio outputs,
-							plugin calls, and how far setup got. During the first week every report carries those
-							counts, for the time since installation. The first report adds your computer's memory,
-							graphics card maker and graphics memory, also in ranges, and whether SurfSense's model
-							runtime can use the graphics card; during the first week that is sent again only while
-							part of it is unknown. It never sends documents, prompts, file names, model names,
-							model hosts, your licence key or an identifier. Settings shows the exact next report
-							and the last one sent.
+							one more each time setup reaches a new step (at most four more). A report that does
+							not get through is tried again later. Each report sends the app's version, platform,
+							operating system and interface language, the week the app was installed, why it was
+							sent (the day's report or a new setup step), and whether this is its first daily
+							report ever, this week and this month. Once a week it adds counts in ranges, such as
+							10-49, for the past seven days: chat turns, agent turns, whether a local or a remote
+							model answered, the documents in your library, Studio outputs, plugin calls, and how
+							far setup got. During the first week every report carries those counts, for the time
+							since installation. The first report adds your computer's memory, graphics card maker
+							and graphics memory, also in ranges, and whether SurfSense's model runtime can use the
+							graphics card; during the first week that is sent again only while part of it is
+							unknown. It never sends documents, prompts, file names, model names, model hosts, your
+							licence key or an identifier. Settings shows the exact next daily report and the last
+							report sent.
 						</li>
 						<li>
 							<strong>Model search and downloads, to huggingface.co.</strong> Searching sends what
