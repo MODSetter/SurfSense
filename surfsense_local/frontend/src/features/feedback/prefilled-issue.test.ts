@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { prefilledIssue } from "./prefilled-issue"
 
@@ -11,6 +11,29 @@ const SYSTEM = [
 const fields = (url: string) => new URL(url).searchParams
 
 describe("prefilledIssue", () => {
+  afterEach(() => vi.unstubAllEnvs())
+
+  it("names the desktop app under Which part?", () => {
+    const issue = prefilledIssue({ description: "Chat never answers", log: [] })
+
+    expect(fields(issue.url).get("area")).toBe("Desktop app")
+  })
+
+  it("names Docker under Which part? in the Docker image, a long report included", () => {
+    vi.stubEnv("VITE_SURFSENSE_RUNTIME", "docker")
+
+    expect(
+      fields(
+        prefilledIssue({ description: "Chat never answers", log: [] }).url
+      ).get("area")
+    ).toBe("Docker")
+    expect(
+      fields(
+        prefilledIssue({ description: "x".repeat(5_000), log: [] }).url
+      ).get("area")
+    ).toBe("Docker")
+  })
+
   it("fills the bug form's title and What happened?, and copies the log for its Logs field", () => {
     const issue = prefilledIssue({
       description: "Chat never answers\nIt spins forever.",

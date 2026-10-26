@@ -18,7 +18,7 @@ WORKDIR /src/surfsense_local/frontend
 COPY surfsense_local/frontend/package.json surfsense_local/frontend/pnpm-lock.yaml surfsense_local/frontend/pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY surfsense_local/frontend/ ./
-RUN VITE_API_BASE=/api pnpm build
+RUN VITE_API_BASE=/api VITE_SURFSENSE_RUNTIME=docker pnpm build
 
 # opencode and ripgrep, staged by the desktop's pinned script.
 FROM node AS opencode
