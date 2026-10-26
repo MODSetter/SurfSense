@@ -46,3 +46,30 @@ def test_an_os_reader_that_breaks_is_no_name_not_a_failed_summary(
     monkeypatch.setattr(dependencies, "os_adapter_names", breaks)
 
     assert get_machine_readings().os_adapter_names() is None
+
+
+def test_a_failed_ask_is_tried_again_an_hour_later_not_on_every_summary(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A transient failure must not leave the card's maker unknown for the whole session."""
+    asked: list[None] = []
+    answers: list[list[str] | None] = [None, ["AMD Radeon RX 7600"]]
+    clock = [1_000.0]
+
+    def os_adapter_names() -> list[str] | None:
+        asked.append(None)
+        return answers[len(asked) - 1]
+
+    monkeypatch.setattr(dependencies, "os_adapter_names", os_adapter_names)
+    monkeypatch.setattr(dependencies, "_monotonic", lambda: clock[0])
+
+    assert get_machine_readings().os_adapter_names() is None
+    clock[0] += 3_599
+    assert get_machine_readings().os_adapter_names() is None
+    assert len(asked) == 1
+
+    clock[0] += 1
+    assert get_machine_readings().os_adapter_names() == ("AMD Radeon RX 7600",)
+    clock[0] += 7_200
+    assert get_machine_readings().os_adapter_names() == ("AMD Radeon RX 7600",)
+    assert len(asked) == 2

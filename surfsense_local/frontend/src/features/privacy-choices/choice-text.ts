@@ -63,7 +63,7 @@ export function usageText(state: PrivacyState): ChoiceText {
       {
         id: "privacy_choices_usage_details_body",
         defaultMessage:
-          "Once a day, SurfSense tells {host} this install was used, with the app’s version, your system, the app’s language and the week it was installed. During the install’s first week it sends one more each time setup reaches a new step, at most four more. Its reports in the first week, and one a week after that, add counts in ranges: chats, agent turns, sources, Studio outputs, plugin calls, whether a local or remote model answered, and how far setup got. Its first report adds this computer’s memory and graphics card, in ranges, and whether the model runtime can use the card; in the first week they go again only while part of them is unknown. Never documents, prompts, file names, model names, hosts, your license key or an ID.",
+          "Once a day, SurfSense tells {host} this install was used, with the app’s version, your system, the app’s language and the week it was installed. During the install’s first week it sends one more each time setup reaches a new step, at most four more. Its reports in the first week, and one a week after that, add counts in ranges: chats, agent turns, sources, Studio outputs, plugin calls, whether a local or remote model answered, and how far setup got. Its first daily report adds this computer’s memory and graphics card, in ranges, and whether the model runtime can use the card; in the first week they go again only while part of them is unknown. Never documents, prompts, file names, model names, hosts, your license key or an ID.",
       },
       { host }
     ),

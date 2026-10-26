@@ -226,8 +226,8 @@ export default function PrivacyPolicy() {
 						identifiers, and sends no usage analytics unless you opt in. From version 2.2.4, with
 						update checks on, SurfSense can count the installs that checked in each day, with their
 						versions, platforms and countries. With usage statistics on, it also receives the counts
-						in ranges that section 3.2 lists, weekly, and with each report in an install's first
-						week. Neither carries documents, prompts, file names, model hosts, your licence key or
+						in ranges that section 3.2 lists, weekly, and, from version 2.2.5, with each report in an
+						install's first week. Neither carries documents, prompts, file names, model hosts, your licence key or
 						an identifier, so we cannot see what you did in the app, and no identifier ties one
 						install's reports together, although an uncommon combination of version, platform,
 						language, install week and country could single one install out. Each request's IP

@@ -1,7 +1,7 @@
 """What the summary reads off this machine rather than the database, as one dependency a test replaces."""
 
-import functools
 import logging
+import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Annotated
@@ -49,18 +49,47 @@ def _inventory() -> SystemInventory | None:
         return None
 
 
-@functools.cache
-def _os_adapter_names() -> tuple[str, ...] | None:
-    """Asked once per process, like the inventory it explains: on Windows it starts PowerShell."""
-    try:
-        names = os_adapter_names()
-    except Exception:
-        logger.warning(
-            "could not list the graphics adapters for the usage summary",
-            exc_info=True,
-        )
-        return None
-    return None if names is None else tuple(names)
+class _OsAdapterNames:
+    """Asked once per process once it answers: on Windows each ask starts PowerShell.
+
+    A failed ask is tried again an hour later, not on every five-minute summary,
+    so one bad moment does not leave the card's maker unknown all session.
+    """
+
+    def __init__(self) -> None:
+        self.cache_clear()
+
+    def cache_clear(self) -> None:
+        self._names: tuple[str, ...] | None = None
+        self._failed_at: float | None = None
+
+    def __call__(self) -> tuple[str, ...] | None:
+        if self._names is not None:
+            return self._names
+        now = _monotonic()
+        if (
+            self._failed_at is not None
+            and now - self._failed_at < _RETRY_FAILED_SECONDS
+        ):
+            return None
+        try:
+            names = os_adapter_names()
+        except Exception:
+            logger.warning(
+                "could not list the graphics adapters for the usage summary",
+                exc_info=True,
+            )
+            names = None
+        if names is None:
+            self._failed_at = now
+            return None
+        self._names = tuple(names)
+        return self._names
+
+
+_RETRY_FAILED_SECONDS = 3600.0
+_monotonic = time.monotonic
+_os_adapter_names = _OsAdapterNames()
 
 
 def _ram_total_bytes() -> int | None:
