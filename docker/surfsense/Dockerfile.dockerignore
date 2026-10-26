@@ -1,0 +1,23 @@
+# The build context is the repository root; only what the image is built from passes.
+*
+!docker/surfsense/caddy/
+!backend/plugins/bundles/core/manifest/
+!backend/plugins/bundles/core/sdk/
+!surfsense_local/backend/
+!surfsense_local/frontend/
+!surfsense_local/runtimes/
+!surfsense_local/sidecars/
+!surfsense_local/headless/
+
+# Anything a checkout builds or caches locally.
+**/node_modules/
+**/.venv/
+**/__pycache__/
+**/.pytest_cache/
+**/.ruff_cache/
+**/dist/
+surfsense_local/backend/models/
+surfsense_local/backend/tests/
+surfsense_local/frontend/src/i18n/compiled/
+**/*.test.ts
+**/*.test.mjs

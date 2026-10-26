@@ -7,6 +7,7 @@ from urllib.parse import parse_qs, urlsplit
 import pytest
 from httpx import AsyncClient
 
+from api.config import get_settings
 from tests.integration.plugins.routes.test_oauth_sign_in import (
     SignInServers,
     approve_in_browser,
@@ -192,6 +193,19 @@ async def test_the_callback_to_register_an_app_with_is_given(
     assert answered.status_code == 200
     assert answered.json() == {
         "redirect_uri": "http://127.0.0.1:8000/plugins/oauth/callback"
+    }
+
+
+async def test_in_a_container_the_callback_is_on_the_port_the_browser_reaches(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The API's own port is inside the container; the browser comes back through the published one."""
+    monkeypatch.setattr(get_settings(), "public_port", 4929)
+
+    answered = await client.get("/plugins/oauth/redirect-uri")
+
+    assert answered.json() == {
+        "redirect_uri": "http://127.0.0.1:4929/plugins/oauth/callback"
     }
 
 

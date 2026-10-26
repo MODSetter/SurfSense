@@ -23,6 +23,11 @@ import {
   getClaudeStatus,
   type ClaudeStatus,
 } from "./api"
+import {
+  ContainerCommand,
+  INSTALL_IN_CONTAINER,
+  SIGN_IN_IN_CONTAINER,
+} from "./container-command"
 
 function openInstallGuide() {
   if (window.surfsense?.openExternal)
@@ -30,8 +35,70 @@ function openInstallGuide() {
   else window.open(CLAUDE_INSTALL_URL, "_blank", "noopener")
 }
 
+/** In the Docker image: the same steps, run inside the container from the Docker host. */
+function ContainerStateBody({ option }: { option: ClaudeStatus }) {
+  switch (option.state) {
+    case "not_installed":
+      return (
+        <ol className="flex list-decimal flex-col gap-3 pl-5 text-sm">
+          <li className="flex flex-col gap-1.5">
+            {intl.formatMessage({
+              id: "models_claude_dialog_container_install_body",
+              defaultMessage:
+                "Install Claude Code in the SurfSense container. On the computer running Docker, in the folder with docker-compose.yml, run:",
+            })}
+            <ContainerCommand command={INSTALL_IN_CONTAINER} />
+          </li>
+          <li className="flex flex-col gap-1.5">
+            {intl.formatMessage({
+              id: "models_claude_dialog_container_sign_in_body",
+              defaultMessage:
+                "Sign in with your Claude account: run this, then type /login.",
+            })}
+            <ContainerCommand command={SIGN_IN_IN_CONTAINER} />
+          </li>
+          <li>
+            {intl.formatMessage({
+              id: "models_claude_dialog_come_back_body",
+              defaultMessage: "Then come back here and click Check again.",
+            })}
+          </li>
+        </ol>
+      )
+    case "signed_out":
+      return (
+        <div className="flex flex-col gap-1.5 text-sm">
+          <p>
+            {intl.formatMessage({
+              id: "models_claude_dialog_container_signed_out_body",
+              defaultMessage:
+                "Claude Code is installed in the container but not signed in to a Claude plan. Run this, then type /login:",
+            })}
+          </p>
+          <ContainerCommand command={SIGN_IN_IN_CONTAINER} />
+        </div>
+      )
+    case "too_old":
+      return (
+        <div className="flex flex-col gap-1.5 text-sm">
+          <p>
+            {intl.formatMessage({
+              id: "models_claude_dialog_container_too_old_body",
+              defaultMessage:
+                "The Claude Code in the container is too old for SurfSense. Run the install again to update it, then check again:",
+            })}
+          </p>
+          <ContainerCommand command={INSTALL_IN_CONTAINER} />
+        </div>
+      )
+    case "ready":
+      return <StateBody option={{ ...option, in_container: false }} />
+  }
+}
+
 /** What to do next, for each state Claude Code can be in. */
 function StateBody({ option }: { option: ClaudeStatus }) {
+  if (option.in_container) return <ContainerStateBody option={option} />
   switch (option.state) {
     case "not_installed":
       return (
@@ -216,7 +283,9 @@ export function ClaudeDialog({
               defaultMessage: "Cancel",
             })}
           </Button>
-          {option.data?.state === "not_installed" ? (
+          {/* Anthropic's guide installs on the desktop, which the container cannot use. */}
+          {option.data?.state === "not_installed" &&
+          !option.data.in_container ? (
             <Button type="button" variant="outline" onClick={openInstallGuide}>
               {intl.formatMessage({
                 id: "models_claude_dialog_install_guide_button",

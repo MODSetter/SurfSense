@@ -29,7 +29,7 @@ code:
 
 > The desktop app's stack, minus Electron, as one container. `surfsense_local` becomes one core with two entries: Electron for the desktop, a headless Node entry for the container. The headless entry runs the same supervisor as Electron, which starts the API, the workers, the model servers and opencode on loopback; Caddy is the only thing listening. It replaces the legacy self-host compose. The decisions are [ADR 0035](../../adr/0035-docker-compose-runs-the-desktop-stack.md), [ADR 0072](../../adr/0072-the-desktop-and-the-container-are-two-entries-over-one-core.md) and [ADR 0073](../../adr/0073-the-docker-gpu-image-is-one-cuda-12-8-variant-from-upstream-builds.md); GPU images are in [`gpu.md`](gpu.md).
 
-**Status, 26 Oct 2026:** [steps](#steps) 1 to 4 are built: the CORS origins setting ([#2122](https://github.com/MODSetter/SurfSense/pull/2122)), the `VITE_API_BASE` fallback ([#2134](https://github.com/MODSetter/SurfSense/pull/2134)), boot and the watchers with no Electron import ([#2215](https://github.com/MODSetter/SurfSense/pull/2215)), and one core with two entries: [`sidecars/`](../../../surfsense_local/sidecars/), [`runtimes/`](../../../surfsense_local/runtimes/) and the headless entry in [`headless/`](../../../surfsense_local/headless/), built on the patch on [#2104](https://github.com/MODSetter/SurfSense/issues/2104). No image yet.
+**Status, 26 Oct 2026:** [steps](#steps) 1 to 4 are built, and 5 and 6, the CPU image and its workflow, are in review: the CORS origins setting ([#2122](https://github.com/MODSetter/SurfSense/pull/2122)), the `VITE_API_BASE` fallback ([#2134](https://github.com/MODSetter/SurfSense/pull/2134)), boot and the watchers with no Electron import ([#2215](https://github.com/MODSetter/SurfSense/pull/2215)), and one core with two entries: [`sidecars/`](../../../surfsense_local/sidecars/), [`runtimes/`](../../../surfsense_local/runtimes/) and the headless entry in [`headless/`](../../../surfsense_local/headless/), built on the patch on [#2104](https://github.com/MODSetter/SurfSense/issues/2104).
 
 ## What changes
 
@@ -41,7 +41,7 @@ code:
 | Models | remote providers | the desktop catalog: llama.cpp, sd.cpp, audio.cpp, plus remote connections |
 | Data | Postgres and an object store | one `/data` volume, the desktop's `~/.surfsense` layout |
 | License | none | the desktop's offline Keygen license |
-| Port | `3929` | `3929` |
+| Port | `3929` | `4929`, so both can run side by side while data moves over |
 | Updates | Watchtower or a manual pull | pulling a newer tag; no in-app updater |
 
 ## The container
@@ -74,7 +74,7 @@ One container, because the stack assumes one machine: SQLite and the Huey queue 
 |---|---|---|
 | The container's loopback | the API, the workers, the model servers and opencode, each on a free port | processes in the container only |
 | Compose's default bridge | the container's interface, with only Caddy listening, on `:80` and, with a domain, `:443` | the host, through the published port |
-| The published port | `${SURFSENSE_BIND:-127.0.0.1}:${SURFSENSE_PORT:-3929}` → `80` | the host machine alone by default; the LAN with `SURFSENSE_BIND=0.0.0.0` |
+| The published port | `${SURFSENSE_BIND:-127.0.0.1}:${SURFSENSE_PORT:-4929}` → `80` | the host machine alone by default; the LAN with `SURFSENSE_BIND=0.0.0.0` |
 | Outbound | NAT through the bridge | remote providers, model downloads and the plugin host, under the backend's egress rules |
 
 - **No container talks to another.** The legacy services reached each other by name on the Compose network (`db`, `redis`, `backend`); here every call stays on loopback.
@@ -108,7 +108,7 @@ surfsense_local/
 2. **The secret, before boot.** `SURFSENSE_LOCAL_SECRET` from the environment, else `/data/secret`, created once with mode 0600 and never regenerated. Node settles it before any Python starts, so four processes never race to create the file that [`shared/secrets.py`](../../../surfsense_local/backend/shared/secrets.py) falls back to.
 3. **The container's environment.** `HF_HUB_OFFLINE=1`, which [`python.ts`](../../../surfsense_local/sidecars/python.ts) sets only when `packaged` is true; `SURFSENSE_LOCAL_SIGNED_REGISTRY=1` (below); `SURFSENSE_LOCAL_RUNTIME=docker`, which the API reports where an answer differs in a container; and `HOME=/data/home`, created if missing, so what a user installs in the container keeps across updates ([Claude subscriptions](#claude-subscriptions)).
 4. **No Electron previews, and no change for them.** Word and web-page previews render in a hidden `BrowserWindow`. With no desktop app polling for them, the API refuses a preview at once ([`docx_snapshots.py`](../../../surfsense_local/backend/modules/agent/previews/docx_snapshots.py)), and a Word file's or deck's pages still come from LibreOffice when Office support is on.
-5. **Boot and health.** `bootSidecars`, then `/health` within 60 s, then Caddy as one more sidecar. It writes `/data/api-url` as `announceApiUrl` does, so `surfsense-plugins invoke` works inside the container.
+5. **Boot and health.** `bootSidecars`, then `/health` within 60 s, then Caddy as one more sidecar when `SURFSENSE_LOCAL_CADDYFILE` names a Caddyfile, as the image does; a checkout runs without it. Caddy gets the API's port, a free port for ChatGPT's sign-in listener, which the API is given as `SURFSENSE_LOCAL_CHATGPT_CALLBACK_PORT`, and the SPA's folder ([`caddy.ts`](../../../surfsense_local/headless/caddy.ts)), and its exit ends the process non-zero, as the API's does. It writes `/data/api-url` as `announceApiUrl` does, so `surfsense-plugins invoke` works inside the container.
 6. **Signals and exit.** SIGTERM and SIGINT stop the watchers, then every child's process group. The API exiting stops the container with a non-zero code, so Compose's `restart:` applies; any other sidecar is restarted by the supervisor, as on the desktop.
 
 ### The backend's packaged switch
@@ -128,7 +128,7 @@ The new stack, in `docker/surfsense/`:
 | `.env.example` | version, variant, port, password, hosts, domain |
 | `caddy/Caddyfile` | the routes; imports one access file |
 | `caddy/access-local.caddy` | access without a password, for `localhost` hosts only |
-| `caddy/access-password.caddy` | `basic_auth` and the allowed hosts |
+| `caddy/access-password.caddy` | `basic_auth` and the allowed hosts (step 10) |
 
 Its installer, later, in `docker/scripts/`: `install.sh` and `install.ps1`, at the legacy installer's paths ([legacy split](../legacy-split/README.md#the-install-urls-pass-to-the-new-stack)). It picks the CPU or CUDA image from the host's card ([`gpu.md`](gpu.md#choosing-the-variant)).
 
@@ -162,8 +162,9 @@ Inside the image, the repository's layout under `/app`, so every relative path t
 | `/app/surfsense_local/backend/` | the source and its `.venv` |
 | `/app/surfsense_local/frontend/dist/` | built with `VITE_API_BASE=/api` |
 | `/app/surfsense_local/sidecars/`, `headless/` | the supervisor and the entry |
-| `/app/surfsense_local/runtimes/` | `llamacpp/`, `sdcpp/`, `audiocpp/`, `opencode/`: one GPU backend per variant |
-| `/app/surfsense_local/models/` | bge-small, the Docling pack, Kokoro, Silero VAD |
+| `/app/runtimes/` | the staged `opencode/`, then `llamacpp/`, `sdcpp/` and `audiocpp/` from steps 7 to 9: one GPU backend per variant |
+| `/app/surfsense_local/backend/models/` | bge-small, the Docling pack and Silero VAD; Kokoro with audio.cpp |
+| `/app/caddy/` | the Caddyfile and its access file |
 | `/app/backend/plugins/bundles/core/` | `manifest/` and `sdk/` |
 | `/data/` | the volume |
 
@@ -214,17 +215,17 @@ SurfSense ships no Claude Code ([`locate.py`](../../../surfsense_local/backend/m
   | `signed_out` | `docker compose exec -it surfsense claude`, then `/login` with the Claude account |
   | `too_old` | the install command again, which updates it |
 
-  **Open install guide** opens the Docker section of the docs instead of Anthropic's desktop guide.
+  **Open install guide** is hidden in the container: Anthropic's guide installs on the desktop.
 - **No redirect.** Claude Code signs in by a code pasted back into the terminal, so the browser can be on any machine.
 - **Commands by service name.** `docker compose exec surfsense` runs as the image's user, the one the API runs as, and needs no container name.
 
 ## Sign-ins
 
-A sign-in ends where the provider sends the browser back, and in Docker that browser may be on the host or on another machine. One rule holds for every OAuth sign-in: **the callback lands on the address the user's browser is already on**, its origin, under a client the provider allows to redirect there. The frontend sends `window.location.origin` when it starts a sign-in; the API accepts only an origin Caddy allows, and builds the redirect from it, never from a guess about where the browser is.
+A sign-in ends where the provider sends the browser back, and in Docker that browser may be on the host or on another machine. One rule holds for every OAuth sign-in: **the callback lands on the address the user's browser is already on**, its origin, under a client the provider allows to redirect there. The frontend sends `window.location.origin` when it starts a sign-in; the API accepts only an origin Caddy allows, and builds the redirect from it, never from a guess about where the browser is. Until step 11 only the loopback origin is served, and its port is the one compose publishes, given to the API as `SURFSENSE_LOCAL_PUBLIC_PORT`.
 
 | The browser's origin | Example |
 |---|---|
-| loopback, on the Docker host | `http://localhost:3929` |
+| loopback, on the Docker host | `http://localhost:4929` |
 | a public domain | `https://surfsense.example.com` |
 | a LAN address, with HTTPS | `https://surfsense.lan` |
 
@@ -251,7 +252,7 @@ ChatGPT signs in as OpenAI's client ([Sign in with ChatGPT for open-source apps]
 
 - **Loopback origin.** The redirect is `http://127.0.0.1:<the origin's port>/callback`, which Caddy routes to the API; in a container the API answers `/callback` itself instead of opening [`loopback.py`](../../../surfsense_local/backend/modules/llm/subscriptions/chatgpt/loopback.py)'s listener on a port the browser cannot reach. OpenAI accepts any loopback port.
 - **Remote origin.** If OpenAI's registration accepts `<origin>/callback`, the same as above. If it accepts only loopback, the dialog takes the address the failed redirect left in the address bar, and the API finishes the exchange with its verifier; a device-code flow would replace that, should OpenAI offer one for these clients.
-- **An SSH tunnel** (`ssh -L 3929:localhost:3929 <server>`) makes any remote browser a loopback one, where every sign-in is automatic.
+- **An SSH tunnel** (`ssh -L 4929:localhost:4929 <server>`) makes any remote browser a loopback one, where every sign-in is automatic.
 
 ### To verify while building
 
@@ -264,7 +265,7 @@ ChatGPT signs in as OpenAI's client ([Sign in with ChatGPT for open-source apps]
 - `/data` holds what `~/.surfsense` holds: `surfsense.db`, `huey.db`, `secret`, `models/`, `embeddings/`, `images/`, `audio/`, `agent/`, `data/workspaces/`, `plugins/`, `plugin-registry/`, `imports/`, `backups/`, `runtime/office/`. Backing up is copying the volume.
 - Migrations run when the API starts, after a backup to `backups/` ([ADR 0005](../../adr/0005-hand-written-migrations.md)); workers never migrate.
 - The license is entered in the app and kept in the database, verified offline with the keys built into the image. It has no machine binding ([ADR 0019](../../adr/0019-offline-licenses.md)), so the same license works on a desktop and a server, and it gates the same things.
-- The Office runtime pack downloads into `runtime/office/` on first use, as on the desktop; the image carries the system libraries LibreOffice needs.
+- The Office runtime pack downloads into `runtime/office/` on first use, as on the desktop. The CPU image does not carry the system libraries LibreOffice needs yet; they come with the runtimes in steps 7 to 9.
 - The container runs as a non-root `surfsense` user, which owns `/data`, `HOME` included.
 
 ## The image
@@ -276,7 +277,7 @@ ChatGPT signs in as OpenAI's client ([Sign in with ChatGPT for open-source apps]
 | `frontend` | `pnpm build` with `VITE_API_BASE=/api` |
 | `backend` | `uv sync` into the backend's `.venv`; torch from the CPU index, as [`pyproject.toml`](../../../surfsense_local/backend/pyproject.toml) pins on Linux |
 | `runtimes` | llama.cpp and opencode with ripgrep from upstream, sd.cpp from the desktop's recipe, and audio.cpp with eSpeak as the desktop builds it, staged by `runtimes/` with the image's target and variant ([`gpu.md`](gpu.md#where-each-runtime-comes-from)) |
-| `models` | bge-small, the Docling parser pack, Kokoro and Silero VAD, by the backend's fetch scripts |
+| `models` | bge-small, the Docling parser pack and Silero VAD, by the backend's fetch scripts; Kokoro with audio.cpp in step 8 |
 | `runtime` | the above, `sidecars/`, `headless/`, Node 24, Caddy and tini |
 
 - `linux/amd64` first. `linux/arm64` follows once `runtimes/` has pinned `linux-arm64` builds of each runtime; today every staging script knows `linux-x64` only.
@@ -288,24 +289,26 @@ ChatGPT signs in as OpenAI's client ([Sign in with ChatGPT for open-source apps]
 `docker/surfsense/docker-compose.yml`:
 
 ```yaml
+name: surfsense
+
 services:
   surfsense:
-    image: ghcr.io/modsetter/surfsense:${SURFSENSE_VERSION:-latest}${SURFSENSE_VARIANT:+-${SURFSENSE_VARIANT}}
+    image: ${SURFSENSE_IMAGE:-ghcr.io/modsetter/surfsense}:${SURFSENSE_VERSION:-latest}${SURFSENSE_VARIANT:+-${SURFSENSE_VARIANT}}
     ports:
-      - "${SURFSENSE_BIND:-127.0.0.1}:${SURFSENSE_PORT:-3929}:80"
+      - "${SURFSENSE_BIND:-127.0.0.1}:${SURFSENSE_PORT:-4929}:80"
     volumes:
       - surfsense_data:/data
     environment:
-      SURFSENSE_PASSWORD: ${SURFSENSE_PASSWORD:-}
-      SURFSENSE_ALLOWED_HOSTS: ${SURFSENSE_ALLOWED_HOSTS:-}
-      SURFSENSE_DOMAIN: ${SURFSENSE_DOMAIN:-}
+      SURFSENSE_LOCAL_PUBLIC_PORT: ${SURFSENSE_PORT:-4929}
+      SURFSENSE_LOCAL_SECRET: ${SURFSENSE_SECRET:-}
     stop_grace_period: 30s
     restart: unless-stopped
+
 volumes:
   surfsense_data:
 ```
 
-`stop_grace_period` covers the supervisor's stop, which sends SIGKILL to a child 5 s after SIGTERM; Docker's default of 10 s is too tight with ten children. A GPU override file sits beside it ([`gpu.md`](gpu.md)).
+`SURFSENSE_LOCAL_PUBLIC_PORT` is the published port, which sign-ins send the browser back to. `SURFSENSE_PASSWORD`, `SURFSENSE_ALLOWED_HOSTS` and `SURFSENSE_DOMAIN` join with steps 10 and 11. `stop_grace_period` covers the supervisor's stop, which sends SIGKILL to a child 5 s after SIGTERM; Docker's default of 10 s is too tight with ten children. A GPU override file sits beside it ([`gpu.md`](gpu.md)).
 
 ## CI
 

@@ -2,6 +2,7 @@ import asyncio
 import contextlib
 from urllib.parse import parse_qs, urlsplit
 
+from api.config import get_settings
 from modules.llm.subscriptions.chatgpt.endpoints import CALLBACK_PATH
 
 # Shown in the browser tab the sign-in ends in; the app itself says what happened.
@@ -27,9 +28,16 @@ class Loopback:
         self._server: asyncio.Server | None = None
 
     async def open(self) -> str:
-        """Start listening and return the redirect URI to hand OpenAI."""
-        self._server = await asyncio.start_server(self._serve, "127.0.0.1", 0)
-        port = self._server.sockets[0].getsockname()[1]
+        """Start listening and return the redirect URI to hand OpenAI.
+
+        In the Docker image the browser cannot reach this listener: it listens on
+        the port Caddy forwards `/callback` to, and OpenAI returns through the published one.
+        """
+        settings = get_settings()
+        self._server = await asyncio.start_server(
+            self._serve, "127.0.0.1", settings.chatgpt_callback_port
+        )
+        port = settings.public_port or self._server.sockets[0].getsockname()[1]
         return f"http://127.0.0.1:{port}{CALLBACK_PATH}"
 
     async def callback(self) -> dict[str, str]:

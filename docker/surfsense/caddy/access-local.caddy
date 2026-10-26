@@ -1,0 +1,5 @@
+# Without a password, only requests addressed to this machine: an instance with
+# no sign-in cannot be reached from the network by accident, and a page on
+# another site cannot rebind a name to it.
+@elsewhere not host localhost 127.0.0.1 ::1
+respond @elsewhere "SurfSense answers only on localhost until SURFSENSE_PASSWORD is set." 403

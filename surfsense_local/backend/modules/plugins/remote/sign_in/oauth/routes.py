@@ -79,7 +79,9 @@ class RedirectUri(BaseModel):
 )
 def redirect_uri() -> RedirectUri:
     """The plugin host's page when packaged, the API's loopback one in a developer's build."""
-    return RedirectUri(redirect_uri=sign_in_client(get_settings().port).redirect_uri)
+    return RedirectUri(
+        redirect_uri=sign_in_client(get_settings().browser_port()).redirect_uri
+    )
 
 
 class SignInAgainWrite(BaseModel):

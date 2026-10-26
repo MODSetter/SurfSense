@@ -15,6 +15,7 @@ const READY: Option = {
   version: "2.1.301",
   email: "ada@example.com",
   plan: "max",
+  in_container: false,
   serves: ["text_gen"],
   hosts: [],
 }
@@ -54,11 +55,11 @@ function serve(
       if (path === "/llm/connections/claude/status") {
         // Claude Code is still being run: the answer never comes in this test.
         if (checking) return new Promise<Response>(() => {})
-        const { state, version, email, plan } = {
+        const { state, version, email, plan, in_container } = {
           ...READY,
           ...(states.length > 1 ? states.shift() : states[0]),
         }
-        return Response.json({ state, version, email, plan })
+        return Response.json({ state, version, email, plan, in_container })
       }
       if (path === "/llm/connections")
         return Response.json(made ? [CONNECTED] : [])
@@ -116,6 +117,54 @@ describe("the Claude plan option beside the ChatGPT one", () => {
     expect(window.surfsense?.openExternal).toHaveBeenCalledWith(
       CLAUDE_INSTALL_URL
     )
+  })
+
+  it("in the Docker image, gives the commands that install and sign in Claude Code in the container", async () => {
+    serve([
+      {
+        state: "not_installed",
+        version: null,
+        email: null,
+        plan: null,
+        in_container: true,
+      },
+    ])
+    const user = userEvent.setup()
+    render(<ClaudeRow modelType="text_gen" onConnected={vi.fn()} />)
+
+    await user.click(await setUp())
+    expect(
+      await screen.findByText(/Install Claude Code in the SurfSense container/)
+    ).toBeTruthy()
+    const commands = screen
+      .getAllByRole("textbox")
+      .map((box) => (box as HTMLInputElement).value)
+    expect(commands).toEqual([
+      "docker compose exec surfsense sh -c 'curl -fsSL https://claude.ai/install.sh | bash'",
+      "docker compose exec -it surfsense claude",
+    ])
+    // The guide is for a desktop install, which the container cannot use.
+    expect(
+      screen.queryByRole("button", { name: "Open install guide" })
+    ).toBeNull()
+  })
+
+  it("in the Docker image, a signed-out Claude Code is signed in inside the container", async () => {
+    serve([
+      { state: "signed_out", email: null, plan: null, in_container: true },
+    ])
+    const user = userEvent.setup()
+    render(<ClaudeRow modelType="text_gen" onConnected={vi.fn()} />)
+
+    await user.click(await setUp())
+    expect(
+      await screen.findByText(/not signed in to a Claude plan/)
+    ).toBeTruthy()
+    expect(
+      screen
+        .getAllByRole("textbox")
+        .map((box) => (box as HTMLInputElement).value)
+    ).toEqual(["docker compose exec -it surfsense claude"])
   })
 
   it("checks again after the user signs in in a terminal", async () => {

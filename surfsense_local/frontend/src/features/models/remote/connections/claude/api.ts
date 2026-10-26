@@ -23,6 +23,8 @@ export type ClaudeStatus = {
   email: string | null
   /** As Claude Code reports it: `pro`, `max`, `team`. */
   plan: string | null
+  /** The Docker image: Claude Code is installed and signed in inside the container. */
+  in_container: boolean
 }
 
 /** Anthropic's own install guide, the one outside page the dialog opens. */
