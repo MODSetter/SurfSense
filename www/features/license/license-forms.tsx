@@ -6,6 +6,7 @@ import { HomeButton } from "@/components/site/home-button";
 import { siteText } from "@/components/site/site-text";
 import { cn } from "@/components/ui/cn";
 import { Spinner } from "@/components/ui/spinner";
+import { fireConfetti } from "@/features/celebration/confetti-burst";
 import { currentChannel } from "@/features/funnel-attribution/current-channel";
 import { trackTrialRequested } from "@/features/funnel-attribution/funnel-events";
 import { trialOutcome } from "@/features/funnel-attribution/trial-outcome";
@@ -225,6 +226,8 @@ export function TrialForm({
 			status = response.status;
 			if (response.ok) {
 				setOutcome({ kind: "ok", message: TRIAL_SENT });
+				// No once-flag: the same address cannot be sent a second trial (409).
+				fireConfetti();
 			} else if (response.status === 409) {
 				// Unlike resend, trial can report its outcome: it has to say
 				// "already claimed", so there is nothing to keep secret.

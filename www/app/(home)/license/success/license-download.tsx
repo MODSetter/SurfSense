@@ -6,6 +6,8 @@ import { HomeButton } from "@/components/site/home-button";
 import { siteText } from "@/components/site/site-text";
 import { cn } from "@/components/ui/cn";
 import { Spinner } from "@/components/ui/spinner";
+import { browserFlags, celebrateOnce } from "@/features/celebration/celebrate-once";
+import { fireConfetti } from "@/features/celebration/confetti-burst";
 import { buildBackendUrl } from "@/features/license/backend-url";
 
 const LICENSE_FILENAME = "surfsense.lic";
@@ -57,10 +59,12 @@ export function LicenseDownload() {
 			if (certificate === null) return;
 			triggerDownload(certificate);
 			setState("ready");
+			// Once per checkout: a retry, a reload or a second press stays quiet.
+			if (sessionId) celebrateOnce(sessionId, { storage: browserFlags, fire: fireConfetti });
 		} catch {
 			setState("error");
 		}
-	}, [fetchLicense]);
+	}, [fetchLicense, sessionId]);
 
 	useEffect(() => {
 		// The webhook can lag the redirect by 30s, so the first attempt may be
