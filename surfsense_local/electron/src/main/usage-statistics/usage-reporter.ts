@@ -1,28 +1,43 @@
 import type { UsageLockReason } from "../admin-policy/policy-locks.ts"
 import type { OsLabel, PlatformLabel } from "../system-labels.ts"
 import { utcDay } from "../utc-calendar.ts"
-import { activeFlags, reportedToday, reportPeriod } from "./active-flags.ts"
-import type { PrivacyFile, PrivacyStore } from "./privacy-file.ts"
+import { activeFlags, reportedToday, reportPeriod, type ActiveFlags } from "./active-flags.ts"
+import {
+  carriesHardware,
+  carriesWeek,
+  inFirstWeek,
+  weekSince,
+  type ReportTrigger,
+} from "./first-week.ts"
+import { sentHardware, type PrivacyFile, type PrivacyStore } from "./privacy-file.ts"
 import { buildUsageReport, type UsageReport } from "./report-body.ts"
+import { furthestStep, setupReportDue } from "./setup-progress.ts"
 
-// Contract 05, part B: one accepted report per UTC day, three tries at most,
-// 10 s each, and never more than 4 KB.
+// Contract 05, part B: one accepted daily report per UTC day, three tries at
+// most, 10 s each, and never more than 4 KB.
 const MAX_ATTEMPTS_PER_DAY = 3
 const SEND_TIMEOUT_MS = 10_000
 const MAX_BODY_BYTES = 4096
 // After launch, so a report never competes with the API starting up.
 const FIRST_ATTEMPT_DELAY_MS = 2 * 60_000
 const HOUR_MS = 3_600_000
-const WEEK_MS = 7 * 86_400_000
+// Revision 1.1, part D: how often the first week looks for a new setup step.
+const SETUP_CHECK_MS = 5 * 60_000
+// A setup report counts no one as active; only the daily report does.
+const NO_FLAGS: ActiveFlags = { first: false, week: false, month: false }
 
 export type AttemptResult = "sent" | "failed" | "skipped"
 
+const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error))
+
 export type UsageReporter = {
-  /** One try, if allowed now; the schedule calls it, tests call it directly. */
+  /** One try at the daily report, if allowed now; the schedule calls it, tests call it directly. */
   attempt(): Promise<AttemptResult>
-  /** The exact next body, built but not sent; null where this machine has no contract label. */
+  /** One look for a setup step no report carried yet, sent as a setup report; first week only. */
+  checkSetup(): Promise<AttemptResult>
+  /** The exact next daily body, built but not sent; null where this machine has no contract label. */
   preview(): Promise<UsageReport | null>
-  /** First try about two minutes after launch, then an hourly tick. */
+  /** First try about two minutes after launch, then an hourly tick, and the first week's setup checks. */
   start(): void
   /** A try about two minutes from now, after the user turns reports on. */
   nudge(): void
@@ -65,19 +80,29 @@ export function createUsageReporter(deps: {
   const log = deps.log ?? (() => undefined)
   const { platform, os, appVersion } = deps.facts
   const host = deps.endpoint ? new URL(deps.endpoint).host : null
-  let inFlight = false
+  let dailyInFlight = false
+  let setupInFlight: Promise<AttemptResult> | null = null
   let cancelNudge: (() => void) | null = null
   const stops: Array<() => void> = []
 
-  const build = async (file: PrivacyFile, at: Date): Promise<UsageReport | null> => {
+  const build = async (
+    file: PrivacyFile,
+    at: Date,
+    trigger: ReportTrigger
+  ): Promise<UsageReport | null> => {
     if (platform === null || os === null) return null
-    const summary = await deps.summary(new Date(at.getTime() - WEEK_MS))
+    const firstWeek = inFirstWeek(file.firstRunAt, at)
+    const flags = trigger === "daily" ? activeFlags(file.lastReport, at) : NO_FLAGS
+    const summary = await deps.summary(weekSince(file.firstRunAt, at))
     return buildUsageReport({
       appVersion,
       platform,
       os,
       firstRunAt: file.firstRunAt,
-      flags: activeFlags(file.lastReport, at),
+      trigger,
+      flags,
+      withHardware: carriesHardware({ trigger, flags, firstWeek, sent: file.hardwareSent }),
+      withWeek: carriesWeek(trigger, flags, firstWeek),
       summary,
       locale: deps.locale(),
       totalMemoryBytes: deps.totalMemoryBytes(),
@@ -93,30 +118,20 @@ export function createUsageReporter(deps: {
     platform !== null &&
     os !== null
 
-  const attempt = async (): Promise<AttemptResult> => {
-    if (inFlight) return "skipped"
-    const file = deps.store.read()
-    if (!allowed(file)) return "skipped"
-    const at = now()
-    if (reportedToday(file.lastReport, at)) return "skipped"
-    const day = utcDay(at)
-    const tries = file.attempts?.day === day ? file.attempts.count : 0
-    if (tries >= MAX_ATTEMPTS_PER_DAY) return "skipped"
-    deps.store.update((current) => ({ ...current, attempts: { day, count: tries + 1 } }))
-    inFlight = true
+  /** "sent" only once the endpoint accepted it; `retry` says when the next try comes. */
+  const post = async (body: UsageReport, retry: string): Promise<AttemptResult> => {
+    const what = `${body.trigger} usage report`
+    const json = JSON.stringify(body)
+    if (Buffer.byteLength(json) > MAX_BODY_BYTES) {
+      log(`${what} not sent: over 4 KB`)
+      return "failed"
+    }
+    // Asked again: the user may have said no while the summary was read.
+    if (!allowed(deps.store.read())) {
+      log(`${what} not sent: switched off while it was being built`)
+      return "skipped"
+    }
     try {
-      const body = await build(file, at)
-      if (body === null) return "skipped"
-      const json = JSON.stringify(body)
-      if (Buffer.byteLength(json) > MAX_BODY_BYTES) {
-        log("usage report not sent: over 4 KB")
-        return "failed"
-      }
-      // Asked again: the user may have said no while the summary was read.
-      if (!allowed(deps.store.read())) {
-        log("usage report not sent: switched off while it was being built")
-        return "skipped"
-      }
       const reply = await deps.fetch(deps.endpoint!, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -128,41 +143,106 @@ export function createUsageReporter(deps: {
         signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
       })
       if (!reply.ok) {
-        log(`usage report to ${host} not accepted (HTTP ${reply.status}), try ${tries + 1} of 3 today`)
+        log(`${what} to ${host} not accepted (HTTP ${reply.status}), ${retry}`)
         return "failed"
       }
-      deps.store.update((current) => ({
-        ...current,
-        lastReport: reportPeriod(at),
-        lastSent: { at: at.toISOString(), body },
-      }))
-      log(`usage report sent to ${host}`)
-      deps.onSent?.()
       return "sent"
     } catch (error) {
       const reason = error instanceof Error && error.name === "TimeoutError" ? "timed out" : "unreachable"
-      log(`usage report to ${host} ${reason}, try ${tries + 1} of 3 today`)
+      log(`${what} to ${host} ${reason}, ${retry}`)
       return "failed"
-    } finally {
-      inFlight = false
     }
   }
 
-  const run = () => void attempt()
+  // What any accepted report leaves behind, daily or setup.
+  const accepted = (file: PrivacyFile, body: UsageReport, at: Date): PrivacyFile => ({
+    ...file,
+    lastSent: { at: at.toISOString(), body },
+    onboardingReported: furthestStep(file.onboardingReported, body.week?.onboarding),
+    hardwareSent: sentHardware(body.hardware) ?? file.hardwareSent,
+  })
+
+  const attempt = async (): Promise<AttemptResult> => {
+    // A setup report about to record a step goes first, so this one sees it.
+    if (setupInFlight) await setupInFlight
+    if (dailyInFlight) return "skipped"
+    const file = deps.store.read()
+    if (!allowed(file)) return "skipped"
+    const at = now()
+    if (reportedToday(file.lastReport, at)) return "skipped"
+    const day = utcDay(at)
+    const tries = file.attempts?.day === day ? file.attempts.count : 0
+    if (tries >= MAX_ATTEMPTS_PER_DAY) return "skipped"
+    deps.store.update((current) => ({ ...current, attempts: { day, count: tries + 1 } }))
+    dailyInFlight = true
+    try {
+      const body = await build(file, at, "daily")
+      if (body === null) return "skipped"
+      const result = await post(body, `try ${tries + 1} of 3 today`)
+      if (result !== "sent") return result
+      deps.store.update((current) => ({ ...accepted(current, body, at), lastReport: reportPeriod(at) }))
+      log(`daily usage report sent to ${host}`)
+      deps.onSent?.()
+      return "sent"
+    } catch (error) {
+      log(`daily usage report not built: ${errorText(error)}`)
+      return "failed"
+    } finally {
+      dailyInFlight = false
+    }
+  }
+
+  const setupCheck = async (): Promise<AttemptResult> => {
+    const file = deps.store.read()
+    const at = now()
+    if (!allowed(file) || !inFirstWeek(file.firstRunAt, at)) return "skipped"
+    const body = await build(file, at, "setup")
+    if (body === null || !setupReportDue(body.week?.onboarding, deps.store.read().onboardingReported)) {
+      return "skipped"
+    }
+    const result = await post(body, "checked again in 5 minutes")
+    if (result !== "sent") return result
+    // Never lastReport or attempts: the daily report still goes today.
+    deps.store.update((current) => accepted(current, body, at))
+    log(`setup usage report sent to ${host}`)
+    deps.onSent?.()
+    return "sent"
+  }
+
+  const checkSetup = async (): Promise<AttemptResult> => {
+    // The daily report in flight may carry the same step; the next check sees it.
+    if (dailyInFlight || setupInFlight) return "skipped"
+    setupInFlight = setupCheck()
+      .catch((error: unknown): AttemptResult => {
+        log(`setup usage report not built: ${errorText(error)}`)
+        return "failed"
+      })
+      .finally(() => {
+        setupInFlight = null
+      })
+    return setupInFlight
+  }
+
+  const tryDaily = () => void attempt()
+  const tryBoth = () => void attempt().then(checkSetup)
 
   return {
     attempt,
-    preview: async () => {
-      const at = now()
-      return build(deps.store.read(), at)
-    },
+    checkSetup,
+    preview: async () => build(deps.store.read(), now(), "daily"),
     start() {
-      stops.push(timers.after(run, FIRST_ATTEMPT_DELAY_MS))
-      stops.push(timers.every(run, HOUR_MS))
+      stops.push(timers.after(tryBoth, FIRST_ATTEMPT_DELAY_MS))
+      stops.push(timers.every(tryDaily, HOUR_MS))
+      if (!inFirstWeek(deps.store.read().firstRunAt, now())) return
+      const cancel = timers.every(() => {
+        if (inFirstWeek(deps.store.read().firstRunAt, now())) void checkSetup()
+        else cancel()
+      }, SETUP_CHECK_MS)
+      stops.push(cancel)
     },
     nudge() {
       cancelNudge?.()
-      cancelNudge = timers.after(run, FIRST_ATTEMPT_DELAY_MS)
+      cancelNudge = timers.after(tryBoth, FIRST_ATTEMPT_DELAY_MS)
     },
     stop() {
       cancelNudge?.()

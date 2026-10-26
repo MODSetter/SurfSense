@@ -31,6 +31,8 @@ test("a new install has never been asked, and its first run is stamped once", ()
       lastReport: null,
       lastSent: null,
       attempts: null,
+      onboardingReported: null,
+      hardwareSent: null,
     })
     assert.equal(later.firstRunAt, "2026-10-21T09:00:00.000Z")
     assert.equal(JSON.parse(readFileSync(path, "utf8")).firstRunAt, first.firstRunAt)
@@ -64,6 +66,8 @@ test("junk on disk reads as never set", () => {
         lastReport: { day: "today", week: "2026-W43", month: "2026-10" },
         lastSent: { at: "never", body: {} },
         attempts: { day: "2026-10-21", count: "3" },
+        onboardingReported: "unknown",
+        hardwareSent: { gpu: 1, vram_gb: "8-11" },
       },
       NOW
     ),
@@ -74,8 +78,36 @@ test("junk on disk reads as never set", () => {
       lastReport: null,
       lastSent: null,
       attempts: null,
+      onboardingReported: null,
+      hardwareSent: null,
     }
   )
+})
+
+test("what the reports carried is kept, and a file from before it was kept reads it from the last report", () => {
+  const sentBody = {
+    schema: 1,
+    hardware: { ram_gb: "16-31", gpu: "nvidia", vram_gb: "8-11" },
+    week: { chat_turns: "0", onboarding: "model_ready" },
+  }
+  const older = parsePrivacyFile(
+    { firstRunAt: NOW.toISOString(), lastSent: { at: NOW.toISOString(), body: sentBody } },
+    NOW
+  )
+  assert.equal(older.onboardingReported, "model_ready")
+  // Sent before gpu_runtime existed, so nothing says whether the runtime reaches the card.
+  assert.deepEqual(older.hardwareSent, { gpu: "nvidia", vram_gb: "8-11", gpu_runtime: null })
+
+  const kept = parsePrivacyFile(
+    {
+      lastSent: { at: NOW.toISOString(), body: { ...sentBody, hardware: null, week: null } },
+      onboardingReported: "first_answer",
+      hardwareSent: { gpu: "amd", vram_gb: "unknown", gpu_runtime: "unreachable" },
+    },
+    NOW
+  )
+  assert.equal(kept.onboardingReported, "first_answer")
+  assert.deepEqual(kept.hardwareSent, { gpu: "amd", vram_gb: "unknown", gpu_runtime: "unreachable" })
 })
 
 test("a failed write keeps the choice for this run and is reported, never thrown", () => {
