@@ -47,6 +47,7 @@ jobs:
               - 'surfsense_local/sidecars/**'
               - 'surfsense_local/runtimes/**'
               - 'surfsense_local/headless/**'
+              - 'surfsense_local/VERSION'
               - 'backend/plugins/bundles/core/**'
               - '.github/workflows/docker-surfsense.yml'
 

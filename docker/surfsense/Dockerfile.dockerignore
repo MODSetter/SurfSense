@@ -8,6 +8,7 @@
 !surfsense_local/runtimes/
 !surfsense_local/sidecars/
 !surfsense_local/headless/
+!surfsense_local/VERSION
 
 # Anything a checkout builds or caches locally.
 **/node_modules/

@@ -52,6 +52,8 @@ function AppIdentity({ version }: { version?: string }) {
 
 export function AboutSettings() {
   const { data: details } = useAppDetails()
+  // The Docker image has no desktop app to ask; it is built with its version.
+  const version = details?.version ?? import.meta.env.VITE_SURFSENSE_VERSION
 
   return (
     <SettingsSection
@@ -66,7 +68,7 @@ export function AboutSettings() {
       })}
       scrollable="all"
     >
-      <AppIdentity version={details?.version} />
+      <AppIdentity version={version} />
       <UpdateSettings />
       <UsageStatisticsSettings />
       <DataFolder />
@@ -79,15 +81,15 @@ export function AboutSettings() {
           })}
         </h3>
         <div className="mt-1 flex flex-col gap-2">
-          {details ? (
-            <ExternalLink href={releaseNotesUrl(details.version)}>
+          {version ? (
+            <ExternalLink href={releaseNotesUrl(version)}>
               {intl.formatMessage({
                 id: "about_release_notes_link",
                 defaultMessage: "Release notes",
               })}
             </ExternalLink>
           ) : null}
-          <ExternalLink href={docsUrl(details?.version)}>
+          <ExternalLink href={docsUrl(version)}>
             {intl.formatMessage({
               id: "about_docs_link",
               defaultMessage: "Documentation",

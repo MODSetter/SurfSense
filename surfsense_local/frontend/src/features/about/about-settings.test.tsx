@@ -33,6 +33,7 @@ afterEach(() => {
   cleanup()
   delete window.surfsense
   vi.restoreAllMocks()
+  vi.unstubAllEnvs()
 })
 
 describe("AboutSettings", () => {
@@ -100,5 +101,15 @@ describe("AboutSettings", () => {
     expect(
       await screen.findByRole("button", { name: "Version copied" })
     ).toBeTruthy()
+  })
+
+  it("shows the version the image was built with where there is no desktop app", async () => {
+    vi.stubEnv("VITE_SURFSENSE_VERSION", "2.0.3")
+    render(<AboutSettings />)
+
+    expect(await screen.findByText("Version 2.0.3")).toBeTruthy()
+    expect(
+      screen.getByRole("link", { name: "Release notes" }).getAttribute("href")
+    ).toBe("https://github.com/MODSetter/SurfSense/releases/tag/v2.0.3")
   })
 })

@@ -199,7 +199,8 @@ Every bridge call is already optional (`window.surfsense?.…`). The build for t
 | Keychain secret ([ADR 0018](../../adr/0018-keychain-envelope-encryption.md)) | `SURFSENSE_LOCAL_SECRET`, else `/data/secret` ([the headless entry](#the-headless-entry)) |
 | Word and web-page previews | Word and decks through LibreOffice when Office support is on; otherwise none, refused at once |
 | Claude subscription, through the user's own Claude Code | the same, with Claude Code installed in the container ([below](#claude-subscriptions)) |
-| Session log, About details, crash toast | hidden |
+| About's version | the image's, set when its frontend is built from `surfsense_local/VERSION` |
+| Session log, the rest of About's details, crash toast | hidden |
 | Theme, locale, external links | the browser fallbacks that exist |
 
 ### Claude subscriptions
