@@ -63,7 +63,7 @@ export const metadata: Metadata = {
  * `new Date()`: a render-time date causes a hydration mismatch and tells every
  * reader the document changed the moment they opened it.
  */
-const LAST_UPDATED = "October 22, 2026";
+const LAST_UPDATED = "October 27, 2026";
 
 /** Matches the `prose` treatment used for blog posts. */
 const PROSE =
@@ -162,15 +162,21 @@ export default function PrivacyPolicy() {
 						</li>
 						<li>
 							<strong>Usage statistics, to usage.surfsense.com.</strong> From version 2.2.4, only if
-							you opt in, and at most once a day. Each report sends the app's version, platform,
-							operating system and interface language, the week the app was installed, and whether
-							this is its first report ever, this week and this month. Once a week it adds counts in
-							ranges, such as 10-49, for the past seven days: chat turns, agent turns, whether a
-							local or a remote model answered, the documents in your library, Studio outputs,
-							plugin calls, and how far setup got. The first report adds your computer's memory,
-							graphics card maker and graphics memory, also in ranges. It never sends documents,
-							prompts, file names, model names, model hosts, your licence key or an identifier.
-							Settings shows the exact next report and the last one sent.
+							you opt in: one report a day, and, from version 2.2.5, during the install's first week
+							one more each time setup reaches a new step (at most four more). A report that does
+							not get through is tried again later. Each report sends the app's version, platform,
+							operating system and interface language, the week the app was installed, why it was
+							sent (the day's report or a new setup step), and whether this is its first daily
+							report ever, this week and this month. Once a week it adds counts in ranges, such as
+							10-49, for the past seven days: chat turns, agent turns, whether a local or a remote
+							model answered, the documents in your library, Studio outputs, plugin calls, and how
+							far setup got. During the first week every report carries those counts, for the time
+							since installation. The first report adds your computer's memory, graphics card maker
+							and graphics memory, also in ranges, and whether SurfSense's model runtime can use the
+							graphics card; during the first week that is sent again only while part of it is
+							unknown. It never sends documents, prompts, file names, model names, model hosts, your
+							licence key or an identifier. Settings shows the exact next daily report and the last
+							report sent.
 						</li>
 						<li>
 							<strong>Model search and downloads, to huggingface.co.</strong> Searching sends what
@@ -219,15 +225,16 @@ export default function PrivacyPolicy() {
 						The desktop app contains no analytics library, no crash reporting and no advertising
 						identifiers, and sends no usage analytics unless you opt in. From version 2.2.4, with
 						update checks on, SurfSense can count the installs that checked in each day, with their
-						versions, platforms and countries. With usage statistics on, it also receives the weekly
-						counts in ranges that section 3.2 lists. Neither carries documents, prompts, file names,
-						model hosts, your licence key or an identifier, so we cannot see what you did in the
-						app, and no identifier ties one install's reports together, although an uncommon
-						combination of version, platform, language, install week and country could single one
-						install out. Each request's IP address is used by our hosting providers to route it and
-						to derive a country. Their server and edge logs hold it for the short time sections 4.5
-						and 8 describe, and SurfSense keeps only the country. With both off, we cannot tell
-						whether you ever opened the app. You can turn either off in Settings at any time, set{" "}
+						versions, platforms and countries. With usage statistics on, it also receives the counts
+						in ranges that section 3.2 lists, weekly, and with each report in an install's first
+						week. Neither carries documents, prompts, file names, model hosts, your licence key or
+						an identifier, so we cannot see what you did in the app, and no identifier ties one
+						install's reports together, although an uncommon combination of version, platform,
+						language, install week and country could single one install out. Each request's IP
+						address is used by our hosting providers to route it and to derive a country. Their
+						server and edge logs hold it for the short time sections 4.5 and 8 describe, and
+						SurfSense keeps only the country. With both off, we cannot tell whether you ever opened
+						the app. You can turn either off in Settings at any time, set{" "}
 						<code>DO_NOT_TRACK=1</code> to keep usage statistics off, or have an administrator turn
 						either off for a whole computer. SurfSense's own plugins are separate. That service sees
 						the requests you send them, as section 4.4 describes, and, once you have added a paid
