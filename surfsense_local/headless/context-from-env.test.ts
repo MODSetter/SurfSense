@@ -35,10 +35,10 @@ test("each folder can be named in the environment", () => {
   assert.equal(context.backendDir, "/srv/backend")
   assert.equal(context.dataDir, "/srv/data")
   assert.equal(context.modelsDir, "/srv/models")
-  assert.equal(context.llamacppBinariesDir, "/srv/runtimes/llamacpp")
-  assert.equal(context.audioBinariesDir, "/srv/runtimes/audiocpp")
-  assert.equal(context.sdcppBinariesDir, "/srv/runtimes/sdcpp")
-  assert.equal(context.opencodeBinariesDir, "/srv/runtimes/opencode")
+  assert.equal(context.llamacppBinariesDir, join("/srv/runtimes", "llamacpp"))
+  assert.equal(context.audioBinariesDir, join("/srv/runtimes", "audiocpp"))
+  assert.equal(context.sdcppBinariesDir, join("/srv/runtimes", "sdcpp"))
+  assert.equal(context.opencodeBinariesDir, join("/srv/runtimes", "opencode"))
 })
 
 test("an empty variable is unset, not a folder named nothing", () => {

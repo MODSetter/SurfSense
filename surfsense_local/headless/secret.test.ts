@@ -22,7 +22,8 @@ test("a fresh volume gets one secret, kept private, and the same one ever after"
   const dir = join(dataDir(t), "not-yet-made")
   const first = resolveSecret({}, dir)
   assert.match(first, /^[0-9a-f]{64}$/)
-  assert.equal(statSync(join(dir, "secret")).mode & 0o777, 0o600)
+  // Windows keeps no POSIX modes; the container is Linux.
+  if (process.platform !== "win32") assert.equal(statSync(join(dir, "secret")).mode & 0o777, 0o600)
   assert.equal(resolveSecret({}, dir), first)
   assert.equal(readFileSync(join(dir, "secret"), "utf8").trim(), first)
 })
