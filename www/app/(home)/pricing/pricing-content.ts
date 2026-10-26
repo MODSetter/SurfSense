@@ -181,7 +181,7 @@ export const FAQ_FEATURE_REQUEST: PricingQuestion = {
 export const FAQ_FREE_TRIAL: PricingQuestion = {
 	question: "Is there a free trial?",
 	answer:
-		"Yes. A 14-day licence comes with the free plan. It needs only an email address, with no card and no account. You enter your email on the download page, receive a licence file, import it in Settings › License, and every SurfSense plugin is unlocked for 30 days.",
+		"Yes. A 14-day licence comes with the free plan. It needs only an email address, with no card and no account. You enter your email on the download page, receive a licence file, import it in Settings › License, and every SurfSense plugin is unlocked for 14 days.",
 };
 
 export const FAQ_RENEWAL: PricingQuestion = {
