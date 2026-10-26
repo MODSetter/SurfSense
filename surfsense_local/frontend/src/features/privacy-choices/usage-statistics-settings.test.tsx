@@ -70,7 +70,12 @@ describe("usage statistics in Settings › About", () => {
       name: "What usage statistics send",
     })
     expect(dialog.textContent).toContain("usage.surfsense.com")
-    const next = await within(dialog).findByLabelText("The next usage report")
+    expect(dialog.textContent).toContain(
+      "during the install’s first week one more each time setup reaches a new step, at most four more"
+    )
+    const next = await within(dialog).findByLabelText(
+      "The next daily usage report"
+    )
     expect(next.textContent).toContain('"app_version": "2.2.4"')
     const sent = within(dialog).getByLabelText("The last usage report sent")
     expect(sent.textContent).toContain('"first": true')
@@ -148,7 +153,7 @@ describe("App updates in Settings › About", () => {
     ).toBeTruthy()
     expect(
       screen.getByText(
-        "A daily count of how SurfSense is used, in ranges. Never your documents, prompts or an ID."
+        "A daily count of how SurfSense is used, in ranges, and one more for each setup step in the first week. Never your documents, prompts or an ID."
       )
     ).toBeTruthy()
 
@@ -165,7 +170,15 @@ describe("App updates in Settings › About", () => {
     await user.hover(
       screen.getByRole("button", { name: "What usage statistics send" })
     )
-    expect((await screen.findByRole("tooltip")).textContent).toContain(
+    const usageDetails = (await screen.findByRole("tooltip")).textContent
+    expect(usageDetails).toContain(
+      "During the install’s first week it sends one more each time setup reaches a new step, at most four more."
+    )
+    expect(usageDetails).toContain("whether the model runtime can use the card")
+    expect(usageDetails).toContain(
+      "in the first week they go again only while part of them is unknown"
+    )
+    expect(usageDetails).toContain(
       "Never documents, prompts, file names, model names, hosts, your license key or an ID."
     )
   })
