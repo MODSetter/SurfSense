@@ -88,7 +88,7 @@ Edições, conversões e ferramentas de PDF sempre geram um arquivo novo; o seu 
 
 Conecte-os em **Configurações › Plugins**.
 
-**Da SurfSense.** Eles leem páginas públicas sem usar suas próprias contas e precisam de uma licença do SurfSense: [baixe o aplicativo](https://www.surfsense.com/downloads) e informe seu e-mail nele para receber uma licença gratuita de 30 dias.
+**Da SurfSense.** Eles leem páginas públicas sem usar suas próprias contas e precisam de uma licença do SurfSense: [baixe o aplicativo](https://www.surfsense.com/downloads) e informe seu e-mail nele para receber uma licença gratuita de 14 dias.
 
 | Plugin | O que faz |
 |---|---|

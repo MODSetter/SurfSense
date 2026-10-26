@@ -21,7 +21,7 @@ import { ResendForm } from "@/features/license/license-forms";
  * customer back to it after a support fix.
  *
  * The trial form used to sit above this one. It now lives on `/downloads`,
- * where the 30-day licence is claimed alongside the installer it needs.
+ * where the 14-day licence is claimed alongside the installer it needs.
  *
  * The explanatory blocks the first version ran as plain paragraphs are FAQ
  * content in substance, so they render as the same native `<details>`
@@ -79,7 +79,7 @@ const FAQ: { question: string; answer: React.ReactNode }[] = [
 		question: "Do not have a license yet?",
 		answer: (
 			<>
-				This page only sends back a license that already exists. The free 30-day license comes with
+				This page only sends back a license that already exists. The free 14-day license comes with
 				the app, on{" "}
 				<a className={siteText.link} href="/downloads">
 					the download page

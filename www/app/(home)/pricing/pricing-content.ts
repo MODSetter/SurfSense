@@ -15,13 +15,13 @@ import { DOWNLOADS_URL, EMAIL, REPO_URL } from "@/components/site/site-content";
  * follows the app's first-party list
  * (`surfsense_local/backend/modules/plugins/lists/first_party/plugins.json`).
  *
- * Three things here disagree with the plan documents, all decided after those
+ * The trial licence is 14 days, as the plan says: `LICENSE_TRIAL_DAYS` in
+ * `backend/license/settings.py` sets the expiry and the wording of the licence
+ * email.
+ *
+ * Two things here disagree with the plan documents, both decided after those
  * documents were written:
  *
- *   - **The licence is 30 days, not the 14 the plan still says.**
- *     `LICENSE_TRIAL_DAYS` defaults to 30 in `app/config/__init__.py` and in
- *     both `.env.example` files, and it is what sets the expiry and the wording
- *     of the licence email.
  *   - **Individual shows $60, the early-bird price**, because that is what a
  *     buyer pays today. It covers the first year and renews at the $120 list
  *     price.
@@ -58,7 +58,7 @@ import { DOWNLOADS_URL, EMAIL, REPO_URL } from "@/components/site/site-content";
  * new licence at the list price.
  *
  * Free has one button, to `/downloads`, and not a second one to `/license` for
- * the 30-day licence: that licence is claimed by email on `/downloads` itself,
+ * the 14-day licence: that licence is claimed by email on `/downloads` itself,
  * and a licence file is inert without the app anyway. `/license` is where
  * someone who already has a licence gets the file back.
  */
@@ -107,13 +107,13 @@ export const PLANS: Plan[] = [
 	{
 		name: "Free",
 		price: "$0",
-		note: "Includes a 30-day licence, no card",
+		note: "Includes a 14-day licence, no card",
 		summary: "The app and every update, forever. No account, no expiry.",
 		features: [
 			"The full app on Windows, macOS and Linux",
 			"Runs offline; your sources stay on your disk",
 			"Bring your own model keys, or run a local model",
-			"A 30-day licence for the plugins, sent by email",
+			"A 14-day licence for the plugins, sent by email",
 			"Open source, so you can build it yourself",
 		],
 		action: [{ label: "Download", href: DOWNLOADS_URL }],
@@ -181,7 +181,7 @@ export const FAQ_FEATURE_REQUEST: PricingQuestion = {
 export const FAQ_FREE_TRIAL: PricingQuestion = {
 	question: "Is there a free trial?",
 	answer:
-		"Yes. A 30-day licence comes with the free plan. It needs only an email address, with no card and no account. You enter your email on the download page, receive a licence file, import it in Settings › License, and every SurfSense plugin is unlocked for 30 days.",
+		"Yes. A 14-day licence comes with the free plan. It needs only an email address, with no card and no account. You enter your email on the download page, receive a licence file, import it in Settings › License, and every SurfSense plugin is unlocked for 30 days.",
 };
 
 export const FAQ_RENEWAL: PricingQuestion = {

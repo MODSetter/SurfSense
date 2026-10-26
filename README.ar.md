@@ -87,7 +87,7 @@ https://github.com/user-attachments/assets/073577b7-f055-4f59-8540-330bd764aeb0
 
 تُربط من **الإعدادات › الإضافات** (Settings › Plugins).
 
-**من SurfSense** (By SurfSense). تقرأ الصفحات العامة دون الحاجة إلى حسابات شخصية، وتتطلب رخصة SurfSense (License): يكفي [تنزيل التطبيق](https://www.surfsense.com/downloads) وإدخال البريد الإلكتروني فيه للحصول على رخصة مجانية لمدة 30 يومًا.
+**من SurfSense** (By SurfSense). تقرأ الصفحات العامة دون الحاجة إلى حسابات شخصية، وتتطلب رخصة SurfSense (License): يكفي [تنزيل التطبيق](https://www.surfsense.com/downloads) وإدخال البريد الإلكتروني فيه للحصول على رخصة مجانية لمدة 14 يومًا.
 
 | الإضافة | ما تفعله |
 |---|---|

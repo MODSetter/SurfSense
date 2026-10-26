@@ -240,7 +240,7 @@ export function ClosingCheckout() {
 					<ContinueToCheckout />
 				</div>
 				<p className={cn(siteText.body, "mt-6 text-sm")}>
-					Want to try the plugins first? The free plan comes with a 30-day licence and needs no
+					Want to try the plugins first? The free plan comes with a 14-day licence and needs no
 					card.{" "}
 					<Link className={siteText.link} href={DOWNLOADS_URL}>
 						Get it on the download page

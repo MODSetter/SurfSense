@@ -15,7 +15,7 @@ import { buildBackendUrl } from "@/features/license/backend-url";
 /**
  * The two license forms, now on separate pages. `ResendForm` is the whole of
  * `/license` (`page.tsx`), sitting in its hero as that page's one action.
- * `TrialForm` is claimed on `/downloads` instead, because the 30-day licence
+ * `TrialForm` is claimed on `/downloads` instead, because the 14-day licence
  * is part of the free plan and a licence file is inert without the app the
  * same page hands you.
  *
