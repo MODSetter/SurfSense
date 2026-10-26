@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from urllib.parse import urlencode
 
 # Written by bump-version.sh. Do not edit by hand.
-APP_RELEASE_VERSION = "2.2.4"
+APP_RELEASE_VERSION = "2.2.5"
 APP_RELEASE_TAG = f"v{APP_RELEASE_VERSION}"
 
 _DOWNLOADS_URL = "https://www.surfsense.com/downloads"
