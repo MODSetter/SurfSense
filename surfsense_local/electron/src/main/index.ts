@@ -26,9 +26,10 @@ import { allowedExternalUrl, confirmedExternalUrl } from "./external-url.ts"
 import { frameMayNavigate } from "./framed-navigation.ts"
 import { pluginPageUrl, type PluginPage } from "./plugin-page-url.ts"
 import { loadSecret } from "./secret.ts"
-import { bootSidecars, type BootContext } from "./sidecars/boot.ts"
-import { stopAll, type Sidecars } from "./sidecars/supervisor.ts"
-import type { SidecarContext } from "./sidecars/types.ts"
+import { bootSidecars, type BootContext } from "../../../sidecars/boot.ts"
+import { stopOnce } from "../../../sidecars/stop-once.ts"
+import { stopAll, type Sidecars } from "../../../sidecars/supervisor.ts"
+import type { SidecarContext } from "../../../sidecars/types.ts"
 import { refuseSpellcheckDownloads } from "./spellcheck.ts"
 import {
   loadThemePreference,
@@ -36,14 +37,14 @@ import {
   type ThemePreference,
 } from "./theme-prefs.ts"
 import { loadWindowState, saveWindowState } from "./window-state.ts"
-import { announceApiUrl, withdrawApiUrl } from "./api-url/announce-api-url.ts"
+import { announceApiUrl, withdrawApiUrl } from "../../../sidecars/api-url/announce-api-url.ts"
 import { applyLocalePreference } from "./i18n/app-locale.ts"
 import { loadLocalePreference } from "./i18n/locale-prefs.ts"
 import { registerLocaleHandlers } from "./i18n/locale-ipc.ts"
 import { registerAboutHandlers } from "./about/about-ipc.ts"
 import { registerDataFolderHandlers } from "./about/data-folder-ipc.ts"
-import { sessionLog } from "./session-log/session-log.ts"
-import { warnMain } from "./session-log/main-warn.ts"
+import { sessionLog } from "../../../sidecars/session-log/session-log.ts"
+import { warnMain } from "../../../sidecars/session-log/main-warn.ts"
 import { registerSessionLogHandlers } from "./session-log/session-log-ipc.ts"
 import { appMenu } from "./menu/app-menu.ts"
 import { helpMenu } from "./menu/help-menu.ts"
@@ -420,15 +421,14 @@ async function quitWithConfirmation(): Promise<boolean> {
 }
 
 /** Stop watchers and snapshots first, then reap the sidecars they would otherwise restart. */
-async function shutdown(): Promise<void> {
-  if (shuttingDown) return
+const shutdown = stopOnce(async () => {
   shuttingDown = true
   stopSidecarWatchers?.()
   stopPrivacyChoices?.()
   stopDocxSnapshots?.()
   withdrawApiUrl(DATA_DIR)
   if (sidecars) await stopAll(sidecars)
-}
+})
 
 function denyAppWindows(contents: Electron.WebContents): void {
   contents.setWindowOpenHandler(({ url }) => {

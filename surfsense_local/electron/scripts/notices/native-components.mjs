@@ -2,11 +2,11 @@
 // stage scripts already leave beside them. Folders are relative to electron/.
 import { readFileSync } from "node:fs"
 
-import { DICTIONARIES_FOR, KEPT_DICTIONARIES } from "../audiocpp/espeak/dictionaries.mjs"
-import { ESPEAK_VERSION, TAG as AUDIOCPP_TAG } from "../audiocpp/pins.mjs"
-import { BUILD as LLAMACPP_BUILD } from "../fetch-llamacpp.mjs"
-import { RIPGREP_VERSION, VERSION as OPENCODE_VERSION } from "../opencode/pins.mjs"
-import { TAG as SDCPP_TAG } from "../sdcpp/pins.mjs"
+import { DICTIONARIES_FOR, KEPT_DICTIONARIES } from "../../../runtimes/audiocpp/espeak/dictionaries.mjs"
+import { ESPEAK_VERSION, TAG as AUDIOCPP_TAG } from "../../../runtimes/audiocpp/pins.mjs"
+import { BUILD as LLAMACPP_BUILD } from "../../../runtimes/fetch-llamacpp.mjs"
+import { RIPGREP_VERSION, VERSION as OPENCODE_VERSION } from "../../../runtimes/opencode/pins.mjs"
+import { TAG as SDCPP_TAG } from "../../../runtimes/sdcpp/pins.mjs"
 
 function electronVersion() {
   try {

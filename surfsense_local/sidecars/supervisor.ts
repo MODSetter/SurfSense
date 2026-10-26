@@ -6,7 +6,7 @@ import { createWriteStream } from "node:fs"
 import { createInterface } from "node:readline"
 import type { Writable } from "node:stream"
 
-import { sessionLog } from "../session-log/session-log.ts"
+import { sessionLog } from "./session-log/session-log.ts"
 import { isWindows } from "./platform.ts"
 import type { CrashHandler, SidecarContext, SidecarSpec } from "./types.ts"
 

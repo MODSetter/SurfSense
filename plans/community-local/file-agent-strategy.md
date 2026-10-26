@@ -131,7 +131,7 @@ measured on any model yet
 - **Anything about timing against Cowork's change.** It took effect on 6 Oct
   2026, and SurfSense's agent reached installers with 2.2.0 on 9 Oct 2026,
   after `ENABLED_BY_DEFAULT` turned true in
-  [`enabled.mjs`](../../surfsense_local/electron/scripts/opencode/enabled.mjs)
+  [`enabled.mjs`](../../surfsense_local/runtimes/opencode/enabled.mjs)
   on 7 Oct.
 
 ## Who buys first, and which job ships first

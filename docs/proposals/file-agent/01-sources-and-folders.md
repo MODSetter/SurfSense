@@ -70,7 +70,7 @@ This is one stream of the [file agent proposal](README.md). It answers the open 
 
 **Electron and packaging**
 - There is no `dialog.showOpenDialog`. A dropped folder is reported as unsupported ([documents](../../architecture/documents.md#upload)).
-- The main process already calls the API: `watchImageModel` polls `/llm/image/local/runtime` on the loopback port every 5 s ([`sidecars/watch-image-model.ts`](../../../surfsense_local/electron/src/main/sidecars/watch-image-model.ts)). The sentence in [documents](../../architecture/documents.md#the-original-file) saying it never calls the backend is stale.
+- The main process already calls the API: `watchImageModel` polls `/llm/image/local/runtime` on the loopback port every 5 s ([`sidecars/watch-image-model.ts`](../../../surfsense_local/sidecars/watch-image-model.ts)). The sentence in [documents](../../architecture/documents.md#the-original-file) saying it never calls the backend is stale.
 - Electron 44 has no `File.path`; `webUtils.getPathForFile` replaced it in Electron 32 ([breaking changes](https://www.electronjs.org/docs/latest/breaking-changes#removed-filepath)).
 - [`electron-builder.yml`](../../../surfsense_local/electron/electron-builder.yml) gives macOS an entitlements file and no `extendInfo`, so the app declares no `NS*UsageDescription` strings.
 - watchfiles 1.2.0 is locked only because `uvicorn[standard]` pulls it in ([`uv.lock`](../../../surfsense_local/backend/uv.lock), [`pyproject.toml`](../../../surfsense_local/backend/pyproject.toml)). [`api_inputs.py`](../../../surfsense_local/backend/bundling/api_inputs.py) collects uvicorn's submodules and nothing of watchfiles by name.

@@ -39,7 +39,7 @@ import { renameWhenUnlocked } from "./windows-locks/rename-when-unlocked.mjs"
 export const BUILD = "b11050"
 const BASE = `https://github.com/ggml-org/llama.cpp/releases/download/${BUILD}`
 const HERE = fileURLToPath(new URL(".", import.meta.url))
-const OUT = join(HERE, "..", "llamacpp")
+const OUT = join(HERE, "..", "electron", "llamacpp")
 
 export const TARGETS = {
   "darwin-arm64": {

@@ -4,7 +4,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import test from "node:test"
 
-import { DICTIONARIES_FOR } from "../audiocpp/espeak/dictionaries.mjs"
+import { DICTIONARIES_FOR } from "../../../runtimes/audiocpp/espeak/dictionaries.mjs"
 import { NATIVE_COMPONENTS } from "./native-components.mjs"
 import { nativeNotices } from "./native.mjs"
 

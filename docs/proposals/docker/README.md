@@ -29,7 +29,7 @@ code:
 
 > The desktop app's stack, minus Electron, as one container. `surfsense_local` becomes one core with two entries: Electron for the desktop, a headless Node entry for the container. The headless entry runs the same supervisor as Electron, which starts the API, the workers, the model servers and opencode on loopback; Caddy is the only thing listening. It replaces the legacy self-host compose. The decisions are [ADR 0035](../../adr/0035-docker-compose-runs-the-desktop-stack.md), [ADR 0072](../../adr/0072-the-desktop-and-the-container-are-two-entries-over-one-core.md) and [ADR 0073](../../adr/0073-the-docker-gpu-image-is-one-cuda-12-8-variant-from-upstream-builds.md); GPU images are in [`gpu.md`](gpu.md).
 
-**Status, 25 Oct 2026:** [steps](#steps) 1 to 3 are built: the CORS origins setting ([#2122](https://github.com/MODSetter/SurfSense/pull/2122)), the `VITE_API_BASE` fallback ([#2134](https://github.com/MODSetter/SurfSense/pull/2134)), and boot and the watchers in `sidecars/` with no Electron import ([#2215](https://github.com/MODSetter/SurfSense/pull/2215)). A patch for the headless entry is on [#2104](https://github.com/MODSetter/SurfSense/issues/2104); step 4 builds on it.
+**Status, 26 Oct 2026:** [steps](#steps) 1 to 4 are built: the CORS origins setting ([#2122](https://github.com/MODSetter/SurfSense/pull/2122)), the `VITE_API_BASE` fallback ([#2134](https://github.com/MODSetter/SurfSense/pull/2134)), boot and the watchers with no Electron import ([#2215](https://github.com/MODSetter/SurfSense/pull/2215)), and one core with two entries: [`sidecars/`](../../../surfsense_local/sidecars/), [`runtimes/`](../../../surfsense_local/runtimes/) and the headless entry in [`headless/`](../../../surfsense_local/headless/), built on the patch on [#2104](https://github.com/MODSetter/SurfSense/issues/2104). No image yet.
 
 ## What changes
 
@@ -95,8 +95,8 @@ surfsense_local/
   headless/    container entry: the context from the environment, Caddy, the GPU check, signals
 ```
 
-- **`sidecars/` imports only Node.** It is today's [`electron/src/main/sidecars/`](../../../surfsense_local/electron/src/main/sidecars/), with `net.ts`, `session-log/session-log.ts` and `session-log/main-warn.ts`, which boot already imports. `session-log-ipc.ts` and `updater-log.ts` stay in `electron/`. A test fails on any `electron` import under `sidecars/`, so the boundary does not depend on review.
-- **`runtimes/` is shared staging.** `fetch-llamacpp.mjs`, `llamacpp/`, `sdcpp/`, `audiocpp/`, `opencode/`, `not-staged/`, `pinned-download.mjs`, `msvc-runtime.mjs` and `check-sidecars.mjs` move out of `electron/scripts/`. Each takes a target and an output folder; with neither, it stages for the host into `electron/<runtime>/` as today, so electron-builder, the build artifacts and the packaged layout do not change.
+- **`sidecars/` imports only Node.** [`sidecars/`](../../../surfsense_local/sidecars/) is what was `electron/src/main/sidecars/`, with `net.ts`, `session-log/session-log.ts` and `session-log/main-warn.ts`, which boot imports, and `check-sidecars.mjs`, which runs the API and a worker through it. `session-log-ipc.ts` and `updater-log.ts` stay in `electron/`. A test fails on any `electron` import under `sidecars/`, so the boundary does not depend on review.
+- **`runtimes/` is shared staging.** `fetch-llamacpp.mjs`, `llamacpp/`, `sdcpp/`, `audiocpp/`, `opencode/`, `not-staged/`, `pinned-download.mjs`, `msvc-runtime.mjs` and `windows-locks/` move out of `electron/scripts/`. Each takes a target and an output folder; with neither, it stages for the host into `electron/<runtime>/` as today, so electron-builder, the build artifacts and the packaged layout do not change.
 - **`electron/` and `headless/` both call `bootSidecars`.** [`index.ts`](../../../surfsense_local/electron/src/main/index.ts) builds its context from `app.isPackaged` and `process.resourcesPath`; `headless/context-from-env.ts` builds it from the environment. A fix to sidecar handling lands in both.
 - **Node 24 runs `sidecars/` and `headless/` as TypeScript**, with no build step, as the electron package's tests run today. Each folder has its own `package.json` and `node:test` suite.
 
@@ -106,8 +106,8 @@ surfsense_local/
 
 1. **The context.** `context-from-env.ts` sets all ten `BootContext` fields: `packaged: false`, the backend and runtime folders under `/app`, `dataDir` from `SURFSENSE_LOCAL_DATA_DIR` (default `/data`), and the models folder.
 2. **The secret, before boot.** `SURFSENSE_LOCAL_SECRET` from the environment, else `/data/secret`, created once with mode 0600 and never regenerated. Node settles it before any Python starts, so four processes never race to create the file that [`shared/secrets.py`](../../../surfsense_local/backend/shared/secrets.py) falls back to.
-3. **The container's environment.** `HF_HUB_OFFLINE=1`, which [`python.ts`](../../../surfsense_local/electron/src/main/sidecars/python.ts) sets only when `packaged` is true; `SURFSENSE_LOCAL_SIGNED_REGISTRY=1` (below); `SURFSENSE_LOCAL_RUNTIME=docker`, which the API reports where an answer differs in a container; and `HOME=/data/home`, created if missing, so what a user installs in the container keeps across updates ([Claude subscriptions](#claude-subscriptions)).
-4. **No previews.** Word and web-page previews render in a hidden `BrowserWindow`, so headless passes no `docxSnapshotKey`, and the agent skips previews instead of waiting 30 s for each.
+3. **The container's environment.** `HF_HUB_OFFLINE=1`, which [`python.ts`](../../../surfsense_local/sidecars/python.ts) sets only when `packaged` is true; `SURFSENSE_LOCAL_SIGNED_REGISTRY=1` (below); `SURFSENSE_LOCAL_RUNTIME=docker`, which the API reports where an answer differs in a container; and `HOME=/data/home`, created if missing, so what a user installs in the container keeps across updates ([Claude subscriptions](#claude-subscriptions)).
+4. **No Electron previews, and no change for them.** Word and web-page previews render in a hidden `BrowserWindow`. With no desktop app polling for them, the API refuses a preview at once ([`docx_snapshots.py`](../../../surfsense_local/backend/modules/agent/previews/docx_snapshots.py)), and a Word file's or deck's pages still come from LibreOffice when Office support is on.
 5. **Boot and health.** `bootSidecars`, then `/health` within 60 s, then Caddy as one more sidecar. It writes `/data/api-url` as `announceApiUrl` does, so `surfsense-plugins invoke` works inside the container.
 6. **Signals and exit.** SIGTERM and SIGINT stop the watchers, then every child's process group. The API exiting stops the container with a non-zero code, so Compose's `restart:` applies; any other sidecar is restarted by the supervisor, as on the desktop.
 
@@ -196,7 +196,7 @@ Every bridge call is already optional (`window.surfsense?.…`). The build for t
 | Open, Show in folder | download through `GET .../documents/{id}/original`; PDFs preview in the app ([source preview](../source-preview.md)) |
 | electron-updater | hidden; updating is pulling a newer tag |
 | Keychain secret ([ADR 0018](../../adr/0018-keychain-envelope-encryption.md)) | `SURFSENSE_LOCAL_SECRET`, else `/data/secret` ([the headless entry](#the-headless-entry)) |
-| Word and web-page previews | off: they render in a hidden `BrowserWindow` |
+| Word and web-page previews | Word and decks through LibreOffice when Office support is on; otherwise none, refused at once |
 | Claude subscription, through the user's own Claude Code | the same, with Claude Code installed in the container ([below](#claude-subscriptions)) |
 | Session log, About details, crash toast | hidden |
 | Theme, locale, external links | the browser fallbacks that exist |

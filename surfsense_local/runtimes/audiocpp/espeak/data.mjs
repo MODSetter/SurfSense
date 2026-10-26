@@ -17,7 +17,7 @@ function refuseUnkeptSwitches(data, ships) {
   const gaps = unkeptSwitches(data, ships)
   if (gaps.length) {
     const list = gaps.map(({ from: source, to: target }) => `${source}_dict switches to ${target}`).join(", ")
-    throw new Error(`${list}, which is not staged: add it to scripts/audiocpp/espeak/dictionaries.mjs`)
+    throw new Error(`${list}, which is not staged: add it to runtimes/audiocpp/espeak/dictionaries.mjs`)
   }
 }
 

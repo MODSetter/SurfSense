@@ -26,4 +26,4 @@
 
 ## Where the code stands
 
-Nothing has moved yet. The move is step 4 of the [Docker proposal](../proposals/docker/README.md#steps).
+The core and both entries are in place: [`sidecars/`](../../surfsense_local/sidecars/), [`runtimes/`](../../surfsense_local/runtimes/) and [`headless/`](../../surfsense_local/headless/). The staging scripts take no target or output folder yet; that comes with the image's runtimes, steps 7 to 9 of the [Docker proposal](../proposals/docker/README.md#steps). `docker/surfsense/` does not exist until step 5.

@@ -22,7 +22,7 @@ import { copyServerFiles, SERVER } from "./server-files.mjs"
 import { stagedServer } from "./staged-server.mjs"
 import { unpackUpstream } from "./upstream-archive.mjs"
 
-const OUT = fileURLToPath(new URL("../../audiocpp", import.meta.url))
+const OUT = fileURLToPath(new URL("../../electron/audiocpp", import.meta.url))
 const HOSTS = ["darwin-arm64", "linux-x64", "win32-x64"]
 
 /** Prove the stage runs from its own directory and finds its CPU library. */

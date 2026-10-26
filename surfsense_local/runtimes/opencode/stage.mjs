@@ -12,7 +12,7 @@ import { checkStage, OPENCODE, RG, RIPGREP_LICENCES } from "./check-stage.mjs"
 import { opencodeEnabled } from "./enabled.mjs"
 import { HOSTS, OPENCODE_LICENCE, RIPGREP_VERSION, VERSION } from "./pins.mjs"
 
-const OUT = fileURLToPath(new URL("../../opencode", import.meta.url))
+const OUT = fileURLToPath(new URL("../../electron/opencode", import.meta.url))
 const windows = process.platform === "win32"
 
 /** The first file under `root` called `name`, wherever the archive nests it. */

@@ -7,12 +7,12 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 
-import { getFreePort, waitForHealth } from "../src/main/net.ts"
-import { apiSpec, workerSpec } from "../src/main/sidecars/python.ts"
-import { startAll, stopAll } from "../src/main/sidecars/supervisor.ts"
+import { getFreePort, waitForHealth } from "./net.ts"
+import { apiSpec, workerSpec } from "./python.ts"
+import { startAll, stopAll } from "./supervisor.ts"
 
 const here = fileURLToPath(new URL(".", import.meta.url))
-const backendDir = join(here, "..", "..", "backend")
+const backendDir = join(here, "..", "backend")
 
 const isAlive = (pid) => {
   try {
