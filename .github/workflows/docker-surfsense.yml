@@ -1,0 +1,197 @@
+name: Docker Image
+
+# ghcr.io/modsetter/surfsense, the desktop stack without Electron
+# (docs/proposals/docker/README.md). Pull requests and dev pushes build and smoke
+# the image; a vX.Y.Z tag pushes X.Y.Z; publishing that release moves latest.
+
+on:
+  pull_request:
+    branches: [main, dev]
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [dev]
+    # Not v0.*: the 0.0.x line is the legacy stack, tagged legacy-v*.
+    tags: ["v[1-9]*"]
+  # The desktop release's draft is published by hand; latest moves then, not on the tag.
+  release:
+    types: [published]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  IMAGE: ghcr.io/modsetter/surfsense
+
+jobs:
+  # Filtered per job, not per workflow, so the gate always reports.
+  changes:
+    name: Changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name != 'release' && github.event.pull_request.draft != true
+    outputs:
+      image: ${{ steps.filter.outputs.image || 'true' }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: filter
+        if: github.event_name == 'pull_request'
+        uses: dorny/paths-filter@v4
+        with:
+          filters: |
+            image:
+              - 'docker/surfsense/**'
+              - 'surfsense_local/backend/**'
+              - 'surfsense_local/frontend/**'
+              - 'surfsense_local/sidecars/**'
+              - 'surfsense_local/runtimes/**'
+              - 'surfsense_local/headless/**'
+              - 'backend/plugins/bundles/core/**'
+              - '.github/workflows/docker-surfsense.yml'
+
+  image:
+    name: Build and smoke (amd64)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    needs: changes
+    if: needs.changes.outputs.image == 'true'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+
+      # A tag names the version; it must be the one surfsense_local/VERSION holds.
+      - name: Resolve the tags to push
+        id: tags
+        run: |
+          set -euo pipefail
+          tags=""
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+            TRACKED="$(tr -d '[:space:]' < surfsense_local/VERSION)"
+            if [ "$VERSION" != "$TRACKED" ]; then
+              echo "::error::Tag v$VERSION does not match surfsense_local/VERSION ($TRACKED)."
+              exit 1
+            fi
+            tags="$VERSION"
+          elif [ "$GITHUB_REF" = refs/heads/dev ] && [ "$GITHUB_EVENT_NAME" = push ]; then
+            tags="dev git-${GITHUB_SHA::7}"
+          fi
+          # Only the main repository publishes.
+          if [ "$GITHUB_REPOSITORY" != "MODSetter/SurfSense" ]; then tags=""; fi
+          echo "tags=$tags" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/surfsense/Dockerfile
+          platforms: linux/amd64
+          load: true
+          tags: surfsense:ci
+          cache-from: type=gha,scope=surfsense-cpu
+          cache-to: ${{ github.event_name != 'pull_request' && 'type=gha,scope=surfsense-cpu,mode=max' || '' }}
+
+      # Healthy through Caddy, the routes, and the guard a passwordless instance relies on.
+      - name: Smoke
+        run: |
+          set -euo pipefail
+          docker run -d --name surfsense -p 127.0.0.1:4929:80 surfsense:ci
+          status=starting
+          for _ in $(seq 1 60); do
+            status="$(docker inspect -f '{{.State.Health.Status}}' surfsense)"
+            [ "$status" = healthy ] && break
+            [ "$status" = unhealthy ] && break
+            sleep 5
+          done
+          if [ "$status" != healthy ]; then docker logs surfsense; exit 1; fi
+          expect() { # <code> <description> <curl args...>
+            want="$1"; what="$2"; shift 2
+            got="$(curl -s -o /dev/null -w '%{http_code}' "$@")"
+            echo "$what: $got"
+            [ "$got" = "$want" ] || { docker logs surfsense; exit 1; }
+          }
+          expect 200 "the API through Caddy" http://127.0.0.1:4929/api/health
+          expect 200 "the SPA" http://127.0.0.1:4929/
+          expect 403 "a host other than localhost, without a password" -H 'Host: surfsense.example.com' http://127.0.0.1:4929/api/health
+          expect 403 "the workers' internal routes" -X POST http://127.0.0.1:4929/api/internal/events
+          curl -fsS http://127.0.0.1:4929/ | grep -q '<title>SurfSense'
+          docker stop -t 30 surfsense
+          code="$(docker inspect -f '{{.State.ExitCode}}' surfsense)"
+          echo "stopped with exit code $code"
+          [ "$code" = 0 ] || { docker logs surfsense; exit 1; }
+
+      - name: Log in to GHCR
+        if: steps.tags.outputs.tags != ''
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # The image the smoke passed, not a rebuild.
+      - name: Push
+        if: steps.tags.outputs.tags != ''
+        env:
+          TAGS: ${{ steps.tags.outputs.tags }}
+        run: |
+          set -euo pipefail
+          for tag in $TAGS; do
+            docker tag surfsense:ci "$IMAGE:$tag"
+            docker push "$IMAGE:$tag"
+          done
+
+  # Publishing the desktop release moves latest to the image its tag pushed.
+  latest:
+    name: Move latest
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: >-
+      github.event_name == 'release' && !github.event.release.prerelease &&
+      github.repository == 'MODSetter/SurfSense' &&
+      startsWith(github.event.release.tag_name, 'v') &&
+      !contains(github.event.release.tag_name, '-')
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # A retag of the digest the tag built and smoked; nothing is rebuilt.
+      - name: Retag
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          VERSION="${TAG#v}"
+          MINOR="${VERSION%.*}"
+          docker buildx imagetools create -t "$IMAGE:latest" -t "$IMAGE:$MINOR" "$IMAGE:$VERSION"
+          docker buildx imagetools inspect "$IMAGE:latest"
+
+  gate:
+    name: Docker Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [changes, image]
+    if: always() && github.event_name != 'release'
+    steps:
+      - name: Check every job
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Results: $RESULTS"
+          for result in $RESULTS; do
+            if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
+              echo "The Docker image failed"
+              exit 1
+            fi
+          done
+          echo "The Docker image passed"
