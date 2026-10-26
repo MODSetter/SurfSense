@@ -53,7 +53,6 @@ export function ModelStep({
   modelType,
   last = false,
   finishing = false,
-  error = null,
   onBack,
   onNext,
   onSkip,
@@ -62,7 +61,6 @@ export function ModelStep({
   /** The step that ends onboarding: Continue and Skip say they finish. */
   last?: boolean
   finishing?: boolean
-  error?: string | null
   /** Absent on the first step: the welcome is not somewhere to go back to. */
   onBack?: () => void
   /** Given what finishing from this step sends: the embedding choice, or null. */
@@ -308,19 +306,6 @@ export function ModelStep({
         >
           {body()}
         </ScrollFade>
-        {models.chooseError ? (
-          <p className="px-(--card-spacing) text-sm text-destructive">
-            {models.chooseError.message}
-          </p>
-        ) : null}
-        {error ? (
-          <p
-            className="px-(--card-spacing) text-sm text-destructive"
-            aria-live="polite"
-          >
-            {error}
-          </p>
-        ) : null}
       </CardContent>
 
       <CardFooter className="justify-between gap-3 border-t py-4">

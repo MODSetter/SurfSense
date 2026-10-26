@@ -748,6 +748,8 @@
   "models_try_dialog_voice_body": "Vazio usa a voz padrão do servidor, se ele tiver uma.",
   "models_try_dialog_voice_placeholder": "ID de voz (opcional)",
   "models_try_dialog_voice_trial_body": "Olá. É assim que seus podcasts vão soar.",
+  "models_use_failed_toast": "Não foi possível usar este modelo",
+  "models_use_runtime_unavailable_toast": "O runtime local não está em execução, então ainda não é possível usar este modelo.",
   "models_your_models_projector_ambiguous_body": "O SurfSense não consegue determinar com segurança como associar {projector} nesta pasta.",
   "models_your_models_projector_no_match_body": "{projector} não corresponde a nenhum modelo nesta pasta.",
   "models_your_models_projector_rename_body": "Renomeie {projector} como {renameTo} para ativar a visão neste modelo.",

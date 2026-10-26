@@ -1,5 +1,6 @@
 import { cleanup, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { toast } from "sonner"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { EgressPrompt } from "@/features/egress/egress-prompt"
@@ -7,6 +8,10 @@ import { fakeInstallApi } from "@/features/models/local/installs/fake-install-ap
 import { stubPrivacyBridge } from "@/features/privacy-choices/stub-privacy-bridge"
 import { render } from "@/test-utils"
 import { OnboardingPage } from "./onboarding-page"
+
+// The API's sentence for a choice made while the local runtime is down.
+const RUNTIME_DOWN =
+  "The local runtime is not running, so a local model cannot be used yet."
 
 vi.mock("sonner", () => ({
   toast: { error: vi.fn(), info: vi.fn() },
@@ -126,6 +131,10 @@ function backend({
   huggingface = undefined as boolean | undefined,
   /** Whether a ChatGPT plan can be signed in to here, for chat only. */
   chatgpt = false,
+  /** Choosing a model fails as the API does while the local runtime is down. */
+  chooseFails = false,
+  /** Finishing setup fails with a bare 500. */
+  finishFails = false,
 } = {}) {
   // Every catalog lists the search models, whatever chat rows a test asks for.
   rows = [...rows, ...embedders()]
@@ -170,6 +179,17 @@ function backend({
     }
     if (path.startsWith("/llm/selection/")) {
       const slot = path.split("/").at(-1) ?? ""
+      if (init?.method === "PUT" && chooseFails) {
+        return Response.json(
+          {
+            detail: {
+              code: "local_runtime_unavailable",
+              message: RUNTIME_DOWN,
+            },
+          },
+          { status: 503 }
+        )
+      }
       if (init?.method === "PUT") {
         selections[slot] = {
           model_type: slot,
@@ -354,6 +374,12 @@ function backend({
     }
     if (path === "/egress" && init?.method === "PUT") {
       return Response.json([])
+    }
+    if (path === "/llm/onboarding" && init?.method === "POST" && finishFails) {
+      return new Response("Internal Server Error", {
+        status: 500,
+        statusText: "Internal Server Error",
+      })
     }
     if (path === "/llm/onboarding" && init?.method === "POST") {
       finished.push(init.body ? JSON.parse(String(init.body)) : null)
@@ -703,6 +729,37 @@ describe("onboarding", () => {
     })
   })
 
+  it("says in a toast when a downloaded model cannot be used, not under the list", async () => {
+    vi.stubGlobal(
+      "fetch",
+      backend({
+        selections: { ...chatChosen },
+        onDisk: ["qwen3-4b", "gemma-3-4b"],
+        chooseFails: true,
+      })
+    )
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+    await toChatStep(user)
+
+    await user.click(
+      await screen.findByRole("button", { name: "Use Gemma 3 4B Q4_K_M" })
+    )
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        "Couldn’t use this model",
+        expect.objectContaining({
+          description:
+            "The local model runtime isn’t running, so this model can’t be used yet.",
+          action: expect.objectContaining({ label: "Report issue" }),
+        })
+      )
+    )
+    // The API's own sentence goes to Report issue, never onto the screen.
+    expect(screen.queryByText(RUNTIME_DOWN)).toBeNull()
+  })
+
   it("shows a download under its row and stays put", async () => {
     const base = backend({ holdInstalls: true })
     vi.stubGlobal("fetch", base)
@@ -996,6 +1053,30 @@ describe("onboarding", () => {
     expect(
       screen.getByRole("button", { name: "Continue" }).hasAttribute("disabled")
     ).toBe(true)
+  })
+
+  it("says in a toast when setup cannot finish, never above the footer", async () => {
+    vi.stubGlobal(
+      "fetch",
+      backend({ selections: { ...chatChosen }, finishFails: true })
+    )
+    const onComplete = vi.fn()
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={onComplete} />)
+    await toEmbeddingStep(user)
+
+    await user.click(screen.getByRole("button", { name: "Skip and finish" }))
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        "Could not finish setup",
+        expect.objectContaining({
+          action: expect.objectContaining({ label: "Report issue" }),
+        })
+      )
+    )
+    expect(onComplete).not.toHaveBeenCalled()
+    expect(screen.queryByText("Internal Server Error")).toBeNull()
   })
 
   it("finishes without any optional model when every one is skipped", async () => {

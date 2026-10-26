@@ -224,10 +224,19 @@ async def _validate_local(
         raise HTTPException(
             status.HTTP_503_SERVICE_UNAVAILABLE, "the local runtime is unavailable"
         )
-    model = next(
-        (entry for entry in await provider.models() if entry.name == model_name),
-        None,
-    )
+    try:
+        listed = await provider.models()
+    except httpx.HTTPError as error:
+        # Down, restarting, or not shipped with this build: the choice waits for it.
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            {
+                "code": "local_runtime_unavailable",
+                "message": "The local runtime is not running, so a local model "
+                "cannot be used yet.",
+            },
+        ) from error
+    model = next((entry for entry in listed if entry.name == model_name), None)
     if model is None or not model.installed:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,

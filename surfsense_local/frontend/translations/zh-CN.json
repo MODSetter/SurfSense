@@ -748,6 +748,8 @@
   "models_try_dialog_voice_body": "留空则使用服务器的默认音色（如果有）。",
   "models_try_dialog_voice_placeholder": "音色 ID（可选）",
   "models_try_dialog_voice_trial_body": "你好。你的播客听起来会是这样。",
+  "models_use_failed_toast": "无法使用此模型",
+  "models_use_runtime_unavailable_toast": "本地运行时未在运行，暂时无法使用此模型。",
   "models_your_models_projector_ambiguous_body": "SurfSense 无法安全判断应如何在此文件夹中配对 {projector}。",
   "models_your_models_projector_no_match_body": "{projector} 与这个文件夹中的任何模型都不匹配。",
   "models_your_models_projector_rename_body": "将 {projector} 重命名为 {renameTo}，即可为此模型启用图像识别。",

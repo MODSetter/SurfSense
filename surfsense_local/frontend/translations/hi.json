@@ -748,6 +748,8 @@
   "models_try_dialog_voice_body": "खाली छोड़ने पर सर्वर की डिफ़ॉल्ट आवाज़ इस्तेमाल होती है, अगर उसके पास है।",
   "models_try_dialog_voice_placeholder": "आवाज़ ID (वैकल्पिक)",
   "models_try_dialog_voice_trial_body": "नमस्ते। आपके पॉडकास्ट ऐसे सुनाई देंगे।",
+  "models_use_failed_toast": "यह मॉडल इस्तेमाल नहीं हो सका",
+  "models_use_runtime_unavailable_toast": "लोकल रनटाइम नहीं चल रहा है, इसलिए यह मॉडल अभी इस्तेमाल नहीं हो सकता।",
   "models_your_models_projector_ambiguous_body": "SurfSense सुरक्षित रूप से तय नहीं कर सकता कि इस फ़ोल्डर में {projector} को कैसे जोड़ा जाए।",
   "models_your_models_projector_no_match_body": "{projector} इस फ़ोल्डर में किसी मॉडल से मेल नहीं खाता है।",
   "models_your_models_projector_rename_body": "{projector} का नाम बदलकर {renameTo} करें ताकि इस मॉडल के लिए विज़न चालू हो सके।",

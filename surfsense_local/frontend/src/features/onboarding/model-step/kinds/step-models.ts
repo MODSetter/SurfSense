@@ -11,7 +11,6 @@ export type StepModels = SlotModels & {
   /** Choose an installed model by the name it runs under. */
   use: (name: string) => void
   choosing: boolean
-  chooseError: Error | null
   /** How a download from this step installs. */
   install: { select: boolean; modelType?: ModelType }
   /** What finishing onboarding from this step sends; null for a slot. */

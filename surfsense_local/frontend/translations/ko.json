@@ -748,6 +748,8 @@
   "models_try_dialog_voice_body": "비워 두면 서버에 기본 목소리가 있을 경우 그 목소리를 사용합니다.",
   "models_try_dialog_voice_placeholder": "목소리 ID(선택)",
   "models_try_dialog_voice_trial_body": "안녕하세요. 팟캐스트는 이렇게 들립니다.",
+  "models_use_failed_toast": "이 모델을 사용할 수 없습니다",
+  "models_use_runtime_unavailable_toast": "로컬 런타임이 실행되고 있지 않아 이 모델을 아직 사용할 수 없습니다.",
   "models_your_models_projector_ambiguous_body": "SurfSense가 이 폴더에서 {projector}을(를) 어떻게 연결해야 할지 안전하게 판단할 수 없습니다.",
   "models_your_models_projector_no_match_body": "{projector}이(가) 이 폴더의 어떤 모델과도 일치하지 않습니다.",
   "models_your_models_projector_rename_body": "이 모델의 이미지 인식을 활성화하려면 {projector}의 이름을 {renameTo}(으)로 바꾸세요.",

@@ -190,7 +190,7 @@ function OnboardingStep({
   onGo: (step: Step) => void
   onComplete: (selection: ModelSelection) => void
 }) {
-  const { finish, finishing, error } = useFinishOnboarding(onComplete)
+  const { finish, finishing } = useFinishOnboarding(onComplete)
   const index = steps.indexOf(step)
   const previous = steps[index - 1]
   const next = steps[index + 1]
@@ -202,7 +202,6 @@ function OnboardingStep({
       modelType={step}
       last={!next}
       finishing={finishing}
-      error={error}
       onBack={previous ? () => onGo(previous) : undefined}
       onNext={advance}
       onSkip={step === REQUIRED_STEP ? undefined : () => advance(null)}

@@ -748,6 +748,8 @@
   "models_try_dialog_voice_body": "空欄の場合、サーバーに既定の声があればそれを使います。",
   "models_try_dialog_voice_placeholder": "声のID（任意）",
   "models_try_dialog_voice_trial_body": "こんにちは。ポッドキャストはこのように聞こえます。",
+  "models_use_failed_toast": "このモデルを使用できませんでした",
+  "models_use_runtime_unavailable_toast": "ローカルランタイムが実行されていないため、このモデルはまだ使用できません。",
   "models_your_models_projector_ambiguous_body": "このフォルダーで {projector} をどのように組み合わせるべきか、SurfSense では安全に判断できません。",
   "models_your_models_projector_no_match_body": "{projector} はこのフォルダー内のどのモデルにも一致しません。",
   "models_your_models_projector_rename_body": "このモデルの画像認識を有効にするには、{projector} の名前を {renameTo} に変更してください。",

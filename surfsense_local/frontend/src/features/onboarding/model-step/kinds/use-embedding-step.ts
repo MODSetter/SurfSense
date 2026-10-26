@@ -52,7 +52,6 @@ export function useEmbeddingStep(): StepModels {
     error: catalog.error,
     use: setChosen,
     choosing: false,
-    chooseError: null,
     // An embedder is never a selection, so a download selects nothing.
     install: { select: false },
     value: picked?.id ?? null,
