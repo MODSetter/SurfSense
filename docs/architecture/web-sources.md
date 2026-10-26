@@ -40,7 +40,7 @@ The link alone decides which plugin pulls it, whether it was pasted or picked fr
 | Walmart | `/ip/` | `scrape` with `include_details`; `reviews`, 100, most helpful, optional | searches, categories, as cards without details |
 | Indeed | any link with `jk` | `scrape` with `scrape_job_details` | searches and company pages, as cards without details |
 | Reddit | `/r/<sub>/comments/<id>` | `scrape`, the post and up to 99 comments | subreddits, users (as their submitted posts) and searches, with `skip_comments`; `redd.it` and `/r/<sub>/s/` are short links |
-| Instagram | `/p/`, `/reel/`, `/reels/` | `scrape`, one item; comments are behind Instagram's login | profiles, their latest 12 posts; a search finds profiles with `details`; `instagr.am`, `/share/` and `/s/` are short links |
+| Instagram | `/p/`, `/reel/`, `/reels/` | `scrape`, one item; comments are behind Instagram's login | profiles, their latest 12 posts, and a profile's `/reels/` tab, its latest 12 reels; a search finds profiles with `details`; `instagr.am`, `/share/` and `/s/` are short links |
 | Web Crawl | any other http(s) link | `crawl`, depth 0, one page, no links, up to 1,000,000 characters | nothing |
 
 Every item a list returns routes back to its puller as one source: a video's `watch?v=`, a place's `/maps/place/`, a product's `/dp/` or `/ip/`, a job's `viewjob?jk=`, a Reddit post's `/comments/`, an Instagram `/p/` or `/reel/`. An Instagram search is the one that lists profiles, each a list to open in turn.

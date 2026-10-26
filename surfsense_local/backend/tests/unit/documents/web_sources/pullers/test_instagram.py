@@ -136,6 +136,21 @@ def test_a_profile_is_listed_as_its_posts() -> None:
     ]
 
 
+def test_a_profiles_reels_tab_is_listed_as_its_reels() -> None:
+    """The plugin reads the tab as its profile, so the feed is asked for by name."""
+    reels = "https://www.instagram.com/seaschool/reels/"
+    assert PULLER.listing is not None
+    assert PULLER.listing.call(reels, 20) == ToolCall(
+        "scrape",
+        {
+            "urls": [reels],
+            "result_type": "reels",
+            "max_per_target": 20,
+            "max_items": 20,
+        },
+    )
+
+
 def test_a_search_finds_profiles_to_open() -> None:
     """Instagram's own search is behind the login; the plugin finds profiles by Google."""
     profile = {

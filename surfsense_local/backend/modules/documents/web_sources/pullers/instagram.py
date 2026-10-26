@@ -1,4 +1,4 @@
-from urllib.parse import SplitResult
+from urllib.parse import SplitResult, urlsplit
 
 from modules.documents.web_sources.pullers.puller import (
     Fit,
@@ -91,9 +91,12 @@ def _author(name: str | None, handle: str | None) -> str | None:
 
 
 def _list_call(url: str, count: int) -> ToolCall:
-    return ToolCall(
-        "scrape", {"urls": [url], "max_per_target": count, "max_items": count}
-    )
+    arguments: dict = {"urls": [url], "max_per_target": count, "max_items": count}
+    # The plugin reads /<user>/reels/ as the profile, and its feed defaults to posts.
+    segments = [s for s in urlsplit(url).path.split("/") if s]
+    if segments[1:] == ["reels"]:
+        arguments["result_type"] = "reels"
+    return ToolCall("scrape", arguments)
 
 
 def _list_items(items: list[dict]) -> list[Listed]:
