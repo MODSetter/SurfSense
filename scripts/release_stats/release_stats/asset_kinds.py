@@ -21,12 +21,19 @@ app's own updates.
   fetches the deb from the release too, so every ``apt upgrade`` and apt
   install of SurfSense counts here, as does every AUR (surfsense-bin) install,
   upgrade or rebuild, since its PKGBUILD downloads the deb.
-- installer_rpm: the 2.x ``SurfSense.rpm``. Fresh downloads, install.sh on dnf
-  and zypper, and the app's own rpm updates.
+- installer_rpm: ``*.rpm``, the 2.x ``SurfSense.rpm`` and the 0.0.x
+  ``SurfSense-0.0.N-x86_64.rpm``. Fresh downloads, install.sh on dnf and
+  zypper, and the app's own rpm updates. Snapshots taken before this reached
+  main carry ``other`` for the 0.0.x rpms.
 - update_zip_mac: the macOS ``*.zip``. electron-updater and install.sh fetch
   it, so it counts macOS update downloads plus one-line installs on a Mac.
-- manifest_stable_*: ``stable*.yml``. One per 2.x update check, a launch with
-  automatic updates on or a Check now click. Launches, not installs.
+- manifest_stable_*: ``stable*.yml``. One per 2.x update check that reaches
+  GitHub: a launch of 2.2.3 or older with automatic updates on, a Check now
+  click in those versions, or a check from 2.2.4 or later falling back after
+  updates.surfsense.com failed. That proxy also fetches each file from GitHub
+  itself, at most once per 15-minute cache while installs ask it, so it adds
+  about 96 a day per file (more if Vercel caches per region). Launches and
+  refreshes, not installs.
 - manifest_legacy_*: ``latest*.yml``. Update checks from 0.0.x apps, mostly at
   login, plus 2.x checks retrying after a failed ``stable*.yml``.
 - blockmap: ``*.blockmap``. Up to 2.2.3 no 2.x client fetched one, so those
@@ -41,13 +48,11 @@ app's own updates.
   on whichever release was Latest at the time, not the one a machine runs.
 - checksums: ``SHA256SUMS``. One per install-script run, plus packagers and
   people checking a download by hand.
-- other: anything else, such as the 0.0.x rpm, which keeps the kind its counts
-  were first sent with.
+- other: anything else, such as a snap or a manifest for an unknown channel.
 """
 
 from __future__ import annotations
 
-import re
 from typing import Literal
 
 AssetKind = Literal[
@@ -88,11 +93,9 @@ _BY_SUFFIX: tuple[tuple[str, AssetKind], ...] = (
     (".dmg", "installer_mac"),
     (".appimage", "installer_appimage"),
     (".deb", "installer_deb"),
+    (".rpm", "installer_rpm"),
     (".zip", "update_zip_mac"),
 )
-
-# The 0.0.x rpms carry their version (SurfSense-0.0.40-x86_64.rpm); 2.x names none.
-_LEGACY_VERSION = re.compile(r"-0\.0\.\d+")
 
 # electron-updater names a manifest <channel>[-mac|-linux[-arch]].yml.
 _MANIFEST_CHANNELS = {"stable": "stable", "latest": "legacy"}
@@ -102,8 +105,6 @@ def asset_kind(name: str) -> AssetKind:
     lowered = name.lower()
     if lowered in _BY_NAME:
         return _BY_NAME[lowered]
-    if lowered.endswith(".rpm"):
-        return "other" if _LEGACY_VERSION.search(lowered) else "installer_rpm"
     for suffix, kind in _BY_SUFFIX:
         if lowered.endswith(suffix):
             return kind
