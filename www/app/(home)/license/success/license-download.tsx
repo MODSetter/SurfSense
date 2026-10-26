@@ -6,6 +6,8 @@ import { HomeButton } from "@/components/site/home-button";
 import { siteText } from "@/components/site/site-text";
 import { cn } from "@/components/ui/cn";
 import { Spinner } from "@/components/ui/spinner";
+import { browserFlags, celebrateOnce } from "@/features/celebration/celebrate-once";
+import { fireConfetti } from "@/features/celebration/confetti-burst";
 import { buildBackendUrl } from "@/features/license/backend-url";
 
 const LICENSE_FILENAME = "surfsense.lic";
@@ -57,10 +59,12 @@ export function LicenseDownload() {
 			if (certificate === null) return;
 			triggerDownload(certificate);
 			setState("ready");
+			// Once per checkout: a retry, a reload or a second press stays quiet.
+			if (sessionId) celebrateOnce(sessionId, { storage: browserFlags, fire: fireConfetti });
 		} catch {
 			setState("error");
 		}
-	}, [fetchLicense]);
+	}, [fetchLicense, sessionId]);
 
 	useEffect(() => {
 		// The webhook can lag the redirect by 30s, so the first attempt may be
@@ -73,7 +77,7 @@ export function LicenseDownload() {
 
 	if (!sessionId) {
 		return (
-			<p className="text-sm text-destructive">
+			<p className="mx-auto max-w-sm text-sm text-destructive">
 				This link is missing its checkout reference. Use the copy we emailed you, or request it
 				again at{" "}
 				<a className={siteText.link} href="/license">
@@ -85,26 +89,32 @@ export function LicenseDownload() {
 	}
 
 	return (
-		<div className="flex flex-col gap-3">
-			<HomeButton onClick={download} disabled={state === "loading"} className="self-start">
-				{state === "loading" ? <Spinner size="sm" /> : null}
-				{state === "loading" ? "Preparing" : "Download license file"}
+		// Centred under the hero, the button sized like the email pills' on /license and /downloads.
+		<div className="flex flex-col items-center gap-5">
+			<HomeButton
+				onClick={download}
+				disabled={state === "loading"}
+				size="xl"
+				className="relative rounded-full px-5"
+			>
+				<span className={state === "loading" ? "opacity-0" : ""}>Download license file</span>
+				{state === "loading" ? <Spinner size="sm" className="absolute" /> : null}
 			</HomeButton>
 			{state === "ready" ? (
-				<p className={cn(siteText.body, "text-sm")}>
+				<p className={cn(siteText.body, "max-w-sm text-sm")}>
 					Saved as <code className="font-mono">{LICENSE_FILENAME}</code>. A copy is on its way to
 					your email as well.
 				</p>
 			) : null}
 			{state === "missing" ? (
-				<p className="text-sm text-destructive">
+				<p className="max-w-sm text-sm text-destructive">
 					We cannot find a license for this checkout yet. Payment can take a moment to settle, so
 					wait a few seconds and press the button again. If it keeps failing, contact support with
 					your payment details.
 				</p>
 			) : null}
 			{state === "error" ? (
-				<p className="text-sm text-destructive">
+				<p className="max-w-sm text-sm text-destructive">
 					Something went wrong preparing your file. Press the button to try again, or request it at{" "}
 					<a className={siteText.link} href="/license">
 						surfsense.com/license

@@ -19,7 +19,7 @@ import { TAG } from "./pins.mjs"
 import { copyServerFiles, SERVER } from "./server-files.mjs"
 import { unpackWindowsArchive } from "./windows-archive.mjs"
 
-const OUT = fileURLToPath(new URL("../../sdcpp", import.meta.url))
+const OUT = fileURLToPath(new URL("../../electron/sdcpp", import.meta.url))
 const HOSTS = ["darwin-arm64", "linux-x64", "win32-x64"]
 
 /** Prove the server starts from its own directory and finds its libraries. */

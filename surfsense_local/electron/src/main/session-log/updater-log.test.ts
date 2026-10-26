@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { createSessionLog } from "./session-log.ts"
+import { createSessionLog } from "../../../../sidecars/session-log/session-log.ts"
 import { updaterLogger } from "./updater-log.ts"
 
 test("electron-updater's lines reach the session log without its staging ID", () => {

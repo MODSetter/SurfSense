@@ -42,7 +42,7 @@ After the success page this is the only way to get a license back, so an answer 
 
 The file is never in the response. Delivery to a real inbox is what makes one trial per email mean anything; handing the file back over HTTP would make unlimited trials a loop over throwaway strings. Unlike resend, trial has to say "already claimed", so it reports each outcome, including the ones after the create: a Keygen failure answers 503 and points at resend, which finds a trial that was created but not mailed; a transient mail failure answers 503 saying the trial exists; a refused recipient answers 400.
 
-The expiry is `max(now, LICENSE_TRIAL_EXPIRY_FLOOR) + LICENSE_TRIAL_DAYS`, 30 days by default. The floor is for trials issued before the first plugin ships, so the wait does not eat the trial. Unset, the rule is plain "days from now"; an unparseable floor is ignored with a warning.
+The expiry is `max(now, LICENSE_TRIAL_EXPIRY_FLOOR) + LICENSE_TRIAL_DAYS`, 14 days by default. The floor is for trials issued before the first plugin ships, so the wait does not eat the trial. Unset, the rule is plain "days from now"; an unparseable floor is ignored with a warning.
 
 ### Stripe webhook
 
@@ -174,9 +174,10 @@ Three scripts sit in `backend/license/scripts/`, run as `python -m license.scrip
 
 In `www`, all public routes:
 
-- `/license/success` is where Stripe returns the buyer. It downloads the file once on mount, since that first request may be what creates the license, then leaves retries to a button rather than looping. A 404 reads as "payment is still settling, press again", never "you have no license".
+- `/license/success` is where Stripe returns the buyer. It downloads the file once on mount, since that first request may be what creates the license, then leaves retries to a button rather than looping. A 404 reads as "payment is still settling, press again", never "you have no license". The first file saved for a checkout fires confetti; a `localStorage` flag per `session_id` keeps a retry or a reload quiet in that browser.
 - `/license` has only the resend form. Resend can never say "no license found", so its success copy tells the user to check spam and use the exact address they paid with.
-- The trial form is on `/downloads`, beside the installers a license file is useless without. It sends the visitor's channel tag with the email and captures `license_trial_requested` with the outcome (`sent`, `already_claimed`, `refused` or `error`) and the channel, never the address.
+- The trial form is on `/downloads`, beside the installers a license file is useless without. It sends the visitor's channel tag with the email and captures `license_trial_requested` with the outcome (`sent`, `already_claimed`, `refused` or `error`) and the channel, never the address. A sent trial fires confetti, and an "Already have a license? Resend it" line under the form links to `/license`.
+- Both forms are one email pill (`www/features/license/license-forms.tsx`), and a successful send links on to `/license/activate`. Confetti (`www/features/celebration/`) loads only when it fires and is skipped under reduced motion.
 - `/pricing/individual` sits between the pricing card and the Stripe Payment Link (`NEXT_PUBLIC_STRIPE_LICENSE_INDIVIDUAL_URL`): what the licence unlocks, the renewal, what happens after paying, the refund. Its Continue to checkout button appends `client_reference_id=<channel>` and captures `checkout_started` by beacon. The channel is the first-touch `?ref` code or `utm_source` the site already records, else the referring site's domain, else `direct` (`www/features/funnel-attribution/`), and never a person or browser id. The Payment Link's after-payment redirect must be `https://www.surfsense.com/license/success?session_id={CHECKOUT_SESSION_ID}`, and its price one-time rather than recurring: the page says the confirmation page downloads the file and that nothing charges again, and fulfilment handles only the first checkout session.
 - `/license/activate` is the activation guide the mail links to.
 
@@ -223,7 +224,6 @@ Under `backend/license/tests/` and `backend/mailer/tests/`, run from `backend/` 
 
 ## Known gaps
 
-- `api.surfsense.com` still points at `surfsense_backend`, whose copy of this code serves the routes until the cutover the [legacy split](../../proposals/legacy-split/README.md#cutover) sets out.
-- The cohort report has not run against production Keygen or Stripe, and its plugin columns read `n/a` until the plugin host serves `/admin/usage/first-seen`.
+- The cohort report has not run against production Keygen or Stripe.
 - The Keygen contract test has not yet run against a live Keygen; it skips without `KEYGEN_INTEGRATION=1` and credentials.
 - Nothing checks the Payment Link's settings. Its after-payment redirect and one-time price ([pages](#pages)) are set by hand in Stripe, and PostHog's 15 checkout clicks against 1 success page view in the 30 days to 21 Oct 2026 suggest the redirect is not set.

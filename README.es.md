@@ -88,7 +88,7 @@ Las ediciones, las conversiones y las herramientas de PDF siempre crean un archi
 
 Conéctalos en **Ajustes › Plugins**.
 
-**De SurfSense.** Leen páginas públicas sin usar tus propias cuentas y necesitan una licencia de SurfSense: [descarga la aplicación](https://www.surfsense.com/downloads) e introduce allí tu correo electrónico para conseguir una gratuita de 30 días.
+**De SurfSense.** Leen páginas públicas sin usar tus propias cuentas y necesitan una licencia de SurfSense: [descarga la aplicación](https://www.surfsense.com/downloads) e introduce allí tu correo electrónico para conseguir una gratuita de 14 días.
 
 | Plugin | Qué hace |
 |---|---|

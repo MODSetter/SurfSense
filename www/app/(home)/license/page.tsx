@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { HomeBadge } from "@/components/site/home-badge";
+import { sectionSpacing } from "@/components/site/home-section-spacing";
 import { SiteFaqItem } from "@/components/site/site-faq-item";
 import { siteText } from "@/components/site/site-text";
 import { cn } from "@/components/ui/cn";
@@ -7,9 +9,9 @@ import { ArrowRightIcon } from "@/components/ui/icons";
 import { ResendForm } from "@/features/license/license-forms";
 
 /**
- * Rendered in the site design: the palette, ruled column, navigation and
- * footer all come from `app/(home)/layout.tsx`; the page itself is Tailwind
- * plus the shared `siteText` styles. Listed in `SITE_DESIGN_ROUTES` in
+ * Rendered in the site design: the palette, column, navigation and footer all
+ * come from `app/(home)/layout.tsx`; the page uses the homepage's centred heads
+ * and the same email pill as `/downloads`. Listed in `SITE_DESIGN_ROUTES` in
  * `components/site/site-shell.tsx`.
  *
  * This page does one thing: send a licence file back to the address it was
@@ -19,7 +21,7 @@ import { ResendForm } from "@/features/license/license-forms";
  * customer back to it after a support fix.
  *
  * The trial form used to sit above this one. It now lives on `/downloads`,
- * where the 30-day licence is claimed alongside the installer it needs.
+ * where the 14-day licence is claimed alongside the installer it needs.
  *
  * The explanatory blocks the first version ran as plain paragraphs are FAQ
  * content in substance, so they render as the same native `<details>`
@@ -77,7 +79,7 @@ const FAQ: { question: string; answer: React.ReactNode }[] = [
 		question: "Do not have a license yet?",
 		answer: (
 			<>
-				This page only sends back a license that already exists. The free 30-day license comes with
+				This page only sends back a license that already exists. The free 14-day license comes with
 				the app, on{" "}
 				<a className={siteText.link} href="/downloads">
 					the download page
@@ -95,34 +97,34 @@ const FAQ: { question: string; answer: React.ReactNode }[] = [
 export default function LicensePage() {
 	return (
 		<>
-			<section className="py-20 md:py-28">
-				<div className="mx-auto max-w-2xl text-center">
-					<h1 className={siteText.display}>Get your license again</h1>
-					<p className={cn(siteText.lede, "mx-auto mt-6 mb-10 max-w-xl")}>
-						Your license is a file, not an account. Lost it? We will send it back.
-					</p>
-					<ResendForm />
-					{/* The step after this one, for the reader whose file has just
-					    landed: this page is where they arrive with no idea what a
-					    .lic file is for. */}
-					<p className="mt-10">
-						<Link className={siteText.forward} href="/license/activate">
-							Already have the file? Activate it{" "}
-							<ArrowRightIcon aria-hidden="true" className="size-4" />
-						</Link>
-					</p>
-				</div>
+			<section className={cn("text-center", sectionSpacing.head)}>
+				<HomeBadge>Your license</HomeBadge>
+				<h1 className={cn(siteText.display, "mt-4")}>Get your license again</h1>
+				<p className={cn(siteText.lede, "mx-auto mt-6 max-w-xl")}>
+					Your license is a file, not an account. Lost it? We will send it back.
+				</p>
+				<ResendForm />
+				{/* The step after this one, for the reader whose file has just
+				    landed: this page is where they arrive with no idea what a
+				    .lic file is for. */}
+				{/* Worded and spaced like `/downloads`' "Already have a license? Resend it". */}
+				<p className={cn(siteText.body, "mt-5 text-sm")}>
+					Already have the file?{" "}
+					<Link className={siteText.link} href="/license/activate">
+						Activate it
+					</Link>
+				</p>
 			</section>
 
-			<section className="border-t border-border" aria-labelledby="ss-license-faq-label">
-				<div className="border-b border-border pt-10 pb-8 md:pt-40">
-					<p className={siteText.eyebrow}>FAQ</p>
-					<h2 id="ss-license-faq-label" className={cn(siteText.h2, "mt-2")}>
+			<section className={sectionSpacing.foot} aria-labelledby="ss-license-faq-label">
+				<div className={cn("text-center", sectionSpacing.head)}>
+					<HomeBadge>FAQ</HomeBadge>
+					<h2 id="ss-license-faq-label" className={cn(siteText.h2, "mt-4")}>
 						Common questions
 					</h2>
 				</div>
 
-				<div className="ss-home-grid">
+				<div className="ss-home-grid mt-10 border-t border-border lg:mt-14">
 					{FAQ.map((item) => (
 						<SiteFaqItem key={item.question} question={item.question}>
 							<p className={siteText.body}>{item.answer}</p>

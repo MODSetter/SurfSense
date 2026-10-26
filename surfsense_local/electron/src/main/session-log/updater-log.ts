@@ -1,4 +1,4 @@
-import type { SessionLog } from "./session-log.ts"
+import type { SessionLog } from "../../../../sidecars/session-log/session-log.ts"
 
 // electron-updater logs its local staging ID ("user id: <uuid>"); the session
 // log is pasted into public issues, so no UUID gets through.

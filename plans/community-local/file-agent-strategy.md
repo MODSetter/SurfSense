@@ -17,7 +17,7 @@ questions 3, 5, 10 and 12. Everything else is as written on 3 Oct.
 **Revised 22 Oct 2026: the B2B jobs are paid plugins**
 ([ADR 0067](../../docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md)). Each runs on
 the user's machine and installs and runs only with an unexpired SurfSense
-license: Individual, Team, or the 30-day trial for its term. The app, the
+license: Individual, Team, or the 14-day trial for its term. The app, the
 general agent, the engines and the shared job infrastructure stay free and
 Apache-2.0. That reverses this document's rule that every job and all its
 content stay free, and moves team features to later, once the jobs sell. The
@@ -64,7 +64,7 @@ measured on any model yet
    against a playbook, bank statements into a ledger, medical chronologies,
    contract and lease registers, and later B2B jobs each ship as a plugin that
    runs on the user's machine and installs and runs only with an unexpired
-   SurfSense license, the 30-day trial included. The license server delivers it
+   SurfSense license, the 14-day trial included. The license server delivers it
    only to a valid license, never in the installer or the public plugin list.
    The plugin carries the job: its skill and agent, workflow, mappings,
    playbooks and starter playbooks, templates, eval cases and gold corpora.
@@ -131,7 +131,7 @@ measured on any model yet
 - **Anything about timing against Cowork's change.** It took effect on 6 Oct
   2026, and SurfSense's agent reached installers with 2.2.0 on 9 Oct 2026,
   after `ENABLED_BY_DEFAULT` turned true in
-  [`enabled.mjs`](../../surfsense_local/electron/scripts/opencode/enabled.mjs)
+  [`enabled.mjs`](../../surfsense_local/runtimes/opencode/enabled.mjs)
   on 7 Oct.
 
 ## Who buys first, and which job ships first
@@ -161,7 +161,7 @@ the first buyer target.**
   The job fills the customer's own workbook from the company's policies and an
   approved answer library, with a source per answer and nothing unsupported,
   and it no longer waits on the clean-room fix: it runs on SurfSense's own Excel
-  engine. A frontier-model beta, as a paid plugin with the 30-day trial
+  engine. A frontier-model beta, as a paid plugin with the 14-day trial
   ([ADR 0067](../../docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md)), lands
   about mid-January 2027 for a minimum scope or mid-February for the full one,
   an estimate that now also waits on local paid bundles and the job-pack
@@ -224,7 +224,7 @@ questionnaire's mappings and answer matching, are the job.
 |---|---|---|
 | Q&A, every Studio format, folders and linked folders | Premium plugins: the scraper plugin, when it ships | Organization policy that can only lower capabilities ([06](../../docs/proposals/file-agent/06-product-shape.md#organization-policy-enterprise)) |
 | The agent harness, format skills, engines, versions, revised copies, review state | Priority support | Local-only by default for new workspaces |
-| The study pack and the capability jobs (conversion, comparison, transcription, redaction, organizing); the shared job infrastructure: catalogue and entry points, eval harness, row-by-row runner, provenance and its checks, per-row review, page citations, tie-out validator, the `library` and `playbook` folder roles and the answer library with import and export, assurance basics, the bundle runtime; export and import of a workspace, a playbook or a library folder (M6) | The B2B job plugins, each with its skill, agent, workflow, mappings, playbooks and starter playbooks, templates and eval cases; the 30-day trial covers them; Individual or a business license at a higher price is [08's open question 2](seo/08-b2b-artifact-jobs.md#open-questions-for-the-maintainer) | Later: audit log of the document scripts the agent ran, sandbox, license and plugin mirror |
+| The study pack and the capability jobs (conversion, comparison, transcription, redaction, organizing); the shared job infrastructure: catalogue and entry points, eval harness, row-by-row runner, provenance and its checks, per-row review, page citations, tie-out validator, the `library` and `playbook` folder roles and the answer library with import and export, assurance basics, the bundle runtime; export and import of a workspace, a playbook or a library folder (M6) | The B2B job plugins, each with its skill, agent, workflow, mappings, playbooks and starter playbooks, templates and eval cases; the 14-day trial covers them; Individual or a business license at a higher price is [08's open question 2](seo/08-b2b-artifact-jobs.md#open-questions-for-the-maintainer) | Later: audit log of the document scripts the agent ran, sandbox, license and plugin mirror |
 | The user's own files: libraries, playbooks they wrote, outputs and revised copies open and export without a license; when a license lapses only the job plugin stops | | Named support |
 | Job packs from other publishers, installed through the plugin system (M10): free, or charged on the publisher's own service, never through the SurfSense license | | |
 | Office support, the LibreOffice download, which is someone else's code ([04](../../docs/proposals/file-agent/04-runtime-and-packs.md) decision 19) | | |
@@ -272,7 +272,7 @@ Additional Use Grant or a closed license, is made with the lawyer
 
 Copy should say it plainly: "The app, the agent and its
 engines are open source. Business jobs and premium plugins come with a
-license, which also pays for support, and a 30-day trial covers them." Open
+license, which also pays for support, and a 14-day trial covers them." Open
 work: a license-server route that serves a premium plugin against a valid
 license, its license check and its tests, the app's download, consent and
 install path, and the job-pack loader (02 phase 8, `provides.skills`), all
@@ -566,7 +566,7 @@ Each with a recommended answer, except where a question now points to 08.
 5. **Which job first?** Revised 21 Oct 2026: the questionnaire ships first,
    as a beta about mid-January or mid-February 2027; then RFPs from the same
    library; then the extraction stack; the redline playbook job comes after
-   (above). Since 22 Oct 2026 each ships as a paid job plugin with the 30-day
+   (above). Since 22 Oct 2026 each ships as a paid job plugin with the 14-day
    trial, and both beta dates also wait on local paid bundles and the job-pack
    loader ([ADR 0067](../../docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md)).
 6. **Does the lawyer review gate the redline's release or only its marketing?**

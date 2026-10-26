@@ -88,7 +88,7 @@ SurfSense는 업로드할 수 없는 문서를 위한 무료 오픈소스 데스
 
 **설정 › 플러그인**에서 연결하세요.
 
-**SurfSense 제공.** 내 계정 없이 공개 페이지를 읽으며, SurfSense 라이선스가 필요합니다. [앱을 다운로드](https://www.surfsense.com/downloads)한 다음 앱에서 이메일을 입력하면 30일 무료 라이선스를 받을 수 있습니다.
+**SurfSense 제공.** 내 계정 없이 공개 페이지를 읽으며, SurfSense 라이선스가 필요합니다. [앱을 다운로드](https://www.surfsense.com/downloads)한 다음 앱에서 이메일을 입력하면 14일 무료 라이선스를 받을 수 있습니다.
 
 | 플러그인 | 하는 일 |
 |---|---|

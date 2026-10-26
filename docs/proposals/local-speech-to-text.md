@@ -14,7 +14,7 @@ code:
   - surfsense_local/backend/shared/config.py
   - surfsense_local/electron/src/main/
   - surfsense_local/electron/src/preload/
-  - surfsense_local/electron/scripts/audiocpp/
+  - surfsense_local/runtimes/audiocpp/
   - surfsense_local/electron/build/
   - surfsense_local/electron/electron-builder.yml
   - surfsense_local/electron/package.json
@@ -124,7 +124,7 @@ Others considered, with the cards' speed in transcribe.cpp on a Ryzen 7 PRO 4750
 
 ### The transcription server
 
-`sidecars/audiocpp-transcription.ts` returns a spec for the same binary as [`audiocpp.ts`](../../surfsense_local/electron/src/main/sidecars/audiocpp.ts), with its own config, port and flags, and no eSpeak:
+`sidecars/audiocpp-transcription.ts` returns a spec for the same binary as [`audiocpp.ts`](../../surfsense_local/sidecars/audiocpp.ts), with its own config, port and flags, and no eSpeak:
 
 | Flag | Value | Why |
 |---|---|---|
@@ -136,9 +136,9 @@ Others considered, with the cards' speed in transcribe.cpp on a Ryzen 7 PRO 4750
 | `--min-free-memory-mb` | 1024 | a backstop behind the app's own check |
 | `--no-ui` | | as for voices |
 
-- **Watcher.** `sidecars/watch-transcription-models.ts` follows the file as [`watch-audio-models.ts`](../../surfsense_local/electron/src/main/sidecars/watch-audio-models.ts) does: start when it exists, restart when it changes, stop when it is gone. Unlike the TTS server, it also restarts after a crash, at most once per 10 s, as [`boot.ts`](../../surfsense_local/electron/src/main/sidecars/boot.ts) restarts opencode. After 3 crashes in 5 minutes it stops trying; status then reports `transcription_unavailable`, and a recording that fails on it reads "The speech recognition engine stopped". Today a crashed audio server only notifies the renderer.
+- **Watcher.** `sidecars/watch-transcription-models.ts` follows the file as [`watch-audio-models.ts`](../../surfsense_local/sidecars/watch-audio-models.ts) does: start when it exists, restart when it changes, stop when it is gone. Unlike the TTS server, it also restarts after a crash, at most once per 10 s, as [`boot.ts`](../../surfsense_local/sidecars/boot.ts) restarts opencode. After 3 crashes in 5 minutes it stops trying; status then reports `transcription_unavailable`, and a recording that fails on it reads "The speech recognition engine stopped". Today a crashed audio server only notifies the renderer.
 - **`transcription.json` is written only when its bytes change**, so an API start, a voice install or a delete never restarts it.
-- **Only the API is told where it is.** [`python.ts`](../../surfsense_local/electron/src/main/sidecars/python.ts) adds `SURFSENSE_LOCAL_TRANSCRIPTION_BASE_URL` to the API's environment alone, as it does for opencode. Workers reach it through the API.
+- **Only the API is told where it is.** [`python.ts`](../../surfsense_local/sidecars/python.ts) adds `SURFSENSE_LOCAL_TRANSCRIPTION_BASE_URL` to the API's environment alone, as it does for opencode. Workers reach it through the API.
 - **Settings › Resources** already files every `audiocpp_server` process under its audio.cpp row ([`engines.py`](../../surfsense_local/backend/modules/resource_usage/engines.py)), so the second one counts there with no change.
 
 **Why a second process.** One server under today's flags fails four ways:
@@ -373,7 +373,7 @@ The runtime licence policy keeps GPL and LGPL code out of the app's own binaries
 
 ## Packaging and CI
 
-- [`pins.mjs`](../../surfsense_local/electron/scripts/audiocpp/pins.mjs): `FAMILIES` gains `nemotron_asr`; the recipe compiles only `FAMILIES` and stages their specs. `stage.mjs` keeps a staged server only while it has every family in `FAMILIES`, and stages again otherwise.
+- [`pins.mjs`](../../surfsense_local/runtimes/audiocpp/pins.mjs): `FAMILIES` gains `nemotron_asr`; the recipe compiles only `FAMILIES` and stages their specs. `stage.mjs` keeps a staged server only while it has every family in `FAMILIES`, and stages again otherwise.
 - [`build-audiocpp.yml`](../../.github/workflows/build-audiocpp.yml) re-runs the Linux `objdump` gate and the Windows per-CPU check with the new family, checks that upstream's macOS v0.8.2 archive contains it, and records the staged size and compile time.
 - `tests/packaging/test_audiocpp_transcription.py`, added to the workflow's path filter: Kokoro voices known sentences in en, es, fr, hi, pt-BR and zh, the transcription server writes them down through the app's client, and the test asserts error and detected-language thresholds and records peak memory. No fixture with a licence of its own is needed. The model file is cached by its manifest sha256, unlike the voicing step's downloads, which run every time (step 4).
 - `scripts/fetch_silero_vad.py` stages `silero_vad_16k_op15.onnx` (1,289,603 B) from a pinned commit of snakers4/silero-vad, sha256-checked, into the models pack beside the bundled voice, run beside `fetch_bundled_voice.py` by [`release-local.yml`](../../.github/workflows/release-local.yml) and the electron `package.json` scripts; the API and worker read it in place (step 4).

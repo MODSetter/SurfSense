@@ -7,6 +7,7 @@ thread is never skipped, since its turns are the latest.
 
 import logging
 from collections.abc import Sequence
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import HTTPException, status
@@ -43,8 +44,15 @@ async def thread_turns_of(
             _left_out(engine, thread, refused)
             continue
         pairs += _pairs(turns)
-    pairs.sort(key=lambda pair: pair[0]["created_at"] or "")
+    pairs.sort(key=lambda pair: _sent_at(pair[0]["created_at"]))
     return [turn for pair in pairs for turn in pair]
+
+
+def _sent_at(created_at: str | None) -> datetime:
+    """By time, not text: a whole second is spelled without its fraction, which sorts after one."""
+    if created_at is None:
+        return datetime.min.replace(tzinfo=UTC)
+    return datetime.fromisoformat(created_at)
 
 
 async def stored_step_of(

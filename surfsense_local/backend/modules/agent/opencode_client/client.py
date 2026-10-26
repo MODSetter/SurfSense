@@ -9,7 +9,7 @@ from modules.agent.opencode_client.events import read_events
 from modules.agent.opencode_client.payloads import Event
 from modules.agent.opencode_config import AGENT, PROVIDER
 
-# The release electron/scripts/opencode/pins.mjs stages; its HTTP API is unversioned.
+# The release runtimes/opencode/pins.mjs stages; its HTTP API is unversioned.
 OPENCODE_VERSION = "2.1.2"
 
 # Every call but the event stream answers at once; a server that does not was

@@ -96,7 +96,7 @@ Edits, conversions and PDF tools always make a new file; your original is never 
 
 Connect them in **Settings › Plugins**.
 
-**By SurfSense.** They read public pages without your own accounts and need a SurfSense license: [download the app](https://www.surfsense.com/downloads) and enter your email there for a free 30-day one.
+**By SurfSense.** They read public pages without your own accounts and need a SurfSense license: [download the app](https://www.surfsense.com/downloads) and enter your email there for a free 14-day one.
 
 | Plugin | What it does |
 |---|---|

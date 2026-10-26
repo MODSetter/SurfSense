@@ -87,7 +87,7 @@ Les modifications, les conversions et les outils PDF créent toujours un nouveau
 
 Connectez-les dans **Paramètres › Plugins**.
 
-**Par SurfSense.** Ils lisent des pages publiques sans passer par vos propres comptes et nécessitent une licence SurfSense : [téléchargez l'application](https://www.surfsense.com/downloads) et saisissez-y votre adresse e-mail pour recevoir une licence gratuite de 30 jours.
+**Par SurfSense.** Ils lisent des pages publiques sans passer par vos propres comptes et nécessitent une licence SurfSense : [téléchargez l'application](https://www.surfsense.com/downloads) et saisissez-y votre adresse e-mail pour recevoir une licence gratuite de 14 jours.
 
 | Plugin | Ce qu'il fait |
 |---|---|

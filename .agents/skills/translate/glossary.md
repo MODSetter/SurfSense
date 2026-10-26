@@ -25,6 +25,7 @@ SurfSense, Studio, Markdown, llama.cpp, GGUF, Hugging Face, API, MCP, MCP's tran
 | document | ドキュメント | 문서 | 文档 | दस्तावेज़ | Dokument | documento | document | documento | документ |
 | chat | チャット | 채팅 | 对话 | चैट | Chat | chat | chat | chat | чат |
 | reply (the model's answer to a message) | 返信 | 답변 | 回复 | जवाब | Antwort | respuesta | réponse | resposta | ответ |
+| post (on Reddit or Instagram) | 投稿 | 게시물 | 帖子 | पोस्ट | Beitrag | publicación | publication | publicação | пост |
 | agent (the assistant that works through steps and tools) | エージェント | 에이전트 | 智能体 | एजेंट | Agent | agente | agent | agente | агент |
 | Basic (the chat mode that answers from sources, written "Basic (Q&A)") | ベーシック | 기본 | 基础 | बेसिक | Basis | Básico | Basique | Básico | Базовый |
 | Agentic (the chat mode the agent runs; "Agentic mode" in a sentence) | エージェント | 에이전트 | 智能体 | एजेंटिक | Agentisch (im agentischen Modus) | Agéntico (modo agéntico) | Agentique (mode agentique) | Agêntico (modo agêntico) | Агентный (агентный режим) |

@@ -63,10 +63,16 @@ function PriceCard() {
 				<ContinueToCheckout />
 			</div>
 
-			<ul className={cn(siteText.body, "m-0 mt-5 flex list-none flex-col gap-2 p-0 text-sm")}>
+			{/* The filled tick /pricing and /private-ai-for-business use. */}
+			<ul className={cn(siteText.body, "m-0 mt-5 flex list-none flex-col gap-3 p-0 text-sm")}>
 				{[CHECKOUT_NOTE, REFUND_NOTE].map((note) => (
-					<li key={note} className="flex items-start gap-2">
-						<CheckIcon aria-hidden="true" className="mt-1 size-3.5 shrink-0 text-foreground" />
+					<li key={note} className="flex items-start gap-3">
+						<span
+							aria-hidden="true"
+							className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-foreground text-background"
+						>
+							<CheckIcon className="size-3" />
+						</span>
 						<span>{note}</span>
 					</li>
 				))}
@@ -234,7 +240,7 @@ export function ClosingCheckout() {
 					<ContinueToCheckout />
 				</div>
 				<p className={cn(siteText.body, "mt-6 text-sm")}>
-					Want to try the plugins first? The free plan comes with a 30-day licence and needs no
+					Want to try the plugins first? The free plan comes with a 14-day licence and needs no
 					card.{" "}
 					<Link className={siteText.link} href={DOWNLOADS_URL}>
 						Get it on the download page
