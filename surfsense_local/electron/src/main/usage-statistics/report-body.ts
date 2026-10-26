@@ -1,6 +1,8 @@
 import type { OsLabel, PlatformLabel } from "../system-labels.ts"
 import { isoWeek } from "../utc-calendar.ts"
 import type { ActiveFlags } from "./active-flags.ts"
+import type { ReportTrigger } from "./first-week.ts"
+import { SETUP_STEPS } from "./setup-progress.ts"
 
 // Every value is one of these, a boolean or a fixed format (contract 05, part B):
 // whatever the local API answers, nothing else can reach the body.
@@ -11,18 +13,13 @@ const WEEK_VALUES = {
   sources: ["0", "1-9", "10-99", "100-999", "1000+", "unknown"],
   studio_outputs: ["0", "1-4", "5+", "unknown"],
   plugin_calls: ["0", "1-9", "10+", "unknown"],
-  onboarding: [
-    "not_started",
-    "model_chosen",
-    "model_ready",
-    "first_source",
-    "first_answer",
-    "unknown",
-  ],
+  onboarding: [...SETUP_STEPS, "unknown"],
 } as const
 const RAM_GB = ["<8", "8-15", "16-31", "32-63", "64+"] as const
 const GPU = ["nvidia", "amd", "intel", "apple", "none", "unknown"] as const
 const VRAM_GB = ["0", "<4", "4-7", "8-11", "12-23", "24+", "unknown"] as const
+// Whether the model runtime can use the card the OS sees.
+const GPU_RUNTIME = ["reachable", "unreachable", "none", "unknown"] as const
 const UI_LANGUAGES = ["en", "ja", "de"] as const
 
 type WeekBlock = { [Key in keyof typeof WEEK_VALUES]: (typeof WEEK_VALUES)[Key][number] }
@@ -30,6 +27,7 @@ type HardwareBlock = {
   ram_gb: (typeof RAM_GB)[number]
   gpu: (typeof GPU)[number]
   vram_gb: (typeof VRAM_GB)[number]
+  gpu_runtime: (typeof GPU_RUNTIME)[number]
 }
 type UiLanguage = (typeof UI_LANGUAGES)[number] | "other"
 
@@ -40,6 +38,7 @@ export type UsageReport = {
   os: OsLabel
   ui_language: UiLanguage
   install_week: string
+  trigger: ReportTrigger
   active: ActiveFlags
   hardware: HardwareBlock | null
   week: WeekBlock | null
@@ -82,6 +81,7 @@ function hardwareBlock(value: unknown, totalMemoryBytes: number): HardwareBlock 
     ram_gb: oneOf(RAM_GB, hardware.ram_gb, ramBucket(totalMemoryBytes)),
     gpu: oneOf(GPU, hardware.gpu, "unknown"),
     vram_gb: oneOf(VRAM_GB, hardware.vram_gb, "unknown"),
+    gpu_runtime: oneOf(GPU_RUNTIME, hardware.gpu_runtime, "unknown"),
   }
 }
 
@@ -92,14 +92,18 @@ export function uiLanguage(locale: string): UiLanguage {
 
 /**
  * The report, key for key as contract 05 orders it. `summary` is the local API's
- * /usage-statistics/summary answer, or null when it could not be read.
+ * /usage-statistics/summary answer, or null when it could not be read; which
+ * blocks a report carries is the caller's to decide (first-week.ts).
  */
 export function buildUsageReport(input: {
   appVersion: string
   platform: PlatformLabel
   os: OsLabel
   firstRunAt: string
+  trigger: ReportTrigger
   flags: ActiveFlags
+  withHardware: boolean
+  withWeek: boolean
   summary: unknown
   locale: string
   totalMemoryBytes: number
@@ -116,10 +120,9 @@ export function buildUsageReport(input: {
       uiLanguage(input.locale)
     ),
     install_week: isoWeek(new Date(input.firstRunAt)),
+    trigger: input.trigger,
     active: { ...input.flags },
-    hardware: input.flags.first
-      ? hardwareBlock(summary.hardware, input.totalMemoryBytes)
-      : null,
-    week: input.flags.week ? weekBlock(summary.week) : null,
+    hardware: input.withHardware ? hardwareBlock(summary.hardware, input.totalMemoryBytes) : null,
+    week: input.withWeek ? weekBlock(summary.week) : null,
   }
 }

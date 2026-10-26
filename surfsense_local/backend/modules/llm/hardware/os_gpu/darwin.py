@@ -17,3 +17,8 @@ def reports_gpu() -> bool | None:
     if platform.machine() == "arm64":
         return True
     return None
+
+
+def adapter_names() -> list[str] | None:
+    """Apple's own GPU on Apple Silicon; None wherever `reports_gpu` cannot say."""
+    return ["Apple"] if reports_gpu() else None
