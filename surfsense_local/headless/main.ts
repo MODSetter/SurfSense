@@ -14,6 +14,8 @@ import { resolveSecret } from "./secret.ts"
 
 const unsettled = contextFromEnv(process.env, "")
 const context = { ...unsettled, secret: resolveSecret(process.env, unsettled.dataDir) }
+// The Python specs pass it on themselves; every other sidecar inherits this environment (ADR 0018).
+delete process.env.SURFSENSE_LOCAL_SECRET
 const environment = containerEnv(context.dataDir)
 mkdirSync(environment.HOME, { recursive: true })
 // The supervisor starts every sidecar on this environment.

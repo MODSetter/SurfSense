@@ -8,14 +8,14 @@ import { fileURLToPath } from "node:url"
 
 const MAIN = fileURLToPath(new URL("main.ts", import.meta.url))
 
-// Stands in for the backend's venv Python: `main.py` serves /health, `worker.py`
-// idles, and each records its pid and the environment it was given.
-const FAKE_PYTHON = `#!/usr/bin/env node
+// Stands in for the backend's venv Python and for llama-server: `main.py` serves
+// /health, the rest idle, and each records its pid and the environment it was given.
+const FAKE_SIDECAR = `#!/usr/bin/env node
 const fs = require("node:fs")
 const http = require("node:http")
 const path = require("node:path")
 const [entry, queue] = process.argv.slice(2)
-const role = entry === "main.py" ? "api" : "worker-" + queue
+const role = path.basename(process.argv[1]) === "llama-server" ? "llama-server" : entry === "main.py" ? "api" : "worker-" + queue
 const keys = ["HF_HUB_OFFLINE", "SURFSENSE_LOCAL_SIGNED_REGISTRY", "SURFSENSE_LOCAL_RUNTIME", "HOME", "SURFSENSE_LOCAL_SECRET", "SURFSENSE_LOCAL_DATA_DIR"]
 fs.writeFileSync(path.join(process.env.FAKE_LOG, role + ".json"),
   JSON.stringify({ pid: process.pid, env: Object.fromEntries(keys.map((k) => [k, process.env[k]])) }))
@@ -37,18 +37,25 @@ interface Run {
   ready: Promise<string>
 }
 
-function startHeadless(t: TestContext, extraEnv: Record<string, string> = {}): Run {
+function fake(path: string): void {
+  mkdirSync(join(path, ".."), { recursive: true })
+  writeFileSync(path, FAKE_SIDECAR)
+  chmodSync(path, 0o755)
+}
+
+function startHeadless(
+  t: TestContext,
+  { env = {}, llamaServer = false }: { env?: Record<string, string>; llamaServer?: boolean } = {},
+): Run {
   const root = mkdtempSync(join(tmpdir(), "surfsense-headless-"))
   t.after(() => rmSync(root, { recursive: true, force: true }))
   const backend = join(root, "backend")
-  mkdirSync(join(backend, ".venv", "bin"), { recursive: true })
-  const python = join(backend, ".venv", "bin", "python")
-  writeFileSync(python, FAKE_PYTHON)
-  chmodSync(python, 0o755)
+  fake(join(backend, ".venv", "bin", "python"))
   const dataDir = join(root, "data")
   const log = join(root, "log")
   mkdirSync(log)
   mkdirSync(join(root, "runtimes"))
+  if (llamaServer) fake(join(root, "runtimes", "llamacpp", "llama-server"))
 
   const child = spawn(process.execPath, [MAIN], {
     env: {
@@ -59,7 +66,7 @@ function startHeadless(t: TestContext, extraEnv: Record<string, string> = {}): R
       SURFSENSE_LOCAL_RUNTIMES_DIR: join(root, "runtimes"),
       SURFSENSE_LOCAL_SECRET: "",
       FAKE_LOG: log,
-      ...extraEnv,
+      ...env,
     },
     stdio: ["ignore", "pipe", "pipe"],
   })
@@ -81,13 +88,10 @@ function startHeadless(t: TestContext, extraEnv: Record<string, string> = {}): R
 
 type Recorded = Record<string, { pid: number; env: Record<string, string | undefined> }>
 
-// Ready waits on the API alone, so a worker may not have started yet.
-const SIDECARS = 4
-
-/** Every fake's record, once all of them have written one. */
-async function recorded(log: string): Promise<Recorded> {
+/** Every fake's record, once `count` have written one: ready waits on the API alone. */
+async function recorded(log: string, count = 4): Promise<Recorded> {
   const deadline = Date.now() + 15_000
-  while (readdirSync(log).length < SIDECARS && Date.now() < deadline) {
+  while (readdirSync(log).length < count && Date.now() < deadline) {
     await new Promise((resolve) => setTimeout(resolve, 50))
   }
   return Object.fromEntries(
@@ -141,9 +145,20 @@ for (const signal of ["SIGTERM", "SIGINT"] as const) {
 }
 
 test("the API exiting stops the rest and exits non-zero, so the container restarts", { skip }, async (t) => {
-  const run = startHeadless(t, { FAKE_API_EXIT_AFTER_MS: "700" })
+  const run = startHeadless(t, { env: { FAKE_API_EXIT_AFTER_MS: "700" } })
   await run.ready
   const pids = Object.values(await recorded(run.log)).map((c) => c.pid)
   assert.notEqual(await run.exited, 0)
   assert.deepEqual(pids.filter(alive), [])
+})
+
+test("a secret given in the environment reaches the API and the workers, and no model server", { skip }, async (t) => {
+  const run = startHeadless(t, { env: { SURFSENSE_LOCAL_SECRET: "the-operators-secret" }, llamaServer: true }) // pragma: allowlist secret
+  await run.ready
+  const children = await recorded(run.log, 5)
+  for (const name of ["api", "worker-ingest", "worker-studio", "worker-plugins"]) {
+    assert.equal(children[name]?.env.SURFSENSE_LOCAL_SECRET, "the-operators-secret", name) // pragma: allowlist secret
+  }
+  assert.equal(children["llama-server"]?.env.SURFSENSE_LOCAL_SECRET, undefined)
+  run.child.kill("SIGTERM")
 })
