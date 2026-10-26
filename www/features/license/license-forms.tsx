@@ -79,7 +79,7 @@ function InlineEmailField({
 				value={value}
 				onChange={(event) => onChange(event.target.value)}
 				required
-				className="min-w-0 flex-1 bg-transparent py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground"
+				className="min-w-0 flex-1 bg-transparent px-3.5 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground sm:px-0"
 			/>
 		</>
 	);
@@ -89,6 +89,9 @@ function InlineEmailField({
  * Both forms' field and button as one pill, like the site's search pills, so
  * `/license` and `/downloads` cannot drift apart. The ring sits on the pill
  * because the field inside has no border of its own.
+ *
+ * Below `sm` it stacks: at 320 px a side-by-side "Send my license" leaves the
+ * field about 87 px, too narrow for an address.
  */
 function EmailPill({
 	id,
@@ -108,14 +111,14 @@ function EmailPill({
 	return (
 		<form
 			onSubmit={onSubmit}
-			className="flex w-full max-w-md items-center gap-2 rounded-full border border-border bg-card py-1.5 pr-1.5 pl-5 shadow-xs focus-within:ring-3 focus-within:ring-ring/50"
+			className="flex w-full max-w-md flex-col gap-2 rounded-3xl border border-border bg-card p-1.5 shadow-xs focus-within:ring-3 focus-within:ring-ring/50 sm:flex-row sm:items-center sm:rounded-full sm:pl-5"
 		>
 			<InlineEmailField id={id} value={email} onChange={onEmailChange} />
 			<HomeButton
 				type="submit"
 				size="xl"
 				disabled={busy}
-				className="relative shrink-0 rounded-full px-5"
+				className="relative w-full shrink-0 rounded-full px-5 sm:w-auto"
 			>
 				<span className={busy ? "opacity-0" : ""}>{label}</span>
 				{busy ? <Spinner size="sm" className="absolute" /> : null}
