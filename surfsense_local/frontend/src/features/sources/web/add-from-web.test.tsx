@@ -285,6 +285,27 @@ describe("adding sources from the web", () => {
     expect(openExternal).toHaveBeenCalledExactlyOnceWith(VIDEO)
   })
 
+  it("shows a result's details apart, not joined by a typed dot", async () => {
+    const user = userEvent.setup()
+    serving({
+      search: () =>
+        found([
+          {
+            ...row(PAGE, "Tide tables explained", "one", "reddit"),
+            description: "r/oceanography · u/seaschool",
+          },
+        ]),
+    })
+    render(<WebHarness />)
+    const dialog = await openDialog(user)
+
+    await ask(user, dialog, "tides")
+
+    expect(await within(dialog).findByText("r/oceanography")).toBeTruthy()
+    expect(within(dialog).getByText("u/seaschool")).toBeTruthy()
+    expect(within(dialog).queryByText(/·/)).toBeNull()
+  })
+
   it("searches the web unless another site is chosen under the box", async () => {
     const user = userEvent.setup()
     const sent = serving()

@@ -8,6 +8,7 @@ import { intl } from "@/i18n/intl"
 import type { WebResult } from "./api"
 import { pullerName } from "./puller-names"
 import { refusalText } from "./refusal-text"
+import { ResultDetails } from "./result-details"
 import { ResultLink } from "./result-link"
 import type { RowActions, RowState } from "./row-actions"
 import { WebListPanel } from "./web-list-panel"
@@ -48,8 +49,15 @@ function RowText({ result }: { result: WebResult }) {
   const name = pullerName(result.puller)
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-      <span className="line-clamp-1 font-medium break-all">{result.title}</span>
-      <span className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+      <span className="flex min-w-0 items-center gap-2">
+        {name ? (
+          <Badge variant="secondary" className="shrink-0">
+            {name}
+          </Badge>
+        ) : null}
+        <span className="truncate font-medium">{result.title}</span>
+      </span>
+      <span className="flex min-w-0 text-xs text-muted-foreground">
         <OverflowTooltip
           label={result.url}
           render={
@@ -58,13 +66,8 @@ function RowText({ result }: { result: WebResult }) {
             </ResultLink>
           }
         />
-        {name ? <Badge variant="secondary">{name}</Badge> : null}
       </span>
-      {result.description ? (
-        <span className="line-clamp-2 text-sm text-muted-foreground">
-          {result.description}
-        </span>
-      ) : null}
+      {result.description ? <ResultDetails text={result.description} /> : null}
       {result.fit === "short_link" ? (
         <span className="text-sm text-muted-foreground">
           {refusalText("short_link")}
