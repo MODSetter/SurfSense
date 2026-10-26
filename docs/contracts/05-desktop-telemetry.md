@@ -1,6 +1,6 @@
 # Contract 5: desktop telemetry
 
-What the desktop app may send about itself, and only with the user's yes: at most one automatic update check per UTC day, plus the checks the user starts, and an opt-in usage report. Version 1, revision 1.1 (27 Oct 2026). Revision 1.1 adds the first week's setup reports, the report's `trigger` and `hardware.gpu_runtime`; the schema number stays 1 and every addition is optional, so a 2.2.4 app's reports stay valid. It binds four parts that ship apart: the Electron main process, the app's UI, the app's local API, and the website routes at `updates.surfsense.com` and `usage.surfsense.com`. Why the app sends anything at all is [ADR 0070](../adr/0070-opt-in-id-less-update-checks-and-usage-statistics.md); how the app does it is [usage statistics](../architecture/usage-statistics.md) and [updates](../architecture/updates.md).
+What the desktop app may send about itself, and only with the user's yes: at most one automatic update check per UTC day, plus the checks the user starts, and an opt-in usage report. Version 1, revision 1.1 (27 Oct 2026). Revision 1.1 adds the first week's setup reports, the report's `trigger` and `hardware.gpu_runtime`; the schema number stays 1 and every addition is optional, so a 2.2.4 app's reports stay valid. The reverse does not hold: the route before revision 1.1 answers 400 to `trigger`, `gpu_runtime`, and `week` or `hardware` outside its flags, so the `/api/usage` route that accepts revision 1.1 is deployed to `usage.surfsense.com` before any app that sends it is released. It binds four parts that ship apart: the Electron main process, the app's UI, the app's local API, and the website routes at `updates.surfsense.com` and `usage.surfsense.com`. Why the app sends anything at all is [ADR 0070](../adr/0070-opt-in-id-less-update-checks-and-usage-statistics.md); how the app does it is [usage statistics](../architecture/usage-statistics.md) and [updates](../architecture/updates.md).
 
 No part of this contract carries an identifier. Not `x-user-staging-id`, not a licence key, not an install ID, not a cookie, anywhere.
 
@@ -37,8 +37,8 @@ No part of this contract carries an identifier. Not `x-user-staging-id`, not a l
 - `POST https://usage.surfsense.com/api/usage` with `Content-Type: application/json`, a body of at most 4 KB, a 10 s timeout, no cookies and no redirect followed. Both kinds of report below use this one request.
 - Only when the user opted in and neither the policy nor `DO_NOT_TRACK` forbids it, and never from an unpackaged development build, unless `SURFSENSE_TELEMETRY_DEV_ENDPOINT` names somewhere to send it.
 - An install's **first week** runs from `firstRunAt` to `firstRunAt` plus 7 days.
-- **The daily report** (`"trigger": "daily"`): at most one accepted per UTC day, and up to 3 attempts per UTC day.
-- **The setup report** (`"trigger": "setup"`), revision 1.1: only in the first week, checked every 5 minutes, never after it. It is sent when the local summary's `week.onboarding` is a later step than the furthest step any accepted report has carried, in the order `not_started` < `model_chosen` < `model_ready` < `first_source` < `first_answer`; `unknown` never sends one. It carries `week`, and its `active` flags are all false. It never changes `lastReport` or the day's attempts, and the new furthest step is recorded only once the POST is accepted, so an install sends at most four. Every accepted report, daily or setup, raises the furthest step reported.
+- **The daily report** (`"trigger": "daily"`): at most one accepted per UTC day, and up to 3 attempts per UTC day. Once accepted it sets `lastReport` and `lastSent`.
+- **The setup report** (`"trigger": "setup"`), revision 1.1: only in the first week, checked every 5 minutes, never after it. The furthest step reported starts at `not_started`, before any report is accepted, so `not_started` never sends one. A setup report is sent when the local summary's `week.onboarding` is a later step than the furthest step reported, in the order `not_started` < `model_chosen` < `model_ready` < `first_source` < `first_answer`; `unknown` never sends one. It carries `week`, and its `active` flags are all false. Once accepted it sets `lastSent`, `at` and `body`, as a daily report does, but never `lastReport` or the day's attempts. The new furthest step is recorded only once the POST is accepted, so at most four setup reports are accepted per install. A try that is not accepted (a network error, the timeout, any status other than 2xx) has no cap of its own: the next check, 5 minutes later, tries again while the step is still unreported, until the first week ends. Every accepted report, daily or setup, raises the furthest step reported.
 - **`week`**: on every report in the first week, covering the time since `firstRunAt`; after it, only on a daily report whose `active.week` is true, covering the 7 days before it.
 - **`hardware`**: on the first daily report; and, in the first week only, on any later report while the last hardware sent had `gpu`, `vram_gb` or `gpu_runtime` equal to `unknown`. Never resent after the first week.
 
@@ -148,8 +148,8 @@ A setup report in the first week, on a machine whose card the model runtime cann
 | `usageStatistics` | `true`, `false`, or `null` for never asked |
 | `firstRunAt` | ISO time |
 | `firstRunAsked` | boolean |
-| `lastReport` | `{ "day": "YYYY-MM-DD", "week": "YYYY-Www", "month": "YYYY-MM" }` or `null` |
-| `lastSent` | `{ "at": ISO time, "body": object }` or `null` |
+| `lastReport` | `{ "day": "YYYY-MM-DD", "week": "YYYY-Www", "month": "YYYY-MM" }` or `null`: the periods of the last accepted daily report |
+| `lastSent` | `{ "at": ISO time, "body": object }` or `null`: the last accepted report, daily or setup |
 
 From revision 1.1 it also keeps the furthest onboarding step an accepted report carried and what the last hardware sent held, so the setup report and the hardware rule of part B hold across restarts. Neither is ever sent.
 
@@ -189,12 +189,14 @@ getState(): Promise<{
 }>
 setUsageStatistics(enabled: boolean): Promise<void>
 setUpdatesAutomatic(enabled: boolean): Promise<void>
-previewUsageReport(): Promise<object> // the exact next body, built but not sent
+previewUsageReport(): Promise<object> // the exact next daily body, built but not sent
 completeFirstRun(choices: { updates: boolean; usageStatistics: boolean }): Promise<void>
 onStateChanged(listener): () => void
 ```
 
 It reuses the existing `window.surfsense.updates` bridge rather than duplicating it: `setUpdatesAutomatic` is that bridge's switch.
+
+`previewUsageReport()` always builds the daily body, in the first week too. A setup report is built from the same summary, with `trigger: "setup"`, its `active` flags false and `hardware` by part B's rule, and Settings shows it as `lastSent` once it is accepted.
 
 ### The local summary
 
