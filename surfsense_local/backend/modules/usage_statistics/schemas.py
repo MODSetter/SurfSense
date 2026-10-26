@@ -20,6 +20,7 @@ OnboardingStep = Literal[
 RamGb = Literal["<8", "8-15", "16-31", "32-63", "64+"]
 Gpu = Literal["nvidia", "amd", "intel", "apple", "none", "unknown"]
 VramGb = Literal["0", "<4", "4-7", "8-11", "12-23", "24+", "unknown"]
+GpuRuntime = Literal["reachable", "unreachable", "none", "unknown"]
 UiLanguage = Literal["en", "ja", "de", "other"]
 
 
@@ -37,6 +38,8 @@ class HardwareRead(BaseModel):
     ram_gb: RamGb
     gpu: Gpu
     vram_gb: VramGb
+    # Whether the model runtime can use the card the OS sees.
+    gpu_runtime: GpuRuntime
 
 
 class UsageSummaryRead(BaseModel):

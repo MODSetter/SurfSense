@@ -28,6 +28,8 @@ def read_summary(
     counts = read_counts()
     return UsageSummaryRead(
         week=week_activity(session, since, counts, machine.holds_local_model),
-        hardware=hardware_buckets(machine.inventory(), machine.ram_total_bytes()),
+        hardware=hardware_buckets(
+            machine.inventory(), machine.ram_total_bytes(), machine.os_adapter_names
+        ),
         ui_language=machine.ui_language(),
     )
