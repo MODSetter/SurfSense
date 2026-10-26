@@ -1,6 +1,6 @@
 # Contract 5: desktop telemetry
 
-What the desktop app may send about itself, and only with the user's yes: at most one automatic update check per UTC day, plus the checks the user starts, and an opt-in usage report. Version 1. It binds four parts that ship apart: the Electron main process, the app's UI, the app's local API, and the website routes at `updates.surfsense.com` and `usage.surfsense.com`. Why the app sends anything at all is [ADR 0070](../adr/0070-opt-in-id-less-update-checks-and-usage-statistics.md); how the app does it is [usage statistics](../architecture/usage-statistics.md) and [updates](../architecture/updates.md).
+What the desktop app may send about itself, and only with the user's yes: at most one automatic update check per UTC day, plus the checks the user starts, and an opt-in usage report. Version 1, revision 1.1 (27 Oct 2026). Revision 1.1 adds the first week's setup reports, the report's `trigger` and `hardware.gpu_runtime`; the schema number stays 1 and every addition is optional, so a 2.2.4 app's reports stay valid. It binds four parts that ship apart: the Electron main process, the app's UI, the app's local API, and the website routes at `updates.surfsense.com` and `usage.surfsense.com`. Why the app sends anything at all is [ADR 0070](../adr/0070-opt-in-id-less-update-checks-and-usage-statistics.md); how the app does it is [usage statistics](../architecture/usage-statistics.md) and [updates](../architecture/updates.md).
 
 No part of this contract carries an identifier. Not `x-user-staging-id`, not a licence key, not an install ID, not a cookie, anywhere.
 
@@ -34,20 +34,25 @@ No part of this contract carries an identifier. Not `x-user-staging-id`, not a l
 
 ### The app (Electron main)
 
-- `POST https://usage.surfsense.com/api/usage` with `Content-Type: application/json`, a body of at most 4 KB, a 10 s timeout and no cookies.
-- At most one successful report per UTC day, and up to 3 attempts per UTC day, only when the user opted in and neither the policy nor `DO_NOT_TRACK` forbids it.
-- Never from an unpackaged development build, unless `SURFSENSE_TELEMETRY_DEV_ENDPOINT` names somewhere to send it.
+- `POST https://usage.surfsense.com/api/usage` with `Content-Type: application/json`, a body of at most 4 KB, a 10 s timeout, no cookies and no redirect followed. Both kinds of report below use this one request.
+- Only when the user opted in and neither the policy nor `DO_NOT_TRACK` forbids it, and never from an unpackaged development build, unless `SURFSENSE_TELEMETRY_DEV_ENDPOINT` names somewhere to send it.
+- An install's **first week** runs from `firstRunAt` to `firstRunAt` plus 7 days.
+- **The daily report** (`"trigger": "daily"`): at most one accepted per UTC day, and up to 3 attempts per UTC day.
+- **The setup report** (`"trigger": "setup"`), revision 1.1: only in the first week, checked every 5 minutes, never after it. It is sent when the local summary's `week.onboarding` is a later step than the furthest step any accepted report has carried, in the order `not_started` < `model_chosen` < `model_ready` < `first_source` < `first_answer`; `unknown` never sends one. It carries `week`, and its `active` flags are all false. It never changes `lastReport` or the day's attempts, and the new furthest step is recorded only once the POST is accepted, so an install sends at most four. Every accepted report, daily or setup, raises the furthest step reported.
+- **`week`**: on every report in the first week, covering the time since `firstRunAt`; after it, only on a daily report whose `active.week` is true, covering the 7 days before it.
+- **`hardware`**: on the first daily report; and, in the first week only, on any later report while the last hardware sent had `gpu`, `vram_gb` or `gpu_runtime` equal to `unknown`. Never resent after the first week.
 
 The body, schema 1. Every value is an enum, a boolean or a fixed format, never free text:
 
 ```json
 {
   "schema": 1,
-  "app_version": "2.2.4",
+  "app_version": "2.2.5",
   "platform": "win32-x64",
   "os": "windows-11",
   "ui_language": "en",
   "install_week": "2026-W43",
+  "trigger": "daily",
   "active": { "first": false, "week": true, "month": false },
   "hardware": null,
   "week": {
@@ -62,20 +67,47 @@ The body, schema 1. Every value is an enum, a boolean or a fixed format, never f
 }
 ```
 
+A setup report in the first week, on a machine whose card the model runtime cannot reach, so its hardware rides again:
+
+```json
+{
+  "schema": 1,
+  "app_version": "2.2.5",
+  "platform": "win32-x64",
+  "os": "windows-11",
+  "ui_language": "en",
+  "install_week": "2026-W44",
+  "trigger": "setup",
+  "active": { "first": false, "week": false, "month": false },
+  "hardware": { "ram_gb": "16-31", "gpu": "amd", "vram_gb": "unknown", "gpu_runtime": "unreachable" },
+  "week": {
+    "chat_turns": "0",
+    "agent_turns": "0",
+    "model_source": "none",
+    "sources": "0",
+    "studio_outputs": "0",
+    "plugin_calls": "0",
+    "onboarding": "model_ready"
+  }
+}
+```
+
 | Field | Values | Meaning |
 |---|---|---|
 | `platform` | as `X-SurfSense-Platform` | |
 | `os` | as `X-SurfSense-OS` | |
 | `ui_language` | `en`, `ja`, `de`, `other` | the interface's language |
 | `install_week` | `YYYY-Www` | the ISO week of `firstRunAt`, stored locally |
-| `active.first` | boolean | the first report ever |
-| `active.week` | boolean | the first report this ISO week |
-| `active.month` | boolean | the first report this UTC calendar month |
-| `hardware` | `null`, or the object below | only when `active.first` is true |
+| `trigger` | `daily`, `setup`; optional, revision 1.1 | why the report was sent: the day's report, or setup reaching a new step in the first week. A 2.2.4 app leaves it out, which means `daily` |
+| `active.first` | boolean | the first daily report ever; false on a setup report |
+| `active.week` | boolean | the first daily report this ISO week; false on a setup report |
+| `active.month` | boolean | the first daily report this UTC calendar month; false on a setup report |
+| `hardware` | `null`, or the object below | on the first daily report, and in the first week while the last hardware sent had an `unknown` part |
 | `hardware.ram_gb` | `<8`, `8-15`, `16-31`, `32-63`, `64+` | |
 | `hardware.gpu` | `nvidia`, `amd`, `intel`, `apple`, `none`, `unknown` | |
 | `hardware.vram_gb` | `0`, `<4`, `4-7`, `8-11`, `12-23`, `24+`, `unknown` | |
-| `week` | `null`, or the object below | only when `active.week` is true; covers the 7 days before the report |
+| `hardware.gpu_runtime` | `reachable`, `unreachable`, `none`, `unknown`; optional, revision 1.1 | whether the model runtime can use the graphics card: it can, the OS sees a card the runtime cannot reach, there is no card, or nobody knows |
+| `week` | `null`, or the object below | on every report in the first week, covering the time since `firstRunAt`; after it, only when `active.week` is true, covering the 7 days before the report |
 | `week.chat_turns` | `0`, `1-9`, `10-49`, `50+`, `unknown` | the user's turns in Basic chat |
 | `week.agent_turns` | `0`, `1-9`, `10-49`, `50+`, `unknown` | Agentic turns |
 | `week.model_source` | `none`, `local`, `remote`, `both`, `unknown` | which kinds of model answered in the window |
@@ -86,9 +118,14 @@ The body, schema 1. Every value is an enum, a boolean or a fixed format, never f
 
 ### The website route (`www`, served at `usage.surfsense.com`)
 
-- `POST /api/usage`, validated strictly: an unknown key or value answers 400, a body over 4 KB 413, a wrong content type 415. Success is 204.
-- It records one personless event, `desktop_usage_report`, with the fields flattened (`app_version`, `platform`, `os`, `ui_language`, `install_week`, `active_first`, `active_week`, `active_month`, `hardware_ram_gb`, `hardware_gpu`, `hardware_vram_gb`, `week_chat_turns`, `week_agent_turns`, `week_model_source`, `week_sources`, `week_studio_outputs`, `week_plugin_calls`, `week_onboarding`) plus `country` from `x-vercel-ip-country`.
+- `POST /api/usage`, validated strictly: an unknown key or value answers 400, a body over 4 KB 413, a wrong content type 415. Success is 204. `trigger` and `hardware.gpu_runtime` may be absent, and `week` and `hardware` are accepted on any report; when each rides is the app's rule above, not the route's.
+- It records one personless event, `desktop_usage_report`, with the fields flattened (`app_version`, `platform`, `os`, `ui_language`, `install_week`, `trigger`, `active_first`, `active_week`, `active_month`, `hardware_ram_gb`, `hardware_gpu`, `hardware_vram_gb`, `hardware_gpu_runtime`, `week_chat_turns`, `week_agent_turns`, `week_model_source`, `week_sources`, `week_studio_outputs`, `week_plugin_calls`, `week_onboarding`) plus `country` from `x-vercel-ip-country`. `trigger` is `daily` when the report left it out; a field the report did not send adds no property.
 - It never reads, logs or stores the IP address or the User-Agent.
+
+### Reading the events
+
+- Daily, weekly and monthly actives, and first reports, are counted only from events whose `trigger` is `daily` or absent; events recorded before revision 1.1 have none. A setup report's flags are all false, and it is not a day's activity.
+- Events are counted, never joined: nothing ties one install's reports together.
 
 ## C. Local state, policy and the bridge (desktop only)
 
@@ -113,6 +150,8 @@ The body, schema 1. Every value is an enum, a boolean or a fixed format, never f
 | `firstRunAsked` | boolean |
 | `lastReport` | `{ "day": "YYYY-MM-DD", "week": "YYYY-Www", "month": "YYYY-MM" }` or `null` |
 | `lastSent` | `{ "at": ISO time, "body": object }` or `null` |
+
+From revision 1.1 it also keeps the furthest onboarding step an accepted report carried and what the last hardware sent held, so the setup report and the hardware rule of part B hold across restarts. Neither is ever sent.
 
 The existing `updates.json` keeps `automatic` and `lastCheckedAt`.
 
@@ -164,12 +203,14 @@ It reuses the existing `window.surfsense.updates` bridge rather than duplicating
 ```json
 {
   "week": { "chat_turns": "10-49", "agent_turns": "0", "model_source": "local", "sources": "10-99", "studio_outputs": "1-4", "plugin_calls": "0", "onboarding": "first_answer" },
-  "hardware": { "ram_gb": "16-31", "gpu": "nvidia", "vram_gb": "8-11" },
+  "hardware": { "ram_gb": "16-31", "gpu": "nvidia", "vram_gb": "8-11", "gpu_runtime": "reachable" },
   "ui_language": "en"
 }
 ```
 
-with the values of part B, computed at read time from `surfsense.db` and the runtime. Electron main adds `schema`, `app_version`, `platform`, `os`, `install_week` and `active`.
+with the values of part B, computed at read time from `surfsense.db` and the runtime. Electron main asks with `since` at `firstRunAt` in the first week and 7 days back after it, and adds `schema`, `app_version`, `platform`, `os`, `install_week`, `trigger` and `active`.
+
+From revision 1.1, `hardware.gpu_runtime` is the runtime's view of the graphics card: `reachable` when the model runtime can use it, `unreachable` when the operating system sees a card the runtime cannot reach, `none` when there is no card, and `unknown` when the runtime's view cannot be read. With `unreachable`, `gpu` is the vendor in the operating system's adapter names and `vram_gb` is `unknown`.
 
 ## As first built
 

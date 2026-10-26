@@ -1,6 +1,6 @@
 # Usage statistics
 
-An opt-in report that tells SurfSense this install was used, and once a week how much, in ranges. It is off until the user says yes, carries no identifier, and every value in it is an enum, a boolean or a fixed format. The user can read the exact next report, and the last one sent, before and after saying yes. The update check, which counts installs that check in each day, is in [updates](updates.md).
+An opt-in report that tells SurfSense this install was used, and once a week how much, in ranges. In the install's first week every report carries those ranges, and one more report goes out each time setup reaches a new step. It is off until the user says yes, carries no identifier, and every value in it is an enum, a boolean or a fixed format. The user can read the exact next report, and the last one sent, before and after saying yes. The update check, which counts installs that check in each day, is in [updates](updates.md).
 
 **Code:** [`surfsense_local/backend/modules/usage_statistics/`](../../surfsense_local/backend/modules/usage_statistics/), [`surfsense_local/frontend/src/features/privacy-choices/`](../../surfsense_local/frontend/src/features/privacy-choices/), [`surfsense_local/frontend/src/features/onboarding/privacy-step/`](../../surfsense_local/frontend/src/features/onboarding/privacy-step/), and in Electron main `electron/src/main/usage-statistics/`, `privacy-choices/` and `admin-policy/`
 **Decisions:** [ADR 0070](../adr/0070-opt-in-id-less-update-checks-and-usage-statistics.md)
@@ -12,23 +12,29 @@ An opt-in report that tells SurfSense this install was used, and once a week how
       window.surfsense.privacy ◀───────────┘   (preload bridge)
                   │
             Electron main ── privacy.json, policy.json, DO_NOT_TRACK
-                  │  at most once a UTC day, only when opted in
-                  ├── GET 127.0.0.1:<port>/usage-statistics/summary?since=<7 days ago>
+                  │  only when opted in: at most one daily report a UTC day,
+                  │  and in the first week a setup report at each new step
+                  ├── GET 127.0.0.1:<port>/usage-statistics/summary?since=<7 days ago, or firstRunAt>
                   │        the API reads surfsense.db, the counts file and the machine
                   └── POST https://usage.surfsense.com/api/usage   (≤ 4 KB, no cookies)
 ```
 
 ## What is sent
 
-One JSON body, schema 1, at most once per UTC day ([contract 5](../contracts/05-desktop-telemetry.md), part B):
+One JSON body, schema 1, revision 1.1 ([contract 5](../contracts/05-desktop-telemetry.md), part B), sent as two kinds of report:
 
-- Always: the schema number, the app's version, its platform (`win32-x64` and the like), its OS (`windows-11`, `macos-15`, `linux`), the interface language (`en`, `ja`, `de` or `other`), the ISO week the app first ran, and three flags: the install's first report ever, its first this ISO week, its first this UTC month. A day's reports therefore count the reporting installs active that day, and the flags count weekly and monthly actives and installs reporting for the first time. An install that opts in late sends its first report then, so its age is `install_week`, not the first flag.
-- On the first report of an ISO week, the past seven days in ranges: Basic chat turns, Agentic turns, whether a local or a remote model answered, the documents in the library, Studio outputs, plugin tool calls, and the furthest onboarding step the library shows.
-- On the first report ever, the machine in ranges: memory, the GPU's vendor and its memory.
+- **Daily** (`trigger: "daily"`): at most one accepted a UTC day. The first try is about two minutes after launch, then an hourly tick tries again, up to three tries a UTC day.
+- **Setup** (`trigger: "setup"`): only in the install's first week, the seven days from `firstRunAt`. Electron main checks every five minutes and sends one when onboarding has reached a later step than any accepted report carried, in the order not started, model chosen, model ready, first source, first answer. `unknown` never sends one, and the new step is recorded only once the report is accepted, so an install sends at most four. Its flags are all false, and it never counts as the day's report or uses one of the day's tries.
+
+What a report carries:
+
+- Always: the schema number, the app's version, its platform (`win32-x64` and the like), its OS (`windows-11`, `macos-15`, `linux`), the interface language (`en`, `ja`, `de` or `other`), the ISO week the app first ran, why it was sent (`trigger`), and three flags: the install's first daily report ever, its first this ISO week, its first this UTC month. A day's daily reports therefore count the reporting installs active that day, and the flags count weekly and monthly actives and installs reporting for the first time. Actives are counted only from events whose `trigger` is `daily` or absent: a 2.2.4 app sends none, the route records its reports as `daily`, and events recorded before revision 1.1 have no trigger at all. An install that opts in late sends its first report then, so its age is `install_week`, not the first flag.
+- The week in ranges: Basic chat turns, Agentic turns, whether a local or a remote model answered, the documents in the library, Studio outputs, plugin tool calls, and the furthest onboarding step the library shows. In the first week every report carries it, counted since `firstRunAt`, so an install that stops in its first days still shows how far setup got. After that, only the first daily report of an ISO week carries it, for the past seven days.
+- The machine in ranges: memory, the GPU's vendor and its memory, and `gpu_runtime`, whether the model runtime can use the graphics card. It rides on the first daily report, and in the first week again on each report while the last one sent had an `unknown` part; never after the first week. `privacy.json` keeps what was last sent, and the furthest step reported, so both rules hold across restarts.
 
 Never documents, prompts, file names, model names, hosts, the license key or an ID. The request carries the outbound session's `User-Agent: SurfSense`, which names no version. The website route at `usage.surfsense.com` validates every key and value, stores one personless event per report with the country its host derives from the IP address, and never reads or stores the address or the user agent; the hosting provider's request logs keep both for a short time, as the privacy page says.
 
-No identifier ties one install's reports together, but the values that never change for an install (its platform, OS, language and install week) together with the country can single out an install whose combination is uncommon, and the first report adds its hardware; so figures are read in aggregate, and no page may say reports cannot be told apart.
+No identifier ties one install's reports together, but the values that never change for an install (its platform, OS, language and install week) together with the country can single out an install whose combination is uncommon, and the reports that carry hardware add it; so figures are read in aggregate, and no page may say reports cannot be told apart.
 
 ## Consent
 
@@ -48,7 +54,7 @@ A locked row is already answered in the first-run step. An unpackaged developmen
 
 ## The summary endpoint
 
-`GET /usage-statistics/summary?since=<ISO time>` on the app's local API answers the report's `week`, `hardware` and `ui_language`, computed on each read and sent nowhere by the API itself. The API binds to loopback unless `SURFSENSE_LOCAL_HOST` names another address, and this route is exposed exactly as every other route then is. Electron main asks for it with `since` seven days back and adds the rest. A missing or malformed `since` is a 422.
+`GET /usage-statistics/summary?since=<ISO time>` on the app's local API answers the report's `week`, `hardware` and `ui_language`, computed on each read and sent nowhere by the API itself. The API binds to loopback unless `SURFSENSE_LOCAL_HOST` names another address, and this route is exposed exactly as every other route then is. Electron main asks for it with `since` at `firstRunAt` in the install's first week and seven days back after it, and adds the rest. A missing or malformed `since` is a 422.
 
 | Value | Read from |
 |---|---|
