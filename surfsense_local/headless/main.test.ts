@@ -27,6 +27,8 @@ if (role === "api") {
 } else {
   setInterval(() => {}, 1000)
 }
+const slowStop = Number(process.env.FAKE_SLOW_STOP_MS)
+if (slowStop && role.startsWith("worker-")) process.on("SIGTERM", () => setTimeout(() => process.exit(0), slowStop))
 `
 
 interface Run {
@@ -161,4 +163,15 @@ test("a secret given in the environment reaches the API and the workers, and no 
   }
   assert.equal(children["llama-server"]?.env.SURFSENSE_LOCAL_SECRET, undefined)
   run.child.kill("SIGTERM")
+})
+
+test("a second signal while stopping waits for every child instead of leaving them running", { skip }, async (t) => {
+  const run = startHeadless(t, { env: { FAKE_SLOW_STOP_MS: "1000" } })
+  await run.ready
+  const pids = Object.values(await recorded(run.log)).map((c) => c.pid)
+  run.child.kill("SIGTERM")
+  await new Promise((resolve) => setTimeout(resolve, 200))
+  run.child.kill("SIGINT")
+  assert.equal(await run.exited, 0)
+  assert.deepEqual(pids.filter(alive), [])
 })

@@ -7,6 +7,7 @@ import { mkdirSync } from "node:fs"
 
 import { announceApiUrl, withdrawApiUrl } from "../sidecars/api-url/announce-api-url.ts"
 import { bootSidecars, type Booted } from "../sidecars/boot.ts"
+import { stopOnce } from "../sidecars/stop-once.ts"
 import { stopAll } from "../sidecars/supervisor.ts"
 import { containerEnv } from "./container-env.ts"
 import { contextFromEnv } from "./context-from-env.ts"
@@ -24,13 +25,15 @@ Object.assign(process.env, environment)
 let booted: Booted | null = null
 let stopping = false
 
+const stopSidecars = stopOnce(async () => {
+  stopping = true
+  booted?.stopWatching()
+  withdrawApiUrl(context.dataDir)
+  if (booted) await stopAll(booted.sidecars)
+})
+
 async function stop(code: number): Promise<never> {
-  if (!stopping) {
-    stopping = true
-    booted?.stopWatching()
-    withdrawApiUrl(context.dataDir)
-    if (booted) await stopAll(booted.sidecars)
-  }
+  await stopSidecars()
   process.exit(code)
 }
 

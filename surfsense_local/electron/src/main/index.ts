@@ -27,6 +27,7 @@ import { frameMayNavigate } from "./framed-navigation.ts"
 import { pluginPageUrl, type PluginPage } from "./plugin-page-url.ts"
 import { loadSecret } from "./secret.ts"
 import { bootSidecars, type BootContext } from "../../../sidecars/boot.ts"
+import { stopOnce } from "../../../sidecars/stop-once.ts"
 import { stopAll, type Sidecars } from "../../../sidecars/supervisor.ts"
 import type { SidecarContext } from "../../../sidecars/types.ts"
 import { refuseSpellcheckDownloads } from "./spellcheck.ts"
@@ -420,15 +421,14 @@ async function quitWithConfirmation(): Promise<boolean> {
 }
 
 /** Stop watchers and snapshots first, then reap the sidecars they would otherwise restart. */
-async function shutdown(): Promise<void> {
-  if (shuttingDown) return
+const shutdown = stopOnce(async () => {
   shuttingDown = true
   stopSidecarWatchers?.()
   stopPrivacyChoices?.()
   stopDocxSnapshots?.()
   withdrawApiUrl(DATA_DIR)
   if (sidecars) await stopAll(sidecars)
-}
+})
 
 function denyAppWindows(contents: Electron.WebContents): void {
   contents.setWindowOpenHandler(({ url }) => {
