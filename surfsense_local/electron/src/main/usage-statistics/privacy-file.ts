@@ -1,11 +1,18 @@
 import { readFileSync, renameSync, writeFileSync } from "node:fs"
 
+import { setupStep, type SetupStep } from "./setup-progress.ts"
+import { parseSetupTries, type SetupTries } from "./setup-tries.ts"
+
 /** The UTC day, ISO week and month of the last report that was accepted. */
 export type ReportPeriod = { day: string; week: string; month: string }
 
+/** The GPU half of the last hardware block sent; gpu_runtime null: sent before it existed. */
+export type SentHardware = { gpu: string; vram_gb: string; gpu_runtime: string | null }
+
 /**
- * userData/privacy.json (contract 05, part C). `attempts` is local only: the
- * contract allows three tries per UTC day, across restarts too.
+ * userData/privacy.json (contract 05, part C). `attempts`, `onboardingReported`,
+ * `hardwareSent` and `setupTries` are local only: the daily and setup reports'
+ * tries across restarts, and what decides the first week's setup reports and hardware.
  */
 export type PrivacyFile = {
   /** null: never asked. */
@@ -15,6 +22,10 @@ export type PrivacyFile = {
   lastReport: ReportPeriod | null
   lastSent: { at: string; body: object } | null
   attempts: { day: string; count: number } | null
+  /** The furthest setup step any accepted report carried. */
+  onboardingReported: SetupStep | null
+  hardwareSent: SentHardware | null
+  setupTries: SetupTries | null
 }
 
 export type PrivacyStore = {
@@ -50,11 +61,27 @@ function reportPeriod(value: unknown): ReportPeriod | null {
     : null
 }
 
-/** What was on disk, with anything unreadable taken as never set. */
+/** What a hardware block leaves to remember, or null when there is none. */
+export function sentHardware(value: unknown): SentHardware | null {
+  const hardware = record(value)
+  if (!hardware || typeof hardware.gpu !== "string" || typeof hardware.vram_gb !== "string") return null
+  const runtime = hardware.gpu_runtime
+  return {
+    gpu: hardware.gpu,
+    vram_gb: hardware.vram_gb,
+    gpu_runtime: typeof runtime === "string" ? runtime : null,
+  }
+}
+
+/**
+ * What was on disk, with anything unreadable taken as never set. A file written
+ * before the last two fields existed has only its last report to say what was carried.
+ */
 export function parsePrivacyFile(value: unknown, now: Date): PrivacyFile {
   const file = record(value) ?? {}
   const lastSent = record(file.lastSent)
   const attempts = record(file.attempts)
+  const lastBody = record(lastSent?.body)
   return {
     usageStatistics: typeof file.usageStatistics === "boolean" ? file.usageStatistics : null,
     firstRunAt: isoTime(file.firstRunAt) ?? now.toISOString(),
@@ -71,6 +98,10 @@ export function parsePrivacyFile(value: unknown, now: Date): PrivacyFile {
       Number.isInteger(attempts.count)
         ? { day: attempts.day, count: attempts.count as number }
         : null,
+    onboardingReported:
+      setupStep(file.onboardingReported) ?? setupStep(record(lastBody?.week)?.onboarding),
+    hardwareSent: sentHardware(file.hardwareSent) ?? sentHardware(lastBody?.hardware),
+    setupTries: parseSetupTries(file.setupTries),
   }
 }
 

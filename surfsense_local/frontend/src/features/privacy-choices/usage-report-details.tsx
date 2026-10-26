@@ -23,7 +23,7 @@ function useNextReport() {
   })
 }
 
-/** The next report, built but not sent, and the last one that was. */
+/** The next daily report, built but not sent, and the last report of either kind that was. */
 export function UsageReportDetails({ state }: { state: PrivacyState }) {
   const next = useNextReport()
   const { host, enabled, lastSent } = state.usageStatistics
@@ -35,7 +35,7 @@ export function UsageReportDetails({ state }: { state: PrivacyState }) {
           {
             id: "privacy_choices_usage_report_body",
             defaultMessage:
-              "At most one report a day goes to {host}, as the JSON below, with no cookies. Every value is a range or a fixed word. Like every request it carries your IP address, which the hosting provider’s logs keep for a short time; SurfSense records only the country derived from it.",
+              "One report a day goes to {host} as JSON, with no cookies, and during the install’s first week one more each time setup reaches a new step, at most four more. Every value is a range or a fixed word. Like every request it carries your IP address, which the hosting provider’s logs keep for a short time; SurfSense records only the country derived from it.",
           },
           { host }
         )}
@@ -54,7 +54,7 @@ export function UsageReportDetails({ state }: { state: PrivacyState }) {
       <h3 className="mt-1 text-sm font-medium">
         {intl.formatMessage({
           id: "privacy_choices_usage_next_report_title",
-          defaultMessage: "Next report",
+          defaultMessage: "Next daily report",
         })}
       </h3>
       {next.isPending ? (
@@ -63,7 +63,7 @@ export function UsageReportDetails({ state }: { state: PrivacyState }) {
         <SentBody
           label={intl.formatMessage({
             id: "privacy_choices_usage_next_report_aria",
-            defaultMessage: "The next usage report",
+            defaultMessage: "The next daily usage report",
           })}
           text={asJson(next.data)}
         />
