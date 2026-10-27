@@ -1,0 +1,24 @@
+diff --git a/lib/index.js b/lib/index.js
+index 53ba7b5f31ce3d4a5569212083ae1e4fd773192f..718c96ec21d640d73391cf2e57f2bd95e6a1d89f 100644
+--- a/lib/index.js
++++ b/lib/index.js
+@@ -44,8 +44,17 @@ function notarize(_a) {
+             throw new Error('notarytool is not available, you must be on at least Xcode 13 or provide notarytoolPath');
+         }
+         yield (0, notarytool_1.notarizeAndWaitForNotaryTool)(Object.assign({ appPath }, otherOptions));
+-        yield (0, promise_retry_1.default)(() => (0, staple_1.stapleApp)({ appPath }), {
+-            retries: 3,
++        // SurfSense patch: promise-retry retries only when the callback calls the retry it is
++        // handed, which upstream's never did, so one dropped connection to Apple's ticket
++        // service failed a build whose notarization had already succeeded. The waits (10 s,
++        // 20 s, 40 s, then 60 s twice) also cover a ticket that has not reached it yet.
++        yield (0, promise_retry_1.default)((retry, attempt) => (0, staple_1.stapleApp)({ appPath }).catch((error) => {
++            console.warn(`Stapling attempt ${attempt} failed: ${error.message}`);
++            retry(error);
++        }), {
++            retries: 5,
++            minTimeout: 10000,
++            maxTimeout: 60000,
+         });
+     });
+ }
