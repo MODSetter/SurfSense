@@ -21,7 +21,10 @@ permissions:
   contents: read
 
 jobs:
-  # Filtered per job, not per workflow, so the gate always reports.
+  # Filtered per job, not per workflow, so the gate always reports. A pull
+  # request builds the image only for what can break the image itself; a
+  # release's carries the VERSION bump, so it always does. A dev push or a
+  # manual run, unfiltered, runs every job and catches the rest after merging.
   changes:
     name: Changes
     runs-on: ubuntu-latest
@@ -48,20 +51,31 @@ jobs:
               - '.github/workflows/docker-tests.yml'
             image:
               - 'docker/surfsense/**'
-              - 'surfsense_local/backend/**'
-              - 'surfsense_local/frontend/**'
-              - 'surfsense_local/sidecars/**'
-              - 'surfsense_local/runtimes/**'
               - 'surfsense_local/headless/**'
+              - 'surfsense_local/sidecars/**'
+              # opencode's staging, and what it imports.
+              - 'surfsense_local/runtimes/opencode/**'
+              - 'surfsense_local/runtimes/pinned-download.mjs'
+              - 'surfsense_local/runtimes/windows-locks/**'
+              - 'surfsense_local/backend/pyproject.toml'
+              - 'surfsense_local/backend/uv.lock'
+              # The bundled models' downloads, which the build runs.
+              - 'surfsense_local/backend/scripts/fetch_*.py'
+              - 'surfsense_local/frontend/package.json'
+              - 'surfsense_local/frontend/pnpm-lock.yaml'
+              - 'surfsense_local/frontend/pnpm-workspace.yaml'
+              - 'surfsense_local/frontend/vite.config.ts'
               - 'surfsense_local/VERSION'
               - 'backend/plugins/bundles/core/**'
               - '.github/workflows/docker-tests.yml'
             backend:
               - 'docker/surfsense/Dockerfile'
               - 'docker/surfsense/Dockerfile.dockerignore'
-              - 'surfsense_local/backend/**'
+              - 'surfsense_local/backend/pyproject.toml'
+              - 'surfsense_local/backend/uv.lock'
+              # The bundled models' downloads, which the build runs.
+              - 'surfsense_local/backend/scripts/fetch_*.py'
               - 'backend/plugins/bundles/core/manifest/**'
-              - 'docs/contracts/**'
               - '.github/workflows/docker-tests.yml'
 
   headless:
