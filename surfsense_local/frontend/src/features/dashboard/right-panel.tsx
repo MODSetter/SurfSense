@@ -10,10 +10,13 @@ export function RightPanel({
   inspect,
   studio,
   artifacts,
+  toggle,
 }: {
   inspect: ReactNode
   studio: ReactNode
   artifacts: ReactNode
+  /** Hides the panel; Studio's heading holds it, a preview's header never does. */
+  toggle?: ReactNode
 }) {
   if (inspect) return inspect
 
@@ -30,9 +33,12 @@ export function RightPanel({
           "New chat" does over there, so they don't need a heading of
           their own. */}
       <header className="shrink-0 space-y-6 px-3 py-3">
-        <h2 className="truncate px-1 font-heading text-lg font-medium text-foreground select-none">
-          Studio
-        </h2>
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="truncate px-1 font-heading text-lg font-medium text-foreground select-none">
+            Studio
+          </h2>
+          {toggle}
+        </div>
         {studio}
       </header>
       <div className="min-h-0 min-w-0 flex-1 overflow-hidden px-3 pb-2">

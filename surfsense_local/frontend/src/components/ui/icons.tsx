@@ -79,7 +79,7 @@ import {
   Search01Icon,
   ServerIcon as ServerIconData,
   ServerOffIcon as ServerOffIconData,
-  SidebarRight01Icon as SidebarRight01IconData,
+  LayoutAlignRightIcon as LayoutAlignRightIconData,
   Settings02Icon,
   ShuffleIcon as ShuffleIconData,
   AiSparklesIcon as AiSparklesIconData,
@@ -214,7 +214,7 @@ export const EmbeddingIcon = createIcon(ChartScatterIconData)
 export const ServerIcon = createIcon(ServerIconData)
 export const ServerOffIcon = createIcon(ServerOffIconData)
 export const DownloadCircle02Icon = createIcon(DownloadCircle02IconData)
-export const SidebarRightIcon = createIcon(SidebarRight01IconData)
+export const LayoutAlignRightIcon = createIcon(LayoutAlignRightIconData)
 export const Settings2Icon = createIcon(Settings02Icon)
 export const ShuffleIcon = createIcon(ShuffleIconData)
 export const AiSparklesIcon = createIcon(AiSparklesIconData)

@@ -181,6 +181,7 @@ export function ThreadPanel({
   onOpenPlugins,
   dictation,
   onOpenSpeechSettings,
+  headerEnd,
 }: {
   live: LiveThreadSource
   thread: ChatThread | null
@@ -210,6 +211,8 @@ export function ThreadPanel({
   dictation?: Dictation
   // Opens Settings › Speech recognition, from the mic's set-up.
   onOpenSpeechSettings?: () => void
+  // At the header's end: the right panel's toggle while the panel is hidden.
+  headerEnd?: ReactNode
 }) {
   const titleInputRef = useRef<HTMLInputElement>(null)
   const headingId = useId()
@@ -417,6 +420,7 @@ export function ThreadPanel({
               </DropdownMenu>
             </ButtonGroup>
           )}
+          {headerEnd ? <div className="ml-auto pl-3">{headerEnd}</div> : null}
         </header>
 
         <ThreadPrimitive.Root className="relative flex min-h-0 flex-1 flex-col">
