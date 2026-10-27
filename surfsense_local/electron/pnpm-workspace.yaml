@@ -9,4 +9,6 @@ overrides:
   isbinaryfile: ^5.0.7
 
 patchedDependencies:
+  # electron-builder notarizes the Mac app through it; the patch makes its staple retry.
+  "@electron/notarize@2.5.0": patches/@electron__notarize@2.5.0.patch
   electron-updater@6.8.9: patches/electron-updater@6.8.9.patch
