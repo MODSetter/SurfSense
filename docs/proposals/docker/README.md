@@ -75,11 +75,11 @@ One container, because the stack assumes one machine: SQLite and the Huey queue 
 |---|---|---|
 | The container's loopback | the API, the workers, the model servers and opencode, each on a free port | processes in the container only |
 | Compose's default bridge | the container's interface, with only Caddy listening, on `:80` and, with a domain, `:443` | the host, through the published port |
-| The published port | `${SURFSENSE_BIND:-127.0.0.1}:${SURFSENSE_PORT:-4929}` → `80` | the host machine alone by default; the LAN with `SURFSENSE_BIND=0.0.0.0` |
+| The published port | `${SURFSENSE_BIND:-127.0.0.1}:${SURFSENSE_PORT:-4929}` → `80` | the host machine alone by default; the LAN with `SURFSENSE_BIND=0.0.0.0`, which joins with the password (step 10): until then compose publishes on `127.0.0.1` only |
 | Outbound | NAT through the bridge | remote providers, model downloads and the plugin host, under the backend's egress rules |
 
 - **No container talks to another.** The legacy services reached each other by name on the Compose network (`db`, `redis`, `backend`); here every call stays on loopback.
-- **Two locks on the way in.** Docker publishes on the host's loopback unless `SURFSENSE_BIND` widens it, and Caddy refuses a non-local `Host` until a password is set ([Caddy and access](#caddy-and-access)).
+- **Two locks on the way in.** Docker publishes on the host's loopback unless `SURFSENSE_BIND` widens it, and Caddy refuses a non-local `Host` until a password is set ([Caddy and access](#caddy-and-access)). The `Host` header is the sender's to choose, so it stops a browser on the LAN and DNS rebinding, not a client that sends `Host: localhost` on purpose: `SURFSENSE_BIND` therefore arrives with the password, never before it.
 - **No Docker socket.** The legacy OpenSandbox mounted `/var/run/docker.sock`, which is root on the host; this container needs nothing from the host but the volume and, on `-cuda`, the card ([`gpu.md`](gpu.md)).
 
 ## One core, two entries
@@ -310,7 +310,7 @@ volumes:
   surfsense_data:
 ```
 
-`SURFSENSE_LOCAL_PUBLIC_PORT` is the published port, which sign-ins send the browser back to. `SURFSENSE_PASSWORD`, `SURFSENSE_ALLOWED_HOSTS` and `SURFSENSE_DOMAIN` join with steps 10 and 11. `stop_grace_period` covers the supervisor's stop, which sends SIGKILL to a child 5 s after SIGTERM; Docker's default of 10 s is too tight with ten children. A GPU override file sits beside it ([`gpu.md`](gpu.md)).
+`SURFSENSE_LOCAL_PUBLIC_PORT` is the published port, which sign-ins send the browser back to. `SURFSENSE_BIND`, `SURFSENSE_PASSWORD`, `SURFSENSE_ALLOWED_HOSTS` and `SURFSENSE_DOMAIN` join with steps 10 and 11; until then the port is published on `127.0.0.1` only. `stop_grace_period` covers the supervisor's stop, which sends SIGKILL to a child 5 s after SIGTERM; Docker's default of 10 s is too tight with ten children. A GPU override file sits beside it ([`gpu.md`](gpu.md)).
 
 ## CI
 
