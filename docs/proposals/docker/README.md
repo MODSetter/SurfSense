@@ -329,11 +329,12 @@ Moving `sidecars/` and `runtimes/` changes the desktop's workflows in the same p
 
 ### The image
 
-Two workflows, as the desktop has: `docker-tests.yml` builds and smokes, and never pushes; `release-docker.yml` publishes. Both run [`smoke.sh`](../../../docker/surfsense/smoke.sh). The legacy images build from [`docker-build.yml` on the `legacy` branch](https://github.com/MODSetter/SurfSense/blob/legacy/.github/workflows/docker-build.yml), on `legacy-v*` tags.
+Two workflows, as the desktop has: `docker-tests.yml` tests, and never pushes; `release-docker.yml` publishes. Both run [`image.test.ts`](../../../surfsense_local/headless/image.test.ts) against the image they built, off elsewhere unless `SURFSENSE_TEST_IMAGE` names one. The legacy images build from [`docker-build.yml` on the `legacy` branch](https://github.com/MODSetter/SurfSense/blob/legacy/.github/workflows/docker-build.yml), on `legacy-v*` tags.
 
 - Pull requests and `dev` pushes that touch what the Dockerfile copies in (`docker/surfsense/**`, `surfsense_local/{backend,frontend,sidecars,runtimes,headless}/**`, `backend/plugins/bundles/core/**`) build the image without pushing, in `docker-tests.yml`. A `changes` job and a gate keep it a required check.
 - Build by digest per architecture and variant, then merge into one manifest per variant.
-- A smoke job starts the CPU image, waits for `/health` through Caddy, and checks that a non-local `Host` is refused without a password. Nothing is pushed unless it passes.
+- The image tests start the CPU image, wait for `/health` through Caddy, check the app and that its script is served as JavaScript, that a non-local `Host` and `/api/internal` are refused without a password, a clean stop, and that a new container on the same `/data` keeps its secret. Nothing is pushed unless they pass.
+- The shared core's tests stay in Desktop Tests. `docker-tests.yml` adds only what the Docker entry and the image change: the `headless/` tests, the frontend's tests tagged `docker`, in Vitest's `docker` project, with the image build's `VITE_*` settings and no Electron bridge, the compose file, and the backend's `pytest.mark.image` tests run inside the Dockerfile's `backend-tests` stage, as uid 1000 under tini, where the bundled models and system libraries are the image's.
 
 ## Releases
 
@@ -341,9 +342,9 @@ The image releases with the desktop app: one version, `surfsense_local/VERSION`,
 
 | When | The desktop | The image |
 |---|---|---|
-| `vX.Y.Z` tag pushed | `release-local.yml` builds a draft release | `release-docker.yml` builds, smokes and pushes `X.Y.Z` and `X.Y.Z-<variant>` |
+| `vX.Y.Z` tag pushed | `release-local.yml` builds a draft release | `release-docker.yml` builds, tests and pushes `X.Y.Z` and `X.Y.Z-<variant>` |
 | draft published by hand | GitHub's Latest moves; the in-app updater offers it | a `release: published` job points `latest`, `X.Y`, `latest-<variant>` and `X.Y-<variant>` at the `X.Y.Z` digests |
-| `dev` push | `desktop-tests.yml` | `docker-tests.yml` builds and smokes; nothing is pushed |
+| `dev` push | `desktop-tests.yml` | `docker-tests.yml` builds and tests; nothing is pushed |
 | `workflow_dispatch` | a dry run | a dry run, pushing nothing |
 
 - **`latest` moves on publish, not on the tag.** It is a retag of the digests the tag built and smoked (`docker buildx imagetools create`), with no rebuild. Until the draft is published, only someone asking for `:X.Y.Z` gets the new image; a draft that is deleted reaches nobody on `latest`.
@@ -376,7 +377,7 @@ In order; each step depends on the one before it and leaves something that runs.
 **The first container.**
 
 5. The CPU image and compose on amd64, with the localhost-only access file, opencode and no local model runtimes: upload, ingest and chat through a remote connection work, and plugin and ChatGPT sign-ins finish from a browser on the host.
-6. `docker-tests.yml` and `release-docker.yml`: the build and the smoke, then the release jobs, with `latest` moving on publish.
+6. `docker-tests.yml` and `release-docker.yml`: the build and its tests, then the release jobs, with `latest` moving on publish.
 
 **Local models, one runtime at a time.**
 

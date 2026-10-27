@@ -1,5 +1,14 @@
 {
   "name": "surfsense-local-headless",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "packageManager": "pnpm@11.27.1",
+  "scripts": {
+    "test": "node --test \"*.test.ts\"",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/node": "^24",
+    "typescript": "~6"
+  }
 }

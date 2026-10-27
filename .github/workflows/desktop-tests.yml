@@ -58,7 +58,6 @@ jobs:
               - 'surfsense_local/electron/**'
               - 'surfsense_local/sidecars/**'
               - 'surfsense_local/runtimes/**'
-              - 'surfsense_local/headless/**'
               - 'surfsense_local/scripts/**'
               - 'surfsense_local/packaging/**'
               - 'surfsense_local/VERSION'

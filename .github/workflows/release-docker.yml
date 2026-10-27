@@ -11,7 +11,7 @@ on:
   # The desktop release's draft is published by hand; latest moves then, not on the tag.
   release:
     types: [published]
-  # A dry run: builds and smokes, pushes nothing.
+  # A dry run: builds and tests, pushes nothing.
   workflow_dispatch:
 
 concurrency:
@@ -23,7 +23,7 @@ env:
 
 jobs:
   image:
-    name: Build, smoke and push (amd64)
+    name: Build, test and push (amd64)
     runs-on: ubuntu-latest
     timeout-minutes: 90
     if: github.event_name != 'release'
@@ -63,8 +63,15 @@ jobs:
           tags: surfsense:release
           cache-from: type=gha,scope=surfsense-cpu
 
-      - name: Smoke
-        run: docker/surfsense/smoke.sh surfsense:release
+      # Node 24 runs the TypeScript test as it is.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Test the image
+        env:
+          SURFSENSE_TEST_IMAGE: surfsense:release
+        run: node --test surfsense_local/headless/image.test.ts
 
       - name: Log in to GHCR
         if: steps.version.outputs.version != ''
@@ -74,7 +81,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # The image the smoke passed, not a rebuild.
+      # The image the tests passed, not a rebuild.
       - name: Push
         if: steps.version.outputs.version != ''
         env:
@@ -104,7 +111,7 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      # A retag of the digest the tag built and smoked; nothing is rebuilt.
+      # A retag of the digest the tag built and tested; nothing is rebuilt.
       - name: Retag
         env:
           TAG: ${{ github.event.release.tag_name }}

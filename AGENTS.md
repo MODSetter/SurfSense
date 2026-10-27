@@ -81,6 +81,10 @@ pre-commit run --all-files
 | Bundles: SDK against the app | `cd backend/plugins/bundles/core/sdk && uv run pytest -m contract` (starts the desktop backend; `uv sync` it first) |
 | Bundles: CLI | `cd backend/plugins/bundles/core/cli && uv run pytest` (starts the desktop backend; `uv sync` it first) |
 | Desktop | `cd surfsense_local/electron && pnpm test` |
+| Docker entry | `cd surfsense_local/headless && pnpm test` |
+| Frontend in Docker mode | `cd surfsense_local/frontend && pnpm test:docker` (tests tagged `docker`; `pnpm test` leaves them out) |
+| Docker image | `SURFSENSE_TEST_IMAGE=<image> node --test surfsense_local/headless/image.test.ts` (starts the image on port 4929) |
+| Backend in the image | build `docker/surfsense/Dockerfile --target backend-tests` and run it with `tests/` and `docs/contracts/` mounted, as `docker-tests.yml` does; it runs `pytest -m image` |
 CI: `.github/workflows/`. New behavior: one failing test, then the minimum code to pass it. Use the `tdd` skill. Tests hit public seams, not internals.
 
 ## Pull requests
