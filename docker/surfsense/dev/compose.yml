@@ -1,0 +1,80 @@
+# The image with the checkout's source mounted in, beside a real install
+# (docs/proposals/docker/README.md#developing-the-image).
+#   docker compose -f docker/surfsense/dev/compose.yml up --build --watch
+# then open http://127.0.0.1:4930. The frontend reloads as you save; the backend,
+# the entry, the sidecars and Caddy restart the app container under --watch.
+# Its own folder, so its .env is its own and never the install's beside docker-compose.yml.
+name: surfsense-dev
+
+services:
+  surfsense:
+    build:
+      context: ../../..
+      dockerfile: docker/surfsense/Dockerfile
+      target: app
+    ports:
+      # One above the install's 4929 and 4943, so both run at once.
+      - "${SURFSENSE_BIND:-127.0.0.1}:${SURFSENSE_PORT:-4930}:80"
+      - "${SURFSENSE_BIND:-127.0.0.1}:${SURFSENSE_HTTPS_PORT:-4944}:443"
+    volumes:
+      - surfsense_data:/data
+      # Writable: a fresh checkout lacks the mountpoints below, which Docker creates in it.
+      - ../../../surfsense_local/backend:/app/surfsense_local/backend
+      # The image's venv and bundled models, over the checkout's. Compose keeps these
+      # across recreates, so a dependency change needs --renew-anon-volumes.
+      - /app/surfsense_local/backend/.venv
+      - /app/surfsense_local/backend/models
+      - ../../../surfsense_local/sidecars:/app/surfsense_local/sidecars:ro
+      - ../../../surfsense_local/headless:/app/surfsense_local/headless:ro
+      - ../caddy:/app/caddy:ro
+      - ./spa.caddy:/app/caddy/spa.caddy:ro
+    environment:
+      SURFSENSE_LOCAL_PUBLIC_PORT: ${SURFSENSE_PORT:-4930}
+      SURFSENSE_LOCAL_SECRET: ${SURFSENSE_SECRET:-}
+      SURFSENSE_PASSWORD: ${SURFSENSE_PASSWORD:-}
+      SURFSENSE_ALLOWED_HOSTS: ${SURFSENSE_ALLOWED_HOSTS:-}
+      SURFSENSE_TLS: ${SURFSENSE_TLS:-}
+      SURFSENSE_DOMAIN: ${SURFSENSE_DOMAIN:-}
+      SURFSENSE_HTTPS_PORT: ${SURFSENSE_HTTPS_PORT:-4944}
+    stop_grace_period: 30s
+    develop:
+      watch:
+        - path: ../../../surfsense_local/backend
+          action: restart
+          ignore: [.venv/, models/, tests/, __pycache__/, .pytest_cache/, .ruff_cache/]
+        - path: ../../../surfsense_local/sidecars
+          action: restart
+          ignore: [node_modules/]
+        - path: ../../../surfsense_local/headless
+          action: restart
+          ignore: [node_modules/]
+        - path: ../caddy
+          action: restart
+        - path: ./spa.caddy
+          action: restart
+
+  # Vite with the image build's settings; Caddy proxies every page and its HMR socket here.
+  frontend:
+    build:
+      context: ../../..
+      dockerfile: docker/surfsense/Dockerfile
+      target: frontend-dev
+    volumes:
+      - ../../../surfsense_local/frontend:/src/surfsense_local/frontend
+      - ../../../surfsense_local/VERSION:/src/surfsense_local/VERSION:ro
+      # Linux's, never the checkout's own node_modules.
+      - frontend_node_modules:/src/surfsense_local/frontend/node_modules
+      - pnpm_store:/pnpm-store
+    environment:
+      VITE_API_BASE: /api
+      VITE_SURFSENSE_RUNTIME: docker
+    # Every interface: Caddy reaches it across the compose network; nothing publishes it.
+    command:
+      - sh
+      - -c
+      - pnpm install --frozen-lockfile --store-dir /pnpm-store && VITE_SURFSENSE_VERSION="$$(cat ../VERSION)" pnpm dev --host 0.0.0.0
+
+volumes:
+  surfsense_data:
+  frontend_node_modules:
+  pnpm_store:

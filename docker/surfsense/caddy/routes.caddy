@@ -28,9 +28,6 @@ route {
 	handle /callback {
 		reverse_proxy 127.0.0.1:{$SURFSENSE_CHATGPT_CALLBACK_PORT}
 	}
-	handle {
-		root * {$SURFSENSE_FRONTEND_DIR}
-		try_files {path} /index.html
-		file_server
-	}
+	# Last: whatever no route above claims. The dev stack mounts its own (dev/spa.caddy).
+	import spa.caddy
 }

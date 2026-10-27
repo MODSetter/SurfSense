@@ -154,7 +154,9 @@ jobs:
           persist-credentials: false
 
       - name: Check the compose file
-        run: docker compose -f docker/surfsense/docker-compose.yml --env-file docker/surfsense/.env.example config -q
+        run: |
+          docker compose -f docker/surfsense/docker-compose.yml --env-file docker/surfsense/.env.example config -q
+          docker compose -f docker/surfsense/dev/compose.yml config -q
 
       - uses: docker/setup-buildx-action@v4
 

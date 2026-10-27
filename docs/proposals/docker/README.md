@@ -128,7 +128,9 @@ The new stack, in `docker/surfsense/`:
 | `docker-compose.gpu.yml` | the GPU device reservation, layered on top |
 | `.env.example` | version, variant, port, password, hosts, domain |
 | `caddy/Caddyfile` | the routes; imports one access file |
+| `caddy/spa.caddy` | the SPA's route, last in `routes.caddy`; the dev stack mounts its own |
 | `caddy/access.caddy` | `forward_auth` to the access service, and what bypasses it (step 10) |
+| `dev/compose.yml`, `dev/spa.caddy` | the image with the checkout mounted in, on 4930 ([Developing the image](#developing-the-image)) |
 
 Its installer, later, in `docker/scripts/`: `install.sh` and `install.ps1`, at the legacy installer's paths ([legacy split](../legacy-split/README.md#the-install-urls-pass-to-the-new-stack)). It picks the CPU or CUDA image from the host's card ([`gpu.md`](gpu.md#choosing-the-variant)).
 
@@ -287,7 +289,9 @@ ChatGPT signs in as OpenAI's client ([Sign in with ChatGPT for open-source apps]
 | `backend` | `uv sync` into the backend's `.venv`; torch from the CPU index, as [`pyproject.toml`](../../../surfsense_local/backend/pyproject.toml) pins on Linux |
 | `runtimes` | llama.cpp and opencode with ripgrep from upstream, sd.cpp from the desktop's recipe, and audio.cpp with eSpeak as the desktop builds it, staged by `runtimes/` with the image's target and variant ([`gpu.md`](gpu.md#where-each-runtime-comes-from)) |
 | `models` | bge-small, the Docling parser pack, Silero VAD and Kokoro, the voice the installers ship, by the backend's fetch scripts |
-| `runtime` | the above, `sidecars/`, `headless/`, Node 24, Caddy and tini |
+| `app` | the above but the SPA: `sidecars/`, `headless/`, Node 24, Caddy and tini; what the dev stack runs |
+| `runtime` | `app` with the SPA; the image |
+| `frontend-dev` | Node and pnpm as uid 1000, for the dev stack's Vite; never shipped |
 
 - `linux/amd64` first. `linux/arm64` follows once `runtimes/` has pinned `linux-arm64` builds of each runtime; today every staging script knows `linux-x64` only.
 - Several GB: torch and Docling, plus about 1 GB of bundled models. Generation weights download at run time into `/data`, as on the desktop.
@@ -318,6 +322,24 @@ volumes:
 ```
 
 `SURFSENSE_LOCAL_PUBLIC_PORT` is the published port, which sign-ins send the browser back to. `SURFSENSE_BIND`, `SURFSENSE_PASSWORD`, `SURFSENSE_ALLOWED_HOSTS` and `SURFSENSE_DOMAIN` join with steps 10 and 11; until then the port is published on `127.0.0.1` only. `stop_grace_period` covers the supervisor's stop, which sends SIGKILL to a child 5 s after SIGTERM; Docker's default of 10 s is too tight with ten children. A GPU override file sits beside it ([`gpu.md`](gpu.md)).
+
+## Developing the image
+
+`docker/surfsense/dev/compose.yml` runs the `app` stage with the checkout mounted over its source, so a change shows without a rebuild:
+
+```bash
+docker compose -f docker/surfsense/dev/compose.yml up --build --watch
+```
+
+| Changed | Takes effect |
+|---|---|
+| `frontend/` | at once: a `frontend` service runs Vite with the image build's `VITE_*` settings, and `dev/spa.caddy` proxies every page and the HMR socket to it in place of `frontend/dist` |
+| `backend/`, `sidecars/`, `headless/`, `caddy/` | `--watch` restarts the app container, which boots as the image does |
+| a dependency, a runtime's pin, a bundled model, the Dockerfile | `up --build --renew-anon-volumes`: the venv and models are the image's, on anonymous volumes Compose otherwise keeps across recreates |
+
+- **Beside a real install.** Project `surfsense-dev`, its own data volume, and ports 4930 and 4944, one above the install's. The compose file sits in its own folder, so it reads its own `.env` there, never the install's.
+- **Open it on `127.0.0.1:4930`** while the install is on `localhost:4929`. Browsers keep cookies per host, not per port, so on one host name the two instances' `surfsense_session` cookies overwrite each other once both have a password.
+- **Not the image.** The SPA is Vite's, not a build, and the source is the checkout's. Image changes still go through `docker-tests.yml`, which builds `runtime`.
 
 ## CI
 

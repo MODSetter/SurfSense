@@ -22,6 +22,7 @@ cd frontend && pnpm test:docker # tests tagged docker, with the image build's se
 cd headless && pnpm test        # the Docker entry; image.test.ts skips without an image
 cd headless && pnpm typecheck   # also checks sidecars/
 SURFSENSE_TEST_IMAGE=surfsense:local node --test headless/image.test.ts   # a built image
+docker compose -f ../docker/surfsense/dev/compose.yml up --build --watch   # the image with this checkout mounted in, on 127.0.0.1:4930
 ./scripts/bump-version.sh
 SURFSENSE_LOCAL_DATA_DIR=<dir> node headless/main.ts   # the container's entry, on a checkout
 ```

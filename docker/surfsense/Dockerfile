@@ -24,6 +24,18 @@ COPY surfsense_local/VERSION ../VERSION
 RUN VITE_API_BASE=/api VITE_SURFSENSE_RUNTIME=docker \
     VITE_SURFSENSE_VERSION="$(cat ../VERSION)" pnpm build
 
+# The dev stack's Vite (dev/compose.yml): the source and node_modules are mounted
+# in, as uid 1000, so what it writes to the checkout stays the developer's.
+FROM node AS frontend-dev
+RUN corepack enable \
+    && mkdir -p /src/surfsense_local/frontend/node_modules /pnpm-store \
+    && chown -R node:node /src /pnpm-store
+USER node
+WORKDIR /src/surfsense_local/frontend
+# Fetches the pinned pnpm once, here, instead of at every start.
+COPY surfsense_local/frontend/package.json ./
+RUN pnpm --version
+
 # opencode and ripgrep, staged by the desktop's pinned script.
 FROM node AS opencode
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates unzip \
@@ -91,7 +103,8 @@ ENV HOME=/tmp
 ENTRYPOINT ["tini", "-g", "--"]
 CMD [".venv/bin/pytest", "-p", "no:cacheprovider", "-m", "image"]
 
-FROM python AS runtime
+# Everything but the SPA, which the dev stack serves from Vite instead.
+FROM python AS app
 # curl: the Claude dialog's install command downloads Claude Code with it.
 # libgomp1: llama.cpp's upstream CPU build threads with OpenMP.
 # The rest, about 21 MB: what Office support's LibreOffice, unpacked into /data,
@@ -109,7 +122,6 @@ COPY backend/plugins/bundles/core/manifest/ /app/backend/plugins/bundles/core/ma
 COPY backend/plugins/bundles/core/sdk/ /app/backend/plugins/bundles/core/sdk/
 COPY --from=backend /app/surfsense_local/backend/ /app/surfsense_local/backend/
 COPY --from=models /app/surfsense_local/backend/models/ /app/surfsense_local/backend/models/
-COPY --from=frontend /src/surfsense_local/frontend/dist/ /app/surfsense_local/frontend/dist/
 COPY --from=opencode /src/surfsense_local/electron/opencode/ /app/runtimes/opencode/
 COPY --from=llamacpp /runtimes/llamacpp/ /app/runtimes/llamacpp/
 COPY --from=sdcpp /runtimes/sdcpp/ /app/runtimes/sdcpp/
@@ -137,3 +149,6 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --start-interval=5s 
     CMD ["node", "-e", "fetch('http://localhost/api/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
 ENTRYPOINT ["tini", "-g", "--"]
 CMD ["node", "/app/surfsense_local/headless/main.ts"]
+
+FROM app AS runtime
+COPY --from=frontend /src/surfsense_local/frontend/dist/ /app/surfsense_local/frontend/dist/
