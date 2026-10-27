@@ -61,7 +61,9 @@ jobs:
           platforms: linux/amd64
           load: true
           tags: surfsense:release
-          cache-from: type=gha,scope=surfsense-cpu
+          cache-from: type=registry,ref=ghcr.io/modsetter/surfsense:buildcache
+          # A release's layers start the next release's build warm.
+          cache-to: ${{ steps.version.outputs.version != '' && 'type=registry,ref=ghcr.io/modsetter/surfsense:buildcache,mode=max' || '' }}
 
       # Node 24 runs the TypeScript test as it is.
       - uses: actions/setup-node@v7

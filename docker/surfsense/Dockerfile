@@ -16,7 +16,8 @@ FROM node AS frontend
 RUN corepack enable
 WORKDIR /src/surfsense_local/frontend
 COPY surfsense_local/frontend/package.json surfsense_local/frontend/pnpm-lock.yaml surfsense_local/frontend/pnpm-workspace.yaml ./
-RUN pnpm install --frozen-lockfile
+# A cache mount keeps the store across local rebuilds; CI's fresh builders use the registry cache.
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm-store pnpm install --frozen-lockfile --store-dir /pnpm-store
 COPY surfsense_local/frontend/ ./
 # One version with the desktop app; About shows it, as Electron's does there.
 COPY surfsense_local/VERSION ../VERSION

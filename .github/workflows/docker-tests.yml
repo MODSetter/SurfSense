@@ -1,7 +1,8 @@
 name: Docker Tests
 
 # The Docker entry and ghcr.io/modsetter/surfsense (docs/proposals/docker/README.md),
-# tested without pushing; release-docker.yml publishes. The shared core's own
+# tested without pushing an image; release-docker.yml publishes. dev pushes write
+# only the build cache. The shared core's own
 # tests are Desktop Tests'; here only what the entry and the image add.
 
 on:
@@ -86,17 +87,17 @@ jobs:
     if: needs.changes.outputs.headless == 'true'
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-        with:
-          package_json_file: surfsense_local/headless/package.json
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: pnpm
-          cache-dependency-path: surfsense_local/headless/pnpm-lock.yaml
+      # pnpm (the version package.json pins), Node 24 and a frozen install. Only
+      # dev pushes save the store; pull request and tag caches are never reused
+      # and would push dev's out of the repository's 10 GB.
       - name: Install dependencies
-        working-directory: surfsense_local/headless
-        run: pnpm install --frozen-lockfile
+        uses: pnpm/setup@v3
+        with:
+          working-directory: surfsense_local/headless
+          runtime: node@24
+          require-lockfile: true
+          cache: true
+          save-cache: ${{ github.event_name == 'push' && github.ref == 'refs/heads/dev' }}
       - name: Typecheck
         working-directory: surfsense_local/headless
         run: pnpm typecheck
@@ -114,17 +115,17 @@ jobs:
     if: needs.changes.outputs.frontend == 'true'
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-        with:
-          package_json_file: surfsense_local/frontend/package.json
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: pnpm
-          cache-dependency-path: surfsense_local/frontend/pnpm-lock.yaml
+      # pnpm (the version package.json pins), Node 24 and a frozen install. Only
+      # dev pushes save the store; pull request and tag caches are never reused
+      # and would push dev's out of the repository's 10 GB.
       - name: Install dependencies
-        working-directory: surfsense_local/frontend
-        run: pnpm install --frozen-lockfile
+        uses: pnpm/setup@v3
+        with:
+          working-directory: surfsense_local/frontend
+          runtime: node@24
+          require-lockfile: true
+          cache: true
+          save-cache: ${{ github.event_name == 'push' && github.ref == 'refs/heads/dev' }}
       - name: Run tests
         working-directory: surfsense_local/frontend
         run: pnpm test:docker
@@ -135,6 +136,10 @@ jobs:
     timeout-minutes: 90
     needs: changes
     if: needs.changes.outputs.image == 'true'
+    permissions:
+      contents: read
+      # Only to write the build cache on dev pushes; pull requests never write.
+      packages: write
     steps:
       - uses: actions/checkout@v7
 
@@ -142,6 +147,14 @@ jobs:
         run: docker compose -f docker/surfsense/docker-compose.yml --env-file docker/surfsense/.env.example config -q
 
       - uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        if: github.event_name == 'push' && github.repository == 'MODSetter/SurfSense'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build
         uses: docker/build-push-action@v7
@@ -151,9 +164,11 @@ jobs:
           platforms: linux/amd64
           load: true
           tags: surfsense:ci
-          cache-from: type=gha,scope=surfsense-cpu
-          # dev's cache is the one pull requests and release tags read.
-          cache-to: ${{ github.event_name != 'pull_request' && 'type=gha,scope=surfsense-cpu,mode=max' || '' }}
+          # On GHCR, which every branch, pull request and tag can read, and outside
+          # the repository's 10 GB Actions cache. dev pushes and release tags write
+          # it; pull requests only read it.
+          cache-from: type=registry,ref=ghcr.io/modsetter/surfsense:buildcache
+          cache-to: ${{ github.event_name == 'push' && github.repository == 'MODSetter/SurfSense' && 'type=registry,ref=ghcr.io/modsetter/surfsense:buildcache,mode=max' || '' }}
 
       # Node 24 runs the TypeScript test as it is.
       - uses: actions/setup-node@v7
@@ -171,9 +186,21 @@ jobs:
     timeout-minutes: 60
     needs: changes
     if: needs.changes.outputs.backend == 'true'
+    permissions:
+      contents: read
+      # Only to write the build cache on dev pushes; pull requests never write.
+      packages: write
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        if: github.event_name == 'push' && github.repository == 'MODSetter/SurfSense'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build the test stage
         uses: docker/build-push-action@v7
@@ -185,9 +212,9 @@ jobs:
           load: true
           tags: surfsense:backend-tests
           cache-from: |
-            type=gha,scope=surfsense-cpu
-            type=gha,scope=surfsense-backend-tests
-          cache-to: ${{ github.event_name != 'pull_request' && 'type=gha,scope=surfsense-backend-tests,mode=max' || '' }}
+            type=registry,ref=ghcr.io/modsetter/surfsense:buildcache
+            type=registry,ref=ghcr.io/modsetter/surfsense:buildcache-backend-tests
+          cache-to: ${{ github.event_name == 'push' && github.repository == 'MODSetter/SurfSense' && 'type=registry,ref=ghcr.io/modsetter/surfsense:buildcache-backend-tests,mode=max' || '' }}
 
       # The stage runs pytest -m image; the image leaves tests/ out, so it is mounted in.
       - name: Run the image-marked tests
