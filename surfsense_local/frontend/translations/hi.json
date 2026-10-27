@@ -305,6 +305,7 @@
   "dictation_strip_microphone_failed_error": "माइक्रोफ़ोन शुरू नहीं हो सका।",
   "dictation_strip_microphone_off_error": "SurfSense के लिए माइक्रोफ़ोन की अनुमति बंद है।",
   "dictation_strip_model_removed_error": "स्पीच रिकग्निशन मॉडल हटा दिया गया।",
+  "dictation_strip_needs_secure_connection_error": "आपका ब्राउज़र माइक्रोफ़ोन की अनुमति केवल HTTPS पर या उस कंप्यूटर पर देता है जिस पर SurfSense चल रहा है।",
   "dictation_strip_no_microphone_error": "कोई माइक्रोफ़ोन नहीं मिला।",
   "dictation_strip_open_settings_button": "सेटिंग्स खोलें",
   "dictation_strip_phrase_failed_error": "आपकी बात का कुछ हिस्सा टेक्स्ट में नहीं बदल सका।",

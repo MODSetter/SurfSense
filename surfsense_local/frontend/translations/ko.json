@@ -305,6 +305,7 @@
   "dictation_strip_microphone_failed_error": "마이크를 시작하지 못했습니다.",
   "dictation_strip_microphone_off_error": "SurfSense의 마이크 접근이 꺼져 있습니다.",
   "dictation_strip_model_removed_error": "음성 인식 모델이 삭제되었습니다.",
+  "dictation_strip_needs_secure_connection_error": "브라우저는 HTTPS를 사용하거나 SurfSense를 실행 중인 컴퓨터에서만 마이크를 허용합니다.",
   "dictation_strip_no_microphone_error": "마이크를 찾을 수 없습니다.",
   "dictation_strip_open_settings_button": "설정 열기",
   "dictation_strip_phrase_failed_error": "말한 내용의 일부를 텍스트로 변환하지 못했습니다.",

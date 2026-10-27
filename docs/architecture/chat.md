@@ -219,6 +219,7 @@ A click on the mic leaves the focus in the message box. Blur and minimising keep
 | `NotAllowedError`, or the system's switch off | "Microphone access is off for SurfSense." | Open settings on Windows and macOS (the bridge's `openSettings`), else Try again |
 | `NotFoundError` | "No microphone found." | Try again |
 | `NotReadableError` | "The microphone is in use by another app." | Try again |
+| any refusal on a page that is not a secure context, as the Docker image is from another device over plain HTTP | "Your browser allows the microphone only over HTTPS, or on the computer running SurfSense." | dismiss |
 | the track ended | "The microphone was disconnected. What you said before that is kept." | dismiss |
 | a phrase failed twice, or was refused as malformed | "Couldn’t turn part of your speech into text." | Retry, which opens a new session and lands that phrase and every later one after the box's text |
 | `409 transcription_needs_memory`, on opening or on a phrase (the model unloaded for a podcast's or an image's hold) | "Transcribing needs about 2.9 GB free; this computer has 1.2 GB.", the server's sentence where it sent no sizes | on opening, dismiss; on a phrase or a Retry, Retry, which keeps the audio not yet transcribed as a failed phrase does |

@@ -305,6 +305,20 @@ describe("voice input in the composer", () => {
     expect(openSettings).toHaveBeenCalledOnce()
   })
 
+  it("says the microphone needs HTTPS on a page the browser keeps it from", async () => {
+    // Another device than the Docker host, over plain HTTP: no mediaDevices at all.
+    vi.stubGlobal("isSecureContext", false)
+    const { mic, dictation, user } = setUp()
+    mic.refuse(new TypeError("navigator.mediaDevices is undefined"))
+    render(<Harness dictation={dictation} />)
+
+    await user.click(await startButton())
+
+    expect((await screen.findByRole("alert")).textContent).toBe(
+      "Your browser allows the microphone only over HTTPS, or on the computer running SurfSense."
+    )
+  })
+
   it("keeps a phrase it could not transcribe, and Retry puts it in the box", async () => {
     const { api, mic, dictation, user, box, listening } = setUp()
     api.answer(said("Got this."), () =>

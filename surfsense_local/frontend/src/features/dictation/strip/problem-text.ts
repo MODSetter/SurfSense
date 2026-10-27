@@ -68,6 +68,12 @@ export function problemText(problem: DictationProblem): string {
         id: "dictation_strip_microphone_failed_error",
         defaultMessage: "The microphone couldn’t start.",
       })
+    case "needs_secure_connection":
+      return intl.formatMessage({
+        id: "dictation_strip_needs_secure_connection_error",
+        defaultMessage:
+          "Your browser allows the microphone only over HTTPS, or on the computer running SurfSense.",
+      })
     case "microphone_disconnected":
       return intl.formatMessage({
         id: "dictation_strip_microphone_disconnected_error",

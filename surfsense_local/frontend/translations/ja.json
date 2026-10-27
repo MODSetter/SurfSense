@@ -305,6 +305,7 @@
   "dictation_strip_microphone_failed_error": "マイクを起動できませんでした。",
   "dictation_strip_microphone_off_error": "SurfSenseのマイクへのアクセスがオフになっています。",
   "dictation_strip_model_removed_error": "音声認識モデルが削除されました。",
+  "dictation_strip_needs_secure_connection_error": "ブラウザーがマイクを許可するのは、HTTPS経由か、SurfSenseを実行しているコンピューター上だけです。",
   "dictation_strip_no_microphone_error": "マイクが見つかりません。",
   "dictation_strip_open_settings_button": "設定を開く",
   "dictation_strip_phrase_failed_error": "話した内容の一部をテキストに変換できませんでした。",

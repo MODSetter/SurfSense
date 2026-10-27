@@ -305,6 +305,7 @@
   "dictation_strip_microphone_failed_error": "Impossible de démarrer le microphone.",
   "dictation_strip_microphone_off_error": "L’accès au microphone est désactivé pour SurfSense.",
   "dictation_strip_model_removed_error": "Le modèle de reconnaissance vocale a été supprimé.",
+  "dictation_strip_needs_secure_connection_error": "Votre navigateur n’autorise le microphone qu’en HTTPS ou sur l’ordinateur qui exécute SurfSense.",
   "dictation_strip_no_microphone_error": "Aucun microphone trouvé.",
   "dictation_strip_open_settings_button": "Ouvrir les paramètres",
   "dictation_strip_phrase_failed_error": "Impossible de transformer une partie de vos paroles en texte.",

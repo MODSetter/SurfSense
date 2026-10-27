@@ -305,6 +305,7 @@
   "dictation_strip_microphone_failed_error": "Das Mikrofon konnte nicht gestartet werden.",
   "dictation_strip_microphone_off_error": "Der Mikrofonzugriff ist für SurfSense ausgeschaltet.",
   "dictation_strip_model_removed_error": "Das Spracherkennungsmodell wurde entfernt.",
+  "dictation_strip_needs_secure_connection_error": "Dein Browser erlaubt das Mikrofon nur über HTTPS oder auf dem Computer, auf dem SurfSense läuft.",
   "dictation_strip_no_microphone_error": "Kein Mikrofon gefunden.",
   "dictation_strip_open_settings_button": "Einstellungen öffnen",
   "dictation_strip_phrase_failed_error": "Ein Teil des Gesagten konnte nicht in Text umgewandelt werden.",

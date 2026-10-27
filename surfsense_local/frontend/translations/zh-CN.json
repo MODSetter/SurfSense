@@ -305,6 +305,7 @@
   "dictation_strip_microphone_failed_error": "麦克风无法启动。",
   "dictation_strip_microphone_off_error": "SurfSense 的麦克风权限已关闭。",
   "dictation_strip_model_removed_error": "语音识别模型已被移除。",
+  "dictation_strip_needs_secure_connection_error": "浏览器只允许通过 HTTPS 或在运行 SurfSense 的电脑上使用麦克风。",
   "dictation_strip_no_microphone_error": "未找到麦克风。",
   "dictation_strip_open_settings_button": "打开设置",
   "dictation_strip_phrase_failed_error": "有一部分语音未能转成文字。",

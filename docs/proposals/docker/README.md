@@ -208,6 +208,7 @@ What differs is gated by why ([ADR 0075](../../adr/0075-what-differs-in-docker-i
 | About's version | the image's, set when its frontend is built from `surfsense_local/VERSION` |
 | Session log, the rest of About's details, crash toast | hidden |
 | Usage statistics ([ADR 0070](../../adr/0070-opt-in-id-less-update-checks-and-usage-statistics.md)) | none: the privacy step is hidden, and the API neither counts activity nor serves `/usage-statistics` |
+| Dictation | the same, over HTTPS or on the host itself; from another device over plain HTTP the browser offers no microphone, and the strip says it needs HTTPS |
 | Theme, locale, external links | the browser fallbacks that exist |
 
 ### Claude subscriptions
