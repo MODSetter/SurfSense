@@ -28,7 +28,8 @@
 /docker/surfsense/                              @AnishSarkar22
 /surfsense_local/RELEASE.md                     @CREDO23 @AnishSarkar22
 /.github/workflows/release-local.yml            @CREDO23 @AnishSarkar22
-/.github/workflows/docker-surfsense.yml         @AnishSarkar22
+/.github/workflows/docker-tests.yml             @AnishSarkar22
+/.github/workflows/release-docker.yml           @AnishSarkar22
 
 /backend/license/                               @CREDO23
 /backend/mailer/                                @CREDO23

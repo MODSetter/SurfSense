@@ -18,7 +18,8 @@ code:
   - surfsense_local/backend/modules/llm/subscriptions/chatgpt/
   - backend/plugins/registry/oauth/callback.html
   - surfsense_local/backend/modules/llm/subscriptions/claude/status.py
-  - .github/workflows/docker-surfsense.yml
+  - .github/workflows/docker-tests.yml
+  - .github/workflows/release-docker.yml
   - .github/workflows/desktop-tests.yml
   - .github/workflows/build-audiocpp.yml
   - .github/workflows/build-sdcpp.yml
@@ -148,7 +149,7 @@ The code, in `surfsense_local/`:
 | `backend/api/config.py` | `SURFSENSE_LOCAL_CORS_ORIGINS` |
 | `frontend/src/lib/api.ts` | the `VITE_API_BASE` fallback |
 
-CI is `.github/workflows/docker-surfsense.yml`.
+CI is `.github/workflows/docker-tests.yml`, and releases are `.github/workflows/release-docker.yml`, as the desktop's are `desktop-tests.yml` and `release-local.yml`.
 
 - **`docker/surfsense/`, named after the image.** `docker/` holds one folder per image, as `docker/keygen/` already is, and no file of this stack sits at a path copies of the legacy [`install.sh`](https://github.com/MODSetter/SurfSense/blob/legacy/docker/scripts/install.sh) from before 0.0.41 download from `main` (`docker/docker-compose.yml`, `docker/.env.example`, `docker/proxy/Caddyfile` and five more). The folder name is fixed from the start, because the installer fetches this stack's files by their paths.
 - **The installer takes the legacy one's paths.** The one-line commands the legacy docs handed out, `…/main/docker/scripts/install.sh` and `install.ps1`, install this stack once it ships.
@@ -328,9 +329,9 @@ Moving `sidecars/` and `runtimes/` changes the desktop's workflows in the same p
 
 ### The image
 
-`docker-surfsense.yml`, beside `release-local.yml`. The legacy images build from [`docker-build.yml` on the `legacy` branch](https://github.com/MODSetter/SurfSense/blob/legacy/.github/workflows/docker-build.yml), on `legacy-v*` tags.
+Two workflows, as the desktop has: `docker-tests.yml` builds and smokes, and never pushes; `release-docker.yml` publishes. Both run [`smoke.sh`](../../../docker/surfsense/smoke.sh). The legacy images build from [`docker-build.yml` on the `legacy` branch](https://github.com/MODSetter/SurfSense/blob/legacy/.github/workflows/docker-build.yml), on `legacy-v*` tags.
 
-- Pull requests and `dev` pushes that touch what the Dockerfile copies in (`docker/surfsense/**`, `surfsense_local/{backend,frontend,sidecars,runtimes,headless}/**`, `backend/plugins/bundles/core/**`) build the image without pushing. A `changes` job and a gate keep it a required check.
+- Pull requests and `dev` pushes that touch what the Dockerfile copies in (`docker/surfsense/**`, `surfsense_local/{backend,frontend,sidecars,runtimes,headless}/**`, `backend/plugins/bundles/core/**`) build the image without pushing, in `docker-tests.yml`. A `changes` job and a gate keep it a required check.
 - Build by digest per architecture and variant, then merge into one manifest per variant.
 - A smoke job starts the CPU image, waits for `/health` through Caddy, and checks that a non-local `Host` is refused without a password. Nothing is pushed unless it passes.
 
@@ -340,9 +341,9 @@ The image releases with the desktop app: one version, `surfsense_local/VERSION`,
 
 | When | The desktop | The image |
 |---|---|---|
-| `vX.Y.Z` tag pushed | `release-local.yml` builds a draft release | `docker-surfsense.yml` builds, smokes and pushes `X.Y.Z` and `X.Y.Z-<variant>` |
+| `vX.Y.Z` tag pushed | `release-local.yml` builds a draft release | `release-docker.yml` builds, smokes and pushes `X.Y.Z` and `X.Y.Z-<variant>` |
 | draft published by hand | GitHub's Latest moves; the in-app updater offers it | a `release: published` job points `latest`, `X.Y`, `latest-<variant>` and `X.Y-<variant>` at the `X.Y.Z` digests |
-| `dev` push | nothing | `dev` and `git-<sha>`, for testing |
+| `dev` push | `desktop-tests.yml` | `docker-tests.yml` builds and smokes; nothing is pushed |
 | `workflow_dispatch` | a dry run | a dry run, pushing nothing |
 
 - **`latest` moves on publish, not on the tag.** It is a retag of the digests the tag built and smoked (`docker buildx imagetools create`), with no rebuild. Until the draft is published, only someone asking for `:X.Y.Z` gets the new image; a draft that is deleted reaches nobody on `latest`.
@@ -375,7 +376,7 @@ In order; each step depends on the one before it and leaves something that runs.
 **The first container.**
 
 5. The CPU image and compose on amd64, with the localhost-only access file, opencode and no local model runtimes: upload, ingest and chat through a remote connection work, and plugin and ChatGPT sign-ins finish from a browser on the host.
-6. `docker-surfsense.yml`: the build, the smoke job, and the release jobs, with `latest` moving on publish.
+6. `docker-tests.yml` and `release-docker.yml`: the build and the smoke, then the release jobs, with `latest` moving on publish.
 
 **Local models, one runtime at a time.**
 

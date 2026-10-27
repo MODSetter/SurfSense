@@ -1,0 +1,92 @@
+name: Docker Tests
+
+# Builds and smokes ghcr.io/modsetter/surfsense (docs/proposals/docker/README.md)
+# without pushing; release-docker.yml publishes it.
+
+on:
+  pull_request:
+    branches: [main, dev]
+    types: [opened, synchronize, reopened, ready_for_review]
+  # A merge that breaks the image shows here, not on the next pull request.
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  # Filtered per job, not per workflow, so the gate always reports.
+  changes:
+    name: Changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event.pull_request.draft != true
+    outputs:
+      image: ${{ steps.filter.outputs.image || 'true' }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: filter
+        if: github.event_name == 'pull_request'
+        uses: dorny/paths-filter@v4
+        with:
+          filters: |
+            image:
+              - 'docker/surfsense/**'
+              - 'surfsense_local/backend/**'
+              - 'surfsense_local/frontend/**'
+              - 'surfsense_local/sidecars/**'
+              - 'surfsense_local/runtimes/**'
+              - 'surfsense_local/headless/**'
+              - 'surfsense_local/VERSION'
+              - 'backend/plugins/bundles/core/**'
+              - '.github/workflows/docker-tests.yml'
+
+  image:
+    name: Build and smoke (amd64)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    needs: changes
+    if: needs.changes.outputs.image == 'true'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/surfsense/Dockerfile
+          platforms: linux/amd64
+          load: true
+          tags: surfsense:ci
+          cache-from: type=gha,scope=surfsense-cpu
+          # dev's cache is the one pull requests and release tags read.
+          cache-to: ${{ github.event_name != 'pull_request' && 'type=gha,scope=surfsense-cpu,mode=max' || '' }}
+
+      - name: Smoke
+        run: docker/surfsense/smoke.sh surfsense:ci
+
+  gate:
+    name: Docker Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [changes, image]
+    if: always()
+    steps:
+      - name: Check every job
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Results: $RESULTS"
+          for result in $RESULTS; do
+            if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
+              echo "The Docker image failed"
+              exit 1
+            fi
+          done
+          echo "The Docker image passed"

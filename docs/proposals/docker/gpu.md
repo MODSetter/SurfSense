@@ -5,7 +5,8 @@ code:
   - surfsense_local/headless/
   - surfsense_local/runtimes/fetch-llamacpp.mjs
   - surfsense_local/runtimes/sdcpp/
-  - .github/workflows/docker-surfsense.yml
+  - .github/workflows/docker-tests.yml
+  - .github/workflows/release-docker.yml
 ---
 
 # GPU images
