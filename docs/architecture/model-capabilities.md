@@ -41,7 +41,7 @@ The result carries the level, a `Reason(code, values)` (`measured_pass`, `measur
 ## What follows from it
 
 - **A new chat's default mode** ([modes](#the-modes)): Agentic for `agent` and `agent_limited`, Basic (Q&A) for `studio_only` and `not_measured`.
-- **Studio** ([`strength.py`](../../surfsense_local/backend/worker/studio/office/document/strength.py)): `writes_script()` is true for `agent` and `agent_limited`, false for `studio_only`, and the local or remote rule for `not_measured`. It decides Word and PDF's path, and whether the model writes a Web page itself or fills the template ([studio](studio.md#formats)).
+- **Studio** ([`studio_output.py`](../../surfsense_local/backend/modules/llm/capability/studio_output.py)): `studio_output()` is `full` for `agent` and `agent_limited`, `simple` for `studio_only`, and the local or remote rule for `not_measured`. Studio's `writes_script()` ([`strength.py`](../../surfsense_local/backend/worker/studio/office/document/strength.py)) reads it, and so does `capability.studio`, so Settings never promises another path. It decides Word and PDF's path, and whether the model writes a Web page itself or fills the template ([studio](studio.md#formats)).
 
 ## The modes
 
@@ -56,7 +56,7 @@ A chat is Basic (Q&A), the chat engine's retrieval answers with Studio beside it
 
 ## API
 
-- `SelectionRead.capability` on `GET` and `PUT /llm/selection/text_gen` (null for other slots): `level`, `label_key` (the ICU select branch), `reason` (`code`, `values`), `note`, `measured` (`key`, `suite`, `assumed`, `suite_version`, `measured_on`, `provider`, `host`, `reads_images`, `passed`, `counted`, `provisional`, or null) and `modes` (`agentic_allowed`, `blocked`, `default_mode`: `basic` or `agentic`, `reason` (`code`, `values`), `remembered_mode`).
+- `SelectionRead.capability` on `GET` and `PUT /llm/selection/text_gen` (null for other slots): `level`, `label_key` (the ICU select branch), `reason` (`code`, `values`), `note`, `measured` (`key`, `suite`, `assumed`, `suite_version`, `measured_on`, `provider`, `host`, `reads_images`, `passed`, `counted`, `provisional`, or null) and `modes` (`agentic_allowed`, `blocked`, `default_mode`: `basic` or `agentic`, `reason` (`code`, `values`), `remembered_mode`), and `studio`: `full` or `simple`, the Studio path below.
 - `capability_level` on each row of `GET /llm/connections/{id}/models` and `GET /llm/providers/llamacpp/models` that can fill the chat slot.
 - `POST /workspaces/{id}/chat/threads` takes `mode` and `remember` ([chat](chat.md#agent-threads)).
 
