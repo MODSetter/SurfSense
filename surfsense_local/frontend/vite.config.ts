@@ -5,6 +5,7 @@ import react from "@vitejs/plugin-react"
 import { defineConfig, type Plugin } from "vite"
 import type {} from "vitest/config"
 
+import { devTabIdentity } from "./vite-plugins/dev-tab-identity.ts"
 import { woff2OnlyFonts } from "./vite-plugins/woff2-only-fonts.ts"
 
 // The snapshot page's policy (docx-snapshot.html) leaves 'self' out of
@@ -34,6 +35,7 @@ export default defineConfig({
     tailwindcss(),
     woff2OnlyFonts(),
     snapshotPageReachesDevServer(),
+    devTabIdentity(),
   ],
   resolve: {
     alias: {

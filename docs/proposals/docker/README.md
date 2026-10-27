@@ -338,6 +338,7 @@ docker compose -f docker/surfsense/dev/compose.yml up --build --watch
 | a dependency, a runtime's pin, a bundled model, the Dockerfile | `up --build --renew-anon-volumes`: the venv and models are the image's, on anonymous volumes Compose otherwise keeps across recreates |
 
 - **Beside a real install.** Project `surfsense-dev`, its own data volume, and ports 4930 and 4944, one above the install's. The compose file sits in its own folder, so it reads its own `.env` there, never the install's.
+- **Its tab says SurfSense Dev and wears the DEV icon**, as Electron's dev build does: Vite's dev server swaps the title and `favicon.ico` for `favicon-dev.ico` ([`dev-tab-identity.ts`](../../../surfsense_local/frontend/vite-plugins/dev-tab-identity.ts)), and the image ships the app's.
 - **Open it on `127.0.0.1:4930`** while the install is on `localhost:4929`. Browsers keep cookies per host, not per port, so on one host name the two instances' `surfsense_session` cookies overwrite each other once both have a password.
 - **Not the image.** The SPA is Vite's, not a build, and the source is the checkout's. Image changes still go through `docker-tests.yml`, which builds `runtime`.
 
