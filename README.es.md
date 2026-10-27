@@ -55,9 +55,6 @@ SurfSense es una aplicación de escritorio gratuita y de código abierto para lo
 | **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
 | **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
 
-> [!NOTE]
-> **¿Usabas la aplicación web alojada?** Exporta tus espacios de trabajo antes del 18 de octubre de 2026 e impórtalos aquí. Consulta [la página del cierre](https://www.surfsense.com/sunset).
-
 ## Inicio rápido
 
 1. Instala SurfSense y completa la configuración inicial.
@@ -96,6 +93,8 @@ Conéctalos en **Ajustes › Plugins**.
 | **Web Crawl** | Leer una página web o rastrear un sitio entero y convertirlo en texto limpio |
 | **YouTube** | Leer videos y canales de YouTube, con sus comentarios |
 | **TikTok** | Leer videos de TikTok y sus comentarios, buscar usuarios y ver qué es tendencia |
+| **Reddit** | Leer publicaciones públicas de Reddit con sus hilos de comentarios, o una comunidad entera |
+| **Instagram** | Leer perfiles, publicaciones y reels públicos de Instagram, y buscar perfiles |
 | **Google Maps** | Encontrar lugares en Google Maps y leer sus reseñas |
 | **Amazon** | Leer productos y resultados de búsqueda de Amazon |
 | **Walmart** | Leer productos, resultados de búsqueda y reseñas de Walmart |

@@ -30,8 +30,8 @@ In order:
    and edits your documents, on your machine.", which leads with the edit, as
    the [file agent strategy](../file-agent-strategy.md#the-headline) asks. Then
    the link row, Trendshift and the language row.
-2. **The demo videos** (below), one paragraph, the download table and the sunset
-   callout, which goes on 18 Oct 2026 here and in every translation. Since
+2. **The demo videos** (below), one paragraph and the download table. The sunset
+   callout was removed after 18 Oct 2026, here and in every translation. Since
    22 Oct 2026 the table links `https://www.surfsense.com/downloads/<platform>?src=readme`
    rather than GitHub's `/releases/latest/download/`: the site counts the
    download and redirects to the release it pins
@@ -44,7 +44,8 @@ In order:
    footnotes. It replaced "What SurfSense makes", the table of Studio outputs,
    because what the agent does to the user's own files is now the pitch.
 5. **Plugins**, added on 15 Oct 2026 once SurfSense's plugins shipped (2.2.1):
-   where to connect them, a table of the eight first-party ones with the app's
+   where to connect them, a table of the ten first-party ones (Reddit and
+   Instagram joined in 2.2.5) with the app's
    one-line descriptions, which need a license, with the free 14-day one claimed
    on `/downloads`, and third-party ones, which need none. It replaced **Star
    history**, under the rule that anything added replaces something, and sits
@@ -572,8 +573,8 @@ RBAC or connector feature from the hosted product, all of which are sunset.
       German, French, Japanese, Korean and Russian followed on 22 Sep, and all
       ten follow the 9 Oct README (#2212).
 - [x] **Fill `REPLACE-ME-DATE` in the sunset callout** — 18 October 2026
-      (T+30 from 18 Sep 2026 launch). Still **delete the callout at T+30**
-      along with the "Importing from the hosted app" link.
+      (T+30 from 18 Sep 2026 launch). Done: the callout was deleted from every
+      README after 18 Oct 2026.
 - [ ] **Set the description and topics** in repo settings. They are not in any
       file, so they are not in any PR, which is how they stay wrong.
 

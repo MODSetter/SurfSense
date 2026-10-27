@@ -10,7 +10,6 @@
   Every README.<locale>.md follows this file section for section and names the app's UI in
   the words of surfsense_local/frontend/translations/<locale>.json (Arabic: the English in
   parentheses); change them together.
-  Time-boxed: delete the sunset callout on 18 October 2026, here and in every README.<locale>.md.
 -->
 
 <div align="center">
@@ -63,9 +62,6 @@ SurfSense is a free, open-source desktop app for documents you can't upload. A p
 | **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
 | **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
 
-> [!NOTE]
-> **Used the hosted web app?** Export your workspaces before 18 October 2026 and import them here. See [the sunset page](https://www.surfsense.com/sunset).
-
 ## Quick start
 
 1. Install SurfSense and do the initial onboarding setup.
@@ -104,6 +100,8 @@ Connect them in **Settings › Plugins**.
 | **Web Crawl** | Read a web page, or crawl a whole site into clean text |
 | **YouTube** | Read YouTube videos, channels and their comments |
 | **TikTok** | Read TikTok videos and their comments, search users, and see what is trending |
+| **Reddit** | Read public Reddit posts with their comment threads, or a whole community |
+| **Instagram** | Read public Instagram profiles, posts and reels, and find profiles by search |
 | **Google Maps** | Find places on Google Maps and read their reviews |
 | **Amazon** | Read Amazon products and search results |
 | **Walmart** | Read Walmart products, search results and reviews |

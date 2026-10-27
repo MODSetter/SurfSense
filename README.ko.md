@@ -54,9 +54,6 @@ SurfSense는 업로드할 수 없는 문서를 위한 무료 오픈소스 데스
 | **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
 | **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
 
-> [!NOTE]
-> **호스팅 웹 앱을 쓰셨나요?** 2026년 10월 18일 전에 워크스페이스를 내보낸 다음 이 앱으로 가져오세요. 자세한 내용은 [종료 안내 페이지](https://www.surfsense.com/sunset)에 있습니다.
-
 ## 빠른 시작
 
 1. SurfSense를 설치하고 초기 설정을 마칩니다.
@@ -96,6 +93,8 @@ SurfSense는 업로드할 수 없는 문서를 위한 무료 오픈소스 데스
 | **Web Crawl** | 웹 페이지를 읽거나 사이트 전체를 크롤링해 깔끔한 텍스트로 만들기 |
 | **YouTube** | YouTube 동영상, 채널, 댓글 읽기 |
 | **TikTok** | TikTok 동영상과 댓글 읽기, 사용자 검색, 지금 인기 있는 콘텐츠 보기 |
+| **Reddit** | Reddit 공개 게시물과 댓글 스레드, 또는 커뮤니티 전체 읽기 |
+| **Instagram** | Instagram 공개 프로필, 게시물, 릴스 읽기, 프로필 검색 |
 | **Google Maps** | Google Maps에서 장소를 찾고 리뷰 읽기 |
 | **Amazon** | Amazon 상품과 검색 결과 읽기 |
 | **Walmart** | Walmart 상품, 검색 결과, 리뷰 읽기 |
