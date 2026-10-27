@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog"
 import { ExternalLinkIcon } from "@/components/ui/icons"
 import { Spinner } from "@/components/ui/spinner"
+import { IN_CONTAINER } from "@/app/in-container"
 import { intl } from "@/i18n/intl"
 
 import type { Connection } from "../api"
@@ -21,6 +22,7 @@ import {
   claudeStatusQueryKey,
   connectClaude,
   getClaudeStatus,
+  type ClaudeState,
   type ClaudeStatus,
 } from "./api"
 import {
@@ -36,8 +38,12 @@ function openInstallGuide() {
 }
 
 /** In the Docker image: the same steps, run inside the container from the Docker host. */
-function ContainerStateBody({ option }: { option: ClaudeStatus }) {
-  switch (option.state) {
+function ContainerStateBody({
+  state,
+}: {
+  state: Exclude<ClaudeState, "ready">
+}) {
+  switch (state) {
     case "not_installed":
       return (
         <ol className="flex list-decimal flex-col gap-3 pl-5 text-sm">
@@ -91,14 +97,14 @@ function ContainerStateBody({ option }: { option: ClaudeStatus }) {
           <ContainerCommand command={INSTALL_IN_CONTAINER} />
         </div>
       )
-    case "ready":
-      return <StateBody option={{ ...option, in_container: false }} />
   }
 }
 
 /** What to do next, for each state Claude Code can be in. */
 function StateBody({ option }: { option: ClaudeStatus }) {
-  if (option.in_container) return <ContainerStateBody option={option} />
+  // Installed on the host, Claude Code is out of the container's reach.
+  if (IN_CONTAINER && option.state !== "ready")
+    return <ContainerStateBody state={option.state} />
   switch (option.state) {
     case "not_installed":
       return (
@@ -284,8 +290,7 @@ export function ClaudeDialog({
             })}
           </Button>
           {/* Anthropic's guide installs on the desktop, which the container cannot use. */}
-          {option.data?.state === "not_installed" &&
-          !option.data.in_container ? (
+          {option.data?.state === "not_installed" && !IN_CONTAINER ? (
             <Button type="button" variant="outline" onClick={openInstallGuide}>
               {intl.formatMessage({
                 id: "models_claude_dialog_install_guide_button",
