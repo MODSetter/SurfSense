@@ -7,6 +7,7 @@ import type { WorkspaceChange } from "@/features/workspaces/workspace-changes"
 import { useStableCallback } from "@/hooks/use-stable-callback"
 import { intl } from "@/i18n/intl"
 
+import { downloadOriginal, downloadsOriginals } from "./download-original"
 import {
   cancelDocument,
   createNote,
@@ -231,6 +232,10 @@ export function useSources(workspaceId: number) {
   }
 
   const openOriginal = useStableCallback((documentId: number) => {
+    if (downloadsOriginals()) {
+      downloadOriginal(workspaceId, documentId)
+      return Promise.resolve()
+    }
     const bridge = window.surfsense
     return runNativeDocumentAction(
       intl.formatMessage({

@@ -59,7 +59,8 @@ function folderApi() {
   const writes: Call[] = []
   const fetchMock = vi.fn(
     async (input: RequestInfo | URL, init?: RequestInit) => {
-      const path = String(input)
+      // The Docker build calls the API under /api.
+      const path = String(input).replace(/^\/api/, "")
       const method = init?.method ?? "GET"
       const body =
         init?.body instanceof FormData
@@ -122,7 +123,7 @@ function folderApi() {
   return { writes }
 }
 
-function TreeHarness() {
+function TreeHarness({ realOpen = false }: { realOpen?: boolean }) {
   const sources = useSources(1)
   return (
     <TooltipProvider>
@@ -140,7 +141,7 @@ function TreeHarness() {
           onUpload: (files) => void sources.upload(files),
           onUploadFolder: (entries) => void sources.uploadEntries(entries),
         }}
-        onOpen={vi.fn()}
+        onOpen={realOpen ? sources.openOriginal : vi.fn()}
         onReveal={vi.fn()}
         onRetry={vi.fn()}
         onCancel={vi.fn()}
@@ -627,5 +628,75 @@ describe("source tree", () => {
     expect(research.getAttribute("aria-checked")).toBe("false")
     await user.click(screen.getByRole("checkbox", { name: "Select notes.md" }))
     expect(row("notes.md").getAttribute("aria-checked")).toBe("false")
+  })
+})
+
+describe("sources in the Docker image", { tags: ["docker"] }, () => {
+  afterEach(() => {
+    cleanup()
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+  })
+
+  it("offers Download instead of Open, and no Show in folder: the file is in the container", async () => {
+    folderApi()
+    const user = userEvent.setup()
+    render(<TreeHarness />)
+
+    await user.click(
+      await screen.findByRole("button", { name: "Actions for notes.md" })
+    )
+
+    expect(
+      await screen.findByRole("menuitem", { name: "Download" })
+    ).toBeTruthy()
+    expect(screen.queryByRole("menuitem", { name: "Open" })).toBeNull()
+    expect(
+      screen.queryByRole("menuitem", { name: "Show in folder" })
+    ).toBeNull()
+  })
+
+  it("downloads the original the browser can keep, from the API", async () => {
+    folderApi()
+    const clicked: { href: string; download: string }[] = []
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
+      this: HTMLAnchorElement
+    ) {
+      clicked.push({
+        href: this.getAttribute("href") ?? "",
+        download: this.download,
+      })
+    })
+    const user = userEvent.setup()
+    render(<TreeHarness realOpen />)
+
+    await user.click(
+      await screen.findByRole("button", { name: "Actions for notes.md" })
+    )
+    await user.click(await screen.findByRole("menuitem", { name: "Download" }))
+
+    expect(clicked).toEqual([
+      { href: "/api/workspaces/1/documents/10/original", download: "" },
+    ])
+    expect(toast.error).not.toHaveBeenCalled()
+  })
+
+  it("does nothing on a click or Enter on a source with no preview: downloading is a menu choice", async () => {
+    folderApi()
+    const download = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => {})
+    const user = userEvent.setup()
+    render(<TreeHarness realOpen />)
+    await screen.findByRole("treeitem", { name: "Research" })
+
+    await user.click(
+      within(row("notes.md")).getByRole("button", { name: "notes.md" })
+    )
+    row("notes.md").focus()
+    await user.keyboard("{Enter}")
+
+    expect(download).not.toHaveBeenCalled()
+    expect(toast.error).not.toHaveBeenCalled()
   })
 })

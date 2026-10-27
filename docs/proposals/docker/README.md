@@ -198,7 +198,7 @@ Every bridge call is already optional (`window.surfsense?.…`). The build for t
 
 | Desktop | In Docker |
 |---|---|
-| Open, Show in folder | download through `GET .../documents/{id}/original`; PDFs preview in the app ([source preview](../source-preview.md)) |
+| Open, Show in folder | Download in the row’s menu, through `GET .../documents/{id}/original`; a click previews a PDF in the app and does nothing on other files ([source preview](../source-preview.md)) |
 | electron-updater | hidden; updating is pulling a newer tag |
 | Keychain secret ([ADR 0018](../../adr/0018-keychain-envelope-encryption.md)) | `SURFSENSE_LOCAL_SECRET`, else `/data/secret` ([the headless entry](#the-headless-entry)) |
 | Word and web-page previews | Word and decks through LibreOffice when Office support is on; otherwise none, refused at once |
