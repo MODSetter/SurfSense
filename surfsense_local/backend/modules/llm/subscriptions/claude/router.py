@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, status
 
+from api.config import get_settings
 from api.dependencies import SessionDep
 from modules.llm.connections.router import connection_read
 from modules.llm.connections.serves import served_by
@@ -35,7 +36,11 @@ def claude_status() -> ClaudeStatusRead:
     terminal shows on the next look."""
     found = read_status(this_machines_claude(), proxy_url=claude_proxy_url())
     return ClaudeStatusRead(
-        state=found.state, version=found.version, email=found.email, plan=found.plan
+        state=found.state,
+        version=found.version,
+        email=found.email,
+        plan=found.plan,
+        in_container=get_settings().in_container(),
     )
 
 

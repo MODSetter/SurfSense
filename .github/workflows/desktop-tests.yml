@@ -58,7 +58,6 @@ jobs:
               - 'surfsense_local/electron/**'
               - 'surfsense_local/sidecars/**'
               - 'surfsense_local/runtimes/**'
-              - 'surfsense_local/headless/**'
               - 'surfsense_local/scripts/**'
               - 'surfsense_local/packaging/**'
               - 'surfsense_local/VERSION'
@@ -90,6 +89,9 @@ jobs:
         uses: astral-sh/setup-uv@v10.2.0
         with:
           enable-cache: true
+          # Only dev's cache is ever reused; pull request and tag caches would
+          # push it out of the repository's 10 GB.
+          save-cache: ${{ github.event_name == 'push' && github.ref == 'refs/heads/dev' }}
           python-version: '3.12'
 
       - name: Install dependencies
@@ -104,14 +106,17 @@ jobs:
       - name: Security scan
         run: uvx pre-commit run bandit-desktop --all-files
 
+      # One worker per core (pytest-xdist); tests that must not run side by side
+      # share an xdist_group. --durations lists the slowest, so creep shows.
       - name: Run unit tests
         working-directory: surfsense_local/backend
-        run: uv run pytest -m unit
+        run: uv run pytest -m unit -n auto --dist loadgroup --durations=20
 
       # Tests that need the real embedding model skip without it.
       - name: Run integration tests
         working-directory: surfsense_local/backend
-        run: uv run pytest -m integration
+        # Serial until the tests that clash in parallel share an xdist_group.
+        run: uv run pytest -m integration --durations=20
 
   frontend:
     name: Frontend
@@ -124,23 +129,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
-        with:
-          # The desktop trees pin their own pnpm; www pins its own.
-          package_json_file: surfsense_local/frontend/package.json
-
-      # Node 24 matches @types/node ^24 and the Node that Electron 44 embeds.
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: pnpm
-          cache-dependency-path: surfsense_local/frontend/pnpm-lock.yaml
-
+      # pnpm (the version package.json pins), Node 24 and a frozen install. Only
+      # dev pushes save the store; pull request and tag caches are never reused
+      # and would push dev's out of the repository's 10 GB.
       - name: Install dependencies
-        working-directory: surfsense_local/frontend
-        run: pnpm install --frozen-lockfile
+        uses: pnpm/setup@v3
+        with:
+          working-directory: surfsense_local/frontend
+          runtime: node@24
+          require-lockfile: true
+          cache: true
+          save-cache: ${{ github.event_name == 'push' && github.ref == 'refs/heads/dev' }}
 
       # Before typecheck, which regenerates en.json and would hide a stale one.
       - name: Check en.json matches the code
@@ -184,23 +183,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
-        with:
-          # The desktop trees pin their own pnpm; www pins its own.
-          package_json_file: surfsense_local/electron/package.json
-
-      # Node 24 matches @types/node ^24 and the Node that Electron 44 embeds.
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: pnpm
-          cache-dependency-path: surfsense_local/electron/pnpm-lock.yaml
-
+      # pnpm (the version package.json pins), Node 24 and a frozen install. Only
+      # dev pushes save the store; pull request and tag caches are never reused
+      # and would push dev's out of the repository's 10 GB.
       - name: Install dependencies
-        working-directory: surfsense_local/electron
-        run: pnpm install --frozen-lockfile
+        uses: pnpm/setup@v3
+        with:
+          working-directory: surfsense_local/electron
+          runtime: node@24
+          require-lockfile: true
+          cache: true
+          save-cache: ${{ github.event_name == 'push' && github.ref == 'refs/heads/dev' }}
 
       - name: Typecheck
         working-directory: surfsense_local/electron

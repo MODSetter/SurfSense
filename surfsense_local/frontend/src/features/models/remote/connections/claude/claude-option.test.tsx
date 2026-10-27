@@ -15,6 +15,7 @@ const READY: Option = {
   version: "2.1.301",
   email: "ada@example.com",
   plan: "max",
+  in_container: false,
   serves: ["text_gen"],
   hosts: [],
 }
@@ -34,15 +35,20 @@ const CONNECTED: Connection = {
   updated_at: "2026-10-16T00:00:00",
 }
 
-/** The API as the row and dialog see it: each status read takes the next of `states`. */
+/** The API as the row and dialog see it: each status read takes the next of `states`.
+ * `bridge: false` is the Docker image, which has no Electron to open links. */
 function serve(
   states: Partial<Option>[],
-  { connected = false, checking = false } = {}
+  { connected = false, checking = false, bridge = true } = {}
 ) {
   let made = connected
   const fetchMock = vi.fn(
     async (input: RequestInfo | URL, init?: RequestInit) => {
-      const path = String(input)
+      // The Docker image's build calls the API under VITE_API_BASE.
+      const path = String(input).replace(
+        import.meta.env.VITE_API_BASE ?? "",
+        ""
+      )
       if (path === "/llm/connections/claude" && init?.method === "POST") {
         made = true
         return Response.json(CONNECTED, { status: 201 })
@@ -54,11 +60,11 @@ function serve(
       if (path === "/llm/connections/claude/status") {
         // Claude Code is still being run: the answer never comes in this test.
         if (checking) return new Promise<Response>(() => {})
-        const { state, version, email, plan } = {
+        const { state, version, email, plan, in_container } = {
           ...READY,
           ...(states.length > 1 ? states.shift() : states[0]),
         }
-        return Response.json({ state, version, email, plan })
+        return Response.json({ state, version, email, plan, in_container })
       }
       if (path === "/llm/connections")
         return Response.json(made ? [CONNECTED] : [])
@@ -66,9 +72,10 @@ function serve(
     }
   )
   vi.stubGlobal("fetch", fetchMock)
-  window.surfsense = {
-    openExternal: vi.fn(async () => {}),
-  } as unknown as typeof window.surfsense
+  if (bridge)
+    window.surfsense = {
+      openExternal: vi.fn(async () => {}),
+    } as unknown as typeof window.surfsense
   return fetchMock
 }
 
@@ -210,3 +217,64 @@ describe("the Claude plan option beside the ChatGPT one", () => {
     expect(onConnected).toHaveBeenCalledWith(CONNECTED)
   })
 })
+
+// The API reports in_container: Claude Code is installed and signed in inside the container.
+describe(
+  "the Claude plan option in the Docker image",
+  { tags: ["docker"] },
+  () => {
+    it("gives the commands that install and sign in Claude Code in the container", async () => {
+      serve(
+        [
+          {
+            state: "not_installed",
+            version: null,
+            email: null,
+            plan: null,
+            in_container: true,
+          },
+        ],
+        { bridge: false }
+      )
+      const user = userEvent.setup()
+      render(<ClaudeRow modelType="text_gen" onConnected={vi.fn()} />)
+
+      await user.click(await setUp())
+      expect(
+        await screen.findByText(
+          /Install Claude Code in the SurfSense container/
+        )
+      ).toBeTruthy()
+      const commands = screen
+        .getAllByRole("textbox")
+        .map((box) => (box as HTMLInputElement).value)
+      expect(commands).toEqual([
+        "docker compose exec surfsense bash -c 'set -o pipefail; curl -fsSL https://claude.ai/install.sh | bash'",
+        "docker compose exec -it surfsense claude",
+      ])
+      // The guide is for a desktop install, which the container cannot use.
+      expect(
+        screen.queryByRole("button", { name: "Open install guide" })
+      ).toBeNull()
+    })
+
+    it("signs a signed-out Claude Code in inside the container", async () => {
+      serve(
+        [{ state: "signed_out", email: null, plan: null, in_container: true }],
+        { bridge: false }
+      )
+      const user = userEvent.setup()
+      render(<ClaudeRow modelType="text_gen" onConnected={vi.fn()} />)
+
+      await user.click(await setUp())
+      expect(
+        await screen.findByText(/not signed in to a Claude plan/)
+      ).toBeTruthy()
+      expect(
+        screen
+          .getAllByRole("textbox")
+          .map((box) => (box as HTMLInputElement).value)
+      ).toEqual(["docker compose exec -it surfsense claude"])
+    })
+  }
+)

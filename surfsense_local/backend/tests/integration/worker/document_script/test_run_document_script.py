@@ -17,7 +17,7 @@ import pytest
 from shared import cancellation
 from worker.document_script.run import run_document_script
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.image]
 
 # What the child may see of the parent's environment; anything else is a leak.
 ALLOWED_FROM_PARENT = {

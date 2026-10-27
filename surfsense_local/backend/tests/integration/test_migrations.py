@@ -12,7 +12,7 @@ from alembic import command
 from shared.db import Base, create_db_engine
 from shared.migrations import is_migrated, upgrade_to_head
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.image]
 
 # fts5 and vec0 each spread over half a dozen shadow tables that no model
 # declares and nothing should query directly.

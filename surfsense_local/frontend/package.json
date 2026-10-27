@@ -14,7 +14,8 @@
     "build": "pnpm translations && tsc -b && vite build",
     "lint": "eslint .",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
-    "test": "pnpm translations && vitest run --environment jsdom",
+    "test": "pnpm translations && vitest run --project desktop --tags-filter \"!docker\"",
+    "test:docker": "pnpm translations && vitest run --project docker --tags-filter docker",
     "typecheck": "pnpm translations && tsc -b",
     "preview": "vite preview"
   },

@@ -17,6 +17,22 @@ class Settings(BaseSettings):
     # file:// and calls the loopback sidecar cross-origin. The Docker image sets
     # it empty, so no cross-origin page can talk to the API.
     cors_origins: str = "*"
+    # The port a browser reaches this API's sign-in callbacks on. In the Docker
+    # image `port` is inside the container and the browser comes in through the
+    # published one; unset elsewhere, where the two are the same.
+    public_port: int | None = None
+    # Docker only: the fixed loopback port ChatGPT's sign-in listens on, which the
+    # container's Caddy forwards `/callback` to. 0 picks a free port, as the desktop does.
+    chatgpt_callback_port: int = 0
+    # "docker" in the Docker image, where what the user installs goes in the container.
+    runtime: str | None = None
+
+    def in_container(self) -> bool:
+        return self.runtime == "docker"
+
+    def browser_port(self) -> int:
+        """The port a sign-in sends the browser back to."""
+        return self.public_port or self.port
 
     def cors_origin_list(self) -> list[str]:
         return [

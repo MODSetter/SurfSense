@@ -1,0 +1,260 @@
+name: Docker Tests
+
+# The Docker entry and ghcr.io/modsetter/surfsense (docs/proposals/docker/README.md),
+# tested without pushing an image; release-docker.yml publishes. dev pushes write
+# only the build cache. The shared core's own
+# tests are Desktop Tests'; here only what the entry and the image add.
+
+on:
+  pull_request:
+    branches: [main, dev]
+    types: [opened, synchronize, reopened, ready_for_review]
+  # A merge that breaks the image shows here, not on the next pull request.
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  # Filtered per job, not per workflow, so the gate always reports. A pull
+  # request builds the image only for what can break the image itself; a
+  # release's carries the VERSION bump, so it always does. A dev push or a
+  # manual run, unfiltered, runs every job and catches the rest after merging.
+  changes:
+    name: Changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event.pull_request.draft != true
+    outputs:
+      headless: ${{ steps.filter.outputs.headless || 'true' }}
+      frontend: ${{ steps.filter.outputs.frontend || 'true' }}
+      image: ${{ steps.filter.outputs.image || 'true' }}
+      backend: ${{ steps.filter.outputs.backend || 'true' }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The token stays out of .git/config, where the code under test could read it.
+          persist-credentials: false
+      - id: filter
+        if: github.event_name == 'pull_request'
+        uses: dorny/paths-filter@v4
+        with:
+          filters: |
+            headless:
+              - 'surfsense_local/headless/**'
+              - 'surfsense_local/sidecars/**'
+              - '.github/workflows/docker-tests.yml'
+            frontend:
+              - 'surfsense_local/frontend/**'
+              - '.github/workflows/docker-tests.yml'
+            image:
+              - 'docker/surfsense/**'
+              - 'surfsense_local/headless/**'
+              - 'surfsense_local/sidecars/**'
+              # opencode's staging, and what it imports.
+              - 'surfsense_local/runtimes/opencode/**'
+              - 'surfsense_local/runtimes/pinned-download.mjs'
+              - 'surfsense_local/runtimes/windows-locks/**'
+              - 'surfsense_local/backend/pyproject.toml'
+              - 'surfsense_local/backend/uv.lock'
+              # The bundled models' downloads, which the build runs.
+              - 'surfsense_local/backend/scripts/fetch_*.py'
+              - 'surfsense_local/frontend/package.json'
+              - 'surfsense_local/frontend/pnpm-lock.yaml'
+              - 'surfsense_local/frontend/pnpm-workspace.yaml'
+              - 'surfsense_local/frontend/vite.config.ts'
+              - 'surfsense_local/VERSION'
+              - 'backend/plugins/bundles/core/**'
+              - '.github/workflows/docker-tests.yml'
+            backend:
+              - 'docker/surfsense/Dockerfile'
+              - 'docker/surfsense/Dockerfile.dockerignore'
+              - 'surfsense_local/backend/pyproject.toml'
+              - 'surfsense_local/backend/uv.lock'
+              # The bundled models' downloads, which the build runs.
+              - 'surfsense_local/backend/scripts/fetch_*.py'
+              - 'backend/plugins/bundles/core/manifest/**'
+              - '.github/workflows/docker-tests.yml'
+
+  headless:
+    name: Headless
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: changes
+    if: needs.changes.outputs.headless == 'true'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The token stays out of .git/config, where the code under test could read it.
+          persist-credentials: false
+      # pnpm (the version package.json pins), Node 24 and a frozen install. Only
+      # dev pushes save the store; pull request and tag caches are never reused
+      # and would push dev's out of the repository's 10 GB.
+      - name: Install dependencies
+        uses: pnpm/setup@v3
+        with:
+          working-directory: surfsense_local/headless
+          runtime: node@24
+          require-lockfile: true
+          cache: true
+          save-cache: ${{ github.event_name == 'push' && github.ref == 'refs/heads/dev' }}
+      - name: Typecheck
+        working-directory: surfsense_local/headless
+        run: pnpm typecheck
+      # image.test.ts skips here: no image is named.
+      - name: Run tests
+        working-directory: surfsense_local/headless
+        run: pnpm test
+
+  # The frontend's tests tagged docker, with the image build's settings and no Electron.
+  frontend:
+    name: Frontend (Docker mode)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The token stays out of .git/config, where the code under test could read it.
+          persist-credentials: false
+      # pnpm (the version package.json pins), Node 24 and a frozen install. Only
+      # dev pushes save the store; pull request and tag caches are never reused
+      # and would push dev's out of the repository's 10 GB.
+      - name: Install dependencies
+        uses: pnpm/setup@v3
+        with:
+          working-directory: surfsense_local/frontend
+          runtime: node@24
+          require-lockfile: true
+          cache: true
+          save-cache: ${{ github.event_name == 'push' && github.ref == 'refs/heads/dev' }}
+      - name: Run tests
+        working-directory: surfsense_local/frontend
+        run: pnpm test:docker
+
+  image:
+    name: Image (amd64)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    needs: changes
+    if: needs.changes.outputs.image == 'true'
+    permissions:
+      contents: read
+      # Only to write the build cache on dev pushes; pull requests never write.
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The token stays out of .git/config, where the code under test could read it.
+          persist-credentials: false
+
+      - name: Check the compose file
+        run: docker compose -f docker/surfsense/docker-compose.yml --env-file docker/surfsense/.env.example config -q
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        if: github.event_name == 'push' && github.repository == 'MODSetter/SurfSense'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/surfsense/Dockerfile
+          platforms: linux/amd64
+          load: true
+          tags: surfsense:ci
+          # On GHCR, which every branch, pull request and tag can read, and outside
+          # the repository's 10 GB Actions cache. dev pushes and release tags write
+          # it; pull requests only read it.
+          cache-from: type=registry,ref=ghcr.io/modsetter/surfsense:buildcache
+          cache-to: ${{ github.event_name == 'push' && github.repository == 'MODSetter/SurfSense' && 'type=registry,ref=ghcr.io/modsetter/surfsense:buildcache,mode=max' || '' }}
+
+      # Node 24 runs the TypeScript test as it is.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Test the image
+        env:
+          SURFSENSE_TEST_IMAGE: surfsense:ci
+        run: node --test surfsense_local/headless/image.test.ts
+
+  backend:
+    name: Backend in the image
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    permissions:
+      contents: read
+      # Only to write the build cache on dev pushes; pull requests never write.
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The token stays out of .git/config, where the code under test could read it.
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        if: github.event_name == 'push' && github.repository == 'MODSetter/SurfSense'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build the test stage
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/surfsense/Dockerfile
+          target: backend-tests
+          platforms: linux/amd64
+          load: true
+          tags: surfsense:backend-tests
+          cache-from: |
+            type=registry,ref=ghcr.io/modsetter/surfsense:buildcache
+            type=registry,ref=ghcr.io/modsetter/surfsense:buildcache-backend-tests
+          cache-to: ${{ github.event_name == 'push' && github.repository == 'MODSetter/SurfSense' && 'type=registry,ref=ghcr.io/modsetter/surfsense:buildcache-backend-tests,mode=max' || '' }}
+
+      # The stage runs pytest -m image; the image leaves tests/ out, so it is mounted in.
+      - name: Run the image-marked tests
+        run: |
+          docker run --rm \
+            -v "$PWD/surfsense_local/backend/tests:/app/surfsense_local/backend/tests:ro" \
+            -v "$PWD/docs/contracts:/app/docs/contracts:ro" \
+            surfsense:backend-tests
+
+  gate:
+    name: Docker Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [changes, headless, frontend, image, backend]
+    if: always()
+    steps:
+      - name: Check every job
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Results: $RESULTS"
+          for result in $RESULTS; do
+            if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
+              echo "Docker tests failed"
+              exit 1
+            fi
+          done
+          echo "All Docker tests passed"

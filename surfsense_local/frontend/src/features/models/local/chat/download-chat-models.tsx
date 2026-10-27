@@ -6,6 +6,7 @@ import { Separator } from "@/components/ui/separator"
 import { intl } from "@/i18n/intl"
 
 import type { ModelSelection } from "../../selection/api"
+import { toastUseFailure } from "../../selection/toast-use-failure"
 import { useSelect } from "../../selection/use-selection"
 import { DeleteModelDialog } from "../../your-models/delete-model-dialog"
 import type { YourModelRow } from "../../your-models/your-model-row"
@@ -115,7 +116,7 @@ export function DownloadChatModels({
           },
         })
         .then((selection) => onSelected?.(selection))
-        .catch(() => undefined)
+        .catch(toastUseFailure)
     } else {
       void install(build.catalog_id)
     }
@@ -230,10 +231,6 @@ export function DownloadChatModels({
         jobs={jobs}
         disabled={busy}
       />
-
-      {select.isError ? (
-        <p className="text-sm text-destructive">{messageFrom(select.error)}</p>
-      ) : null}
 
       <DeleteModelDialog
         open={deleteOpen}

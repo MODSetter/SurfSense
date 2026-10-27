@@ -1,0 +1,25 @@
+# SurfSense in one container (docs/proposals/docker/README.md).
+#   cp .env.example .env && docker compose up -d
+# then open http://localhost:4929.
+name: surfsense
+
+services:
+  surfsense:
+    image: ${SURFSENSE_IMAGE:-ghcr.io/modsetter/surfsense}:${SURFSENSE_VERSION:-latest}${SURFSENSE_VARIANT:+-${SURFSENSE_VARIANT}}
+    ports:
+      # This machine only. A Host header proves nothing about where a request came
+      # from, so nothing widens this until the image takes a password.
+      - "127.0.0.1:${SURFSENSE_PORT:-4929}:80"
+    volumes:
+      - surfsense_data:/data
+    environment:
+      # Sign-ins send the browser back through the published port.
+      SURFSENSE_LOCAL_PUBLIC_PORT: ${SURFSENSE_PORT:-4929}
+      # Optional: otherwise the install's secret is created once in the volume.
+      SURFSENSE_LOCAL_SECRET: ${SURFSENSE_SECRET:-}
+    # The supervisor gives each sidecar 5 s after SIGTERM; Docker's 10 s is too tight.
+    stop_grace_period: 30s
+    restart: unless-stopped
+
+volumes:
+  surfsense_data:

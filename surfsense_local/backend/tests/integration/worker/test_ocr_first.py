@@ -31,7 +31,7 @@ from worker.ingestion.scan_ocr import images
 from worker.ingestion.scan_ocr.frames import Frame
 from worker.ingestion.scan_ocr.page import Line, OcrPage, Word
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.image]
 
 __all__ = ["no_minute", "session"]
 

@@ -77,19 +77,20 @@ Its `/` was the homepage. On `legacy`, `/` redirects to `/login`.
 
 - The desktop app and the new image share one version, today `2.2.3`, in `surfsense_local/VERSION`.
 - `release-local.yml` narrows from `v*` to `v[1-9]*`, so an old `v0.*` tag never starts a desktop release.
-- `docker-surfsense.yml` releases on `v[1-9]*`, and moves `latest` when the release is published ([Docker releases](../docker/README.md#releases)).
+- `release-docker.yml` releases on `v[1-9]*`, and moves `latest` when the release is published ([Docker releases](../docker/README.md#releases)).
 - Legacy keeps `0.0.41` in `VERSION` on its branch, bumped by hand for a fix.
 
 ## CI outside the legacy branch
 
 | Workflow | Starts on |
 |---|---|
-| `docker-surfsense.yml` | `v[1-9]*` tags and published releases; `dev` pushes and pull requests, with a `changes` job and a gate |
+| `docker-tests.yml` | `dev` pushes and pull requests, with a `changes` job and a gate |
+| `release-docker.yml` | `v[1-9]*` tags and published releases |
 | `www.yml` | `www/**` |
 | `release-local.yml` | `v[1-9]*` tags |
 | `desktop-tests.yml`, `plugins-*`, `code-quality.yml`, `release-stats.yml` | as today |
 
-- **`docker-surfsense.yml` keeps the gate pattern.** One `changes` job filters on what the Dockerfile copies in (`docker/surfsense/**`, `surfsense_local/{backend,frontend,sidecars,runtimes,headless}/**`, `backend/plugins/bundles/core/**`) and the other jobs skip. The gate reports either way, so it can be a required check. This narrows the [Docker proposal's](../docker/README.md#ci) `surfsense_local/**`.
+- **`docker-tests.yml` keeps the gate pattern.** One `changes` job filters on what the Dockerfile copies in (`docker/surfsense/**`, `surfsense_local/{backend,frontend,sidecars,runtimes,headless}/**`, `backend/plugins/bundles/core/**`) and the other jobs skip. The gate reports either way, so it can be a required check. This narrows the [Docker proposal's](../docker/README.md#ci) `surfsense_local/**`.
 - **`www.yml`** filters at the workflow level with `paths:`, so it is not a required check.
 - **The `plugins-*` workflows keep their names and their jobs' names**, so the required checks still match; only their paths change to `backend/`. `plugins-pull-request-checks.yml` gains a job that builds the backend and registry images on pull requests touching `backend/**`, without pushing, so a wrong path in a Dockerfile fails the pull request rather than Coolify's build.
 - **`.pre-commit-config.yaml`** drops the ruff, bandit and biome hooks for `surfsense_backend` and `surfsense_web`, and adds biome for `^www/`. `.github/CODEOWNERS` drops their entries.

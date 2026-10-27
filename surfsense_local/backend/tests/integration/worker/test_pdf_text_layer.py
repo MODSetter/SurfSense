@@ -21,7 +21,7 @@ from tests.integration.worker.docling_stand_in import reading
 from worker.ingestion import run
 from worker.studio.office.document.figure_shelf import figures_of
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.image]
 
 REPORT = pdf_samples.prose(8, seed=4)
 CAPTION = "Figure 1: Berth calls by quarter."

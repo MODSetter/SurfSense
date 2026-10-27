@@ -81,6 +81,7 @@ dev = [
     "pyinstaller>=6.22.2",
     "pytest>=8.4.0",
     "pytest-asyncio>=1.0.0",
+    "pytest-xdist>=3.8.0",
     "ruff>=0.12.5",
 ]
 
@@ -164,6 +165,7 @@ markers = [
     "unit: pure logic tests, no database or external services",
     "integration: tests that run against a real SQLite database built by migrations",
     "packaging: freezes or runs the binaries the app ships; slow, opt-in",
+    "image: also runs inside the Docker image's test stage (docker-tests.yml), whose user, process reaping, bundled models and system libraries differ from a CI runner's",
     "office: runs a real LibreOffice through the test seam (SURFSENSE_TEST_LIBREOFFICE, else a standard install path); skipped when none is found",
     "claude_code: runs the user's own installed Claude Code on their Claude plan; skipped unless SURFSENSE_CLAUDE_CODE_TESTS=1 and Claude Code is signed in, uses the plan's limits",
     "third_party_off: a plugin route test that needs third-party plugins at their default, off; the others start with them allowed",

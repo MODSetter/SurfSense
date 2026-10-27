@@ -22,11 +22,14 @@
 /surfsense_local/backend/modules/egress/        @CREDO23
 /surfsense_local/backend/shared/secrets.py      @CREDO23
 /surfsense_local/electron/                      @CREDO23 @AnishSarkar22
-/surfsense_local/sidecars/                      @CREDO23 @AnishSarkar22
-/surfsense_local/runtimes/                      @CREDO23 @AnishSarkar22
-/surfsense_local/headless/                      @CREDO23 @AnishSarkar22
+/surfsense_local/sidecars/                      @AnishSarkar22
+/surfsense_local/runtimes/                      @AnishSarkar22
+/surfsense_local/headless/                      @AnishSarkar22
+/docker/surfsense/                              @AnishSarkar22
 /surfsense_local/RELEASE.md                     @CREDO23 @AnishSarkar22
 /.github/workflows/release-local.yml            @CREDO23 @AnishSarkar22
+/.github/workflows/docker-tests.yml             @AnishSarkar22
+/.github/workflows/release-docker.yml           @AnishSarkar22
 
 /backend/license/                               @CREDO23
 /backend/mailer/                                @CREDO23

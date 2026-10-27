@@ -12,7 +12,7 @@ from pptx import Presentation
 
 from worker.document_script.run import run_document_script
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.image]
 
 
 def test_a_python_docx_script_produces_a_word_file() -> None:

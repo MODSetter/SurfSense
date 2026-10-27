@@ -102,3 +102,15 @@ describe("AboutSettings", () => {
     ).toBeTruthy()
   })
 })
+
+// No Electron to ask: the version is the one the image was built with.
+describe("AboutSettings in the Docker image", { tags: ["docker"] }, () => {
+  it("shows the image's version and its release notes", async () => {
+    render(<AboutSettings />)
+
+    expect(await screen.findByText("Version 2.0.3")).toBeTruthy()
+    expect(
+      screen.getByRole("link", { name: "Release notes" }).getAttribute("href")
+    ).toBe("https://github.com/MODSetter/SurfSense/releases/tag/v2.0.3")
+  })
+})

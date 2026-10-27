@@ -753,3 +753,13 @@
     animation: none;
   }
 }
+
+/* Firefox before 159 has no scroll-driven animations, so shadcn's scroll-fade
+   falls back to a static fade on both edges, dimming content that is not
+   scrolled. Show no fade there until Firefox 159 is widely used; then delete this. */
+@supports not (animation-timeline: scroll()) {
+  [class*="scroll-fade"] {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+}

@@ -120,7 +120,7 @@ async def _started(request: Request, draft: PluginDraft):
     """A public client first; refused, a client with a secret of this install's own."""
     start = get_sign_ins(request).start
     hosts = set(_draft_hosts(draft))
-    factory, port = request.app.state.session_factory, get_settings().port
+    factory, port = request.app.state.session_factory, get_settings().browser_port()
     try:
         return await start(draft, hosts, factory, port)
     except OAuthRegistrationError:
@@ -143,7 +143,9 @@ async def _offer(draft: PluginDraft) -> RegistrationOffer | None:
 
 def _can_register(offer: RegistrationOffer) -> bool:
     """Dynamic registration, or a client document where this build signs in with one."""
-    documents = sign_in_client(get_settings().port).client_metadata_url is not None
+    documents = (
+        sign_in_client(get_settings().browser_port()).client_metadata_url is not None
+    )
     return offer.registers or (offer.client_documents and documents)
 
 

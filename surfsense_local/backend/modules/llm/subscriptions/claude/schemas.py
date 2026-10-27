@@ -26,6 +26,8 @@ class ClaudeStatusRead(BaseModel):
     version: str | None
     email: str | None
     plan: str | None
+    # Claude Code is installed and signed in inside the container, not on the host.
+    in_container: bool
 
 
 class ClaudeConnectionWrite(BaseModel):

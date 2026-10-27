@@ -14,7 +14,7 @@ from worker.ingestion.scan_ocr.page import PageVerdict
 from worker.ingestion.scan_ocr.rapid import RapidOcr
 from worker.ingestion.scan_ocr.upright import read_upright
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.image]
 
 _FONTS = (
     "arial.ttf",

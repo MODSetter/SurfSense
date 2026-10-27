@@ -34,7 +34,7 @@ def needs_own_app() -> HTTPException:
                 "This server accepts only apps registered with it in advance. "
                 "Register your own and sign in with its client ID."
             ),
-            "redirect_uri": sign_in_client(get_settings().port).redirect_uri,
+            "redirect_uri": sign_in_client(get_settings().browser_port()).redirect_uri,
         },
     )
 
@@ -49,6 +49,6 @@ def registration_refused() -> HTTPException:
                 "This server's sign-in refused to register SurfSense. It may accept "
                 "only apps it approved."
             ),
-            "redirect_uri": sign_in_client(get_settings().port).redirect_uri,
+            "redirect_uri": sign_in_client(get_settings().browser_port()).redirect_uri,
         },
     )

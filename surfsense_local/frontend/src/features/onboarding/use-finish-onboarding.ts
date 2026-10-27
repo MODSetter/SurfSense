@@ -1,5 +1,7 @@
 import { useState } from "react"
+import { toast } from "sonner"
 
+import { errorToast } from "@/features/feedback/error-toast"
 import type { ModelSelection } from "@/features/models/selection/api"
 import { useSelection } from "@/features/models/selection/use-selection"
 import { intl } from "@/i18n/intl"
@@ -17,12 +19,12 @@ export function useFinishOnboarding(
 ) {
   const chat = useSelection("text_gen")
   const [finishing, setFinishing] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   const finish = async (embeddingModel: string | null = null) => {
     const selection = chat.data
+    // Toasts, never text above the footer: a hint to act, or a failure to report.
     if (!selection) {
-      setError(
+      toast.error(
         intl.formatMessage({
           id: "onboarding_finish_no_chat_model_error",
           defaultMessage: "Choose a chat model first",
@@ -31,23 +33,23 @@ export function useFinishOnboarding(
       return
     }
     setFinishing(true)
-    setError(null)
     try {
       await completeOnboarding(embeddingModel)
       onComplete(selection)
     } catch (cause) {
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : intl.formatMessage({
-              id: "onboarding_finish_error",
-              defaultMessage: "Could not finish setup",
-            })
+      errorToast(
+        intl.formatMessage({
+          id: "onboarding_finish_error",
+          defaultMessage: "Could not finish setup",
+        }),
+        {
+          reportError: `Could not finish setup: ${cause instanceof Error ? cause.message : String(cause)}`,
+        }
       )
     } finally {
       setFinishing(false)
     }
   }
 
-  return { finish, finishing, error }
+  return { finish, finishing }
 }

@@ -1,0 +1,6 @@
+# Without a password, only requests addressed to this machine. A browser on the
+# LAN, or a page on another site rebinding a name to it, is refused. The Host
+# header is the sender's to choose, so this is not the lock against a client
+# elsewhere: compose publishing on 127.0.0.1 is.
+@elsewhere not host localhost 127.0.0.1 ::1
+respond @elsewhere "SurfSense answers only on localhost until SURFSENSE_PASSWORD is set." 403

@@ -13,7 +13,7 @@ from shared.config import get_storage_settings
 from shared.db import create_session_factory
 from worker.ingestion import run
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.image]
 
 NOTE = """# Cassini
 

@@ -11,6 +11,12 @@ const SYSTEM = [
 const fields = (url: string) => new URL(url).searchParams
 
 describe("prefilledIssue", () => {
+  it("names the desktop app under Which part?", () => {
+    const issue = prefilledIssue({ description: "Chat never answers", log: [] })
+
+    expect(fields(issue.url).get("area")).toBe("Desktop app")
+  })
+
   it("fills the bug form's title and What happened?, and copies the log for its Logs field", () => {
     const issue = prefilledIssue({
       description: "Chat never answers\nIt spins forever.",
@@ -73,5 +79,20 @@ describe("prefilledIssue", () => {
 
   it("puts nothing on the clipboard when the log is left out", () => {
     expect(prefilledIssue({ description: "Slow", log: [] }).paste).toBeNull()
+  })
+})
+
+describe("prefilledIssue in the Docker image", { tags: ["docker"] }, () => {
+  it("names Docker under Which part?, a long report included", () => {
+    expect(
+      fields(
+        prefilledIssue({ description: "Chat never answers", log: [] }).url
+      ).get("area")
+    ).toBe("Docker")
+    expect(
+      fields(
+        prefilledIssue({ description: "x".repeat(5_000), log: [] }).url
+      ).get("area")
+    ).toBe("Docker")
   })
 })

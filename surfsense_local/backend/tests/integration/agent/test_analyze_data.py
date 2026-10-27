@@ -176,6 +176,9 @@ async def test_a_model_that_reads_no_images_gets_the_charts_by_name(
 @pytest.mark.parametrize(
     ("name", "data"),
     [("Plan.pdf", _pdf((595, 842))), ("Notes.md", b"# Notes\n")],
+    # Named by file, not bytes: each PDF carries a fresh ID, and parallel
+    # workers must collect the same test names.
+    ids=["pdf", "markdown"],
 )
 async def test_a_source_that_is_not_a_spreadsheet_is_refused(
     tools: ToolEndpoint, engine: Engine, name: str, data: bytes

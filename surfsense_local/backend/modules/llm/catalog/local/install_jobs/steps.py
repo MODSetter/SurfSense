@@ -128,7 +128,9 @@ async def install_steps(
             "progress": step.progress,
         }
     selection = None
-    if select:
+    # Downloaded but not yet served: choosing would ask the same runtime, so the
+    # install ends as downloaded and the model is chosen once it runs.
+    if select and ready.code is not InstallCode.READY_AFTER_RESTART:
         yield {
             "type": "selecting",
             "message": "Selecting model",
