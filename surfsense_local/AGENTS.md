@@ -36,7 +36,8 @@ Version is `VERSION`. `scripts/bump-version.sh` writes it through the desktop pa
 - shadcn components (`frontend/components.json`): `shadcn` skill after `frontend-workflow`, not instead of it — separate, and it inspects the project live.
 - New behavior: `tdd` skill.
 - A backend test of what the Docker image changes (its user, process reaping, bundled models, system libraries) also takes `pytest.mark.image`, so Docker Tests runs it inside the image too.
-- A frontend branch only the Docker image takes (no Electron bridge, its build settings, `in_container`) is tested in a `describe(…, { tags: ["docker"] }, …)` beside its desktop tests, which Docker Tests runs with the image's build settings.
+- Gate what differs in Docker by why ([ADR 0075](../docs/adr/0075-what-differs-in-docker-is-gated-by-one-build-flag-or-the-bridge.md)): what only Electron can do on `window.surfsense?.…`; what the Docker build does differently on `IN_CONTAINER` (`frontend/src/app/in-container.ts`), through a predicate named for the behaviour in its feature; the backend on `get_settings().in_container()`. Never compare `VITE_SURFSENSE_RUNTIME` yourself.
+- A frontend branch only the Docker image takes (no Electron bridge, `IN_CONTAINER`) is tested in a `describe(…, { tags: ["docker"] }, …)` beside its desktop tests, which Docker Tests runs with the image's build settings.
 - Interface text in `frontend/`: `translate` skill. The application menu is not translated: Electron roles, plus a few English items of ours in `electron/src/main/menu/`.
 
 ## Do not

@@ -1,3 +1,5 @@
+import { IN_CONTAINER } from "@/app/in-container"
+
 import { originalDocumentUrl } from "./api"
 
 /**
@@ -6,7 +8,7 @@ import { originalDocumentUrl } from "./api"
  * it instead (docs/proposals/docker/README.md, The frontend without Electron).
  */
 export function downloadsOriginals(): boolean {
-  return import.meta.env.VITE_SURFSENSE_RUNTIME === "docker"
+  return IN_CONTAINER
 }
 
 /** The API answers with the file as an attachment, never inline. */

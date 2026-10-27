@@ -1,5 +1,6 @@
 import type { ComponentType } from "react"
 
+import { IN_CONTAINER } from "@/app/in-container"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -216,9 +217,7 @@ const ALL_SECTIONS = [
 
 // Access is the Docker image's sign-in (ADR 0074); the desktop has none.
 const SETTINGS_SECTIONS = ALL_SECTIONS.filter(
-  (section) =>
-    section.id !== "access" ||
-    import.meta.env.VITE_SURFSENSE_RUNTIME === "docker"
+  (section) => section.id !== "access" || IN_CONTAINER
 )
 
 const GROUP_LABELS: Record<SettingsNavItem["group"], () => string> = {

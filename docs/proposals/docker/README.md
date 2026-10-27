@@ -196,6 +196,8 @@ Caddy is the one door in. A published port reaches the container's interface, ne
 
 Every bridge call is already optional (`window.surfsense?.…`). The build for the image sets `VITE_API_BASE=/api`, and [`lib/api.ts`](../../../surfsense_local/frontend/src/lib/api.ts) reads `window.surfsense?.apiUrl ?? import.meta.env.VITE_API_BASE ?? ""`. The app has no client-side router, so Caddy serves `index.html` at `/` with no deep-link fallback.
 
+What differs is gated by why ([ADR 0075](../../adr/0075-what-differs-in-docker-is-gated-by-one-build-flag-or-the-bridge.md)): the bridge for what only Electron can do, `IN_CONTAINER` for what the Docker build does differently, and `in_container()` in the API.
+
 | Desktop | In Docker |
 |---|---|
 | Open, Show in folder | Download in the row’s menu, through `GET .../documents/{id}/original`; a click previews a PDF in the app and does nothing on other files ([source preview](../source-preview.md)) |

@@ -1,3 +1,5 @@
+import { IN_CONTAINER } from "@/app/in-container"
+
 const HOST_ITSELF = new Set(["localhost", "127.0.0.1", "[::1]", "::1"])
 
 /**
@@ -7,7 +9,7 @@ const HOST_ITSELF = new Set(["localhost", "127.0.0.1", "[::1]", "::1"])
  */
 export function needsPastedCallback(): boolean {
   return (
-    import.meta.env.VITE_SURFSENSE_RUNTIME === "docker" &&
+    IN_CONTAINER &&
     !HOST_ITSELF.has(window.location.hostname)
   )
 }
