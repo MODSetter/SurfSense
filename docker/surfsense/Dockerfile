@@ -32,6 +32,29 @@ WORKDIR /src/surfsense_local
 COPY surfsense_local/runtimes/ runtimes/
 RUN mkdir -p electron && node runtimes/opencode/stage.mjs
 
+# The local model runtimes, staged by the desktop's own scripts with the image's
+# variant: one source per runtime, shared with the desktop (ADR 0073, gpu.md).
+# On the final image's Ubuntu, so what links here runs there.
+FROM ${UBUNTU_IMAGE} AS toolchain
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates git cmake ninja-build g++ unzip libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=node /usr/local/bin/node /usr/local/bin/node
+WORKDIR /src/surfsense_local
+COPY surfsense_local/runtimes/ runtimes/
+
+# llama.cpp: upstream's CPU build at the desktop's pin.
+FROM toolchain AS llamacpp
+RUN node runtimes/fetch-llamacpp.mjs --variant cpu --out /runtimes/llamacpp
+
+# sd.cpp: the desktop's recipe, without Vulkan.
+FROM toolchain AS sdcpp
+RUN node runtimes/sdcpp/stage.mjs --variant cpu --out /runtimes/sdcpp --strict
+
+# audio.cpp and eSpeak: the desktop's Linux build, which is CPU-only already.
+FROM toolchain AS audiocpp
+RUN node runtimes/audiocpp/stage.mjs --out /runtimes/audiocpp --strict
+
 # Ubuntu's own Python 3.12, so the venv's interpreter is the one the final image carries.
 FROM ${UBUNTU_IMAGE} AS python
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates python3.12 python3.12-venv \
@@ -48,11 +71,13 @@ RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-dev --no-ins
 COPY surfsense_local/backend/ ./
 RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-dev
 
-# The bundled models: embeddings, the parser pack and speech detection; nothing downloads them later.
+# The bundled models: embeddings, the parser pack, speech detection and the voice
+# the installers ship, so podcasts work from the first start; nothing downloads them later.
 FROM backend AS models
 RUN .venv/bin/python scripts/fetch_embedding_model.py models \
     && .venv/bin/python scripts/fetch_docling_models.py models \
-    && .venv/bin/python scripts/fetch_silero_vad.py models
+    && .venv/bin/python scripts/fetch_silero_vad.py models \
+    && .venv/bin/python scripts/fetch_bundled_voice.py models
 
 # The backend's `image`-marked tests on the image's Ubuntu, Python and bundled models,
 # never shipped. docker-tests.yml mounts tests/ in, which the build context leaves out.
@@ -68,7 +93,8 @@ CMD [".venv/bin/pytest", "-p", "no:cacheprovider", "-m", "image"]
 
 FROM python AS runtime
 # curl: the Claude dialog's install command downloads Claude Code with it.
-RUN apt-get update && apt-get install -y --no-install-recommends tini curl \
+# libgomp1: llama.cpp's upstream CPU build threads with OpenMP.
+RUN apt-get update && apt-get install -y --no-install-recommends tini curl libgomp1 \
     && rm -rf /var/lib/apt/lists/* \
     && userdel --remove ubuntu \
     && useradd --uid 1000 --create-home --shell /usr/sbin/nologin surfsense \
@@ -81,6 +107,9 @@ COPY --from=backend /app/surfsense_local/backend/ /app/surfsense_local/backend/
 COPY --from=models /app/surfsense_local/backend/models/ /app/surfsense_local/backend/models/
 COPY --from=frontend /src/surfsense_local/frontend/dist/ /app/surfsense_local/frontend/dist/
 COPY --from=opencode /src/surfsense_local/electron/opencode/ /app/runtimes/opencode/
+COPY --from=llamacpp /runtimes/llamacpp/ /app/runtimes/llamacpp/
+COPY --from=sdcpp /runtimes/sdcpp/ /app/runtimes/sdcpp/
+COPY --from=audiocpp /runtimes/audiocpp/ /app/runtimes/audiocpp/
 COPY surfsense_local/sidecars/ /app/surfsense_local/sidecars/
 COPY surfsense_local/headless/ /app/surfsense_local/headless/
 COPY docker/surfsense/caddy/ /app/caddy/

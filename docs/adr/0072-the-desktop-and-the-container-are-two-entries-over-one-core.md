@@ -26,4 +26,4 @@
 
 ## Where the code stands
 
-The core and both entries are in place: [`sidecars/`](../../surfsense_local/sidecars/), [`runtimes/`](../../surfsense_local/runtimes/) and [`headless/`](../../surfsense_local/headless/). The staging scripts take no target or output folder yet; that comes with the image's runtimes, steps 7 to 9 of the [Docker proposal](../proposals/docker/README.md#steps). `docker/surfsense/` does not exist until step 5.
+The core and both entries are in place: [`sidecars/`](../../surfsense_local/sidecars/), [`runtimes/`](../../surfsense_local/runtimes/) and [`headless/`](../../surfsense_local/headless/). The llama.cpp, sd.cpp and audio.cpp staging scripts take `--out`, and llama.cpp's and sd.cpp's take `--variant cpu`, which the image stages; with neither, each stages the desktop's build into `electron/<runtime>/` as before.

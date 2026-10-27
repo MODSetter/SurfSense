@@ -11,7 +11,6 @@ const OUTPUTS = [
 ]
 
 const LINUX = [
-  "-DSD_VULKAN=ON",
   // ggml as its own libraries, so each backend is a module picked at start:
   // one per CPU micro-architecture, and Vulkan.
   "-DSD_BUILD_SHARED_GGML_LIB=ON",
@@ -35,9 +34,17 @@ const DARWIN = [
   "-DCMAKE_INSTALL_RPATH=@loader_path",
 ]
 
+// The GPU backend each Linux variant adds: the desktop's Vulkan, or none for the
+// Docker image's CPU build (docs/proposals/docker/gpu.md).
+const LINUX_GPU = { vulkan: ["-DSD_VULKAN=ON"], cpu: [] }
+
 /** The arguments after `cmake -S <source> -B <build>`. */
-export function configureArgs(platform) {
-  if (platform === "linux") return [...OUTPUTS, ...LINUX]
+export function configureArgs(platform, variant = "vulkan") {
+  if (platform === "linux") {
+    const gpu = LINUX_GPU[variant]
+    if (!gpu) throw new Error(`no sd.cpp variant ${variant} on linux`)
+    return [...OUTPUTS, ...gpu, ...LINUX]
+  }
   if (platform === "darwin") return [...OUTPUTS, ...DARWIN]
   throw new Error(`sd.cpp is not compiled on ${platform}`)
 }

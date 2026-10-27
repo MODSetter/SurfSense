@@ -57,10 +57,8 @@ jobs:
               - 'docker/surfsense/**'
               - 'surfsense_local/headless/**'
               - 'surfsense_local/sidecars/**'
-              # opencode's staging, and what it imports.
-              - 'surfsense_local/runtimes/opencode/**'
-              - 'surfsense_local/runtimes/pinned-download.mjs'
-              - 'surfsense_local/runtimes/windows-locks/**'
+              # The image stages llama.cpp, sd.cpp, audio.cpp and opencode with these.
+              - 'surfsense_local/runtimes/**'
               - 'surfsense_local/backend/pyproject.toml'
               - 'surfsense_local/backend/uv.lock'
               # The bundled models' downloads, which the build runs.

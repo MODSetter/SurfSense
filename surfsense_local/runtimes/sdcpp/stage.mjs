@@ -19,7 +19,14 @@ import { TAG } from "./pins.mjs"
 import { copyServerFiles, SERVER } from "./server-files.mjs"
 import { unpackWindowsArchive } from "./windows-archive.mjs"
 
-const OUT = fileURLToPath(new URL("../../electron/sdcpp", import.meta.url))
+function option(name) {
+  const at = process.argv.indexOf(`--${name}`)
+  return at === -1 ? undefined : process.argv[at + 1]
+}
+
+// With neither, the desktop's build for this host, into electron/sdcpp/.
+const VARIANT = option("variant") ?? "vulkan"
+const OUT = option("out") ?? fileURLToPath(new URL("../../electron/sdcpp", import.meta.url))
 const HOSTS = ["darwin-arm64", "linux-x64", "win32-x64"]
 
 /** Prove the server starts from its own directory and finds its libraries. */
@@ -60,7 +67,7 @@ async function main() {
       : notStaged(
           "sd-server",
           `on ${process.platform === "darwin" ? "macOS" : "Linux"} it is compiled from source`,
-          missingToolchain(),
+          missingToolchain(VARIANT),
           packageManager()
         )
   if (reason) {
@@ -75,11 +82,11 @@ async function main() {
   const stage = `${OUT}.stage-${process.pid}`
   const backup = `${OUT}.old-${process.pid}`
   try {
-    mkdirSync(stage)
+    mkdirSync(stage, { recursive: true })
     if (process.platform !== "win32") {
       console.log(`compiling sd.cpp ${TAG}; this runs once and takes several minutes`)
     }
-    const binaries = process.platform === "win32" ? await unpackWindowsArchive(work) : compile(work)
+    const binaries = process.platform === "win32" ? await unpackWindowsArchive(work) : compile(work, VARIANT)
     copyServerFiles(binaries, stage)
     // Upstream's ggml is built with OpenMP on Windows.
     if (process.platform === "win32") copyMsvcRuntime(stage, { openmp: true })
