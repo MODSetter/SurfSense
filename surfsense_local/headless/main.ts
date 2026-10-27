@@ -6,7 +6,7 @@
  */
 import { mkdirSync } from "node:fs"
 import type { AddressInfo } from "node:net"
-import { join } from "node:path"
+import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { announceApiUrl, withdrawApiUrl } from "../sidecars/api-url/announce-api-url.ts"
@@ -19,6 +19,7 @@ import { startAccess } from "./access/server.ts"
 import { defaultGateway } from "./access/host-request.ts"
 import { setPassword } from "./access/password-store.ts"
 import { CADDY_SIDECAR, caddySpec } from "./caddy.ts"
+import { tlsMode, type TlsMode } from "./tls-mode.ts"
 import { containerEnv } from "./container-env.ts"
 import { contextFromEnv } from "./context-from-env.ts"
 import { resolveSecret } from "./secret.ts"
@@ -37,6 +38,18 @@ Object.assign(process.env, environment)
 
 // Unset on a checkout, which serves the API alone, as the desktop does.
 const caddyfile = process.env.SURFSENSE_LOCAL_CADDYFILE || undefined
+let tls: TlsMode = { caddyfile: "Caddyfile", env: {} }
+if (caddyfile) {
+  // Settled before anything starts: a setting Caddy cannot serve stops here, saying why.
+  try {
+    tls = tlsMode(process.env)
+  } catch (error) {
+    console.error(`[headless] ${(error as Error).message}`)
+    process.exit(1)
+  }
+  // The API names the instance's own OAuth client document on its public domain.
+  if (tls.env.SURFSENSE_DOMAIN) process.env.SURFSENSE_LOCAL_DOMAIN = tls.env.SURFSENSE_DOMAIN
+}
 const chatgptCallbackPort = caddyfile ? await getFreePort() : undefined
 if (chatgptCallbackPort) {
   // ChatGPT's sign-in listens where Caddy forwards `/callback`.
@@ -90,10 +103,11 @@ if (caddyfile && chatgptCallbackPort) {
   sidecarControl(booted.sidecars, onCrash).start(
     caddySpec({
       caddy: process.env.SURFSENSE_LOCAL_CADDY || "caddy",
-      caddyfile,
+      caddyfile: join(dirname(caddyfile), tls.caddyfile),
       apiPort: booted.ctx.apiPort,
       chatgptCallbackPort,
       accessPort,
+      env: tls.env,
       frontendDir:
         process.env.SURFSENSE_LOCAL_FRONTEND_DIR ||
         join(fileURLToPath(new URL("..", import.meta.url)), "frontend", "dist"),

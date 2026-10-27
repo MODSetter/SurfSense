@@ -1,0 +1,25 @@
+# SURFSENSE_TLS=internal: HTTPS on a LAN, under Caddy's own certificate
+# authority, for each name in SURFSENSE_ALLOWED_HOSTS. Devices trust its root,
+# at /data/home/.local/share/caddy/pki/authorities/local/root.crt, once.
+{
+	admin off
+	# The certificates are issued here; nothing is asked of a public CA.
+	auto_https disable_redirects
+}
+
+# The host itself keeps plain HTTP; any other address moves to HTTPS, since a
+# password and a session cookie must not cross the network in the clear.
+:80 {
+	@host host localhost 127.0.0.1 [::1]
+	handle @host {
+		import routes.caddy
+	}
+	handle {
+		redir https://{host}:{$SURFSENSE_HTTPS_PORT}{uri} 308
+	}
+}
+
+{$SURFSENSE_TLS_SITES} {
+	tls internal
+	import routes.caddy
+}

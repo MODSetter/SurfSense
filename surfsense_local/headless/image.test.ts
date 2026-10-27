@@ -1,6 +1,7 @@
 import assert from "node:assert/strict"
 import { execFileSync } from "node:child_process"
 import { request } from "node:http"
+import { request as secureRequest } from "node:https"
 import { after, before, describe, test } from "node:test"
 import { setTimeout as sleep } from "node:timers/promises"
 
@@ -9,6 +10,7 @@ import { setTimeout as sleep } from "node:timers/promises"
 // unless SURFSENSE_TEST_FROZEN_BACKEND names a binary.
 const IMAGE = process.env.SURFSENSE_TEST_IMAGE
 const PORT = Number(process.env.SURFSENSE_TEST_IMAGE_PORT ?? 4929)
+const HTTPS_PORT = PORT + 14
 const NAME = "surfsense-image-test"
 const VOLUME = "surfsense-image-test-data"
 
@@ -25,7 +27,14 @@ function quietly(...args: string[]): void {
 // A first start migrates and loads the parser pack, so it gets the healthcheck's whole start period.
 async function start(env: Record<string, string> = {}): Promise<void> {
   const settings = Object.entries(env).flatMap(([key, value]) => ["-e", `${key}=${value}`])
-  docker("run", "-d", "--name", NAME, "-p", `127.0.0.1:${PORT}:80`, "-v", `${VOLUME}:/data`, ...settings, IMAGE!)
+  docker(
+    "run", "-d", "--name", NAME,
+    "-p", `127.0.0.1:${PORT}:80`,
+    "-p", `127.0.0.1:${HTTPS_PORT}:443`,
+    "-v", `${VOLUME}:/data`,
+    ...settings,
+    IMAGE!,
+  )
   let status = "starting"
   for (let i = 0; i < 150 && status === "starting"; i++) {
     await sleep(2_000)
@@ -57,7 +66,7 @@ function get(
     headers = {},
     json,
   }: { method?: string; host?: string; headers?: Record<string, string>; json?: unknown } = {}
-): Promise<{ status: number; type: string; body: string; cookie: string; setCookie: string }> {
+): Promise<{ status: number; type: string; body: string; cookie: string; setCookie: string; location: string }> {
   const payload = json === undefined ? undefined : JSON.stringify(json)
   const sent = {
     ...(host ? { host } : {}),
@@ -77,6 +86,7 @@ function get(
           body,
           cookie: setCookie.split(";")[0],
           setCookie,
+          location: String(res.headers.location ?? ""),
         })
       })
     })
@@ -180,5 +190,79 @@ describe("the image with a password", { skip: IMAGE ? false : "SURFSENSE_TEST_IM
   test("takes the host from the request, not from a forwarded header the client sends", async () => {
     const forged = await get("/", { host: "attacker.example", headers: { "x-forwarded-host": "localhost" } })
     assert.equal(forged.status, 403)
+  })
+})
+
+// A third: HTTPS on a LAN under the container's own certificate authority, as a
+// device that trusts its root reaches it.
+describe("the image over HTTPS on a LAN", { skip: IMAGE ? false : "SURFSENSE_TEST_IMAGE names no image" }, () => {
+  const PASSWORD = "correct horse battery" // pragma: allowlist secret
+  let ca = ""
+
+  function secure(path: string, json?: unknown): Promise<{ status: number; setCookie: string }> {
+    const payload = json === undefined ? undefined : JSON.stringify(json)
+    return new Promise((resolve, reject) => {
+      const req = secureRequest(
+        {
+          host: "127.0.0.1",
+          port: HTTPS_PORT,
+          path,
+          method: payload ? "POST" : "GET",
+          servername: "surfsense.lan",
+          ca,
+          headers: {
+            host: `surfsense.lan:${HTTPS_PORT}`,
+            ...(payload ? { "content-type": "application/json", "content-length": String(Buffer.byteLength(payload)) } : {}),
+          },
+        },
+        (res) => {
+          res.resume()
+          res.on("end", () => resolve({ status: res.statusCode ?? 0, setCookie: String(res.headers["set-cookie"] ?? "") }))
+        },
+      )
+      req.on("error", reject)
+      req.end(payload)
+    })
+  }
+
+  before(async () => {
+    quietly("rm", "-f", NAME)
+    quietly("volume", "rm", VOLUME)
+    await start({
+      SURFSENSE_PASSWORD: PASSWORD,
+      SURFSENSE_ALLOWED_HOSTS: "surfsense.lan",
+      SURFSENSE_TLS: "internal",
+      SURFSENSE_HTTPS_PORT: String(HTTPS_PORT),
+    })
+    // The root a user copies out once, as .env.example says.
+    for (let i = 0; i < 30 && !ca; i++) {
+      try {
+        ca = docker("exec", NAME, "cat", "/data/home/.local/share/caddy/pki/authorities/local/root.crt")
+      } catch {
+        await sleep(1_000)
+      }
+    }
+  })
+
+  after(() => {
+    quietly("rm", "-f", NAME)
+    quietly("volume", "rm", VOLUME)
+  })
+
+  test("serves the app over HTTPS under a certificate the device trusts", async () => {
+    assert.equal((await secure("/")).status, 200)
+  })
+
+  test("signs in over HTTPS with a Secure session cookie", async () => {
+    const right = await secure("/access/sign-in", { password: PASSWORD })
+    assert.equal(right.status, 204)
+    assert.match(right.setCookie, /Secure/)
+  })
+
+  test("sends plain HTTP on the LAN name to HTTPS, and keeps it for the host itself", async () => {
+    const lan = await get("/", { host: "surfsense.lan" })
+    assert.equal(lan.status, 308)
+    assert.equal(lan.location, `https://surfsense.lan:${HTTPS_PORT}/`)
+    assert.equal((await get("/api/health")).status, 200)
   })
 })

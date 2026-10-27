@@ -13,6 +13,8 @@ export function caddySpec(options: {
   chatgptCallbackPort: number
   accessPort: number
   frontendDir: string
+  /** What the chosen configuration reads besides the ports: its TLS mode's. */
+  env?: Record<string, string>
 }): SidecarSpec {
   return {
     name: CADDY_SIDECAR,
@@ -26,6 +28,7 @@ export function caddySpec(options: {
       SURFSENSE_FRONTEND_DIR: options.frontendDir,
       // Asked about every request (forward_auth), and serves the app's /access/*.
       SURFSENSE_ACCESS_PORT: String(options.accessPort),
+      ...options.env,
     },
   }
 }

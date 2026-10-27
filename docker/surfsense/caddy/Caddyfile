@@ -1,39 +1,13 @@
-# The container's one listener. The headless entry starts Caddy with the API's
-# loopback port, ChatGPT's callback port and the SPA's folder in its environment.
+# The container's one listener, over plain HTTP: the default, for the host
+# itself. Caddyfile.lan and Caddyfile.domain add HTTPS for other devices. The
+# headless entry picks one, and starts Caddy with the API's loopback port,
+# ChatGPT's callback port and the SPA's folder in its environment.
 {
 	admin off
-	# HTTPS arrives with step 11 of the Docker proposal.
 	auto_https off
 }
 
 :80 {
 	# In order, as written: the access check runs before any route.
-	route {
-		import access.caddy
-
-		# Workers reach these on loopback; never through the listener.
-		handle /api/internal/* {
-			respond 403
-		}
-		handle /api/* {
-			uri strip_prefix /api
-			reverse_proxy 127.0.0.1:{$SURFSENSE_API_PORT} {
-				# Chat and live updates are server-sent events.
-				flush_interval -1
-			}
-		}
-		# Where a plugin's sign-in returns, through the plugin host's page.
-		handle /plugins/oauth/callback {
-			reverse_proxy 127.0.0.1:{$SURFSENSE_API_PORT}
-		}
-		# Where OpenAI returns a ChatGPT sign-in: only a loopback path is accepted.
-		handle /callback {
-			reverse_proxy 127.0.0.1:{$SURFSENSE_CHATGPT_CALLBACK_PORT}
-		}
-		handle {
-			root * {$SURFSENSE_FRONTEND_DIR}
-			try_files {path} /index.html
-			file_server
-		}
-	}
+	import routes.caddy
 }

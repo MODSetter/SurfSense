@@ -1,0 +1,36 @@
+# The app's routes, the same in every mode: plain HTTP, a LAN with Caddy's own
+# certificates, or a public domain (docs/proposals/docker/README.md).
+route {
+	import access.caddy
+
+	# Workers reach these on loopback; never through the listener.
+	handle /api/internal/* {
+		respond 403
+	}
+	handle /api/* {
+		uri strip_prefix /api
+		reverse_proxy 127.0.0.1:{$SURFSENSE_API_PORT} {
+			# Chat and live updates are server-sent events.
+			flush_interval -1
+		}
+	}
+	# Where a plugin's sign-in returns: through the plugin host's page on the host,
+	# and straight here from another device's origin.
+	handle /plugins/oauth/callback {
+		reverse_proxy 127.0.0.1:{$SURFSENSE_API_PORT}
+	}
+	# The instance's own OAuth client document, which a provider fetches on its
+	# public domain; the API answers 404 elsewhere.
+	handle /plugins/oauth/client.json {
+		reverse_proxy 127.0.0.1:{$SURFSENSE_API_PORT}
+	}
+	# Where OpenAI returns a ChatGPT sign-in: only a loopback path is accepted.
+	handle /callback {
+		reverse_proxy 127.0.0.1:{$SURFSENSE_CHATGPT_CALLBACK_PORT}
+	}
+	handle {
+		root * {$SURFSENSE_FRONTEND_DIR}
+		try_files {path} /index.html
+		file_server
+	}
+}

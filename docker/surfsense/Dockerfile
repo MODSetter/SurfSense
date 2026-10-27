@@ -127,7 +127,7 @@ ENV SURFSENSE_LOCAL_DATA_DIR=/data \
 
 USER surfsense
 VOLUME /data
-EXPOSE 80
+EXPOSE 80 443
 # A first start migrates and loads the parser pack before the API answers.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --start-interval=5s --retries=3 \
     CMD ["node", "-e", "fetch('http://localhost/api/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
