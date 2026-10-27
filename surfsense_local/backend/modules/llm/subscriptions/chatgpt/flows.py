@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import secrets
 import time
 from collections.abc import Callable
@@ -9,6 +10,7 @@ from urllib.parse import urlencode
 import httpx
 from sqlalchemy.orm import Session
 
+from api.config import get_settings
 from modules.llm.subscriptions.chatgpt import account, revocation
 from modules.llm.subscriptions.chatgpt.endpoints import (
     AGENT_NAME,
@@ -53,6 +55,9 @@ class Flow:
     connection_id: int | None = None
     message: str | None = None
     task: asyncio.Task | None = field(default=None, repr=False)
+    # Held here as well as by the task: a task cancelled before it starts never
+    # reaches its `finally`.
+    loopback: Loopback | None = field(default=None, repr=False)
 
 
 class SignInFlows:
@@ -82,12 +87,15 @@ class SignInFlows:
             if connection_id is not None
             else None
         )
+        if get_settings().chatgpt_callback_port:
+            await self._replace_waiting()
         pkce = Pkce()
         loopback = Loopback()
         redirect_uri = await loopback.open()
         flow = Flow(
             secrets.token_urlsafe(16), _authorize_url(pkce, redirect_uri, returning)
         )
+        flow.loopback = loopback
         self._flows[flow.id] = flow
         flow.task = asyncio.create_task(
             self._finish(
@@ -102,6 +110,18 @@ class SignInFlows:
             )
         )
         return flow
+
+    async def _replace_waiting(self) -> None:
+        """A fixed callback port, as in the container, holds one listener: the
+        newest sign-in wins, as the user abandoned the one still waiting."""
+        for flow_id in list(self._flows):
+            flow = self._flows.pop(flow_id)
+            if flow.task is not None:
+                flow.task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await flow.task
+            if flow.loopback is not None:
+                flow.loopback.close()
 
     def _forget_settled(self) -> None:
         for flow_id in [k for k, f in self._flows.items() if f.status != "waiting"]:
