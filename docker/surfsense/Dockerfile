@@ -94,7 +94,11 @@ CMD [".venv/bin/pytest", "-p", "no:cacheprovider", "-m", "image"]
 FROM python AS runtime
 # curl: the Claude dialog's install command downloads Claude Code with it.
 # libgomp1: llama.cpp's upstream CPU build threads with OpenMP.
+# The rest, about 21 MB: what Office support's LibreOffice, unpacked into /data,
+# links against for a headless conversion, and a font to lay pages out with.
 RUN apt-get update && apt-get install -y --no-install-recommends tini curl libgomp1 \
+        libxinerama1 libx11-xcb1 libxext6 libsm6 libfontconfig1 fonts-dejavu-core \
+        libnss3 libdbus-1-3 libcairo2 libglib2.0-0t64 libcups2t64 \
     && rm -rf /var/lib/apt/lists/* \
     && userdel --remove ubuntu \
     && useradd --uid 1000 --create-home --shell /usr/sbin/nologin surfsense \

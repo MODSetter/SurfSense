@@ -135,6 +135,28 @@ describe("the image", { skip: IMAGE ? false : "SURFSENSE_TEST_IMAGE names no ima
     assert.equal((await get("/api/internal/events", { method: "POST" })).status, 403)
   })
 
+  // Office support unpacks TDF's LibreOffice debs into /data; they link against
+  // these, which a headless conversion loads (ADR 0075). Downloading it here is too heavy.
+  test("has the system libraries and a font a headless LibreOffice needs", () => {
+    const libraries = docker("exec", NAME, "ldconfig", "-p")
+    for (const name of [
+      "libXinerama.so.1",
+      "libX11-xcb.so.1",
+      "libXext.so.6",
+      "libSM.so.6",
+      "libfontconfig.so.1",
+      "libnss3.so",
+      "libssl3.so",
+      "libdbus-1.so.3",
+      "libcairo.so.2",
+      "libgio-2.0.so.0",
+      "libcups.so.2",
+    ]) {
+      assert.match(libraries, new RegExp(`\\b${name.replaceAll(".", "\\.")}\\b`), `${name} is missing`)
+    }
+    assert.match(docker("exec", NAME, "ls", "/usr/share/fonts/truetype"), /dejavu/)
+  })
+
   // Last: it replaces the container the others ask, as an image update does.
   test("stops cleanly and keeps its secret in a new container on the same /data", async () => {
     const before = secretDigest()
