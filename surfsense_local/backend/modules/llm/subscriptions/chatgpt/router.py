@@ -11,6 +11,7 @@ from modules.llm.subscriptions.chatgpt import account, revocation
 from modules.llm.subscriptions.chatgpt.endpoints import get_endpoints
 from modules.llm.subscriptions.chatgpt.flows import SignInFlows
 from modules.llm.subscriptions.chatgpt.schemas import (
+    CallbackPaste,
     SignInHost,
     SignInOption,
     SignInRead,
@@ -88,6 +89,25 @@ def read_sign_in(flow_id: str, flows: FlowsDep) -> SignInRead:
     return SignInRead(
         status=flow.status, connection_id=flow.connection_id, message=flow.message
     )
+
+
+@router.post(
+    "/chatgpt/sign-in/{flow_id}/callback", status_code=status.HTTP_204_NO_CONTENT
+)
+def paste_callback(flow_id: str, payload: CallbackPaste, flows: FlowsDep) -> Response:
+    """Finishes a sign-in from another machine than the container's, where OpenAI's
+    loopback redirect cannot land (docs/proposals/docker/README.md, Sign-ins)."""
+    if flows.get(flow_id) is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "no such sign-in")
+    if not flows.paste(flow_id, payload.address):
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            {
+                "code": "not_the_callback",
+                "message": "That address is not where the sign-in sent your browser.",
+            },
+        )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.delete("/chatgpt/sign-in/{flow_id}", status_code=status.HTTP_204_NO_CONTENT)

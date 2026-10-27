@@ -4,7 +4,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Literal
-from urllib.parse import urlencode
+from urllib.parse import parse_qs, urlencode, urlsplit
 
 import httpx
 from sqlalchemy.orm import Session
@@ -13,6 +13,7 @@ from api.config import get_settings
 from modules.llm.subscriptions.chatgpt import account, revocation
 from modules.llm.subscriptions.chatgpt.endpoints import (
     AGENT_NAME,
+    CALLBACK_PATH,
     DYNAMIC_CLIENT,
     PLAN_SCOPE,
     RESOURCE,
@@ -71,6 +72,26 @@ class SignInFlows:
 
     def get(self, flow_id: str) -> Flow | None:
         return self._flows.get(flow_id)
+
+    def paste(self, flow_id: str, address: str) -> bool:
+        """The address a sign-in's redirect left in the browser, where the browser
+        cannot reach 127.0.0.1: on another machine than the container's. The
+        code is useless without the verifier, which never left this process."""
+        flow = self._flows.get(flow_id)
+        if flow is None or flow.loopback is None or flow.returned:
+            return False
+        try:
+            target = urlsplit(address.strip())
+        except ValueError:
+            return False
+        query = {k: v[0] for k, v in parse_qs(target.query).items()}
+        if (
+            target.path != CALLBACK_PATH
+            or not query.get("code")
+            or not query.get("state")
+        ):
+            return False
+        return flow.loopback.deliver(query)
 
     def cancel(self, flow_id: str) -> None:
         flow = self._flows.pop(flow_id, None)

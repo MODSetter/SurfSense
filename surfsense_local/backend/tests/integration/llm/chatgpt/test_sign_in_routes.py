@@ -523,3 +523,48 @@ async def test_each_connection_says_which_model_types_it_can_fill(
         "ChatGPT": ["text_gen"],
         "Gateway": ["text_gen", "image_gen", "image_edit", "video_gen", "audio_gen"],
     }
+
+
+async def test_a_browser_on_another_machine_pastes_the_address_it_was_sent_to(
+    client: AsyncClient, fake_openai: FakeOpenAI
+) -> None:
+    """OpenAI sends the browser to 127.0.0.1, which on another machine than the
+    container's reaches nothing; the address it shows finishes the sign-in."""
+    started = await client.post(
+        "/llm/connections/chatgpt/sign-in", json={"label": "Remote"}
+    )
+    flow_id = started.json()["flow_id"]
+    async with httpx.AsyncClient(follow_redirects=False) as browser:
+        redirect = await browser.get(started.json()["authorize_url"])
+    address = redirect.headers["location"]
+
+    pasted = await client.post(
+        f"/llm/connections/chatgpt/sign-in/{flow_id}/callback",
+        json={"address": address},
+    )
+
+    assert pasted.status_code == 204
+    assert (await _settled(client, flow_id))["status"] == "signed_in"
+
+
+async def test_a_pasted_address_that_is_not_the_callback_is_refused(
+    client: AsyncClient, fake_openai: FakeOpenAI
+) -> None:
+    """Only the callback, with its code and state, finishes a sign-in; one that is gone answers 404."""
+    started = await client.post(
+        "/llm/connections/chatgpt/sign-in", json={"label": "Remote"}
+    )
+    flow_id = started.json()["flow_id"]
+
+    pasted = await client.post(
+        f"/llm/connections/chatgpt/sign-in/{flow_id}/callback",
+        json={"address": "https://chatgpt.com/"},
+    )
+    gone = await client.post(
+        "/llm/connections/chatgpt/sign-in/no-such-flow/callback",
+        json={"address": "http://127.0.0.1/callback?code=c&state=s"},
+    )
+
+    assert pasted.status_code == 422
+    assert gone.status_code == 404
+    await client.delete(f"/llm/connections/chatgpt/sign-in/{flow_id}")
