@@ -336,8 +336,12 @@ function MessageActions({
         className
       )}
     >
-      {timestampRight ? null : timestamp}
-      <ActionBarPrimitive.Root hideWhenRunning={hideWhenRunning}>
+      <ActionBarPrimitive.Root
+        hideWhenRunning={hideWhenRunning}
+        autohide="always"
+        className="flex items-center gap-2"
+      >
+        {timestampRight ? null : timestamp}
         <Tooltip>
           <ActionBarPrimitive.Copy copiedDuration={2_000} asChild>
             <TooltipTrigger
@@ -380,8 +384,8 @@ function MessageActions({
                 })}
           </TooltipContent>
         </Tooltip>
+        {timestampRight ? timestamp : null}
       </ActionBarPrimitive.Root>
-      {timestampRight ? timestamp : null}
     </div>
   )
 }
