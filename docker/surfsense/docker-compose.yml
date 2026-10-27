@@ -7,9 +7,9 @@ services:
   surfsense:
     image: ${SURFSENSE_IMAGE:-ghcr.io/modsetter/surfsense}:${SURFSENSE_VERSION:-latest}${SURFSENSE_VARIANT:+-${SURFSENSE_VARIANT}}
     ports:
-      # This machine only. A Host header proves nothing about where a request came
-      # from, so nothing widens this until the image takes a password.
-      - "127.0.0.1:${SURFSENSE_PORT:-4929}:80"
+      # This machine only, unless SURFSENSE_BIND widens it. Without a password the
+      # access service still answers only the host itself (ADR 0074).
+      - "${SURFSENSE_BIND:-127.0.0.1}:${SURFSENSE_PORT:-4929}:80"
     volumes:
       - surfsense_data:/data
     environment:
@@ -17,6 +17,9 @@ services:
       SURFSENSE_LOCAL_PUBLIC_PORT: ${SURFSENSE_PORT:-4929}
       # Optional: otherwise the install's secret is created once in the volume.
       SURFSENSE_LOCAL_SECRET: ${SURFSENSE_SECRET:-}
+      # Optional: sets the sign-in password at start; it can also be created in the app.
+      SURFSENSE_PASSWORD: ${SURFSENSE_PASSWORD:-}
+      SURFSENSE_ALLOWED_HOSTS: ${SURFSENSE_ALLOWED_HOSTS:-}
     # The supervisor gives each sidecar 5 s after SIGTERM; Docker's 10 s is too tight.
     stop_grace_period: 30s
     restart: unless-stopped

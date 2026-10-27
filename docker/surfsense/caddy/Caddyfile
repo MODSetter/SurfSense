@@ -9,7 +9,7 @@
 :80 {
 	# In order, as written: the access check runs before any route.
 	route {
-		import access-local.caddy
+		import access.caddy
 
 		# Workers reach these on loopback; never through the listener.
 		handle /api/internal/* {

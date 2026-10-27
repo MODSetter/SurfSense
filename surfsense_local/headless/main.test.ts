@@ -17,14 +17,14 @@ const path = require("node:path")
 const [entry, queue] = process.argv.slice(2)
 const name = path.basename(process.argv[1])
 const role = name === "llama-server" || name === "caddy" ? name : entry === "main.py" ? "api" : "worker-" + queue
-const keys = ["HF_HUB_OFFLINE", "SURFSENSE_LOCAL_SIGNED_REGISTRY", "SURFSENSE_LOCAL_RUNTIME", "HOME", "SURFSENSE_LOCAL_SECRET", "SURFSENSE_LOCAL_DATA_DIR"]
+const keys = ["HF_HUB_OFFLINE", "SURFSENSE_LOCAL_SIGNED_REGISTRY", "SURFSENSE_LOCAL_RUNTIME", "HOME", "SURFSENSE_LOCAL_SECRET", "SURFSENSE_LOCAL_DATA_DIR", "SURFSENSE_PASSWORD"]
 fs.writeFileSync(path.join(process.env.FAKE_LOG, role + ".json"),
   JSON.stringify({
     pid: process.pid,
     env: Object.fromEntries(keys.map((k) => [k, process.env[k]])),
     args: process.argv.slice(2),
     cwd: process.cwd(),
-    caddy: Object.fromEntries(["SURFSENSE_API_PORT", "SURFSENSE_CHATGPT_CALLBACK_PORT", "SURFSENSE_FRONTEND_DIR"].map((k) => [k, process.env[k]])),
+    caddy: Object.fromEntries(["SURFSENSE_API_PORT", "SURFSENSE_CHATGPT_CALLBACK_PORT", "SURFSENSE_FRONTEND_DIR", "SURFSENSE_ACCESS_PORT"].map((k) => [k, process.env[k]])),
     chatgptCallbackPort: process.env.SURFSENSE_LOCAL_CHATGPT_CALLBACK_PORT,
   }))
 const caddyExit = Number(process.env.FAKE_CADDY_EXIT_AFTER_MS)
@@ -229,6 +229,34 @@ test("with a Caddyfile it starts Caddy on the API's port, ChatGPT's callback por
   run.child.kill("SIGTERM")
   assert.equal(await run.exited, 0)
   assert.equal(alive(caddy.pid), false)
+})
+
+test("Caddy asks the access service, which answers on the port Caddy is given", { skip }, async (t) => {
+  const run = startHeadless(t, { caddy: true })
+  await run.ready
+  const children = await recorded(run.log, 5)
+  const port = children.caddy?.caddy.SURFSENSE_ACCESS_PORT
+  assert.ok(Number(port) > 0)
+  const state = await fetch(`http://127.0.0.1:${port}/access/state`, {
+    headers: { "X-Forwarded-Host": "localhost:4929", "X-Forwarded-For": "127.0.0.1" },
+  })
+  assert.deepEqual(await state.json(), { password: false, signedIn: false, host: true })
+  run.child.kill("SIGTERM")
+  assert.equal(await run.exited, 0)
+})
+
+test("SURFSENSE_PASSWORD sets the password at start, and no sidecar sees it", { skip }, async (t) => {
+  const run = startHeadless(t, { caddy: true, env: { SURFSENSE_PASSWORD: "correct horse battery" } })
+  await run.ready
+  const children = await recorded(run.log, 5)
+  const port = children.caddy?.caddy.SURFSENSE_ACCESS_PORT
+  const state = await fetch(`http://127.0.0.1:${port}/access/state`, {
+    headers: { "X-Forwarded-Host": "localhost:4929", "X-Forwarded-For": "127.0.0.1" },
+  })
+  assert.equal(((await state.json()) as { password: boolean }).password, true)
+  for (const child of Object.values(children)) assert.equal(child.env.SURFSENSE_PASSWORD, undefined)
+  run.child.kill("SIGTERM")
+  assert.equal(await run.exited, 0)
 })
 
 test("without a Caddyfile, as on a checkout, it starts no Caddy and fixes no callback port", { skip }, async (t) => {

@@ -23,8 +23,9 @@ function quietly(...args: string[]): void {
 }
 
 // A first start migrates and loads the parser pack, so it gets the healthcheck's whole start period.
-async function start(): Promise<void> {
-  docker("run", "-d", "--name", NAME, "-p", `127.0.0.1:${PORT}:80`, "-v", `${VOLUME}:/data`, IMAGE!)
+async function start(env: Record<string, string> = {}): Promise<void> {
+  const settings = Object.entries(env).flatMap(([key, value]) => ["-e", `${key}=${value}`])
+  docker("run", "-d", "--name", NAME, "-p", `127.0.0.1:${PORT}:80`, "-v", `${VOLUME}:/data`, ...settings, IMAGE!)
   let status = "starting"
   for (let i = 0; i < 150 && status === "starting"; i++) {
     await sleep(2_000)
@@ -50,22 +51,37 @@ function secretDigest(): string {
 
 function get(
   path: string,
-  { method = "GET", host }: { method?: string; host?: string } = {}
-): Promise<{ status: number; type: string; body: string }> {
+  {
+    method = "GET",
+    host,
+    headers = {},
+    json,
+  }: { method?: string; host?: string; headers?: Record<string, string>; json?: unknown } = {}
+): Promise<{ status: number; type: string; body: string; cookie: string; setCookie: string }> {
+  const payload = json === undefined ? undefined : JSON.stringify(json)
+  const sent = {
+    ...(host ? { host } : {}),
+    ...(payload ? { "content-type": "application/json", "content-length": String(Buffer.byteLength(payload)) } : {}),
+    ...headers,
+  }
   return new Promise((resolve, reject) => {
-    const req = request(
-      { host: "127.0.0.1", port: PORT, path, method, headers: host ? { host } : {} },
-      (res) => {
-        let body = ""
-        res.setEncoding("utf8")
-        res.on("data", (chunk) => (body += chunk))
-        res.on("end", () =>
-          resolve({ status: res.statusCode ?? 0, type: res.headers["content-type"] ?? "", body })
-        )
-      }
-    )
+    const req = request({ host: "127.0.0.1", port: PORT, path, method, headers: sent }, (res) => {
+      let body = ""
+      res.setEncoding("utf8")
+      res.on("data", (chunk) => (body += chunk))
+      res.on("end", () => {
+        const setCookie = String(res.headers["set-cookie"] ?? "")
+        resolve({
+          status: res.statusCode ?? 0,
+          type: res.headers["content-type"] ?? "",
+          body,
+          cookie: setCookie.split(";")[0],
+          setCookie,
+        })
+      })
+    })
     req.on("error", reject)
-    req.end()
+    req.end(payload)
   })
 }
 
@@ -118,5 +134,51 @@ describe("the image", { skip: IMAGE ? false : "SURFSENSE_TEST_IMAGE names no ima
     assert.equal((await get("/api/health")).status, 200)
     assert.equal(secretDigest(), before)
     assert.equal(stop(), "0")
+  })
+})
+
+// A second container, with a password and one allowed host: the sign-in, end to end through Caddy.
+describe("the image with a password", { skip: IMAGE ? false : "SURFSENSE_TEST_IMAGE names no image" }, () => {
+  const PASSWORD = "correct horse battery" // pragma: allowlist secret
+
+  before(async () => {
+    quietly("rm", "-f", NAME)
+    quietly("volume", "rm", VOLUME)
+    await start({ SURFSENSE_PASSWORD: PASSWORD, SURFSENSE_ALLOWED_HOSTS: "surfsense.lan" })
+  })
+
+  after(() => {
+    quietly("rm", "-f", NAME)
+    quietly("volume", "rm", VOLUME)
+  })
+
+  test("keeps the app's files and health open, and the API closed", async () => {
+    assert.equal((await get("/")).status, 200)
+    assert.equal((await get("/api/health")).status, 200)
+    assert.equal((await get("/api/workspaces")).status, 401)
+  })
+
+  test("refuses a wrong password, opens the API for the right one, and closes it on sign-out", async () => {
+    const wrong = await get("/access/sign-in", { method: "POST", json: { password: "nope" } }) // pragma: allowlist secret
+    assert.equal(wrong.status, 401)
+
+    const right = await get("/access/sign-in", { method: "POST", json: { password: PASSWORD } })
+    assert.equal(right.status, 204)
+    assert.match(right.setCookie, /HttpOnly/)
+    assert.equal((await get("/api/workspaces", { headers: { cookie: right.cookie } })).status, 200)
+
+    const out = await get("/access/sign-out", { method: "POST", headers: { cookie: right.cookie } })
+    assert.equal(out.status, 204)
+    assert.match(out.setCookie, /Max-Age=0/)
+  })
+
+  test("answers the allowed host, and refuses any other", async () => {
+    assert.equal((await get("/", { host: "surfsense.lan" })).status, 200)
+    assert.equal((await get("/", { host: "attacker.example" })).status, 403)
+  })
+
+  test("takes the host from the request, not from a forwarded header the client sends", async () => {
+    const forged = await get("/", { host: "attacker.example", headers: { "x-forwarded-host": "localhost" } })
+    assert.equal(forged.status, 403)
   })
 })

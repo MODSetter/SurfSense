@@ -5,6 +5,7 @@
  * is the supervisor's, as on the desktop.
  */
 import { mkdirSync } from "node:fs"
+import type { AddressInfo } from "node:net"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -14,6 +15,9 @@ import { stopOnce } from "../sidecars/stop-once.ts"
 import { getFreePort } from "../sidecars/net.ts"
 import { sidecarControl, stopAll } from "../sidecars/supervisor.ts"
 import type { CrashHandler } from "../sidecars/types.ts"
+import { startAccess } from "./access/server.ts"
+import { defaultGateway } from "./access/host-request.ts"
+import { setPassword } from "./access/password-store.ts"
 import { CADDY_SIDECAR, caddySpec } from "./caddy.ts"
 import { containerEnv } from "./container-env.ts"
 import { contextFromEnv } from "./context-from-env.ts"
@@ -23,6 +27,9 @@ const unsettled = contextFromEnv(process.env, "")
 const context = { ...unsettled, secret: resolveSecret(process.env, unsettled.dataDir) }
 // The Python specs pass it on themselves; every other sidecar inherits this environment (ADR 0018).
 delete process.env.SURFSENSE_LOCAL_SECRET
+// Read once, here: no sidecar needs the password, and none sees it.
+const password = process.env.SURFSENSE_PASSWORD || undefined
+delete process.env.SURFSENSE_PASSWORD
 const environment = containerEnv(context.dataDir)
 mkdirSync(environment.HOME, { recursive: true })
 // The supervisor starts every sidecar on this environment.
@@ -70,12 +77,23 @@ try {
 }
 announceApiUrl(context.dataDir, booted.apiUrl)
 if (caddyfile && chatgptCallbackPort) {
+  // Set or replaced at every start, so it doubles as the reset for a forgotten one (ADR 0074).
+  if (password) await setPassword(context.dataDir, password)
+  const gateway = defaultGateway()
+  const access = await startAccess({
+    dataDir: context.dataDir,
+    secret: context.secret,
+    allowedHosts: process.env.SURFSENSE_ALLOWED_HOSTS ?? "",
+    gateway: () => gateway,
+  })
+  const accessPort = (access.address() as AddressInfo).port
   sidecarControl(booted.sidecars, onCrash).start(
     caddySpec({
       caddy: process.env.SURFSENSE_LOCAL_CADDY || "caddy",
       caddyfile,
       apiPort: booted.ctx.apiPort,
       chatgptCallbackPort,
+      accessPort,
       frontendDir:
         process.env.SURFSENSE_LOCAL_FRONTEND_DIR ||
         join(fileURLToPath(new URL("..", import.meta.url)), "frontend", "dist"),
