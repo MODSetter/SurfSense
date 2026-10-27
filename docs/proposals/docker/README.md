@@ -393,7 +393,7 @@ In order; each step depends on the one before it and leaves something that runs.
 
 **GPU images**, steps 12 to 14 in [`gpu.md`](gpu.md): `-cuda` on amd64. `linux/arm64` follows once `runtimes/` stages each runtime for it, with `-cuda13`.
 
-Then the maintainers write `architecture/docker.md`, update the root README, both `AGENTS.md` files and `RELEASE.md`, and delete this proposal.
+Then the maintainers write `architecture/docker.md`, update the root README and both `AGENTS.md` files, and delete this proposal. `RELEASE.md` already covers the image.
 
 ## Not in scope
 

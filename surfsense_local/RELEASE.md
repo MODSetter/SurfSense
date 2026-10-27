@@ -78,7 +78,7 @@ gh pr create --base main --head dev --title "[Local|Release] Release desktop 2.3
 
 ### 5. Tag the merge and open a draft release
 
-Tag must be `v` + the `VERSION` file (CI fails if they disagree), on the commit the merge made on `main`. Pushing the tag starts Desktop Release. Push it yourself: `--verify-tag` makes `gh` stop when the remote lacks the tag, rather than create one on the default branch's head. Notes start at the **previous 2.x release** — the last one you shipped. `--draft` so CI can attach installers before anyone sees it.
+Tag must be `v` + the `VERSION` file (CI fails if they disagree), on the commit the merge made on `main`. Pushing the tag starts Desktop Release and Release Docker. Push it yourself: `--verify-tag` makes `gh` stop when the remote lacks the tag, rather than create one on the default branch's head. Notes start at the **previous 2.x release** — the last one you shipped. `--draft` so CI can attach installers before anyone sees it.
 
 ```bash
 git fetch origin main
@@ -113,6 +113,17 @@ Without the key, `release-extras` leaves a notice only while Latest carries no `
 
 The `snap` job is informational. Nothing waits on it, and its failure leaves the run green. On a tag with `SNAPCRAFT_STORE_CREDENTIALS` set, it uploads `SurfSense.snap` to the Snap Store's candidate channel; the snap never goes on the GitHub release. Do not wait for it before publishing.
 
+The same tag starts [`release-docker.yml`](../.github/workflows/release-docker.yml). Its `Build, test and push` job builds the image, runs `headless/image.test.ts` against it, and pushes `ghcr.io/modsetter/surfsense:2.3.0`; `latest` does not move until you publish. Wait for it too, since publishing before `2.3.0` exists leaves `latest` on the previous image:
+
+```bash
+gh run list --workflow release-docker.yml --limit 1
+docker buildx imagetools inspect ghcr.io/modsetter/surfsense:2.3.0
+```
+
+The two release independently: a failed image job does not hold up the desktop. If it fails, ship the desktop, fix the image, and re-run the job on the same tag; `latest` stays on the previous image until it passes.
+
+On the first release only, GHCR creates `ghcr.io/modsetter/surfsense` as a private package. Make it public under the package's settings (Package settings, Change visibility), or nobody can pull it and pull requests cannot read the image's build cache.
+
 ### 7. Add Known issues to the draft
 
 The generated notes list pull requests. Above them, under `## Known issues`, write what a user must know before updating: what the first start needs, what going back to the previous version takes, and the bugs the release still has. 2.2.0's named the free disk its first start needs for the database snapshot, the hand restore of `~/.surfsense/backups/0023-0027.db` that going back to 2.1.0 takes, and the chats an interrupted import misses (#1958).
@@ -145,6 +156,15 @@ Undrafting with your own `gh` login also starts [`release-channels.yml`](../.git
 gh run list --workflow release-channels.yml --limit 1
 ```
 
+Publishing also starts Release Docker's `Move latest` job, which points `latest` and `2.3` at the `2.3.0` image without rebuilding it. A pre-release, or a version with a suffix, never moves them. Check `latest` is the new digest:
+
+```bash
+gh run list --workflow release-docker.yml --event release --limit 1
+docker buildx imagetools inspect ghcr.io/modsetter/surfsense:latest
+```
+
+If `Move latest` failed because `2.3.0` was not pushed yet, re-run it once `Build, test and push` is green.
+
 ## What that starts
 
 A `v[1-9]*` tag starts `.github/workflows/release-local.yml`; a `v0.*` tag never does. electron-builder uploads Mac / Windows / Linux installers onto the **draft** (`releaseType` defaults to draft), `legacy-update-bridge` adds v0.0.40's manifests, and `release-extras` adds the install scripts, the apt repository and `SHA256SUMS`. Publish only after all of those succeed. The `snap` job runs beside them and holds none of them up.
@@ -152,6 +172,7 @@ A `v[1-9]*` tag starts `.github/workflows/release-local.yml`; a `v0.*` tag never
 | Audience | How they get this build |
 |----------|-------------------------|
 | Already installed | In-app update on the `stable` channel. Shipped 2.0.x clients set `allowPrerelease`, so they walk the releases **feed** and take its newest entry; that entry is this release. |
+| Docker | `ghcr.io/modsetter/surfsense:latest` and `:2.3`, moved to this version by Release Docker on publish; `:2.3.0` exists from the tag on. Users update with `docker compose pull`, or Watchtower. |
 | Legacy 0.0.x desktop | Not this build. `/releases/latest` names this release, but its `latest*.yml` answers v0.0.40 — see `legacy-update-bridge`. |
 | Website, READMEs, license email | The **tag pin** in `APP_RELEASE_VERSION`, through the site's `/downloads/<platform>` redirect ([updates](../docs/architecture/updates.md#download-links)). Needs this bump deployed with web/backend. Until you publish, the redirect sends them to Latest, the previous release. A license email already sent stays on its own tag. |
 
@@ -189,12 +210,14 @@ gh workflow run release-local.yml --ref dev -f version=0.0.0-test -f publish=nev
 
 Not a tag, not an update: the installers stay on the run as artifacts, and neither `legacy-update-bridge` nor `release-extras` runs. The `snap` job still builds the snap, as the `surfsense-local-snap` artifact, and uploads it nowhere. It is not unsigned. macOS is signed and notarized, because the Apple secrets reach every run in this repository. Windows is unsigned: the macOS certificate reaches only the macOS runner, and Azure Trusted Signing is used only by a tag. Linux signs nothing. A fork has none of these secrets, so its run signs nothing.
 
+The image's dry run is its own: Actions → **Release Docker**, or `gh workflow run release-docker.yml --ref dev`. It builds the image and runs its tests, and pushes nothing.
+
 ## Do not
 
 - Tag `v2.3.0` before `VERSION` is `2.3.0` and the bump script has been committed.
 - Tag `dev`, or any commit but the release pull request's merge on `main`.
 - Push a `v0.*` tag for this app (that line is the legacy desktop).
-- Publish the draft before Mac, Windows and Linux have uploaded, and before `legacy-update-bridge` and `release-extras` are green.
+- Publish the draft before Mac, Windows and Linux have uploaded, and before `legacy-update-bridge`, `release-extras` and Release Docker's `Build, test and push` are green.
 - Upload to the draft after `release-extras` without re-running it, or `SHA256SUMS` no longer matches the release.
 - Undraft with `GITHUB_TOKEN`, from a workflow or a bot: `release-channels.yml` would never start.
 - Delete `legacy-update-bridge` while 0.0.x clients are still checking in. Watch `SurfSense-Setup-0.0.40.exe.blockmap` on the v0.0.40 release: while it climbs, legacy installs are still migrating.
