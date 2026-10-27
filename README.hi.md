@@ -54,9 +54,6 @@ SurfSense एक मुफ़्त, ओपन-सोर्स डेस्क�
 | **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
 | **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
 
-> [!NOTE]
-> **होस्टेड वेब ऐप इस्तेमाल करते थे?** 18 अक्टूबर 2026 से पहले अपने वर्कस्पेस एक्सपोर्ट करें और उन्हें यहाँ इम्पोर्ट कर लें। [सनसेट पेज](https://www.surfsense.com/sunset) देखें।
-
 ## झटपट शुरुआत
 
 1. SurfSense इंस्टॉल करें और शुरुआती सेटअप पूरा करें।
@@ -95,6 +92,8 @@ SurfSense एक मुफ़्त, ओपन-सोर्स डेस्क�
 | **Web Crawl** | कोई वेब पेज पढ़ना, या पूरी साइट को क्रॉल करके साफ़ टेक्स्ट में बदलना |
 | **YouTube** | YouTube के वीडियो, चैनल और उनकी टिप्पणियाँ पढ़ना |
 | **TikTok** | TikTok के वीडियो और उनकी टिप्पणियाँ पढ़ना, यूज़र खोजना और यह देखना कि क्या ट्रेंड कर रहा है |
+| **Reddit** | Reddit की सार्वजनिक पोस्ट उनकी टिप्पणियों के थ्रेड के साथ, या पूरी कम्युनिटी पढ़ना |
+| **Instagram** | Instagram की सार्वजनिक प्रोफ़ाइल, पोस्ट और रील्स पढ़ना, और प्रोफ़ाइल खोजना |
 | **Google Maps** | Google Maps पर जगहें खोजना और उनके रिव्यू पढ़ना |
 | **Amazon** | Amazon के प्रोडक्ट और खोज के नतीजे पढ़ना |
 | **Walmart** | Walmart के प्रोडक्ट, खोज के नतीजे और रिव्यू पढ़ना |

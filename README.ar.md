@@ -54,9 +54,6 @@ https://github.com/user-attachments/assets/073577b7-f055-4f59-8540-330bd764aeb0
 | **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
 | **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
 
-> [!NOTE]
-> **هل استُخدم تطبيق الويب المستضاف؟** تُصدَّر مساحات العمل قبل 18 أكتوبر 2026، ثم تُستورد هنا. التفاصيل في [صفحة الإيقاف](https://www.surfsense.com/sunset).
-
 ## بداية سريعة
 
 1. تثبيت SurfSense وإتمام الإعداد الأولي (Start setting up).
@@ -95,6 +92,8 @@ https://github.com/user-attachments/assets/073577b7-f055-4f59-8540-330bd764aeb0
 | **Web Crawl** | قراءة صفحة ويب، أو الزحف على موقع كامل وتحويله إلى نص نظيف |
 | **YouTube** | قراءة مقاطع فيديو YouTube وقنواته والتعليقات عليها |
 | **TikTok** | قراءة مقاطع فيديو TikTok والتعليقات عليها، والبحث عن المستخدمين، ومعرفة الرائج حاليًا |
+| **Reddit** | قراءة منشورات Reddit العامة مع سلاسل تعليقاتها، أو مجتمع كامل |
+| **Instagram** | قراءة ملفات Instagram الشخصية العامة ومنشوراتها ومقاطع Reels، والبحث عن الملفات الشخصية |
 | **Google Maps** | العثور على الأماكن في Google Maps وقراءة مراجعاتها |
 | **Amazon** | قراءة منتجات Amazon ونتائج البحث فيه |
 | **Walmart** | قراءة منتجات Walmart ونتائج البحث فيه والمراجعات |

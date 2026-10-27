@@ -54,9 +54,6 @@ SurfSense は、アップロードできない文書のための、無料のオ�
 | **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
 | **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
 
-> [!NOTE]
-> **ホスト版の Web アプリを使っていましたか？** 2026 年 10 月 18 日より前にワークスペースをエクスポートし、こちらにインポートしてください。詳細は[提供終了のページ](https://www.surfsense.com/sunset)をご覧ください。
-
 ## クイックスタート
 
 1. SurfSense をインストールし、最初のセットアップを済ませます。
@@ -95,6 +92,8 @@ SurfSense は、アップロードできない文書のための、無料のオ�
 | **Web Crawl** | Webページを読み取るか、サイト全体をクロールしてクリーンなテキストにする |
 | **YouTube** | YouTube の動画、チャンネル、それらのコメントを読み取る |
 | **TikTok** | TikTok の動画とそのコメントを読み取り、ユーザーを検索し、トレンドを確認する |
+| **Reddit** | Reddit の公開投稿とそのコメントスレッド、またはコミュニティ全体を読み取る |
+| **Instagram** | Instagram の公開プロフィール、投稿、リールを読み取り、プロフィールを検索する |
 | **Google Maps** | Google Maps で場所を探し、そのレビューを読み取る |
 | **Amazon** | Amazon の商品と検索結果を読み取る |
 | **Walmart** | Walmart の商品、検索結果、レビューを読み取る |
