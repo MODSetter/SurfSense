@@ -44,7 +44,8 @@ In order:
    footnotes. It replaced "What SurfSense makes", the table of Studio outputs,
    because what the agent does to the user's own files is now the pitch.
 5. **Plugins**, added on 15 Oct 2026 once SurfSense's plugins shipped (2.2.1):
-   where to connect them, a table of the eight first-party ones with the app's
+   where to connect them, a table of the ten first-party ones (Reddit and
+   Instagram joined in 2.2.5) with the app's
    one-line descriptions, which need a license, with the free 14-day one claimed
    on `/downloads`, and third-party ones, which need none. It replaced **Star
    history**, under the rule that anything added replaces something, and sits
