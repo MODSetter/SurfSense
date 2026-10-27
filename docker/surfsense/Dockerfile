@@ -53,6 +53,18 @@ RUN .venv/bin/python scripts/fetch_embedding_model.py models \
     && .venv/bin/python scripts/fetch_docling_models.py models \
     && .venv/bin/python scripts/fetch_silero_vad.py models
 
+# The backend's `image`-marked tests on the image's Ubuntu, Python and bundled models,
+# never shipped. docker-tests.yml mounts tests/ in, which the build context leaves out.
+FROM models AS backend-tests
+RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen \
+    && apt-get update && apt-get install -y --no-install-recommends tini \
+    && rm -rf /var/lib/apt/lists/*
+# uid 1000 under tini, as the image runs: a script's read-only source and its reaped helpers depend on both.
+USER 1000
+ENV HOME=/tmp
+ENTRYPOINT ["tini", "-g", "--"]
+CMD [".venv/bin/pytest", "-p", "no:cacheprovider", "-m", "image"]
+
 FROM python AS runtime
 RUN apt-get update && apt-get install -y --no-install-recommends tini \
     && rm -rf /var/lib/apt/lists/* \

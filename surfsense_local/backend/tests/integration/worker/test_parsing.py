@@ -20,7 +20,7 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 
 from worker.ingestion.parser_pack import missing_parser_folders
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.image]
 
 BACKEND = Path(__file__).resolve().parents[3]
 # The pack `pnpm dev` points the app at, then the default data dir.
