@@ -18,6 +18,7 @@ import {
   Image01Icon,
   InformationCircleIcon,
   LicenseIcon,
+  LockPasswordIcon,
   Mic01Icon,
   PlugIcon,
   Settings2Icon,
@@ -31,6 +32,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { AboutSettings } from "@/features/about/about-settings"
+import { AccessSettings } from "@/features/access/access-settings"
 import { NetworkSettings } from "@/features/egress/network-settings"
 import { OfficeSupportSettings } from "@/features/office-support/office-support-settings"
 import {
@@ -79,6 +81,7 @@ export type SettingsSectionId =
   | "license"
   | "about"
   | "report-issue"
+  | "access"
 
 function GeneralSettings({
   onImported,
@@ -192,8 +195,9 @@ function GeneralSettings({
 }
 
 // Add future settings pages here; the dialog navigation is generated from this list.
-const SETTINGS_SECTIONS = [
+const ALL_SECTIONS = [
   { id: "general", group: "settings", icon: Settings2Icon },
+  { id: "access", group: "settings", icon: LockPasswordIcon },
   { id: "license", group: "settings", icon: LicenseIcon },
   { id: "plugins", group: "settings", icon: PlugIcon },
   { id: "chat-models", group: "models", icon: Chat01Icon },
@@ -209,6 +213,13 @@ const SETTINGS_SECTIONS = [
   { id: "report-issue", group: "app", icon: BugIcon },
   { id: "about", group: "app", icon: InformationCircleIcon },
 ] satisfies SettingsNavItem[]
+
+// Access is the Docker image's sign-in (ADR 0074); the desktop has none.
+const SETTINGS_SECTIONS = ALL_SECTIONS.filter(
+  (section) =>
+    section.id !== "access" ||
+    import.meta.env.VITE_SURFSENSE_RUNTIME === "docker"
+)
 
 const GROUP_LABELS: Record<SettingsNavItem["group"], () => string> = {
   settings: () =>
@@ -303,6 +314,11 @@ const SECTION_LABELS: Record<SettingsSectionId, () => string> = {
     intl.formatMessage({
       id: "settings_nav_about_label",
       defaultMessage: "About",
+    }),
+  access: () =>
+    intl.formatMessage({
+      id: "settings_nav_access_label",
+      defaultMessage: "Access",
     }),
   "report-issue": () =>
     intl.formatMessage({
@@ -447,6 +463,7 @@ export function SettingsDialog({
             ) : null}
             {activeSection.id === "license" ? <LicenseSettings /> : null}
             {activeSection.id === "about" ? <AboutSettings /> : null}
+            {activeSection.id === "access" ? <AccessSettings /> : null}
             {activeSection.id === "report-issue" ? (
               <ReportIssueSettings />
             ) : null}

@@ -254,6 +254,13 @@ export function setEgressPrompt(handler: typeof egressPrompt): void {
   egressPrompt = handler
 }
 
+// Docker only: a 401 means the sign-in session ended (ADR 0074).
+let signedOut: (() => void) | null = null
+
+export function setSignedOutHandler(handler: typeof signedOut): void {
+  signedOut = handler
+}
+
 export async function request(
   input: RequestInfo | URL,
   init?: RequestInit,
@@ -261,6 +268,7 @@ export async function request(
 ): Promise<Response> {
   const response = await fetch(withBase(input), init)
   if (response.ok) return response
+  if (response.status === 401) signedOut?.()
   const { message, code, detail } = await responseError(response)
   const error = new ApiError(response.status, message, code, detail)
   // ponytail: method stands in for "user action"; reads run unattended at boot.

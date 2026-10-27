@@ -60,6 +60,7 @@ import {
   LicenseIcon as LicenseIconData,
   LightbulbIcon as LightbulbIconData,
   Loading03Icon,
+  LockPasswordIcon as LockPasswordIconData,
   Mic01Icon as Mic01IconData,
   Moon02Icon as Moon02IconData,
   NetworkIcon as NetworkIconData,
@@ -192,6 +193,7 @@ export const LicenseIcon = createIcon(LicenseIconData)
 export const ExternalLinkIcon = createIcon(ArrowUpRight01IconData)
 export const LightbulbIcon = createIcon(LightbulbIconData)
 export const Loader2Icon = createIcon(Loading03Icon)
+export const LockPasswordIcon = createIcon(LockPasswordIconData)
 export const Mic01Icon = createIcon(Mic01IconData)
 export const MoonIcon = createIcon(Moon02IconData)
 export const NetworkIcon = createIcon(NetworkIconData, "rotate-90")
