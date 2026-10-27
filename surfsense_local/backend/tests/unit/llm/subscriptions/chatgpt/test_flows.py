@@ -92,22 +92,28 @@ async def test_in_a_container_a_sign_in_already_saving_is_left_to_finish(
     monkeypatch.setattr(flows_module, "_save", lambda *_args: (7, None))
     flows = SignInFlows()
 
-    first = await flows.start(None, label=None, connection_id=None)  # type: ignore[arg-type]
-    reader, writer = await asyncio.open_connection("127.0.0.1", port)
-    writer.write(b"GET /callback?code=c&state=s HTTP/1.1\r\nHost: x\r\n\r\n")
-    await writer.drain()
-    await reader.read()
-    writer.close()
-    await exchanging.wait()
-
-    second = await flows.start(None, label=None, connection_id=None)  # type: ignore[arg-type]
+    started = [await flows.start(None, label=None, connection_id=None)]  # type: ignore[arg-type]
+    first = started[0]
     try:
+        reader, writer = await asyncio.open_connection("127.0.0.1", port)
+        writer.write(b"GET /callback?code=c&state=s HTTP/1.1\r\nHost: x\r\n\r\n")
+        await writer.drain()
+        await reader.read()
+        writer.close()
+        # Bounded: a callback that never reaches the exchange fails here, not hangs.
+        await asyncio.wait_for(exchanging.wait(), timeout=5)
+
+        second = await flows.start(None, label=None, connection_id=None)  # type: ignore[arg-type]
+        started.append(second)
         assert second.authorize_url
         assert flows.get(first.id) is first
         release.set()
         assert first.task is not None
-        await first.task
+        await asyncio.wait_for(first.task, timeout=5)
         assert first.status == "signed_in"
         assert first.connection_id == 7
     finally:
-        flows.cancel(second.id)
+        # Whatever failed above, nothing is left blocked or listening.
+        release.set()
+        for flow in started:
+            flows.cancel(flow.id)
