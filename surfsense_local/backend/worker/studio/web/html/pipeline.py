@@ -9,6 +9,7 @@ from worker.studio.office.document.strength import writes_script
 from worker.studio.shared import generate
 from worker.studio.shared.artifact import Built, Source
 from worker.studio.shared.text import as_list, as_text, parse_json, slug
+from worker.studio.web.html.page_style import PAGE_STYLE
 from worker.studio.web.html.written import page as written
 
 MIME = "text/html"
@@ -41,23 +42,41 @@ def build(raw: str, _sources: list[Source]) -> Built:
     # template, so a generated page cannot carry a script.
     body: list[str] = [f"<h1>{html.escape(title)}</h1>"]
     lines = [f"# {title}"]
+    # The stronger tiers' prompts ask for these; a reply without them still builds.
+    summary = as_text(spec.get("summary"))
+    if summary:
+        body.append(f'<p class="summary">{html.escape(summary)}</p>')
+        lines.append(f"\n{summary}")
     for section in as_list(spec.get("sections"))[:SECTIONS]:
         if not isinstance(section, dict):
             continue
+        parts: list[str] = []
         heading = as_text(section.get("heading"))
         if heading:
-            body.append(f"<h2>{html.escape(heading)}</h2>")
+            parts.append(f"<h2>{html.escape(heading)}</h2>")
             lines.append(f"\n## {heading}")
         for paragraph in as_list(section.get("paragraphs")):
             text = as_text(paragraph)
             if text:
-                body.append(f"<p>{html.escape(text)}</p>")
+                parts.append(f"<p>{html.escape(text)}</p>")
                 lines.append(text)
+        points = [
+            text for point in as_list(section.get("points")) if (text := as_text(point))
+        ]
+        if points:
+            items = "\n".join(f"<li>{html.escape(point)}</li>" for point in points)
+            parts.append(f"<ul>\n{items}\n</ul>")
+            lines.extend(f"- {point}" for point in points)
+        if parts:
+            body.append("<section>\n" + "\n".join(parts) + "\n</section>")
 
     page = (
         '<!doctype html>\n<html lang="en">\n<head>\n'
-        f'<meta charset="utf-8">\n<title>{html.escape(title)}</title>\n'
-        "</head>\n<body>\n" + "\n".join(body) + "\n</body>\n</html>\n"
+        '<meta charset="utf-8">\n'
+        '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
+        f"<title>{html.escape(title)}</title>\n"
+        f"<style>{PAGE_STYLE}</style>\n"
+        "</head>\n<body>\n<main>\n" + "\n".join(body) + "\n</main>\n</body>\n</html>\n"
     )
     return Built(
         title=title,
