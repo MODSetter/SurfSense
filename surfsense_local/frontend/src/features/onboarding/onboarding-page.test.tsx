@@ -1524,7 +1524,9 @@ describe("the privacy choices", () => {
     const dialog = await screen.findByRole("dialog", {
       name: "What usage statistics send",
     })
-    const next = await within(dialog).findByLabelText("The next usage report")
+    const next = await within(dialog).findByLabelText(
+      "The next daily usage report"
+    )
     expect(next.textContent).toContain('"schema": 1')
     expect(dialog.textContent).toContain("Nothing sent yet.")
     expect(bridge.calls).toContain("preview")

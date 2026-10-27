@@ -201,7 +201,7 @@ export default function TermsOfService() {
 					<h2>5. Licences, trials, payment and refunds</h2>
 					<p>
 						The application and its updates are free. A licence adds the scraper plugins and
-						priority support and gates nothing else. You can start with a 30-day licence on an email
+						priority support and gates nothing else. You can start with a 14-day licence on an email
 						address without giving us a card. Paid licences are sold through Stripe, and team
 						licences are arranged by email.
 					</p>

@@ -9,6 +9,7 @@ import { ModelCapabilitySummary } from "./model-capability"
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
+  vi.unstubAllEnvs()
 })
 
 const UNTESTED: ChatModes = {
@@ -49,6 +50,19 @@ function serving(capabilityRead: ModelCapability) {
 }
 
 describe("the selected chat model's capability", () => {
+  it("is not shown in a production build", async () => {
+    vi.stubEnv("DEV", false)
+    const fetch = serving(capability())
+    vi.stubGlobal("fetch", fetch)
+
+    const { container } = render(<ModelCapabilitySummary />)
+
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalled())
+    // Let the selection read settle, so an empty box is not just a slow one.
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(container.textContent).toBe("")
+  })
+
   it("names a measured level, the evidence behind it, and the mode new chats start in", async () => {
     vi.stubGlobal(
       "fetch",

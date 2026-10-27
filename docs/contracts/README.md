@@ -7,7 +7,7 @@ A contract is a frozen file describing something that crosses from one tree to a
 | 1 | [License file](01-license-file.md) | `surfsense_backend` license routes | `surfsense_local` license module | 2.0.0 |
 | 2 | [Scraper API auth](02-scraper-api-auth.md) | the plugin host; `surfsense_backend` capabilities routes | the desktop app; `surfsense_mcp` | plugin host and app since 2.2.1; backend and MCP not built |
 | 3 | [Export bundle](03-export-bundle.md) | `surfsense_backend` export | `surfsense_local` import | 2.0.0 |
-| 5 | [Desktop telemetry](05-desktop-telemetry.md) | Electron main (the update check and the usage report); `surfsense_local` backend (the local summary) | `www`'s `/api/updates` and `/api/usage` routes; the app's UI (the bridge) | not released |
+| 5 | [Desktop telemetry](05-desktop-telemetry.md) | Electron main (the update check and the usage report); `surfsense_local` backend (the local summary) | `www`'s `/api/updates` and `/api/usage` routes; the app's UI (the bridge) | released in 2.2.4; revision 1.1 in 2.2.5 |
 
 ## Fixtures
 

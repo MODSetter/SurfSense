@@ -182,6 +182,37 @@ REAL_PARAMS: dict[tuple[str, str], tuple[str, ...]] = {
         "max_items",
         "max_items_per_query",
     ),
+    ("reddit", "scrape"): (
+        "urls",
+        "search_queries",
+        "community",
+        "sort",
+        "time_filter",
+        "include_nsfw",
+        "skip_comments",
+        "max_items",
+        "max_posts",
+        "max_comments",
+        "post_date_limit",
+        "comment_date_limit",
+    ),
+    ("instagram", "scrape"): (
+        "urls",
+        "search_queries",
+        "search_type",
+        "result_type",
+        "newer_than",
+        "skip_pinned_posts",
+        "max_per_target",
+        "max_items",
+    ),
+    ("instagram", "details"): (
+        "urls",
+        "search_queries",
+        "search_type",
+        "search_limit",
+        "max_items",
+    ),
 }
 
 

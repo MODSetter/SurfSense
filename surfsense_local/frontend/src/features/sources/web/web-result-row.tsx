@@ -1,12 +1,18 @@
+import { useState } from "react"
+
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { CheckIcon } from "@/components/ui/icons"
+import { OverflowTooltip } from "@/components/ui/overflow-tooltip"
 import { Spinner } from "@/components/ui/spinner"
+import { ExternalLinkDialog } from "@/features/external-links/external-link-dialog"
 import { intl } from "@/i18n/intl"
 
 import type { WebResult } from "./api"
 import { pullerName } from "./puller-names"
 import { refusalText } from "./refusal-text"
+import { ResultDetails } from "./result-details"
+import { ResultLink } from "./result-link"
 import type { RowActions, RowState } from "./row-actions"
 import { WebListPanel } from "./web-list-panel"
 
@@ -44,18 +50,37 @@ export function WebResultRow({
 
 function RowText({ result }: { result: WebResult }) {
   const name = pullerName(result.puller)
+  const [confirming, setConfirming] = useState(false)
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-      <span className="line-clamp-1 font-medium break-all">{result.title}</span>
-      <span className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
-        <span className="truncate">{result.site}</span>
-        {name ? <Badge variant="secondary">{name}</Badge> : null}
+      <span className="flex min-w-0 items-center gap-2">
+        {name ? (
+          <Badge variant="secondary" className="shrink-0">
+            {name}
+          </Badge>
+        ) : null}
+        <span className="truncate font-medium">{result.title}</span>
       </span>
-      {result.description ? (
-        <span className="line-clamp-2 text-sm text-muted-foreground">
-          {result.description}
-        </span>
-      ) : null}
+      <span className="flex min-w-0 text-xs text-muted-foreground">
+        <OverflowTooltip
+          label={result.url}
+          render={
+            <ResultLink
+              href={result.url}
+              onOpen={() => setConfirming(true)}
+              className="truncate"
+            >
+              {result.url}
+            </ResultLink>
+          }
+        />
+      </span>
+      <ExternalLinkDialog
+        url={result.url}
+        open={confirming}
+        onOpenChange={setConfirming}
+      />
+      {result.description ? <ResultDetails text={result.description} /> : null}
       {result.fit === "short_link" ? (
         <span className="text-sm text-muted-foreground">
           {refusalText("short_link")}

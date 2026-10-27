@@ -19,7 +19,7 @@ class LicenseSettings:
         self.LICENSE_TRIAL_ENABLED = (
             env.get("LICENSE_TRIAL_ENABLED", "FALSE").upper() == "TRUE"
         )
-        self.LICENSE_TRIAL_DAYS = int(env.get("LICENSE_TRIAL_DAYS", "30"))
+        self.LICENSE_TRIAL_DAYS = int(env.get("LICENSE_TRIAL_DAYS", "14"))
         # ISO date; a trial issued before it expires that many days after it instead.
         self.LICENSE_TRIAL_EXPIRY_FLOOR = env.get(
             "LICENSE_TRIAL_EXPIRY_FLOOR", ""

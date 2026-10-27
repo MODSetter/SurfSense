@@ -5,6 +5,7 @@ tests are about. The database and the counts file are the real ones.
 """
 
 from collections.abc import AsyncIterator
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -44,6 +45,7 @@ MACHINE = MachineReadings(
         ),
         gpu_status=GpuStatus.PRESENT,
     ),
+    os_adapter_names=lambda: ("NVIDIA GeForce RTX 3060", "AMD Radeon(TM) Graphics"),
     ram_total_bytes=lambda: int(31.2 * GIB),
     holds_local_model=lambda name: name == "Qwen3-4B-Q4_K_M",
     ui_language=lambda: "ja",
@@ -51,11 +53,19 @@ MACHINE = MachineReadings(
 
 
 @pytest.fixture
-async def client(engine: Engine) -> AsyncIterator[AsyncClient]:
+def machine() -> MachineReadings:
+    """The machine a test runs on, unless it parametrizes another."""
+    return MACHINE
+
+
+@pytest.fixture
+async def client(
+    engine: Engine, machine: MachineReadings
+) -> AsyncIterator[AsyncClient]:
     """The app over this test's library, on the stated machine."""
     app = create_app()
     app.state.session_factory = create_session_factory(engine)
-    app.dependency_overrides[get_machine_readings] = lambda: MACHINE
+    app.dependency_overrides[get_machine_readings] = lambda: machine
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as client:
@@ -165,8 +175,38 @@ async def test_a_new_install_reports_nothing_done_and_its_machine(
             "plugin_calls": "0",
             "onboarding": "not_started",
         },
-        "hardware": {"ram_gb": "32-63", "gpu": "nvidia", "vram_gb": "12-23"},
+        "hardware": {
+            "ram_gb": "32-63",
+            "gpu": "nvidia",
+            "vram_gb": "12-23",
+            "gpu_runtime": "reachable",
+        },
         "ui_language": "ja",
+    }
+
+
+@pytest.mark.parametrize(
+    "machine",
+    [
+        replace(
+            MACHINE,
+            inventory=lambda: SystemInventory(
+                devices=(), gpu_status=GpuStatus.BROKEN_INSTALL
+            ),
+        )
+    ],
+)
+async def test_a_card_the_runtime_cannot_reach_is_named_by_the_os(
+    client: AsyncClient,
+) -> None:
+    """ggml listed nothing, so the maker comes from the OS and nothing sizes the card."""
+    hardware = (await summary(client))["hardware"]
+
+    assert hardware == {
+        "ram_gb": "32-63",
+        "gpu": "nvidia",
+        "vram_gb": "unknown",
+        "gpu_runtime": "unreachable",
     }
 
 

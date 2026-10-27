@@ -54,9 +54,6 @@ SurfSense est une application de bureau gratuite et open source pour les documen
 | **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
 | **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
 
-> [!NOTE]
-> **Vous utilisiez l'application web hébergée ?** Exportez vos espaces de travail avant le 18 octobre 2026 et importez-les ici. Voir [la page de fermeture](https://www.surfsense.com/sunset).
-
 ## Démarrage rapide
 
 1. Installez SurfSense et effectuez la configuration initiale.
@@ -87,7 +84,7 @@ Les modifications, les conversions et les outils PDF créent toujours un nouveau
 
 Connectez-les dans **Paramètres › Plugins**.
 
-**Par SurfSense.** Ils lisent des pages publiques sans passer par vos propres comptes et nécessitent une licence SurfSense : [téléchargez l'application](https://www.surfsense.com/downloads) et saisissez-y votre adresse e-mail pour recevoir une licence gratuite de 30 jours.
+**Par SurfSense.** Ils lisent des pages publiques sans passer par vos propres comptes et nécessitent une licence SurfSense : [téléchargez l'application](https://www.surfsense.com/downloads) et saisissez-y votre adresse e-mail pour recevoir une licence gratuite de 14 jours.
 
 | Plugin | Ce qu'il fait |
 |---|---|
@@ -95,6 +92,8 @@ Connectez-les dans **Paramètres › Plugins**.
 | **Web Crawl** | Lire une page web, ou explorer un site entier et le convertir en texte propre |
 | **YouTube** | Lire le contenu des vidéos et des chaînes YouTube, avec leurs commentaires |
 | **TikTok** | Lire le contenu des vidéos TikTok et leurs commentaires, rechercher des utilisateurs et voir ce qui est tendance |
+| **Reddit** | Lire les publications publiques de Reddit avec leurs fils de commentaires, ou toute une communauté |
+| **Instagram** | Lire les profils, publications et reels publics d'Instagram, et rechercher des profils |
 | **Google Maps** | Trouver des lieux sur Google Maps et lire leurs avis |
 | **Amazon** | Lire les produits et les résultats de recherche d'Amazon |
 | **Walmart** | Lire les produits, les résultats de recherche et les avis de Walmart |

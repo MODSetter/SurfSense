@@ -27,15 +27,15 @@ GitHub counts requests, not installs or people, and gives no IP, version or id. 
 | `installer_mac` | `*.dmg` | people, plus `brew install --cask`, `brew upgrade` and BrewTestBot's checks of each new cask; electron-updater never fetches it |
 | `installer_appimage` | `*.AppImage` | fresh downloads, `install.sh` where no package manager is found, and Homebrew's cask on Linux, installs and upgrades, plus AppImage updates |
 | `installer_deb` | `*.deb` | fresh downloads and `install.sh`'s fallback, plus, probably, the app's own deb updates ([updates](updates.md#known-gaps)); once the apt repository exists, apt fetches the deb from the release too, so every `apt upgrade` and apt install of SurfSense counts here; so does every AUR (`surfsense-bin`) install, upgrade or rebuild, since its PKGBUILD downloads the deb |
-| `installer_rpm` | the 2.x `SurfSense.rpm` | fresh downloads, `install.sh` on dnf and zypper, and the app's own rpm updates |
+| `installer_rpm` | `*.rpm`: the 2.x `SurfSense.rpm` and the 0.0.x `SurfSense-0.0.N-x86_64.rpm` | fresh downloads, `install.sh` on dnf and zypper, and the app's own rpm updates; snapshots taken before this classification reached `main` carry `other` for the 0.0.x rpms |
 | `update_zip_mac` | `*.zip` | macOS updates downloaded plus one-line installs on a Mac; only electron-updater and `install.sh` fetch it |
-| `manifest_stable_windows`, `_mac`, `_linux` | `stable*.yml` | 2.x update checks: one per launch with automatic updates on, or per Check now |
+| `manifest_stable_windows`, `_mac`, `_linux` | `stable*.yml` | 2.x update checks that reach GitHub: one per launch of 2.2.3 or older with automatic updates on, per Check now in those versions, or per 2.2.4-or-later check falling back after `updates.surfsense.com` failed; that proxy also fetches each file from GitHub itself, at most once per 15-minute cache while installs ask it, about 96 a day per file (more if Vercel caches per region) |
 | `manifest_legacy_windows`, `_mac`, `_linux` | `latest*.yml` | update checks from 0.0.x apps, mostly at login, plus 2.x checks retrying after a failed `stable*.yml` |
 | `blockmap` | `*.blockmap` | up to 2.2.3, the noise floor of bots and mirrors (about 5 per asset), since those apps download updates whole; after it, the app's differential updates ([updates](updates.md#update-size)); on 0.0.x releases, legacy differential updates |
 | `install_script` | `install.sh`, `install.ps1` | one per one-line install run, refused and failed runs included; runs, not installs |
 | `apt_index` | `InRelease`, `Release`, `Release.gpg`, `Packages`, `Packages.gz`, `surfsense-archive-keyring.gpg` | `InRelease` (or `Release` and `Release.gpg`) once per `apt update` on every machine with the source, `Packages*` when a new release changed it, the keyring once per `install.sh` setup; apt reads them through `latest/download`, so the count lands on whichever release was Latest at the time, not the one a machine runs |
 | `checksums` | `SHA256SUMS` | one per install-script run, plus packagers and people checking a download by hand |
-| `other` | anything else | for example the 0.0.x rpm (`SurfSense-0.0.40-x86_64.rpm`), which keeps the kind its counts were first sent with |
+| `other` | anything else | for example a snap, or a manifest for an unknown channel |
 
 Package managers fetch the release's own files: winget and Scoop the exe, Homebrew the dmg and the AppImage, apt and the AUR the deb ([install channels](install-channels.md)). They never read `stable*.yml` to do it, so a `stable*.yml` count caps only the app's own updates, and an installer count minus that cap is not all website downloads.
 

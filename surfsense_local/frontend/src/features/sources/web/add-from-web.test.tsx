@@ -261,7 +261,54 @@ describe("adding sources from the web", () => {
       { path: "/workspaces/1/documents/web", body: { urls: [PAGE] } },
     ])
     expect(screen.getByRole("dialog")).toBeTruthy()
-    expect(await screen.findByText(PAGE)).toBeTruthy()
+    // In Sources, not only in the row that added it.
+    await waitFor(() =>
+      expect(
+        screen.getAllByText(PAGE).some((text) => !dialog.contains(text))
+      ).toBe(true)
+    )
+  })
+
+  it("shows each result's whole link, and opens it in the browser once confirmed", async () => {
+    // Only the confirmed-link call opens any site; openExternal drops all but SurfSense's own.
+    const openConfirmedLink = vi.fn<(url: string) => Promise<void>>(
+      async () => undefined
+    )
+    window.surfsense = { ...window.surfsense!, openConfirmedLink }
+    const user = userEvent.setup()
+    serving()
+    render(<WebHarness />)
+    const dialog = await openDialog(user)
+
+    await ask(user, dialog, "tides")
+    await user.click(await within(dialog).findByRole("link", { name: VIDEO }))
+    const confirm = await screen.findByRole("dialog", {
+      name: "Open www.youtube.com?",
+    })
+    await user.click(within(confirm).getByRole("button", { name: "Open link" }))
+
+    expect(openConfirmedLink).toHaveBeenCalledExactlyOnceWith(VIDEO)
+  })
+
+  it("shows a result's details apart, not joined by a typed dot", async () => {
+    const user = userEvent.setup()
+    serving({
+      search: () =>
+        found([
+          {
+            ...row(PAGE, "Tide tables explained", "one", "reddit"),
+            description: "r/oceanography · u/seaschool",
+          },
+        ]),
+    })
+    render(<WebHarness />)
+    const dialog = await openDialog(user)
+
+    await ask(user, dialog, "tides")
+
+    expect(await within(dialog).findByText("r/oceanography")).toBeTruthy()
+    expect(within(dialog).getByText("u/seaschool")).toBeTruthy()
+    expect(within(dialog).queryByText(/·/)).toBeNull()
   })
 
   it("searches the web unless another site is chosen under the box", async () => {

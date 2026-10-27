@@ -6,7 +6,8 @@ import { test } from "node:test";
 import type { PersonlessEvent } from "../personless-capture";
 import { receiveUsageReport } from "./receive-usage-report";
 
-// The contract's own example: a first report of the week, not the install's first.
+// The contract's own example as a 2.2.4 app sends it: a first report of the
+// week, not the install's first, with no trigger.
 const REPORT = {
 	schema: 1,
 	app_version: "2.2.4",
@@ -31,6 +32,14 @@ const FIRST_REPORT = {
 	...REPORT,
 	active: { first: true, week: true, month: true },
 	hardware: { ram_gb: "16-31", gpu: "nvidia", vram_gb: "8-11" },
+};
+
+// Revision 1.1: sent in the first week when setup reaches a new step.
+const SETUP_REPORT = {
+	...REPORT,
+	trigger: "setup",
+	active: { first: false, week: false, month: false },
+	week: { ...REPORT.week, chat_turns: "0", onboarding: "model_ready" },
 };
 
 const PRIVATE_HEADERS = {
@@ -80,7 +89,7 @@ test("a valid report is a 204 with no body and nothing cached", async () => {
 	assert.equal(response.headers.get("cache-control"), "no-store");
 });
 
-test("a valid report records one desktop_usage_report, flattened, with the country", async () => {
+test("a 2.2.4 report records one desktop_usage_report, flattened, as a daily one", async () => {
 	const { events } = await post(REPORT);
 	assert.deepEqual(events, [
 		{
@@ -92,6 +101,7 @@ test("a valid report records one desktop_usage_report, flattened, with the count
 				os: "windows-11",
 				ui_language: "en",
 				install_week: "2026-W43",
+				trigger: "daily",
 				active_first: false,
 				active_week: true,
 				active_month: false,
@@ -114,6 +124,53 @@ test("an install's first report carries its hardware", async () => {
 	assert.equal(events[0].properties.hardware_ram_gb, "16-31");
 	assert.equal(events[0].properties.hardware_gpu, "nvidia");
 	assert.equal(events[0].properties.hardware_vram_gb, "8-11");
+});
+
+test("a daily report that says so is recorded as daily", async () => {
+	const { response, events } = await post({ ...REPORT, trigger: "daily" });
+	assert.equal(response.status, 204);
+	assert.equal(events[0].properties.trigger, "daily");
+});
+
+test("a setup report with every flag false and a week is recorded as setup", async () => {
+	const { response, events } = await post(SETUP_REPORT);
+	assert.equal(response.status, 204);
+	assert.equal(events[0].properties.trigger, "setup");
+	assert.equal(events[0].properties.active_first, false);
+	assert.equal(events[0].properties.active_week, false);
+	assert.equal(events[0].properties.active_month, false);
+	assert.equal(events[0].properties.week_onboarding, "model_ready");
+});
+
+test("a week on a report that is not the week's first is accepted", async () => {
+	const { response, events } = await post({
+		...REPORT,
+		active: { first: false, week: false, month: true },
+	});
+	assert.equal(response.status, 204);
+	assert.equal(events[0].properties.week_chat_turns, "10-49");
+});
+
+test("hardware on a report that is not the install's first is accepted", async () => {
+	const { response, events } = await post({ ...REPORT, hardware: FIRST_REPORT.hardware });
+	assert.equal(response.status, 204);
+	assert.equal(events[0].properties.hardware_gpu, "nvidia");
+});
+
+for (const gpuRuntime of ["reachable", "unreachable", "none", "unknown"]) {
+	test(`hardware.gpu_runtime = ${gpuRuntime} is recorded`, async () => {
+		const { response, events } = await post({
+			...FIRST_REPORT,
+			hardware: { ...FIRST_REPORT.hardware, gpu_runtime: gpuRuntime },
+		});
+		assert.equal(response.status, 204);
+		assert.equal(events[0].properties.hardware_gpu_runtime, gpuRuntime);
+	});
+}
+
+test("hardware without gpu_runtime records no gpu_runtime", async () => {
+	const { events } = await post(FIRST_REPORT);
+	assert.equal("hardware_gpu_runtime" in events[0].properties, false);
 });
 
 test("a mid-week report with neither section records only the flags", async () => {
@@ -152,6 +209,7 @@ test("the recorded event carries no IP address, User-Agent or cookie", async () 
 
 const UNKNOWN_KEYS: Record<string, unknown> = {
 	"at the top": { ...REPORT, install_id: "abc" },
+	"in a setup report": { ...SETUP_REPORT, step_at: "2026-10-27T09:00:00Z" },
 	"in active": withValue("active.day", true),
 	"in week": withValue("week.prompt", "hello"),
 	"in hardware": { ...FIRST_REPORT, hardware: { ...FIRST_REPORT.hardware, cpu: "i9" } },
@@ -185,7 +243,11 @@ const BAD_VALUES: Array<[string, unknown]> = [
 	["week.plugin_calls", "10-49"],
 	["week.onboarding", "done"],
 	["week", "busy"],
-	["hardware", { ram_gb: "16-31", gpu: "nvidia", vram_gb: "8-11" }],
+	["trigger", "weekly"],
+	["trigger", "Setup"],
+	["trigger", null],
+	["hardware", { ram_gb: "16-31", gpu: "nvidia", vram_gb: "8-11", gpu_runtime: "broken" }],
+	["hardware", { ram_gb: "16-31", gpu: "nvidia", vram_gb: "8-11", gpu_runtime: null }],
 ];
 
 for (const [pathName, value] of BAD_VALUES) {
@@ -199,14 +261,6 @@ for (const [pathName, value] of BAD_VALUES) {
 test("a missing key is a 400", async () => {
 	const { hardware: _hardware, ...withoutHardware } = REPORT;
 	const { response } = await post(withoutHardware);
-	assert.equal(response.status, 400);
-});
-
-test("week sent when it is not the week's first report is a 400", async () => {
-	const { response } = await post({
-		...REPORT,
-		active: { first: false, week: false, month: true },
-	});
 	assert.equal(response.status, 400);
 });
 

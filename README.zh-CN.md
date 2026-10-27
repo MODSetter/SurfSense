@@ -54,9 +54,6 @@ SurfSense 是一款免费开源的桌面应用，专为那些不能上传的文�
 | **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
 | **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
 
-> [!NOTE]
-> **用过托管版 Web 应用？** 请在 2026 年 10 月 18 日之前导出你的工作区，再导入到这里。详见[下线说明页](https://www.surfsense.com/sunset)。
-
 ## 快速开始
 
 1. 安装 SurfSense，完成初始设置。
@@ -87,7 +84,7 @@ SurfSense 是一款免费开源的桌面应用，专为那些不能上传的文�
 
 在**设置 › 插件**中连接它们。
 
-**SurfSense 提供：** 这些插件读取公开网页，不需要你自己的账号，但需要 SurfSense 许可证。[下载应用](https://www.surfsense.com/downloads)并在应用里填写你的邮箱，即可免费获得 30 天的许可证。
+**SurfSense 提供：** 这些插件读取公开网页，不需要你自己的账号，但需要 SurfSense 许可证。[下载应用](https://www.surfsense.com/downloads)并在应用里填写你的邮箱，即可免费获得 14 天的许可证。
 
 | 插件 | 功能 |
 |---|---|
@@ -95,6 +92,8 @@ SurfSense 是一款免费开源的桌面应用，专为那些不能上传的文�
 | **Web Crawl** | 读取单个网页，或把整个网站抓取为干净的文本 |
 | **YouTube** | 读取 YouTube 视频、频道及其评论 |
 | **TikTok** | 读取 TikTok 视频及其评论，搜索用户，查看当前的热门内容 |
+| **Reddit** | 读取 Reddit 的公开帖子及其评论串，或整个社区 |
+| **Instagram** | 读取 Instagram 的公开主页、帖子和 Reels，并搜索主页 |
 | **Google Maps** | 在 Google Maps 上查找地点，并读取这些地点的评价 |
 | **Amazon** | 读取 Amazon 商品和搜索结果 |
 | **Walmart** | 读取 Walmart 商品、搜索结果和评价 |

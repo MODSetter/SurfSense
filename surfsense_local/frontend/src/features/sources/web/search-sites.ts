@@ -9,6 +9,8 @@ export const SEARCH_SITES = [
   "amazon",
   "walmart",
   "indeed",
+  "reddit",
+  "instagram",
 ] as const
 
 export type SearchSite = (typeof SEARCH_SITES)[number]

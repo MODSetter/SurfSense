@@ -42,7 +42,7 @@ After the success page this is the only way to get a license back, so an answer 
 
 The file is never in the response. Delivery to a real inbox is what makes one trial per email mean anything; handing the file back over HTTP would make unlimited trials a loop over throwaway strings. Unlike resend, trial has to say "already claimed", so it reports each outcome, including the ones after the create: a Keygen failure answers 503 and points at resend, which finds a trial that was created but not mailed; a transient mail failure answers 503 saying the trial exists; a refused recipient answers 400.
 
-The expiry is `max(now, LICENSE_TRIAL_EXPIRY_FLOOR) + LICENSE_TRIAL_DAYS`, 30 days by default. The floor is for trials issued before the first plugin ships, so the wait does not eat the trial. Unset, the rule is plain "days from now"; an unparseable floor is ignored with a warning.
+The expiry is `max(now, LICENSE_TRIAL_EXPIRY_FLOOR) + LICENSE_TRIAL_DAYS`, 14 days by default. The floor is for trials issued before the first plugin ships, so the wait does not eat the trial. Unset, the rule is plain "days from now"; an unparseable floor is ignored with a warning.
 
 ### Stripe webhook
 

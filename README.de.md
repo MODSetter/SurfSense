@@ -54,9 +54,6 @@ SurfSense ist eine kostenlose Open-Source-Desktop-App für Dokumente, die du nic
 | **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
 | **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
 
-> [!NOTE]
-> **Die gehostete Web-App genutzt?** Exportiere deine Workspaces vor dem 18. Oktober 2026 und importiere sie hier. Siehe [die Abschaltungsseite](https://www.surfsense.com/sunset).
-
 ## Schnellstart
 
 1. Installiere SurfSense und durchlaufe beim ersten Start die Einrichtung.
@@ -87,7 +84,7 @@ Bearbeitungen, Umwandlungen und PDF-Werkzeuge erzeugen immer eine neue Datei; de
 
 Verbinde sie unter **Einstellungen › Plugins**.
 
-**Von SurfSense.** Diese Plugins lesen öffentliche Seiten ohne deine eigenen Konten und brauchen eine SurfSense-Lizenz: [Lade die App herunter](https://www.surfsense.com/downloads) und gib dort deine E-Mail-Adresse ein, dann bekommst du eine kostenlose Lizenz für 30 Tage.
+**Von SurfSense.** Diese Plugins lesen öffentliche Seiten ohne deine eigenen Konten und brauchen eine SurfSense-Lizenz: [Lade die App herunter](https://www.surfsense.com/downloads) und gib dort deine E-Mail-Adresse ein, dann bekommst du eine kostenlose Lizenz für 14 Tage.
 
 | Plugin | Was es macht |
 |---|---|
@@ -95,6 +92,8 @@ Verbinde sie unter **Einstellungen › Plugins**.
 | **Web Crawl** | Eine Webseite lesen oder eine ganze Website crawlen und in sauberen Text umwandeln |
 | **YouTube** | YouTube-Videos, -Kanäle und ihre Kommentare lesen |
 | **TikTok** | TikTok-Videos und ihre Kommentare lesen, Nutzer suchen und sehen, was gerade angesagt ist |
+| **Reddit** | Öffentliche Reddit-Beiträge mit ihren Kommentarverläufen oder eine ganze Community lesen |
+| **Instagram** | Öffentliche Instagram-Profile, -Beiträge und -Reels lesen und Profile suchen |
 | **Google Maps** | Orte auf Google Maps finden und ihre Bewertungen lesen |
 | **Amazon** | Amazon-Produkte und Suchergebnisse lesen |
 | **Walmart** | Walmart-Produkte, Suchergebnisse und Bewertungen lesen |

@@ -55,9 +55,6 @@ O SurfSense é um aplicativo de desktop gratuito e open source para os documento
 | **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
 | **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
 
-> [!NOTE]
-> **Usava o app web hospedado?** Exporte seus workspaces antes de 18 de outubro de 2026 e importe-os aqui. Veja [a página de encerramento](https://www.surfsense.com/sunset).
-
 ## Início rápido
 
 1. Instale o SurfSense e faça a configuração inicial.
@@ -88,7 +85,7 @@ Edições, conversões e ferramentas de PDF sempre geram um arquivo novo; o seu 
 
 Conecte-os em **Configurações › Plugins**.
 
-**Da SurfSense.** Eles leem páginas públicas sem usar suas próprias contas e precisam de uma licença do SurfSense: [baixe o aplicativo](https://www.surfsense.com/downloads) e informe seu e-mail nele para receber uma licença gratuita de 30 dias.
+**Da SurfSense.** Eles leem páginas públicas sem usar suas próprias contas e precisam de uma licença do SurfSense: [baixe o aplicativo](https://www.surfsense.com/downloads) e informe seu e-mail nele para receber uma licença gratuita de 14 dias.
 
 | Plugin | O que faz |
 |---|---|
@@ -96,6 +93,8 @@ Conecte-os em **Configurações › Plugins**.
 | **Web Crawl** | Ler uma página web ou rastrear um site inteiro e transformá-lo em texto limpo |
 | **YouTube** | Ler vídeos, canais e comentários do YouTube |
 | **TikTok** | Ler vídeos e comentários do TikTok, pesquisar usuários e ver o que está em alta |
+| **Reddit** | Ler posts públicos do Reddit com seus comentários, ou uma comunidade inteira |
+| **Instagram** | Ler perfis, posts e reels públicos do Instagram, e pesquisar perfis |
 | **Google Maps** | Encontrar lugares no Google Maps e ler as avaliações deles |
 | **Amazon** | Ler produtos e resultados de pesquisa da Amazon |
 | **Walmart** | Ler produtos, resultados de pesquisa e avaliações do Walmart |
