@@ -104,6 +104,8 @@ test("with a password, every route but the app's files and health needs a sessio
   assert.equal(await verify("/api/documents"), 401)
   assert.equal(await verify("/callback?code=c"), 401)
   assert.equal(await verify("/plugins/oauth/callback"), 401)
+  // A provider fetches the instance's own client document, with no session.
+  assert.equal(await verify("/plugins/oauth/client.json"), 200)
   // Opened beyond the host: another machine reaches the sign-in, not the data.
   assert.equal(await verify("/", { host: "surfsense.lan", client: "192.168.1.30" }), 200)
   assert.equal(await verify("/api/documents", { host: "surfsense.lan", client: "192.168.1.30" }), 401)
@@ -124,7 +126,9 @@ test("signing in with the password opens every route; a wrong one does not", asy
   assert.equal(right.status, 204)
   const flags = right.response.headers.get("set-cookie") ?? ""
   assert.match(flags, /HttpOnly/)
-  assert.match(flags, /SameSite=Strict/)
+  // Lax, not Strict: a provider's redirect back to a sign-in callback is a
+  // cross-site navigation, which must carry the session through Caddy.
+  assert.match(flags, /SameSite=Lax/)
   assert.equal(await verify("/api/documents", { cookie: right.cookie }), 200)
 })
 

@@ -1,14 +1,14 @@
 """The OAuth routes: the browser's way back, the screen's poll and Cancel, and Sign in again."""
 
 from fastapi import APIRouter, HTTPException, Request, status
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
 
-from api.config import get_settings
 from api.dependencies import SessionDep, transact
 from modules.plugins.installed.models import InstalledPlugin
 from modules.plugins.installed.plugin_hosts import plugin_hosts, refused_hosts
 from modules.plugins.installed.third_party_off import plugin_third_party_refusal
+from modules.plugins.remote.sign_in.oauth.browser_origin import browser_origin
 from modules.plugins.remote.sign_in.oauth.callback_page import (
     failed_page,
     signed_in_page,
@@ -20,7 +20,10 @@ from modules.plugins.remote.sign_in.oauth.oauth_credential import (
 from modules.plugins.remote.sign_in.oauth.own_app import OwnApp, own_app_auth
 from modules.plugins.remote.sign_in.oauth.own_app_needed import OwnAppNeededError
 from modules.plugins.remote.sign_in.oauth.plugin_draft import PluginDraft
-from modules.plugins.remote.sign_in.oauth.sign_in_client import sign_in_client
+from modules.plugins.remote.sign_in.oauth.sign_in_client import (
+    client_document,
+    sign_in_client,
+)
 from modules.plugins.remote.sign_in.oauth.sign_in_read import (
     SignInRead,
     SignInStarted,
@@ -32,6 +35,18 @@ from modules.plugins.remote.sign_in.oauth.start_sign_in import (
 )
 
 router = APIRouter(prefix="/plugins", tags=["plugins"])
+
+
+@router.get(
+    "/oauth/client.json",
+    summary="The instance's own OAuth client document, on its public domain",
+)
+def client_json(request: Request) -> JSONResponse:
+    """A provider fetches it to learn the client; no other origin has one."""
+    document = client_document(browser_origin(request))
+    if document is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "no client document here")
+    return JSONResponse(document)
 
 
 @router.get(
@@ -77,10 +92,11 @@ class RedirectUri(BaseModel):
     response_model=RedirectUri,
     summary="The callback a user registers their own OAuth app with",
 )
-def redirect_uri() -> RedirectUri:
-    """The plugin host's page when packaged, the API's loopback one in a developer's build."""
+def redirect_uri(request: Request) -> RedirectUri:
+    """The plugin host's page when packaged, the API's loopback one in a developer's
+    build, and in the Docker image the callback at the browser's own origin."""
     return RedirectUri(
-        redirect_uri=sign_in_client(get_settings().browser_port()).redirect_uri
+        redirect_uri=sign_in_client(browser_origin(request)).redirect_uri
     )
 
 
@@ -135,7 +151,7 @@ async def sign_in_again(
         sign_in = await start_sign_in(session, request, draft)
     except OwnAppNeededError as needed:
         # Marked on the plugin; the screen answers with the user's own app.
-        raise needed.refusal() from needed
+        raise needed.refusal(browser_origin(request)) from needed
     if sign_in is None:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,

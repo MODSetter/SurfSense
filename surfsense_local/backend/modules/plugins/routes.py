@@ -1,6 +1,6 @@
 """The `/plugins` routes: connecting, listing and switching plugins, the same for every kind."""
 
-from fastapi import APIRouter, HTTPException, Response, status
+from fastapi import APIRouter, HTTPException, Request, Response, status
 from pydantic import BaseModel
 
 from api.dependencies import SessionDep, transact
@@ -55,6 +55,7 @@ from modules.plugins.remote.sign_in.headers.given_headers import (
 )
 from modules.plugins.remote.sign_in.headers.header_rules import SignInHeader
 from modules.plugins.remote.sign_in.headers.headers_credential import HEADERS
+from modules.plugins.remote.sign_in.oauth.browser_origin import browser_origin
 from modules.plugins.remote.sign_in.oauth.listed_after_refresh import (
     list_once,
     listed_after_refresh,
@@ -142,7 +143,7 @@ def list_plugins(session: SessionDep) -> list[PluginRead]:
     summary="Add a remote server by URL",
 )
 async def add_custom_plugin(
-    payload: CustomPluginWrite, session: SessionDep
+    payload: CustomPluginWrite, session: SessionDep, request: Request
 ) -> PluginRead:
     """A server whose refusal asks for OAuth is saved signed out, to Connect from its row."""
     refusal = await transact(session, third_party_refusal, PluginSource.CUSTOM)
@@ -206,7 +207,7 @@ async def add_custom_plugin(
         if (
             error.status == 401
             and not headers
-            and await save_for_sign_in(session, draft)
+            and await save_for_sign_in(session, draft, browser_origin(request))
         ):
             return await transact(session, _read_by_id, plugin_id)
         raise connect_refusal(error) from error

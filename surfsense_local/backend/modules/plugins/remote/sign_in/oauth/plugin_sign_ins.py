@@ -18,8 +18,10 @@ from mcp.client.auth import OAuthFlowError
 from mcp.shared.auth import AuthorizationCodeResult, OAuthClientInformationFull
 from sqlalchemy.orm import Session
 
+from api.config import get_settings
 from modules.plugins.installed.models import PluginSource
 from modules.plugins.remote.mcp_client.server_error import ServerError
+from modules.plugins.remote.sign_in.oauth.browser_origin import BrowserOrigin
 from modules.plugins.remote.sign_in.oauth.consented_client import HostNotAllowedError
 from modules.plugins.remote.sign_in.oauth.oauth_credential import OAuthCredential
 from modules.plugins.remote.sign_in.oauth.pending_storage import PendingStorage
@@ -117,7 +119,7 @@ class PluginSignIns:
         draft: PluginDraft,
         allowed_hosts: set[str],
         session_factory: SessionFactory,
-        port: int,
+        origin: BrowserOrigin,
     ) -> PendingSignIn:
         """Answers once the authorization URL is ready; raises what stopped it before."""
         self._forget_expired()
@@ -131,7 +133,7 @@ class PluginSignIns:
         )
         self._pending[pending.id] = pending
         pending.task = asyncio.create_task(
-            self._run(pending, allowed_hosts, session_factory, port)
+            self._run(pending, allowed_hosts, session_factory, origin)
         )
         try:
             await asyncio.wait_for(asyncio.shield(pending.started), START_SECONDS)
@@ -191,15 +193,18 @@ class PluginSignIns:
         pending: PendingSignIn,
         allowed_hosts: set[str],
         session_factory: SessionFactory,
-        port: int,
+        origin: BrowserOrigin,
     ) -> None:
-        client = sign_in_client(port)
+        client = sign_in_client(origin)
         draft = pending.draft
 
         async def open_browser(url: str) -> None:
             parts = urlsplit(url)
             query = dict(parse_qsl(parts.query))
             pending.nonce = query["state"]
+            # The port is read only by the plugin host's page, which forwards a
+            # loopback sign-in; another origin's callback is the API itself.
+            port = origin.port if origin.is_loopback else get_settings().port
             query["state"] = state_for(port, pending.nonce)
             if draft.scopes:
                 query["scope"] = " ".join(draft.scopes)
