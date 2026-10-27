@@ -67,7 +67,8 @@ ENTRYPOINT ["tini", "-g", "--"]
 CMD [".venv/bin/pytest", "-p", "no:cacheprovider", "-m", "image"]
 
 FROM python AS runtime
-RUN apt-get update && apt-get install -y --no-install-recommends tini \
+# curl: the Claude dialog's install command downloads Claude Code with it.
+RUN apt-get update && apt-get install -y --no-install-recommends tini curl \
     && rm -rf /var/lib/apt/lists/* \
     && userdel --remove ubuntu \
     && useradd --uid 1000 --create-home --shell /usr/sbin/nologin surfsense \
@@ -84,6 +85,10 @@ COPY surfsense_local/sidecars/ /app/surfsense_local/sidecars/
 COPY surfsense_local/headless/ /app/surfsense_local/headless/
 COPY docker/surfsense/caddy/ /app/caddy/
 
+# HOME on the volume for every process, `docker compose exec` included, so Claude Code
+# installs where the backend looks (~/.local/bin) and keeps across image updates.
+ENV HOME=/data/home \
+    PATH=/data/home/.local/bin:$PATH
 ENV SURFSENSE_LOCAL_DATA_DIR=/data \
     SURFSENSE_LOCAL_RUNTIMES_DIR=/app/runtimes \
     SURFSENSE_LOCAL_CADDYFILE=/app/caddy/Caddyfile \

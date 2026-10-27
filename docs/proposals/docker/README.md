@@ -208,12 +208,12 @@ Every bridge call is already optional (`window.surfsense?.…`). The build for t
 
 SurfSense ships no Claude Code ([`locate.py`](../../../surfsense_local/backend/modules/llm/subscriptions/claude/locate.py)), in the image as on the desktop. The user installs it in the container and signs in there, and SurfSense finds it as it does on a desktop.
 
-- **Where it lives.** Anthropic's installer puts `claude` in `~/.local/bin`, which `locate.py` searches, and the sign-in in `~/.claude`. With `HOME` on `/data`, both survive an image update, and Claude Code's own updates land there too.
+- **Where it lives.** Anthropic's installer puts `claude` in `~/.local/bin`, which `locate.py` searches, and the sign-in in `~/.claude`. The image sets `HOME=/data/home`, and puts its `.local/bin` on `PATH`, for every process, `docker compose exec` included. Both survive an image update, and Claude Code's own updates land there too.
 - **Where the user learns how.** Clicking the Claude subscription connection opens [`claude-dialog.tsx`](../../../surfsense_local/frontend/src/features/models/remote/connections/claude/claude-dialog.tsx), which reads Claude Code's state from the API and says what to do next, with **Check again**. Its steps say "on this computer" and "open a terminal", which in Docker point at the host. When the API reports `SURFSENSE_LOCAL_RUNTIME=docker`, the claude status says so, and each state shows the container's commands, each with a copy button:
 
   | State | In Docker |
   |---|---|
-  | `not_installed` | `docker compose exec surfsense sh -c 'curl -fsSL https://claude.ai/install.sh \| bash'`, then the sign-in below, then Check again |
+  | `not_installed` | `docker compose exec surfsense bash -c 'set -o pipefail; curl -fsSL https://claude.ai/install.sh \| bash'`, then the sign-in below, then Check again |
   | `signed_out` | `docker compose exec -it surfsense claude`, then `/login` with the Claude account |
   | `too_old` | the install command again, which updates it |
 

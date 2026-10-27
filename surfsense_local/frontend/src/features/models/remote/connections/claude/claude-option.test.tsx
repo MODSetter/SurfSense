@@ -249,7 +249,7 @@ describe(
         .getAllByRole("textbox")
         .map((box) => (box as HTMLInputElement).value)
       expect(commands).toEqual([
-        "docker compose exec surfsense sh -c 'curl -fsSL https://claude.ai/install.sh | bash'",
+        "docker compose exec surfsense bash -c 'set -o pipefail; curl -fsSL https://claude.ai/install.sh | bash'",
         "docker compose exec -it surfsense claude",
       ])
       // The guide is for a desktop install, which the container cannot use.

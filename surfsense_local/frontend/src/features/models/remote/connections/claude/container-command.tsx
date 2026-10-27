@@ -4,9 +4,10 @@ import { Input } from "@/components/ui/input"
 import { useCopyToClipboard } from "@/features/about/use-copy-to-clipboard"
 import { intl } from "@/i18n/intl"
 
-/** Run on the Docker host, in the folder with docker-compose.yml. */
+/** Run on the Docker host, in the folder with docker-compose.yml. The image's HOME
+ * is on /data, where the backend looks; pipefail fails the install when the download does. */
 export const INSTALL_IN_CONTAINER =
-  "docker compose exec surfsense sh -c 'curl -fsSL https://claude.ai/install.sh | bash'"
+  "docker compose exec surfsense bash -c 'set -o pipefail; curl -fsSL https://claude.ai/install.sh | bash'"
 export const SIGN_IN_IN_CONTAINER = "docker compose exec -it surfsense claude"
 
 /** A command to paste into a terminal on the Docker host, copied in one click. */
