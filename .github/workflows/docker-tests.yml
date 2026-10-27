@@ -38,6 +38,9 @@ jobs:
       backend: ${{ steps.filter.outputs.backend || 'true' }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          # The token stays out of .git/config, where the code under test could read it.
+          persist-credentials: false
       - id: filter
         if: github.event_name == 'pull_request'
         uses: dorny/paths-filter@v4
@@ -87,6 +90,9 @@ jobs:
     if: needs.changes.outputs.headless == 'true'
     steps:
       - uses: actions/checkout@v7
+        with:
+          # The token stays out of .git/config, where the code under test could read it.
+          persist-credentials: false
       # pnpm (the version package.json pins), Node 24 and a frozen install. Only
       # dev pushes save the store; pull request and tag caches are never reused
       # and would push dev's out of the repository's 10 GB.
@@ -115,6 +121,9 @@ jobs:
     if: needs.changes.outputs.frontend == 'true'
     steps:
       - uses: actions/checkout@v7
+        with:
+          # The token stays out of .git/config, where the code under test could read it.
+          persist-credentials: false
       # pnpm (the version package.json pins), Node 24 and a frozen install. Only
       # dev pushes save the store; pull request and tag caches are never reused
       # and would push dev's out of the repository's 10 GB.
@@ -142,6 +151,9 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v7
+        with:
+          # The token stays out of .git/config, where the code under test could read it.
+          persist-credentials: false
 
       - name: Check the compose file
         run: docker compose -f docker/surfsense/docker-compose.yml --env-file docker/surfsense/.env.example config -q
@@ -192,6 +204,9 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v7
+        with:
+          # The token stays out of .git/config, where the code under test could read it.
+          persist-credentials: false
       - uses: docker/setup-buildx-action@v4
 
       - name: Log in to GHCR
