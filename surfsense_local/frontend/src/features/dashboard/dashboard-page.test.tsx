@@ -99,6 +99,7 @@ function selectionStarting(mode: "basic" | "agentic") {
       reason: { code: "measured_pass", values: {} },
       note: null,
       measured: null,
+      studio: "full" as const,
       modes: {
         agentic_allowed: true,
         blocked: null,
@@ -1072,6 +1073,7 @@ describe("dashboard chat", () => {
               reason: { code: "measured_pass", values: {} },
               note: null,
               measured: null,
+              studio: "full",
               modes: {
                 agentic_allowed: true,
                 blocked: null,
