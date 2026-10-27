@@ -30,22 +30,21 @@ export function valid(key: Buffer, token: string | undefined, version: number, n
   return Number(tokenVersion) === version && age >= 0 && age < MAX_AGE_SECONDS
 }
 
-// Lax, not Strict: a provider's redirect back to a sign-in callback is a
-// cross-site navigation and must carry the session; cross-site POSTs and
-// fetches still never do, and sign-in and sign-out also check Origin.
+// Strict: no other site's page, link or redirect carries it. A sign-in's
+// callback needs none (verify.ts), and the app's own requests are same-site.
 export function cookieHeader(token: string, secure: boolean): string {
   return [
     `${COOKIE}=${token}`,
     "Path=/",
     "HttpOnly",
-    "SameSite=Lax",
+    "SameSite=Strict",
     `Max-Age=${MAX_AGE_SECONDS}`,
     ...(secure ? ["Secure"] : []),
   ].join("; ")
 }
 
 export function clearedCookieHeader(secure: boolean): string {
-  return [`${COOKIE}=`, "Path=/", "HttpOnly", "SameSite=Lax", "Max-Age=0", ...(secure ? ["Secure"] : [])].join(
+  return [`${COOKIE}=`, "Path=/", "HttpOnly", "SameSite=Strict", "Max-Age=0", ...(secure ? ["Secure"] : [])].join(
     "; ",
   )
 }

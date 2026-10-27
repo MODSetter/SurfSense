@@ -102,13 +102,25 @@ test("with a password, every route but the app's files and health needs a sessio
   assert.equal(await verify("/assets/main-abc.js"), 200)
   assert.equal(await verify("/api/health"), 200)
   assert.equal(await verify("/api/documents"), 401)
-  assert.equal(await verify("/callback?code=c"), 401)
-  assert.equal(await verify("/plugins/oauth/callback"), 401)
   // A provider fetches the instance's own client document, with no session.
   assert.equal(await verify("/plugins/oauth/client.json"), 200)
   // Opened beyond the host: another machine reaches the sign-in, not the data.
   assert.equal(await verify("/", { host: "surfsense.lan", client: "192.168.1.30" }), 200)
   assert.equal(await verify("/api/documents", { host: "surfsense.lan", client: "192.168.1.30" }), 401)
+})
+
+// The browser may come back on another name than it signed in on, such as
+// 127.0.0.1 after localhost, and so without the cookie. The sign-in's own
+// state and PKCE guard these, not the session (RFC 9700).
+test("a sign-in's callback passes without a session, on any name the host is", async (t) => {
+  const { verify } = await serve(t, { password: PASSWORD })
+
+  assert.equal(await verify("/callback?code=c&state=s", { host: "127.0.0.1:4929" }), 200)
+  assert.equal(await verify("/plugins/oauth/callback?code=c&state=s", { host: "127.0.0.1:4929" }), 200)
+  assert.equal(await verify("/plugins/oauth/callback?code=c&state=s", { host: "surfsense.lan", client: "192.168.1.30" }), 200)
+  // Only the callbacks themselves: a path beneath or beside one is still the data's.
+  assert.equal(await verify("/callbacks", { host: "127.0.0.1:4929" }), 200)
+  assert.equal(await verify("/api/callback"), 401)
 })
 
 test("signing in with the password opens every route; a wrong one does not", async (t) => {
@@ -126,9 +138,9 @@ test("signing in with the password opens every route; a wrong one does not", asy
   assert.equal(right.status, 204)
   const flags = right.response.headers.get("set-cookie") ?? ""
   assert.match(flags, /HttpOnly/)
-  // Lax, not Strict: a provider's redirect back to a sign-in callback is a
-  // cross-site navigation, which must carry the session through Caddy.
-  assert.match(flags, /SameSite=Lax/)
+  // Strict: no other site's page, link or redirect ever carries it; a sign-in's
+  // callback needs none.
+  assert.match(flags, /SameSite=Strict/)
   assert.equal(await verify("/api/documents", { cookie: right.cookie }), 200)
 })
 
@@ -242,6 +254,7 @@ test("with allowed hosts named, any other host is refused before sign-in", async
   assert.equal(await verify("/", { host: "192.168.1.20:4929", client: "192.168.1.30" }), 200)
   // A name a rebinding page points at this address is not one of them.
   assert.equal(await verify("/", { host: "attacker.example", client: "192.168.1.30" }), 403)
+  assert.equal(await verify("/callback?code=c&state=s", { host: "attacker.example", client: "192.168.1.30" }), 403)
 })
 
 test("the state tells the app whether to show the sign-in", async (t) => {

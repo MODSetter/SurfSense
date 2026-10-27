@@ -190,6 +190,14 @@ describe("the image with a password", { skip: IMAGE ? false : "SURFSENSE_TEST_IM
     assert.equal((await get("/api/workspaces")).status, 401)
   })
 
+  // A provider can send the browser back on 127.0.0.1 after it signed in on
+  // localhost, with no cookie for that name; the sign-in's state guards it instead.
+  test("lets a sign-in's callback reach the API without a session", async () => {
+    const callback = await get("/plugins/oauth/callback?code=c&state=unknown", { host: "127.0.0.1:4929" })
+    assert.notEqual(callback.status, 401)
+    assert.notEqual(callback.status, 403)
+  })
+
   test("refuses a wrong password, opens the API for the right one, and closes it on sign-out", async () => {
     const wrong = await get("/access/sign-in", { method: "POST", json: { password: "nope" } }) // pragma: allowlist secret
     assert.equal(wrong.status, 401)

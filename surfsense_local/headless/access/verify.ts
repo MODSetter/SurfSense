@@ -4,9 +4,11 @@ import { hostName, isHostRequest } from "./host-request.ts"
 
 export type Verdict = 200 | 401 | 403
 
-// Where the API's data or a sign-in's tokens pass; everything else is the app's
-// own files, which carry no data and must load for the sign-in screen to show.
-const PRIVATE = /^\/(api\/|callback(\?|$)|plugins\/oauth\/callback(\?|$))/
+// Where the API's data passes. Everything else needs no session: the app's own
+// files, which must load for the sign-in screen to show, and the sign-in
+// callbacks, guarded by their own state and PKCE, where a browser can return on
+// another name than its cookie's, as 127.0.0.1 after localhost (ADR 0074).
+const PRIVATE = /^\/api\//
 
 export function isPublicPath(uri: string): boolean {
   return uri === "/api/health" || uri.startsWith("/api/health?") || !PRIVATE.test(uri)
