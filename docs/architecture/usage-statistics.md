@@ -44,6 +44,7 @@ No identifier ties one install's reports together, but the values that never cha
 - Onboarding always shows the step in the desktop app. An install that answered already (`firstRunAsked`), or that comes back from the first model step, sees its answers chosen. An install that finished onboarding never sees it; its usage statistics stay `null`, read as off, until the user turns them on. A bridge that cannot read its state skips the step, with both left off, rather than holding setup on an empty card.
 - Settings › About has the Usage statistics switch beside App updates. Both say what they do as onboarding does, in the same one-line summary with the full description behind an info icon, and each has "Show exactly what's sent". For usage statistics that shows the next daily report as Electron main would build it now (`previewUsageReport`, not sent), the last report sent, daily or setup, and when, and the host. Settings › Network lists the same switch as a row with its host and its last call, which is that last report.
 - Turning the switch off stops the next report; nothing already sent can be recalled, because no identifier marks which reports were this install's.
+- The Docker image never reports, so it never asks: without the bridge the step and the switch are hidden, and the API neither counts activity nor serves `/usage-statistics` there ([`kept.py`](../../surfsense_local/backend/modules/usage_statistics/kept.py), [ADR 0075](../adr/0075-what-differs-in-docker-is-gated-by-one-build-flag-or-the-bridge.md)).
 
 ## Policy
 

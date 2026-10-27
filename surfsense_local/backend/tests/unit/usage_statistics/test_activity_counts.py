@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from api.config import get_settings
 from modules.usage_statistics.activity_counts import (
     Activity,
     count_agent_turn,
@@ -150,3 +151,17 @@ def test_the_file_holds_counts_and_nothing_that_says_what_was_asked() -> None:
     text = counts_path().read_text()
     assert set(read_counts().hours["2026-10-21T12"]) == {"agent_turns", "plugin_calls"}
     assert "tools/call" not in text
+
+
+async def test_the_docker_image_counts_nothing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The image never reports usage, so it keeps nothing to report (ADR 0075)."""
+    monkeypatch.setattr(get_settings(), "runtime", "docker")
+
+    start_counting(had_chats=False, now=NOW)
+    await count_chat_answer("llamacpp")
+    await count_agent_turn()
+    add({Activity.PLUGIN_CALL: 1}, now=NOW)
+
+    assert not counts_path().exists()

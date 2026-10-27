@@ -75,6 +75,7 @@ from modules.resource_usage.router import router as resource_usage_router
 from modules.runtime_packs.office.router import router as office_pack_router
 from modules.source_scope.router import router as source_scope_router
 from modules.usage_statistics.activity_counts import begin_counting
+from modules.usage_statistics.kept import usage_statistics_kept
 from modules.usage_statistics.router import router as usage_statistics_router
 from modules.workspaces.router import router as workspaces_router
 from modules.workspaces.seed import ensure_default_workspace
@@ -260,7 +261,8 @@ def create_app() -> FastAPI:
     app.include_router(embedding_router)
     app.include_router(embedding_huggingface_router)
     app.include_router(resource_usage_router)
-    app.include_router(usage_statistics_router)
+    if usage_statistics_kept():
+        app.include_router(usage_statistics_router)
     app.include_router(office_pack_router)
     # Before `/plugins/{id}/...`, which would otherwise take `registry` or `license` for an id.
     app.include_router(plugin_registry_router)
