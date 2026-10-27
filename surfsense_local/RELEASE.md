@@ -120,7 +120,10 @@ gh run list --workflow release-docker.yml --limit 1
 docker buildx imagetools inspect ghcr.io/modsetter/surfsense:2.3.0
 ```
 
-The two release independently: a failed image job does not hold up the desktop. If it fails, ship the desktop, fix the image, and re-run the job on the same tag; `latest` stays on the previous image until it passes.
+If the job fails, read why before deciding:
+
+- **Transient** (a registry or network error, a runner that died): re-run the job on the same tag. It builds the tag's commit again, which is what you want. Publish once it is green.
+- **Needs a code fix:** a re-run on the same tag builds the same commit and fails the same way. The desktop may still ship: publish it, and `Move latest` then fails, which leaves `latest` on the previous image. The fix ships as the next patch version, through this whole procedure, so the image and the desktop meet again on one number.
 
 On the first release only, GHCR creates `ghcr.io/modsetter/surfsense` as a private package. Make it public under the package's settings (Package settings, Change visibility), or nobody can pull it and pull requests cannot read the image's build cache.
 
@@ -217,7 +220,7 @@ The image's dry run is its own: Actions → **Release Docker**, or `gh workflow 
 - Tag `v2.3.0` before `VERSION` is `2.3.0` and the bump script has been committed.
 - Tag `dev`, or any commit but the release pull request's merge on `main`.
 - Push a `v0.*` tag for this app (that line is the legacy desktop).
-- Publish the draft before Mac, Windows and Linux have uploaded, and before `legacy-update-bridge`, `release-extras` and Release Docker's `Build, test and push` are green.
+- Publish the draft before Mac, Windows and Linux have uploaded, and before `legacy-update-bridge` and `release-extras` are green. Wait for Release Docker's `Build, test and push` too, unless it failed for a reason only a code fix can solve (step 6).
 - Upload to the draft after `release-extras` without re-running it, or `SHA256SUMS` no longer matches the release.
 - Undraft with `GITHUB_TOKEN`, from a workflow or a bot: `release-channels.yml` would never start.
 - Delete `legacy-update-bridge` while 0.0.x clients are still checking in. Watch `SurfSense-Setup-0.0.40.exe.blockmap` on the v0.0.40 release: while it climbs, legacy installs are still migrating.
