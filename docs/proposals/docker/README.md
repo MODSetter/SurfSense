@@ -128,8 +128,7 @@ The new stack, in `docker/surfsense/`:
 | `docker-compose.gpu.yml` | the GPU device reservation, layered on top |
 | `.env.example` | version, variant, port, password, hosts, domain |
 | `caddy/Caddyfile` | the routes; imports one access file |
-| `caddy/access-local.caddy` | access without a password, for `localhost` hosts only |
-| `caddy/access-password.caddy` | `basic_auth` and the allowed hosts (step 10) |
+| `caddy/access.caddy` | `forward_auth` to the access service, and what bypasses it (step 10) |
 
 Its installer, later, in `docker/scripts/`: `install.sh` and `install.ps1`, at the legacy installer's paths ([legacy split](../legacy-split/README.md#the-install-urls-pass-to-the-new-stack)). It picks the CPU or CUDA image from the host's card ([`gpu.md`](gpu.md#choosing-the-variant)).
 
@@ -142,7 +141,9 @@ The code, in `surfsense_local/`:
 | `runtimes/` | moved from `electron/scripts/`, with a target and an output folder for the image |
 | `headless/main.ts` | the container's entry: the secret, boot, `/health`, Caddy, signals |
 | `headless/context-from-env.ts` | the `/data` and `/app` paths, the secret and the packaged-only environment |
-| `headless/caddy.ts` | Caddy as a `SidecarSpec`; hashes the password |
+| `headless/caddy.ts` | Caddy as a `SidecarSpec` |
+| `headless/access/` | the sign-in service Caddy asks about each request: the password, sessions, the guess limit ([ADR 0074](../../adr/0074-docker-sign-in-is-a-surfsense-page-that-caddy-enforces.md)) |
+| `frontend/src/features/access/` | the sign-in screen and Settings › Access, in the Docker build only |
 | `headless/gpu-check.ts` | the no-GPU refusal ([`gpu.md`](gpu.md)) |
 | `electron/src/main/index.ts` | imports `../../../sidecars/`; nothing else changes |
 | `backend/modules/plugins/lists/registry/registry_origin.py` | `SURFSENSE_LOCAL_SIGNED_REGISTRY` |
@@ -171,16 +172,18 @@ Inside the image, the repository's layout under `/app`, so every relative path t
 
 ## Caddy and access
 
-Caddy is the one door in. A published port reaches the container's interface, never its loopback, so something must listen there and forward inward, and the API cannot be that: nothing authenticates it, and `/internal/events` is protected only by its loopback bind (ADR 0035). Caddy also serves `frontend/dist`, which Electron loads from disk on the desktop, on the same origin as `/api`, and holds the `Host` check, the password and HTTPS, so none of that is application code. It runs as one more sidecar in the container, not as a service of its own.
+Caddy is the one door in. A published port reaches the container's interface, never its loopback, so something must listen there and forward inward, and the API cannot be that: nothing authenticates it, and `/internal/events` is protected only by its loopback bind (ADR 0035). Caddy also serves `frontend/dist`, which Electron loads from disk on the desktop, on the same origin as `/api`, and holds HTTPS and the enforcement of access: every request but the app's static files, `/api/health` and `/access/*` goes through `forward_auth` to the headless entry's access service, which decides ([ADR 0074](../../adr/0074-docker-sign-in-is-a-surfsense-page-that-caddy-enforces.md)). Both run as sidecars in the container, not as services of their own.
 
-| Setting | Caddy answers | Auth |
+| State | Answered | Sign-in |
 |---|---|---|
-| Default | `Host` of `localhost`, `127.0.0.1` or `[::1]` only | none, as on the desktop |
-| `SURFSENSE_PASSWORD` | the hosts in `SURFSENSE_ALLOWED_HOSTS`, or any | `basic_auth` |
-| `SURFSENSE_DOMAIN` also | that domain | `basic_auth`, over HTTPS |
+| No password (default) | the host's own requests only: a `Host` of `localhost`, `127.0.0.1` or `[::1]`, from loopback or the bridge's gateway | none, as on the desktop |
+| A password, created in the app or set by `SURFSENSE_PASSWORD` | the hosts in `SURFSENSE_ALLOWED_HOSTS`, or any | SurfSense's sign-in page |
+| `SURFSENSE_DOMAIN` also | that domain | the sign-in page, over HTTPS |
 
 - **The `Host` check is the guard.** The container cannot see how Compose published its port, but it sees the address each request was sent to. Without a password, a request to the LAN address or a domain is refused, so an unauthenticated instance cannot be reached from the network by accident. The same check stops DNS rebinding against `localhost`, which Ollama (CVE-2024-28224) and Vite (CVE-2025-24010) each had to add after the fact.
-- **The password is hashed at start.** The headless entry runs `caddy hash-password` on `SURFSENSE_PASSWORD`, so nobody handles a bcrypt string. The SPA, the API and the SSE streams are one origin, so the browser sends the credentials on all of them.
+- **The sign-in.** The app's static files load without a session, carry no data, and show the sign-in screen when the API answers `401`. The access service checks one password, hashed with scrypt on `/data`, and issues an `HttpOnly`, `SameSite=Strict` session cookie, signed with a key derived from the instance's secret. Over HTTPS the cookie is also `Secure`, and it lasts 30 days. The SPA, the API and the SSE streams are one origin, so the browser sends it on all of them. Five failed sign-ins from one client within a minute answer `429`; sign-in and sign-out refuse a cross-site `Origin`; changing the password ends every session.
+- **Creating the password.** Settings › Access, shown only in the Docker build, creates it from the host itself, since nothing else is answered until one exists, and changes it later. `SURFSENSE_PASSWORD` sets it at start instead, for a server with no browser of its own, and replaces a forgotten one.
+- **The client address backs the `Host` check.** A `Host` header is the sender's to choose, so without a password the access service also requires the client address Caddy sees to be loopback or the bridge's gateway, which a published port on `127.0.0.1` arrives from. Docker Desktop forwards every client through its gateway, so there `SURFSENSE_BIND` stays on `127.0.0.1` until a password exists.
 - **HTTPS beyond `localhost`.** A public domain gets an automatic certificate; `SURFSENSE_TLS=internal` uses Caddy's own CA on a LAN. Any access from another machine takes one of them: the password would otherwise cross the network in the clear, browsers allow the microphone only in a secure context, and OAuth allows a plain-HTTP redirect only to loopback ([Sign-ins](#sign-ins)).
 - **Three root paths reach the API besides `/api/*`:** the sign-in callbacks and the instance's client document ([Sign-ins](#sign-ins)), each matched exactly, behind the same `Host` check and password.
 - **`/api/internal/*` is refused.** Workers reach `/internal/events` and the transcription routes on loopback and never through Caddy.
@@ -334,7 +337,7 @@ Two workflows, as the desktop has: `docker-tests.yml` tests, and never pushes; `
 - `docker-tests.yml` builds the image without pushing. A pull request into `dev` builds it only when it touches what can break the image itself: `docker/surfsense/**`, `headless/`, `sidecars/`, opencode's staging, the bundled models' downloads, the backend's and frontend's dependency files, the frontend's build config, `VERSION` and `backend/plugins/bundles/core/**`. A release pull request carries the `VERSION` bump, so it always builds the image, while a `dev` → `main` pull request of docs or `www` does not. Every `dev` push and manual run runs every job, so ordinary code that breaks the image shows on the merge into `dev`. A `changes` job and a gate keep it a required check.
 - Build by digest per architecture and variant, then merge into one manifest per variant.
 - The build cache is on GHCR, `:buildcache` for the image and `:buildcache-backend-tests` for the test stage, outside the repository's 10 GB Actions cache. Every run reads it; `dev` pushes in `docker-tests.yml` and release tags in `release-docker.yml` write it, and pull requests never do.
-- The image tests start the CPU image, wait for `/health` through Caddy, check the app and that its script is served as JavaScript, that a non-local `Host` and `/api/internal` are refused without a password, a clean stop, and that a new container on the same `/data` keeps its secret. Nothing is pushed unless they pass.
+- The image tests start the CPU image, wait for `/health` through Caddy, check the app and that its script is served as JavaScript, that a non-local `Host` and `/api/internal` are refused without a password, a clean stop, and that a new container on the same `/data` keeps its secret. A second container, started with a password and one allowed host, checks the sign-in through Caddy: the API refused without a session, a wrong password refused, the right one opening the API, sign-out, another host refused, and a forged `X-Forwarded-Host` ignored. Nothing is pushed unless they pass.
 - The shared core's tests stay in Desktop Tests. `docker-tests.yml` adds only what the Docker entry and the image change: the `headless/` tests, the frontend's tests tagged `docker`, in Vitest's `docker` project, with the image build's `VITE_*` settings and no Electron bridge, the compose file, and the backend's `pytest.mark.image` tests run inside the Dockerfile's `backend-tests` stage, as uid 1000 under tini, where the bundled models and system libraries are the image's.
 
 ## Releases
@@ -388,7 +391,7 @@ In order; each step depends on the one before it and leaves something that runs.
 
 **Access beyond localhost.**
 
-10. The password and the allowed hosts.
+10. The sign-in: the access service in `headless/access/`, `forward_auth` in Caddy, the sign-in screen and Settings › Access, `SURFSENSE_PASSWORD`, `SURFSENSE_ALLOWED_HOSTS` and `SURFSENSE_BIND` ([ADR 0074](../../adr/0074-docker-sign-in-is-a-surfsense-page-that-caddy-enforces.md)).
 11. HTTPS, and sign-ins from another machine: the instance's own client document and the paste-back fallback.
 
 **GPU images**, steps 12 to 14 in [`gpu.md`](gpu.md): `-cuda` on amd64. `linux/arm64` follows once `runtimes/` stages each runtime for it, with `-cuda13`.

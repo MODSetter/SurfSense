@@ -102,3 +102,4 @@ The Date is the day the decision was first written down. Source links are permal
 | 0071 | [Package managers ship the GitHub release files, and a package manager that installs SurfSense owns its updates](0071-package-managers-ship-the-release-files-and-own-their-updates.md) | Accepted |
 | 0072 | [The desktop app and the Docker container are two entries over one core, and the supervisor and runtime staging leave `electron/`](0072-the-desktop-and-the-container-are-two-entries-over-one-core.md) | Accepted |
 | 0073 | [The Docker GPU image is one CUDA 12.8 variant, with `-cuda13` to follow for arm64, and each runtime has one source shared with the desktop](0073-the-docker-gpu-image-is-one-cuda-12-8-variant-from-upstream-builds.md) | Accepted |
+| 0074 | [The Docker image's sign-in is a SurfSense page, issued by the headless entry and enforced by Caddy's `forward_auth`](0074-docker-sign-in-is-a-surfsense-page-that-caddy-enforces.md) | Accepted |
