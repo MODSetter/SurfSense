@@ -33,7 +33,6 @@ afterEach(() => {
   cleanup()
   delete window.surfsense
   vi.restoreAllMocks()
-  vi.unstubAllEnvs()
 })
 
 describe("AboutSettings", () => {
@@ -102,9 +101,11 @@ describe("AboutSettings", () => {
       await screen.findByRole("button", { name: "Version copied" })
     ).toBeTruthy()
   })
+})
 
-  it("shows the version the image was built with where there is no desktop app", async () => {
-    vi.stubEnv("VITE_SURFSENSE_VERSION", "2.0.3")
+// No Electron to ask: the version is the one the image was built with.
+describe("AboutSettings in the Docker image", { tags: ["docker"] }, () => {
+  it("shows the image's version and its release notes", async () => {
     render(<AboutSettings />)
 
     expect(await screen.findByText("Version 2.0.3")).toBeTruthy()
