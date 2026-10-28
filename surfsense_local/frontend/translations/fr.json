@@ -1418,6 +1418,7 @@
   "sources_upload_rejected_file_label": "{filename} ({reason})",
   "sources_upload_too_large_error": "Plus de {size, number, ::unit/megabyte} : {files}",
   "sources_upload_too_large_reason_label": "Plus de {size, number, ::unit/megabyte}",
+  "sources_upload_unreadable_reason_label": "Lecture impossible ; il est peut-être ouvert dans une autre application",
   "sources_upload_unsupported_body": "Non pris en charge : {files}",
   "sources_upload_unsupported_error": "Type de fichier non pris en charge : {files}",
   "sources_web_add_all_button": "Tout ajouter ({count, number})",
