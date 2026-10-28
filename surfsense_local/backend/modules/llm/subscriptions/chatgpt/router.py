@@ -95,7 +95,9 @@ def read_sign_in(flow_id: str, flows: FlowsDep) -> SignInRead:
 @router.post(
     "/chatgpt/sign-in/{flow_id}/callback", status_code=status.HTTP_204_NO_CONTENT
 )
-def paste_callback(flow_id: str, payload: CallbackPaste, flows: FlowsDep) -> Response:
+async def paste_callback(
+    flow_id: str, payload: CallbackPaste, flows: FlowsDep
+) -> Response:
     """Finishes a sign-in from another machine than the container's, where OpenAI's
     loopback redirect cannot land (docs/architecture/docker.md, Sign-ins)."""
     # The desktop's browser shares the API's machine, so it never needs one (ADR 0075).
