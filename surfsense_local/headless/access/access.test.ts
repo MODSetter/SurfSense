@@ -311,3 +311,14 @@ test("once the setup stops setting it, the password stays and becomes the app's"
     { password: true, source: "app" },
   )
 })
+
+test("the workers' internal routes are refused to every browser, signed in or not", async (t) => {
+  const { ask, verify } = await serve(t, { password: PASSWORD })
+  const { cookie } = await ask({ method: "POST", path: "/access/sign-in", body: { password: PASSWORD } })
+  const open = await serve(t, { signInOff: true })
+
+  // Never "sign in first": nothing outside the container reaches them.
+  assert.equal(await verify("/api/internal/events"), 403)
+  assert.equal(await verify("/api/internal/events", { cookie }), 403)
+  assert.equal(await open.verify("/api/internal/events"), 403)
+})

@@ -9,6 +9,7 @@ Who can open the Docker image's SurfSense, and how. Every instance asks for one 
 ## The rules
 
 - **Caddy asks the access service about every request** (`forward_auth`), which answers 200, 401 (sign in or set up) or 403 (refused).
+- **`/api/internal/*` is refused to every browser,** signed in or not and with sign-in off: the workers reach it on loopback only.
 - **A name not in `SURFSENSE_ALLOWED_HOSTS` is refused,** when the list is set, whether or not sign-in is on: a page rebinding its own name to this address never names one of ours. Empty, any name passes this check.
 - **Without a session, only the app's files, `/api/health`, `/access/*` and the sign-in callbacks pass.** The app's files load, carry no data, and show the setup or the sign-in. The callbacks are guarded by their own `state` and PKCE.
 - **No password yet is the same as signed out:** the API answers 401, and the app shows its setup.
