@@ -38,6 +38,7 @@ One flat JSON file per language, `{"id": "ICU string"}`, keys sorted with a two-
 - [`intl.ts`](../../surfsense_local/frontend/src/i18n/intl.ts) builds one `createIntl` instance for the page, in the language preload reports, with every precompiled catalog bundled and each merged over English. The catalogs come from a glob over `compiled/`, keyed by `LOCALES`, so a language is a catalog file and a line in that list rather than an import here; the pseudo-locale is excluded from the glob so it cannot reach a build. [`main.tsx`](../../surfsense_local/frontend/src/main.tsx) gives it to React through `RawIntlProvider`.
 - Every call declares its English inline, as the FormatJS docs recommend: `intl.formatMessage({ id: "sources_list_empty", defaultMessage: "No sources yet" })`. The id is literal and explicit. [`message-ids.d.ts`](../../surfsense_local/frontend/src/i18n/message-ids.d.ts) types the ids through `FormatjsIntl.Message`, so an id outside `en.json` is a type error.
 - The build strips `defaultMessage` (`@formatjs/unplugin` with `removeDefaultMessage`), so each message ships once, in the catalogs.
+- The dev server, `pnpm dev` on the desktop and the Docker dev stack alike, keeps it, precompiled to an AST by the same plugin with `ast`, and renders English from it rather than from `en.json` (Vite's `development` mode in `intl.ts`). An edited message then hot-reloads in place with its component. Other languages and the pseudo-locale still read their catalogs, compiled when `dev` starts; tests and the build read English's too.
 - Rich text is FormatJS's: `{ b: (chunks) => <span …>{chunks}</span> }` for a tag, and an element can be a value, such as `<RelativeTime>` in "Last call: {time}".
 - Numbers, dates, relative times, lists and language names go through `intl.formatNumber`, `formatDate`, `formatRelativeTime`, `formatList` and `formatDisplayName`.
 - ESLint forbids importing the catalogs or `compiled/` outside `src/i18n/`.
@@ -69,7 +70,7 @@ The backend stays English. Where it sends a code with its prose, the frontend sh
 
 Each step is also its own script, `pnpm translations:extract` and `pnpm translations:compile`. `dev` alone also runs `pnpm translations:pseudo`, `formatjs compile translations/en.json --ast --pseudo-locale en-XA`, which writes the pseudo-locale's catalog; `intl.ts` reads it through `import.meta.glob`, so a build without it still compiles.
 
-Vite aliases `@formatjs/icu-messageformat-parser` to its no-parser build, since no message is parsed at run time. `compiled/` is gitignored. Everything comes from npm and the lockfile.
+Vite aliases `@formatjs/icu-messageformat-parser` to its no-parser build, since no message is parsed at run time, on the dev server included. `compiled/` is gitignored. Everything comes from npm and the lockfile.
 
 ## Checks
 

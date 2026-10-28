@@ -28,9 +28,12 @@ export default defineConfig({
   // Relative asset paths so the packaged SPA loads over file:// (Electron loadFile).
   base: "./",
   plugins: [
-    // The catalogs supply every message, so the inline English is dropped from
-    // the bundle; `formatjs extract` reads it from the source instead.
-    formatjs({ removeDefaultMessage: true }),
+    // Served, English is each call's own defaultMessage, parsed here so no parser
+    // ships and an edit hot-reloads in place (src/i18n/intl.ts).
+    { ...formatjs({ ast: true }), apply: "serve" },
+    // Built, the catalogs supply every message, so the inline English is dropped
+    // from the bundle; `formatjs extract` reads it from the source instead.
+    { ...formatjs({ removeDefaultMessage: true }), apply: "build" },
     react(),
     tailwindcss(),
     woff2OnlyFonts(),

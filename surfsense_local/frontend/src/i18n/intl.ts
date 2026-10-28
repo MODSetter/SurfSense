@@ -27,11 +27,16 @@ const english = compiled[`./compiled/${BASE_LOCALE}.json`] ?? {}
 
 // Every language is bundled so text is there on the first render, and each is
 // merged over English, so a key it lacks shows its English, never its id.
+// On the dev server English has no catalog: each call's own defaultMessage
+// renders, so an edited message hot-reloads with its component (vite.config.ts).
+// Tests and the build read the catalog.
 const catalogs = Object.fromEntries(
   LOCALES.map((locale) => [
     locale,
     locale === BASE_LOCALE
-      ? english
+      ? import.meta.env.MODE === "development"
+        ? {}
+        : english
       : { ...english, ...compiled[`./compiled/${locale}.json`] },
   ])
 ) as Record<Locale, Catalog>
