@@ -13,9 +13,12 @@ services:
       dockerfile: docker/surfsense/Dockerfile
       target: app
     ports:
-      # One above the install's 4929 and 4943, so both run at once.
-      - "${SURFSENSE_BIND:-127.0.0.1}:${SURFSENSE_PORT:-4930}:80"
-      - "${SURFSENSE_BIND:-127.0.0.1}:${SURFSENSE_HTTPS_PORT:-4944}:443"
+      # One above the install's 4929 and 4943, so both run at once. Every network
+      # this machine is on, as the install publishes, so a phone tests it at
+      # http://<this machine's address>:4930; SURFSENSE_BIND=127.0.0.1 keeps it
+      # to this machine on a network you don't trust.
+      - "${SURFSENSE_BIND:-0.0.0.0}:${SURFSENSE_PORT:-4930}:80"
+      - "${SURFSENSE_BIND:-0.0.0.0}:${SURFSENSE_HTTPS_PORT:-4944}:443"
     volumes:
       - surfsense_data:/data
       # Writable: a fresh checkout lacks the mountpoints below, which Docker creates in it.
