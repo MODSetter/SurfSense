@@ -30,7 +30,7 @@ import {
   writeFileSync,
 } from "node:fs"
 import { tmpdir } from "node:os"
-import { basename, dirname, join } from "node:path"
+import { basename, dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { stageLicences } from "./llamacpp/licences.mjs"
@@ -163,7 +163,8 @@ async function main() {
 
   // With neither, the desktop's build for this host, into electron/llamacpp/.
   const variant = option("variant")
-  const OUT = option("out") ?? join(HERE, "..", "electron", "llamacpp")
+  // Absolute: each stage runs its server by path with the stage as its working directory.
+  const OUT = resolve(option("out") ?? join(HERE, "..", "electron", "llamacpp"))
   const target = pinnedBuild(key, variant)
 
   if (existsSync(join(OUT, SERVER))) {
