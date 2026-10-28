@@ -1,6 +1,6 @@
 # Docker
 
-The desktop app's stack without Electron, as one container, `ghcr.io/modsetter/surfsense`. `surfsense_local` is one core with two entries: Electron for the desktop, a headless Node entry for the container. The headless entry runs the same supervisor as Electron, which starts the API, the workers, the model servers and opencode on loopback; Caddy is the only thing listening. It replaces the legacy self-host compose, which lives on the `legacy` branch ([legacy split](../proposals/legacy-split/README.md)). Who can open it, and how, is [Docker access](docker-access.md); GPU images are a [proposal](../proposals/docker-gpu.md).
+The desktop app's stack without Electron, as one container, `ghcr.io/modsetter/surfsense`. `surfsense_local` is one core with two entries: Electron for the desktop, a headless Node entry for the container. The headless entry runs the same supervisor as Electron, which starts the API, the workers, the model servers and opencode on loopback; Caddy is the only thing listening. It replaces the legacy self-host compose, which lives on the `legacy` branch ([legacy stack](legacy.md)). Who can open it, and how, is [Docker access](docker-access.md); GPU images are a [proposal](../proposals/docker-gpu.md).
 
 **Code:** [`docker/surfsense/`](../../docker/surfsense/), [`surfsense_local/headless/`](../../surfsense_local/headless/), [`surfsense_local/sidecars/`](../../surfsense_local/sidecars/), [`surfsense_local/runtimes/`](../../surfsense_local/runtimes/), [`docker-tests.yml`](../../.github/workflows/docker-tests.yml), [`release-docker.yml`](../../.github/workflows/release-docker.yml)
 **Decisions:** [ADR 0035](../adr/0035-docker-compose-runs-the-desktop-stack.md), [ADR 0072](../adr/0072-the-desktop-and-the-container-are-two-entries-over-one-core.md), [ADR 0074](../adr/0074-docker-sign-in-is-a-surfsense-page-that-caddy-enforces.md), [ADR 0075](../adr/0075-what-differs-in-docker-is-gated-by-one-build-flag-or-the-bridge.md)
@@ -260,7 +260,7 @@ The image releases with the desktop app: one version, `surfsense_local/VERSION`,
 
 ## Known gaps
 
-- No installer: `docker/scripts/install.sh` and `install.ps1`, at the legacy installer's paths ([legacy split](../proposals/legacy-split/README.md#the-install-urls-pass-to-the-new-stack)), are not written, and the root README does not point self-hosters at the image yet.
+- No installer: `docker/scripts/install.sh` and `install.ps1`, at the legacy installer's paths ([legacy stack](legacy.md#the-install-urls)), are not written, and the root README does not point self-hosters at the image yet.
 - CPU only, and `linux/amd64` only; the CUDA variant and arm64 are the [GPU proposal](../proposals/docker-gpu.md).
 - A plugin whose provider takes only SurfSense's hosted client document cannot finish a sign-in from another device on a LAN name: the hosted page forwards to loopback only, and a paste-back through it is not built. The user's own app works.
 - Not verified against the real services: whether OpenAI accepts a non-loopback HTTPS redirect for ChatGPT, which would replace the paste-back; whether Notion's dynamic registration accepts a LAN HTTPS redirect; the hosted page's forward end to end, which no test exercises ([plugins](plugins.md#known-gaps)).

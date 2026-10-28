@@ -104,3 +104,4 @@ The Date is the day the decision was first written down. Source links are permal
 | 0073 | [The Docker GPU image is one CUDA 12.8 variant, with `-cuda13` to follow for arm64, and each runtime has one source shared with the desktop](0073-the-docker-gpu-image-is-one-cuda-12-8-variant-from-upstream-builds.md) | Accepted |
 | 0074 | [The Docker image's sign-in is a SurfSense page, issued by the headless entry and enforced by Caddy's `forward_auth`](0074-docker-sign-in-is-a-surfsense-page-that-caddy-enforces.md) | Accepted |
 | 0075 | [What differs in the Docker image is gated by one build flag, the Electron bridge, or the API's own setting](0075-what-differs-in-docker-is-gated-by-one-build-flag-or-the-bridge.md) | Accepted |
+| 0076 | [The legacy self-hosted stack lives on its own branch, tagged `legacy-v*`, and its install paths on `main` pass to the new stack](0076-the-legacy-stack-lives-on-its-own-branch.md) | Accepted |

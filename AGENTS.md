@@ -12,7 +12,7 @@ Desktop app plus SurfSense's own backend. Three trees:
 | `surfsense_local` | Electron desktop |
 | `backend` | The one SurfSense backend, one process run by `server/`: the [license portal](docs/architecture/license/portal.md) in `license/`, its `mailer/`, and `plugins/`, which holds SurfSense's own plugin servers ([plugin host](docs/architecture/plugin-host.md)) and the [registry](docs/architecture/plugin-registry.md); `plugins/bundles/` holds the earlier, local design's SDK and tooling, deferred |
 
-The hosted service closed on 18 Oct 2026, when its user data was purged. The self-hosted stack, `surfsense_backend`, `surfsense_web`, `surfsense_mcp` and `docker/`, lives only on the `legacy` branch ([legacy split](docs/proposals/legacy-split/README.md)). Product direction is local + API.
+The hosted service closed on 18 Oct 2026, when its user data was purged. The self-hosted stack, `surfsense_backend`, `surfsense_web`, `surfsense_mcp` and `docker/`, lives only on the `legacy` branch ([legacy stack](docs/architecture/legacy.md)). Product direction is local + API.
 
 ## Code organization
 
