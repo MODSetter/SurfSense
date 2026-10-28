@@ -5,6 +5,7 @@ import react from "@vitejs/plugin-react"
 import { defineConfig, type Plugin } from "vite"
 import type {} from "vitest/config"
 
+import { devTabIdentity } from "./vite-plugins/dev-tab-identity.ts"
 import { woff2OnlyFonts } from "./vite-plugins/woff2-only-fonts.ts"
 
 // The snapshot page's policy (docx-snapshot.html) leaves 'self' out of
@@ -27,13 +28,17 @@ export default defineConfig({
   // Relative asset paths so the packaged SPA loads over file:// (Electron loadFile).
   base: "./",
   plugins: [
-    // The catalogs supply every message, so the inline English is dropped from
-    // the bundle; `formatjs extract` reads it from the source instead.
-    formatjs({ removeDefaultMessage: true }),
+    // Served, English is each call's own defaultMessage, parsed here so no parser
+    // ships and an edit hot-reloads in place (src/i18n/intl.ts).
+    { ...formatjs({ ast: true }), apply: "serve" },
+    // Built, the catalogs supply every message, so the inline English is dropped
+    // from the bundle; `formatjs extract` reads it from the source instead.
+    { ...formatjs({ removeDefaultMessage: true }), apply: "build" },
     react(),
     tailwindcss(),
     woff2OnlyFonts(),
     snapshotPageReachesDevServer(),
+    devTabIdentity(),
   ],
   resolve: {
     alias: {

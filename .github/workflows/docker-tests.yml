@@ -1,6 +1,6 @@
 name: Docker Tests
 
-# The Docker entry and ghcr.io/modsetter/surfsense (docs/proposals/docker/README.md),
+# The Docker entry and ghcr.io/modsetter/surfsense (docs/architecture/docker.md),
 # tested without pushing an image; release-docker.yml publishes. dev pushes write
 # only the build cache. The shared core's own
 # tests are Desktop Tests'; here only what the entry and the image add.
@@ -36,6 +36,7 @@ jobs:
       frontend: ${{ steps.filter.outputs.frontend || 'true' }}
       image: ${{ steps.filter.outputs.image || 'true' }}
       backend: ${{ steps.filter.outputs.backend || 'true' }}
+      installer: ${{ steps.filter.outputs.installer || 'true' }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -57,10 +58,8 @@ jobs:
               - 'docker/surfsense/**'
               - 'surfsense_local/headless/**'
               - 'surfsense_local/sidecars/**'
-              # opencode's staging, and what it imports.
-              - 'surfsense_local/runtimes/opencode/**'
-              - 'surfsense_local/runtimes/pinned-download.mjs'
-              - 'surfsense_local/runtimes/windows-locks/**'
+              # The image stages llama.cpp, sd.cpp, audio.cpp and opencode with these.
+              - 'surfsense_local/runtimes/**'
               - 'surfsense_local/backend/pyproject.toml'
               - 'surfsense_local/backend/uv.lock'
               # The bundled models' downloads, which the build runs.
@@ -80,6 +79,12 @@ jobs:
               # The bundled models' downloads, which the build runs.
               - 'surfsense_local/backend/scripts/fetch_*.py'
               - 'backend/plugins/bundles/core/manifest/**'
+              - '.github/workflows/docker-tests.yml'
+            installer:
+              - 'docker/scripts/**'
+              # The files the installers download.
+              - 'docker/surfsense/docker-compose.yml'
+              - 'docker/surfsense/.env.example'
               - '.github/workflows/docker-tests.yml'
 
   headless:
@@ -156,7 +161,9 @@ jobs:
           persist-credentials: false
 
       - name: Check the compose file
-        run: docker compose -f docker/surfsense/docker-compose.yml --env-file docker/surfsense/.env.example config -q
+        run: |
+          docker compose -f docker/surfsense/docker-compose.yml --env-file docker/surfsense/.env.example config -q
+          docker compose -f docker/surfsense/dev/compose.yml config -q
 
       - uses: docker/setup-buildx-action@v4
 
@@ -239,11 +246,32 @@ jobs:
             -v "$PWD/docs/contracts:/app/docs/contracts:ro" \
             surfsense:backend-tests
 
+  # The one-line installers against a stand-in docker; ubuntu-latest carries
+  # shellcheck and pwsh, so both scripts run.
+  installer:
+    name: Installers
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: changes
+    if: needs.changes.outputs.installer == 'true'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The token stays out of .git/config, where the code under test could read it.
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Shellcheck
+        run: shellcheck docker/scripts/install.sh
+      - name: Run tests
+        run: node --test docker/scripts/install.test.ts
+
   gate:
     name: Docker Gate
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [changes, headless, frontend, image, backend]
+    needs: [changes, headless, frontend, image, backend, installer]
     if: always()
     steps:
       - name: Check every job

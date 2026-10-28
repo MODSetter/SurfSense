@@ -1,0 +1,21 @@
+# SURFSENSE_DOMAIN: HTTPS for a public domain, with a certificate from Let's
+# Encrypt or ZeroSSL, renewed by Caddy. The domain must resolve to this host and
+# reach the container on ports 80 and 443.
+{
+	admin off
+}
+
+# The host itself keeps plain HTTP; Caddy redirects every other address.
+:80 {
+	@host host localhost 127.0.0.1 [::1]
+	handle @host {
+		import routes.caddy
+	}
+	handle {
+		redir https://{$SURFSENSE_DOMAIN}{uri} 308
+	}
+}
+
+{$SURFSENSE_DOMAIN} {
+	import routes.caddy
+}

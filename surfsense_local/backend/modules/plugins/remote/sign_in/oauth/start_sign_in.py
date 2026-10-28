@@ -13,10 +13,13 @@ from mcp.client.auth import OAuthFlowError
 from mcp.client.auth.exceptions import OAuthRegistrationError
 from sqlalchemy.orm import Session
 
-from api.config import get_settings
 from api.dependencies import transact
 from modules.plugins.installed.awaiting_sign_in import store_awaiting_sign_in
 from modules.plugins.installed.plugin_hosts import refused_hosts
+from modules.plugins.remote.sign_in.oauth.browser_origin import (
+    BrowserOrigin,
+    browser_origin,
+)
 from modules.plugins.remote.sign_in.oauth.consented_client import HostNotAllowedError
 from modules.plugins.remote.sign_in.oauth.handled_refusals import quiet_handled_refusals
 from modules.plugins.remote.sign_in.oauth.oauth_discovery import discover_oauth
@@ -51,13 +54,15 @@ def get_sign_ins(request: Request) -> PluginSignIns:
 SignInsDep = Annotated[PluginSignIns, Depends(get_sign_ins)]
 
 
-async def save_for_sign_in(session: Session, draft: PluginDraft) -> bool:
+async def save_for_sign_in(
+    session: Session, draft: PluginDraft, origin: BrowserOrigin
+) -> bool:
     """Added by URL, saved signed out for Connect on its row: nothing is registered and no
     sign-in starts until then. False when the server's refusal does not ask for OAuth."""
     draft = await _discovered(session, draft)
     if draft is None:
         return False
-    if await _registers_none(draft):
+    if await _registers_none(draft, origin):
         await transact(session, keep_needing_own_app, draft, "needs_client")
     else:
         await transact(session, store_awaiting_sign_in, draft)
@@ -71,7 +76,7 @@ async def start_sign_in(
     draft = await _discovered(session, draft)
     if draft is None:
         return None
-    if await _registers_none(draft):
+    if await _registers_none(draft, browser_origin(request)):
         raise await _own_app_needed(session, draft, "needs_client")
     try:
         pending = await _started(request, draft)
@@ -107,10 +112,10 @@ async def _discovered(session: Session, draft: PluginDraft) -> PluginDraft | Non
     return draft.with_hosts(discovery.authorization_server_hosts)
 
 
-async def _registers_none(draft: PluginDraft) -> bool:
+async def _registers_none(draft: PluginDraft, origin: BrowserOrigin) -> bool:
     """Read before any registration, which would only be refused after requests sent for nothing."""
     offer = None if draft.client_id else await _offer(draft)
-    if offer is None or _can_register(offer):
+    if offer is None or _can_register(offer, origin):
         return False
     logger.info("%s registers no apps; asking for the user's own", _host(draft))
     return True
@@ -120,9 +125,9 @@ async def _started(request: Request, draft: PluginDraft):
     """A public client first; refused, a client with a secret of this install's own."""
     start = get_sign_ins(request).start
     hosts = set(_draft_hosts(draft))
-    factory, port = request.app.state.session_factory, get_settings().browser_port()
+    factory, origin = request.app.state.session_factory, browser_origin(request)
     try:
-        return await start(draft, hosts, factory, port)
+        return await start(draft, hosts, factory, origin)
     except OAuthRegistrationError:
         if draft.client_id or draft.confidential:
             raise
@@ -130,7 +135,7 @@ async def _started(request: Request, draft: PluginDraft):
             "%s refused SurfSense as a public client; registering with a secret",
             _host(draft),
         )
-        return await start(replace(draft, confidential=True), hosts, factory, port)
+        return await start(replace(draft, confidential=True), hosts, factory, origin)
 
 
 async def _offer(draft: PluginDraft) -> RegistrationOffer | None:
@@ -141,11 +146,9 @@ async def _offer(draft: PluginDraft) -> RegistrationOffer | None:
         return None
 
 
-def _can_register(offer: RegistrationOffer) -> bool:
+def _can_register(offer: RegistrationOffer, origin: BrowserOrigin) -> bool:
     """Dynamic registration, or a client document where this build signs in with one."""
-    documents = (
-        sign_in_client(get_settings().browser_port()).client_metadata_url is not None
-    )
+    documents = sign_in_client(origin).client_metadata_url is not None
     return offer.registers or (offer.client_documents and documents)
 
 

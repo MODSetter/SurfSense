@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-# The desktop app's stack without Electron (docs/proposals/docker/README.md).
+# The desktop app's stack without Electron (docs/architecture/docker.md).
 # Build from the repository root: docker build -f docker/surfsense/Dockerfile .
 
 ARG NODE_IMAGE=node:24.21.0-bookworm-slim
@@ -24,6 +24,18 @@ COPY surfsense_local/VERSION ../VERSION
 RUN VITE_API_BASE=/api VITE_SURFSENSE_RUNTIME=docker \
     VITE_SURFSENSE_VERSION="$(cat ../VERSION)" pnpm build
 
+# The dev stack's Vite (dev/compose.yml): the source and node_modules are mounted
+# in, as uid 1000, so what it writes to the checkout stays the developer's.
+FROM node AS frontend-dev
+RUN corepack enable \
+    && mkdir -p /src/surfsense_local/frontend/node_modules /pnpm-store \
+    && chown -R node:node /src /pnpm-store
+USER node
+WORKDIR /src/surfsense_local/frontend
+# Fetches the pinned pnpm once, here, instead of at every start.
+COPY surfsense_local/frontend/package.json ./
+RUN pnpm --version
+
 # opencode and ripgrep, staged by the desktop's pinned script.
 FROM node AS opencode
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates unzip \
@@ -31,6 +43,29 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
 WORKDIR /src/surfsense_local
 COPY surfsense_local/runtimes/ runtimes/
 RUN mkdir -p electron && node runtimes/opencode/stage.mjs
+
+# The local model runtimes, staged by the desktop's own scripts with the image's
+# variant: one source per runtime, shared with the desktop (ADR 0073, gpu.md).
+# On the final image's Ubuntu, so what links here runs there.
+FROM ${UBUNTU_IMAGE} AS toolchain
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates git cmake ninja-build g++ unzip libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=node /usr/local/bin/node /usr/local/bin/node
+WORKDIR /src/surfsense_local
+COPY surfsense_local/runtimes/ runtimes/
+
+# llama.cpp: upstream's CPU build at the desktop's pin.
+FROM toolchain AS llamacpp
+RUN node runtimes/fetch-llamacpp.mjs --variant cpu --out /runtimes/llamacpp
+
+# sd.cpp: the desktop's recipe, without Vulkan.
+FROM toolchain AS sdcpp
+RUN node runtimes/sdcpp/stage.mjs --variant cpu --out /runtimes/sdcpp --strict
+
+# audio.cpp and eSpeak: the desktop's Linux build, which is CPU-only already.
+FROM toolchain AS audiocpp
+RUN node runtimes/audiocpp/stage.mjs --out /runtimes/audiocpp --strict
 
 # Ubuntu's own Python 3.12, so the venv's interpreter is the one the final image carries.
 FROM ${UBUNTU_IMAGE} AS python
@@ -48,11 +83,13 @@ RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-dev --no-ins
 COPY surfsense_local/backend/ ./
 RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-dev
 
-# The bundled models: embeddings, the parser pack and speech detection; nothing downloads them later.
+# The bundled models: embeddings, the parser pack, speech detection and the voice
+# the installers ship, so podcasts work from the first start; nothing downloads them later.
 FROM backend AS models
 RUN .venv/bin/python scripts/fetch_embedding_model.py models \
     && .venv/bin/python scripts/fetch_docling_models.py models \
-    && .venv/bin/python scripts/fetch_silero_vad.py models
+    && .venv/bin/python scripts/fetch_silero_vad.py models \
+    && .venv/bin/python scripts/fetch_bundled_voice.py models
 
 # The backend's `image`-marked tests on the image's Ubuntu, Python and bundled models,
 # never shipped. docker-tests.yml mounts tests/ in, which the build context leaves out.
@@ -66,9 +103,15 @@ ENV HOME=/tmp
 ENTRYPOINT ["tini", "-g", "--"]
 CMD [".venv/bin/pytest", "-p", "no:cacheprovider", "-m", "image"]
 
-FROM python AS runtime
+# Everything but the SPA, which the dev stack serves from Vite instead.
+FROM python AS app
 # curl: the Claude dialog's install command downloads Claude Code with it.
-RUN apt-get update && apt-get install -y --no-install-recommends tini curl \
+# libgomp1: llama.cpp's upstream CPU build threads with OpenMP.
+# The rest, about 21 MB: what Office support's LibreOffice, unpacked into /data,
+# links against for a headless conversion, and a font to lay pages out with.
+RUN apt-get update && apt-get install -y --no-install-recommends tini curl libgomp1 \
+        libxinerama1 libx11-xcb1 libxext6 libsm6 libfontconfig1 fonts-dejavu-core \
+        libnss3 libdbus-1-3 libcairo2 libglib2.0-0t64 libcups2t64 \
     && rm -rf /var/lib/apt/lists/* \
     && userdel --remove ubuntu \
     && useradd --uid 1000 --create-home --shell /usr/sbin/nologin surfsense \
@@ -79,8 +122,10 @@ COPY backend/plugins/bundles/core/manifest/ /app/backend/plugins/bundles/core/ma
 COPY backend/plugins/bundles/core/sdk/ /app/backend/plugins/bundles/core/sdk/
 COPY --from=backend /app/surfsense_local/backend/ /app/surfsense_local/backend/
 COPY --from=models /app/surfsense_local/backend/models/ /app/surfsense_local/backend/models/
-COPY --from=frontend /src/surfsense_local/frontend/dist/ /app/surfsense_local/frontend/dist/
 COPY --from=opencode /src/surfsense_local/electron/opencode/ /app/runtimes/opencode/
+COPY --from=llamacpp /runtimes/llamacpp/ /app/runtimes/llamacpp/
+COPY --from=sdcpp /runtimes/sdcpp/ /app/runtimes/sdcpp/
+COPY --from=audiocpp /runtimes/audiocpp/ /app/runtimes/audiocpp/
 COPY surfsense_local/sidecars/ /app/surfsense_local/sidecars/
 COPY surfsense_local/headless/ /app/surfsense_local/headless/
 COPY docker/surfsense/caddy/ /app/caddy/
@@ -98,9 +143,14 @@ ENV SURFSENSE_LOCAL_DATA_DIR=/data \
 
 USER surfsense
 VOLUME /data
-EXPOSE 80
+EXPOSE 80 443
 # A first start migrates and loads the parser pack before the API answers.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --start-interval=5s --retries=3 \
     CMD ["node", "-e", "fetch('http://localhost/api/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
 ENTRYPOINT ["tini", "-g", "--"]
 CMD ["node", "/app/surfsense_local/headless/main.ts"]
+
+FROM app AS runtime
+COPY --from=frontend /src/surfsense_local/frontend/dist/ /app/surfsense_local/frontend/dist/
+# The installer reports the version it started.
+COPY surfsense_local/VERSION /app/VERSION

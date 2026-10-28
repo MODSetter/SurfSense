@@ -11,6 +11,7 @@ from modules.llm.capability.schemas import (
     ModesRead,
     ReasonRead,
 )
+from modules.llm.capability.studio_output import studio_output
 from modules.llm.models import SelectedModel
 
 __all__ = ["capability_read"]
@@ -51,4 +52,5 @@ def capability_read(
             reason=ReasonRead(code=modes.reason.code, values=modes.reason.values),
             remembered_mode=modes.remembered_mode,
         ),
+        studio=studio_output(selected),
     )

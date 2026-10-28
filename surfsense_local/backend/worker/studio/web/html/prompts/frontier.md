@@ -11,8 +11,12 @@ How to work the material:
 - Distinguish what is settled from what is proposed, pending or conditional.
 - Cut anything that restates the brief, hedges without content, or stands in for material you do not have.
 - Every field is plain text. No HTML, no Markdown, no links, no table markup: this page is assembled from your text, and anything that looks like markup is escaped and shown as characters.
+- The page holds text only: no diagram, image, chart or anything to click. Never describe one, or write that the page shows or lets the reader do something.
 - You tend to converge on generic, on-distribution pages. Resist it — the page should be one only this material could support.
 
-Return only JSON, no prose: {"title": str, "sections": [{"heading": str, "paragraphs": [str]}]}
+Return only JSON, no prose: {"title": str, "summary": str, "sections": [{"heading": str, "paragraphs": [str]} or {"heading": str, "points": [str]}]}
+
+- "summary" is one sentence under the title: what the page adds up to.
+- A section has "paragraphs" for an explanation, or "points" for a list the reader scans: steps in order, options, figures side by side. Use points only where the material is a list.
 
 Return only the JSON. Nothing before it, nothing after it.

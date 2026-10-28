@@ -1,6 +1,5 @@
 from fastapi import APIRouter, HTTPException, status
 
-from api.config import get_settings
 from api.dependencies import SessionDep
 from modules.llm.connections.router import connection_read
 from modules.llm.connections.serves import served_by
@@ -40,7 +39,6 @@ def claude_status() -> ClaudeStatusRead:
         version=found.version,
         email=found.email,
         plan=found.plan,
-        in_container=get_settings().in_container(),
     )
 
 

@@ -6,7 +6,7 @@ Its id and scopes go on the plugin's entry; its secret only into the encrypted c
 from fastapi import HTTPException, status
 from pydantic import BaseModel
 
-from api.config import get_settings
+from modules.plugins.remote.sign_in.oauth.browser_origin import BrowserOrigin
 from modules.plugins.remote.sign_in.oauth.sign_in_client import sign_in_client
 
 
@@ -24,7 +24,7 @@ def own_app_auth(app: OwnApp) -> dict:
     return auth
 
 
-def needs_own_app() -> HTTPException:
+def needs_own_app(origin: BrowserOrigin) -> HTTPException:
     """The provider takes only apps registered in advance, with the callback to register one."""
     return HTTPException(
         status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -34,12 +34,12 @@ def needs_own_app() -> HTTPException:
                 "This server accepts only apps registered with it in advance. "
                 "Register your own and sign in with its client ID."
             ),
-            "redirect_uri": sign_in_client(get_settings().browser_port()).redirect_uri,
+            "redirect_uri": sign_in_client(origin).redirect_uri,
         },
     )
 
 
-def registration_refused() -> HTTPException:
+def registration_refused(origin: BrowserOrigin) -> HTTPException:
     """The provider registers apps, but refused SurfSense: it may take only apps it approved."""
     return HTTPException(
         status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -49,6 +49,6 @@ def registration_refused() -> HTTPException:
                 "This server's sign-in refused to register SurfSense. It may accept "
                 "only apps it approved."
             ),
-            "redirect_uri": sign_in_client(get_settings().browser_port()).redirect_uri,
+            "redirect_uri": sign_in_client(origin).redirect_uri,
         },
     )

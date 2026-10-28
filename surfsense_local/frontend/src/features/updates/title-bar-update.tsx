@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState, type ReactNode } from "react"
 
 import { Button } from "@/components/ui/button"
+import { DownloadRing } from "@/components/ui/download-ring"
 import { ArrowDown02Icon } from "@/components/ui/icons"
 import { Spinner } from "@/components/ui/spinner"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
-import { DownloadRing } from "./download-ring"
 import { updatesBridge, useUpdateState } from "./use-update-state"
 
 // A 20px circle that widens leftwards to show its label on hover or focus.

@@ -40,6 +40,14 @@ class Loopback:
         port = settings.public_port or self._server.sockets[0].getsockname()[1]
         return f"http://127.0.0.1:{port}{CALLBACK_PATH}"
 
+    def deliver(self, query: dict[str, str]) -> bool:
+        """The callback's query, from this listener or pasted from the browser's
+        address bar; only the first counts."""
+        if self._callback.done():
+            return False
+        self._callback.set_result(query)
+        return True
+
     async def callback(self) -> dict[str, str]:
         """The query of the first request to the callback path."""
         return await self._callback
@@ -62,9 +70,7 @@ class Loopback:
             if target is None or target.path != CALLBACK_PATH:
                 writer.write(b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n")
                 return
-            if not self._callback.done():
-                query = {k: v[0] for k, v in parse_qs(target.query).items()}
-                self._callback.set_result(query)
+            self.deliver({k: v[0] for k, v in parse_qs(target.query).items()})
             writer.write(
                 b"HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\n"
                 b"Content-Length: %d\r\nConnection: close\r\n\r\n%s"

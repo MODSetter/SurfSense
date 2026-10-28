@@ -54,6 +54,14 @@ SurfSense 是一款免费开源的桌面应用，专为那些不能上传的文�
 | **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
 | **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
 
+**用 Docker 在服务器上自托管**，并在你网络中的任何设备上打开。再次运行同一条命令即可更新。
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
+```
+
+在装有 Docker Desktop 的 Windows 上：`irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 | iex`
+
 ## 快速开始
 
 1. 安装 SurfSense，完成初始设置。

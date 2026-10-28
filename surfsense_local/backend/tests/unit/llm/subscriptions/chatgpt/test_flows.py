@@ -117,3 +117,56 @@ async def test_in_a_container_a_sign_in_already_saving_is_left_to_finish(
         release.set()
         for flow in started:
             flows.cancel(flow.id)
+
+
+async def test_a_pasted_callback_address_finishes_the_sign_in(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """From another machine the redirect to 127.0.0.1 fails in the user's own
+    browser; the address it left there carries the code, and the API finishes
+    with the verifier it kept."""
+    _in_a_container(monkeypatch)
+    seen: list[dict[str, str]] = []
+
+    async def tokens(query: dict[str, str], *_args: object) -> object:
+        seen.append(query)
+        return object()
+
+    monkeypatch.setattr(flows_module, "_tokens", tokens)
+    monkeypatch.setattr(flows_module, "_save", lambda *_args: (7, None))
+    flows = SignInFlows()
+    flow = await flows.start(None, label=None, connection_id=None)  # type: ignore[arg-type]
+
+    pasted = flows.paste(
+        flow.id, "http://127.0.0.1:4929/callback?code=the-code&state=the-state"
+    )
+
+    assert pasted is True
+    assert flow.task is not None
+    await asyncio.wait_for(flow.task, timeout=5)
+    assert seen == [{"code": "the-code", "state": "the-state"}]
+    assert flow.status == "signed_in"
+
+
+async def test_an_address_that_is_not_the_callback_is_refused_and_the_sign_in_waits(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Another page's address, a callback without its code, or no address at all."""
+    _in_a_container(monkeypatch)
+    flows = SignInFlows()
+    flow = await flows.start(None, label=None, connection_id=None)  # type: ignore[arg-type]
+    try:
+        assert flows.paste(flow.id, "https://chatgpt.com/?code=x&state=y") is False
+        assert flows.paste(flow.id, "http://127.0.0.1:4929/callback?state=y") is False
+        assert flows.paste(flow.id, "not an address") is False
+        assert flow.status == "waiting"
+    finally:
+        flows.cancel(flow.id)
+
+
+async def test_pasting_into_a_sign_in_that_is_gone_is_refused() -> None:
+    """Cancelled, finished or never started: nothing to finish."""
+    assert (
+        SignInFlows().paste("no-such-flow", "http://127.0.0.1/callback?code=c&state=s")
+        is False
+    )

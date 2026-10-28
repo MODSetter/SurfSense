@@ -2,6 +2,8 @@ import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { intl } from "@/i18n/intl"
 
+import { needsPastedCallback } from "./needs-pasted-callback"
+import { PasteCallback } from "./paste-callback"
 import { openSignInPage, type SignInState } from "./use-sign-in"
 
 /** Where a ChatGPT sign-in stands, in the dialog and beside Use a server alike. */
@@ -27,6 +29,7 @@ export function SignInProgress({ state }: { state: SignInState }) {
             defaultMessage: "Open the sign-in page again",
           })}
         </Button>
+        {needsPastedCallback() ? <PasteCallback flowId={state.flowId} /> : null}
       </div>
     )
   if (state.phase === "declined")

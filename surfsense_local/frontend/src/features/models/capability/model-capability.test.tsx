@@ -1,9 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { cleanup, screen } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 
 import { render } from "@/test-utils"
 
-import type { ChatModes, ModelCapability } from "./api"
+import type { ChatModes, MeasuredRow, ModelCapability } from "./api"
 import { ModelCapabilitySummary } from "./model-capability"
 
 afterEach(() => {
@@ -20,6 +21,20 @@ const UNTESTED: ChatModes = {
   remembered_mode: null,
 }
 
+const MEASURED: MeasuredRow = {
+  key: "claude-haiku-4-5",
+  suite: "create-and-edit",
+  assumed: false,
+  suite_version: 1,
+  measured_on: "2026-10-04",
+  provider: "anthropic",
+  host: "api.anthropic.com",
+  reads_images: true,
+  passed: 5,
+  counted: 8,
+  provisional: false,
+}
+
 function capability(overrides: Partial<ModelCapability> = {}): ModelCapability {
   return {
     level: "not_measured",
@@ -28,11 +43,12 @@ function capability(overrides: Partial<ModelCapability> = {}): ModelCapability {
     note: null,
     measured: null,
     modes: UNTESTED,
+    studio: "full",
     ...overrides,
   }
 }
 
-function serving(capabilityRead: ModelCapability) {
+function serving(capabilityRead: ModelCapability | null) {
   return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const path = String(input)
     if (path === "/llm/selection/text_gen" && !init?.method) {
@@ -49,10 +65,36 @@ function serving(capabilityRead: ModelCapability) {
   })
 }
 
-describe("the selected chat model's capability", () => {
-  it("is not shown in a production build", async () => {
+/** Opens the disclosure and returns what it shows. */
+async function opened(read: ModelCapability): Promise<string> {
+  vi.stubGlobal("fetch", serving(read))
+  const user = userEvent.setup()
+  render(<ModelCapabilitySummary />)
+  await user.click(
+    await screen.findByRole("button", { name: "What this model can do" })
+  )
+  return (
+    screen.getByRole("region", { name: "What this model can do" })
+      .textContent ?? ""
+  )
+}
+
+describe("what the chat model in use can do", () => {
+  it("is offered in a production build too, closed until asked", async () => {
     vi.stubEnv("DEV", false)
-    const fetch = serving(capability())
+    vi.stubGlobal("fetch", serving(capability()))
+
+    render(<ModelCapabilitySummary />)
+
+    const toggle = await screen.findByRole("button", {
+      name: "What this model can do",
+    })
+    expect(toggle.getAttribute("aria-expanded")).toBe("false")
+    expect(screen.queryByRole("region")).toBeNull()
+  })
+
+  it("says nothing while no chat model is chosen", async () => {
+    const fetch = serving(null)
     vi.stubGlobal("fetch", fetch)
 
     const { container } = render(<ModelCapabilitySummary />)
@@ -63,199 +105,121 @@ describe("the selected chat model's capability", () => {
     expect(container.textContent).toBe("")
   })
 
-  it("names a measured level, the evidence behind it, and the mode new chats start in", async () => {
-    vi.stubGlobal(
-      "fetch",
-      serving(
-        capability({
-          level: "agent_limited",
-          label_key: "agent_limited",
-          reason: {
-            code: "measured_near",
-            values: {
-              passed: 5,
-              counted: 8,
-              suite_version: 1,
-              measured_on: "2026-10-04",
-            },
-          },
-          note: "Passed 5 of 8; ask it to check each page.",
-          measured: {
-            key: "claude-haiku-4-5",
-            suite: "create-and-edit",
-            assumed: false,
-            suite_version: 1,
-            measured_on: "2026-10-04",
-            provider: "anthropic",
-            host: "api.anthropic.com",
-            reads_images: true,
-            passed: 5,
-            counted: 8,
-            provisional: true,
-          },
-          modes: {
-            ...UNTESTED,
-            default_mode: "agentic",
-            reason: {
-              code: "measured_near",
-              values: { passed: 5, counted: 8 },
-            },
-          },
-        })
-      )
+  it("says what a model at the bar does in chat and in Studio, and how it was tested", async () => {
+    const shown = await opened(
+      capability({
+        level: "agent",
+        label_key: "agent",
+        reason: { code: "measured_pass", values: {} },
+        measured: { ...MEASURED, passed: 8 },
+        modes: { ...UNTESTED, default_mode: "agentic" },
+      })
     )
 
-    render(<ModelCapabilitySummary />)
-
-    expect(await screen.findByText("Agentic, may need nudges")).toBeTruthy()
-    expect(screen.getByText(/Passed 5 of 8 cases/)).toBeTruthy()
-    expect(
-      screen.getByText("Passed 5 of 8; ask it to check each page.")
-    ).toBeTruthy()
-    expect(screen.getByText("New chats start in Agentic mode.")).toBeTruthy()
+    expect(shown).toContain(
+      "Basic and Agentic. Choose the mode in the composer."
+    )
+    expect(shown).toContain(
+      "Full designed pages, and Word, Excel and slide files."
+    )
+    expect(shown).toContain("Tested: 8 of 8 cases passed, Oct 4, 2026.")
   })
 
-  it("describes the modes in place of the old agent trial", async () => {
-    vi.stubGlobal("fetch", serving(capability()))
+  it("says a model near the bar may need a nudge in Agentic", async () => {
+    const shown = await opened(
+      capability({
+        level: "agent_limited",
+        label_key: "agent_limited",
+        measured: MEASURED,
+      })
+    )
 
-    render(<ModelCapabilitySummary />)
-
-    expect(await screen.findByText("Not tested")).toBeTruthy()
-    expect(
-      screen.getByText("New chats start in Basic (Q&A) mode.")
-    ).toBeTruthy()
-    expect(
-      screen.getByText(/Choose Basic \(Q&A\) or Agentic for each new chat/)
-    ).toBeTruthy()
-    expect(screen.queryByRole("switch")).toBeNull()
-    expect(screen.queryByText("Try the agent")).toBeNull()
+    expect(shown).toContain(
+      "Basic and Agentic. In Agentic it may need a nudge, such as asking it to check its work."
+    )
   })
 
-  it("says a low score sets the default, not what the model may do", async () => {
-    vi.stubGlobal(
-      "fetch",
-      serving(
-        capability({
-          level: "studio_only",
-          label_key: "studio_only",
-          reason: { code: "measured_fail", values: {} },
-          measured: {
-            key: "gemma-4-31b-it",
-            suite: "create-and-edit",
-            assumed: false,
-            suite_version: 1,
-            measured_on: "2026-10-04",
-            provider: "openrouter",
-            host: "openrouter.ai",
-            reads_images: true,
-            passed: 2,
-            counted: 8,
-            provisional: true,
-          },
-          modes: {
-            ...UNTESTED,
-            reason: {
-              code: "measured_below",
-              values: { passed: 2, counted: 8 },
-            },
-          },
-        })
-      )
+  it("says a model below the bar makes simple Studio files, and what a stronger one adds", async () => {
+    const shown = await opened(
+      capability({
+        level: "studio_only",
+        label_key: "studio_only",
+        measured: { ...MEASURED, passed: 1, counted: 2, provisional: true },
+        studio: "simple",
+      })
     )
 
-    render(<ModelCapabilitySummary />)
-
-    expect(await screen.findByText("Low Agentic score")).toBeTruthy()
-    expect(
-      screen.getByText(/Choose Basic \(Q&A\) or Agentic for each new chat/)
-    ).toBeTruthy()
+    expect(shown).toContain(
+      "Basic and Agentic. Agentic may not finish longer tasks well."
+    )
+    expect(shown).toContain(
+      "Simple pages and documents. A stronger model writes full designed pages and Word, Excel and slide files."
+    )
+    expect(shown).toContain(
+      "From a short test: 1 of 2 cases passed, Oct 4, 2026."
+    )
   })
 
-  it("says once that a flagship assumed to pass was not run, never that it passed", async () => {
-    vi.stubGlobal(
-      "fetch",
-      serving(
-        capability({
-          level: "agent",
-          label_key: "agent",
-          reason: { code: "assumed", values: {} },
-          note: "Not run: an expensive flagship assumed to pass",
-          measured: {
-            key: "claude-opus-4-6",
-            suite: "assumed",
-            assumed: true,
-            suite_version: 1,
-            measured_on: "2026-10-07",
-            provider: "openrouter",
-            host: "openrouter.ai",
-            reads_images: true,
-            passed: 0,
-            counted: 0,
-            provisional: true,
-          },
-          modes: {
-            ...UNTESTED,
-            default_mode: "agentic",
-            reason: { code: "assumed", values: {} },
-          },
-        })
-      )
+  it.each([
+    [
+      "tool_calls_unsupported",
+      "Basic only. Agentic needs a model that can use tools.",
+    ],
+    [
+      "window_below_floor",
+      "Basic only. Agentic needs a context window of at least 32,768 tokens.",
+    ],
+    [
+      "agent_not_installed",
+      "Basic only. This install doesn’t include the agent.",
+    ],
+  ])("says why %s keeps chat to Basic", async (blocked, line) => {
+    const shown = await opened(
+      capability({
+        modes: { ...UNTESTED, agentic_allowed: false, blocked },
+      })
     )
 
-    render(<ModelCapabilitySummary />)
-
-    const summary = await screen.findByRole("region", {
-      name: "What this chat model can do",
-    })
-    expect(summary.textContent).toContain(
-      "Not run: SurfSense expects this expensive flagship model to pass."
-    )
-    expect(summary.textContent?.match(/Not run/g)).toHaveLength(1)
-    expect(summary.textContent).not.toMatch(/Passed/)
+    expect(shown).toContain(line)
   })
 
-  it("says a pass measured on a provider's host does not hold on a server of one's own", async () => {
-    vi.stubGlobal(
-      "fetch",
-      serving(
-        capability({
-          reason: {
-            code: "measured_elsewhere",
-            values: { host: "openrouter.ai" },
-          },
-        })
-      )
-    )
+  it.each([
+    [
+      "an untested model",
+      capability(),
+      "Basic and Agentic. Agentic isn’t tested with this model yet.",
+      "Not tested yet.",
+    ],
+    [
+      "a flagship assumed to pass",
+      capability({
+        level: "agent",
+        label_key: "agent",
+        reason: { code: "assumed", values: {} },
+        measured: { ...MEASURED, suite: "assumed", assumed: true },
+      }),
+      "Basic and Agentic. Choose the mode in the composer.",
+      "Not tested. Expected to pass, as a flagship model.",
+    ],
+    [
+      "a model measured through a provider's host",
+      capability({
+        reason: { code: "measured_elsewhere", values: { host: "openrouter.ai" } },
+      }),
+      "Basic and Agentic. Agentic isn’t tested with this model yet.",
+      "Tested through openrouter.ai, not on your own computer or server.",
+    ],
+    [
+      "a name that moves",
+      capability({ reason: { code: "alias", values: {} } }),
+      "Basic and Agentic. Agentic isn’t tested with this model yet.",
+      "Not tested. A name ending in “latest” can point to a new model.",
+    ],
+  ])("says how %s was tested", async (_case, read, chat, tested) => {
+    const shown = await opened(read)
 
-    render(<ModelCapabilitySummary />)
-
-    expect(
-      await screen.findByText(
-        "SurfSense measured this model through openrouter.ai, not on a computer of your own."
-      )
-    ).toBeTruthy()
-  })
-
-  it("says why a model that cannot use tools has no Agentic mode", async () => {
-    vi.stubGlobal(
-      "fetch",
-      serving(
-        capability({
-          modes: {
-            ...UNTESTED,
-            agentic_allowed: false,
-            blocked: "tool_calls_unsupported",
-          },
-        })
-      )
-    )
-
-    render(<ModelCapabilitySummary />)
-
-    expect(
-      await screen.findByText(
-        "Agentic mode isn’t available: this model can’t use tools."
-      )
-    ).toBeTruthy()
+    expect(shown).toContain(chat)
+    expect(shown).toContain(tested)
+    expect(shown).not.toContain("cases passed")
   })
 })

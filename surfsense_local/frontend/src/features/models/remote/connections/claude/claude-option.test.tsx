@@ -15,7 +15,6 @@ const READY: Option = {
   version: "2.1.301",
   email: "ada@example.com",
   plan: "max",
-  in_container: false,
   serves: ["text_gen"],
   hosts: [],
 }
@@ -60,11 +59,11 @@ function serve(
       if (path === "/llm/connections/claude/status") {
         // Claude Code is still being run: the answer never comes in this test.
         if (checking) return new Promise<Response>(() => {})
-        const { state, version, email, plan, in_container } = {
+        const { state, version, email, plan } = {
           ...READY,
           ...(states.length > 1 ? states.shift() : states[0]),
         }
-        return Response.json({ state, version, email, plan, in_container })
+        return Response.json({ state, version, email, plan })
       }
       if (path === "/llm/connections")
         return Response.json(made ? [CONNECTED] : [])
@@ -218,7 +217,7 @@ describe("the Claude plan option beside the ChatGPT one", () => {
   })
 })
 
-// The API reports in_container: Claude Code is installed and signed in inside the container.
+// The Docker build: Claude Code is installed and signed in inside the container.
 describe(
   "the Claude plan option in the Docker image",
   { tags: ["docker"] },
@@ -231,7 +230,6 @@ describe(
             version: null,
             email: null,
             plan: null,
-            in_container: true,
           },
         ],
         { bridge: false }
@@ -260,7 +258,7 @@ describe(
 
     it("signs a signed-out Claude Code in inside the container", async () => {
       serve(
-        [{ state: "signed_out", email: null, plan: null, in_container: true }],
+        [{ state: "signed_out", email: null, plan: null }],
         { bridge: false }
       )
       const user = userEvent.setup()

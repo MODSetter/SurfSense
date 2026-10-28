@@ -15,6 +15,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
+from modules.usage_statistics.kept import usage_statistics_kept
 from shared.config import get_storage_settings
 
 logger = logging.getLogger(__name__)
@@ -82,6 +83,8 @@ def read_counts() -> ActivityCounts | None:
 def start_counting(had_chats: bool, now: datetime | None = None) -> None:
     """Create the file at startup if it is missing. A library with chats already
     has turns nobody counted, so its counts start now; an empty one misses nothing."""
+    if not usage_statistics_kept():
+        return
     try:
         with _lock:
             if _read_raw() is not None:
@@ -94,7 +97,7 @@ def start_counting(had_chats: bool, now: datetime | None = None) -> None:
 
 def add(counts: Mapping[Activity, int], now: datetime | None = None) -> None:
     """Best effort: a count that cannot be written is lost, never the turn it counts."""
-    if not any(counts.values()):
+    if not any(counts.values()) or not usage_statistics_kept():
         return
     at = _now(now)
     try:

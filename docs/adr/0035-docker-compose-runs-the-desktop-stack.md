@@ -3,7 +3,7 @@
 - **Status:** Accepted; its CUDA variant names superseded by [ADR 0073](0073-the-docker-gpu-image-is-one-cuda-12-8-variant-from-upstream-builds.md)
 - **Date:** 2026-10-01
 - **Supersedes:** [ADR 0004](0004-desktop-app-is-its-own-tree.md) in part: Docker Compose leaves its out-of-scope list, and its loopback rule is narrowed to the API. [ADR 0012](0012-vulkan-only-gpu-backend.md) in part: Docker images may carry CUDA.
-- **Source:** [Docker proposal](../proposals/docker/README.md), [GPU images](../proposals/docker/gpu.md)
+- **Source:** the Docker proposal, now [Docker](../architecture/docker.md), [GPU images](../proposals/docker-gpu.md)
 
 ## Context
 
@@ -31,4 +31,4 @@ The legacy self-host stack is `surfsense_backend` and `surfsense_web` with Postg
 
 ## Where the code stands
 
-Nothing is built. The proposal's steps are the work.
+Built: the CPU image and its Compose file ([Docker](../architecture/docker.md)). The CUDA and arm64 images are the [GPU proposal](../proposals/docker-gpu.md).

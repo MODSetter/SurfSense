@@ -8,6 +8,7 @@ export type DictationProblem =
         | "no_microphone"
         | "microphone_busy"
         | "microphone_failed"
+        | "needs_secure_connection"
         | "microphone_disconnected"
         | "phrase_failed"
         | "at_limit"
@@ -27,6 +28,10 @@ export type DictationProblem =
 
 /** getUserMedia's own error names, and the system switch read as NotAllowedError. */
 export function microphoneProblem(error: unknown): DictationProblem {
+  // Outside HTTPS and the host itself, as the Docker image is from another
+  // device over HTTP, the browser offers no microphone at all.
+  if (window.isSecureContext === false)
+    return { kind: "needs_secure_connection" }
   const name = error instanceof DOMException ? error.name : ""
   if (name === "NotAllowedError" || name === "SecurityError") {
     return { kind: "microphone_off" }

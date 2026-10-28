@@ -124,3 +124,103 @@ describe("signing a ChatGPT connection in again", () => {
     ).toBe(false)
   })
 })
+
+const RETURNED = "http://127.0.0.1:4929/callback?code=c&state=s"
+
+/** The same API under the image's /api base; the flow waits until the address is pasted. */
+function serveRemote() {
+  let pasted = false
+  const fetchMock = vi.fn(
+    async (input: RequestInfo | URL, init?: RequestInit) => {
+      const path = String(input).replace(/^\/api/, "")
+      if (path === "/llm/catalog/remote") return Response.json([])
+      if (path === "/llm/connections/chatgpt")
+        return Response.json({ serves: ["text_gen"], hosts: [] })
+      if (
+        path === "/llm/connections/chatgpt/sign-in" &&
+        init?.method === "POST"
+      )
+        return Response.json(
+          { flow_id: "f1", authorize_url: AUTHORIZE },
+          { status: 201 }
+        )
+      if (path === "/llm/connections/chatgpt/sign-in/f1/callback") {
+        pasted = true
+        return new Response(null, { status: 204 })
+      }
+      if (path === "/llm/connections/chatgpt/sign-in/f1")
+        return Response.json(
+          pasted
+            ? { status: "signed_in", connection_id: 4, message: null }
+            : { status: "waiting", connection_id: null, message: null }
+        )
+      if (path === "/llm/connections") return Response.json([SIGNED_IN])
+      return Response.json({ detail: "not found" }, { status: 404 })
+    }
+  )
+  vi.stubGlobal("fetch", fetchMock)
+  vi.stubGlobal("open", vi.fn())
+  return fetchMock
+}
+
+describe(
+  "signing in to ChatGPT from another device than the Docker host",
+  { tags: ["docker"] },
+  () => {
+    it("takes the address the browser was sent to, and saves the connection", async () => {
+      const fetchMock = serveRemote()
+      vi.stubGlobal("location", {
+        ...window.location,
+        hostname: "surfsense.lan",
+      })
+      const onSaved = vi.fn()
+      const user = userEvent.setup()
+      render(
+        <ConnectionForm
+          connection={SIGNED_OUT as never}
+          onCancel={vi.fn()}
+          onSaved={onSaved}
+        />
+      )
+
+      await user.click(screen.getByRole("button", { name: "Sign in again" }))
+      await user.type(
+        await screen.findByLabelText("Address your browser ended on"),
+        RETURNED
+      )
+      await user.click(
+        screen.getByRole("button", { name: "Finish signing in" })
+      )
+
+      await waitFor(() => expect(onSaved).toHaveBeenCalledWith(SIGNED_IN), {
+        timeout: 8000,
+      })
+      const pasted = fetchMock.mock.calls.find(([path]) =>
+        String(path).endsWith("/sign-in/f1/callback")
+      )
+      expect(JSON.parse(String(pasted?.[1]?.body))).toEqual({
+        address: RETURNED,
+      })
+    })
+
+    it("asks for nothing on the Docker host itself, where the redirect lands", async () => {
+      serveRemote()
+      const user = userEvent.setup()
+      render(
+        <ConnectionForm
+          connection={SIGNED_OUT as never}
+          onCancel={vi.fn()}
+          onSaved={vi.fn()}
+        />
+      )
+
+      await user.click(screen.getByRole("button", { name: "Sign in again" }))
+      expect(
+        await screen.findByText("Finish signing in in your browser.")
+      ).toBeTruthy()
+      expect(
+        screen.queryByLabelText("Address your browser ended on")
+      ).toBeNull()
+    })
+  }
+)

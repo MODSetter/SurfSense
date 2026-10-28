@@ -1,3 +1,4 @@
+import { IN_CONTAINER } from "@/app/in-container"
 import { siteVisitUrl } from "@/features/external-links/site-visit-url"
 
 // Each must pass electron/src/main/external-url.ts, or the click does nothing.
@@ -18,9 +19,7 @@ export function releaseNotesUrl(version: string): string {
 
 // The "Which part?" answer in .github/ISSUE_TEMPLATE/bug.yml, filled in so the reporter need not pick it.
 function reportArea(): string {
-  return import.meta.env.VITE_SURFSENSE_RUNTIME === "docker"
-    ? "Docker"
-    : "Desktop app"
+  return IN_CONTAINER ? "Docker" : "Desktop app"
 }
 
 // `what` and `area` are field ids in .github/ISSUE_TEMPLATE/bug.yml; GitHub prefills them, and `title`.

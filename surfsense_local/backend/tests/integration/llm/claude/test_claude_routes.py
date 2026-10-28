@@ -3,7 +3,6 @@
 import pytest
 from httpx import AsyncClient
 
-from api.config import get_settings
 from tests.claude_stand_in import SIGNED_OUT
 
 from .conftest import ClaudeOnThisMachine, FakeClaude
@@ -60,21 +59,6 @@ async def test_a_machine_without_claude_code_says_so(
     found = (await client.get("/llm/connections/claude/status")).json()
 
     assert found["state"] == "not_installed"
-    assert found["in_container"] is False
-
-
-async def test_in_the_docker_image_the_dialog_is_told_claude_code_goes_in_the_container(
-    client: AsyncClient,
-    claude_on_this_machine: ClaudeOnThisMachine,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Installed on the host, Claude Code is out of the API's reach."""
-    claude_on_this_machine(installed=False)
-    monkeypatch.setattr(get_settings(), "runtime", "docker")
-
-    found = (await client.get("/llm/connections/claude/status")).json()
-
-    assert found["in_container"] is True
 
 
 async def test_a_signed_in_claude_code_is_ready_with_its_account(
@@ -90,7 +74,6 @@ async def test_a_signed_in_claude_code_is_ready_with_its_account(
         "version": "2.1.301",
         "email": "ada@example.com",
         "plan": "max",
-        "in_container": False,
     }
 
 

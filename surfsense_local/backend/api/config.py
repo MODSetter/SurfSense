@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     chatgpt_callback_port: int = 0
     # "docker" in the Docker image, where what the user installs goes in the container.
     runtime: str | None = None
+    # Docker only: the public domain the instance has a certificate for, where a
+    # plugin sign-in can name the instance's own client document.
+    domain: str | None = None
 
     def in_container(self) -> bool:
         return self.runtime == "docker"

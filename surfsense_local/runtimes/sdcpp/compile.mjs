@@ -22,7 +22,7 @@ function output(cmd, args) {
 }
 
 /** Everything this machine lacks to compile it, empty if nothing. */
-export function missingToolchain() {
+export function missingToolchain(variant = "vulkan") {
   const missing = []
   if (output("cmake", ["--version"]) == null) missing.push(CMAKE)
   if (process.platform === "darwin") {
@@ -31,12 +31,12 @@ export function missingToolchain() {
   }
   if (output(process.env.CXX ?? "g++", ["--version"]) == null) missing.push(CXX_COMPILER)
   // ggml's Vulkan shaders are compiled at build time.
-  if (output("glslc", ["--version"]) == null) missing.push(VULKAN_SDK)
+  if (variant === "vulkan" && output("glslc", ["--version"]) == null) missing.push(VULKAN_SDK)
   return missing
 }
 
 /** Build every target in `work`; returns the folder holding the server. */
-export function compile(work) {
+export function compile(work, variant = "vulkan") {
   const source = join(work, "source")
   const build = join(work, "build")
   const run = (cmd, args) => execFileSync(cmd, args, { stdio: "inherit" })
@@ -47,7 +47,7 @@ export function compile(work) {
   run("git", ["-C", source, "submodule", "update", "--init", "--depth", "1", "--", ...SUBMODULES])
 
   const ninja = output("ninja", ["--version"]) != null
-  run("cmake", ["-S", source, "-B", build, ...(ninja ? ["-G", "Ninja"] : []), ...configureArgs(process.platform)])
+  run("cmake", ["-S", source, "-B", build, ...(ninja ? ["-G", "Ninja"] : []), ...configureArgs(process.platform, variant)])
   // Every target, not just sd-server: ggml's backend modules are loaded at
   // start, so nothing links them and a server-only build leaves them out.
   run("cmake", ["--build", build, "--config", "Release", "--parallel", String(availableParallelism())])

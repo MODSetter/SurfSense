@@ -60,6 +60,7 @@ import {
   LicenseIcon as LicenseIconData,
   LightbulbIcon as LightbulbIconData,
   Loading03Icon,
+  LockPasswordIcon as LockPasswordIconData,
   Mic01Icon as Mic01IconData,
   Moon02Icon as Moon02IconData,
   NetworkIcon as NetworkIconData,
@@ -78,7 +79,7 @@ import {
   Search01Icon,
   ServerIcon as ServerIconData,
   ServerOffIcon as ServerOffIconData,
-  SidebarRight01Icon as SidebarRight01IconData,
+  LayoutAlignRightIcon as LayoutAlignRightIconData,
   Settings02Icon,
   ShuffleIcon as ShuffleIconData,
   AiSparklesIcon as AiSparklesIconData,
@@ -92,6 +93,7 @@ import {
   Video01Icon as Video01IconData,
   ComputerIcon as ComputerIconData,
   ViewIcon as ViewIconData,
+  ViewOffSlashIcon as ViewOffSlashIconData,
   WebDesign01Icon as WebDesign01IconData,
   XIcon as XIconData,
   Xls01Icon as Xls01IconData,
@@ -192,6 +194,7 @@ export const LicenseIcon = createIcon(LicenseIconData)
 export const ExternalLinkIcon = createIcon(ArrowUpRight01IconData)
 export const LightbulbIcon = createIcon(LightbulbIconData)
 export const Loader2Icon = createIcon(Loading03Icon)
+export const LockPasswordIcon = createIcon(LockPasswordIconData)
 export const Mic01Icon = createIcon(Mic01IconData)
 export const MoonIcon = createIcon(Moon02IconData)
 export const NetworkIcon = createIcon(NetworkIconData, "rotate-90")
@@ -212,7 +215,7 @@ export const EmbeddingIcon = createIcon(ChartScatterIconData)
 export const ServerIcon = createIcon(ServerIconData)
 export const ServerOffIcon = createIcon(ServerOffIconData)
 export const DownloadCircle02Icon = createIcon(DownloadCircle02IconData)
-export const SidebarRightIcon = createIcon(SidebarRight01IconData)
+export const LayoutAlignRightIcon = createIcon(LayoutAlignRightIconData)
 export const Settings2Icon = createIcon(Settings02Icon)
 export const ShuffleIcon = createIcon(ShuffleIconData)
 export const AiSparklesIcon = createIcon(AiSparklesIconData)
@@ -228,6 +231,7 @@ export const SquareDashedMousePointerIcon = createIcon(
 export const ThoughtBubbleIcon = createIcon(ThoughtBubbleIconData)
 export const Trash2Icon = createIcon(Delete02Icon)
 export const ViewIcon = createIcon(ViewIconData)
+export const ViewOffIcon = createIcon(ViewOffSlashIconData)
 export const WebDesign01Icon = createIcon(WebDesign01IconData)
 export const XIcon = createIcon(XIconData)
 export const Xls01Icon = createIcon(Xls01IconData)

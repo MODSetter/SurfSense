@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { AgentApprovalsProvider } from "@/features/agent/agent-approvals"
+import { IN_CONTAINER } from "@/app/in-container"
 import {
   CircleAlertIcon,
   LayoutGridIcon,
   PlusIcon,
-  SidebarRightIcon,
   PlugIcon,
   XIcon,
 } from "@/components/ui/icons"
@@ -12,11 +12,6 @@ import {
 import { FeatureBadge } from "@/components/feature-badge"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
 import { CitationPanel } from "@/features/chat/citation-panel"
 import { consentPlaceholder } from "@/features/chat/model-issue"
 import { askEgress } from "@/features/egress/ask-egress"
@@ -81,6 +76,7 @@ import {
 } from "./dashboard-columns"
 import { LeftSidebar, type SidebarNavAction } from "./left-sidebar"
 import { RightPanel } from "./right-panel"
+import { RightPanelToggle } from "./right-panel-toggle"
 import { SidebarFooter } from "./sidebar-footer"
 
 // Clicking "N sources" in the composer used to switch the right rail to its
@@ -380,51 +376,24 @@ function WorkspaceDashboard({
     },
     [openRightPanel]
   )
+  const rightPanelToggle = (className?: string) => (
+    <RightPanelToggle
+      open={rightPanelOpen}
+      controls={RIGHT_PANEL_ID}
+      onToggle={toggleRightPanel}
+      className={className}
+    />
+  )
   return (
     <OfficeOfferContext.Provider value={officeOffer}>
       <OpenArtifactContext.Provider value={openArtifact}>
         <div className="titlebar-controls">
           <div className="titlebar-controls-end">
             <TitleBarUpdate />
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    className="pointer-events-auto size-6 aria-expanded:bg-transparent"
-                    aria-expanded={rightPanelOpen}
-                    aria-controls={RIGHT_PANEL_ID}
-                    aria-label={
-                      rightPanelOpen
-                        ? intl.formatMessage({
-                            id: "dashboard_right_panel_hide_aria",
-                            defaultMessage: "Hide right panel",
-                          })
-                        : intl.formatMessage({
-                            id: "dashboard_right_panel_show_aria",
-                            defaultMessage: "Show right panel",
-                          })
-                    }
-                    onClick={toggleRightPanel}
-                  >
-                    <SidebarRightIcon />
-                  </Button>
-                }
-              />
-              <TooltipContent side="bottom" collisionPadding={8}>
-                {rightPanelOpen
-                  ? intl.formatMessage({
-                      id: "dashboard_right_panel_hide_tooltip",
-                      defaultMessage: "Hide right panel",
-                    })
-                  : intl.formatMessage({
-                      id: "dashboard_right_panel_show_tooltip",
-                      defaultMessage: "Show right panel",
-                    })}
-              </TooltipContent>
-            </Tooltip>
+            {/* Docker's browser has no title bar: there the toggle sits on a heading's line. */}
+            {IN_CONTAINER
+              ? null
+              : rightPanelToggle("pointer-events-auto size-6")}
           </div>
         </div>
         {/* The widths live in here, so a drag of an edge renders the column
@@ -479,12 +448,16 @@ function WorkspaceDashboard({
             })}
             controls={LEFT_COLUMN_ID}
           />
-          <div className="flex min-h-0 min-w-[520px] flex-1 flex-col">
+          <div className="flex min-h-0 min-w-130 flex-1 flex-col">
             <AgentApprovalsProvider
               approvals={chat.approvals}
               answer={chat.answerApproval}
             >
               <ThreadPanel
+                // Hidden, the panel's heading is gone: the chat's holds the toggle.
+                headerEnd={
+                  IN_CONTAINER && !rightPanelOpen ? rightPanelToggle() : null
+                }
                 live={chat.liveThread}
                 thread={chat.activeThread}
                 view={chat.conversationView}
@@ -542,6 +515,7 @@ function WorkspaceDashboard({
           <RightPanelRail open={rightPanelOpen}>
             <div id={RIGHT_PANEL_ID} className="h-full min-h-0">
               <RightPanel
+                toggle={IN_CONTAINER ? rightPanelToggle() : null}
                 inspect={
                   inspect?.kind === "citation" ? (
                     <CitationPanel
@@ -786,7 +760,7 @@ export function DashboardPage({
   return (
     // Above the workspace, so a mode picked for the next chat holds across them.
     <NewChatModeProvider>
-      <main className="relative grid h-full min-w-[1168px] grid-cols-[56px_minmax(0,1fr)] overflow-hidden bg-app-shell">
+      <main className="relative grid h-full min-w-292 grid-cols-[56px_minmax(0,1fr)] overflow-hidden bg-app-shell">
         <WorkspaceRail
           workspaces={workspaces.workspaces}
           activeWorkspaceId={workspaces.activeWorkspace.id}

@@ -3,6 +3,7 @@ import {
   Alert02Icon,
   CancelCircleHalfDotIcon,
   CursorRemoveSelection02Icon,
+  DownloadIcon,
   Edit02Icon,
   EllipsisIcon,
   ExternalLinkIcon,
@@ -38,6 +39,7 @@ import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
 import type { WorkspaceDocument } from "../api"
+import { downloadsOriginals } from "../download-original"
 import type { TranscriptionPace } from "../transcription/pace"
 import { RecordingLine } from "../transcription/recording-line"
 import type { MoveTarget } from "./move-to-dialog"
@@ -96,7 +98,8 @@ export const DocumentRow = memo(function DocumentRow({
   const processing = document.status === "processing"
   const openable = ready && document.document_type === "FILE"
   const previewable = getFileViewer(document.mime_type) !== null
-  const titleActionable = previewable || openable
+  // In Docker opening means downloading, which only the menu offers.
+  const titleActionable = previewable || (openable && !downloadsOriginals())
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [rowHovered, setRowHovered] = useState(false)
   // A developer aid: holding Ctrl/Cmd while hovering anywhere on a failed
@@ -332,7 +335,16 @@ export const DocumentRow = memo(function DocumentRow({
                         })}
                       </DropdownMenuItem>
                     ) : null}
-                    {openable ? (
+                    {openable && downloadsOriginals() ? (
+                      // The file is in the container: the browser keeps a copy.
+                      <DropdownMenuItem onClick={onOpen}>
+                        <DownloadIcon />
+                        {intl.formatMessage({
+                          id: "sources_row_menu_download_label",
+                          defaultMessage: "Download",
+                        })}
+                      </DropdownMenuItem>
+                    ) : openable ? (
                       <>
                         <DropdownMenuItem onClick={onOpen}>
                           <ExternalLinkIcon />

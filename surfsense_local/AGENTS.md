@@ -21,7 +21,12 @@ cd frontend && pnpm test        # the desktop; tests tagged docker are left out
 cd frontend && pnpm test:docker # tests tagged docker, with the image build's settings and no Electron
 cd headless && pnpm test        # the Docker entry; image.test.ts skips without an image
 cd headless && pnpm typecheck   # also checks sidecars/
-SURFSENSE_TEST_IMAGE=surfsense:local node --test headless/image.test.ts   # a built image
+docker build -f ../docker/surfsense/Dockerfile -t surfsense:local ..   # the image, built from the repository root
+SURFSENSE_IMAGE=surfsense SURFSENSE_VERSION=local docker compose -f ../docker/surfsense/docker-compose.yml up -d   # the install on that build, on port 4929 for every device on your network; without the two, it pulls ghcr.io's latest
+SURFSENSE_TEST_IMAGE=surfsense:local SURFSENSE_TEST_IMAGE_PORT=4931 node --test headless/image.test.ts   # its tests, on 4931 and 4945, beside a running install
+docker compose -f ../docker/surfsense/dev/compose.yml up --build --watch   # the image with this checkout mounted in, on port 4930 for every device on your network
+docker compose -f ../docker/surfsense/dev/compose.yml up --build --watch --renew-anon-volumes   # the same, after a uv.lock or pnpm-lock.yaml change
+docker compose -f ../docker/surfsense/dev/compose.yml down   # stops it
 ./scripts/bump-version.sh
 SURFSENSE_LOCAL_DATA_DIR=<dir> node headless/main.ts   # the container's entry, on a checkout
 ```
@@ -36,7 +41,8 @@ Version is `VERSION`. `scripts/bump-version.sh` writes it through the desktop pa
 - shadcn components (`frontend/components.json`): `shadcn` skill after `frontend-workflow`, not instead of it — separate, and it inspects the project live.
 - New behavior: `tdd` skill.
 - A backend test of what the Docker image changes (its user, process reaping, bundled models, system libraries) also takes `pytest.mark.image`, so Docker Tests runs it inside the image too.
-- A frontend branch only the Docker image takes (no Electron bridge, its build settings, `in_container`) is tested in a `describe(…, { tags: ["docker"] }, …)` beside its desktop tests, which Docker Tests runs with the image's build settings.
+- Gate what differs in Docker by why ([ADR 0075](../docs/adr/0075-what-differs-in-docker-is-gated-by-one-build-flag-or-the-bridge.md)): what only Electron can do on `window.surfsense?.…`; what the Docker build does differently on `IN_CONTAINER` (`frontend/src/app/in-container.ts`), through a predicate named for the behaviour in its feature; the backend on `get_settings().in_container()`. Never compare `VITE_SURFSENSE_RUNTIME` yourself.
+- A frontend branch only the Docker image takes (no Electron bridge, `IN_CONTAINER`) is tested in a `describe(…, { tags: ["docker"] }, …)` beside its desktop tests, which Docker Tests runs with the image's build settings.
 - Interface text in `frontend/`: `translate` skill. The application menu is not translated: Electron roles, plus a few English items of ours in `electron/src/main/menu/`.
 
 ## Do not

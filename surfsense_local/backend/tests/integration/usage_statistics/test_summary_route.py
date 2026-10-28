@@ -12,6 +12,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import Engine
 
+from api.config import get_settings
 from api.main import create_app
 from modules.artifacts.models import Artifact
 from modules.chat.models import AgentEngineKind, ChatMessage, ChatThread, MessageRole
@@ -79,6 +80,23 @@ async def summary(client: AsyncClient, since: datetime = WEEK_AGO) -> dict:
     )
     assert response.status_code == 200, response.text
     return response.json()
+
+
+async def test_the_docker_image_has_no_usage_summary(
+    engine: Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Nothing in the image reports usage, so nothing can be read for it (ADR 0075)."""
+    monkeypatch.setattr(get_settings(), "runtime", "docker")
+    app = create_app()
+    app.state.session_factory = create_session_factory(engine)
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        response = await client.get(
+            "/usage-statistics/summary", params={"since": WEEK_AGO.isoformat()}
+        )
+
+    assert response.status_code == 404
 
 
 def seed(

@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { ChatsDialog } from "@/features/chat/chats-dialog"
 import type { ChatThread } from "@/features/chat/api"
 import type { RunState } from "@/features/chat/runs/run-store"
+import { ColumnHeader } from "@/components/ui/column-header"
 import { intl } from "@/i18n/intl"
 
 // A row rendered below "New chat" with the same look. Add an entry here (or
@@ -170,11 +171,13 @@ export const LeftSidebar = memo(function LeftSidebar({
 
   return (
     <aside className="flex h-full min-w-0 flex-col border-r bg-background select-none">
-      <header className="space-y-6 px-3 py-3">
-        <h2 className="truncate px-1 brand-wordmark text-xl text-foreground select-none">
-          SurfSense
-        </h2>
-        <div className="flex flex-col">
+      <header>
+        <ColumnHeader>
+          <h2 className="truncate px-1 brand-wordmark text-xl text-foreground select-none">
+            SurfSense
+          </h2>
+        </ColumnHeader>
+        <div className="flex flex-col px-3 pt-2">
           <SidebarNavButton
             label={intl.formatMessage({
               id: "dashboard_sidebar_new_chat_button",

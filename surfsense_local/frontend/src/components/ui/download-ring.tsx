@@ -2,7 +2,9 @@ import { cn } from "@/lib/utils"
 
 /**
  * A ring that fills clockwise from the top as a download runs. With no
- * percentage yet, a quarter of it turns instead.
+ * percentage yet, a quarter of it turns instead. It scales as a whole: a
+ * non-scaling stroke measures the dash in screen pixels while pathLength
+ * measures it here, and the pattern then repeats as a second arc.
  */
 export function DownloadRing({
   percent,
