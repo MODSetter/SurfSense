@@ -203,11 +203,7 @@ export function ChatComposer({
     ) : null
   const strip = (className: string) =>
     dictation ? (
-      <DictationStrip
-        dictation={dictation}
-        onOpenSpeechSettings={onOpenSpeechSettings}
-        className={className}
-      />
+      <DictationStrip dictation={dictation} className={className} />
     ) : null
   const limitNotice = atLimit
     ? intl.formatMessage(

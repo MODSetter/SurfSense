@@ -9,13 +9,16 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { SpeechSetupPopover } from "@/features/speech-setup/speech-setup-popover"
+import { useSpeechDownloadPercent } from "@/features/speech-setup/use-speech-download"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
 import type { Dictation } from "../dictation-adapter"
+import { useProblemToasts } from "../problem-toasts"
+import { isLasting, problemText } from "../strip/problem-text"
 import { isRecording, useDictationView } from "../use-dictation-view"
 import { useNeedsSpeechModel } from "../use-transcription-status"
-import { DownloadRing } from "./download-ring"
+import { SpeechDownloadRing } from "./download-ring"
 
 // Handy's hold-or-toggle: a press held this long is push to talk.
 const HOLD_MS = 300
@@ -45,10 +48,26 @@ export function MicButton({
   const press = useRef<{ startedIt: boolean; at: number } | null>(null)
   const active = isRecording(view)
   const start = () => dictation.start(aui.composer())
-  const tooltip = intl.formatMessage({
-    id: "dictation_mic_idle_tooltip",
-    defaultMessage: "Voice input stays on this computer",
-  })
+  useProblemToasts(dictation, onOpenSpeechSettings)
+  const downloadPercent = useSpeechDownloadPercent()
+  // No microphone, or no secure page: true until something outside changes.
+  const lasting =
+    view.phase === "problem" && isLasting(view.problem) ? view.problem : null
+  const tooltip = lasting
+    ? problemText(lasting)
+    : downloadPercent !== null
+      ? intl.formatMessage(
+          {
+            id: "dictation_mic_downloading_tooltip",
+            defaultMessage:
+              "Downloading the speech recognition model, {percent, number, ::percent}",
+          },
+          { percent: downloadPercent / 100 }
+        )
+      : intl.formatMessage({
+          id: "dictation_mic_idle_tooltip",
+          defaultMessage: "Voice input stays on this computer",
+        })
 
   // A recording is always stopped from the mic; an open set-up stays until it
   // is closed, even once its model is chosen.
@@ -76,7 +95,7 @@ export function MicButton({
                   })}
                 >
                   <Mic01Icon className="size-5" />
-                  <DownloadRing />
+                  <SpeechDownloadRing />
                 </Button>
               }
             />
@@ -127,7 +146,7 @@ export function MicButton({
                   })
             }
             className={cn(
-              "rounded-xl",
+              "relative rounded-xl",
               active && "bg-muted text-destructive hover:text-destructive",
               className
             )}
@@ -150,6 +169,12 @@ export function MicButton({
             }}
           >
             <Mic01Icon className="size-5" />
+            {lasting ? (
+              <span
+                aria-hidden="true"
+                className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-destructive"
+              />
+            ) : null}
           </Button>
         }
       />

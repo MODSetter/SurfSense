@@ -195,14 +195,14 @@ The composer's mic turns speech into text on this computer, with the model chose
 | State | The mic, beside Send ([`mic/`](../../surfsense_local/frontend/src/features/dictation/mic/)) | The strip ([`strip/`](../../surfsense_local/frontend/src/features/dictation/strip/)) |
 |---|---|---|
 | Idle | a ghost icon button; tooltip "Voice input stays on this computer" | none |
-| Not set up | enabled; it opens the set-up popover ([`speech-setup-popover.tsx`](../../surfsense_local/frontend/src/features/speech-setup/speech-setup-popover.tsx)), whose "Start talking" starts listening, with a ring for a speech download under way | none |
+| Not set up | enabled; it opens the set-up popover ([`speech-setup-popover.tsx`](../../surfsense_local/frontend/src/features/speech-setup/speech-setup-popover.tsx)), which asks and hands off: Set up… opens Settings › Speech recognition, where the model is chosen and downloaded and its progress shows; with a speech download under way it says how far it got, and Show progress opens Settings. A ring around the mic fills with that download, and the tooltip says its percentage | none |
 | Arming | pressed | a muted dot and pulsing bars until the first real frame; no timer |
 | Listening | pressed | a red dot, 9 level bars of the last 9 frames, a timer from the first frame, a cancel ✕ |
 | Loading | pressed | "Loading the speech recognition model…", while a phrase waits on a model the session opened `loading` 2 s or more ago |
 | Finishing | pressed | a spinner and "Transcribing…" |
-| Problem | as Idle | one line and one action, until it is acted on, dismissed, or the mic is pressed again |
+| Problem | as Idle; a lasting one also marks it, below | none: a toast says it ([`problem-toasts.ts`](../../surfsense_local/frontend/src/features/dictation/problem-toasts.ts)) |
 
-The strip sits inside the composer, never above it, where the model notice and the scroll button are: in the center placement in place of the source count and model control, in the bottom placement in place of the disclaimer. The mic is disabled whenever the message box is, and at the message limit.
+The strip shows only while recording. It sits inside the composer, never above it, where the model notice and the scroll button are: in the center placement in place of the source count and model control, in the bottom placement in place of the disclaimer. A problem never takes that line. The mic is disabled whenever the message box is, and at the message limit.
 
 | Input while recording | Effect |
 |---|---|
@@ -214,19 +214,21 @@ The strip sits inside the composer, never above it, where the model notice and t
 
 A click on the mic leaves the focus in the message box. Blur and minimising keep recording.
 
-| Problem ([`problem-text.ts`](../../surfsense_local/frontend/src/features/dictation/strip/problem-text.ts)) | Line | Action |
+A problem is a toast with its one action, one at a time, closed by acting on it, by its time running out (8 s, a notice sonner's default), or by the mic being pressed again; a phrase kept for Retry stays until it is acted on. Closing it ends the problem. Two problems stay true until something outside the app changes, no microphone found and a page that is not a secure context, so they are no toast: the idle mic carries a red dot and its tooltip says the problem, and a press tries again.
+
+| Problem ([`problem-text.ts`](../../surfsense_local/frontend/src/features/dictation/strip/problem-text.ts)) | Says | Action |
 |---|---|---|
 | `NotAllowedError`, or the system's switch off | "Microphone access is off for SurfSense." | Open settings on Windows and macOS (the bridge's `openSettings`), else Try again |
-| `NotFoundError` | "No microphone found." | Try again |
+| `NotFoundError` | "No microphone found.", on the mic | press the mic |
 | `NotReadableError` | "The microphone is in use by another app." | Try again |
-| any refusal on a page that is not a secure context, as the Docker image is from another device over plain HTTP | "Your browser allows the microphone only over HTTPS, or on the computer running SurfSense." | dismiss |
-| the track ended | "The microphone was disconnected. What you said before that is kept." | dismiss |
+| any refusal on a page that is not a secure context, as the Docker image is from another device over plain HTTP | "Your browser allows the microphone only over HTTPS, or on the computer running SurfSense.", on the mic | none |
+| the track ended | "The microphone was disconnected. What you said before that is kept." | none |
 | a phrase failed twice, or was refused as malformed | "Couldn’t turn part of your speech into text." | Retry, which opens a new session and lands that phrase and every later one after the box's text |
-| `409 transcription_needs_memory`, on opening or on a phrase (the model unloaded for a podcast's or an image's hold) | "Transcribing needs about 2.9 GB free; this computer has 1.2 GB.", the server's sentence where it sent no sizes | on opening, dismiss; on a phrase or a Retry, Retry, which keeps the audio not yet transcribed as a failed phrase does |
+| `409 transcription_needs_memory`, on opening or on a phrase (the model unloaded for a podcast's or an image's hold) | "Transcribing needs about 2.9 GB free; this computer has 1.2 GB.", the server's sentence where it sent no sizes | on opening, none; on a phrase or a Retry, Retry, which keeps the audio not yet transcribed as a failed phrase does |
 | `409 needs_speech_model` on opening, or on a phrase | "Set up speech recognition to use voice input." / "The speech recognition model was removed." | Set up, which opens Settings › Speech recognition |
 | `503 transcription_unavailable` on opening | "Speech recognition isn’t available right now." | Try again |
-| `404 dictation_ended` | "Voice input stopped; what was transcribed is kept." | dismiss |
-| the limit, or 5:00 | "Voice input stopped at the 4,096-character message limit." / "Voice input stopped after 5 minutes." | dismiss |
+| `404 dictation_ended` | "Voice input stopped; what was transcribed is kept." | none |
+| the limit, or 5:00 | "Voice input stopped at the 4,096-character message limit." / "Voice input stopped after 5 minutes.", as a notice | none |
 
 Interface strings are `dictation_<surface>_<purpose>`, and a server code is `dictation_error_<code>` ([localization](localization.md)).
 

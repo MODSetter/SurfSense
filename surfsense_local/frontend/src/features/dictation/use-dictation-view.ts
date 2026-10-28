@@ -30,9 +30,7 @@ export function useDictationRecording(dictation?: Dictation): boolean {
   )
 }
 
-/** Whether the strip shows at all: recording, or a problem to read. */
+/** Whether the strip shows at all: only while recording. */
 export function useDictationStripShown(dictation?: Dictation): boolean {
-  return useSyncExternalStore(dictation?.subscribe ?? nothingToHear, () =>
-    dictation ? dictation.getView().phase !== "idle" : false
-  )
+  return useDictationRecording(dictation)
 }

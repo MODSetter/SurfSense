@@ -9,7 +9,6 @@ import { cn } from "@/lib/utils"
 import type { Dictation, DictationView } from "../dictation-adapter"
 import { useDictationView } from "../use-dictation-view"
 import { LevelBars } from "./level-bars"
-import { ProblemLine } from "./problem-line"
 import { RecordingTimer } from "./recording-timer"
 
 type Status = { text: string; shown: boolean }
@@ -66,34 +65,22 @@ function statusOf(view: DictationView): Status | null {
 }
 
 /**
- * Inside the composer while voice input runs, in place of the source count
+ * Inside the composer while voice input records, in place of the source count
  * and model (center) or the disclaimer (bottom): never above the composer,
  * where the model notice and the scroll button sit.
  */
 export function DictationStrip({
   dictation,
-  onOpenSpeechSettings,
   className,
 }: {
   dictation: Dictation
-  onOpenSpeechSettings?: () => void
   className?: string
 }) {
   const aui = useAui()
   const view = useDictationView(dictation)
 
-  if (view.phase === "idle") return null
-  if (view.phase === "problem") {
-    return (
-      <ProblemLine
-        dictation={dictation}
-        problem={view.problem}
-        canRetry={view.canRetry}
-        onOpenSpeechSettings={onOpenSpeechSettings}
-        className={className}
-      />
-    )
-  }
+  // A problem is a toast or a mark on the mic, never this line.
+  if (view.phase === "idle" || view.phase === "problem") return null
 
   const status = statusOf(view)
   return (
