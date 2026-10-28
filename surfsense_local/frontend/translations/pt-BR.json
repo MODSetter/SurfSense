@@ -1495,6 +1495,7 @@
   "studio_error_no_sources": "Escolha pelo menos uma fonte.",
   "studio_error_not_refinable": "Só é possível refinar um documento do Word, um PDF ou uma página web criados no Studio.",
   "studio_error_nothing_running": "Nada está em execução.",
+  "studio_error_rewrite_too_long": "Este documento é longo demais para {model} reescrever de uma vez: tem cerca de {specTokens, number} tokens, e lê-lo e escrevê-lo de novo exige cerca de {neededTokens, number}; a janela de contexto do modelo tem {windowTokens, number}.",
   "studio_error_sources_gone": "Não resta nenhuma das fontes deste artefato.",
   "studio_error_sources_indexing": "As fontes escolhidas ainda estão sendo indexadas.",
   "studio_error_version_unfinished": "Esta versão não foi concluída: tente novamente ou refine outra versão.",

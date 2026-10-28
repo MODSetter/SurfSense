@@ -150,4 +150,7 @@ async def test_the_design_guide_counts_against_the_window_a_page_refine_needs(
     response = await _refine(client, session, first.id, "Shorten the lede")
 
     assert response.status_code == 409
-    assert "too long for Qwen3-4B" in response.json()["detail"]
+    detail = response.json()["detail"]
+    assert detail["code"] == "rewrite_too_long"
+    assert "too long for Qwen3-4B" in detail["message"]
+    assert detail["window_tokens"] == 3_000
