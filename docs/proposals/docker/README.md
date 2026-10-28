@@ -75,11 +75,11 @@ One container, because the stack assumes one machine: SQLite and the Huey queue 
 |---|---|---|
 | The container's loopback | the API, the workers, the model servers and opencode, each on a free port | processes in the container only |
 | Compose's default bridge | the container's interface, with only Caddy listening, on `:80` and, with a domain, `:443` | the host, through the published port |
-| The published port | `${SURFSENSE_BIND:-127.0.0.1}:${SURFSENSE_PORT:-4929}` → `80` | the host machine alone by default; the LAN with `SURFSENSE_BIND=0.0.0.0`, which joins with the password (step 10): until then compose publishes on `127.0.0.1` only |
+| The published port | `${SURFSENSE_BIND:-0.0.0.0}:${SURFSENSE_PORT:-4929}` → `80` | every network the server is on by default, behind the password; the host machine alone with `SURFSENSE_BIND=127.0.0.1` |
 | Outbound | NAT through the bridge | remote providers, model downloads and the plugin host, under the backend's egress rules |
 
 - **No container talks to another.** The legacy services reached each other by name on the Compose network (`db`, `redis`, `backend`); here every call stays on loopback.
-- **Two locks on the way in.** Docker publishes on the host's loopback unless `SURFSENSE_BIND` widens it, and Caddy refuses a non-local `Host` until a password is set ([Caddy and access](#caddy-and-access)). The `Host` header is the sender's to choose, so it stops a browser on the LAN and DNS rebinding, not a client that sends `Host: localhost` on purpose: `SURFSENSE_BIND` therefore arrives with the password, never before it.
+- **Open to the server's networks, behind a password.** The image is for a server reached from phones and laptops, so Compose publishes on every interface, and every request needs the password, set up on first visit ([Caddy and access](#caddy-and-access)). Docker's published ports pass the host's firewall, `ufw` included, so a server on the internet presets `SURFSENSE_PASSWORD` before its first start.
 - **No Docker socket.** The legacy OpenSandbox mounted `/var/run/docker.sock`, which is root on the host; this container needs nothing from the host but the volume and, on `-cuda`, the card ([`gpu.md`](gpu.md)).
 
 ## One core, two entries
@@ -178,14 +178,15 @@ Caddy is the one door in. A published port reaches the container's interface, ne
 
 | State | Answered | Sign-in |
 |---|---|---|
-| No password (default) | the host's own requests only: a `Host` of `localhost`, `127.0.0.1` or `[::1]`, from loopback or the bridge's gateway | none, as on the desktop |
+| No password yet | every allowed host, but only the app's files: the API answers `401` | Set up SurfSense, from any browser |
 | A password, created in the app or set by `SURFSENSE_PASSWORD` | the hosts in `SURFSENSE_ALLOWED_HOSTS`, or any | SurfSense's sign-in page |
-| `SURFSENSE_DOMAIN` also | that domain | the sign-in page, over HTTPS |
+| `SURFSENSE_AUTH=none` | the hosts in `SURFSENSE_ALLOWED_HOSTS`, or any | none: the server's own proxy or VPN signs people in |
 
-- **The `Host` check is the guard.** The container cannot see how Compose published its port, but it sees the address each request was sent to. Without a password, a request to the LAN address or a domain is refused, so an unauthenticated instance cannot be reached from the network by accident. The same check stops DNS rebinding against `localhost`, which Ollama (CVE-2024-28224) and Vite (CVE-2025-24010) each had to add after the fact.
-- **The sign-in.** The app's static files load without a session, carry no data, and show the sign-in screen when the API answers `401`. So do the sign-in callbacks, `/callback` and `/plugins/oauth/callback`, which their own `state` and PKCE guard, since a browser can return on `127.0.0.1` after signing in on `localhost`. The access service checks one password, hashed with scrypt on `/data`, and issues an `HttpOnly`, `SameSite=Strict` session cookie, signed with a key derived from the instance's secret. Over HTTPS the cookie is also `Secure`, and it lasts 30 days. The SPA, the API and the SSE streams are one origin, so the browser sends it on all of them. Five failed sign-ins from one client within a minute answer `429`; sign-in and sign-out refuse a cross-site `Origin`; changing the password ends every session.
-- **Creating the password.** Settings › Access, shown only in the Docker build, creates it from the host itself, since nothing else is answered until one exists, and changes it later. `SURFSENSE_PASSWORD` sets it at start instead, for a server with no browser of its own, and replaces a forgotten one.
-- **The client address backs the `Host` check.** A `Host` header is the sender's to choose, so without a password the access service also requires the client address Caddy sees to be loopback or the bridge's gateway, which a published port on `127.0.0.1` arrives from. Docker Desktop forwards every client through its gateway, so there `SURFSENSE_BIND` stays on `127.0.0.1` until a password exists.
+Every case, with its diagram, is in [Docker access](../../architecture/docker-access.md).
+
+- **The `Host` check refuses a rebinding page.** With `SURFSENSE_ALLOWED_HOSTS` set, any other name is refused, with sign-in on or off, which stops DNS rebinding, as Ollama (CVE-2024-28224) and Vite (CVE-2025-24010) each had to add after the fact.
+- **The sign-in.** The app's static files load without a session, carry no data, and show the setup or the sign-in when the API answers `401`. So do the sign-in callbacks, `/callback` and `/plugins/oauth/callback`, which their own `state` and PKCE guard, since a browser can return on `127.0.0.1` after signing in on `localhost`. The access service checks one password, hashed with scrypt on `/data`, and issues an `HttpOnly`, `SameSite=Strict` session cookie, signed with a key derived from the instance's secret. Over HTTPS the cookie is also `Secure`, and it lasts 30 days. The SPA, the API and the SSE streams are one origin, so the browser sends it on all of them. Five failed sign-ins from one client within a minute answer `429`; sign-in and sign-out refuse a cross-site `Origin`; changing the password ends every session.
+- **Creating the password.** The first visit shows Set up SurfSense, one field with an eye. Whoever opens a new instance first creates it, as with Immich and Open WebUI. `SURFSENSE_PASSWORD` sets it at start instead, for anything reachable from the internet, and replaces a forgotten one; the app shows that one locked. Settings › Access changes one the app owns.
 - **HTTPS beyond `localhost`.** A public domain gets an automatic certificate; `SURFSENSE_TLS=internal` uses Caddy's own CA on a LAN. Any access from another machine takes one of them: the password would otherwise cross the network in the clear, browsers allow the microphone only in a secure context, and OAuth allows a plain-HTTP redirect only to loopback ([Sign-ins](#sign-ins)).
 - **Three root paths reach the API besides `/api/*`:** the sign-in callbacks and the instance's client document ([Sign-ins](#sign-ins)), each matched exactly, behind the same `Host` check and password.
 - **`/api/internal/*` is refused.** Workers reach `/internal/events` and the transcription routes on loopback and never through Caddy.
@@ -308,7 +309,7 @@ services:
   surfsense:
     image: ${SURFSENSE_IMAGE:-ghcr.io/modsetter/surfsense}:${SURFSENSE_VERSION:-latest}${SURFSENSE_VARIANT:+-${SURFSENSE_VARIANT}}
     ports:
-      - "${SURFSENSE_BIND:-127.0.0.1}:${SURFSENSE_PORT:-4929}:80"
+      - "${SURFSENSE_BIND:-0.0.0.0}:${SURFSENSE_PORT:-4929}:80"
     volumes:
       - surfsense_data:/data
     environment:

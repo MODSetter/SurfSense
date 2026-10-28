@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useQuery } from "@tanstack/react-query"
 import { useId, useState, type SubmitEvent } from "react"
 
 import { Button } from "@/components/ui/button"
@@ -8,7 +8,7 @@ import {
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
+import { LockPasswordIcon } from "@/components/ui/icons"
 import { Spinner } from "@/components/ui/spinner"
 import { SettingsSection } from "@/features/settings/settings-section"
 import { intl } from "@/i18n/intl"
@@ -20,6 +20,7 @@ import {
   signOut,
   type PasswordResult,
 } from "./api"
+import { PasswordField } from "./password-field"
 
 const ACCESS_STATE = ["access-state"]
 
@@ -37,9 +38,18 @@ function refusal(result: PasswordResult): string {
     })
   }
   if (result === "too-short") return tooShort()
+  if (result === "set-by-setup") return lockedBySetup()
   return intl.formatMessage({
     id: "access_settings_failed_error",
     defaultMessage: "SurfSense couldn’t save the password. Try again.",
+  })
+}
+
+function lockedBySetup(): string {
+  return intl.formatMessage({
+    id: "access_settings_set_by_setup_body",
+    defaultMessage:
+      "This password is set where SurfSense is installed. To change it, update SurfSense’s setup on that computer, then restart it.",
   })
 }
 
@@ -53,14 +63,11 @@ function tooShort(): string {
   )
 }
 
-function PasswordForm({ creating }: { creating: boolean }) {
-  const queryClient = useQueryClient()
+function ChangePasswordForm() {
   const currentId = useId()
   const newId = useId()
-  const confirmId = useId()
   const [current, setCurrent] = useState("")
   const [password, setPassword] = useState("")
-  const [confirm, setConfirm] = useState("")
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
@@ -70,26 +77,15 @@ function PasswordForm({ creating }: { creating: boolean }) {
     setError(null)
     setSaved(false)
     if (password.length < MIN_PASSWORD_LENGTH) return setError(tooShort())
-    if (password !== confirm) {
-      return setError(
-        intl.formatMessage({
-          id: "access_settings_mismatch_error",
-          defaultMessage: "The passwords don’t match.",
-        })
-      )
-    }
     setBusy(true)
-    const result = await savePassword(
-      password,
-      creating ? undefined : current
-    ).catch(() => "failed" as const)
+    const result = await savePassword(password, current).catch(
+      () => "failed" as const
+    )
     setBusy(false)
     if (result !== "saved") return setError(refusal(result))
     setCurrent("")
     setPassword("")
-    setConfirm("")
-    setSaved(!creating)
-    await queryClient.invalidateQueries({ queryKey: ACCESS_STATE })
+    setSaved(true)
   }
 
   return (
@@ -98,53 +94,33 @@ function PasswordForm({ creating }: { creating: boolean }) {
       onSubmit={(event) => void submit(event)}
     >
       <FieldGroup>
-        {creating ? null : (
-          <Field>
-            <FieldLabel htmlFor={currentId}>
-              {intl.formatMessage({
-                id: "access_settings_current_label",
-                defaultMessage: "Current password",
-              })}
-            </FieldLabel>
-            <Input
-              id={currentId}
-              type="password"
-              autoComplete="current-password"
-              value={current}
-              onChange={(event) => setCurrent(event.target.value)}
-              disabled={busy}
-            />
-          </Field>
-        )}
         <Field>
+          <FieldLabel htmlFor={currentId}>
+            {intl.formatMessage({
+              id: "access_settings_current_label",
+              defaultMessage: "Current password",
+            })}
+          </FieldLabel>
+          <PasswordField
+            id={currentId}
+            autoComplete="current-password"
+            value={current}
+            onChange={(event) => setCurrent(event.target.value)}
+            disabled={busy}
+          />
+        </Field>
+        <Field data-invalid={error ? true : undefined}>
           <FieldLabel htmlFor={newId}>
             {intl.formatMessage({
               id: "access_settings_new_label",
               defaultMessage: "New password",
             })}
           </FieldLabel>
-          <Input
+          <PasswordField
             id={newId}
-            type="password"
             autoComplete="new-password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            disabled={busy}
-          />
-        </Field>
-        <Field data-invalid={error ? true : undefined}>
-          <FieldLabel htmlFor={confirmId}>
-            {intl.formatMessage({
-              id: "access_settings_confirm_label",
-              defaultMessage: "Confirm password",
-            })}
-          </FieldLabel>
-          <Input
-            id={confirmId}
-            type="password"
-            autoComplete="new-password"
-            value={confirm}
-            onChange={(event) => setConfirm(event.target.value)}
             disabled={busy}
             aria-invalid={error ? true : undefined}
           />
@@ -163,24 +139,29 @@ function PasswordForm({ creating }: { creating: boolean }) {
       <Button
         type="submit"
         className="w-fit"
-        disabled={busy || !password || !confirm || (!creating && !current)}
+        disabled={busy || !password || !current}
       >
         {busy ? <Spinner data-icon="inline-start" /> : null}
-        {creating
-          ? intl.formatMessage({
-              id: "access_settings_create_button",
-              defaultMessage: "Create password",
-            })
-          : intl.formatMessage({
-              id: "access_settings_change_button",
-              defaultMessage: "Change password",
-            })}
+        {intl.formatMessage({
+          id: "access_settings_change_button",
+          defaultMessage: "Change password",
+        })}
       </Button>
     </form>
   )
 }
 
-/** Docker only: the password that opens this instance to other devices (ADR 0074). */
+/** A muted note with a lock: what cannot be changed here, and where it can. */
+function LockedNote({ children }: { children: string }) {
+  return (
+    <p className="flex gap-2 rounded-lg bg-muted/50 px-3 py-2.5 text-sm text-pretty text-muted-foreground">
+      <LockPasswordIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+      {children}
+    </p>
+  )
+}
+
+/** Docker only: the instance's password, or why there is none to manage here (ADR 0074). */
 export function AccessSettings() {
   const { data: state } = useQuery({
     queryKey: ACCESS_STATE,
@@ -201,26 +182,31 @@ export function AccessSettings() {
         defaultMessage: "Access",
       })}
       description={
-        state?.password
-          ? intl.formatMessage({
+        state?.signInOff
+          ? undefined
+          : intl.formatMessage({
               id: "access_settings_protected_body",
               defaultMessage:
-                "Other devices sign in with this password. Changing it signs every other device out.",
-            })
-          : intl.formatMessage({
-              id: "access_settings_unprotected_body",
-              defaultMessage:
-                "SurfSense answers only on this computer until it has a password. With one, other devices on your network can sign in.",
+                "Every device signs in with this password. Changing it signs every other device out.",
             })
       }
     >
       {state ? (
-        <div className="flex flex-col gap-8">
-          <PasswordForm
-            key={String(state.password)}
-            creating={!state.password}
-          />
-          {state.password ? (
+        state.signInOff ? (
+          <LockedNote>
+            {intl.formatMessage({
+              id: "access_settings_sign_in_off_body",
+              defaultMessage:
+                "Sign-in is turned off where SurfSense is installed. Anyone who can reach it can use it.",
+            })}
+          </LockedNote>
+        ) : (
+          <div className="flex flex-col gap-8">
+            {state.source === "setup" ? (
+              <LockedNote>{lockedBySetup()}</LockedNote>
+            ) : (
+              <ChangePasswordForm />
+            )}
             <div className="flex flex-col gap-1">
               <h3 className="text-sm font-medium">
                 {intl.formatMessage({
@@ -248,8 +234,8 @@ export function AccessSettings() {
                 })}
               </Button>
             </div>
-          ) : null}
-        </div>
+          </div>
+        )
       ) : null}
     </SettingsSection>
   )

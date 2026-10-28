@@ -2,12 +2,18 @@ import { useEffect, useState, type ReactNode } from "react"
 
 import { setSignedOutHandler } from "@/lib/api"
 
-import { getAccessState } from "./api"
+import { getAccessState, type AccessState } from "./api"
+import { SetupScreen } from "./setup-screen"
 import { SignInScreen } from "./sign-in-screen"
 
-type Gate = "checking" | "open" | "sign-in"
+type Gate = "checking" | "open" | "sign-in" | "setup"
 
-/** Docker only: the app behind the sign-in, once the instance has a password (ADR 0074). */
+function gateFor(state: AccessState): Gate {
+  if (state.signInOff || state.signedIn) return "open"
+  return state.password ? "sign-in" : "setup"
+}
+
+/** Docker only: the app behind its setup and sign-in (ADR 0074). */
 export function AccessGate({ children }: { children: ReactNode }) {
   const [gate, setGate] = useState<Gate>("checking")
 
@@ -16,8 +22,7 @@ export function AccessGate({ children }: { children: ReactNode }) {
     const check = () =>
       getAccessState()
         .then((state) => {
-          if (active)
-            setGate(state.password && !state.signedIn ? "sign-in" : "open")
+          if (active) setGate(gateFor(state))
         })
         // The service is part of the image; if it can't be read, the API's own
         // refusals still stand, so the app opens and says what failed.
@@ -36,5 +41,6 @@ export function AccessGate({ children }: { children: ReactNode }) {
   if (gate === "checking") return null
   if (gate === "sign-in")
     return <SignInScreen onSignedIn={() => setGate("open")} />
+  if (gate === "setup") return <SetupScreen onDone={() => setGate("open")} />
   return children
 }

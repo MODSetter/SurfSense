@@ -240,9 +240,51 @@ test("Caddy asks the access service, which answers on the port Caddy is given", 
   const state = await fetch(`http://127.0.0.1:${port}/access/state`, {
     headers: { "X-Forwarded-Host": "localhost:4929", "X-Forwarded-For": "127.0.0.1" },
   })
-  assert.deepEqual(await state.json(), { password: false, signedIn: false, host: true })
+  assert.deepEqual(await state.json(), {
+    password: false,
+    signedIn: false,
+    host: true,
+    source: null,
+    signInOff: false,
+  })
   run.child.kill("SIGTERM")
   assert.equal(await run.exited, 0)
+})
+
+test("with no password yet, the log says to open SurfSense and create one", { skip }, async (t) => {
+  const run = startHeadless(t, { caddy: true })
+  let stdout = ""
+  run.child.stdout?.on("data", (chunk) => (stdout += chunk))
+  await run.ready
+  await recorded(run.log, 5)
+  assert.match(stdout, /No password yet/)
+  run.child.kill("SIGTERM")
+  assert.equal(await run.exited, 0)
+})
+
+test("SURFSENSE_AUTH=none turns sign-in off, and the log warns of it", { skip }, async (t) => {
+  const run = startHeadless(t, { caddy: true, env: { SURFSENSE_AUTH: "none" } })
+  let stderr = ""
+  run.child.stderr?.on("data", (chunk) => (stderr += chunk))
+  await run.ready
+  const children = await recorded(run.log, 5)
+  const port = children.caddy?.caddy.SURFSENSE_ACCESS_PORT
+  const state = await fetch(`http://127.0.0.1:${port}/access/state`, {
+    headers: { "X-Forwarded-Host": "localhost:4929", "X-Forwarded-For": "127.0.0.1" },
+  })
+  assert.equal(((await state.json()) as { signInOff: boolean }).signInOff, true)
+  assert.match(stderr, /sign-in is off/i)
+  run.child.kill("SIGTERM")
+  assert.equal(await run.exited, 0)
+})
+
+test("a SURFSENSE_AUTH it does not know stops the container at start, saying why", { skip }, async (t) => {
+  const run = startHeadless(t, { caddy: true, env: { SURFSENSE_AUTH: "off" } })
+  run.ready.catch(() => undefined)
+  let stderr = ""
+  run.child.stderr?.on("data", (chunk) => (stderr += chunk))
+  assert.notEqual(await run.exited, 0)
+  assert.match(stderr, /SURFSENSE_AUTH/)
 })
 
 test("SURFSENSE_PASSWORD sets the password at start, and no sidecar sees it", { skip }, async (t) => {
@@ -253,7 +295,10 @@ test("SURFSENSE_PASSWORD sets the password at start, and no sidecar sees it", { 
   const state = await fetch(`http://127.0.0.1:${port}/access/state`, {
     headers: { "X-Forwarded-Host": "localhost:4929", "X-Forwarded-For": "127.0.0.1" },
   })
-  assert.equal(((await state.json()) as { password: boolean }).password, true)
+  const read = (await state.json()) as { password: boolean; source: string }
+  assert.equal(read.password, true)
+  // Its owner is the setup, so the app shows it locked.
+  assert.equal(read.source, "setup")
   for (const child of Object.values(children)) assert.equal(child.env.SURFSENSE_PASSWORD, undefined)
   run.child.kill("SIGTERM")
   assert.equal(await run.exited, 0)

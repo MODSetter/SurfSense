@@ -13,8 +13,10 @@ const MAX_BODY_BYTES = 4096
 export type AccessOptions = {
   dataDir: string
   secret: string
-  /** Comma-separated, from SURFSENSE_ALLOWED_HOSTS; empty allows any once a password exists. */
+  /** Comma-separated, from SURFSENSE_ALLOWED_HOSTS; empty allows any. */
   allowedHosts: string
+  /** SURFSENSE_AUTH=none: the server's own proxy or VPN signs people in, so this never asks. */
+  signInOff: boolean
   gateway: () => string | null
   port?: number
 }
@@ -101,10 +103,12 @@ export function startAccess(options: AccessOptions): Promise<Server> {
   async function changePassword(raw: IncomingMessage, response: ServerResponse, request: Request) {
     const record = readPassword(options.dataDir)
     const body = await readJson(raw)
-    if (record === null) {
-      // The first password: only the host itself, the one place answered until it exists.
-      if (!isHostRequest(request.host, request.client, options.gateway())) return end(response, 403)
-    } else {
+    // SURFSENSE_PASSWORD would set it back at the next start.
+    if (record?.source === "setup") return end(response, 409)
+    // Changing it needs the current one. The first is whoever opens SurfSense
+    // first, as Immich and Open WebUI have it; one reachable from the internet
+    // presets SURFSENSE_PASSWORD instead.
+    if (record !== null) {
       const now = Date.now()
       const wait = guesses.waitSeconds(request.client, now)
       if (wait > 0) return end(response, 429, { "Retry-After": String(wait) })
@@ -130,24 +134,24 @@ export function startAccess(options: AccessOptions): Promise<Server> {
           host: request.host,
           client: request.client,
           gateway: options.gateway(),
-          hasPassword: readPassword(options.dataDir) !== null,
           allowedHosts,
           signedIn: signedIn(request),
+          signInOff: options.signInOff,
         })
         if (verdict !== 403) return end(response, verdict)
         // Caddy hands this answer to the browser as it is.
         response.writeHead(403, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" })
-        return response.end(
-          readPassword(options.dataDir) === null
-            ? "SurfSense answers only on this machine until a password is set.\n"
-            : "SurfSense does not answer on this address. Add it to SURFSENSE_ALLOWED_HOSTS.\n",
-        )
+        return response.end("SurfSense does not answer on this address. Add it to SURFSENSE_ALLOWED_HOSTS.\n")
       }
       if (url.pathname === "/access/state" && raw.method === "GET") {
+        const record = readPassword(options.dataDir)
         return end(response, 200, {}, {
-          password: readPassword(options.dataDir) !== null,
+          password: record !== null,
           signedIn: signedIn(request),
           host: isHostRequest(request.host, request.client, options.gateway()),
+          // Who may change it: "setup" means only the server's setup.
+          source: record?.source ?? null,
+          signInOff: options.signInOff,
         })
       }
       if (raw.method !== "POST") return end(response, 405)

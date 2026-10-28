@@ -17,7 +17,8 @@ import { sidecarControl, stopAll } from "../sidecars/supervisor.ts"
 import type { CrashHandler } from "../sidecars/types.ts"
 import { startAccess } from "./access/server.ts"
 import { defaultGateway } from "./access/host-request.ts"
-import { setPassword } from "./access/password-store.ts"
+import { handOverToApp, readPassword, setPassword } from "./access/password-store.ts"
+import { signInOff } from "./sign-in-mode.ts"
 import { CADDY_SIDECAR, caddySpec } from "./caddy.ts"
 import { tlsMode, type TlsMode } from "./tls-mode.ts"
 import { containerEnv } from "./container-env.ts"
@@ -39,10 +40,12 @@ Object.assign(process.env, environment)
 // Unset on a checkout, which serves the API alone, as the desktop does.
 const caddyfile = process.env.SURFSENSE_LOCAL_CADDYFILE || undefined
 let tls: TlsMode = { caddyfile: "Caddyfile", env: {} }
+let noSignIn = false
 if (caddyfile) {
   // Settled before anything starts: a setting Caddy cannot serve stops here, saying why.
   try {
     tls = tlsMode(process.env)
+    noSignIn = signInOff(process.env)
   } catch (error) {
     console.error(`[headless] ${(error as Error).message}`)
     process.exit(1)
@@ -91,14 +94,27 @@ try {
 announceApiUrl(context.dataDir, booted.apiUrl)
 if (caddyfile && chatgptCallbackPort) {
   // Set or replaced at every start, so it doubles as the reset for a forgotten one (ADR 0074).
-  if (password) await setPassword(context.dataDir, password)
+  if (password) await setPassword(context.dataDir, password, "setup")
+  else handOverToApp(context.dataDir)
   const gateway = defaultGateway()
   const access = await startAccess({
     dataDir: context.dataDir,
     secret: context.secret,
     allowedHosts: process.env.SURFSENSE_ALLOWED_HOSTS ?? "",
+    signInOff: noSignIn,
     gateway: () => gateway,
   })
+  if (noSignIn) {
+    console.warn(
+      "[headless] Sign-in is off (SURFSENSE_AUTH=none): anyone who reaches SurfSense can use it. " +
+        "Keep it behind your own proxy or VPN.",
+    )
+  } else if (readPassword(context.dataDir) === null) {
+    console.log(
+      "[headless] No password yet. Open SurfSense in a browser to create one, " +
+        "or set SURFSENSE_PASSWORD and restart.",
+    )
+  }
   const accessPort = (access.address() as AddressInfo).port
   sidecarControl(booted.sidecars, onCrash).start(
     caddySpec({

@@ -127,8 +127,11 @@ describe("the image", { skip: IMAGE ? false : "SURFSENSE_TEST_IMAGE names no ima
     assert.match(script.type, /javascript/)
   })
 
-  test("refuses a host other than localhost while it has no password", async () => {
-    assert.equal((await get("/api/health", { host: "surfsense.example.com" })).status, 403)
+  test("asks to be set up before it opens its API, on any address", async () => {
+    assert.equal((await get("/api/workspaces")).status, 401)
+    assert.equal((await get("/api/workspaces", { host: "surfsense.example.com" })).status, 401)
+    const state = JSON.parse((await get("/access/state")).body) as { password: boolean }
+    assert.equal(state.password, false)
   })
 
   test("refuses the workers' internal routes from outside", async () => {
@@ -210,6 +213,16 @@ describe("the image with a password", { skip: IMAGE ? false : "SURFSENSE_TEST_IM
     const out = await get("/access/sign-out", { method: "POST", headers: { cookie: right.cookie } })
     assert.equal(out.status, 204)
     assert.match(out.setCookie, /Max-Age=0/)
+  })
+
+  test("keeps a password from its setup: the app cannot change it", async () => {
+    const signedIn = await get("/access/sign-in", { method: "POST", json: { password: PASSWORD } })
+    const changed = await get("/access/password", {
+      method: "POST",
+      headers: { cookie: signedIn.cookie },
+      json: { current: PASSWORD, password: "another long passphrase" }, // pragma: allowlist secret
+    })
+    assert.equal(changed.status, 409)
   })
 
   test("answers the allowed host, and refuses any other", async () => {

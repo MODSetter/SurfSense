@@ -2,11 +2,15 @@
 // page's own origin, outside the API (ADR 0074).
 
 export type AccessState = {
-  /** Whether the instance has a password; until it does, only the host is answered. */
+  /** Whether the instance has a password; until it does, the app asks to set one. */
   password: boolean
   signedIn: boolean
   /** Whether this browser is on the Docker host itself. */
   host: boolean
+  /** Who may change it: the app, or only the server's setup; null with none. */
+  source: "app" | "setup" | null
+  /** The server's own proxy or VPN signs people in, so this never asks. */
+  signInOff: boolean
 }
 
 export const MIN_PASSWORD_LENGTH = 8
@@ -18,7 +22,7 @@ export type SignInResult =
   | { status: "failed" }
 
 export type PasswordResult =
-  "saved" | "wrong-current" | "slowed" | "too-short" | "failed"
+  "saved" | "wrong-current" | "set-by-setup" | "slowed" | "too-short" | "failed"
 
 function post(path: string, body?: unknown): Promise<Response> {
   return fetch(path, {
@@ -63,6 +67,7 @@ export async function savePassword(
   )
   if (response.status === 204) return "saved"
   if (response.status === 403) return "wrong-current"
+  if (response.status === 409) return "set-by-setup"
   if (response.status === 429) return "slowed"
   if (response.status === 422) return "too-short"
   return "failed"

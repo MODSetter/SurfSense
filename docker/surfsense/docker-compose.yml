@@ -7,11 +7,11 @@ services:
   surfsense:
     image: ${SURFSENSE_IMAGE:-ghcr.io/modsetter/surfsense}:${SURFSENSE_VERSION:-latest}${SURFSENSE_VARIANT:+-${SURFSENSE_VARIANT}}
     ports:
-      # This machine only, unless SURFSENSE_BIND widens it. Without a password the
-      # access service still answers only the host itself (ADR 0074).
-      - "${SURFSENSE_BIND:-127.0.0.1}:${SURFSENSE_PORT:-4929}:80"
+      # Every network the server is on, behind the password (ADR 0074);
+      # SURFSENSE_BIND=127.0.0.1 keeps it to this machine.
+      - "${SURFSENSE_BIND:-0.0.0.0}:${SURFSENSE_PORT:-4929}:80"
       # HTTPS, once SURFSENSE_TLS or SURFSENSE_DOMAIN asks for it; nothing listens here otherwise.
-      - "${SURFSENSE_BIND:-127.0.0.1}:${SURFSENSE_HTTPS_PORT:-4943}:443"
+      - "${SURFSENSE_BIND:-0.0.0.0}:${SURFSENSE_HTTPS_PORT:-4943}:443"
     volumes:
       - surfsense_data:/data
     environment:
@@ -22,6 +22,8 @@ services:
       # Optional: sets the sign-in password at start; it can also be created in the app.
       SURFSENSE_PASSWORD: ${SURFSENSE_PASSWORD:-}
       SURFSENSE_ALLOWED_HOSTS: ${SURFSENSE_ALLOWED_HOSTS:-}
+      # none: your own proxy or VPN signs people in, and SurfSense never asks.
+      SURFSENSE_AUTH: ${SURFSENSE_AUTH:-}
       SURFSENSE_TLS: ${SURFSENSE_TLS:-}
       SURFSENSE_DOMAIN: ${SURFSENSE_DOMAIN:-}
       # Plain HTTP on another address redirects to HTTPS on this, the published port.

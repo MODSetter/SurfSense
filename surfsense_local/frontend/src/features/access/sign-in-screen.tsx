@@ -7,12 +7,12 @@ import {
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
 import { intl } from "@/i18n/intl"
-import surfSenseLogo from "@/surfsense-logo.svg"
 
+import { AccessScreen } from "./access-screen"
 import { signIn } from "./api"
+import { PasswordField } from "./password-field"
 
 /** The Docker image's sign-in, shown until this browser has a session (ADR 0074). */
 export function SignInScreen({ onSignedIn }: { onSignedIn: () => void }) {
@@ -59,64 +59,44 @@ export function SignInScreen({ onSignedIn }: { onSignedIn: () => void }) {
   }
 
   return (
-    <main className="flex h-full items-center justify-center bg-app-shell p-8">
-      <form
-        className="flex w-full max-w-sm flex-col gap-6"
-        onSubmit={(event) => void submit(event)}
-      >
-        <div className="flex flex-col items-center gap-3 text-center">
-          <span
-            aria-hidden="true"
-            className="size-10 bg-foreground"
-            style={{
-              maskImage: `url(${surfSenseLogo})`,
-              maskPosition: "center",
-              maskRepeat: "no-repeat",
-              maskSize: "contain",
-            }}
+    <AccessScreen
+      title={intl.formatMessage({
+        id: "access_sign_in_title",
+        defaultMessage: "Sign in to SurfSense",
+      })}
+      body={intl.formatMessage({
+        id: "access_sign_in_body",
+        defaultMessage: "Enter the password set for SurfSense.",
+      })}
+      onSubmit={(event) => void submit(event)}
+    >
+      <FieldGroup>
+        <Field data-invalid={error ? true : undefined}>
+          <FieldLabel htmlFor={fieldId}>
+            {intl.formatMessage({
+              id: "access_sign_in_field_label",
+              defaultMessage: "Password",
+            })}
+          </FieldLabel>
+          <PasswordField
+            id={fieldId}
+            autoComplete="current-password"
+            autoFocus
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            disabled={busy}
+            aria-invalid={error ? true : undefined}
           />
-          <h1 className="text-xl font-semibold text-balance">
-            {intl.formatMessage({
-              id: "access_sign_in_title",
-              defaultMessage: "Sign in to SurfSense",
-            })}
-          </h1>
-          <p className="text-sm text-pretty text-muted-foreground">
-            {intl.formatMessage({
-              id: "access_sign_in_body",
-              defaultMessage: "Enter the password set for this SurfSense.",
-            })}
-          </p>
-        </div>
-        <FieldGroup>
-          <Field data-invalid={error ? true : undefined}>
-            <FieldLabel htmlFor={fieldId}>
-              {intl.formatMessage({
-                id: "access_sign_in_field_label",
-                defaultMessage: "Password",
-              })}
-            </FieldLabel>
-            <Input
-              id={fieldId}
-              type="password"
-              autoComplete="current-password"
-              autoFocus
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              disabled={busy}
-              aria-invalid={error ? true : undefined}
-            />
-            {error ? <FieldError>{error}</FieldError> : null}
-          </Field>
-        </FieldGroup>
-        <Button type="submit" disabled={busy || !password}>
-          {busy ? <Spinner data-icon="inline-start" /> : null}
-          {intl.formatMessage({
-            id: "access_sign_in_button",
-            defaultMessage: "Sign in",
-          })}
-        </Button>
-      </form>
-    </main>
+          {error ? <FieldError>{error}</FieldError> : null}
+        </Field>
+      </FieldGroup>
+      <Button type="submit" disabled={busy || !password}>
+        {busy ? <Spinner data-icon="inline-start" /> : null}
+        {intl.formatMessage({
+          id: "access_sign_in_button",
+          defaultMessage: "Sign in",
+        })}
+      </Button>
+    </AccessScreen>
   )
 }

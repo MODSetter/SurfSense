@@ -93,6 +93,7 @@ import {
   Video01Icon as Video01IconData,
   ComputerIcon as ComputerIconData,
   ViewIcon as ViewIconData,
+  ViewOffSlashIcon as ViewOffSlashIconData,
   WebDesign01Icon as WebDesign01IconData,
   XIcon as XIconData,
   Xls01Icon as Xls01IconData,
@@ -230,6 +231,7 @@ export const SquareDashedMousePointerIcon = createIcon(
 export const ThoughtBubbleIcon = createIcon(ThoughtBubbleIconData)
 export const Trash2Icon = createIcon(Delete02Icon)
 export const ViewIcon = createIcon(ViewIconData)
+export const ViewOffIcon = createIcon(ViewOffSlashIconData)
 export const WebDesign01Icon = createIcon(WebDesign01IconData)
 export const XIcon = createIcon(XIconData)
 export const Xls01Icon = createIcon(Xls01IconData)

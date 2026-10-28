@@ -5,7 +5,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { test, type TestContext } from "node:test"
 
-import { setPassword } from "./password-store.ts"
+import { handOverToApp, setPassword } from "./password-store.ts"
 import { startAccess } from "./server.ts"
 
 const GATEWAY = "172.18.0.1"
@@ -24,13 +24,22 @@ type Ask = {
   body?: unknown
 }
 
-async function serve(t: TestContext, options: { password?: string; allowedHosts?: string } = {}) {
+async function serve(
+  t: TestContext,
+  options: {
+    password?: string
+    fromSetup?: boolean
+    allowedHosts?: string
+    signInOff?: boolean
+  } = {},
+) {
   const dataDir = mkdtempSync(join(tmpdir(), "surfsense-access-"))
-  if (options.password) await setPassword(dataDir, options.password)
+  if (options.password) await setPassword(dataDir, options.password, options.fromSetup ? "setup" : "app")
   const server = await startAccess({
     dataDir,
     secret: "a".repeat(64),
     allowedHosts: options.allowedHosts ?? "",
+    signInOff: options.signInOff ?? false,
     gateway: () => GATEWAY,
   })
   t.after(() => {
@@ -64,35 +73,49 @@ async function serve(t: TestContext, options: { password?: string; allowedHosts?
   return { ask, verify, dataDir }
 }
 
-test("without a password, the host's own requests pass and no one else's", async (t) => {
+const LAN = { host: "surfsense.lan", client: "192.168.1.30" }
+
+test("without a password, only the app's files open, on any machine, so it can be set up", async (t) => {
   const { verify } = await serve(t)
 
-  assert.equal(await verify("/api/documents"), 200)
-  assert.equal(await verify("/api/documents", { client: "127.0.0.1" }), 200)
-  assert.equal(await verify("/api/documents", { host: "192.168.1.20:4929" }), 403)
-  // A Host is the sender's to choose: a client on the LAN claiming localhost is refused.
-  assert.equal(await verify("/api/documents", { client: "192.168.1.30" }), 403)
+  assert.equal(await verify("/"), 200)
+  assert.equal(await verify("/", LAN), 200)
+  assert.equal(await verify("/api/documents"), 401)
+  assert.equal(await verify("/api/documents", LAN), 401)
 })
 
-test("a password is created from the host only, and signs that browser in", async (t) => {
+test("the first password is set from any browser, and signs it in", async (t) => {
   const { ask, verify } = await serve(t)
 
-  const elsewhere = await ask({
-    method: "POST",
-    path: "/access/password",
-    client: "192.168.1.30",
-    body: { password: PASSWORD },
-  })
-  assert.equal(elsewhere.status, 403)
+  const created = await ask({ method: "POST", path: "/access/password", ...LAN, body: { password: PASSWORD } })
 
-  const created = await ask({
+  assert.equal(created.status, 204)
+  assert.equal(await verify("/api/documents", LAN), 401)
+  assert.equal(await verify("/api/documents", { ...LAN, cookie: created.cookie }), 200)
+})
+
+test("a password set in the server's setup is not changed from the app", async (t) => {
+  const { ask } = await serve(t, { password: PASSWORD, fromSetup: true })
+  const { cookie } = await ask({ method: "POST", path: "/access/sign-in", body: { password: PASSWORD } })
+
+  const changed = await ask({
     method: "POST",
     path: "/access/password",
-    body: { password: PASSWORD },
+    cookie,
+    body: { current: PASSWORD, password: NEW_PASSWORD },
   })
-  assert.equal(created.status, 204)
-  assert.equal(await verify("/api/documents"), 401)
-  assert.equal(await verify("/api/documents", { cookie: created.cookie }), 200)
+
+  assert.equal(changed.status, 409)
+  const { response } = await ask({ path: "/access/state", cookie })
+  assert.equal(((await response.json()) as { source: string }).source, "setup")
+})
+
+test("with sign-in turned off, an allowed address opens with no password, and any other name is still refused", async (t) => {
+  const { verify } = await serve(t, { signInOff: true, allowedHosts: "surfsense.example.com" })
+
+  assert.equal(await verify("/api/documents", { host: "surfsense.example.com", client: "198.51.100.7" }), 200)
+  // A page rebinding its own name to this address never names one of ours.
+  assert.equal(await verify("/api/documents", { host: "evil.example", client: "198.51.100.7" }), 403)
 })
 
 test("with a password, every route but the app's files and health needs a session", async (t) => {
@@ -261,10 +284,11 @@ test("the state tells the app whether to show the sign-in", async (t) => {
   const { ask } = await serve(t, { password: PASSWORD })
 
   const before = await ask({ path: "/access/state" })
-  assert.deepEqual(await before.response.json(), { password: true, signedIn: false, host: true })
+  const expected = { password: true, host: true, source: "app", signInOff: false }
+  assert.deepEqual(await before.response.json(), { ...expected, signedIn: false })
   const signedIn = await ask({ method: "POST", path: "/access/sign-in", body: { password: PASSWORD } })
   const after = await ask({ path: "/access/state", cookie: signedIn.cookie })
-  assert.deepEqual(await after.response.json(), { password: true, signedIn: true, host: true })
+  assert.deepEqual(await after.response.json(), { ...expected, signedIn: true })
 })
 
 test("the password is stored hashed, readable by its owner only", async (t) => {
@@ -274,4 +298,16 @@ test("the password is stored hashed, readable by its owner only", async (t) => {
   const stored = readFileSync(join(dataDir, "access.json"), "utf8")
   assert.doesNotMatch(stored, /correct horse battery/)
   assert.equal(statSync(join(dataDir, "access.json")).mode & 0o777, 0o600)
+})
+
+test("once the setup stops setting it, the password stays and becomes the app's", async (t) => {
+  const { ask, dataDir } = await serve(t, { password: PASSWORD, fromSetup: true })
+
+  handOverToApp(dataDir)
+
+  const { response } = await ask({ path: "/access/state" })
+  assert.deepEqual(
+    (({ password, source }) => ({ password, source }))((await response.json()) as Record<string, unknown>),
+    { password: true, source: "app" },
+  )
 })

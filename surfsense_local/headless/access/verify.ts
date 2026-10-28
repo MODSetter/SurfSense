@@ -23,14 +23,15 @@ export function verify(request: {
   host: string | undefined
   client: string
   gateway: string | null
-  hasPassword: boolean
   allowedHosts: string[]
   signedIn: boolean
+  /** The server's setup turned sign-in off: its own proxy or VPN guards it. */
+  signInOff: boolean
 }): Verdict {
   const fromHost = isHostRequest(request.host, request.client, request.gateway)
-  // Without a password, as on the desktop: the host alone, and no sign-in.
-  if (!request.hasPassword) return fromHost ? 200 : 403
+  // Even with sign-in off, a name not ours is a rebinding page's.
   if (!fromHost && !allowedHost(request.host, request.allowedHosts)) return 403
-  if (isPublicPath(request.uri)) return 200
+  if (request.signInOff || isPublicPath(request.uri)) return 200
+  // No password yet is a 401 too: the app's files load and show its setup.
   return request.signedIn ? 200 : 401
 }
