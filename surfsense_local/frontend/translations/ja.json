@@ -1378,6 +1378,7 @@
   "sources_upload_rejected_file_label": "{filename}（{reason}）",
   "sources_upload_too_large_error": "{size, number, ::unit/megabyte}超: {files}",
   "sources_upload_too_large_reason_label": "{size, number, ::unit/megabyte}超",
+  "sources_upload_unreadable_reason_label": "読み取れませんでした。別のアプリで開かれている可能性があります",
   "sources_upload_unsupported_body": "非対応: {files}",
   "sources_upload_unsupported_error": "非対応のファイル形式: {files}",
   "sources_web_add_all_button": "すべて追加（{count, number}）",

@@ -1378,6 +1378,7 @@
   "sources_upload_rejected_file_label": "{filename}（{reason}）",
   "sources_upload_too_large_error": "超过 {size, number, ::unit/megabyte}：{files}",
   "sources_upload_too_large_reason_label": "超过 {size, number, ::unit/megabyte}",
+  "sources_upload_unreadable_reason_label": "无法读取，可能已在其他应用中打开",
   "sources_upload_unsupported_body": "不支持：{files}",
   "sources_upload_unsupported_error": "不支持的文件类型：{files}",
   "sources_web_add_all_button": "全部添加（{count, number}）",

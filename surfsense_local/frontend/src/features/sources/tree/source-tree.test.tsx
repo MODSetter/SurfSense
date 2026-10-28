@@ -52,8 +52,16 @@ const DOCUMENTS = [
 
 type Call = { path: string; method: string; body: unknown }
 
-/** The folders API as the backend serves it, recording every write. */
-function folderApi() {
+type Route = (body: FormData | null) => Promise<Response>
+
+/**
+ * The folders API as the backend serves it, recording every write. `upload`
+ * and `health` replace those routes' answers.
+ */
+function folderApi({
+  upload,
+  health,
+}: { upload?: Route; health?: Route } = {}) {
   let folders = [...FOLDERS]
   let documents = [...DOCUMENTS]
   const writes: Call[] = []
@@ -110,11 +118,13 @@ function folderApi() {
         return Response.json({ moved: document_ids, skipped: [] })
       }
       if (path === "/workspaces/1/documents/upload") {
+        if (upload) return upload(body as FormData)
         return Response.json(
           { created: [], duplicates: [], rejected: [] },
           { status: 201 }
         )
       }
+      if (path === "/health" && health) return health(null)
       return Response.json({ detail: "not found" }, { status: 404 })
     }
   )
@@ -564,6 +574,125 @@ describe("source tree", () => {
     expect(JSON.parse(String(sent.get("relative_paths")))).toEqual([
       "Trip/a.md",
     ])
+  })
+
+  it("skips the lock file Office keeps beside a document it has open", async () => {
+    const { writes } = folderApi()
+    render(<TreeHarness />)
+    const research = await screen.findByRole("treeitem", { name: "Research" })
+    const plan = new File(["plan"], "plan.docx")
+    const lock = new File(["owner"], "~$plan.docx")
+
+    dropOn(
+      research,
+      fakeDataTransfer({
+        entries: [
+          droppedFolder("Trip", { "plan.docx": plan, "~$plan.docx": lock }),
+        ],
+      })
+    )
+
+    await waitFor(() =>
+      expect(
+        writes.some((write) => write.path === "/workspaces/1/documents/upload")
+      ).toBe(true)
+    )
+    const sent = writes.find(
+      (write) => write.path === "/workspaces/1/documents/upload"
+    )?.body as FormData
+    expect(sent.getAll("files")).toEqual([plan])
+  })
+
+  it("adds a folder's other files when one of them cannot be read", async () => {
+    let id = 100
+    const { writes } = folderApi({
+      // Chromium fails a whole request when it cannot read one of its files.
+      upload: async (body) => {
+        const files = body?.getAll("files") as File[]
+        if (files.some((file) => file.name === "budget.xlsx")) {
+          throw new TypeError("Failed to fetch")
+        }
+        return Response.json(
+          {
+            created: files.map((file) => source(id++, file.name, 2)),
+            duplicates: [],
+            rejected: [],
+          },
+          { status: 201 }
+        )
+      },
+    })
+    render(<TreeHarness />)
+    const research = await screen.findByRole("treeitem", { name: "Research" })
+    const a = new File(["a"], "a.md", { type: "text/markdown" })
+    const budget = new File(["b"], "budget.xlsx")
+    const b = new File(["c"], "b.txt", { type: "text/plain" })
+
+    dropOn(
+      research,
+      fakeDataTransfer({
+        entries: [
+          droppedFolder("Trip", {
+            "a.md": a,
+            "budget.xlsx": budget,
+            "sub/b.txt": b,
+          }),
+        ],
+      })
+    )
+
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith(
+        "2 sources added",
+        expect.objectContaining({
+          description:
+            "Ingestion is running in the background. Rejected: budget.xlsx " +
+            "(Couldn’t be read; it may be open in another app)",
+        })
+      )
+    )
+    const sent = writes
+      .filter((write) => write.path === "/workspaces/1/documents/upload")
+      .map((write) => write.body as FormData)
+    expect(sent.map((body) => body.getAll("files"))).toEqual([
+      [a, budget, b],
+      [a],
+      [budget],
+      [b],
+    ])
+    expect(JSON.parse(String(sent[3].get("relative_paths")))).toEqual([
+      "Trip/sub/b.txt",
+    ])
+    expect(sent[3].get("folder_id")).toBe("2")
+  })
+
+  it("still reports a failed upload when the app's server does not answer", async () => {
+    const unanswered = async () => {
+      throw new TypeError("Failed to fetch")
+    }
+    folderApi({ upload: unanswered, health: unanswered })
+    render(<TreeHarness />)
+    const research = await screen.findByRole("treeitem", { name: "Research" })
+
+    dropOn(
+      research,
+      fakeDataTransfer({
+        entries: [
+          droppedFolder("Trip", {
+            "a.md": new File(["a"], "a.md", { type: "text/markdown" }),
+            "b.txt": new File(["b"], "b.txt", { type: "text/plain" }),
+          }),
+        ],
+      })
+    )
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        "Couldn’t add your sources",
+        expect.objectContaining({ description: "Failed to fetch" })
+      )
+    )
+    expect(toast.success).not.toHaveBeenCalled()
   })
 
   it("sets aside a file over 500 MB and uploads the rest", async () => {

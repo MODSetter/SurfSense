@@ -1378,6 +1378,7 @@
   "sources_upload_rejected_file_label": "{filename} ({reason})",
   "sources_upload_too_large_error": "{size, number, ::unit/megabyte} 초과: {files}",
   "sources_upload_too_large_reason_label": "{size, number, ::unit/megabyte} 초과",
+  "sources_upload_unreadable_reason_label": "읽을 수 없습니다. 다른 앱에서 열려 있을 수 있습니다",
   "sources_upload_unsupported_body": "지원하지 않음: {files}",
   "sources_upload_unsupported_error": "지원하지 않는 파일 형식: {files}",
   "sources_web_add_all_button": "모두 추가 ({count, number})",

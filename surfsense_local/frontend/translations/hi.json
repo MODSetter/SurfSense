@@ -1378,6 +1378,7 @@
   "sources_upload_rejected_file_label": "{filename} ({reason})",
   "sources_upload_too_large_error": "{size, number, ::unit/megabyte} से बड़ी: {files}",
   "sources_upload_too_large_reason_label": "{size, number, ::unit/megabyte} से बड़ी",
+  "sources_upload_unreadable_reason_label": "पढ़ी नहीं जा सकी; हो सकता है यह किसी दूसरे ऐप में खुली हो",
   "sources_upload_unsupported_body": "समर्थित नहीं: {files}",
   "sources_upload_unsupported_error": "असमर्थित फ़ाइल प्रकार: {files}",
   "sources_web_add_all_button": "सभी जोड़ें ({count, number})",
