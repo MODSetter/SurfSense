@@ -1453,6 +1453,7 @@
   "sources_web_start_title": "웹에서 소스 찾기",
   "sources_web_unreachable_error": "SurfSense가 지금 웹에 연결하지 못했습니다. 잠시 후 다시 시도하세요.",
   "speech_setup_popover_ask_body": "이 컴퓨터에서 음성을 텍스트로 변환합니다. 설정에서 모델을 고르세요. 한 번만 다운로드하면 됩니다.",
+  "speech_setup_popover_cancel_button": "다운로드 취소",
   "speech_setup_popover_done_button": "완료",
   "speech_setup_popover_downloading_body": "음성 인식 모델을 다운로드하는 중입니다({percent, number, ::percent}).",
   "speech_setup_popover_not_now_button": "나중에",

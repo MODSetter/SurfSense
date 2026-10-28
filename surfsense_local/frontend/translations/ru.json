@@ -1453,6 +1453,7 @@
   "sources_web_start_title": "Найдите источники в интернете",
   "sources_web_unreachable_error": "SurfSense сейчас не удалось выйти в интернет. Попробуйте ещё раз чуть позже.",
   "speech_setup_popover_ask_body": "Превращайте голос в текст на этом компьютере. Выберите модель в настройках — она скачивается один раз.",
+  "speech_setup_popover_cancel_button": "Отменить загрузку",
   "speech_setup_popover_done_button": "Готово",
   "speech_setup_popover_downloading_body": "Скачивается модель распознавания речи, {percent, number, ::percent}.",
   "speech_setup_popover_not_now_button": "Не сейчас",

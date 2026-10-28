@@ -1453,6 +1453,7 @@
   "sources_web_start_title": "Trouver des sources sur le web",
   "sources_web_unreachable_error": "SurfSense n’a pas pu accéder au web pour le moment. Réessayez dans un instant.",
   "speech_setup_popover_ask_body": "Transformez votre voix en texte sur cet ordinateur. Choisissez un modèle dans les Paramètres ; il se télécharge une seule fois.",
+  "speech_setup_popover_cancel_button": "Annuler le téléchargement",
   "speech_setup_popover_done_button": "Terminé",
   "speech_setup_popover_downloading_body": "Téléchargement du modèle de reconnaissance vocale, {percent, number, ::percent}.",
   "speech_setup_popover_not_now_button": "Pas maintenant",

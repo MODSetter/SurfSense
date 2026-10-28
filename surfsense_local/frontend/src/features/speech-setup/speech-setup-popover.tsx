@@ -101,7 +101,8 @@ function SpeechSetupBody({
     )
   }
 
-  const downloading = setup.downloadPercent !== null
+  const { download } = setup
+  const downloading = download !== null
   return (
     <>
       <PopoverHeader>
@@ -119,7 +120,7 @@ function SpeechSetupBody({
                   defaultMessage:
                     "Downloading the speech recognition model, {percent, number, ::percent}.",
                 },
-                { percent: (setup.downloadPercent ?? 0) / 100 }
+                { percent: (download?.percent ?? 0) / 100 }
               )
             : intl.formatMessage({
                 id: "speech_setup_popover_ask_body",
@@ -129,7 +130,20 @@ function SpeechSetupBody({
         </PopoverDescription>
       </PopoverHeader>
       <div className="flex justify-end gap-2">
-        {downloading ? null : (
+        {download ? (
+          // Stays open: once the feed reports it ended, this asks again.
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            onClick={download.cancel}
+          >
+            {intl.formatMessage({
+              id: "speech_setup_popover_cancel_button",
+              defaultMessage: "Cancel download",
+            })}
+          </Button>
+        ) : (
           <PopoverClose
             render={<Button type="button" size="sm" variant="ghost" />}
           >

@@ -1,6 +1,6 @@
 import { useLocalSpeechCatalog } from "@/features/models/local/transcription/use-local-speech-catalog"
 
-import { useSpeechDownloadPercent } from "./use-speech-download"
+import { useSpeechDownload } from "./use-speech-download"
 
 /**
  * Where setting up speech recognition stands. Choosing and downloading a model
@@ -11,6 +11,6 @@ export function useSpeechSetup() {
   return {
     // A model on disk and chosen: recordings and voice input can use it.
     inUse: models.find((model) => model.selected && model.installed_as) ?? null,
-    downloadPercent: useSpeechDownloadPercent(),
+    download: useSpeechDownload(),
   }
 }

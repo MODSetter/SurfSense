@@ -195,7 +195,7 @@ The composer's mic turns speech into text on this computer, with the model chose
 | State | The mic, beside Send ([`mic/`](../../surfsense_local/frontend/src/features/dictation/mic/)) | The strip ([`strip/`](../../surfsense_local/frontend/src/features/dictation/strip/)) |
 |---|---|---|
 | Idle | a ghost icon button; tooltip "Voice input stays on this computer" | none |
-| Not set up | enabled; it opens the set-up popover ([`speech-setup-popover.tsx`](../../surfsense_local/frontend/src/features/speech-setup/speech-setup-popover.tsx)), which asks and hands off: Set up… opens Settings › Speech recognition, where the model is chosen and downloaded and its progress shows; with a speech download under way it says how far it got, and Show progress opens Settings. A ring around the mic fills with that download, and the tooltip says its percentage | none |
+| Not set up | enabled; it opens the set-up popover ([`speech-setup-popover.tsx`](../../surfsense_local/frontend/src/features/speech-setup/speech-setup-popover.tsx)), which asks and hands off: Set up… opens Settings › Speech recognition, where the model is chosen and downloaded and its progress shows; with a speech download under way it says how far it got, Cancel download stops it, and Show progress opens Settings. A ring around the mic fills with that download, and the tooltip says its percentage | none |
 | Arming | pressed | a muted dot and pulsing bars until the first real frame; no timer |
 | Listening | pressed | a red dot, 9 level bars of the last 9 frames, a timer from the first frame, a cancel ✕ |
 | Loading | pressed | "Loading the speech recognition model…", while a phrase waits on a model the session opened `loading` 2 s or more ago |

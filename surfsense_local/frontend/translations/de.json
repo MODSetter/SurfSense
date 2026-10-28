@@ -1453,6 +1453,7 @@
   "sources_web_start_title": "Quellen im Web finden",
   "sources_web_unreachable_error": "SurfSense konnte das Web gerade nicht erreichen. Versuch es gleich noch einmal.",
   "speech_setup_popover_ask_body": "Wandle deine Stimme auf diesem Computer in Text um. Wähle ein Modell in den Einstellungen; es wird einmal heruntergeladen.",
+  "speech_setup_popover_cancel_button": "Download abbrechen",
   "speech_setup_popover_done_button": "Fertig",
   "speech_setup_popover_downloading_body": "Das Spracherkennungsmodell wird heruntergeladen, {percent, number, ::percent}.",
   "speech_setup_popover_not_now_button": "Nicht jetzt",

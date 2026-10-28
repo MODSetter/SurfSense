@@ -1453,6 +1453,7 @@
   "sources_web_start_title": "वेब पर स्रोत खोजें",
   "sources_web_unreachable_error": "SurfSense अभी वेब तक नहीं पहुंच सका। थोड़ी देर में फिर से कोशिश करें।",
   "speech_setup_popover_ask_body": "इस कंप्यूटर पर अपनी आवाज़ को टेक्स्ट में बदलें। सेटिंग्स में एक मॉडल चुनें; वह एक बार डाउनलोड होता है।",
+  "speech_setup_popover_cancel_button": "डाउनलोड रद्द करें",
   "speech_setup_popover_done_button": "हो गया",
   "speech_setup_popover_downloading_body": "स्पीच रिकग्निशन मॉडल डाउनलोड हो रहा है, {percent, number, ::percent}।",
   "speech_setup_popover_not_now_button": "अभी नहीं",

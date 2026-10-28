@@ -794,7 +794,8 @@ Rules the screen holds:
   where speech is needed, for the mic and a recording waiting for a model,
   only asks and hands off: **Set up…** opens this section, which alone offers
   the models, their downloads and their progress. With a speech download under
-  way it says how far it got, and **Show progress** opens this section; once
+  way it says how far it got, **Cancel download** stops it, and **Show progress**
+  opens this section; once
   the catalog marks a model in use it reads "Speech recognition is ready", with
   **Start talking** where its opener can listen. `useSpeechDownloadPercent()`
   reads that download for the popover, the mic's ring and the mic's tooltip.

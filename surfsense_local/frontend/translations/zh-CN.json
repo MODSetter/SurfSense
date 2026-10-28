@@ -1453,6 +1453,7 @@
   "sources_web_start_title": "在网页上查找来源",
   "sources_web_unreachable_error": "SurfSense 暂时无法访问网页。请稍后重试。",
   "speech_setup_popover_ask_body": "在这台电脑上把你的语音转为文字。在设置中选择一个模型，只需下载一次。",
+  "speech_setup_popover_cancel_button": "取消下载",
   "speech_setup_popover_done_button": "完成",
   "speech_setup_popover_downloading_body": "正在下载语音识别模型（{percent, number, ::percent}）。",
   "speech_setup_popover_not_now_button": "以后再说",

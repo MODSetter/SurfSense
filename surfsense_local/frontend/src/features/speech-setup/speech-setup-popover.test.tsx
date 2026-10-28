@@ -124,6 +124,40 @@ describe("speech recognition set-up", () => {
     expect(onMoreChoices).toHaveBeenCalledOnce()
   })
 
+  it("cancels a speech download under way from the popover", async () => {
+    const installs = fakeInstallApi({
+      running: [
+        {
+          id: "job-1",
+          catalog_id: "opaque-nemotron",
+          label: "Nemotron 3.5 ASR",
+          model_types: ["speech_to_text"],
+          select: true,
+          model_type: "speech_to_text",
+          event: {
+            type: "downloading",
+            message: "Downloading",
+            completed: 465_300_000,
+            total: 930_600_000,
+          },
+        },
+      ],
+    })
+    const calls = serving([fakeSpeechRow()], installs.handle)
+    renderSetUp()
+    const { user, popover } = await open()
+
+    await user.click(
+      await within(popover).findByRole("button", { name: "Cancel download" })
+    )
+
+    expect(calls).toContain("DELETE /llm/installs/job-1")
+    // Nothing downloads now, so it asks again.
+    expect(
+      await within(popover).findByRole("button", { name: "Set up…" })
+    ).toBeTruthy()
+  })
+
   it("starts talking once a speech model is in use", async () => {
     serving([fakeSpeechRow({}, SPEECH_IN_USE)])
     const onStart = vi.fn()
