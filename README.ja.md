@@ -54,6 +54,14 @@ SurfSense は、アップロードできない文書のための、無料のオ�
 | **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
 | **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
 
+**Docker でサーバーにセルフホスト**し、ネットワーク上のどのデバイスからでも開けます。更新するには、同じコマンドをもう一度実行してください。
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
+```
+
+Windows（Docker Desktop）の場合：`irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 | iex`
+
 ## クイックスタート
 
 1. SurfSense をインストールし、最初のセットアップを済ませます。

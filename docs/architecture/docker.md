@@ -276,7 +276,7 @@ The image releases with the desktop app: one version, `surfsense_local/VERSION`,
 
 ## Known gaps
 
-- The root README does not point self-hosters at the image or the [installer](#installer) yet, and until `dev` reaches `main` and a release moves `latest`, the one-line commands answer 404.
+- Until `dev` reaches `main` and a release moves `latest`, the one-line commands answer 404.
 - CPU only, and `linux/amd64` only; the CUDA variant and arm64 are the [GPU proposal](../proposals/docker-gpu.md).
 - A plugin whose provider takes only SurfSense's hosted client document cannot finish a sign-in from another device on a LAN name: the hosted page forwards to loopback only, and a paste-back through it is not built. The user's own app works.
 - Not verified against the real services: whether OpenAI accepts a non-loopback HTTPS redirect for ChatGPT, which would replace the paste-back; whether Notion's dynamic registration accepts a LAN HTTPS redirect; the hosted page's forward end to end, which no test exercises ([plugins](plugins.md#known-gaps)).

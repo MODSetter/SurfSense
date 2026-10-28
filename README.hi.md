@@ -54,6 +54,14 @@ SurfSense एक मुफ़्त, ओपन-सोर्स डेस्क�
 | **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
 | **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
 
+**इसे Docker के साथ अपने सर्वर पर खुद होस्ट करें**, और अपने नेटवर्क के किसी भी डिवाइस से खोलें। अपडेट करने के लिए वही कमांड फिर से चलाएं।
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
+```
+
+Docker Desktop वाले Windows पर: `irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 | iex`
+
 ## झटपट शुरुआत
 
 1. SurfSense इंस्टॉल करें और शुरुआती सेटअप पूरा करें।

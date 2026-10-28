@@ -54,6 +54,14 @@ SurfSense ist eine kostenlose Open-Source-Desktop-App für Dokumente, die du nic
 | **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
 | **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
 
+**Betreibe es selbst auf einem Server** mit Docker und öffne es von jedem Gerät in deinem Netzwerk. Führe denselben Befehl erneut aus, um es zu aktualisieren.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
+```
+
+Unter Windows mit Docker Desktop: `irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 | iex`
+
 ## Schnellstart
 
 1. Installiere SurfSense und durchlaufe beim ersten Start die Einrichtung.
