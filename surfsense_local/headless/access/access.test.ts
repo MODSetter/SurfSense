@@ -94,6 +94,18 @@ test("the first password is set from any browser, and signs it in", async (t) =>
   assert.equal(await verify("/api/documents", { ...LAN, cookie: created.cookie }), 200)
 })
 
+test("two browsers setting the first password at once: one sets it, the other must sign in", async (t) => {
+  const { ask } = await serve(t)
+
+  const statuses = await Promise.all(
+    [PASSWORD, NEW_PASSWORD].map((password) =>
+      ask({ method: "POST", path: "/access/password", ...LAN, body: { password } }).then((r) => r.status),
+    ),
+  )
+
+  assert.deepEqual(statuses.sort(), [204, 403])
+})
+
 test("a password set in the server's setup is not changed from the app", async (t) => {
   const { ask } = await serve(t, { password: PASSWORD, fromSetup: true })
   const { cookie } = await ask({ method: "POST", path: "/access/sign-in", body: { password: PASSWORD } })

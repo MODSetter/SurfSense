@@ -99,9 +99,19 @@ export function startAccess(options: AccessOptions): Promise<Server> {
     end(response, 204, { "Set-Cookie": cookieHeader(issue(key, record.version, now), request.secure) })
   }
 
+  // One change at a time, each reading the record afresh: otherwise two first
+  // setups both find none, and a change can overwrite one made during its hash.
+  let changing: Promise<unknown> = Promise.resolve()
+
   async function changePassword(raw: IncomingMessage, response: ServerResponse, request: Request) {
-    const record = readPassword(options.dataDir)
     const body = await readJson(raw)
+    const turn = changing.then(() => changeInTurn(body, response, request))
+    changing = turn.catch(() => {})
+    return turn
+  }
+
+  async function changeInTurn(body: Record<string, unknown>, response: ServerResponse, request: Request) {
+    const record = readPassword(options.dataDir)
     // SURFSENSE_PASSWORD would set it back at the next start.
     if (record?.source === "setup") return end(response, 409)
     // Changing it needs the current one. The first is whoever opens SurfSense
