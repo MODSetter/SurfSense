@@ -91,11 +91,10 @@ export function startAccess(options: AccessOptions): Promise<Server> {
     const now = Date.now()
     const wait = guesses.waitSeconds(request.client, now)
     if (wait > 0) return end(response, 429, { "Retry-After": String(wait) })
+    // Counted before the hash, or guesses sent at once all pass the check above.
+    guesses.failed(request.client, now)
     const { password } = await readJson(raw)
-    if (typeof password !== "string" || !(await checkPassword(record, password))) { // pragma: allowlist secret
-      guesses.failed(request.client, now)
-      return end(response, 401)
-    }
+    if (typeof password !== "string" || !(await checkPassword(record, password))) return end(response, 401) // pragma: allowlist secret
     guesses.succeeded(request.client)
     end(response, 204, { "Set-Cookie": cookieHeader(issue(key, record.version, now), request.secure) })
   }
@@ -112,11 +111,10 @@ export function startAccess(options: AccessOptions): Promise<Server> {
       const now = Date.now()
       const wait = guesses.waitSeconds(request.client, now)
       if (wait > 0) return end(response, 429, { "Retry-After": String(wait) })
+      guesses.failed(request.client, now)
       const current = typeof body.current === "string" ? body.current : ""
-      if (!signedIn(request) || !(await checkPassword(record, current))) {
-        guesses.failed(request.client, now)
-        return end(response, 403)
-      }
+      if (!signedIn(request) || !(await checkPassword(record, current))) return end(response, 403)
+      guesses.succeeded(request.client)
     }
     const password = body.password
     if (typeof password !== "string" || password.length < MIN_LENGTH) return end(response, 422) // pragma: allowlist secret

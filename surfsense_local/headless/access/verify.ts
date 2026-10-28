@@ -9,10 +9,23 @@ export type Verdict = 200 | 401 | 403
 // callbacks, guarded by their own state and PKCE, where a browser can return on
 // another name than its cookie's, as 127.0.0.1 after localhost (ADR 0074).
 const PRIVATE = /^\/api\//
-const INTERNAL = /^\/api\/internal(\/|\?|$)/
+const INTERNAL = /^\/api\/internal(\/|$)/
+
+// Caddy routes /api/* on the decoded path, case-blind, with slashes merged and
+// dot segments resolved; a raw /%61pi/… must not read as public here.
+function routedPath(uri: string): string | null {
+  let decoded: string
+  try {
+    decoded = decodeURIComponent(uri.split("?")[0])
+  } catch {
+    return null
+  }
+  return new URL(decoded.replace(/\/+/g, "/"), "http://route").pathname.toLowerCase()
+}
 
 export function isPublicPath(uri: string): boolean {
-  return uri === "/api/health" || uri.startsWith("/api/health?") || !PRIVATE.test(uri)
+  const path = routedPath(uri)
+  return path !== null && (path === "/api/health" || !PRIVATE.test(path))
 }
 
 export function allowedHost(host: string | undefined, allowedHosts: string[]): boolean {
@@ -30,7 +43,7 @@ export function verify(request: {
   signInOff: boolean
 }): Verdict {
   // The workers' routes are on loopback only; no session ever reaches them.
-  if (INTERNAL.test(request.uri)) return 403
+  if (INTERNAL.test(routedPath(request.uri) ?? "")) return 403
   const fromHost = isHostRequest(request.host, request.client, request.gateway)
   // Even with sign-in off, a name not ours is a rebinding page's.
   if (!fromHost && !allowedHost(request.host, request.allowedHosts)) return 403

@@ -125,6 +125,10 @@ test("with a password, every route but the app's files and health needs a sessio
   assert.equal(await verify("/assets/main-abc.js"), 200)
   assert.equal(await verify("/api/health"), 200)
   assert.equal(await verify("/api/documents"), 401)
+  // Caddy matches /api/* decoded, case-blind and with slashes merged; so must this.
+  for (const uri of ["/%61pi/documents", "/API/documents", "//api/documents", "/x/../api/documents", "/%E0%A4%A"]) {
+    assert.equal(await verify(uri), 401, uri)
+  }
   // A provider fetches the instance's own client document, with no session.
   assert.equal(await verify("/plugins/oauth/client.json"), 200)
   // Opened beyond the host: another machine reaches the sign-in, not the data.
@@ -209,6 +213,19 @@ test("five wrong passwords in a minute slow the sixth guess, even a right one", 
     body: { password: PASSWORD },
   })
   assert.equal(other.status, 204)
+})
+
+test("guesses sent at once are counted before any is checked", async (t) => {
+  const { ask } = await serve(t, { password: PASSWORD })
+
+  const statuses = await Promise.all(
+    Array.from({ length: 20 }, () =>
+      ask({ method: "POST", path: "/access/sign-in", ...LAN, body: { password: "nope" } }).then((r) => r.status), // pragma: allowlist secret
+    ),
+  )
+
+  assert.equal(statuses.filter((status) => status === 401).length, 5)
+  assert.equal(statuses.filter((status) => status === 429).length, 15)
 })
 
 test("sign-in and sign-out refuse a request from another site", async (t) => {
@@ -320,5 +337,6 @@ test("the workers' internal routes are refused to every browser, signed in or no
   // Never "sign in first": nothing outside the container reaches them.
   assert.equal(await verify("/api/internal/events"), 403)
   assert.equal(await verify("/api/internal/events", { cookie }), 403)
+  assert.equal(await verify("/%61pi/internal/events", { cookie }), 403)
   assert.equal(await open.verify("/api/internal/events"), 403)
 })
