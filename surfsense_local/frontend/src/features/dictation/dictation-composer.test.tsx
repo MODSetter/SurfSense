@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest"
+import { afterAll, afterEach, describe, expect, it, vi } from "vitest"
 import { act, cleanup, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { Toaster, toast } from "sonner"
@@ -96,6 +96,10 @@ afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
 })
+
+// A dismissed toast leaves 200 ms later (sonner's TIME_BEFORE_UNMOUNT); fired after the
+// file ends, that removal finds no window and fails the run.
+afterAll(() => new Promise((resolve) => setTimeout(resolve, 300)))
 
 /** The composer's footer line, which a problem never replaces. */
 const disclaimerStays = () =>

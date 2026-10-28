@@ -191,7 +191,7 @@ for (const installer of INSTALLERS) {
       set("arch", "aarch64")
       const { status, out } = run()
       assert.notEqual(status, 0)
-      assert.match(out, /x86-64 \(amd64\) servers only/)
+      assert.match(out, /runs on x86-64 \(amd64\) (servers|machines) only/)
       assert.ok(!existsSync(install()))
     })
 
