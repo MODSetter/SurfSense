@@ -1,5 +1,6 @@
 import type { ReactNode } from "react"
 
+import { ColumnHeader } from "@/components/ui/column-header"
 import { intl } from "@/i18n/intl"
 
 // The right column: Studio's generate control sits above the artifact
@@ -32,14 +33,14 @@ export function RightPanel({
           "SurfSense" header — Studio's format cards start exactly where
           "New chat" does over there, so they don't need a heading of
           their own. */}
-      <header className="shrink-0 space-y-6 px-3 py-3">
-        <div className="flex items-center justify-between gap-2">
+      <header className="shrink-0">
+        <ColumnHeader className="justify-between">
           <h2 className="truncate px-1 font-heading text-lg font-medium text-foreground select-none">
             Studio
           </h2>
           {toggle}
-        </div>
-        {studio}
+        </ColumnHeader>
+        <div className="px-3 pt-2">{studio}</div>
       </header>
       <div className="min-h-0 min-w-0 flex-1 overflow-hidden px-3 pb-2">
         {artifacts}
