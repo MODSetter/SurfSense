@@ -28,7 +28,7 @@ function option(name) {
 }
 
 // Without --out, the desktop's folder. Linux builds only for the CPU, so the
-// Docker image stages this same build (docs/proposals/docker/gpu.md).
+// Docker image stages this same build (docs/proposals/docker-gpu.md).
 const OUT = option("out") ?? fileURLToPath(new URL("../../electron/audiocpp", import.meta.url))
 const HOSTS = ["darwin-arm64", "linux-x64", "win32-x64"]
 

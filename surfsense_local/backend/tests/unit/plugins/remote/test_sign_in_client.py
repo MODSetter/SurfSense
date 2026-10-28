@@ -54,7 +54,7 @@ def test_a_lan_origin_registers_dynamically_with_its_own_callback(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The callback lands where the browser already is; a LAN name no provider can
-    fetch a document from, so it registers instead (docs/proposals/docker)."""
+    fetch a document from, so it registers instead (docs/architecture/docker.md)."""
     monkeypatch.setattr(registry_origin, "reads_repository", lambda: False)
     monkeypatch.setattr(get_settings(), "domain", None)
 

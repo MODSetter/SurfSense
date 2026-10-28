@@ -1,6 +1,6 @@
 name: Docker Tests
 
-# The Docker entry and ghcr.io/modsetter/surfsense (docs/proposals/docker/README.md),
+# The Docker entry and ghcr.io/modsetter/surfsense (docs/architecture/docker.md),
 # tested without pushing an image; release-docker.yml publishes. dev pushes write
 # only the build cache. The shared core's own
 # tests are Desktop Tests'; here only what the entry and the image add.

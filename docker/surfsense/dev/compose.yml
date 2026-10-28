@@ -1,5 +1,5 @@
 # The image with the checkout's source mounted in, beside a real install
-# (docs/proposals/docker/README.md#developing-the-image).
+# (docs/architecture/docker.md#developing-the-image).
 #   docker compose -f docker/surfsense/dev/compose.yml up --build --watch
 # then open http://127.0.0.1:4930. The frontend reloads as you save; the backend,
 # the entry, the sidecars and Caddy restart the app container under --watch.

@@ -138,6 +138,7 @@ The rules that keep the processes out of each other's way:
 - [Connections](connections.md): OpenAI-compatible endpoints and where keys live.
 - [ChatGPT subscription](chatgpt-subscription.md): a connection signed in with a ChatGPT account, answered through the Responses API.
 - [Claude plan](claude-plan.md): a connection to the user's own Claude Code, answering chat and running Agentic threads as a second engine.
+- [Docker](docker.md): the desktop stack without Electron, as one container on a server.
 - [Docker access](docker-access.md): who can open the Docker image, its password and setup, and sign-in turned off behind a proxy.
 - Local models: [runtime](local-models/runtime.md), [fit](local-models/fit.md), [admission and parallel slots](local-models/admission.md), [catalog](local-models/catalog.md), [selection and onboarding](local-models/selection.md).
 - [Localization](localization.md): the interface in ten languages.

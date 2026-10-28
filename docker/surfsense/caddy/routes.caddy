@@ -1,5 +1,5 @@
 # The app's routes, the same in every mode: plain HTTP, a LAN with Caddy's own
-# certificates, or a public domain (docs/proposals/docker/README.md).
+# certificates, or a public domain (docs/architecture/docker.md).
 route {
 	import access.caddy
 

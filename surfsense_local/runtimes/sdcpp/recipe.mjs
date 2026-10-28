@@ -35,7 +35,7 @@ const DARWIN = [
 ]
 
 // The GPU backend each Linux variant adds: the desktop's Vulkan, or none for the
-// Docker image's CPU build (docs/proposals/docker/gpu.md).
+// Docker image's CPU build (docs/proposals/docker-gpu.md).
 const LINUX_GPU = { vulkan: ["-DSD_VULKAN=ON"], cpu: [] }
 
 /** The arguments after `cmake -S <source> -B <build>`. */

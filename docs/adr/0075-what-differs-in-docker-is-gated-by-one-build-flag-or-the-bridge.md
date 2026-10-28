@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-10-28
-- **Source:** [Docker proposal, The frontend without Electron](../proposals/docker/README.md#the-frontend-without-electron)
+- **Source:** the Docker proposal, now [Docker, The frontend without Electron](../architecture/docker.md#the-frontend-without-electron)
 
 ## Context
 

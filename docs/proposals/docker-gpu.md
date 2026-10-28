@@ -11,9 +11,9 @@ code:
 
 # GPU images
 
-> The Docker image comes in a CPU variant and one CUDA variant, `-cuda`, on CUDA 12.8; a `-cuda13` variant follows with arm64. llama.cpp comes from upstream's release builds; sd.cpp and audio.cpp come from the desktop's own recipes, so each runtime has one source for the desktop and the image. On a GPU image, chat and image generation run on the card; parsing, embeddings and voice stay on the CPU. Part of the [Docker proposal](README.md); the decisions are [ADR 0035](../../adr/0035-docker-compose-runs-the-desktop-stack.md) and [ADR 0073](../../adr/0073-the-docker-gpu-image-is-one-cuda-12-8-variant-from-upstream-builds.md).
+> The Docker image comes in a CPU variant and one CUDA variant, `-cuda`, on CUDA 12.8; a `-cuda13` variant follows with arm64. llama.cpp comes from upstream's release builds; sd.cpp and audio.cpp come from the desktop's own recipes, so each runtime has one source for the desktop and the image. On a GPU image, chat and image generation run on the card; parsing, embeddings and voice stay on the CPU. It extends the CPU image, [Docker](../architecture/docker.md); the decisions are [ADR 0035](../adr/0035-docker-compose-runs-the-desktop-stack.md) and [ADR 0073](../adr/0073-the-docker-gpu-image-is-one-cuda-12-8-variant-from-upstream-builds.md).
 
-The desktop app ships Vulkan and no CUDA because of installer size ([ADR 0012](../../adr/0012-vulkan-only-gpu-backend.md), [CUDA backend](../cuda-backend.md)). A Docker user pulls only the variant they ask for, so that constraint does not apply here.
+The desktop app ships Vulkan and no CUDA because of installer size ([ADR 0012](../adr/0012-vulkan-only-gpu-backend.md), [CUDA backend](cuda-backend.md)). A Docker user pulls only the variant they ask for, so that constraint does not apply here.
 
 ## Variants
 
@@ -34,8 +34,8 @@ The desktop app ships Vulkan and no CUDA because of installer size ([ADR 0012](.
 | llama-server, chat | CPU | CUDA | the main gain |
 | sd-server, images | CPU | CUDA | a large gain; generation is slow on a CPU |
 | Docling, parsing | CPU | CPU | GPU torch adds about 3 GB of wheels; a later variant if parsing speed matters |
-| bge-small, embeddings | CPU | CPU | small, and in process on the CPU ([ADR 0007](../../adr/0007-bundled-embeddings.md)) |
-| audiocpp, voice | CPU | CPU | faster than real time on a CPU, and the card belongs to the chat model ([local audio models](../local-audio-models.md)) |
+| bge-small, embeddings | CPU | CPU | small, and in process on the CPU ([ADR 0007](../adr/0007-bundled-embeddings.md)) |
+| audiocpp, voice | CPU | CPU | faster than real time on a CPU, and the card belongs to the chat model ([local audio models](local-audio-models.md)) |
 
 ## Where each runtime comes from
 
@@ -57,20 +57,20 @@ One source per runtime, shared with the desktop: what the desktop takes from ups
 - **sd.cpp compiles for the GPUs llama.cpp covers.** Its CUDA build takes upstream llama.cpp's default architectures at `b11050` (`50`, `61`, `70`, `75` and `80` as PTX; `86`, `89` and `120a` as device code), so chat and images run on the same cards.
 - **One CUDA version per image.** The compile runs in `nvidia/cuda:12.8.2-devel-ubuntu24.04`, the image upstream builds its CUDA 12.8 llama.cpp in, so one set of CUDA runtime libraries (cudart, cuBLAS) serves llama-server and sd-server. Only the binaries and those libraries reach the final image, which stays on plain Ubuntu 24.04; the host's driver comes in through the NVIDIA Container Toolkit.
 - **Pins as on the desktop.** llama.cpp stays at the desktop's `b11050`, sd.cpp at its commit and audio.cpp at its tag; each download is pinned by SHA-256.
-- **Flash attention.** Upstream's CUDA build does not set `GGML_CUDA_FA_ALL_QUANTS`. Its default kernels cover matching K and V types, which the `q8_0` KV cache the fit estimate selects is ([CUDA backend](../cuda-backend.md), Decisions); step 14 confirms it on a card.
+- **Flash attention.** Upstream's CUDA build does not set `GGML_CUDA_FA_ALL_QUANTS`. Its default kernels cover matching K and V types, which the `q8_0` KV cache the fit estimate selects is ([CUDA backend](cuda-backend.md), Decisions); step 14 confirms it on a card.
 
 ### What `runtimes/` gains
 
 The staging scripts know one Linux build today, the desktop's Vulkan one, so even the CPU image needs this, from step 7, when it first stages llama.cpp:
 
-- [`fetch-llamacpp.mjs`](../../../surfsense_local/runtimes/fetch-llamacpp.mjs) pins only `ubuntu-vulkan-x64` for `linux-x64`, and its `checkConfiguration()` throws on any Linux asset without `vulkan`.
-- [`sdcpp/recipe.mjs`](../../../surfsense_local/runtimes/sdcpp/recipe.mjs) compiles Linux with `-DSD_VULKAN=ON` and nothing else.
+- [`fetch-llamacpp.mjs`](../../surfsense_local/runtimes/fetch-llamacpp.mjs) pins only `ubuntu-vulkan-x64` for `linux-x64`, and its `checkConfiguration()` throws on any Linux asset without `vulkan`.
+- [`sdcpp/recipe.mjs`](../../surfsense_local/runtimes/sdcpp/recipe.mjs) compiles Linux with `-DSD_VULKAN=ON` and nothing else.
 
 Each script takes a variant beside its target: `linux-x64` with `cpu` or `cuda`, and later `linux-arm64` and `cuda13`. A llama.cpp variant gets its own pinned asset and SHA-256; an sd.cpp variant gets its own CMake flags (`-DSD_CUDA=ON`, or neither for the CPU) in the same recipe. The Vulkan rule in `checkConfiguration()` covers the desktop's targets only. With no variant, a script stages the desktop's build as today, so the installers do not change. Without a CPU variant, the CPU image would carry Vulkan binaries and `libvulkan` only to fall back to the CPU.
 
 ## One backend per image
 
-Each image carries only its own ggml backend: CPU, or CUDA, never CUDA and Vulkan together. With both loaded, one card is listed twice ([CUDA backend](../cuda-backend.md)); with one, the fit estimate's first-GPU rule ([`fit.md`](../../architecture/local-models/fit.md)) holds unchanged. `SURFSENSE_LOCAL_LLAMACPP_LIBRARY_DIR` points at that backend, so the fit probe sees the card's memory with no code change.
+Each image carries only its own ggml backend: CPU, or CUDA, never CUDA and Vulkan together. With both loaded, one card is listed twice ([CUDA backend](cuda-backend.md)); with one, the fit estimate's first-GPU rule ([`fit.md`](../architecture/local-models/fit.md)) holds unchanged. `SURFSENSE_LOCAL_LLAMACPP_LIBRARY_DIR` points at that backend, so the fit probe sees the card's memory with no code change.
 
 ## The host
 
@@ -116,14 +116,14 @@ with `SURFSENSE_VARIANT=cuda` in `.env`.
 
 ## CI
 
-Two builds on amd64, CPU and `-cuda`, by digest. Both take audio.cpp from the `build-audiocpp.yml` artifact, so neither compiles it. With arm64, the CPU image gains an arm64 build merged into its manifest, and `-cuda13` builds on both architectures; a release then requires every architecture of every variant, as [`docker-build.yml`](https://github.com/MODSetter/SurfSense/blob/legacy/.github/workflows/docker-build.yml) on `legacy` does. Each variant moves `latest-<variant>` when the release is published, as the CPU image moves `latest` ([releases](README.md#releases)).
+Two builds on amd64, CPU and `-cuda`, by digest. Both take audio.cpp from the `build-audiocpp.yml` artifact, so neither compiles it. With arm64, the CPU image gains an arm64 build merged into its manifest, and `-cuda13` builds on both architectures; a release then requires every architecture of every variant, as [`docker-build.yml`](https://github.com/MODSetter/SurfSense/blob/legacy/.github/workflows/docker-build.yml) on `legacy` does. Each variant moves `latest-<variant>` when the release is published, as the CPU image moves `latest` ([releases](../architecture/docker.md#releases)).
 
 - sd.cpp's compile is the slow step, CPU and CUDA. It keeps its own registry cache per variant and architecture, so it reruns only when the sd.cpp pin or its flags change.
 - The smoke job runs the CPU image only. GitHub's runners have no NVIDIA card, so the CUDA image is checked to start with `SURFSENSE_ALLOW_CPU=1` and to refuse without it; running it on a real card is a release checklist step.
 
 ## Steps
 
-These continue the [Docker proposal's steps](README.md#steps), after the CPU image ships.
+These follow the CPU image ([Docker](../architecture/docker.md)), which is built.
 
 12. `-cuda` on amd64: llama.cpp from upstream's CUDA 12.8 build, sd.cpp's `cuda` variant, the GPU override file and `CUDA_CACHE_PATH`.
 13. The no-GPU refusal.

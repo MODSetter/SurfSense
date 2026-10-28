@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-# The desktop app's stack without Electron (docs/proposals/docker/README.md).
+# The desktop app's stack without Electron (docs/architecture/docker.md).
 # Build from the repository root: docker build -f docker/surfsense/Dockerfile .
 
 ARG NODE_IMAGE=node:24.21.0-bookworm-slim

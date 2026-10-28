@@ -5,7 +5,7 @@ import { originalDocumentUrl } from "./api"
 /**
  * The Docker build: an upload's file lives in the container, where no app on
  * the user's computer can open it or show its folder, so the browser downloads
- * it instead (docs/proposals/docker/README.md, The frontend without Electron).
+ * it instead (docs/architecture/docker.md, The frontend without Electron).
  */
 export function downloadsOriginals(): boolean {
   return IN_CONTAINER

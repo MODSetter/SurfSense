@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-10-28
-- **Source:** [Docker proposal, Caddy and access](../proposals/docker/README.md#caddy-and-access)
+- **Source:** the Docker proposal, now [Docker, Caddy and access](../architecture/docker.md#caddy-and-access)
 
 ## Context
 
@@ -33,4 +33,4 @@ Caddy itself offers two ways to put a page in front of an app: `forward_auth`, w
 
 ## Where the code stands
 
-Built, as step 10 of the [Docker proposal](../proposals/docker/README.md#steps): [`headless/access/`](../../surfsense_local/headless/access/), `forward_auth` in [`routes.caddy`](../../docker/surfsense/caddy/routes.caddy), and the frontend's [`features/access/`](../../surfsense_local/frontend/src/features/access/).
+Built ([Docker](../architecture/docker.md), [Docker access](../architecture/docker-access.md)): [`headless/access/`](../../surfsense_local/headless/access/), `forward_auth` in [`routes.caddy`](../../docker/surfsense/caddy/routes.caddy), and the frontend's [`features/access/`](../../surfsense_local/frontend/src/features/access/).

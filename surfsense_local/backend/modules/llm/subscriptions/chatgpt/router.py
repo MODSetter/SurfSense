@@ -97,7 +97,7 @@ def read_sign_in(flow_id: str, flows: FlowsDep) -> SignInRead:
 )
 def paste_callback(flow_id: str, payload: CallbackPaste, flows: FlowsDep) -> Response:
     """Finishes a sign-in from another machine than the container's, where OpenAI's
-    loopback redirect cannot land (docs/proposals/docker/README.md, Sign-ins)."""
+    loopback redirect cannot land (docs/architecture/docker.md, Sign-ins)."""
     # The desktop's browser shares the API's machine, so it never needs one (ADR 0075).
     if not get_settings().in_container() or flows.get(flow_id) is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no such sign-in")

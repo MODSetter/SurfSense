@@ -56,7 +56,7 @@ export const TARGETS = {
 }
 
 // Builds a target takes besides the desktop's: the Docker image runs the CPU one,
-// which needs no Vulkan loader (docs/proposals/docker/gpu.md).
+// which needs no Vulkan loader (docs/proposals/docker-gpu.md).
 export const VARIANTS = {
   "linux-x64": {
     cpu: {

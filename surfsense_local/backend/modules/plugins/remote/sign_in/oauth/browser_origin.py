@@ -1,5 +1,5 @@
 """The address the user's browser is on, where a sign-in's callback must land
-(docs/proposals/docker/README.md, Sign-ins)."""
+(docs/architecture/docker.md, Sign-ins)."""
 
 from dataclasses import dataclass
 

@@ -1,4 +1,4 @@
-# SurfSense in one container (docs/proposals/docker/README.md).
+# SurfSense in one container (docs/architecture/docker.md).
 #   cp .env.example .env && docker compose up -d
 # then open http://localhost:4929.
 name: surfsense

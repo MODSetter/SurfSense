@@ -1,5 +1,5 @@
 """In the Docker image, a plugin sign-in from another device than the host lands on
-that device's own origin (docs/proposals/docker/README.md, Sign-ins)."""
+that device's own origin (docs/architecture/docker.md, Sign-ins)."""
 
 from collections.abc import Iterator
 from urllib.parse import parse_qs, urlsplit

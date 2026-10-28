@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-10-25
 - **Supersedes:** [ADR 0035](0035-docker-compose-runs-the-desktop-stack.md) in part: its CUDA variants named as the legacy backend's (`-cuda`, `-cuda126`).
-- **Source:** [GPU images](../proposals/docker/gpu.md)
+- **Source:** [GPU images](../proposals/docker-gpu.md)
 
 ## Context
 
@@ -30,4 +30,4 @@ At the desktop's pins, upstream llama.cpp (`b11050`) publishes Linux builds for 
 
 ## Where the code stands
 
-Nothing is built. The variants are steps 12 to 14 of the [GPU images proposal](../proposals/docker/gpu.md#steps).
+Nothing is built. The variants are steps 12 to 14 of the [GPU images proposal](../proposals/docker-gpu.md#steps).

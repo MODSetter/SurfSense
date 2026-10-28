@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-10-25
-- **Source:** [Docker proposal, One core, two entries](../proposals/docker/README.md#one-core-two-entries)
+- **Source:** the Docker proposal, now [Docker, One core, two entries](../architecture/docker.md#one-core-two-entries)
 
 ## Context
 

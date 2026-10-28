@@ -4,7 +4,7 @@ Who can open the Docker image's SurfSense, and how. Every instance asks for one 
 
 **Code:** [`headless/access/`](../../surfsense_local/headless/access/), [`headless/sign-in-mode.ts`](../../surfsense_local/headless/sign-in-mode.ts), [`headless/main.ts`](../../surfsense_local/headless/main.ts), [`frontend/src/features/access/`](../../surfsense_local/frontend/src/features/access/), `forward_auth` in [`routes.caddy`](../../docker/surfsense/caddy/routes.caddy)
 **Decisions:** [ADR 0074](../adr/0074-docker-sign-in-is-a-surfsense-page-that-caddy-enforces.md)
-**Proposal:** [Docker](../proposals/docker/README.md#caddy-and-access)
+**Also:** [Docker](docker.md), the container this guards
 
 ## The rules
 
