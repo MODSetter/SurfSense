@@ -196,23 +196,21 @@ The composer's mic turns speech into text on this computer, with the model chose
 |---|---|---|
 | Idle | a ghost icon button; tooltip "Voice input stays on this computer" | none |
 | Not set up | enabled; it opens the set-up popover ([`speech-setup-popover.tsx`](../../surfsense_local/frontend/src/features/speech-setup/speech-setup-popover.tsx)), which asks and hands off: Set up… opens Settings › Speech recognition, where the model is chosen and downloaded and its progress shows; with a speech download under way it says how far it got, Cancel download stops it, and Show progress opens Settings. A ring around the mic fills with that download, and the tooltip says its percentage | none |
-| Arming | pressed | a muted dot and pulsing bars until the first real frame; no timer |
-| Listening | pressed | a red dot, 9 level bars of the last 9 frames, a timer from the first frame, a cancel ✕ |
-| Loading | pressed | "Loading the speech recognition model…", while a phrase waits on a model the session opened `loading` 2 s or more ago |
-| Finishing | pressed | a spinner and "Transcribing…" |
+| Arming | a spinner in its place, disabled, named "Starting the microphone…", until the first real frame; Send stays | none |
+| Listening | hidden; Send's place is Stop and insert | 9 level bars of the last 9 frames, a timer from the first frame, a cancel ✕; under reduced motion no bars, the timer says it records |
+| Loading | hidden | "Loading the speech recognition model…", while a phrase waits on a model the session opened `loading` 2 s or more ago |
+| Finishing | hidden | a spinner and "Transcribing…" |
 | Problem | as Idle; a lasting one also marks it, below | none: a toast says it ([`problem-toasts.ts`](../../surfsense_local/frontend/src/features/dictation/problem-toasts.ts)) |
 
-The strip shows only while recording. It sits inside the composer, never above it, where the model notice and the scroll button are: in the center placement in place of the source count and model control, in the bottom placement in place of the disclaimer. A problem never takes that line. The mic is disabled whenever the message box is, and at the message limit.
+The strip shows only while recording, inside the composer's own row, never above it, where the model notice and the scroll button are: in the center placement in place of the source count and model control, in the bottom placement in place of the source count. The line under the composer, the disclaimer, never changes. While it records, the mic is hidden and Send's place is **Stop and insert** (✓), which stops and keeps the text; Send comes back with it. There is no push to talk: a long press is a click. The mic is disabled whenever the message box is, and at the message limit.
 
 | Input while recording | Effect |
 |---|---|
-| Enter, or Send | stop, wait for the last phrase, insert; nothing is sent. Enter is caught in the composer's `onKeyDown`, before assistant-ui's, and Send's click is prevented, because assistant-ui's `send()` cancels a running session ([`use-dictation-keys.ts`](../../surfsense_local/frontend/src/features/dictation/use-dictation-keys.ts)) |
+| Enter, or Stop and insert | stop, wait for the last phrase, insert; nothing is sent. Enter is caught in the composer's `onKeyDown`, before assistant-ui's, and Send's click is prevented, because assistant-ui's `send()` cancels a running session ([`use-dictation-keys.ts`](../../surfsense_local/frontend/src/features/dictation/use-dictation-keys.ts)) |
 | Escape, or the ✕ | cancel: the box returns to its text from before the mic. Escape does not also stop a reply being written meanwhile |
-| Click the mic | stop and keep the text |
-| Hold the mic 300 ms or more | push to talk: release stops |
-| Space or Enter on the focused mic | toggle |
+| Space or Enter on the focused mic | start, moving the focus to the message box, where Enter stops |
 
-A click on the mic leaves the focus in the message box. Blur and minimising keep recording.
+A click on the mic, or on Stop and insert, leaves the focus in the message box. Blur and minimising keep recording.
 
 A problem is a toast with its one action, one at a time, closed by acting on it, by its time running out (8 s, a notice sonner's default), or by the mic being pressed again; a phrase kept for Retry stays until it is acted on. Closing it ends the problem. Two problems stay true until something outside the app changes, no microphone found and a page that is not a secure context, so they are no toast: the idle mic carries a red dot and its tooltip says the problem, and a press tries again.
 

@@ -14,15 +14,6 @@ import { RecordingTimer } from "./recording-timer"
 type Status = { text: string; shown: boolean }
 
 function statusOf(view: DictationView): Status | null {
-  if (view.phase === "arming") {
-    return {
-      text: intl.formatMessage({
-        id: "dictation_strip_arming_status",
-        defaultMessage: "Starting the microphone…",
-      }),
-      shown: false,
-    }
-  }
   if (view.phase !== "listening" && view.phase !== "finishing") return null
   if (view.loading) {
     return {
@@ -79,8 +70,8 @@ export function DictationStrip({
   const aui = useAui()
   const view = useDictationView(dictation)
 
-  // A problem is a toast or a mark on the mic, never this line.
-  if (view.phase === "idle" || view.phase === "problem") return null
+  // Starting is the mic's spinner; a problem is a toast or a mark on the mic.
+  if (view.phase !== "listening" && view.phase !== "finishing") return null
 
   const status = statusOf(view)
   return (
@@ -93,18 +84,7 @@ export function DictationStrip({
       {view.phase === "finishing" ? (
         <Spinner role="presentation" aria-hidden="true" className="size-3.5" />
       ) : (
-        <>
-          <span
-            aria-hidden="true"
-            className={cn(
-              "size-2 shrink-0 rounded-full",
-              view.phase === "listening"
-                ? "bg-destructive"
-                : "bg-muted-foreground/40"
-            )}
-          />
-          <LevelBars dictation={dictation} arming={view.phase === "arming"} />
-        </>
+        <LevelBars dictation={dictation} />
       )}
       {view.phase === "listening" ? (
         <RecordingTimer since={view.since} />

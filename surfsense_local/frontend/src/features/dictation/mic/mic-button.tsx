@@ -1,8 +1,9 @@
-import { useRef, useState, type PointerEvent } from "react"
+import { useState } from "react"
 import { useAui } from "@assistant-ui/react"
 
 import { Button } from "@/components/ui/button"
 import { Mic01Icon } from "@/components/ui/icons"
+import { Spinner } from "@/components/ui/spinner"
 import {
   Tooltip,
   TooltipContent,
@@ -20,13 +21,11 @@ import { isRecording, useDictationView } from "../use-dictation-view"
 import { useNeedsSpeechModel } from "../use-transcription-status"
 import { SpeechDownloadRing } from "./download-ring"
 
-// Handy's hold-or-toggle: a press held this long is push to talk.
-const HOLD_MS = 300
-
 /**
- * Voice input, beside Send. A click toggles it, a hold talks until release,
- * and Space or Enter on the focused mic toggles it; with no speech model yet
- * it sets one up instead.
+ * Voice input, beside Send. A click, or Space or Enter on it, starts it; it
+ * hides while recording, when Stop and insert or Enter in the box stops it.
+ * With no speech model yet it sets one up instead. No push to talk: holding a
+ * button that hides as it starts is no way to talk.
  */
 export function MicButton({
   dictation,
@@ -44,8 +43,6 @@ export function MicButton({
   const view = useDictationView(dictation)
   const needsModel = useNeedsSpeechModel()
   const [setUpOpen, setSetUpOpen] = useState(false)
-  // The pointer press under way: whether it started the recording, and when.
-  const press = useRef<{ startedIt: boolean; at: number } | null>(null)
   const active = isRecording(view)
   const start = () => dictation.start(aui.composer())
   useProblemToasts(dictation, onOpenSpeechSettings)
@@ -106,23 +103,28 @@ export function MicButton({
     )
   }
 
-  const pressed = (event: PointerEvent<HTMLButtonElement>) => {
-    if (event.button !== 0) return
-    if (view.phase === "finishing") return
-    event.currentTarget.setPointerCapture?.(event.pointerId)
-    press.current = { startedIt: !active, at: performance.now() }
-    if (!active) start()
+  // Starting: a spinner where the mic was, so the click shows it was heard.
+  if (view.phase === "arming") {
+    return (
+      <Button
+        type="button"
+        size="icon-lg"
+        variant="ghost"
+        disabled
+        className={cn("rounded-xl disabled:opacity-100", className)}
+        aria-label={intl.formatMessage({
+          id: "dictation_mic_starting_aria",
+          defaultMessage: "Starting the microphone…",
+        })}
+      >
+        <Spinner className="size-5" />
+      </Button>
+    )
   }
 
-  const released = () => {
-    const held = press.current
-    press.current = null
-    if (!held) return
-    // A tap that started it keeps listening; a hold, or a tap while it listens, stops.
-    if (!held.startedIt || performance.now() - held.at >= HOLD_MS) {
-      dictation.stop()
-    }
-  }
+  // While it records, the strip and Send's place, now Stop and insert, hold
+  // the controls.
+  if (active) return null
 
   return (
     <Tooltip>
@@ -132,40 +134,22 @@ export function MicButton({
             type="button"
             size="icon-lg"
             variant="ghost"
-            disabled={disabled && !active}
-            aria-pressed={active}
-            aria-label={
-              active
-                ? intl.formatMessage({
-                    id: "dictation_mic_stop_aria",
-                    defaultMessage: "Stop voice input",
-                  })
-                : intl.formatMessage({
-                    id: "dictation_mic_start_aria",
-                    defaultMessage: "Start voice input",
-                  })
-            }
-            className={cn(
-              "relative rounded-xl",
-              active && "bg-muted text-destructive hover:text-destructive",
-              className
-            )}
+            disabled={disabled}
+            aria-label={intl.formatMessage({
+              id: "dictation_mic_start_aria",
+              defaultMessage: "Start voice input",
+            })}
+            className={cn("relative rounded-xl", className)}
             // The message box keeps the focus, so Enter and Escape reach it.
             onMouseDown={(event) => event.preventDefault()}
-            onPointerDown={pressed}
-            onPointerUp={released}
-            onPointerCancel={released}
             onClick={(event) => {
-              // Pointers act on down and up; this is Space or Enter on the mic.
-              if (event.detail !== 0) return
-              if (active) dictation.stop()
-              else start()
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "Escape" && active) {
-                event.preventDefault()
-                dictation.cancel(aui.composer())
-              }
+              // The mic is about to hide: the message box takes the focus,
+              // where Enter stops and Escape cancels.
+              event.currentTarget
+                .closest("form")
+                ?.querySelector("textarea")
+                ?.focus()
+              start()
             }}
           >
             <Mic01Icon className="size-5" />
