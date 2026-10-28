@@ -1,0 +1,31 @@
+// Mirrors electron/src/main/i18n/resolve-locale.ts, which resolves the desktop's;
+// this resolves a browser's. Both run the same cases in their tests.
+import { BASE_LOCALE, isLocale, type Locale } from "./locales"
+
+// "system" takes the first language the app ships, matched on its base
+// language, so ja-JP and de-AT resolve without listing every region.
+export function resolveLocale(
+  preference: string,
+  systemLanguages: readonly string[]
+): Locale {
+  if (preference !== "system" && isLocale(preference)) return preference
+  for (const tag of systemLanguages) {
+    const locale = catalogFor(tag)
+    if (locale) return locale
+  }
+  return BASE_LOCALE
+}
+
+// Script and region subtags that ask for Traditional Chinese, which has no catalog.
+const TRADITIONAL = new Set(["hant", "tw", "hk", "mo"])
+
+// Two catalogs are regional: any Portuguese gets Brazilian, and Chinese gets
+// Simplified unless the tag asks for Traditional.
+function catalogFor(tag: string): Locale | undefined {
+  const [base, ...rest] = tag.toLowerCase().split("-")
+  if (base === "pt") return "pt-BR"
+  if (base === "zh") {
+    return rest.some((part) => TRADITIONAL.has(part)) ? undefined : "zh-CN"
+  }
+  return base && isLocale(base) ? base : undefined
+}

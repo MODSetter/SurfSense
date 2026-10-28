@@ -12,6 +12,7 @@ import {
   type AppLocale,
   type Locale,
 } from "./locales"
+import { localeSource } from "./locale-source"
 
 type Catalog = Record<FormatjsIntl.Message["ids"], MessageFormatElement[]>
 
@@ -41,13 +42,11 @@ const catalogs = Object.fromEntries(
   ])
 ) as Record<Locale, Catalog>
 
-// Main owns the language and preload reports it before the first paint. No
-// bridge (tests, a bare `vite`) or a language the app does not ship is English.
+// On the desktop main reports it before the first paint; in a browser it comes
+// from the browser's languages and choice. A language the app does not ship is English.
 function reportedLocale(): AppLocale {
-  const reported = window.surfsense?.locale?.get()
-  return reported !== undefined && isAppLocale(reported)
-    ? reported
-    : BASE_LOCALE
+  const reported = localeSource().get()
+  return isAppLocale(reported) ? reported : BASE_LOCALE
 }
 
 const locale = reportedLocale()
