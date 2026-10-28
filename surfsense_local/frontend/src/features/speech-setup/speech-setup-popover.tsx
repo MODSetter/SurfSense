@@ -42,7 +42,11 @@ export function SpeechSetupPopover({
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger render={trigger} />
-      <PopoverContent side={side} align={align} className="w-80 gap-3 p-3">
+      <PopoverContent
+        side={side}
+        align={align}
+        className="w-80 gap-3 p-3 select-none"
+      >
         <SpeechSetupBody onStart={onStart} onMoreChoices={onMoreChoices} />
       </PopoverContent>
     </Popover>
