@@ -48,9 +48,7 @@ Branch protection on `legacy` requires these gates; the protection on `dev` and 
 The legacy README's one-line commands were `…/main/docker/scripts/install.sh` and `install.ps1`. Those paths on `main` belong to the new stack's installer; no stub forwards them to `legacy`.
 
 - `docker/scripts/install.sh`, `install.ps1`, `migrate-database.sh` and `migrate-database.ps1` live on `legacy` only, and fetch from `legacy`. The legacy README gives `curl …/legacy/docker/scripts/install.sh | bash`.
-- Once written, `docker/scripts/install.sh` and `install.ps1` on `main` will install the [Docker image](docker.md#files) (see [Known gaps](#known-gaps)). The new installer is to stop on a machine with a legacy install and point at the `legacy` command, rather than start the new stack beside it: both use the compose project `surfsense` and the folder `./surfsense`.
+- `docker/scripts/install.sh` and `install.ps1` on `main` install the [Docker image](docker.md#installer) and nothing else. They never look for the legacy stack or name it. Both stacks use the folder `./surfsense`, so the installer stops, writing nothing, on a `./surfsense` that is not its own.
+- `ghcr.io/modsetter/surfsense` held the all-in-one image that came before the legacy compose (tags `v1.0.*` and `0.0.12.*` to `0.0.13.8`, the last also `latest`). The new image's first release moves `latest` to it. Its versions are `2.*` with no `v`, so no tag is shared.
 - No new stack's file sits at a path the legacy `install.sh` from before 0.0.41 downloads from `main` (`docker/docker-compose.yml`, `docker/.env.example`, `docker/proxy/Caddyfile` and five more), which is why the image's files are in `docker/surfsense/`.
 
-## Known gaps
-
-- The new installer is not written, so `…/main/docker/scripts/install.sh` answers 404 ([Docker](docker.md#known-gaps)).

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict"
 import { execFileSync } from "node:child_process"
+import { readFileSync } from "node:fs"
 import { request } from "node:http"
 import { request as secureRequest } from "node:https"
 import { after, before, describe, test } from "node:test"
@@ -158,6 +159,12 @@ describe("the image", { skip: IMAGE ? false : "SURFSENSE_TEST_IMAGE names no ima
       assert.match(libraries, new RegExp(`\\b${name.replaceAll(".", "\\.")}\\b`), `${name} is missing`)
     }
     assert.match(docker("exec", NAME, "ls", "/usr/share/fonts/truetype"), /dejavu/)
+  })
+
+  // The installers read it to say which version they started.
+  test("carries its version", () => {
+    const version = readFileSync(new URL("../VERSION", import.meta.url), "utf8").trim()
+    assert.equal(docker("exec", NAME, "cat", "/app/VERSION"), version)
   })
 
   // Last: it replaces the container the others ask, as an image update does.

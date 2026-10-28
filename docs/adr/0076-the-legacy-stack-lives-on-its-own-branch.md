@@ -14,7 +14,7 @@ The hosted user data was purged on 18 Oct 2026. `surfsense_backend` and `surfsen
 - **What still ships leaves it first:** the license portal and the plugins into `backend/`, the marketing site into `www/`.
 - **Its tags are `legacy-v*`,** since tags are repo-wide, and the desktop and Docker releases start only on `v[1-9]*`.
 - **The legacy images keep their names;** the new stack publishes `ghcr.io/modsetter/surfsense`, so no tag is shared.
-- **The install paths on `main` pass to the new stack,** with no stub forwarding to `legacy`. The new installer refuses a machine with a legacy install and points at the `legacy` command.
+- **The install paths on `main` pass to the new stack,** with no stub forwarding to `legacy`. The new installer installs only the new image and never looks for the legacy stack; it refuses only a `./surfsense` that is not its own.
 - Rejected: keeping the legacy trees on `dev` behind path filters, which leaves every later change working around them; forwarding stubs at the old install paths, which would keep sending new users to the legacy stack.
 
 ## Consequences

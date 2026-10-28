@@ -215,6 +215,22 @@ The hosted page at `plugins.surfsense.com/oauth/callback` stays loopback-only: f
 
 `stop_grace_period: 30s` covers the supervisor's stop, which sends SIGKILL to a child 5 s after SIGTERM; Docker's 10 s is too tight with ten children.
 
+## Installer
+
+[`docker/scripts/install.sh`](../../docker/scripts/install.sh) and [`install.ps1`](../../docker/scripts/install.ps1), at the paths the legacy README's one-line commands named ([legacy stack](legacy.md#the-install-urls)):
+
+```
+curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
+irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 | iex
+```
+
+- **A first run** checks for Docker, a running daemon, Compose and an x86-64 server, downloads `docker-compose.yml` and `.env.example` from `main` into `./surfsense`, copies `.env.example` to `.env`, pulls, and starts with `docker compose up -d --wait`, which waits on the image's `HEALTHCHECK`. It prints the address on the server's network and says the first visit asks for a password; it asks nothing itself.
+- **Running it again updates.** It finds the install from any folder by its container's compose labels, keeps `.env`, replaces the compose file, pulls and restarts. It removes the image it replaced, about 5 GB each, and says whether anything changed. A pinned `SURFSENSE_VERSION` stays pinned, and the script says so. There is no Watchtower and no in-app update.
+- **It knows only this install.** A `./surfsense` that is not one, such as a legacy compose, stops it before it writes anything, and it never looks for or mentions the legacy stack. `COMPOSE_IGNORE_ORPHANS` keeps another stack's containers in the project `surfsense` out of its output.
+- **The version it reports** is `/app/VERSION` in the running container.
+- `install.ps1` does the same on Docker Desktop, and throws rather than exits on failure, since `exit` would close a window that piped it into `iex`.
+- **Tests:** [`install.test.ts`](../../docker/scripts/install.test.ts) runs both scripts against a stand-in `docker` and a `file://` copy of the two files (`SURFSENSE_INSTALL_SOURCE`); `install.ps1`'s half needs `pwsh`. Docker Tests runs it with `shellcheck`.
+
 ## Developing the image
 
 [`docker/surfsense/dev/compose.yml`](../../docker/surfsense/dev/compose.yml) runs the `app` stage with the checkout mounted over its source:
@@ -260,7 +276,7 @@ The image releases with the desktop app: one version, `surfsense_local/VERSION`,
 
 ## Known gaps
 
-- No installer: `docker/scripts/install.sh` and `install.ps1`, at the legacy installer's paths ([legacy stack](legacy.md#the-install-urls)), are not written, and the root README does not point self-hosters at the image yet.
+- The root README does not point self-hosters at the image or the [installer](#installer) yet, and until `dev` reaches `main` and a release moves `latest`, the one-line commands answer 404.
 - CPU only, and `linux/amd64` only; the CUDA variant and arm64 are the [GPU proposal](../proposals/docker-gpu.md).
 - A plugin whose provider takes only SurfSense's hosted client document cannot finish a sign-in from another device on a LAN name: the hosted page forwards to loopback only, and a paste-back through it is not built. The user's own app works.
 - Not verified against the real services: whether OpenAI accepts a non-loopback HTTPS redirect for ChatGPT, which would replace the paste-back; whether Notion's dynamic registration accepts a LAN HTTPS redirect; the hosted page's forward end to end, which no test exercises ([plugins](plugins.md#known-gaps)).

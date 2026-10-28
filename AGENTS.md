@@ -83,6 +83,7 @@ pre-commit run --all-files
 | Desktop | `cd surfsense_local/electron && pnpm test` |
 | Docker entry | `cd surfsense_local/headless && pnpm test` |
 | Frontend in Docker mode | `cd surfsense_local/frontend && pnpm test:docker` (tests tagged `docker`; `pnpm test` leaves them out) |
+| Docker installers | `node --test docker/scripts/install.test.ts` (both scripts against a stand-in `docker`; `install.ps1`'s half needs `pwsh`) |
 | Docker image | `SURFSENSE_TEST_IMAGE=<image> node --test surfsense_local/headless/image.test.ts` (starts the image on ports 4929 and 4943; `SURFSENSE_TEST_IMAGE_PORT=4931` moves them to 4931 and 4945, beside a running install) |
 | Backend in the image | build `docker/surfsense/Dockerfile --target backend-tests` and run it with `tests/` and `docs/contracts/` mounted, as `docker-tests.yml` does; it runs `pytest -m image` |
 CI: `.github/workflows/`. New behavior: one failing test, then the minimum code to pass it. Use the `tdd` skill. Tests hit public seams, not internals.

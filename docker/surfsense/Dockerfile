@@ -152,3 +152,5 @@ CMD ["node", "/app/surfsense_local/headless/main.ts"]
 
 FROM app AS runtime
 COPY --from=frontend /src/surfsense_local/frontend/dist/ /app/surfsense_local/frontend/dist/
+# The installer reports the version it started.
+COPY surfsense_local/VERSION /app/VERSION
