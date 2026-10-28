@@ -695,6 +695,104 @@ describe("source tree", () => {
     expect(toast.success).not.toHaveBeenCalled()
   })
 
+  it("keeps what the retry added when the server refuses one file of it", async () => {
+    let id = 100
+    folderApi({
+      upload: async (body) => {
+        const files = body?.getAll("files") as File[]
+        if (files.some((file) => file.name === "budget.xlsx")) {
+          throw new TypeError("Failed to fetch")
+        }
+        if (files[0].name === "b.txt") {
+          return Response.json(
+            { detail: "No space left on device" },
+            { status: 500 }
+          )
+        }
+        return Response.json(
+          {
+            created: files.map((file) => source(id++, file.name, 2)),
+            duplicates: [],
+            rejected: [],
+          },
+          { status: 201 }
+        )
+      },
+    })
+    render(<TreeHarness />)
+    const research = await screen.findByRole("treeitem", { name: "Research" })
+
+    dropOn(
+      research,
+      fakeDataTransfer({
+        entries: [
+          droppedFolder("Trip", {
+            "a.md": new File(["a"], "a.md", { type: "text/markdown" }),
+            "budget.xlsx": new File(["b"], "budget.xlsx"),
+            "b.txt": new File(["c"], "b.txt", { type: "text/plain" }),
+          }),
+        ],
+      })
+    )
+
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith(
+        "1 source added",
+        expect.objectContaining({
+          description:
+            "Ingestion is running in the background. Rejected: " +
+            "b.txt (No space left on device), " +
+            "budget.xlsx (Couldn’t be read; it may be open in another app)",
+        })
+      )
+    )
+    expect(toast.error).not.toHaveBeenCalled()
+  })
+
+  it("does not blame the files when the server stops answering partway", async () => {
+    let id = 100
+    const unanswered = async () => {
+      throw new TypeError("Failed to fetch")
+    }
+    folderApi({
+      upload: async (body) => {
+        const files = body?.getAll("files") as File[]
+        if (files.length > 1 || files[0].name !== "a.md") return unanswered()
+        return Response.json(
+          {
+            created: [source(id++, "a.md", 2)],
+            duplicates: [],
+            rejected: [],
+          },
+          { status: 201 }
+        )
+      },
+      health: unanswered,
+    })
+    render(<TreeHarness />)
+    const research = await screen.findByRole("treeitem", { name: "Research" })
+
+    dropOn(
+      research,
+      fakeDataTransfer({
+        entries: [
+          droppedFolder("Trip", {
+            "a.md": new File(["a"], "a.md", { type: "text/markdown" }),
+            "b.txt": new File(["b"], "b.txt", { type: "text/plain" }),
+          }),
+        ],
+      })
+    )
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        "Couldn’t add your sources",
+        expect.objectContaining({ description: "Failed to fetch" })
+      )
+    )
+    expect(toast.success).not.toHaveBeenCalled()
+  })
+
   it("sets aside a file over 500 MB and uploads the rest", async () => {
     const { writes } = folderApi()
     const user = userEvent.setup()

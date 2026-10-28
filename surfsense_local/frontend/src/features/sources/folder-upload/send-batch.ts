@@ -25,6 +25,8 @@ async function apiAnswers(signal: AbortSignal) {
  * One request of an upload. One that got no answer goes again a file at a
  * time, so a file Chromium cannot read is listed as rejected and the rest
  * still arrive; when the API itself is not answering, the first error stands.
+ * A file the API refuses then is listed with its reason, since the files sent
+ * before it are already in.
  */
 export async function sendBatch(
   workspaceId: number,
@@ -51,13 +53,19 @@ export async function sendBatch(
         outcome.duplicates.push(...answered.duplicates)
         outcome.rejected.push(...answered.rejected)
       } catch (single) {
-        if (!isUnanswered(single)) throw single
-        unread.push(file.name)
+        if (signal.aborted) throw single
+        if (isUnanswered(single)) {
+          unread.push(file.name)
+        } else {
+          outcome.rejected.push({
+            filename: file.name,
+            reason: single instanceof Error ? single.message : String(single),
+          })
+        }
       }
     }
-    if (unread.length === batch.files.length && !(await apiAnswers(signal))) {
-      throw cause
-    }
+    // Asked even when some arrived: the API may have stopped partway.
+    if (unread.length > 0 && !(await apiAnswers(signal))) throw cause
     outcome.rejected.push(
       ...unread.map((filename) => ({
         filename,
