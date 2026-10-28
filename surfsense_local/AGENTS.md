@@ -21,8 +21,12 @@ cd frontend && pnpm test        # the desktop; tests tagged docker are left out
 cd frontend && pnpm test:docker # tests tagged docker, with the image build's settings and no Electron
 cd headless && pnpm test        # the Docker entry; image.test.ts skips without an image
 cd headless && pnpm typecheck   # also checks sidecars/
-SURFSENSE_TEST_IMAGE=surfsense:local node --test headless/image.test.ts   # a built image
+docker build -f ../docker/surfsense/Dockerfile -t surfsense:local ..   # the image, built from the repository root
+SURFSENSE_IMAGE=surfsense SURFSENSE_VERSION=local docker compose -f ../docker/surfsense/docker-compose.yml up -d   # the install on that build, on 127.0.0.1:4929; without the two, it pulls ghcr.io's latest
+SURFSENSE_TEST_IMAGE=surfsense:local SURFSENSE_TEST_IMAGE_PORT=4931 node --test headless/image.test.ts   # its tests, on 4931 and 4945, beside a running install
 docker compose -f ../docker/surfsense/dev/compose.yml up --build --watch   # the image with this checkout mounted in, on 127.0.0.1:4930
+docker compose -f ../docker/surfsense/dev/compose.yml up --build --watch --renew-anon-volumes   # the same, after a uv.lock or pnpm-lock.yaml change
+docker compose -f ../docker/surfsense/dev/compose.yml down   # stops it
 ./scripts/bump-version.sh
 SURFSENSE_LOCAL_DATA_DIR=<dir> node headless/main.ts   # the container's entry, on a checkout
 ```
