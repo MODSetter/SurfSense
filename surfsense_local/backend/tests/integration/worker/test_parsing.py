@@ -148,6 +148,9 @@ def book(chapters: list[tuple[str, str]]) -> bytes:
     return epub.getvalue()
 
 
+# As Project Gutenberg sets a chapter's number above its title.
+BROKEN_HEADING = "CHAPTER I.<br/>Down the Rabbit-Hole"
+
 CHAPTERS = [
     ("The Harbour", RECEIPT),
     ("The Ledger", business_paragraphs(1, seed=5)[0]),
@@ -185,6 +188,10 @@ def parsed(tmp_path_factory: pytest.TempPathFactory) -> dict[str, str]:
     files["sideways.jpg"] = photo.getvalue()
 
     files["novel.epub"] = book(CHAPTERS)
+    files["broken-heading.epub"] = book([(BROKEN_HEADING, RECEIPT)])
+    files["broken-heading.html"] = (
+        f"<html><body><h2>{BROKEN_HEADING}</h2><p>{RECEIPT}</p></body></html>"
+    ).encode()
 
     data_dir = root / "data"
     for document_id, (name, content) in enumerate(files.items(), start=1):
@@ -246,3 +253,14 @@ def test_a_book_reads_its_chapters_in_spine_order(parsed: dict[str, str]) -> Non
     expected = " ".join(f"# {heading}\n\n{text}" for heading, text in CHAPTERS)
 
     assert words(expected) in words(parsed["novel.epub"])
+
+
+@pytest.mark.parametrize("name", ["broken-heading.epub", "broken-heading.html"])
+def test_a_line_break_in_a_heading_reads_as_a_space(
+    parsed: dict[str, str], name: str
+) -> None:
+    """Docling 2.125.0 leaves its private U+E000 for a heading's <br> in the text."""
+    markdown = parsed[name]
+
+    assert "CHAPTER I. Down the Rabbit-Hole" in markdown
+    assert "\ue000" not in markdown

@@ -15,6 +15,7 @@ from worker.ingestion.audio.transcript_job import recording_markdown
 from worker.ingestion.docx_style_cache import cached_style_lookups
 from worker.ingestion.figures.store import keep_figures
 from worker.ingestion.figures.word_figures_pass import leave_figures_to_the_pass
+from worker.ingestion.html_line_breaks import HTML_SUFFIXES, without_left_breaks
 from worker.ingestion.image_page import IMAGE_SUFFIXES, as_page
 from worker.ingestion.parser_pack import missing_parser_folders, parser_dir
 from worker.ingestion.scan_ocr.images import image_markdown
@@ -62,7 +63,11 @@ def _markdown_from(path: Path) -> str:
     converted = convert(path)
     keep_figures(path, converted)
     template = describe_slideless_deck(path)
-    return converted.export_to_markdown() if template is None else template
+    if template is not None:
+        return template
+    markdown = converted.export_to_markdown()
+    # Only where Docling's HTML reader ran: other files may hold a real U+E000.
+    return without_left_breaks(markdown) if suffix in HTML_SUFFIXES else markdown
 
 
 def convert(path: Path, page_range: tuple[int, int] | None = None) -> Any:
