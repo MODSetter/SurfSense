@@ -67,7 +67,7 @@ export function WelcomeBackdrop({ visible }: { visible: boolean }) {
         cellSize={14}
         speed={0.5}
         // The default 2.4s left the top of the window empty for too long.
-        introSeconds={0.5}
+        introSeconds={0.7}
         clickEffect="none"
         fontFamily={fontFamily}
       />
