@@ -1,11 +1,13 @@
 import os
 from contextlib import nullcontext
 from functools import lru_cache
+from io import BytesIO
 from pathlib import Path
 from typing import Any
 
 import psutil
 
+from modules.documents.kindle_books.upload_check import KINDLE_SUFFIXES
 from modules.documents.models import Document, DocumentType
 from modules.documents.original_file import original_path
 from modules.documents.recordings.kind import is_recording
@@ -44,6 +46,11 @@ def markdown_for(document: Document) -> str:
         from worker.ingestion.pdf_reading import pdf_markdown
 
         return pdf_markdown(document, path)
+    if path.suffix.lower() in KINDLE_SUFFIXES:
+        # Lazy: it reads through this module's converter.
+        from worker.ingestion.kindle_books.markdown import book_markdown
+
+        return book_markdown(path)
     return _markdown_from(path)
 
 
@@ -68,6 +75,16 @@ def _markdown_from(path: Path) -> str:
     markdown = converted.export_to_markdown()
     # Only where Docling's HTML reader ran: other files may hold a real U+E000.
     return without_left_breaks(markdown) if suffix in HTML_SUFFIXES else markdown
+
+
+def convert_html(html: str, name: str) -> Any:
+    """Docling's reading of HTML made in memory, as a file's would be: its
+    DoclingDocument."""
+    converter = _converter()
+    from docling.datamodel.base_models import DocumentStream
+
+    stream = DocumentStream(name=f"{name}.html", stream=BytesIO(html.encode()))
+    return converter.convert(stream).document
 
 
 def convert(path: Path, page_range: tuple[int, int] | None = None) -> Any:

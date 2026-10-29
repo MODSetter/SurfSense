@@ -40,6 +40,8 @@ export const SUPPORTED_SOURCE_EXTENSIONS = [
   ".pptx",
   ".xlsx",
   ".epub",
+  ".mobi",
+  ".azw3",
   ".html",
   ".htm",
   ".csv",
