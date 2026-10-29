@@ -11,6 +11,7 @@ from modules.documents.storage import (
     UPLOAD_MIME_BY_SUFFIX,
     validate_upload,
 )
+from tests import kindle_samples
 
 pytestmark = pytest.mark.unit
 
@@ -23,6 +24,8 @@ def test_the_public_allowlist_is_deliberately_small() -> None:
         ".pptx",
         ".xlsx",
         ".epub",
+        ".mobi",
+        ".azw3",
         ".html",
         ".htm",
         ".csv",
@@ -137,6 +140,53 @@ def test_an_epub_keeps_the_archive_limits(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="file contents do not match"):
         validate_upload(book, ".epub")
+
+
+@pytest.mark.parametrize(
+    ("suffix", "mime"),
+    [
+        (".mobi", "application/x-mobipocket-ebook"),
+        (".azw3", "application/vnd.amazon.mobi8-ebook"),
+    ],
+)
+def test_a_kindle_book_is_accepted_by_its_header(
+    tmp_path: Path, suffix: str, mime: str
+) -> None:
+    """Either name holds the same container; the reader picks the part inside."""
+    book = tmp_path / f"book{suffix}"
+    book.write_bytes(kindle_samples.mobi("<p>Call me Ishmael.</p>"))
+
+    assert validate_upload(book, suffix) == mime
+
+
+def test_a_kindle_book_with_drm_is_refused_on_upload(tmp_path: Path) -> None:
+    """Most Kindle Store books are locked; say so at once, not after a failed ingest."""
+    book = tmp_path / "bought.azw3"
+    book.write_bytes(kindle_samples.mobi("<p>Locked.</p>", encryption=2))
+
+    with pytest.raises(ValueError, match="DRM"):
+        validate_upload(book, ".azw3")
+
+
+@pytest.mark.parametrize(
+    ("content", "reason"),
+    [
+        # Amazon's newer KFX books, often saved under an .azw3 name.
+        (b"\xeaDRMION\xee" + bytes(200), "KFX"),
+        (b"CONT\x02\x00" + bytes(200), "KFX"),
+        (b"PK\x03\x04" + bytes(200), "file contents do not match"),
+    ],
+    ids=["kfx-with-drm", "kfx", "zip"],
+)
+def test_what_is_not_a_kindle_book_is_refused(
+    tmp_path: Path, content: bytes, reason: str
+) -> None:
+    """KFX gets its own reason; anything else is not the book it is named."""
+    book = tmp_path / "book.azw3"
+    book.write_bytes(content)
+
+    with pytest.raises(ValueError, match=reason):
+        validate_upload(book, ".azw3")
 
 
 # Made with ffmpeg from a 440 Hz tone, stereo at 44.1 kHz, under a second long.
