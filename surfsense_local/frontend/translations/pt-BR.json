@@ -1418,6 +1418,7 @@
   "sources_upload_rejected_file_label": "{filename} ({reason})",
   "sources_upload_too_large_error": "Acima de {size, number, ::unit/megabyte}: {files}",
   "sources_upload_too_large_reason_label": "Acima de {size, number, ::unit/megabyte}",
+  "sources_upload_unreadable_reason_label": "Não foi possível ler; talvez esteja aberto em outro aplicativo",
   "sources_upload_unsupported_body": "Sem suporte: {files}",
   "sources_upload_unsupported_error": "Tipo de arquivo sem suporte: {files}",
   "sources_web_add_all_button": "Adicionar tudo ({count, number})",

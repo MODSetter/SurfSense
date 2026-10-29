@@ -16,10 +16,10 @@ import {
   listDocuments,
   retryDocument,
   updateDocument,
-  uploadDocuments,
   type UploadOutcome,
   type WorkspaceDocument,
 } from "./api"
+import { sendBatch } from "./folder-upload/send-batch"
 import {
   MAX_SOURCE_BYTES,
   planUpload,
@@ -436,11 +436,11 @@ export function useSources(workspaceId: number) {
       }
       try {
         for (const batch of plan.batches) {
-          const answered = await uploadDocuments(
+          const answered = await sendBatch(
             workspaceId,
-            batch.files,
+            batch,
             controller.signal,
-            { folderId, relativePaths: batch.relativePaths }
+            folderId
           )
           if (uploadController.current !== controller) {
             return
