@@ -62,6 +62,21 @@ def test_an_unreadable_sign_in_answer_is_signed_out(tmp_path: Path) -> None:
     assert status.state is ClaudeState.SIGNED_OUT
 
 
+def test_a_sign_in_answer_naming_a_folder_beyond_the_code_page_is_read(
+    tmp_path: Path,
+) -> None:
+    """The answer names the user's own folders, in the UTF-8 Claude Code writes,
+    which Windows' code page cannot always read."""
+    answer = {**SIGNED_IN, "configDirectory": "C:\\Users\\Ágnes\\.claude"}
+
+    status = read_status(
+        claude_stand_in(tmp_path, auth=json.dumps(answer, ensure_ascii=False))
+    )
+
+    assert status.state is ClaudeState.READY
+    assert status.email == "ada@example.com"
+
+
 def test_an_unreadable_version_is_too_old(tmp_path: Path) -> None:
     """A version that cannot be read cannot be shown to be new enough."""
     status = read_status(claude_stand_in(tmp_path, version="claude: unknown"))

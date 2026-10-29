@@ -27,7 +27,7 @@ On Windows only a `claude.exe` counts, since the SDK refuses npm's `claude.cmd`;
 
 ## Status
 
-[`status.py`](../../surfsense_local/backend/modules/llm/subscriptions/claude/status.py) runs the binary twice, each with a 15-second timeout, the [launch environment](#launching-a-run) and its proxy, and on Windows `CREATE_NO_WINDOW`. A run that fails, times out or prints something unreadable counts as no answer.
+[`status.py`](../../surfsense_local/backend/modules/llm/subscriptions/claude/status.py) runs the binary twice, each with a 15-second timeout, the [launch environment](#launching-a-run) and its proxy, and on Windows `CREATE_NO_WINDOW`. Both answers are read as UTF-8, whatever the system's code page: `claude auth status` in `2.1.312` (measured on Windows 11) also names the user's config and projects folders, which code page 1252 cannot always decode. A run that fails, times out or prints something unreadable counts as no answer.
 
 | State | When | The dialog says |
 |---|---|---|
