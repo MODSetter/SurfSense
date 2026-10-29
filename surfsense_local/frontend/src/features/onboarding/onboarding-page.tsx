@@ -217,6 +217,7 @@ export function OnboardingPage({
   return (
     <main
       data-onboarding-page
+      data-onboarding-welcome={screen === "welcome" || undefined}
       className="relative isolate flex h-full min-h-0 items-center overflow-hidden bg-muted/30 p-3 select-none sm:p-6"
     >
       <OnboardingDither visible={screen === "welcome"} />
