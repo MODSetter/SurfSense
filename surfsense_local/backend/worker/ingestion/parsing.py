@@ -137,6 +137,7 @@ def _converter() -> Any:
             InputFormat.DOCX,
             InputFormat.PPTX,
             InputFormat.XLSX,
+            InputFormat.EPUB,
             InputFormat.HTML,
             InputFormat.CSV,
             InputFormat.MD,

@@ -24,6 +24,7 @@ UPLOAD_MIME_BY_SUFFIX = {
     ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
     ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ".epub": "application/epub+zip",
     ".html": "text/html",
     ".htm": "text/html",
     ".csv": "text/csv",
@@ -66,6 +67,8 @@ def validate_upload(path: Path, suffix: str) -> str:
         valid = _starts_with(path, b"%PDF-")
     elif suffix in _OOXML_MEMBER_BY_SUFFIX:
         valid = _is_ooxml(path, suffix)
+    elif suffix == ".epub":
+        valid = _is_epub(path)
     elif suffix in {".html", ".htm", ".csv", ".md", ".markdown", ".txt", ".text"}:
         valid = _is_utf8_text(path)
     elif suffix in {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp"}:
@@ -88,17 +91,33 @@ def _starts_with(path: Path, signature: bytes) -> bool:
 def _is_ooxml(path: Path, suffix: str) -> bool:
     try:
         with ZipFile(path) as archive:
-            entries = archive.infolist()
-            names = {entry.filename for entry in entries}
+            names = {entry.filename for entry in archive.infolist()}
             return (
-                len(entries) <= MAX_ARCHIVE_ENTRIES
-                and sum(entry.file_size for entry in entries)
-                <= MAX_ARCHIVE_UNPACKED_BYTES
+                _within_archive_limits(archive)
                 and "[Content_Types].xml" in names
                 and _OOXML_MEMBER_BY_SUFFIX[suffix] in names
             )
     except (BadZipFile, OSError):
         return False
+
+
+def _is_epub(path: Path) -> bool:
+    try:
+        with ZipFile(path) as archive:
+            if not _within_archive_limits(archive):
+                return False
+            # Not required to come first: books made by hand often break that rule.
+            return archive.read("mimetype").strip() == b"application/epub+zip"
+    except (BadZipFile, KeyError, OSError):
+        return False
+
+
+def _within_archive_limits(archive: ZipFile) -> bool:
+    entries = archive.infolist()
+    return (
+        len(entries) <= MAX_ARCHIVE_ENTRIES
+        and sum(entry.file_size for entry in entries) <= MAX_ARCHIVE_UNPACKED_BYTES
+    )
 
 
 def _is_utf8_text(path: Path) -> bool:

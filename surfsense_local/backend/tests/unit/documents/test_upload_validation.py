@@ -6,6 +6,7 @@ from zipfile import ZipFile
 import pytest
 
 from modules.documents.storage import (
+    MAX_ARCHIVE_ENTRIES,
     SUPPORTED_UPLOAD_SUFFIXES,
     UPLOAD_MIME_BY_SUFFIX,
     validate_upload,
@@ -21,6 +22,7 @@ def test_the_public_allowlist_is_deliberately_small() -> None:
         ".docx",
         ".pptx",
         ".xlsx",
+        ".epub",
         ".html",
         ".htm",
         ".csv",
@@ -99,6 +101,42 @@ def test_ooxml_container_must_match_its_extension(
     wrong_suffix = ".pptx" if suffix == ".docx" else ".docx"
     with pytest.raises(ValueError, match="file contents do not match"):
         validate_upload(upload, wrong_suffix)
+
+
+def _epub(
+    path: Path, *, mimetype: str = "application/epub+zip", extra: int = 0
+) -> Path:
+    with ZipFile(path, "w") as archive:
+        archive.writestr("mimetype", mimetype)
+        archive.writestr("META-INF/container.xml", "<container />")
+        for index in range(extra):
+            archive.writestr(f"OEBPS/{index}.xhtml", "")
+    return path
+
+
+def test_an_epub_names_its_media_type_first(tmp_path: Path) -> None:
+    """The EPUB spec's mimetype entry tells a book from any other ZIP."""
+    book = _epub(tmp_path / "book.epub")
+    assert validate_upload(book, ".epub") == "application/epub+zip"
+
+    renamed = _epub(tmp_path / "renamed.epub", mimetype="application/zip")
+    with pytest.raises(ValueError, match="file contents do not match"):
+        validate_upload(renamed, ".epub")
+
+    word = tmp_path / "word.epub"
+    with ZipFile(word, "w") as archive:
+        archive.writestr("[Content_Types].xml", "<Types />")
+        archive.writestr("word/document.xml", "<document />")
+    with pytest.raises(ValueError, match="file contents do not match"):
+        validate_upload(word, ".epub")
+
+
+def test_an_epub_keeps_the_archive_limits(tmp_path: Path) -> None:
+    """A book is a ZIP, so it gets the same guard against a ZIP bomb as Office files."""
+    book = _epub(tmp_path / "bomb.epub", extra=MAX_ARCHIVE_ENTRIES)
+
+    with pytest.raises(ValueError, match="file contents do not match"):
+        validate_upload(book, ".epub")
 
 
 # Made with ffmpeg from a 440 Hz tone, stereo at 44.1 kHz, under a second long.
