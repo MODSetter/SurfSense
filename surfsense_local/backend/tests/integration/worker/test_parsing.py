@@ -19,6 +19,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 
+from tests import kindle_samples
 from worker.ingestion.parser_pack import missing_parser_folders
 
 pytestmark = [pytest.mark.integration, pytest.mark.image]
@@ -189,6 +190,18 @@ def parsed(tmp_path_factory: pytest.TempPathFactory) -> dict[str, str]:
 
     files["novel.epub"] = book(CHAPTERS)
     files["broken-heading.epub"] = book([(BROKEN_HEADING, RECEIPT)])
+    files["novel.azw3"] = kindle_samples.azw3(
+        [[f"<h2>{heading}</h2>", f"<p>{text}</p>"] for heading, text in CHAPTERS]
+    )
+    files["novel.mobi"] = kindle_samples.mobi(
+        "".join(
+            f'<p><font size="7">CHAPTER {n}.</font><br/><font size="7">{heading}</font></p>'
+            f"<p>{text}</p>"
+            for n, (heading, text) in enumerate(CHAPTERS, start=1)
+        ),
+        compression=2,
+    )
+    files["damaged.azw3"] = kindle_samples.azw3([["<p>Lost.</p>"]])[:400]
     files["broken-heading.html"] = (
         f"<html><body><h2>{BROKEN_HEADING}</h2><p>{RECEIPT}</p></body></html>"
     ).encode()
@@ -264,3 +277,26 @@ def test_a_line_break_in_a_heading_reads_as_a_space(
 
     assert "CHAPTER I. Down the Rabbit-Hole" in markdown
     assert "\ue000" not in markdown
+
+
+def test_a_kf8_book_reads_its_chapters_in_order(parsed: dict[str, str]) -> None:
+    """Each chapter's fragments go back into its file, and the files stay in order."""
+    expected = " ".join(f"## {heading}\n\n{text}" for heading, text in CHAPTERS)
+
+    assert words(expected) in words(parsed["novel.azw3"])
+
+
+def test_a_mobi6_book_reads_its_large_type_titles_as_headings(
+    parsed: dict[str, str],
+) -> None:
+    """Its titles are big paragraphs with a line break, as calibre writes them."""
+    markdown = parsed["novel.mobi"]
+
+    for n, (heading, text) in enumerate(CHAPTERS, start=1):
+        assert f"# CHAPTER {n}. {heading}\n\n{text}" in markdown
+    assert "\ue000" not in markdown
+
+
+def test_a_damaged_book_fails_as_unreadable(parsed: dict[str, str]) -> None:
+    """Unreadable fails the source with its reason and is not retried."""
+    assert parsed["damaged.azw3"].startswith("UnreadableFileError: ")

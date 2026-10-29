@@ -11,7 +11,7 @@ import { intl } from "@/i18n/intl"
 
 import { ModelStep } from "./model-step/model-step"
 import type { OnboardingStepKind } from "./model-step/kinds/step-kind"
-import { OnboardingDither } from "./onboarding-dither"
+import { WelcomeBackdrop } from "./welcome-backdrop/welcome-backdrop"
 import { PrivacyStep } from "./privacy-step/privacy-step"
 import { useFinishOnboarding } from "./use-finish-onboarding"
 
@@ -117,8 +117,9 @@ function FlowButton({ text, onClick }: { text: string; onClick: () => void }) {
 
 /**
  * The site's hero, rebuilt as the first thing the app ever shows: same
- * headline, same lede, same dithered wave behind it, same pill. Where the site
- * sends a visitor off to download, this one starts the setup.
+ * headline, same lede, same pill. The backdrop is the app's own, an ASCII
+ * horizon, not the site's dithered wave. Where the site sends a visitor off to
+ * download, this one starts the setup.
  *
  * Kept in step with `HomeHero` in
  * `surfsense_web/components/homepage/home/home-sections.tsx`. The two type
@@ -220,7 +221,7 @@ export function OnboardingPage({
       data-onboarding-welcome={screen === "welcome" || undefined}
       className="relative isolate flex h-full min-h-0 items-center overflow-hidden bg-muted/30 p-3 select-none sm:p-6"
     >
-      <OnboardingDither visible={screen === "welcome"} />
+      <WelcomeBackdrop visible={screen === "welcome"} />
       <div className="mx-auto flex h-full max-h-190 min-h-0 w-full max-w-3xl flex-col gap-3">
         <OnboardingBrand />
         {screen === "welcome" ? (

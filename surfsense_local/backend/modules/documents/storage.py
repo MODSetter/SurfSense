@@ -8,6 +8,11 @@ from zipfile import BadZipFile, ZipFile
 
 from fastapi import HTTPException, UploadFile, status
 
+from modules.documents.kindle_books.upload_check import (
+    KINDLE_SUFFIXES,
+    is_kindle_book,
+)
+
 MAX_UPLOAD_BYTES = 500 * 1024 * 1024
 MAX_ARCHIVE_ENTRIES = 10_000
 MAX_ARCHIVE_UNPACKED_BYTES = 2 * 1024 * 1024 * 1024
@@ -25,6 +30,8 @@ UPLOAD_MIME_BY_SUFFIX = {
     ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
     ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     ".epub": "application/epub+zip",
+    ".mobi": "application/x-mobipocket-ebook",
+    ".azw3": "application/vnd.amazon.mobi8-ebook",
     ".html": "text/html",
     ".htm": "text/html",
     ".csv": "text/csv",
@@ -69,6 +76,8 @@ def validate_upload(path: Path, suffix: str) -> str:
         valid = _is_ooxml(path, suffix)
     elif suffix == ".epub":
         valid = _is_epub(path)
+    elif suffix in KINDLE_SUFFIXES:
+        valid = is_kindle_book(path)
     elif suffix in {".html", ".htm", ".csv", ".md", ".markdown", ".txt", ".text"}:
         valid = _is_utf8_text(path)
     elif suffix in {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp"}:

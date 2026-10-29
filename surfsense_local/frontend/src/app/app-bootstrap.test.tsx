@@ -8,7 +8,7 @@ import { render } from "@/test-utils"
 import { AppBootstrap } from "./app-bootstrap"
 
 beforeEach(() => {
-  // The onboarding welcome step mounts OnboardingDither, which reads matchMedia.
+  // The onboarding welcome step mounts WelcomeBackdrop, which reads matchMedia.
   Object.defineProperty(window, "matchMedia", {
     configurable: true,
     value: vi.fn().mockReturnValue({
