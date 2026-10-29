@@ -32,6 +32,9 @@ def serving(body: bytes, *, accept_ranges: bool = True, record: list | None = No
             headers["accept-ranges"] = "bytes"
         if span and accept_ranges:
             start = int(span.removeprefix("bytes=").split("-")[0])
+            if start >= len(body):
+                # Hugging Face's CDN refuses a range that starts past the last byte.
+                return httpx.Response(416, headers=headers)
             return httpx.Response(206, content=body[start:], headers=headers)
         return httpx.Response(200, content=body, headers=headers)
 
@@ -88,6 +91,26 @@ async def test_an_interrupted_download_resumes_instead_of_restarting(tmp_path) -
 
     assert ranges == ["bytes=2000-"]
     assert (tmp_path / "m.gguf").read_bytes() == BODY
+
+
+@pytest.mark.asyncio
+async def test_a_part_holding_the_whole_file_is_installed_on_the_next_attempt(
+    tmp_path,
+) -> None:
+    """A run stopped after the last byte and before the rename, such as an app
+    quit while the file is checked, leaves a whole part: its range is refused."""
+    (tmp_path / "m.gguf.part").write_bytes(BODY)
+
+    async for _ in download_gguf(
+        "https://hf.invalid/repo/resolve/main/m.gguf",
+        tmp_path / "m.gguf",
+        sha256=DIGEST,
+        transport=serving(BODY),
+    ):
+        pass
+
+    assert (tmp_path / "m.gguf").read_bytes() == BODY
+    assert not (tmp_path / "m.gguf.part").exists()
 
 
 @pytest.mark.asyncio

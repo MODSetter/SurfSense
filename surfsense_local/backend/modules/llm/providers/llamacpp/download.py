@@ -56,19 +56,24 @@ async def download_gguf(
         ) as client,
         client.stream("GET", url, headers=headers) as reply,
     ):
-        reply.raise_for_status()
-        resumed = reply.status_code == 206
-        total = already + int(reply.headers.get("content-length", 0))
+        # A run stopped between the last byte and the rename leaves the whole file
+        # in the part, so a range from its end is refused; the checksum judges it.
+        if already and reply.status_code == 416:
+            total = done = already
+        else:
+            reply.raise_for_status()
+            resumed = reply.status_code == 206
+            total = already + int(reply.headers.get("content-length", 0))
 
-        # The server ignored our Range, so the bytes we have are worthless.
-        mode = "ab" if resumed and already else "wb"
-        done = already if resumed else 0
+            # The server ignored our Range, so the bytes we have are worthless.
+            mode = "ab" if resumed and already else "wb"
+            done = already if resumed else 0
 
-        with partial.open(mode) as handle:
-            async for chunk in reply.aiter_bytes(_CHUNK):
-                handle.write(chunk)
-                done += len(chunk)
-                yield DownloadProgress("downloading", completed=done, total=total)
+            with partial.open(mode) as handle:
+                async for chunk in reply.aiter_bytes(_CHUNK):
+                    handle.write(chunk)
+                    done += len(chunk)
+                    yield DownloadProgress("downloading", completed=done, total=total)
 
     if sha256 is not None:
         actual = _digest(partial)

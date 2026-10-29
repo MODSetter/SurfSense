@@ -528,7 +528,10 @@ The rest of the installer is in [`../packaging.md`](../packaging.md).
 - **A cancelled download.** The partial file stays as `.part`, the router never
   discovers it, and the next attempt resumes with a `Range` request. A server
   that ignores the range, answering without a `206`, has the held bytes discarded
-  rather than appended to.
+  rather than appended to. A run stopped between the last byte and the rename
+  leaves a part that holds the whole file: its range gets a `416`, and the part
+  is checked against its sha256, when it has one, and renamed rather than
+  fetched again.
 
 The probe's backend search path, a missing backend dependency and `-ngl`
 disabling the fitter are one failure in different clothes: each produces a
