@@ -20,6 +20,9 @@ export type ChatThread = {
   title: string | null
   // The agent answers this thread: it opened in Agentic mode, and keeps it.
   uses_agent: boolean
+  // The ticks it stored; null is every source. Absent on a thread the client
+  // made itself before the list was read again.
+  source_scope?: SourceScope | null
   created_at: string
   updated_at: string
   // A reply is being generated for it right now. Absent on a thread the
@@ -89,6 +92,26 @@ export type ChatMessage = {
   completed_at: string | null
 }
 
+/** A scope as the server keeps it, pruned of sources that are gone, and what it holds now. */
+export type ScopeRead = {
+  source_scope: SourceScope
+  counts: { ready: number; indexing: number; failed: number; removed: number }
+}
+
+/** Store the ticks made in a thread between turns, so opening it again shows them. */
+export function storeThreadScope(
+  threadId: number,
+  scope: SourceScope,
+  signal?: AbortSignal
+): Promise<ScopeRead> {
+  return requestJson<ScopeRead>(`/chat/threads/${threadId}/source-scope`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(scope),
+    signal,
+  })
+}
+
 export function listThreads(
   workspaceId: number,
   signal?: AbortSignal
@@ -98,11 +121,22 @@ export function listThreads(
   })
 }
 
+/** Every source, which a thread opened without a scope uses anyway. */
+const isEverySource = (scope: SourceScope) =>
+  scope.all &&
+  scope.folder_ids.length === 0 &&
+  scope.excluded_folder_ids.length === 0 &&
+  scope.document_ids.length === 0 &&
+  scope.excluded_document_ids.length === 0
+
 export function createThread(
   workspaceId: number,
   title: string,
   // Null leaves the API to the selected model's default.
   choice: NewChatChoice | null,
+  // The new chat's ticks, stored with the thread so they outlive a first
+  // message that fails. Every source, or null, leaves the thread its default.
+  sourceScope: SourceScope | null,
   signal?: AbortSignal
 ): Promise<ChatThread> {
   return requestJson<ChatThread>(`/workspaces/${workspaceId}/chat/threads`, {
@@ -110,6 +144,9 @@ export function createThread(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       title,
+      ...(sourceScope && !isEverySource(sourceScope)
+        ? { source_scope: sourceScope }
+        : {}),
       ...(choice ? { mode: choice.mode } : {}),
       // Only the user's own choice becomes the model's default.
       ...(choice?.chosen ? { remember: true } : {}),

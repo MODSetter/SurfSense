@@ -262,6 +262,8 @@
   "chat_runtime_load_threads_toast": "आपकी चैट लोड नहीं हो सकीं",
   "chat_runtime_rename_toast": "चैट का नाम बदला नहीं जा सका",
   "chat_runtime_unexpected_error": "एक अनपेक्षित त्रुटि हुई",
+  "chat_scope_save_body": "वे आपके अगले संदेश के साथ भेजे जाएँगे।",
+  "chat_scope_save_error": "इस चैट के स्रोत सहेजे नहीं जा सके",
   "chat_thread_panel_conversation_aria": "बातचीत",
   "chat_thread_panel_delete_label": "चैट हटाएं",
   "chat_thread_panel_header_aria": "चैट",

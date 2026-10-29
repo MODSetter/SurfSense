@@ -262,6 +262,8 @@
   "chat_runtime_load_threads_toast": "チャットを読み込めませんでした",
   "chat_runtime_rename_toast": "チャットの名前を変更できませんでした",
   "chat_runtime_unexpected_error": "予期しないエラーが発生しました",
+  "chat_scope_save_body": "次のメッセージと一緒に送られます。",
+  "chat_scope_save_error": "このチャットが使うソースを保存できませんでした",
   "chat_thread_panel_conversation_aria": "会話",
   "chat_thread_panel_delete_label": "チャットを削除",
   "chat_thread_panel_header_aria": "チャット",
