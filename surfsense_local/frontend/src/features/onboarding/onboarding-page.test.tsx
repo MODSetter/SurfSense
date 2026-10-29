@@ -406,7 +406,7 @@ const chatChosen = {
 }
 
 beforeEach(() => {
-  // The welcome step mounts OnboardingDither, which reads matchMedia.
+  // The welcome step mounts WelcomeBackdrop, which reads matchMedia.
   Object.defineProperty(window, "matchMedia", {
     configurable: true,
     value: vi.fn().mockReturnValue({
