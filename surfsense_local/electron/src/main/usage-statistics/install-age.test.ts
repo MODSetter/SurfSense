@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { INSTALL_AGES, installAge } from "./install-age.ts"
+import { INSTALL_AGES, installAge, laterAge } from "./install-age.ts"
 
 const FIRST_RUN = "2026-10-20T08:00:00.000Z"
 
@@ -25,4 +25,10 @@ test("the day turns at UTC midnight, not 24 hours after the first run", () => {
 
 test("a clock set back before the first run reads as day 0", () => {
   assert.equal(installAge(FIRST_RUN, new Date("2026-10-18T09:00:00Z")), "0")
+})
+
+test("the later of two ranges is kept, and no range kept yet is earlier than any", () => {
+  assert.equal(laterAge(undefined, "0"), "0")
+  assert.equal(laterAge("2-3", "1"), "2-3")
+  assert.equal(laterAge("2-3", "8-14"), "8-14")
 })

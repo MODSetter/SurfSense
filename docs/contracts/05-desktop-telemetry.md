@@ -162,10 +162,10 @@ A setup report in the first week, on a machine whose card the model runtime cann
 | `usageStatistics` | `true`, `false`, or `null` for never asked |
 | `firstRunAt` | ISO time |
 | `firstRunAsked` | boolean |
-| `lastReport` | `{ "day": "YYYY-MM-DD", "week": "YYYY-Www", "month": "YYYY-MM", "age": install_age }` or `null`: the periods of the last accepted daily report; `age`, revision 1.2, is its `install_age` |
+| `lastReport` | `{ "day": "YYYY-MM-DD", "week": "YYYY-Www", "month": "YYYY-MM", "age": install_age }` or `null`: the periods of the last accepted daily report; `age`, revision 1.2, is the furthest `install_age` any accepted daily report reached |
 | `lastSent` | `{ "at": ISO time, "body": object }` or `null`: the last accepted report, daily or setup |
 
-From revision 1.1 it also keeps the furthest onboarding step an accepted report carried and what the last hardware sent held, so the setup report and the hardware rule of part B hold across restarts. Neither is ever sent. From revision 1.2 `lastReport` also keeps its report's `install_age` as `age`, never sent, which `active.age` compares with today's; a `lastReport` kept by 2.2.5 or earlier has none, so the next daily report's `active.age` is true.
+From revision 1.1 it also keeps the furthest onboarding step an accepted report carried and what the last hardware sent held, so the setup report and the hardware rule of part B hold across restarts. Neither is ever sent. From revision 1.2 `lastReport` also keeps, as `age`, the furthest `install_age` any accepted daily report reached, never sent. `active.age` is true only for a range past it, so a clock set back and restored never marks a range twice; a `lastReport` kept by 2.2.5 or earlier has none, so the next daily report's `active.age` is true.
 
 The existing `updates.json` keeps `automatic` and `lastCheckedAt`.
 

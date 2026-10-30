@@ -10,6 +10,7 @@ import {
   weekSince,
   type ReportTrigger,
 } from "./first-week.ts"
+import { laterAge } from "./install-age.ts"
 import { sentHardware, type PrivacyFile, type PrivacyStore } from "./privacy-file.ts"
 import { buildUsageReport, type UsageReport } from "./report-body.ts"
 import { furthestStep, setupFinished, setupReportDue, setupStep } from "./setup-progress.ts"
@@ -198,7 +199,7 @@ export function createUsageReporter(deps: {
       if (result !== "sent") return result === "refused" ? "failed" : result
       deps.store.update((current) => ({
         ...accepted(current, body, at),
-        lastReport: { ...reportPeriod(at), age: body.install_age },
+        lastReport: { ...reportPeriod(at), age: laterAge(current.lastReport?.age, body.install_age) },
       }))
       log(`daily usage report sent to ${host}`)
       deps.onSent?.()

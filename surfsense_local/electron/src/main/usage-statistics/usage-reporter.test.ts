@@ -291,6 +291,32 @@ test("after the update to 1.2 the first daily report says its range is new, even
   assert.equal(app.file().lastReport?.age, "8-14")
 })
 
+test("a clock set back and restored never says a range is new twice", async () => {
+  const app = reporter({ at: "2026-10-29T09:00:00Z" })
+
+  for (const at of [
+    "2026-10-29T09:00:00Z",
+    // Set back to day 3, then restored to day 10 and on to day 15.
+    "2026-10-23T09:00:00Z",
+    "2026-10-30T09:00:00Z",
+    "2026-11-04T09:00:00Z",
+  ]) {
+    app.at(at)
+    assert.equal(await app.usage.attempt(), "sent")
+  }
+
+  assert.deepEqual(
+    app.bodies().map((body) => [body.install_age, body.active.age]),
+    [
+      ["8-14", true],
+      ["2-3", false],
+      ["8-14", false],
+      ["15-30", true],
+    ]
+  )
+  assert.equal(app.file().lastReport?.age, "15-30")
+})
+
 test("a setup report carries install_age, never the age flag", async () => {
   const app = reporter({ at: "2026-10-22T09:00:00Z", summary: atStep("model_ready") })
 

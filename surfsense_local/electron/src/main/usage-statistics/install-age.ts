@@ -22,6 +22,11 @@ function utcMidnight(date: Date): number {
   return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
 }
 
+/** The later of two ranges; a range not yet kept is earlier than any. */
+export function laterAge(kept: InstallAge | undefined, next: InstallAge): InstallAge {
+  return kept !== undefined && INSTALL_AGES.indexOf(kept) > INSTALL_AGES.indexOf(next) ? kept : next
+}
+
 /** Whole UTC days from firstRunAt's day to `at`'s day; a clock set back reads as day 0. */
 export function installAge(firstRunAt: string, at: Date): InstallAge {
   const days = Math.max(0, Math.round((utcMidnight(at) - utcMidnight(new Date(firstRunAt))) / DAY_MS))
