@@ -63,7 +63,7 @@ export const metadata: Metadata = {
  * `new Date()`: a render-time date causes a hydration mismatch and tells every
  * reader the document changed the moment they opened it.
  */
-const LAST_UPDATED = "October 27, 2026";
+const LAST_UPDATED = "October 29, 2026";
 
 /** Matches the `prose` treatment used for blog posts. */
 const PROSE =
@@ -167,14 +167,17 @@ export default function PrivacyPolicy() {
 							not get through is tried again later. Each report sends the app's version, platform,
 							operating system and interface language, the week the app was installed, why it was
 							sent (the day's report or a new setup step), and whether this is its first daily
-							report ever, this week and this month. Once a week it adds counts in ranges, such as
-							10-49, for the past seven days: chat turns, agent turns, whether a local or a remote
-							model answered, the documents in your library, Studio outputs, plugin calls, and how
-							far setup got. During the first week every report carries those counts, for the time
-							since installation. The first daily report adds your computer's memory, graphics card
-							maker and graphics memory, also in ranges, and whether SurfSense's model runtime can
-							use the graphics card; during the first week that is sent again only while part of it
-							is unknown, and only when it changed. It never sends documents, prompts, file names,
+							report ever, this week and this month. From version 2.2.6 it also says how many days
+							ago the app was installed, in ranges such as 2-3, and whether this is its first daily
+							report in that range. Once a week it adds counts in ranges, such as 10-49, for the
+							past seven days: chat turns, agent turns, whether a local or a remote model answered,
+							the documents in your library, Studio outputs, plugin calls, and how far setup got,
+							and, from version 2.2.6, on how many of the 7 and the 28 days before it SurfSense was
+							used. During the first week every report carries those counts, for the time since
+							installation. The first daily report adds your computer's memory, graphics card maker
+							and graphics memory, also in ranges, and whether SurfSense's model runtime can use the
+							graphics card; during the first week that is sent again only while part of it is
+							unknown, and only when it changed. It never sends documents, prompts, file names,
 							model names, model hosts, your licence key or an identifier. Settings shows the exact
 							next daily report and the last report sent.
 						</li>

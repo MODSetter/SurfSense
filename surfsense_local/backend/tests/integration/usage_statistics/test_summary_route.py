@@ -192,6 +192,8 @@ async def test_a_new_install_reports_nothing_done_and_its_machine(
             "studio_outputs": "0",
             "plugin_calls": "0",
             "onboarding": "not_started",
+            "days_used_7": "0",
+            "days_used_28": "0",
         },
         "hardware": {
             "ram_gb": "32-63",
@@ -255,6 +257,9 @@ async def test_a_busy_week_is_reported_in_buckets(
         "studio_outputs": "1-4",
         "plugin_calls": "10+",
         "onboarding": "first_answer",
+        # Today is never counted; the answer nine days ago is inside 28 days only.
+        "days_used_7": "0",
+        "days_used_28": "1",
     }
 
 
@@ -272,6 +277,7 @@ async def test_a_window_that_began_before_counting_is_unknown_not_zero(
         "unknown",
         "unknown",
     )
+    assert (week["days_used_7"], week["days_used_28"]) == ("unknown", "unknown")
     assert week["chat_turns"] == "1-9"
 
 
@@ -282,7 +288,91 @@ async def test_no_counts_file_leaves_only_the_database_facts(
     week = (await summary(client))["week"]
 
     assert week["agent_turns"] == "unknown"
+    assert week["days_used_7"] == "unknown"
     assert week["chat_turns"] == "0"
+
+
+def seed_days(engine: Engine, days_ago: dict[str, list[int]]) -> None:
+    """Basic chat turns, notes and Studio outputs made that many days before now."""
+    with create_session_factory(engine)() as session:
+        workspace = Workspace(name="w")
+        session.add(workspace)
+        session.flush()
+        chat = ChatThread(workspace_id=workspace.id, title="chat")
+        session.add(chat)
+        session.flush()
+
+        def at(days: int) -> datetime:
+            return (NOW - timedelta(days=days)).replace(tzinfo=None)
+
+        for days in days_ago.get("turns", []):
+            session.add(
+                ChatMessage(
+                    chat_thread_id=chat.id,
+                    role=MessageRole.USER,
+                    content={"text": "q"},
+                    created_at=at(days),
+                )
+            )
+        for days in days_ago.get("answers", []):
+            session.add(
+                ChatMessage(
+                    chat_thread_id=chat.id,
+                    role=MessageRole.ASSISTANT,
+                    content={"text": "a", "citations": []},
+                    created_at=at(days),
+                )
+            )
+        for days in days_ago.get("notes", []):
+            session.add(
+                Document(
+                    workspace_id=workspace.id,
+                    title="n",
+                    document_type=DocumentType.NOTE,
+                    created_at=at(days),
+                )
+            )
+        for days in days_ago.get("outputs", []):
+            made = Document(
+                workspace_id=workspace.id,
+                title="a",
+                document_type=DocumentType.ARTIFACT,
+                created_at=at(days),
+            )
+            session.add(made)
+            session.flush()
+            session.add(
+                Artifact(
+                    document_id=made.id,
+                    workspace_id=workspace.id,
+                    format="docx",
+                    created_at=at(days),
+                )
+            )
+        session.commit()
+
+
+async def test_days_used_count_each_kind_of_use_once_per_day_before_today(
+    client: AsyncClient, engine: Engine
+) -> None:
+    """Turns, notes, outputs and Agentic counts each mark a day; a reply alone, and today, do not."""
+    start_counting(had_chats=False)
+    seed_days(
+        engine,
+        {
+            "turns": [0, 1, 1, 12],
+            "answers": [5],
+            "notes": [2, 27],
+            "outputs": [3, 40],
+        },
+    )
+    add({Activity.AGENT_TURN: 1}, now=NOW - timedelta(days=6))
+    add({Activity.PLUGIN_CALL: 2}, now=NOW - timedelta(days=20))
+
+    week = (await summary(client))["week"]
+
+    # Within 7 days: 1, 2, 3 and 6 days ago. Within 28: those, plus 12, 20 and 27.
+    assert (week["days_used_7"], week["days_used_28"]) == ("4-6", "4-7")
 
 
 @pytest.mark.parametrize(

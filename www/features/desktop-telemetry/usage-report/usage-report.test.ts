@@ -42,6 +42,15 @@ const SETUP_REPORT = {
 	week: { ...REPORT.week, chat_turns: "0", onboarding: "model_ready" },
 };
 
+// Revision 1.2: a daily report from the first day of the 8-14 range.
+const COHORT_REPORT = {
+	...REPORT,
+	trigger: "daily",
+	install_age: "8-14",
+	active: { first: false, week: true, month: false, age: true },
+	week: { ...REPORT.week, days_used_7: "2-3", days_used_28: "4-7" },
+};
+
 const PRIVATE_HEADERS = {
 	"x-forwarded-for": "203.0.113.7",
 	"x-real-ip": "203.0.113.7",
@@ -116,6 +125,32 @@ test("a 2.2.4 report records one desktop_usage_report, flattened, as a daily one
 			},
 		},
 	]);
+});
+
+test("a revision 1.2 report records install_age, the age flag and the days used", async () => {
+	const { response, events } = await post(COHORT_REPORT);
+	assert.equal(response.status, 204);
+	assert.equal(events[0].properties.install_age, "8-14");
+	assert.equal(events[0].properties.active_age, true);
+	assert.equal(events[0].properties.week_days_used_7, "2-3");
+	assert.equal(events[0].properties.week_days_used_28, "4-7");
+});
+
+for (const installAge of ["0", "1", "2-3", "4-7", "8-14", "15-30", "31-60", "61+"]) {
+	test(`install_age = ${installAge} is accepted`, async () => {
+		const { response } = await post({ ...COHORT_REPORT, install_age: installAge });
+		assert.equal(response.status, 204);
+	});
+}
+
+test("a setup report from revision 1.2 has its age flag false", async () => {
+	const { response, events } = await post({
+		...SETUP_REPORT,
+		install_age: "2-3",
+		active: { ...SETUP_REPORT.active, age: false },
+	});
+	assert.equal(response.status, 204);
+	assert.equal(events[0].properties.active_age, false);
 });
 
 test("an install's first report carries its hardware", async () => {
@@ -248,6 +283,17 @@ const BAD_VALUES: Array<[string, unknown]> = [
 	["trigger", null],
 	["hardware", { ram_gb: "16-31", gpu: "nvidia", vram_gb: "8-11", gpu_runtime: "broken" }],
 	["hardware", { ram_gb: "16-31", gpu: "nvidia", vram_gb: "8-11", gpu_runtime: null }],
+	["install_age", "9"],
+	["install_age", "8-15"],
+	["install_age", 3],
+	["install_age", null],
+	["active.age", "yes"],
+	["active.age", null],
+	["week.days_used_7", "8"],
+	["week.days_used_7", "4-7"],
+	["week.days_used_7", 3],
+	["week.days_used_28", "15+"],
+	["week.days_used_28", "29"],
 ];
 
 for (const [pathName, value] of BAD_VALUES) {

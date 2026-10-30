@@ -1187,7 +1187,7 @@
   "privacy_choices_updates_policy_locked_status": "你的组织策略已在这台电脑上关闭更新检查。",
   "privacy_choices_updates_summary_body": "每天检查一次是否有新版本。不发送 ID。",
   "privacy_choices_usage_details_aria": "使用统计会发送什么",
-  "privacy_choices_usage_details_body": "SurfSense 每天告诉 {host} 一次此安装已被使用，同时附上应用版本、你的系统、应用语言和安装所在的周。在安装后的第一周，设置每进行到新的一步，它就多发送一份报告，最多多发四份。第一周的报告，以及此后每周一份报告，会加上按区间统计的数量：对话、智能体轮次、来源、Studio 产出、插件调用、回答的是本地模型还是远程模型，以及设置进行到哪一步。第一份每日报告还会按区间附上这台电脑的内存和显卡，以及本地模型能否使用该显卡；在第一周内，仅当其中仍有部分未知时才会再次发送这些信息。绝不发送文档、提示词、文件名、模型名称、主机、你的许可证密钥或 ID。",
+  "privacy_choices_usage_details_body": "SurfSense 每天告诉 {host} 一次此安装已被使用，同时附上应用版本、你的系统、应用语言、安装所在的周，以及按区间统计的安装天数。在安装后的第一周，设置每进行到新的一步，它就多发送一份报告，最多多发四份。第一周的报告，以及此后每周一份报告，会加上按区间统计的数量：对话、智能体轮次、来源、Studio 产出、插件调用、回答的是本地模型还是远程模型、设置进行到哪一步，以及此前 7 天和 28 天中你有几天使用了 SurfSense。第一份每日报告还会按区间附上这台电脑的内存和显卡，以及本地模型能否使用该显卡；在第一周内，仅当其中仍有部分未知时才会再次发送这些信息。绝不发送文档、提示词、文件名、模型名称、主机、你的许可证密钥或 ID。",
   "privacy_choices_usage_do_not_track_locked_status": "已关闭，因为这台电脑设置了 DO_NOT_TRACK 或 SURFSENSE_NO_TELEMETRY。",
   "privacy_choices_usage_last_sent_aria": "最近一次发送的使用报告",
   "privacy_choices_usage_last_sent_label": "发送于 {time}",

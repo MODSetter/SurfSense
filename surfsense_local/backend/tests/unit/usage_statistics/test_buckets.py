@@ -4,6 +4,8 @@ import pytest
 
 from modules.usage_statistics.buckets import (
     GIB,
+    days_used_7_bucket,
+    days_used_28_bucket,
     plugin_calls_bucket,
     ram_bucket,
     sources_bucket,
@@ -37,6 +39,32 @@ def test_studio_outputs_and_plugin_calls_have_their_own_edges() -> None:
     """Studio splits at 5, plugin calls at 10."""
     assert [studio_outputs_bucket(n) for n in (0, 4, 5)] == ["0", "1-4", "5+"]
     assert [plugin_calls_bucket(n) for n in (0, 9, 10)] == ["0", "1-9", "10+"]
+
+
+def test_days_used_fall_in_the_contracts_buckets() -> None:
+    """One day apart from two or three, and every day of the window its own bucket."""
+    assert [days_used_7_bucket(n) for n in range(8)] == [
+        "0",
+        "1",
+        "2-3",
+        "2-3",
+        "4-6",
+        "4-6",
+        "4-6",
+        "7",
+    ]
+    assert [days_used_28_bucket(n) for n in (0, 1, 2, 3, 4, 7, 8, 14, 15, 28)] == [
+        "0",
+        "1",
+        "2-3",
+        "2-3",
+        "4-7",
+        "4-7",
+        "8-14",
+        "8-14",
+        "15-28",
+        "15-28",
+    ]
 
 
 @pytest.mark.parametrize(

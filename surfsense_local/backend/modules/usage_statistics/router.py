@@ -27,7 +27,13 @@ def read_summary(
     since = since if since.tzinfo is not None else since.replace(tzinfo=UTC)
     counts = read_counts()
     return UsageSummaryRead(
-        week=week_activity(session, since, counts, machine.holds_local_model),
+        week=week_activity(
+            session,
+            since,
+            counts,
+            machine.holds_local_model,
+            today=datetime.now(UTC).date(),
+        ),
         hardware=hardware_buckets(
             machine.inventory(), machine.ram_total_bytes(), machine.os_adapter_names
         ),
