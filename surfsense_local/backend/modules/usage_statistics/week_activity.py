@@ -38,6 +38,7 @@ def week_activity(
     counts: ActivityCounts | None,
     holds_local_model: Callable[[str], bool],
     today: date,
+    first_run: date | None = None,
 ) -> WeekRead:
     """What only the counts file holds is unknown for a window that began before counting did."""
     # Rows store naive UTC, as SQLite's CURRENT_TIMESTAMP writes it.
@@ -59,8 +60,12 @@ def week_activity(
             else plugin_calls_bucket(counted.total(Activity.PLUGIN_CALL, since))
         ),
         onboarding=onboarding_step(session, counts, holds_local_model),
-        days_used_7=_days_used(session, counts, today, 7, days_used_7_bucket),
-        days_used_28=_days_used(session, counts, today, 28, days_used_28_bucket),
+        days_used_7=_days_used(
+            session, counts, today, first_run, 7, days_used_7_bucket
+        ),
+        days_used_28=_days_used(
+            session, counts, today, first_run, 28, days_used_28_bucket
+        ),
     )
 
 
@@ -68,10 +73,11 @@ def _days_used(
     session: Session,
     counts: ActivityCounts | None,
     today: date,
+    first_run: date | None,
     days: int,
     bucket: Callable[[int], str],
 ) -> str:
-    used = days_used(session, counts, today, days)
+    used = days_used(session, counts, today, days, first_run)
     return UNKNOWN if used is None else bucket(used)
 
 

@@ -233,10 +233,10 @@ export default function PrivacyPolicy() {
 						an install's first week. Neither carries documents, prompts, file names, model hosts,
 						your licence key or an identifier, so we cannot see what you did in the app, and no
 						identifier ties one install's reports together, although an uncommon combination of
-						version, platform, language, install week and country could single one install out. Each
-						request's IP address is used by our hosting providers to route it and to derive a
-						country. Their server and edge logs hold it for the short time sections 4.5 and 8
-						describe, and SurfSense keeps only the country. With both off, we cannot tell whether
+						version, platform, language, install week or age and country could single one install
+						out. Each request's IP address is used by our hosting providers to route it and to
+						derive a country. Their server and edge logs hold it for the short time sections 4.5 and
+						8 describe, and SurfSense keeps only the country. With both off, we cannot tell whether
 						you ever opened the app. You can turn either off in Settings at any time, set{" "}
 						<code>DO_NOT_TRACK=1</code> to keep usage statistics off, or have an administrator turn
 						either off for a whole computer. SurfSense's own plugins are separate. That service sees
@@ -434,9 +434,9 @@ export default function PrivacyPolicy() {
 							by setting <code>DO_NOT_TRACK=1</code>, and an administrator's policy can withdraw it
 							for a whole computer. Reports already sent carry no identifier, so we cannot pick out
 							yours to delete, although an uncommon combination of version, platform, language,
-							install week and country could single one install out. We also rely on consent where
-							we ask for it elsewhere, such as if you opt in to product emails, and you can withdraw
-							it at any time.
+							install week or age and country could single one install out. We also rely on consent
+							where we ask for it elsewhere, such as if you opt in to product emails, and you can
+							withdraw it at any time.
 						</li>
 					</ul>
 

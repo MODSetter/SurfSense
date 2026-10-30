@@ -5,7 +5,7 @@ import type { ReportPeriod } from "./privacy-file.ts"
 /** Brave-style activity flags: what an ID would otherwise count, with no ID. */
 export type ActiveFlags = { first: boolean; week: boolean; month: boolean; age: boolean }
 
-export function reportPeriod(now: Date): ReportPeriod {
+export function reportPeriod(now: Date): Omit<ReportPeriod, "age"> {
   return { day: utcDay(now), week: isoWeek(now), month: utcMonth(now) }
 }
 
@@ -15,8 +15,8 @@ export function reportedToday(last: ReportPeriod | null, now: Date): boolean {
 
 /**
  * first: no report ever; week: none this ISO week; month: none this UTC calendar
- * month; age (revision 1.2): none in this install_age range, which the last
- * report's day says, so privacy.json keeps nothing new for it.
+ * month; age (revision 1.2): none yet in this install_age range. A report from
+ * before 1.2 kept no range, so the first 1.2 report says its range is new.
  */
 export function activeFlags(last: ReportPeriod | null, now: Date, firstRunAt: string): ActiveFlags {
   const period = reportPeriod(now)
@@ -24,8 +24,6 @@ export function activeFlags(last: ReportPeriod | null, now: Date, firstRunAt: st
     first: last === null,
     week: last === null || last.week !== period.week,
     month: last === null || last.month !== period.month,
-    age:
-      last === null ||
-      installAge(firstRunAt, new Date(`${last.day}T00:00:00Z`)) !== installAge(firstRunAt, now),
+    age: last === null || last.age !== installAge(firstRunAt, now),
   }
 }

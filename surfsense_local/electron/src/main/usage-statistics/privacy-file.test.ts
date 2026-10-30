@@ -93,6 +93,20 @@ test("junk on disk reads as never set", () => {
   }
 })
 
+test("the last daily report's install_age range is kept, and anything else is dropped", () => {
+  const period = { day: "2026-10-21", week: "2026-W43", month: "2026-10" }
+
+  assert.deepEqual(parsePrivacyFile({ lastReport: { ...period, age: "2-3" } }, NOW).lastReport, {
+    ...period,
+    age: "2-3",
+  })
+  for (const age of ["9", 3, null]) {
+    assert.deepEqual(parsePrivacyFile({ lastReport: { ...period, age } }, NOW).lastReport, period)
+  }
+  // Kept by 2.2.5 or earlier: no range, which the next report reads as a new one.
+  assert.deepEqual(parsePrivacyFile({ lastReport: period }, NOW).lastReport, period)
+})
+
 test("the setup report's tries are kept", () => {
   const setupTries = { step: "model_ready", at: NOW.toISOString(), count: 2 }
   assert.deepEqual(parsePrivacyFile({ setupTries }, NOW).setupTries, setupTries)

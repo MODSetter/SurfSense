@@ -68,7 +68,7 @@ export function createUsageReporter(deps: {
   /** null in a development build without SURFSENSE_TELEMETRY_DEV_ENDPOINT. */
   endpoint: string | null
   facts: { appVersion: string; platform: PlatformLabel | null; os: OsLabel | null }
-  summary: (since: Date) => Promise<unknown>
+  summary: (since: Date, firstRun: Date) => Promise<unknown>
   locale: () => string
   totalMemoryBytes: () => number
   fetch: typeof fetch
@@ -95,7 +95,7 @@ export function createUsageReporter(deps: {
     if (platform === null || os === null) return null
     const firstWeek = inFirstWeek(file.firstRunAt, at)
     const flags = trigger === "daily" ? activeFlags(file.lastReport, at, file.firstRunAt) : NO_FLAGS
-    const summary = await deps.summary(weekSince(file.firstRunAt, at))
+    const summary = await deps.summary(weekSince(file.firstRunAt, at), new Date(file.firstRunAt))
     const report = buildUsageReport({
       appVersion,
       platform,
@@ -196,7 +196,10 @@ export function createUsageReporter(deps: {
       if (body === null) return "skipped"
       const result = await post(body, { failed: `try ${tries + 1} of 3 today` })
       if (result !== "sent") return result === "refused" ? "failed" : result
-      deps.store.update((current) => ({ ...accepted(current, body, at), lastReport: reportPeriod(at) }))
+      deps.store.update((current) => ({
+        ...accepted(current, body, at),
+        lastReport: { ...reportPeriod(at), age: body.install_age },
+      }))
       log(`daily usage report sent to ${host}`)
       deps.onSent?.()
       return "sent"

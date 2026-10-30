@@ -83,6 +83,7 @@ function reporter(
   let summary: unknown = options.summary === undefined ? SUMMARY : options.summary
   const posts: Post[] = []
   const summaries: string[] = []
+  const firstRuns: string[] = []
   const timers: Timer[] = []
   const schedule = (kind: Timer["kind"]) => (run: () => void, ms: number) => {
     const timer: Timer = { kind, ms, run, cancelled: false }
@@ -97,8 +98,9 @@ function reporter(
     lock: options.lock ?? null,
     endpoint: options.endpoint === undefined ? USAGE_ENDPOINT : options.endpoint,
     facts: { appVersion: options.appVersion ?? "2.2.4", platform: "win32-x64", os: "windows-11" },
-    summary: async (since) => {
+    summary: async (since, firstRun) => {
       summaries.push(since.toISOString())
+      firstRuns.push(firstRun.toISOString())
       await options.summaryGate
       if (summary instanceof Error) throw summary
       return summary
@@ -119,6 +121,7 @@ function reporter(
     usage,
     posts,
     summaries,
+    firstRuns,
     timers,
     sent: () => sent,
     file: () => file,
@@ -168,13 +171,16 @@ test("the first report is the contract's body, key for key, posted as JSON with 
   })
   assert.deepEqual(Object.keys(body), BODY_KEYS)
   assert.deepEqual(Object.keys(body.hardware), ["ram_gb", "gpu", "vram_gb", "gpu_runtime"])
-  // In the first week the counts cover the time since the first run.
+  // In the first week the counts cover the time since the first run, and no
+  // day before the first run counts as a day used.
   assert.deepEqual(app.summaries, ["2026-10-20T08:00:00.000Z"])
+  assert.deepEqual(app.firstRuns, ["2026-10-20T08:00:00.000Z"])
   assert.equal(app.sent(), 1)
   assert.deepEqual(app.file().lastReport, {
     day: "2026-10-21",
     week: "2026-W43",
     month: "2026-10",
+    age: "1",
   })
   assert.deepEqual(app.file().lastSent, { at: "2026-10-21T09:00:00.000Z", body })
 })
@@ -264,6 +270,27 @@ test("install_age counts UTC days from the first run, and active.age marks a ran
   )
 })
 
+test("after the update to 1.2 the first daily report says its range is new, even one reported before", async () => {
+  // A 2.2.5 daily report on day 8 kept no range; day 9 is still 8-14.
+  const app = reporter({
+    at: "2026-10-29T09:00:00Z",
+    file: { lastReport: { day: "2026-10-28", week: "2026-W44", month: "2026-10" } },
+  })
+
+  assert.equal(await app.usage.attempt(), "sent")
+  app.at("2026-10-30T09:00:00Z")
+  assert.equal(await app.usage.attempt(), "sent")
+
+  assert.deepEqual(
+    app.bodies().map((body) => [body.install_age, body.active.age]),
+    [
+      ["8-14", true],
+      ["8-14", false],
+    ]
+  )
+  assert.equal(app.file().lastReport?.age, "8-14")
+})
+
 test("a setup report carries install_age, never the age flag", async () => {
   const app = reporter({ at: "2026-10-22T09:00:00Z", summary: atStep("model_ready") })
 
@@ -349,7 +376,12 @@ test("a setup report leaves the day's report and its tries alone", async () => {
   app.at("2026-10-22T08:00:00Z")
   assert.equal(await app.usage.checkSetup(), "sent")
 
-  assert.deepEqual(app.file().lastReport, { day: "2026-10-21", week: "2026-W43", month: "2026-10" })
+  assert.deepEqual(app.file().lastReport, {
+    day: "2026-10-21",
+    week: "2026-W43",
+    month: "2026-10",
+    age: "1",
+  })
   assert.deepEqual(app.file().attempts, { day: "2026-10-21", count: 1 })
   app.at("2026-10-22T09:00:00Z")
   assert.equal(await app.usage.attempt(), "sent")
