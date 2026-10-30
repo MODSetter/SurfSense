@@ -63,7 +63,7 @@ export const metadata: Metadata = {
  * `new Date()`: a render-time date causes a hydration mismatch and tells every
  * reader the document changed the moment they opened it.
  */
-const LAST_UPDATED = "October 27, 2026";
+const LAST_UPDATED = "October 29, 2026";
 
 /** Matches the `prose` treatment used for blog posts. */
 const PROSE =
@@ -167,14 +167,17 @@ export default function PrivacyPolicy() {
 							not get through is tried again later. Each report sends the app's version, platform,
 							operating system and interface language, the week the app was installed, why it was
 							sent (the day's report or a new setup step), and whether this is its first daily
-							report ever, this week and this month. Once a week it adds counts in ranges, such as
-							10-49, for the past seven days: chat turns, agent turns, whether a local or a remote
-							model answered, the documents in your library, Studio outputs, plugin calls, and how
-							far setup got. During the first week every report carries those counts, for the time
-							since installation. The first daily report adds your computer's memory, graphics card
-							maker and graphics memory, also in ranges, and whether SurfSense's model runtime can
-							use the graphics card; during the first week that is sent again only while part of it
-							is unknown, and only when it changed. It never sends documents, prompts, file names,
+							report ever, this week and this month. From version 2.2.6 it also says how many days
+							ago the app was installed, in ranges such as 2-3, and whether this is its first daily
+							report in that range. Once a week it adds counts in ranges, such as 10-49, for the
+							past seven days: chat turns, agent turns, whether a local or a remote model answered,
+							the documents in your library, Studio outputs, plugin calls, and how far setup got,
+							and, from version 2.2.6, on how many of the 7 and the 28 days before it SurfSense was
+							used. During the first week every report carries those counts, for the time since
+							installation. The first daily report adds your computer's memory, graphics card maker
+							and graphics memory, also in ranges, and whether SurfSense's model runtime can use the
+							graphics card; during the first week that is sent again only while part of it is
+							unknown, and only when it changed. It never sends documents, prompts, file names,
 							model names, model hosts, your licence key or an identifier. Settings shows the exact
 							next daily report and the last report sent.
 						</li>
@@ -230,10 +233,10 @@ export default function PrivacyPolicy() {
 						an install's first week. Neither carries documents, prompts, file names, model hosts,
 						your licence key or an identifier, so we cannot see what you did in the app, and no
 						identifier ties one install's reports together, although an uncommon combination of
-						version, platform, language, install week and country could single one install out. Each
-						request's IP address is used by our hosting providers to route it and to derive a
-						country. Their server and edge logs hold it for the short time sections 4.5 and 8
-						describe, and SurfSense keeps only the country. With both off, we cannot tell whether
+						version, platform, language, install week or age and country could single one install
+						out. Each request's IP address is used by our hosting providers to route it and to
+						derive a country. Their server and edge logs hold it for the short time sections 4.5 and
+						8 describe, and SurfSense keeps only the country. With both off, we cannot tell whether
 						you ever opened the app. You can turn either off in Settings at any time, set{" "}
 						<code>DO_NOT_TRACK=1</code> to keep usage statistics off, or have an administrator turn
 						either off for a whole computer. SurfSense's own plugins are separate. That service sees
@@ -431,9 +434,9 @@ export default function PrivacyPolicy() {
 							by setting <code>DO_NOT_TRACK=1</code>, and an administrator's policy can withdraw it
 							for a whole computer. Reports already sent carry no identifier, so we cannot pick out
 							yours to delete, although an uncommon combination of version, platform, language,
-							install week and country could single one install out. We also rely on consent where
-							we ask for it elsewhere, such as if you opt in to product emails, and you can withdraw
-							it at any time.
+							install week or age and country could single one install out. We also rely on consent
+							where we ask for it elsewhere, such as if you opt in to product emails, and you can
+							withdraw it at any time.
 						</li>
 					</ul>
 
