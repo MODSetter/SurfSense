@@ -49,9 +49,12 @@ def revision_base(
     versions = versions_of(session, workspace_id, version.root)
     running = next((v for v in versions if v.document.status in IN_FLIGHT), None)
     if running is not None:
+        number = _number(running)
         raise RevisedCopyRefusedError(
-            f"Version {_number(running)} of this revised copy is still being made. "
-            "Wait for it to finish, then revise again."
+            f"Version {number} of this revised copy is still being made. "
+            "Wait for it to finish, then revise again.",
+            "version_being_made",
+            version=number,
         )
     newest = next(
         (v for v in versions if v.document.status is DocumentStatus.READY), None

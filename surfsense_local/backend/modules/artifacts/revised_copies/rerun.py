@@ -13,7 +13,7 @@ def rerun_revised_copy(session: Session, artifact: Artifact) -> Artifact:
     """Regenerate and Retry of a revised copy; unlike a Studio draft's, no source is gathered."""
     document = artifact.document
     if document.status in IN_FLIGHT:
-        raise RevisedCopyRefusedError("already generating")
+        raise RevisedCopyRefusedError("already generating", "already_generating")
     document.status = DocumentStatus.PENDING
     document.error_message = None
     artifact.generation += 1

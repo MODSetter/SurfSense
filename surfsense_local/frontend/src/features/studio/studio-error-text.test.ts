@@ -25,6 +25,11 @@ describe("a refused Studio job", () => {
       "version_unfinished",
       "This version did not finish: retry it, or refine another version.",
     ],
+    // And from a revised copy's Accept all or Reject all, revised_copies/.
+    [
+      "not_word_copy",
+      "Only a Word revised copy has tracked changes to accept or reject.",
+    ],
   ])("has its own line for %s", (code, line) => {
     const refusal = new ApiError(409, "backend prose, never shown", code)
 
@@ -73,6 +78,40 @@ describe("a refused Studio job", () => {
           ...values,
         }
       )
+
+      expect(translatedStudioError(refusal)).toBeNull()
+    }
+  )
+
+  it.each([
+    ["no_tracked_changes", "Version 2 has no tracked changes to decide."],
+    [
+      "version_being_made",
+      "Version 2 of this revised copy is still being made. Wait for it to finish, then revise again.",
+    ],
+  ])("puts the version a revised copy's %s sends in its line", (code, line) => {
+    const refusal = new ApiError(409, "backend prose, never shown", code, {
+      message: "backend prose, never shown",
+      code,
+      version: 2,
+    })
+
+    expect(translatedStudioError(refusal)).toBe(line)
+  })
+
+  it.each([
+    ["no_tracked_changes", undefined],
+    ["no_tracked_changes", "2"],
+    ["version_being_made", undefined],
+    ["version_being_made", "2"],
+  ])(
+    "leaves %s with the version %j to the backend's sentence",
+    (code, version) => {
+      const refusal = new ApiError(409, "the backend's own", code, {
+        message: "the backend's own",
+        code,
+        version,
+      })
 
       expect(translatedStudioError(refusal)).toBeNull()
     }

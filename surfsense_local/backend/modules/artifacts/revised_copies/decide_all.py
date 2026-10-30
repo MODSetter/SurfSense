@@ -18,11 +18,14 @@ def decide_all(session: Session, artifact: Artifact, action: Decision) -> Artifa
     base = revision_base(session, artifact.workspace_id, artifact.id)
     if base.format.format != "docx":
         raise RevisedCopyRefusedError(
-            "Only a Word revised copy has tracked changes to accept or reject."
+            "Only a Word revised copy has tracked changes to accept or reject.",
+            "not_word_copy",
         )
     if change_count(base.revision) == 0:
         raise RevisedCopyRefusedError(
-            f"Version {base.version.number} has no tracked changes to decide."
+            f"Version {base.version.number} has no tracked changes to decide.",
+            "no_tracked_changes",
+            version=base.version.number,
         )
     return create_next_version(
         session,
