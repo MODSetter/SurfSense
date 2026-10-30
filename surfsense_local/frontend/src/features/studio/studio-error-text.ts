@@ -6,7 +6,8 @@ import { ApiError } from "@/lib/api"
 // regenerate (a refine's `needs_chat` comes from studio_documents/fits.py),
 // and the sentences `refused()` sends for a job that cannot start, be run
 // again or be stopped, and for a document that cannot be refined
-// (studio_documents/service.py) or is too long to rewrite (fits.py);
+// (studio_documents/service.py) or is too long to rewrite (fits.py), and for
+// a revised copy's Retry, Accept all and Reject all (revised_copies/);
 // the backend's own text stays the fallback for a code that has no line here,
 // and for one whose values did not come with it.
 type Detail = Record<string, unknown>
@@ -73,6 +74,34 @@ const studioErrorText: Record<string, (detail: Detail) => string | null> = {
             neededTokens: needed_tokens,
             windowTokens: window_tokens,
           }
+        )
+      : null,
+  not_word_copy: () =>
+    intl.formatMessage({
+      id: "studio_error_not_word_copy",
+      defaultMessage:
+        "Only a Word revised copy has tracked changes to accept or reject.",
+    }),
+  no_tracked_changes: ({ version }) =>
+    typeof version === "number"
+      ? intl.formatMessage(
+          {
+            id: "studio_error_no_tracked_changes",
+            defaultMessage:
+              "Version {version, number} has no tracked changes to decide.",
+          },
+          { version }
+        )
+      : null,
+  version_being_made: ({ version }) =>
+    typeof version === "number"
+      ? intl.formatMessage(
+          {
+            id: "studio_error_version_being_made",
+            defaultMessage:
+              "Version {version, number} of this revised copy is still being made. Wait for it to finish, then revise again.",
+          },
+          { version }
         )
       : null,
   needs_chat: () =>

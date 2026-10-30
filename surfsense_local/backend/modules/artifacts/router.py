@@ -22,6 +22,7 @@ from modules.artifacts.quiz_progress import (
     apply_quiz_skip,
     read_quiz_questions,
 )
+from modules.artifacts.refused import refused
 from modules.artifacts.revised_copies.decide_all import Decision, decide_all
 from modules.artifacts.revised_copies.downloads import (
     DownloadUnavailableError,
@@ -140,8 +141,8 @@ def _regenerate(session: Session, artifact_id: int) -> ArtifactRead:
     if revision_of(artifact.artifact_metadata) is not None:
         try:
             return ArtifactRead.of(rerun_revised_copy(session, artifact))
-        except RevisedCopyRefusedError as refused:
-            raise HTTPException(status.HTTP_409_CONFLICT, str(refused)) from refused
+        except RevisedCopyRefusedError as refusal:
+            raise _conflict(refusal) from refusal
     return ArtifactRead.of(regenerate_artifact(session, artifact))
 
 
@@ -240,10 +241,18 @@ def reject_all_revisions(artifact: ArtifactDep, session: SessionDep) -> Artifact
 def _decide_all(session: Session, artifact: Artifact, action: Decision) -> ArtifactRead:
     try:
         made = decide_all(session, artifact, action)
-    except RevisedCopyRefusedError as refused:
+    except RevisedCopyRefusedError as refusal:
         session.rollback()
-        raise HTTPException(status.HTTP_409_CONFLICT, str(refused)) from refused
+        raise _conflict(refusal) from refusal
     return ArtifactRead.of(made)
+
+
+def _conflict(refusal: RevisedCopyRefusedError) -> HTTPException:
+    if refusal.code is None:
+        return HTTPException(status.HTTP_409_CONFLICT, str(refusal))
+    return refused(
+        status.HTTP_409_CONFLICT, str(refusal), refusal.code, **refusal.values
+    )
 
 
 def _require_quiz(artifact: Artifact) -> None:

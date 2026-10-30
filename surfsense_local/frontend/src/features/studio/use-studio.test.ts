@@ -541,4 +541,40 @@ describe("useStudio decide all", () => {
       expect(result.current.artifacts.map((each) => each.id)).toEqual([51, 50])
     )
   })
+
+  it("rejects a refused decision with the interface's line for its code", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = String(input)
+        if (path.endsWith("/events")) return new Response(null, { status: 204 })
+        if (path.includes("/studio/formats")) return Response.json([])
+        if (path.endsWith("/reject-all")) {
+          return Response.json(
+            {
+              detail: {
+                message: "the backend's sentence, never shown",
+                code: "version_being_made",
+                version: 3,
+              },
+            },
+            { status: 409 }
+          )
+        }
+        return Response.json([])
+      })
+    )
+
+    const { result } = renderHook(() => useStudio(1))
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    const refusal = await result.current
+      .decideAll(50, "reject_all")
+      .catch((cause: unknown) => cause)
+
+    // revised-copy-bar.tsx shows messageFrom(cause) under the bar.
+    expect(messageFrom(refusal)).toBe(
+      "Version 3 of this revised copy is still being made. Wait for it to finish, then revise again."
+    )
+  })
 })
