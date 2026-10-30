@@ -59,6 +59,10 @@ async def download_gguf(
         # A run stopped between the last byte and the rename leaves the whole file
         # in the part, so a range from its end is refused; the checksum judges it.
         if already and reply.status_code == 416:
+            if sha256 is None:
+                # Nothing can vouch for an unpinned part, so the next attempt starts clean.
+                partial.unlink(missing_ok=True)
+                reply.raise_for_status()
             total = done = already
         else:
             reply.raise_for_status()
