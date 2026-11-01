@@ -357,17 +357,20 @@ async def test_a_failed_version_is_not_edited(
     assert response.json()["detail"]["code"] == "image_version_unfinished"
 
 
-async def test_a_picture_that_is_not_raster_is_not_edited(
+@pytest.mark.parametrize("mime_type", ["image/svg+xml", "image/gif"])
+async def test_a_picture_an_edit_model_does_not_take_is_not_edited(
     client: AsyncClient,
     session: Session,
     workspace: Workspace,
     logo_source: Document,
     painter: Painter,
+    mime_type: str,
 ) -> None:
-    """A remote model may return an SVG, which edit models do not read."""
+    """A remote model may return an SVG or a GIF: edit models do not read the
+    first, and `/images/edits` takes PNG, JPEG and WebP, a still picture."""
     first = await _drawn(session, workspace, logo_source)
     (file,) = first.files
-    file.mime_type = "image/svg+xml"
+    file.mime_type = mime_type
     session.commit()
 
     assert (await client.get(f"/artifacts/{first.id}")).json()[

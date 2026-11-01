@@ -4,8 +4,9 @@ from modules.artifacts.models import Artifact, ArtifactFileRole
 from modules.documents.models import DocumentStatus
 
 EDITABLE_FORMATS = frozenset({"image", "infographic"})
-# What an edit model reads as its reference; an SVG a remote model drew is not one.
-RASTER_TYPES = frozenset({"image/png", "image/jpeg", "image/webp", "image/gif"})
+# What every edit model takes as its reference: a still picture in a format
+# `/images/edits` accepts. An SVG or a GIF a remote model drew is neither.
+RASTER_TYPES = frozenset({"image/png", "image/jpeg", "image/webp"})
 
 
 def has_picture(artifact: Artifact) -> bool:
