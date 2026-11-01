@@ -6,10 +6,15 @@ from pathlib import Path
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import Engine
 
 from modules.llm.catalog.local.engines.sdcpp.images_folder.landing import landing
 from modules.llm.catalog.local.manifest import load_local_manifest
+from modules.llm.model_type import ModelType
+from modules.llm.models import SelectedModel
 from modules.llm.providers import sdcpp
+from modules.llm.resolution import ModelResolutionError, resolve_image_edit
+from shared.db import create_session_factory
 from tests.integration.llm.installs import install_to_end
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
@@ -123,3 +128,21 @@ async def test_an_image_model_is_refused_for_video(
     put_on_disk(images_dir, "flux2-klein-4b")
 
     assert await choose(client, "video_gen", KLEIN) == 422
+
+
+async def test_a_chosen_model_whose_entry_no_longer_edits_is_not_used_to_edit(
+    images_dir: Path, engine: Engine
+) -> None:
+    """Chosen while its entry named `edit`, which a later manifest dropped: the
+    edit would reach a model that can only re-draw the picture."""
+    put_on_disk(images_dir, "stable-diffusion-1.5")
+    with create_session_factory(engine)() as session:
+        session.add(
+            SelectedModel(
+                model_type=ModelType.IMAGE_EDIT, provider=sdcpp.PROVIDER, name=SD15
+            )
+        )
+        session.commit()
+
+        with pytest.raises(ModelResolutionError, match="does not edit"):
+            resolve_image_edit(session)

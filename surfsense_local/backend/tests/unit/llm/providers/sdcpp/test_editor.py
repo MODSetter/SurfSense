@@ -178,3 +178,33 @@ async def test_a_cancel_withdraws_the_queued_job() -> None:
         await _editor(server).edit("klein", "make it night", BASE)
 
     assert server.asked[-1] == "POST /sdcpp/v1/jobs/job_1/cancel"
+
+
+async def test_withdrawing_a_job_waits_only_briefly() -> None:
+    """The text runtime is still held then; a hung server must not hold chat for long."""
+    server = SdServer(_job("queued"))
+    seen: list[httpx.Request] = []
+
+    def watch(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return server(request)
+
+    class CancelledError(Exception):
+        pass
+
+    def cancelled() -> None:
+        raise CancelledError
+
+    edit = LocalImageEditor(
+        "http://127.0.0.1:1",
+        SERVED,
+        Runtime().given_up,
+        interval=0,
+        transport=httpx.MockTransport(watch),
+    )
+    with cancellation.watching(cancelled), pytest.raises(CancelledError):
+        await edit.edit("klein", "make it night", BASE)
+
+    withdraw = seen[-1]
+    assert withdraw.url.path == "/sdcpp/v1/jobs/job_1/cancel"
+    assert withdraw.extensions["timeout"]["read"] <= 2

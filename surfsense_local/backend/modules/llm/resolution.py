@@ -149,6 +149,9 @@ def resolve_image_edit(session: Session) -> ResolvedImageEdit:
         image = get_local_catalog().sdcpp.installed_image(selected.name)
         if image is None:
             raise ModelResolutionError("the local image editing model is not installed")
+        # Chosen while its entry named `edit`, which a later manifest may drop.
+        if ModelType.IMAGE_EDIT not in image.types:
+            raise ModelResolutionError("the chosen image model does not edit")
         return ResolvedImageEdit(
             selected,
             LocalImageEditor(

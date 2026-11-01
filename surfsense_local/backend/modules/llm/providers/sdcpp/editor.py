@@ -113,6 +113,11 @@ async def _call(request: Awaitable[httpx.Response]) -> httpx.Response:
     return reply
 
 
+# The text runtime is still held while it is asked; a cancel ends the demand
+# anyway, and Electron then stops sd-server.
+_WITHDRAW_TIMEOUT = httpx.Timeout(2.0)
+
+
 async def _withdraw(client: httpx.AsyncClient, job: str) -> None:
     with contextlib.suppress(httpx.HTTPError):
-        await client.post(f"/sdcpp/v1/jobs/{job}/cancel")
+        await client.post(f"/sdcpp/v1/jobs/{job}/cancel", timeout=_WITHDRAW_TIMEOUT)
