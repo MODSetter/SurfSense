@@ -4,6 +4,7 @@ import struct
 from pathlib import Path
 
 from modules.documents.kindle_books.container import (
+    BOOK_TYPES,
     PALM_HEADER_SIZE,
     KindleBookError,
     book_header,
@@ -25,7 +26,8 @@ def is_kindle_book(path: Path) -> bool:
     try:
         with path.open("rb") as book:
             head = book.read(PALM_HEADER_SIZE)
-            if head.startswith(_KFX_MAGIC):
+            # A Palm database opens with the book's name, which may start "CONT".
+            if head.startswith(_KFX_MAGIC) and head[60:68] not in BOOK_TYPES:
                 raise ValueError(KFX_REFUSAL)
             if len(head) < PALM_HEADER_SIZE:
                 return False
