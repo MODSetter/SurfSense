@@ -1527,6 +1527,7 @@
   "studio_docx_viewer_zoom_out_aria": "Verkleinern",
   "studio_error_agent_made": "Der Agent hat dieses Dokument erstellt: Bitte in seinem Chat um Änderungen.",
   "studio_error_already_generating": "Wird bereits erstellt.",
+  "studio_error_image_version_unfinished": "Diese Version wurde nicht fertiggestellt: Versuche es erneut oder bearbeite eine andere Version.",
   "studio_error_needs_audio": "Ein Audiomodell ist erforderlich.",
   "studio_error_needs_chat": "Ein Chatmodell ist erforderlich.",
   "studio_error_needs_chat_audio": "Ein Chatmodell und ein Audiomodell sind erforderlich.",

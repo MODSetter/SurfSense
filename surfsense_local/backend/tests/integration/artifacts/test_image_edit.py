@@ -353,7 +353,30 @@ async def test_a_failed_version_is_not_edited(
     response = await _edit(client, session, failed.json()["id"], "Add a moon")
 
     assert response.status_code == 409
-    assert response.json()["detail"]["code"] == "version_unfinished"
+    # Its own code: Refine's would say "refine another version" under a picture.
+    assert response.json()["detail"]["code"] == "image_version_unfinished"
+
+
+async def test_a_picture_that_is_not_raster_is_not_edited(
+    client: AsyncClient,
+    session: Session,
+    workspace: Workspace,
+    logo_source: Document,
+    painter: Painter,
+) -> None:
+    """A remote model may return an SVG, which edit models do not read."""
+    first = await _drawn(session, workspace, logo_source)
+    (file,) = first.files
+    file.mime_type = "image/svg+xml"
+    session.commit()
+
+    assert (await client.get(f"/artifacts/{first.id}")).json()[
+        "image_editable"
+    ] is False
+    response = await _edit(client, session, first.id, "Make it night")
+
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "not_editable"
 
 
 @pytest.mark.parametrize("instruction", ["", "   ", "x" * 2001])

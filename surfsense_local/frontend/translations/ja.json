@@ -1527,6 +1527,7 @@
   "studio_docx_viewer_zoom_out_aria": "縮小",
   "studio_error_agent_made": "このドキュメントはエージェントが作成しました。変更はそのチャットで依頼してください。",
   "studio_error_already_generating": "すでに生成中です。",
+  "studio_error_image_version_unfinished": "このバージョンは完了しませんでした。再試行するか、別のバージョンを編集してください。",
   "studio_error_needs_audio": "音声モデルが必要です。",
   "studio_error_needs_chat": "チャットモデルが必要です。",
   "studio_error_needs_chat_audio": "チャットモデルと音声モデルが必要です。",

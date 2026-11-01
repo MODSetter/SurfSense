@@ -41,7 +41,7 @@ def editable_base(session: Session, artifact_id: int) -> Artifact:
         raise refused(
             status.HTTP_409_CONFLICT,
             "This version did not finish: retry it, or edit another version.",
-            "version_unfinished",
+            "image_version_unfinished",
         )
     if not has_picture(artifact):
         raise _not_editable()

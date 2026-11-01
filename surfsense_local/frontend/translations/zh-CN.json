@@ -1527,6 +1527,7 @@
   "studio_docx_viewer_zoom_out_aria": "缩小",
   "studio_error_agent_made": "此文档由智能体创建：请在它的对话中提出修改。",
   "studio_error_already_generating": "已在生成中。",
+  "studio_error_image_version_unfinished": "此版本未完成：请重试，或编辑其他版本。",
   "studio_error_needs_audio": "需要语音模型。",
   "studio_error_needs_chat": "需要对话模型。",
   "studio_error_needs_chat_audio": "需要对话模型和语音模型。",

@@ -62,6 +62,12 @@ const studioErrorText: Record<string, (detail: Detail) => string | null> = {
       defaultMessage:
         "This version did not finish: retry it, or refine another version.",
     }),
+  image_version_unfinished: () =>
+    intl.formatMessage({
+      id: "studio_error_image_version_unfinished",
+      defaultMessage:
+        "This version did not finish: retry it, or edit another version.",
+    }),
   // The sentence's name and numbers arrive raw beside the code.
   rewrite_too_long: ({ model, spec_tokens, needed_tokens, window_tokens }) =>
     typeof model === "string" &&

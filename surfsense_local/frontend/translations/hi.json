@@ -1527,6 +1527,7 @@
   "studio_docx_viewer_zoom_out_aria": "ज़ूम आउट",
   "studio_error_agent_made": "यह दस्तावेज़ एजेंट ने बनाया है: बदलाव उसकी चैट में माँगें।",
   "studio_error_already_generating": "पहले से जनरेट हो रहा है।",
+  "studio_error_image_version_unfinished": "यह वर्ज़न पूरा नहीं हुआ: फिर से कोशिश करें या कोई दूसरा वर्ज़न एडिट करें।",
   "studio_error_needs_audio": "एक ऑडियो मॉडल चाहिए।",
   "studio_error_needs_chat": "एक चैट मॉडल चाहिए।",
   "studio_error_needs_chat_audio": "एक चैट मॉडल और एक ऑडियो मॉडल चाहिए।",

@@ -1527,6 +1527,7 @@
   "studio_docx_viewer_zoom_out_aria": "Уменьшить",
   "studio_error_agent_made": "Этот документ создал агент: попросите об изменениях в его чате.",
   "studio_error_already_generating": "Уже создаётся.",
+  "studio_error_image_version_unfinished": "Эта версия не была завершена: повторите попытку или измените другую версию.",
   "studio_error_needs_audio": "Требуется модель для аудио.",
   "studio_error_needs_chat": "Требуется модель для чата.",
   "studio_error_needs_chat_audio": "Требуются модель для чата и модель для аудио.",
