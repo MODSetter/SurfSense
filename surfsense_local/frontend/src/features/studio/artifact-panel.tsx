@@ -20,6 +20,7 @@ import {
   type VersionedArtifact,
 } from "./artifact-versions"
 import { canRefine } from "./can-refine"
+import { EDIT_MODEL_SECTION, type EditModelSection } from "./edit-model"
 import { RefineBox } from "./refine-box"
 import { RevisedCopyBar } from "./revised-copy-bar"
 import { RevisedCopyDownloads } from "./revised-copy-downloads"
@@ -72,6 +73,7 @@ export function ArtifactPanel({
   onOpenVersion,
   onRefine,
   onImageEdit = async () => {},
+  onOpenModelSettings,
   onDecideAll = async () => {},
   onClose,
 }: {
@@ -83,6 +85,8 @@ export function ArtifactPanel({
   onRefine: (artifactId: number, instruction: string) => Promise<void>
   /** Rejects with the reason the edited version was refused. */
   onImageEdit?: (artifactId: number, instruction: string) => Promise<void>
+  /** Opens Settings at the section that chooses the model an edit needs. */
+  onOpenModelSettings?: (section: EditModelSection) => void
   /** Accepts or rejects all of a revised copy's changes as its next version;
    *  rejects with the reason it was refused. */
   onDecideAll?: (
@@ -229,6 +233,15 @@ export function ArtifactPanel({
               versionShown={!isLoading}
               writingVersion={writing?.version.number ?? null}
               onRefine={shown.image_editable ? onImageEdit : onRefine}
+              onChooseModel={
+                onOpenModelSettings &&
+                (() =>
+                  onOpenModelSettings(
+                    EDIT_MODEL_SECTION[
+                      shown.image_editable ? "image" : "document"
+                    ]
+                  ))
+              }
             />
           </div>
         ) : null}

@@ -114,6 +114,11 @@ const studioErrorText: Record<string, (detail: Detail) => string | null> = {
     }),
 }
 
+/** The interface's line for a refusal's code, before anything was sent. */
+export function studioCodeText(code: string) {
+  return Object.hasOwn(studioErrorText, code) ? studioErrorText[code]({}) : null
+}
+
 /** The interface's own line for a refused Studio action, or null for an error it has none for. */
 export function translatedStudioError(error: unknown) {
   if (

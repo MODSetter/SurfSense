@@ -1687,6 +1687,7 @@
   "studio_quiz_viewer_skip_button": "Skip",
   "studio_quiz_viewer_skip_error": "Question could not be skipped",
   "studio_quiz_viewer_title": "Attempt your quiz",
+  "studio_refine_choose_model_button": "Choose a model",
   "studio_refine_instruction_aria": "How to change this document",
   "studio_refine_instruction_placeholder": "Describe a change, such as a shorter introduction",
   "studio_refine_open_aria": "Refine this document",

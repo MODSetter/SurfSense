@@ -1687,6 +1687,7 @@
   "studio_quiz_viewer_skip_button": "Ignorer",
   "studio_quiz_viewer_skip_error": "La question n’a pas pu être ignorée",
   "studio_quiz_viewer_title": "Répondez à votre quiz",
+  "studio_refine_choose_model_button": "Choisir un modèle",
   "studio_refine_instruction_aria": "Comment modifier ce document",
   "studio_refine_instruction_placeholder": "Décrivez une modification, comme une introduction plus courte",
   "studio_refine_open_aria": "Affiner ce document",

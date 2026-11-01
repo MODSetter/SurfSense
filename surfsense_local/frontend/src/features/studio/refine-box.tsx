@@ -24,13 +24,16 @@ import {
 } from "@/components/ui/tooltip"
 import { intl } from "@/i18n/intl"
 
+import {
+  EDIT_MODEL_CODE,
+  useEditModelChosen,
+  type RefineSubject,
+} from "./edit-model"
+import { studioCodeText } from "./studio-error-text"
 import { messageFrom } from "./use-studio"
 
 // The longest instruction POST /artifacts/{id}/refine and /image-edit accept.
 const INSTRUCTION_CHARS = 2000
-
-/** What the box changes: a document's spec, or a picture. */
-export type RefineSubject = "document" | "image"
 
 /** Asks for the next version of the open document, rewritten or edited to an
  *  instruction in one model call. A round button until opened, so the
@@ -41,6 +44,7 @@ export function RefineBox({
   versionShown,
   writingVersion,
   onRefine,
+  onChooseModel,
 }: {
   artifactId: number
   subject?: RefineSubject
@@ -49,6 +53,8 @@ export function RefineBox({
   /** The number of a version of this document being made; the next waits. */
   writingVersion: number | null
   onRefine: (artifactId: number, instruction: string) => Promise<void>
+  /** Opens Settings where the model this edit needs is chosen. */
+  onChooseModel?: () => void
 }) {
   const [open, setOpen] = useState(false)
   const [instruction, setInstruction] = useState("")
@@ -62,6 +68,7 @@ export function RefineBox({
   const errorId = useId()
   const field = useRef<HTMLTextAreaElement>(null)
   const openButton = useRef<HTMLButtonElement>(null)
+  const chooseButton = useRef<HTMLButtonElement>(null)
   const box = useRef<HTMLFormElement>(null)
   const pill = useRef<HTMLSpanElement>(null)
   // Where focus goes once a fold either way has made its target focusable.
@@ -73,7 +80,15 @@ export function RefineBox({
   if (writingVersion !== null && writingVersion !== shownVersion) {
     setShownVersion(writingVersion)
   }
-  const blocked = empty || !versionShown || writingVersion !== null || isSending
+  // Nothing to type for until the model is chosen; nor while that is read.
+  const modelChosen = useEditModelChosen(subject)
+  const modelMissing = modelChosen === false
+  const blocked =
+    empty ||
+    !versionShown ||
+    writingVersion !== null ||
+    isSending ||
+    modelChosen !== true
 
   const close = (returnFocus: boolean) => {
     setOpen(false)
@@ -129,12 +144,12 @@ export function RefineBox({
   // Focus moves once the render has lifted `inert` from its target.
   useEffect(() => {
     if (open) {
-      field.current?.focus()
+      ;(modelMissing ? chooseButton : field).current?.focus()
     } else if (refocusButton.current) {
       refocusButton.current = false
       openButton.current?.focus()
     }
-  }, [open])
+  }, [open, modelMissing])
 
   // The pill's width as a length, so the box reaches it and leaves it by a
   // plain transition. An `auto` width would be re-measured every frame, and
@@ -191,6 +206,7 @@ export function RefineBox({
           <InputGroupTextarea
             ref={field}
             rows={1}
+            disabled={modelMissing}
             className="max-h-40 min-h-9 py-2 text-sm"
             value={instruction}
             maxLength={INSTRUCTION_CHARS}
@@ -222,6 +238,30 @@ export function RefineBox({
             </Button>
           </InputGroupAddon>
         </InputGroup>
+        {modelMissing ? (
+          <p className="flex flex-wrap items-center gap-x-2 px-2.5 pb-1.5 text-sm text-muted-foreground">
+            {studioCodeText(EDIT_MODEL_CODE[subject])}
+            {onChooseModel ? (
+              <Button
+                ref={chooseButton}
+                type="button"
+                variant="link"
+                className="h-auto p-0"
+                onClick={onChooseModel}
+                onKeyDown={(event) => {
+                  if (event.key !== "Escape") return
+                  event.stopPropagation()
+                  close(true)
+                }}
+              >
+                {intl.formatMessage({
+                  id: "studio_refine_choose_model_button",
+                  defaultMessage: "Choose a model",
+                })}
+              </Button>
+            ) : null}
+          </p>
+        ) : null}
         {/* Mounted while empty, so a screen reader hears the refusal arrive.
             Its row opens from 0fr, so the box grows to it instead of jumping. */}
         <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 has-[p:not(:empty)]:grid-rows-[1fr] motion-reduce:transition-none">

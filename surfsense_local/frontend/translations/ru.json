@@ -1687,6 +1687,7 @@
   "studio_quiz_viewer_skip_button": "Пропустить",
   "studio_quiz_viewer_skip_error": "Не удалось пропустить вопрос",
   "studio_quiz_viewer_title": "Пройдите свой тест",
+  "studio_refine_choose_model_button": "Выбрать модель",
   "studio_refine_instruction_aria": "Как изменить этот документ",
   "studio_refine_instruction_placeholder": "Опишите изменение, например более короткое вступление",
   "studio_refine_open_aria": "Доработать документ",

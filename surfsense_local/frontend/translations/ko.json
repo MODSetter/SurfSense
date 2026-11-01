@@ -1687,6 +1687,7 @@
   "studio_quiz_viewer_skip_button": "건너뛰기",
   "studio_quiz_viewer_skip_error": "문제를 건너뛰지 못했습니다",
   "studio_quiz_viewer_title": "퀴즈 풀기",
+  "studio_refine_choose_model_button": "모델 선택",
   "studio_refine_instruction_aria": "이 문서를 바꿀 방법",
   "studio_refine_instruction_placeholder": "서론을 짧게 하는 등 바꿀 내용을 설명하세요",
   "studio_refine_open_aria": "이 문서 다듬기",

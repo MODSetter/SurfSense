@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { cleanup, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
+import { useRefreshModels } from "@/features/models/models-query"
 import { render } from "@/test-utils"
 
 import type { Artifact } from "./api"
@@ -35,6 +36,16 @@ function OpenArtifact() {
       onRefine={studio.refine}
       onClose={vi.fn()}
     />
+  )
+}
+
+/** What Settings does once a model is chosen: every model read is refreshed. */
+function ChooseInSettings() {
+  const refresh = useRefreshModels()
+  return (
+    <button type="button" onClick={() => void refresh()}>
+      Settings chose
+    </button>
   )
 }
 
@@ -739,6 +750,71 @@ describe("artifact panel refine", () => {
     expect(screen.queryByRole("button", OPEN)).toBeNull()
   })
 
+  it("says a chat model is needed before anything is typed, and sends nothing", async () => {
+    const v1 = report(40, 1)
+    let chosen = false
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        String(url).includes("/llm/selection/text_gen")
+          ? chosen
+            ? Response.json({
+                model_type: "text_gen",
+                provider: "llamacpp",
+                connection_id: null,
+                name: "Qwen3-4B",
+              })
+            : Response.json({ detail: "no selection" }, { status: 404 })
+          : Response.json({
+              ...v1,
+              format: "summary",
+              content: "Body of the report",
+              files: [],
+              quiz_state: null,
+              flashcard_state: null,
+            })
+      )
+    )
+    const onRefine = vi.fn(async () => {})
+    const onOpenModelSettings = vi.fn()
+    const user = userEvent.setup()
+
+    render(
+      <>
+        <ArtifactPanel
+          artifactId={40}
+          artifacts={[v1]}
+          onOpenVersion={vi.fn()}
+          onRefine={onRefine}
+          onOpenModelSettings={onOpenModelSettings}
+          onClose={vi.fn()}
+        />
+        <ChooseInSettings />
+      </>
+    )
+
+    await user.click(await screen.findByRole("button", OPEN))
+    expect(await screen.findByText("Needs a chat model.")).toBeTruthy()
+    const field = screen.getByRole("textbox", INSTRUCTION)
+    expect(field.hasAttribute("disabled")).toBe(true)
+    await user.type(field, "Shorter{Enter}")
+    expect(onRefine).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole("button", { name: "Choose a model" }))
+    expect(onOpenModelSettings).toHaveBeenCalledExactlyOnceWith("chat-models")
+
+    // Chosen in Settings: the selection is read again and the box comes alive.
+    chosen = true
+    await user.click(screen.getByRole("button", { name: "Settings chose" }))
+    await user.click(await screen.findByRole("button", OPEN))
+    await vi.waitFor(() =>
+      expect(
+        screen.getByRole("textbox", INSTRUCTION).hasAttribute("disabled")
+      ).toBe(false)
+    )
+    expect(screen.queryByText("Needs a chat model.")).toBeNull()
+  })
+
   it("offers no Refine until the open version is ready", async () => {
     const failed = report(40, 1, { status: "failed", refinable: false })
     serveDetail(failed)
@@ -824,6 +900,56 @@ describe("artifact panel image edit", () => {
 
     expect(onImageEdit).toHaveBeenCalledExactlyOnceWith(40, "Make it night")
     expect(onRefine).not.toHaveBeenCalled()
+  })
+
+  it("says an image editing model is needed, and links to its settings", async () => {
+    const v1 = picture()
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        String(url).includes("/llm/selection/image_edit")
+          ? Response.json({ detail: "no selection" }, { status: 404 })
+          : Response.json({
+              ...v1,
+              format: "summary",
+              content: "A lighthouse at dusk",
+              files: [],
+              quiz_state: null,
+              flashcard_state: null,
+            })
+      )
+    )
+    const onImageEdit = vi.fn(async () => {})
+    const onOpenModelSettings = vi.fn()
+    const user = userEvent.setup()
+
+    render(
+      <ArtifactPanel
+        artifactId={40}
+        artifacts={[v1]}
+        onOpenVersion={vi.fn()}
+        onRefine={vi.fn()}
+        onImageEdit={onImageEdit}
+        onOpenModelSettings={onOpenModelSettings}
+        onClose={vi.fn()}
+      />
+    )
+
+    await user.click(
+      await screen.findByRole("button", { name: "Edit this image" })
+    )
+    expect(await screen.findByText("Needs an image editing model.")).toBeTruthy()
+    expect(
+      screen
+        .getByRole("textbox", { name: "How to change this image" })
+        .hasAttribute("disabled")
+    ).toBe(true)
+    await user.click(screen.getByRole("button", { name: "Choose a model" }))
+
+    expect(onOpenModelSettings).toHaveBeenCalledExactlyOnceWith(
+      "image-edit-models"
+    )
+    expect(onImageEdit).not.toHaveBeenCalled()
   })
 
   it("offers no edit on a picture that is not ready", async () => {
