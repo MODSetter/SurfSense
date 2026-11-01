@@ -1527,6 +1527,7 @@
   "studio_docx_viewer_zoom_out_aria": "Zoom arrière",
   "studio_error_agent_made": "L’agent a créé ce document : demandez les modifications dans son chat.",
   "studio_error_already_generating": "Génération déjà en cours.",
+  "studio_error_edited_from": "Une version ultérieure a été modifiée à partir de celle-ci : supprimez tout le document.",
   "studio_error_image_version_unfinished": "Cette version n’a pas abouti : réessayez ou modifiez une autre version.",
   "studio_error_needs_audio": "Un modèle audio est requis.",
   "studio_error_needs_chat": "Un modèle de chat est requis.",

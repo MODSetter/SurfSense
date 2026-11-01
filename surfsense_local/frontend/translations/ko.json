@@ -1527,6 +1527,7 @@
   "studio_docx_viewer_zoom_out_aria": "축소",
   "studio_error_agent_made": "이 문서는 에이전트가 만들었습니다. 변경은 해당 채팅에서 요청하세요.",
   "studio_error_already_generating": "이미 생성 중입니다.",
+  "studio_error_edited_from": "이후 버전이 이 버전을 바탕으로 편집되었습니다. 문서 전체를 삭제하세요.",
   "studio_error_image_version_unfinished": "이 버전은 완료되지 않았습니다. 다시 시도하거나 다른 버전을 편집하세요.",
   "studio_error_needs_audio": "음성 모델이 필요합니다.",
   "studio_error_needs_chat": "채팅 모델이 필요합니다.",

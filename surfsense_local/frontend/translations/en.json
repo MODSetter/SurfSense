@@ -1527,6 +1527,7 @@
   "studio_docx_viewer_zoom_out_aria": "Zoom out",
   "studio_error_agent_made": "The agent made this document: ask for changes in its chat.",
   "studio_error_already_generating": "Already generating.",
+  "studio_error_edited_from": "A later version is edited from this one: delete the whole document.",
   "studio_error_image_version_unfinished": "This version did not finish: retry it, or edit another version.",
   "studio_error_needs_audio": "Needs an audio model.",
   "studio_error_needs_chat": "Needs a chat model.",
