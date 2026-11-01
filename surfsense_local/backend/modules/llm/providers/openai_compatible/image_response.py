@@ -12,6 +12,7 @@ from modules.llm.providers.protocols import GeneratedImage
 DOWNLOAD_TIMEOUT = httpx.Timeout(180.0, connect=5.0)
 MAX_IMAGE_BYTES = 20 * 1024 * 1024
 MAX_RESPONSE_BYTES = 28 * 1024 * 1024
+MAX_REDIRECTS = 3
 
 
 class NonRetryableImageError(RuntimeError):
@@ -43,7 +44,7 @@ async def read_image(payload: object, allow_url_host: AllowUrlHost) -> Generated
     if url.startswith("data:"):
         return _decode_data_url(url)
     await allow_url_host(url)
-    return await download_image(url)
+    return await download_image(url, allow_url_host)
 
 
 async def bounded_body(reply: httpx.Response, limit: int) -> bytes:
@@ -78,26 +79,44 @@ def decode_image(encoded: str, media_type: str | None) -> GeneratedImage:
     return GeneratedImage(content, _validated_media_type(content, media_type))
 
 
-async def download_image(url: str) -> GeneratedImage:
+async def download_image(
+    url: str,
+    allow_url_host: AllowUrlHost,
+    *,
+    transport: httpx.AsyncBaseTransport | None = None,
+) -> GeneratedImage:
+    """The image at `url`, which the caller has allowed. Redirects are followed
+    by hand, so each host they name passes egress before it is asked."""
+    _require_plain_http(url)
+    # Never forward the model endpoint's bearer token to a returned URL.
+    async with httpx.AsyncClient(
+        timeout=DOWNLOAD_TIMEOUT, transport=transport
+    ) as client:
+        for hop in range(MAX_REDIRECTS + 1):
+            async with client.stream("GET", url) as reply:
+                if not reply.is_redirect:
+                    reply.raise_for_status()
+                    content = await bounded_body(reply, MAX_IMAGE_BYTES)
+                    media_type = reply.headers.get("content-type", "")
+                    media_type = media_type.split(";", 1)[0]
+                    break
+                # Before the check: a refused host is recorded for Settings.
+                if hop == MAX_REDIRECTS:
+                    raise ValueError("generated image URL redirected too many times")
+                url = str(reply.url.join(reply.headers["location"]))
+            _require_plain_http(url)
+            await allow_url_host(url)
+    if not content:
+        raise ValueError("generated image download was empty")
+    return GeneratedImage(content, _validated_media_type(content, media_type))
+
+
+def _require_plain_http(url: str) -> None:
     parsed = urlsplit(url)
     if parsed.scheme not in {"http", "https"} or not parsed.hostname:
         raise ValueError("generated image URL must be HTTP(S)")
     if parsed.username or parsed.password:
         raise ValueError("generated image URL must not contain credentials")
-
-    # Never forward the model endpoint's bearer token to a returned URL.
-    async with (
-        httpx.AsyncClient(
-            timeout=DOWNLOAD_TIMEOUT, follow_redirects=True, max_redirects=3
-        ) as client,
-        client.stream("GET", url) as reply,
-    ):
-        reply.raise_for_status()
-        content = await bounded_body(reply, MAX_IMAGE_BYTES)
-        media_type = reply.headers.get("content-type", "").split(";", 1)[0]
-    if not content:
-        raise ValueError("generated image download was empty")
-    return GeneratedImage(content, _validated_media_type(content, media_type))
 
 
 def _validated_media_type(content: bytes, claimed: str | None) -> str:

@@ -196,7 +196,7 @@ async def test_an_image_url_is_not_fetched_until_its_host_is_allowed(
     async def post(_route: str, _model: str, _prompt: str):
         return 200, {"data": [{"url": "https://cdn.example.test/x.png"}]}
 
-    async def download(url: str) -> None:
+    async def download(url: str, *_: object) -> None:
         fetched.append(url)
 
     provider = OpenAICompatibleImageProvider(
