@@ -24,12 +24,8 @@ import {
 } from "@/components/ui/tooltip"
 import { intl } from "@/i18n/intl"
 
-import {
-  EDIT_MODEL_CODE,
-  useEditModelChosen,
-  type RefineSubject,
-} from "./edit-model"
-import { studioCodeText } from "./studio-error-text"
+import { useEditModelChosen, type RefineSubject } from "./edit-model"
+import { EditModelNotice } from "./edit-model-notice"
 import { messageFrom } from "./use-studio"
 
 // The longest instruction POST /artifacts/{id}/refine and /image-edit accept.
@@ -70,6 +66,8 @@ export function RefineBox({
   const openButton = useRef<HTMLButtonElement>(null)
   const chooseButton = useRef<HTMLButtonElement>(null)
   const box = useRef<HTMLFormElement>(null)
+  // The box and the notice tucked behind it, which focus may move between.
+  const frame = useRef<HTMLDivElement>(null)
   const pill = useRef<HTMLSpanElement>(null)
   // Where focus goes once a fold either way has made its target focusable.
   const refocusButton = useRef(false)
@@ -136,9 +134,9 @@ export function RefineBox({
   }
 
   // A click anywhere else folds it away; what was typed stays for next time.
-  const onBlur = (event: FocusEvent<HTMLFormElement>) => {
+  const onBlur = (event: FocusEvent<HTMLDivElement>) => {
     if (isSending || refusal) return
-    if (!event.currentTarget.contains(event.relatedTarget)) close(false)
+    if (!frame.current?.contains(event.relatedTarget)) close(false)
   }
 
   // Focus moves once the render has lifted `inert` from its target.
@@ -178,143 +176,136 @@ export function RefineBox({
   // element swapped in or out. `interpolate-size` lets the height reach the
   // draft's `auto`, which stays in flow so that measure holds while folding.
   return (
-    <form
-      ref={box}
-      data-state={state}
-      onSubmit={onSubmit}
+    <div
+      ref={frame}
       onBlur={onBlur}
-      // A pill on one line (50px tall), like the folded button and the status pill;
-      // a fixed radius rather than rounded-full keeps a long draft a box.
-      // Eased in and out, with no long settle that reads as a spring. It also
-      // fades in when it mounts, as it does each time a version opens.
-      className="pointer-events-auto relative flex h-[50px] w-[50px] animate-in items-end justify-end overflow-hidden rounded-[25px] border bg-card shadow-lg transition-[width,height,border-color] duration-250 ease-in-out fade-in-0 [interpolate-size:allow-keywords] not-data-[state=making]:focus-within:border-ring/40 not-data-[state=making]:hover:border-ring/40 data-[state=making]:w-(--pill-width) data-[state=open]:h-auto data-[state=open]:w-full motion-reduce:animate-none motion-reduce:transition-none"
+      className="relative flex w-full justify-end"
     >
-      {/* Laid out at the open width at all times (the wrapper's, in cqw), so
+      {open && modelMissing ? (
+        // Tucked behind the box, which paints over its lower edge, as the
+        // chat composer's notice is: out of flow, so the box keeps its place.
+        <div className="pointer-events-auto absolute inset-x-0 bottom-full -mb-4">
+          <EditModelNotice
+            subject={subject}
+            chooseButton={chooseButton}
+            onChooseModel={onChooseModel}
+            onEscape={() => close(true)}
+          />
+        </div>
+      ) : null}
+      <form
+        ref={box}
+        data-state={state}
+        onSubmit={onSubmit}
+        // A pill on one line (50px tall), like the folded button and the status pill;
+        // a fixed radius rather than rounded-full keeps a long draft a box.
+        // Eased in and out, with no long settle that reads as a spring. It also
+        // fades in when it mounts, as it does each time a version opens.
+        className="pointer-events-auto relative flex h-[50px] w-[50px] animate-in items-end justify-end overflow-hidden rounded-[25px] border bg-card shadow-lg transition-[width,height,border-color] duration-250 ease-in-out fade-in-0 [interpolate-size:allow-keywords] not-data-[state=making]:focus-within:border-ring/40 not-data-[state=making]:hover:border-ring/40 data-[state=making]:w-(--pill-width) data-[state=open]:h-auto data-[state=open]:w-full motion-reduce:animate-none motion-reduce:transition-none"
+      >
+        {/* Laid out at the open width at all times (the wrapper's, in cqw), so
           a narrow box clips it rather than reflowing the text and changing
           the height mid-way. Held to the bottom right by items-end and
           justify-end, so a folding draft shrinks onto the button. */}
-      <div
-        inert={!open}
-        // inert hides it from the browser's accessibility tree; aria-hidden
-        // says the same to anything that reads ARIA alone.
-        aria-hidden={!open}
-        className="w-[100cqw] shrink-0 p-1.5 opacity-0 transition-opacity duration-150 motion-reduce:transition-none [[data-state=open]>&]:opacity-100 [[data-state=open]>&]:delay-75"
-      >
-        {/* The group greys itself out when any child is disabled; here that is
+        <div
+          inert={!open}
+          // inert hides it from the browser's accessibility tree; aria-hidden
+          // says the same to anything that reads ARIA alone.
+          aria-hidden={!open}
+          className="w-[100cqw] shrink-0 p-1.5 opacity-0 transition-opacity duration-150 motion-reduce:transition-none [[data-state=open]>&]:opacity-100 [[data-state=open]>&]:delay-75"
+        >
+          {/* The group greys itself out when any child is disabled; here that is
             only the send button while empty, which must not dim the field. */}
-        <InputGroup className="h-auto border-0 has-disabled:bg-transparent has-disabled:opacity-100 dark:bg-transparent dark:has-disabled:bg-transparent">
-          <InputGroupTextarea
-            ref={field}
-            rows={1}
-            disabled={modelMissing}
-            className="max-h-40 min-h-9 py-2 text-sm"
-            value={instruction}
-            maxLength={INSTRUCTION_CHARS}
-            onChange={(event) => {
-              setInstruction(event.target.value)
-              setRefused(null)
-            }}
-            onKeyDown={onKeyDown}
-            aria-label={labels.instruction}
-            aria-invalid={refusal ? true : undefined}
-            aria-describedby={refusal ? errorId : undefined}
-            placeholder={labels.placeholder}
-          />
-          {/* Held at the last line as the instruction grows, as in the chat
+          <InputGroup className="h-auto border-0 has-disabled:bg-transparent has-disabled:opacity-100 dark:bg-transparent dark:has-disabled:bg-transparent">
+            <InputGroupTextarea
+              ref={field}
+              rows={1}
+              disabled={modelMissing}
+              className="max-h-40 min-h-9 py-2 text-sm"
+              value={instruction}
+              maxLength={INSTRUCTION_CHARS}
+              onChange={(event) => {
+                setInstruction(event.target.value)
+                setRefused(null)
+              }}
+              onKeyDown={onKeyDown}
+              aria-label={labels.instruction}
+              aria-invalid={refusal ? true : undefined}
+              aria-describedby={refusal ? errorId : undefined}
+              placeholder={labels.placeholder}
+            />
+            {/* Held at the last line as the instruction grows, as in the chat
               composer; the addon's own stretch would centre it instead. */}
-          <InputGroupAddon
-            align="inline-end"
-            className="has-[>button]:self-end"
-          >
-            {/* Round, inset 7px from the 25px corner, so the two curves share a centre. */}
-            <Button
-              type="submit"
-              size="icon-lg"
-              className="rounded-full"
-              disabled={blocked}
-              aria-label={labels.submit}
+            <InputGroupAddon
+              align="inline-end"
+              className="has-[>button]:self-end"
             >
-              {isSending ? <Spinner /> : <ArrowUp02Icon />}
-            </Button>
-          </InputGroupAddon>
-        </InputGroup>
-        {modelMissing ? (
-          <p className="flex flex-wrap items-center gap-x-2 px-2.5 pb-1.5 text-sm text-muted-foreground">
-            {studioCodeText(EDIT_MODEL_CODE[subject])}
-            {onChooseModel ? (
+              {/* Round, inset 7px from the 25px corner, so the two curves share a centre. */}
               <Button
-                ref={chooseButton}
-                type="button"
-                variant="link"
-                className="h-auto p-0"
-                onClick={onChooseModel}
-                onKeyDown={(event) => {
-                  if (event.key !== "Escape") return
-                  event.stopPropagation()
-                  close(true)
-                }}
+                type="submit"
+                size="icon-lg"
+                className="rounded-full"
+                disabled={blocked}
+                aria-label={labels.submit}
               >
-                {intl.formatMessage({
-                  id: "studio_refine_choose_model_button",
-                  defaultMessage: "Choose a model",
-                })}
+                {isSending ? <Spinner /> : <ArrowUp02Icon />}
               </Button>
-            ) : null}
-          </p>
-        ) : null}
-        {/* Mounted while empty, so a screen reader hears the refusal arrive.
+            </InputGroupAddon>
+          </InputGroup>
+          {/* Mounted while empty, so a screen reader hears the refusal arrive.
             Its row opens from 0fr, so the box grows to it instead of jumping. */}
-        <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 has-[p:not(:empty)]:grid-rows-[1fr] motion-reduce:transition-none">
-          <p
-            id={errorId}
-            role="alert"
-            className="min-h-0 overflow-hidden px-2.5 text-sm text-destructive [&:not(:empty)]:pb-1.5"
-          >
-            {refusal}
-          </p>
-        </div>
-      </div>
-      {/* The version being made, measured for the box's width while making;
-          the live region apart from it says it once, and is empty otherwise. */}
-      <span
-        ref={pill}
-        aria-hidden
-        className="pointer-events-none absolute inset-y-0 right-0 flex items-center gap-2 px-4 text-sm whitespace-nowrap text-muted-foreground opacity-0 transition-opacity duration-150 select-none motion-reduce:transition-none [[data-state=making]>&]:opacity-100 [[data-state=making]>&]:delay-75"
-      >
-        <Spinner />
-        {shownVersion !== null ? makingLabel(shownVersion) : null}
-      </span>
-      <span role="status" className="sr-only">
-        {state === "making" && writingVersion !== null
-          ? makingLabel(writingVersion)
-          : null}
-      </span>
-      {/* The folded face, over the box's right end; fades as it opens. */}
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <Button
-              ref={openButton}
-              type="button"
-              variant="ghost"
-              size="icon-lg"
-              inert={state !== "folded"}
-              aria-hidden={state !== "folded"}
-              className="pointer-events-none absolute -right-px -bottom-px size-[50px] rounded-full opacity-0 transition-opacity duration-150 motion-reduce:transition-none [[data-state=folded]>&]:pointer-events-auto [[data-state=folded]>&]:opacity-100"
-              aria-label={openLabel}
-              onClick={() => setOpen(true)}
+          <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 has-[p:not(:empty)]:grid-rows-[1fr] motion-reduce:transition-none">
+            <p
+              id={errorId}
+              role="alert"
+              className="min-h-0 overflow-hidden px-2.5 text-sm text-destructive [&:not(:empty)]:pb-1.5"
             >
-              <AiEditingIcon className="size-5" />
-              {/* A draft is waiting from the last time it was open. */}
-              {!empty ? (
-                <span className="absolute top-2.5 right-2.5 size-1.5 rounded-full bg-primary" />
-              ) : null}
-            </Button>
-          }
-        />
-        <TooltipContent side="top">{openLabel}</TooltipContent>
-      </Tooltip>
-    </form>
+              {refusal}
+            </p>
+          </div>
+        </div>
+        {/* The version being made, measured for the box's width while making;
+          the live region apart from it says it once, and is empty otherwise. */}
+        <span
+          ref={pill}
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 right-0 flex items-center gap-2 px-4 text-sm whitespace-nowrap text-muted-foreground opacity-0 transition-opacity duration-150 select-none motion-reduce:transition-none [[data-state=making]>&]:opacity-100 [[data-state=making]>&]:delay-75"
+        >
+          <Spinner />
+          {shownVersion !== null ? makingLabel(shownVersion) : null}
+        </span>
+        <span role="status" className="sr-only">
+          {state === "making" && writingVersion !== null
+            ? makingLabel(writingVersion)
+            : null}
+        </span>
+        {/* The folded face, over the box's right end; fades as it opens. */}
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                ref={openButton}
+                type="button"
+                variant="ghost"
+                size="icon-lg"
+                inert={state !== "folded"}
+                aria-hidden={state !== "folded"}
+                className="pointer-events-none absolute -right-px -bottom-px size-[50px] rounded-full opacity-0 transition-opacity duration-150 motion-reduce:transition-none [[data-state=folded]>&]:pointer-events-auto [[data-state=folded]>&]:opacity-100"
+                aria-label={openLabel}
+                onClick={() => setOpen(true)}
+              >
+                <AiEditingIcon className="size-5" />
+                {/* A draft is waiting from the last time it was open. */}
+                {!empty ? (
+                  <span className="absolute top-2.5 right-2.5 size-1.5 rounded-full bg-primary" />
+                ) : null}
+              </Button>
+            }
+          />
+          <TooltipContent side="top">{openLabel}</TooltipContent>
+        </Tooltip>
+      </form>
+    </div>
   )
 }
 
