@@ -23,7 +23,10 @@ export function EditModelNotice({
   return (
     <div
       role="status"
-      className="flex animate-in items-center gap-2 rounded-t-2xl border border-b-0 bg-muted px-3 pt-1 pb-5 text-xs text-muted-foreground fade-in-0 motion-reduce:animate-none"
+      // Rounded as the box is, 25px, and as deep below the text as the box
+      // tucks it, so its sides run on into the box's below the curve. Faded in
+      // once the box has opened (250ms), held hidden until then.
+      className="flex animate-in items-center gap-2 rounded-t-[25px] border border-b-0 bg-muted px-4 pt-1.5 pb-[29px] text-xs text-muted-foreground delay-250 fade-in-0 fill-mode-backwards motion-reduce:animate-none"
     >
       <CircleAlertIcon className="size-4 shrink-0 text-destructive" />
       <p className="min-w-0 flex-1 text-pretty">

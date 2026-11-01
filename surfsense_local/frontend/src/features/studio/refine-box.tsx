@@ -184,7 +184,8 @@ export function RefineBox({
       {open && modelMissing ? (
         // Tucked behind the box, which paints over its lower edge, as the
         // chat composer's notice is: out of flow, so the box keeps its place.
-        <div className="pointer-events-auto absolute inset-x-0 bottom-full -mb-4">
+        // As deep as the box's 25px corner, so the notice's sides meet its straight edge.
+        <div className="pointer-events-auto absolute inset-x-0 bottom-full -mb-[25px]">
           <EditModelNotice
             subject={subject}
             chooseButton={chooseButton}
