@@ -140,14 +140,17 @@ export function RefineBox({
   }
 
   // Focus moves once the render has lifted `inert` from its target.
+  // The instruction is focused once it can be typed in, which may be a moment
+  // after opening while the model is read.
   useEffect(() => {
     if (open) {
-      ;(modelMissing ? chooseButton : field).current?.focus()
+      if (modelChosen === false) chooseButton.current?.focus()
+      else if (modelChosen) field.current?.focus()
     } else if (refocusButton.current) {
       refocusButton.current = false
       openButton.current?.focus()
     }
-  }, [open, modelMissing])
+  }, [open, modelChosen])
 
   // The pill's width as a length, so the box reaches it and leaves it by a
   // plain transition. An `auto` width would be re-measured every frame, and
@@ -221,7 +224,7 @@ export function RefineBox({
             <InputGroupTextarea
               ref={field}
               rows={1}
-              disabled={modelMissing}
+              disabled={modelChosen !== true}
               className="max-h-40 min-h-9 py-2 text-sm"
               value={instruction}
               maxLength={INSTRUCTION_CHARS}

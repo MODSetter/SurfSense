@@ -952,6 +952,54 @@ describe("artifact panel image edit", () => {
     expect(onImageEdit).not.toHaveBeenCalled()
   })
 
+  it("holds the instruction until it is known whether the edit model is chosen", async () => {
+    const v1 = picture()
+    let answer = () => {}
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) =>
+        String(url).includes("/llm/selection/image_edit")
+          ? new Promise<Response>((resolve) => {
+              answer = () =>
+                resolve(
+                  Response.json({
+                    model_type: "image_edit",
+                    provider: "sdcpp",
+                    connection_id: null,
+                    name: "flux-2-klein-4b-Q4_0",
+                  })
+                )
+            })
+          : Promise.resolve(
+              Response.json({
+                ...v1,
+                format: "summary",
+                content: "A lighthouse at dusk",
+                files: [],
+                quiz_state: null,
+                flashcard_state: null,
+              })
+            )
+      )
+    )
+    const user = userEvent.setup()
+
+    render(panel([v1], vi.fn(), vi.fn()))
+    await user.click(
+      await screen.findByRole("button", { name: "Edit this image" })
+    )
+
+    const field = screen.getByRole("textbox", {
+      name: "How to change this image",
+    })
+    expect(field.hasAttribute("disabled")).toBe(true)
+    expect(screen.queryByText("Needs an image editing model.")).toBeNull()
+
+    answer()
+    await vi.waitFor(() => expect(field.hasAttribute("disabled")).toBe(false))
+    await vi.waitFor(() => expect(document.activeElement).toBe(field))
+  })
+
   it("offers no edit on a picture that is not ready", async () => {
     const failed = picture({ status: "failed", image_editable: false })
     serveDetail(failed)
