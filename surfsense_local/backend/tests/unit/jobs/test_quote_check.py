@@ -2,7 +2,7 @@
 
 import pytest
 
-from modules.jobs.provenance.quote_check import find_quote
+from modules.jobs.provenance.quote_check import find_quote, nearest_sentence
 
 pytestmark = pytest.mark.unit
 
@@ -49,3 +49,31 @@ def test_the_line_found_is_where_the_quote_starts():
     found = find_quote("Paper records are shredded", [PLAN])
 
     assert found is not None and found.line == 6
+
+
+def test_a_loose_copy_is_shown_the_sentence_it_most_likely_meant():
+    """A paraphrase of a real sentence gets that sentence back, as the source writes it; words
+    that are not close to any sentence get nothing."""
+    loose = "Access to taxpayer data is granted on a least privilege principle."
+
+    assert nearest_sentence(loose, ["Other text entirely.", PLAN]) == (
+        "Access to taxpayer data is granted on a **least-privilege** basis."
+    )
+    assert nearest_sentence("Backups are tested every quarter offsite.", [PLAN]) is None
+
+
+def test_a_link_reads_as_its_text_and_far_apart_parts_are_not_one_quote():
+    """A quote of a sentence holding a link matches without the link's target; parts joined by
+    "..." must sit within a few hundred words of each other."""
+    linked = (
+        "Policies follow the [Controlled Document Procedure](/handbook/cdp/) yearly."
+    )
+    far = "Access is logged daily." + " filler" * 400 + " Keys rotate every year."
+
+    assert find_quote("follow the Controlled Document Procedure yearly", [linked])
+    assert (
+        find_quote("Access is logged daily ... Keys rotate every year", [far]) is None
+    )
+    assert (
+        find_quote("Keys rotate every year ... Access is logged daily", [far]) is None
+    )

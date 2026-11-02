@@ -59,7 +59,14 @@ class JobConfig:
     answers_sheet: str
     exceptions_sheet: str
     min_quote_chars: int = 15
+    # Quotes an answer may rest on, each checked: a question's parts may sit in different documents.
+    max_quotes: int = 1
     passages_per_question: int = 8
+    # Queries whose best passages every question is shown, when the sources do not fit whole.
+    standing_queries: tuple[str, ...] = ()
+    standing_per_query: int = 1
+    # What the model is told of those passages, and of the question's own after them.
+    standing_labels: tuple[str, str] = ("", "")
     # The share of the model's window whole sources may fill before retrieval takes over.
     whole_sources_share: float = 0.5
     # And a ceiling whatever the window: every question re-reads what the prompt holds.
@@ -69,6 +76,8 @@ class JobConfig:
     # A second call checks that the quote settles the question, for these answers.
     verify_prompt: str = ""
     verify_answers: tuple[str, ...] = ()
+    # Asked of an answer that fell back, once, before it goes to a person.
+    second_look_prompt: str = ""
 
     @property
     def fallback(self) -> AnswerChoice:
@@ -116,7 +125,16 @@ def load_config(config_file: Path) -> JobConfig:
             answers_sheet=raw["sheets"]["answers"],
             exceptions_sheet=raw["sheets"]["exceptions"],
             min_quote_chars=int(raw.get("min_quote_chars", 15)),
+            max_quotes=max(int(raw.get("max_quotes", 1)), 1),
             passages_per_question=int(raw.get("passages_per_question", 8)),
+            standing_queries=tuple(
+                str(q) for q in raw.get("standing", {}).get("queries", ())
+            ),
+            standing_per_query=int(raw.get("standing", {}).get("per_query", 1)),
+            standing_labels=(
+                str(raw.get("standing", {}).get("label", "")),
+                str(raw.get("standing", {}).get("then", "")),
+            ),
             whole_sources_share=float(raw.get("whole_sources_share", 0.5)),
             max_whole_chars=int(raw.get("max_whole_chars", 120_000)),
             labels=dict(raw.get("labels", {})),
@@ -124,6 +142,9 @@ def load_config(config_file: Path) -> JobConfig:
             if "verify" in raw
             else "",
             verify_answers=tuple(raw["verify"]["answers"]) if "verify" in raw else (),
+            second_look_prompt=_prompt(folder, raw["second_look"]["prompt"])
+            if "second_look" in raw
+            else "",
         )
     except (OSError, ValueError, KeyError, TypeError) as broken:
         raise PackRefusedError(

@@ -21,7 +21,10 @@ from modules.artifacts.models import Artifact
 from modules.artifacts.revised_copies.revision import REVISION_KEY, revision_of
 from modules.documents.models import Document
 from modules.documents.original_file import original_path
+from modules.embedding import encoder
+from modules.embedding.active import active_index
 from modules.jobs.evidence.passages import SourceText
+from modules.jobs.evidence.retrieval import Embed
 from modules.jobs.packs.installed import find_job
 from modules.jobs.runs.record import JOB_RUN_KEY, job_run_of
 from modules.jobs.workbook_rows.ask import ModelReply
@@ -122,6 +125,7 @@ def work_out(
         sources.append(SourceText(document.id, document.title, document.content))
     model = resolve_routed_generation(session)
     _, window = asyncio.run(selected_model_window(session))
+    embed = _embedder(session)
     # Minutes of model calls follow; no transaction may hold the write lock across them.
     session.commit()
     logger.info(
@@ -133,7 +137,12 @@ def work_out(
         window,
     )
     filled = fill_workbook(
-        path, sources, config, SelectedModel(model, window), stop=cancelled
+        path,
+        sources,
+        config,
+        SelectedModel(model, window),
+        stop=cancelled,
+        embed=embed,
     )
     session.refresh(artifact)
     meta = dict(artifact.artifact_metadata or {})
@@ -141,6 +150,22 @@ def work_out(
     meta[JOB_RUN_KEY] = {**run, "report": report_of(filled, model.selection.name)}
     artifact.artifact_metadata = meta
     session.commit()
+
+
+def _embedder(session: Session) -> Embed | None:
+    """The embedder search uses, so a job finds passages by meaning as chat does; none before
+    onboarding chooses one or while its files are missing, and the job then finds them by
+    their words alone."""
+    index = active_index(session)
+    if index is None or encoder.missing_files(index.spec):
+        return None
+    spec = index.spec
+
+    def embed(texts: list[str], query: bool) -> list[list[float]]:
+        purpose = encoder.Purpose.QUERY if query else encoder.Purpose.DOCUMENT
+        return encoder.embed(spec, texts, purpose)
+
+    return embed
 
 
 def report_of(filled: FillResult, model: str) -> dict[str, Any]:
@@ -166,6 +191,15 @@ def report_of(filled: FillResult, model: str) -> dict[str, Any]:
                 "source": r.source,
                 "section": r.section,
                 "quote": r.quote,
+                "quotes": [
+                    {
+                        "source": c.source,
+                        "section": c.section,
+                        "line": c.line,
+                        "quote": c.quote,
+                    }
+                    for c in r.cited
+                ],
                 "codes": r.codes,
             }
             for r in filled.results

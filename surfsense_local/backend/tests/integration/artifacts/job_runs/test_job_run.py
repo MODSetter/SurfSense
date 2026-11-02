@@ -36,16 +36,24 @@ PLAN = (
 )
 REPLIES = {
     "minimum access": {
-        "passage": 1,
-        "quote": "Access to client data is granted on a least-privilege basis.",
+        "quotes": [
+            {
+                "passage": 1,
+                "quote": "Access to client data is granted on a least-privilege basis.",
+            }
+        ],
         "answer": "Yes",
     },
     "card data": {
-        "passage": 2,
-        "quote": "The firm does not store or process card payments.",
+        "quotes": [
+            {
+                "passage": 2,
+                "quote": "The firm does not store or process card payments.",
+            }
+        ],
         "answer": "N/A",
     },
-    "breach": {"passage": 0, "quote": "", "answer": "Needs review"},
+    "breach": {"quotes": [], "answer": "Needs review"},
 }
 
 

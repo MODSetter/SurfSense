@@ -130,10 +130,9 @@ class ScriptedModel:
 def draft(
     answer, quote="", passage=1, comment="Stated in the plan.", confidence="high"
 ):
-    """A model's reply for one row."""
+    """A model's reply for one row, with one quote or none."""
     return {
-        "passage": passage,
-        "quote": quote,
+        "quotes": [{"passage": passage, "quote": quote}] if quote else [],
         "answer": answer,
         "comment": comment,
         "confidence": confidence,

@@ -1,13 +1,13 @@
 """The revise engine's operations for a filled questionnaire: each answer in its own cell, a comment
-and a source where the requester left room for them, then a sheet of every answer's source and a
-sheet of the exceptions, after the requester's own."""
+and a source where the requester left room for them, then a sheet of every answer's sources (a
+line per quote) and a sheet of the exceptions, after the requester's own."""
 
 from __future__ import annotations
 
 from string import Template
 
 from modules.jobs.workbook_rows.config import JobConfig
-from modules.jobs.workbook_rows.decide import EXCEPTIONS, RowResult
+from modules.jobs.workbook_rows.decide import EXCEPTIONS, Cited, RowResult
 from modules.jobs.workbook_rows.layout import Skipped
 
 ANSWER_COLUMNS = (
@@ -50,7 +50,7 @@ def operations(
             "sheet": _free_name(config.answers_sheet, taken_sheets),
             "values": [
                 [labels.get(c, c) for c in ANSWER_COLUMNS],
-                *[_answer_line(r) for r in results],
+                *[line for r in results for line in _answer_lines(r)],
             ],
         }
     )
@@ -107,32 +107,45 @@ def exception_lines(
     return lines
 
 
-def _answer_line(result: RowResult) -> list[object]:
-    return [
-        result.row.sheet,
-        result.row.answer_cell,
-        result.row.question,
+def _answer_lines(result: RowResult) -> list[list[object]]:
+    """One line per quote, so each source can be filtered and checked; one line without any."""
+    row = result.row
+    head = [
+        row.sheet,
+        row.answer_cell,
+        row.question,
         result.answer,
         result.written or "",
         result.confidence,
-        result.source,
-        result.section,
-        result.line,
-        result.quote,
-        result.comment,
+    ]
+    if not result.cited:
+        return [[*head, "", "", None, "", result.comment]]
+    return [
+        [*head, c.source, c.section, c.line, c.quote, result.comment]
+        for c in result.cited
     ]
 
 
 def _fields(result: RowResult) -> dict[str, str]:
-    where = result.source + (f", {result.section}" if result.section else "")
+    """$quote, $source, $section and $where name the main quote; $citations and $sources all of them."""
+    wheres = [_where(c) for c in result.cited]
     return {
         "answer": result.answer,
         "comment": result.comment,
         "quote": result.quote,
         "source": result.source,
         "section": result.section,
-        "where": where,
+        "where": wheres[0] if wheres else "",
+        "citations": "; ".join(
+            f'{where}: "{c.quote}"'
+            for where, c in zip(wheres, result.cited, strict=True)
+        ),
+        "sources": "; ".join(dict.fromkeys(wheres)),
     }
+
+
+def _where(cited: Cited) -> str:
+    return cited.source + (f", {cited.section}" if cited.section else "")
 
 
 def _set(sheet: str, cell: str, value: str) -> dict:

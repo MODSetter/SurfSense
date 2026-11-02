@@ -39,3 +39,48 @@ def test_a_passage_is_found_by_its_documents_title():
 
     assert not retriever.whole
     assert passages[shown[0]].title == "access-management-policy"
+
+
+def test_a_standing_query_shows_its_passages_with_every_question():
+    """How the firm reviews its policies reaches a question that never says "review"."""
+    sources = [
+        *SOURCES,
+        SourceText(
+            3, "policy-management", "## Review\n\nPolicies are reviewed yearly."
+        ),
+    ]
+    passages = passages_of(sources)
+    retriever = Retriever(
+        passages,
+        budget_chars=100,
+        per_question=1,
+        standing=("policies reviewed yearly",),
+        per_standing=1,
+    )
+
+    shown = [passages[i].title for i in retriever.for_question("Is access approved?")]
+
+    assert shown == ["access-management-policy", "policy-management"]
+
+
+def test_with_an_embedder_meaning_takes_turns_with_the_words():
+    """A passage no word of the question names is shown when the embedder finds it close."""
+    sources = [
+        *SOURCES,
+        SourceText(3, "vendors", "## Vendors\n\nSuppliers are vetted."),
+    ]
+    passages = passages_of(sources)
+    vendors = next(i for i, p in enumerate(passages) if p.title == "vendors")
+
+    def embed(texts, query):
+        # The question and the vendors passage point one way, everything else another.
+        return [
+            [1.0, 0.0] if query or "Suppliers" in text else [0.0, 1.0] for text in texts
+        ]
+
+    words_only = Retriever(passages, budget_chars=100, per_question=2)
+    with_meaning = Retriever(passages, budget_chars=100, per_question=2, embed=embed)
+    question = "Is supply chain risk managed for the access management policy?"
+
+    assert vendors not in words_only.for_question(question)
+    assert vendors in with_meaning.for_question(question)

@@ -1,7 +1,8 @@
-"""Which passages a question is shown: all of them when they fit the model's window, else the best by BM25.
+"""Which passages a question is shown: all of them when they fit the model's window, else the
+best by BM25 and, with the app's embedder, by meaning too.
 
-Lexical and in memory, so a run on this computer and an eval run choose the same
-passages; the app's semantic search can stand in later behind the same call.
+In memory and deterministic, so a run on this computer and an eval run choose the same
+passages.
 """
 
 from __future__ import annotations
@@ -9,9 +10,16 @@ from __future__ import annotations
 import math
 import re
 from collections import Counter
+from collections.abc import Callable
 from dataclasses import dataclass
+from itertools import zip_longest
+
+import numpy as np
 
 from modules.jobs.evidence.passages import Passage
+
+# Texts to unit vectors, a question's when the flag is True, else passages'.
+Embed = Callable[[list[str], bool], list[list[float]]]
 
 _STOP = frozenset(
     [
@@ -101,6 +109,13 @@ class Retriever:
     # Characters of passages the prompt may hold; past it, each question gets its best few.
     budget_chars: int
     per_question: int = 8
+    # The app's embedder, when at hand. Meaning finds what the words miss, such as a
+    # "third party" policy for a "supply chain" question; the two rankings take turns.
+    embed: Embed | None = None
+    # Queries whose best passages every question is shown, such as how the firm approves and
+    # reviews its policies: a question about any one policy needs them, in words it never uses.
+    standing: tuple[str, ...] = ()
+    per_standing: int = 1
 
     def __post_init__(self) -> None:
         # A policy is named for what it covers, so its title counts in every passage it holds:
@@ -117,22 +132,51 @@ class Retriever:
             term: math.log(1 + (count - seen + 0.5) / (seen + 0.5))
             for term, seen in documents.items()
         }
+        self._vectors: np.ndarray | None = None
+        self._standing: list[int] = []
+        if self.whole:
+            return
+        if self.embed is not None and self.passages:
+            self._vectors = _unit(
+                self.embed(
+                    [f"{p.title} {p.section}\n{p.text}" for p in self.passages], False
+                )
+            )
+        for query in self.standing:
+            self._standing += self._ranked(query)[: self.per_standing]
 
     @property
     def whole(self) -> bool:
         return sum(len(p.text) for p in self.passages) <= self.budget_chars
 
+    @property
+    def pinned(self) -> list[int]:
+        """The standing queries' passages, which every question is shown; none when all are."""
+        return sorted(set(self._standing))
+
     def for_question(self, question: str) -> list[int]:
         """Indexes into `passages`, in source order, so neighbours read as they were written."""
         if self.whole:
             return list(range(len(self.passages)))
-        wanted = terms(question)
+        best = self._ranked(question)[: self.per_question]
+        return sorted(set(best) | set(self._standing))
+
+    def _ranked(self, text: str) -> list[int]:
+        """Passages best first: by BM25, or by BM25's ranking and meaning's in turn."""
+        wanted = terms(text)
         scored = sorted(
             ((self._score(i, wanted), i) for i in range(len(self.passages))),
             reverse=True,
         )
-        best = [i for score, i in scored[: self.per_question] if score > 0]
-        return sorted(best)
+        lexical = [i for score, i in scored if score > 0]
+        if self._vectors is None or self.embed is None:
+            return lexical
+        query = _unit(self.embed([text], True))[0]
+        semantic = np.argsort(-(self._vectors @ query), kind="stable").tolist()
+        merged: dict[int, None] = {}
+        for pair in zip_longest(lexical, semantic):
+            merged.update((i, None) for i in pair if i is not None)
+        return list(merged)
 
     def _score(self, index: int, wanted: list[str]) -> float:
         bag = self._bags[index]
@@ -149,3 +193,10 @@ class Retriever:
             )
             score += self._idf.get(term, 0.0) * norm
         return score
+
+
+def _unit(vectors: list[list[float]]) -> np.ndarray:
+    """Rows scaled to length 1, so a dot product is the cosine whatever the embedder returns."""
+    rows = np.asarray(vectors, dtype=np.float32)
+    norms = np.linalg.norm(rows, axis=1, keepdims=True)
+    return rows / np.where(norms == 0, 1, norms)

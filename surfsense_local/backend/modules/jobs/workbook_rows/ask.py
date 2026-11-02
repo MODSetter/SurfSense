@@ -45,9 +45,15 @@ class AnswerModel(Protocol):
 
 
 @dataclass(frozen=True)
-class Draft:
+class Quoted:
     passage: int  # 1-based passage number as shown; 0 for none
     quote: str
+
+
+@dataclass(frozen=True)
+class Draft:
+    # One quote per part of the question that a different passage settles, first the main one.
+    quotes: tuple[Quoted, ...]
     answer: str
     comment: str
     confidence: str
@@ -65,23 +71,53 @@ class Asked:
 
 
 def answer_schema(config: JobConfig) -> dict:
-    # Flat, with no null-able types: llama.cpp's grammar builder refuses those.
+    # No null-able types: llama.cpp's grammar builder refuses those. No bounds on numbers or
+    # lists either, which not every structured-output engine takes: the runner keeps the first
+    # `max_quotes` quotes itself.
     return {
         "type": "object",
         "properties": {
-            # No minimum: not every structured-output engine takes number bounds.
-            "passage": {"type": "integer"},
-            "quote": {"type": "string"},
+            "quotes": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "passage": {"type": "integer"},
+                        "quote": {"type": "string"},
+                    },
+                    "required": ["passage", "quote"],
+                    "additionalProperties": False,
+                },
+            },
             "answer": {"type": "string", "enum": [c.answer for c in config.answers]},
             "comment": {"type": "string"},
             "confidence": {"type": "string", "enum": list(CONFIDENCE)},
         },
-        "required": ["passage", "quote", "answer", "comment", "confidence"],
+        "required": ["quotes", "answer", "comment", "confidence"],
         "additionalProperties": False,
     }
 
 
-def passages_block(passages: list[Passage], shown: list[int]) -> str:
+def passages_block(
+    passages: list[Passage],
+    shown: list[int],
+    standing: list[int] | None = None,
+    labels: tuple[str, str] = ("", ""),
+) -> str:
+    """The passages as the model reads them, in the sources' order; with the pack's labels,
+    those every question is shown come first under theirs, so the model knows which apply
+    to all the firm's policies."""
+    pinned = [i for i in standing or () if i in shown]
+    if not pinned or not any(labels):
+        return _listed(passages, shown)
+    own = [i for i in shown if i not in pinned]
+    parts = [labels[0], _listed(passages, pinned)]
+    if own:
+        parts += [labels[1], _listed(passages, own)]
+    return "\n\n".join(part for part in parts if part)
+
+
+def _listed(passages: list[Passage], shown: list[int]) -> str:
     blocks = []
     for index in shown:
         passage = passages[index]
@@ -155,18 +191,30 @@ def parse_draft(text: str, config: JobConfig) -> Draft | None:
     by_folded = {c.answer.casefold(): c.answer for c in config.answers}
     if answer.casefold() not in by_folded:
         return None
-    try:
-        passage = int(raw.get("passage") or 0)
-    except (TypeError, ValueError):
-        passage = 0
     confidence = str(raw.get("confidence", "")).strip().casefold()
     return Draft(
-        passage=max(passage, 0),
-        quote=str(raw.get("quote") or "").strip(),
+        quotes=_quotes(raw.get("quotes"))[: config.max_quotes],
         answer=by_folded[answer.casefold()],
         comment=str(raw.get("comment") or "").strip(),
         confidence=confidence if confidence in CONFIDENCE else "low",
     )
+
+
+def _quotes(raw: object) -> tuple[Quoted, ...]:
+    """The reply's quotes that hold any text, in its order."""
+    found = []
+    for item in raw if isinstance(raw, list) else []:
+        if not isinstance(item, dict):
+            continue
+        quote = str(item.get("quote") or "").strip()
+        if not quote:
+            continue
+        try:
+            passage = int(item.get("passage") or 0)
+        except (TypeError, ValueError):
+            passage = 0
+        found.append(Quoted(max(passage, 0), quote))
+    return tuple(found)
 
 
 def _fields(config: JobConfig, row: QuestionRow, block: str) -> dict[str, str]:
@@ -180,4 +228,5 @@ def _fields(config: JobConfig, row: QuestionRow, block: str) -> dict[str, str]:
         "cell": row.answer_cell,
         "allowed": ", ".join(row.allowed) if row.allowed else "free text",
         "min_quote_chars": str(config.min_quote_chars),
+        "max_quotes": str(config.max_quotes),
     }

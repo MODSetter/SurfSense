@@ -15,7 +15,7 @@ from pathlib import Path
 
 from modules.artifacts.revised_copies.engines.excel_inspection import inspect_workbook
 from modules.jobs.evidence.passages import SourceText, passages_of
-from modules.jobs.evidence.retrieval import Retriever
+from modules.jobs.evidence.retrieval import Embed, Retriever
 from modules.jobs.workbook_rows.ask import AnswerModel, passages_block
 from modules.jobs.workbook_rows.config import JobConfig
 from modules.jobs.workbook_rows.decide import RowResult, answer_row
@@ -67,6 +67,7 @@ def fill_workbook(
     only: Callable[[QuestionRow], bool] | None = None,
     on_row: Callable[[int, int], None] | None = None,
     stop: Callable[[], bool] | None = None,
+    embed: Embed | None = None,
 ) -> FillResult:
     started = time.monotonic()
     facts = inspect_workbook(workbook)
@@ -81,15 +82,23 @@ def fill_workbook(
         ),
         config.max_whole_chars,
     )
-    retriever = Retriever(passages, budget, config.passages_per_question)
+    retriever = Retriever(
+        passages,
+        budget,
+        config.passages_per_question,
+        embed=embed,
+        standing=config.standing_queries,
+        per_standing=config.standing_per_query,
+    )
 
     def one(row: QuestionRow) -> RowResult:
         # The question alone: CAIQ's row repeats its control's boilerplate, which drowned
         # the words that tell one question from the next (deciding passages 22 of 34, not 20).
         shown = retriever.for_question(row.question)
-        return answer_row(
-            model, config, row, passages_block(passages, shown), passages, sources
+        block = passages_block(
+            passages, shown, retriever.pinned, config.standing_labels
         )
+        return answer_row(model, config, row, block, passages, sources)
 
     results = _answer_all(rows, one, max(model.concurrency, 1), on_row, stop)
     ops = operations(results, layout.skipped, config, [s.name for s in facts.sheets])
