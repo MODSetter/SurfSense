@@ -11,7 +11,7 @@ import { intl } from "@/i18n/intl"
 
 import { ModelStep } from "./model-step/model-step"
 import type { OnboardingStepKind } from "./model-step/kinds/step-kind"
-import { OnboardingDither } from "./onboarding-dither"
+import { WelcomeBackdrop } from "./welcome-backdrop/welcome-backdrop"
 import { PrivacyStep } from "./privacy-step/privacy-step"
 import { useFinishOnboarding } from "./use-finish-onboarding"
 
@@ -90,48 +90,36 @@ function OnboardingProgress({
 }
 
 /**
- * The hero's call to action. A disc of `--primary` grows from the trailing
- * arrow's circle to flood the whole pill on hover, revealing a second copy of
- * the label clipped to that disc so the text itself switches from
- * `--primary` to `--primary-foreground` as the fill arrives underneath it.
+ * The hero's call to action: a solid `--primary` pill. On hover a light streak
+ * crosses it once; it only animates on the way in, so leaving does not sweep
+ * it back.
  */
 function FlowButton({ text, onClick }: { text: string; onClick: () => void }) {
   return (
     <Button
       type="button"
-      variant="bare"
+      size="xl"
       onClick={onClick}
-      className="group relative inline-flex h-11 items-center overflow-hidden rounded-full border-[1.5px] border-primary/40 bg-transparent pr-11 pl-6 text-sm font-semibold text-primary [--circle-inset-y:calc((100%-var(--icon-circle))/2)] [--icon-circle:2rem] [--icon-right:0.375rem]"
+      className="group relative isolate overflow-hidden rounded-full px-5 shadow-[inset_0_1px_0_rgb(255_255_255/0.2)]"
     >
-      <span className="relative z-1 pb-px">{text}</span>
-
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute inset-[var(--circle-inset-y)_var(--icon-right)_var(--circle-inset-y)_calc(100%-var(--icon-right)-var(--icon-circle))] z-2 rounded-full bg-primary transition-all duration-450 ease-[cubic-bezier(0.785,0.135,0.15,0.86)] group-hover:inset-0 motion-reduce:transition-none"
+        className="pointer-events-none absolute inset-y-0 left-0 -z-1 w-1/3 -translate-x-full -skew-x-20 bg-linear-to-r from-transparent via-white/45 to-transparent group-hover:translate-x-[400%] group-hover:transition-transform group-hover:duration-700 group-hover:ease-out motion-reduce:hidden"
       />
-
-      <span
+      {text}
+      <ArrowRightIcon
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 z-2 flex items-center pr-11 pl-6 text-primary-foreground transition-all duration-450 ease-[cubic-bezier(0.785,0.135,0.15,0.86)] [clip-path:inset(var(--circle-inset-y)_var(--icon-right)_var(--circle-inset-y)_calc(100%-var(--icon-right)-var(--icon-circle)))] group-hover:[clip-path:inset(0_0_0_0)] motion-reduce:transition-none"
-      >
-        <span className="relative z-1 pb-px whitespace-nowrap">{text}</span>
-      </span>
-
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute top-1/2 right-(--icon-right) z-3 inline-flex size-(--icon-circle) -translate-y-1/2 items-center justify-center overflow-hidden rounded-full bg-primary text-primary-foreground"
-      >
-        <ArrowRightIcon className="absolute top-1/2 left-1/2 size-4 origin-center translate-x-[-170%] -translate-y-1/2 scale-0 transition-transform duration-450 ease-[cubic-bezier(0.785,0.135,0.15,0.86)] group-hover:-translate-x-1/2 group-hover:scale-100 motion-reduce:transition-none" />
-        <ArrowRightIcon className="absolute top-1/2 left-1/2 size-4 origin-center -translate-x-1/2 -translate-y-1/2 transition-transform duration-450 ease-[cubic-bezier(0.785,0.135,0.15,0.86)] group-hover:translate-x-[70%] group-hover:scale-0 motion-reduce:transition-none" />
-      </span>
+        className="size-4 transition-transform duration-150 group-hover:translate-x-0.75 motion-reduce:transition-none"
+      />
     </Button>
   )
 }
 
 /**
  * The site's hero, rebuilt as the first thing the app ever shows: same
- * headline, same lede, same dithered wave behind it, same pill. Where the site
- * sends a visitor off to download, this one starts the setup.
+ * headline, same lede, same pill. The backdrop is the app's own, an ASCII
+ * horizon, not the site's dithered wave. Where the site sends a visitor off to
+ * download, this one starts the setup.
  *
  * Kept in step with `HomeHero` in
  * `surfsense_web/components/homepage/home/home-sections.tsx`. The two type
@@ -190,7 +178,7 @@ function OnboardingStep({
   onGo: (step: Step) => void
   onComplete: (selection: ModelSelection) => void
 }) {
-  const { finish, finishing, error } = useFinishOnboarding(onComplete)
+  const { finish, finishing } = useFinishOnboarding(onComplete)
   const index = steps.indexOf(step)
   const previous = steps[index - 1]
   const next = steps[index + 1]
@@ -202,7 +190,6 @@ function OnboardingStep({
       modelType={step}
       last={!next}
       finishing={finishing}
-      error={error}
       onBack={previous ? () => onGo(previous) : undefined}
       onNext={advance}
       onSkip={step === REQUIRED_STEP ? undefined : () => advance(null)}
@@ -231,9 +218,10 @@ export function OnboardingPage({
   return (
     <main
       data-onboarding-page
+      data-onboarding-welcome={screen === "welcome" || undefined}
       className="relative isolate flex h-full min-h-0 items-center overflow-hidden bg-muted/30 p-3 select-none sm:p-6"
     >
-      <OnboardingDither visible={screen === "welcome"} />
+      <WelcomeBackdrop visible={screen === "welcome"} />
       <div className="mx-auto flex h-full max-h-190 min-h-0 w-full max-w-3xl flex-col gap-3">
         <OnboardingBrand />
         {screen === "welcome" ? (

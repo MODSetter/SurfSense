@@ -27,6 +27,7 @@ import { TypewriterText } from "@/components/typewriter-text"
 import type { Dictation } from "@/features/dictation/dictation-adapter"
 import type { ModelSelection } from "@/features/models/selection/api"
 import { useStableCallback } from "@/hooks/use-stable-callback"
+import { ColumnHeader } from "@/components/ui/column-header"
 import { intl } from "@/i18n/intl"
 import type { PluginsStart } from "@/features/plugins/plugins-settings"
 import type { ChatThread } from "./api"
@@ -181,6 +182,7 @@ export function ThreadPanel({
   onOpenPlugins,
   dictation,
   onOpenSpeechSettings,
+  headerEnd,
 }: {
   live: LiveThreadSource
   thread: ChatThread | null
@@ -210,6 +212,8 @@ export function ThreadPanel({
   dictation?: Dictation
   // Opens Settings › Speech recognition, from the mic's set-up.
   onOpenSpeechSettings?: () => void
+  // At the header's end: the right panel's toggle while the panel is hidden.
+  headerEnd?: ReactNode
 }) {
   const titleInputRef = useRef<HTMLInputElement>(null)
   const headingId = useId()
@@ -308,115 +312,122 @@ export function ThreadPanel({
             {title}
           </h2>
         )}
-        <header className="flex h-14 shrink-0 items-center px-5">
-          {thread == null ? null : editing ? (
-            <Input
-              ref={titleInputRef}
-              value={draft}
-              maxLength={200}
-              aria-label={intl.formatMessage({
-                id: "chat_thread_panel_name_aria",
-                defaultMessage: "Chat name",
-              })}
-              className="w-auto max-w-full font-heading text-base font-medium md:text-base"
-              onChange={(event) => setDraft(event.target.value)}
-              onBlur={commitEditing}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault()
-                  commitEditing()
-                }
-                if (event.key === "Escape") {
-                  event.preventDefault()
-                  cancelEditing()
-                }
-              }}
-            />
-          ) : (
-            <ButtonGroup
-              aria-label={intl.formatMessage({
-                id: "chat_thread_panel_header_aria",
-                defaultMessage: "Chat",
-              })}
-              className="max-w-lg min-w-0"
-            >
-              <Button
-                static
-                type="button"
-                variant="ghost"
-                disabled={!canRename}
-                className="h-auto max-w-full min-w-0 px-1.5 py-0 font-heading text-base font-medium"
-                onClick={startEditing}
-              >
-                <span className="sidebar-row-title-fade min-w-0 overflow-hidden whitespace-nowrap">
-                  <TypewriterText
-                    text={title}
-                    animate={animateTitle}
-                    onComplete={onTitleAnimationComplete}
-                  />
-                </span>
-              </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  render={
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label={intl.formatMessage(
-                        {
-                          id: "chat_thread_panel_options_aria",
-                          defaultMessage: "Chat options for {title}",
-                        },
-                        {
-                          title,
-                        }
-                      )}
-                    >
-                      <ChevronDownIcon />
-                    </Button>
+        <header>
+          <ColumnHeader className="px-5">
+            {thread == null ? null : editing ? (
+              <Input
+                ref={titleInputRef}
+                value={draft}
+                maxLength={200}
+                aria-label={intl.formatMessage({
+                  id: "chat_thread_panel_name_aria",
+                  defaultMessage: "Chat name",
+                })}
+                className="w-auto max-w-full font-heading text-base font-medium md:text-base"
+                onChange={(event) => setDraft(event.target.value)}
+                onBlur={commitEditing}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault()
+                    commitEditing()
                   }
-                />
-                <DropdownMenuContent
-                  align="start"
-                  sideOffset={8}
-                  className="w-36"
-                  finalFocus={() => {
-                    if (!ignoreMenuFocusRef.current) return true
-                    ignoreMenuFocusRef.current = false
-                    return false
-                  }}
+                  if (event.key === "Escape") {
+                    event.preventDefault()
+                    cancelEditing()
+                  }
+                }}
+              />
+            ) : (
+              <ButtonGroup
+                aria-label={intl.formatMessage({
+                  id: "chat_thread_panel_header_aria",
+                  defaultMessage: "Chat",
+                })}
+                className="max-w-lg min-w-0"
+              >
+                <Button
+                  static
+                  type="button"
+                  variant="ghost"
+                  disabled={!canRename}
+                  className="h-auto max-w-full min-w-0 px-1.5 py-0 font-heading text-base font-medium"
+                  onClick={startEditing}
                 >
-                  <DropdownMenuGroup>
-                    <DropdownMenuItem
-                      disabled={!canRename}
-                      onClick={() => {
-                        ignoreMenuFocusRef.current = true
-                        startEditing()
-                      }}
-                    >
-                      <PencilIcon />
-                      {intl.formatMessage({
-                        id: "chat_thread_panel_rename_label",
-                        defaultMessage: "Rename",
-                      })}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      variant="destructive"
-                      onClick={() => {
-                        void onDelete(thread.id)
-                      }}
-                    >
-                      <Trash2Icon />
-                      {intl.formatMessage({
-                        id: "chat_thread_panel_delete_label",
-                        defaultMessage: "Delete chat",
-                      })}
-                    </DropdownMenuItem>
-                  </DropdownMenuGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </ButtonGroup>
-          )}
+                  <span className="sidebar-row-title-fade min-w-0 overflow-hidden whitespace-nowrap">
+                    <TypewriterText
+                      text={title}
+                      animate={animateTitle}
+                      onComplete={onTitleAnimationComplete}
+                    />
+                  </span>
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={intl.formatMessage(
+                          {
+                            id: "chat_thread_panel_options_aria",
+                            defaultMessage: "Chat options for {title}",
+                          },
+                          {
+                            title,
+                          }
+                        )}
+                      >
+                        <ChevronDownIcon />
+                      </Button>
+                    }
+                  />
+                  <DropdownMenuContent
+                    align="start"
+                    sideOffset={8}
+                    className="w-36"
+                    finalFocus={() => {
+                      if (!ignoreMenuFocusRef.current) return true
+                      ignoreMenuFocusRef.current = false
+                      return false
+                    }}
+                  >
+                    <DropdownMenuGroup>
+                      <DropdownMenuItem
+                        disabled={!canRename}
+                        onClick={() => {
+                          ignoreMenuFocusRef.current = true
+                          startEditing()
+                        }}
+                      >
+                        <PencilIcon />
+                        {intl.formatMessage({
+                          id: "chat_thread_panel_rename_label",
+                          defaultMessage: "Rename",
+                        })}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        variant="destructive"
+                        onClick={() => {
+                          void onDelete(thread.id)
+                        }}
+                      >
+                        <Trash2Icon />
+                        {intl.formatMessage({
+                          id: "chat_thread_panel_delete_label",
+                          defaultMessage: "Delete chat",
+                        })}
+                      </DropdownMenuItem>
+                    </DropdownMenuGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </ButtonGroup>
+            )}
+            {/* -mr-2 undoes the extra 8 px of this header's px-5 over the
+                right panel's px-3, so the toggle keeps one spot open or hidden. */}
+            {headerEnd ? (
+              <div className="-mr-2 ml-auto pl-3">{headerEnd}</div>
+            ) : null}
+          </ColumnHeader>
         </header>
 
         <ThreadPrimitive.Root className="relative flex min-h-0 flex-1 flex-col">

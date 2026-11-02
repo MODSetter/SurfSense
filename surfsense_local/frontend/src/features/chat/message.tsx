@@ -336,8 +336,11 @@ function MessageActions({
         className
       )}
     >
-      {timestampRight ? null : timestamp}
-      <ActionBarPrimitive.Root hideWhenRunning={hideWhenRunning}>
+      <ActionBarPrimitive.Root
+        hideWhenRunning={hideWhenRunning}
+        className="flex items-center gap-2 opacity-0 transition-opacity duration-150 ease-out group-hover/message:opacity-100 focus-within:opacity-100 motion-reduce:transition-none"
+      >
+        {timestampRight ? null : timestamp}
         <Tooltip>
           <ActionBarPrimitive.Copy copiedDuration={2_000} asChild>
             <TooltipTrigger
@@ -380,15 +383,15 @@ function MessageActions({
                 })}
           </TooltipContent>
         </Tooltip>
+        {timestampRight ? timestamp : null}
       </ActionBarPrimitive.Root>
-      {timestampRight ? timestamp : null}
     </div>
   )
 }
 
 export function UserMessage() {
   return (
-    <MessagePrimitive.Root className="mx-auto flex w-full max-w-2xl flex-col items-end px-6 py-3">
+    <MessagePrimitive.Root className="group/message mx-auto flex w-full max-w-2xl flex-col items-end px-6 py-3">
       <div className="mb-2 flex max-w-[78%] flex-wrap justify-end gap-2 empty:hidden">
         <MessagePrimitive.Attachments
           components={{ Image: MessageImage, Attachment: MessageImage }}
@@ -419,7 +422,7 @@ export function AssistantMessage({
   onNewChat: () => void
 }) {
   return (
-    <MessagePrimitive.Root className="mx-auto flex w-full max-w-2xl min-w-0 flex-col items-start px-6 py-4">
+    <MessagePrimitive.Root className="group/message mx-auto flex w-full max-w-2xl min-w-0 flex-col items-start px-6 py-4">
       <CitationProvider citations={citations} onCitation={onCitation}>
         <div className="w-full max-w-full min-w-0 text-sm leading-7">
           <MessageThinking />

@@ -40,6 +40,7 @@ function startingIn(mode: "basic" | "agentic"): ModelSelection {
       reason: { code: "no_row", values: {} },
       note: null,
       measured: null,
+      studio: "full",
       modes: {
         agentic_allowed: true,
         blocked: null,

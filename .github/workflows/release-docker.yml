@@ -1,0 +1,129 @@
+name: Release Docker
+
+# ghcr.io/modsetter/surfsense releases with the desktop app (release-local.yml):
+# a vX.Y.Z tag pushes X.Y.Z; publishing that release moves latest and X.Y.
+
+on:
+  push:
+    tags:
+      # Not v0.*: the 0.0.x line is the legacy stack, tagged legacy-v*.
+      - "v[1-9]*"
+  # The desktop release's draft is published by hand; latest moves then, not on the tag.
+  release:
+    types: [published]
+  # A dry run: builds and tests, pushes nothing.
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/modsetter/surfsense
+
+jobs:
+  image:
+    name: Build, test and push (amd64)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    if: github.event_name != 'release'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The token stays out of .git/config, where the code under test could read it.
+          persist-credentials: false
+
+      # A tag names the version; it must be the one surfsense_local/VERSION holds.
+      - name: Resolve the version
+        id: version
+        run: |
+          set -euo pipefail
+          version=""
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            version="${GITHUB_REF#refs/tags/v}"
+            tracked="$(tr -d '[:space:]' < surfsense_local/VERSION)"
+            if [ "$version" != "$tracked" ]; then
+              echo "::error::Tag v$version does not match surfsense_local/VERSION ($tracked)."
+              exit 1
+            fi
+          fi
+          # Only the main repository publishes.
+          if [ "$GITHUB_REPOSITORY" != "MODSetter/SurfSense" ]; then version=""; fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v4
+
+      # Before Build, whose cache-to writes to GHCR; a dry run neither logs in nor writes.
+      - name: Log in to GHCR
+        if: steps.version.outputs.version != ''
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/surfsense/Dockerfile
+          platforms: linux/amd64
+          load: true
+          tags: surfsense:release
+          cache-from: type=registry,ref=ghcr.io/modsetter/surfsense:buildcache
+          # A release's layers start the next release's build warm.
+          cache-to: ${{ steps.version.outputs.version != '' && 'type=registry,ref=ghcr.io/modsetter/surfsense:buildcache,mode=max' || '' }}
+
+      # Node 24 runs the TypeScript test as it is.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Test the image
+        env:
+          SURFSENSE_TEST_IMAGE: surfsense:release
+        run: node --test surfsense_local/headless/image.test.ts
+
+      # The image the tests passed, not a rebuild.
+      - name: Push
+        if: steps.version.outputs.version != ''
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          docker tag surfsense:release "$IMAGE:$VERSION"
+          docker push "$IMAGE:$VERSION"
+
+  # Publishing the desktop release moves latest to the image its tag pushed.
+  latest:
+    name: Move latest
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: >-
+      github.event_name == 'release' && !github.event.release.prerelease &&
+      github.repository == 'MODSetter/SurfSense' &&
+      startsWith(github.event.release.tag_name, 'v') &&
+      !contains(github.event.release.tag_name, '-')
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # A retag of the digest the tag built and tested; nothing is rebuilt.
+      - name: Retag
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          VERSION="${TAG#v}"
+          MINOR="${VERSION%.*}"
+          docker buildx imagetools create -t "$IMAGE:latest" -t "$IMAGE:$MINOR" "$IMAGE:$VERSION"
+          docker buildx imagetools inspect "$IMAGE:latest"

@@ -2,12 +2,12 @@ import { type MouseEvent, type ReactNode } from "react"
 import { ComposerPrimitive, useAuiState } from "@assistant-ui/react"
 
 import { Button } from "@/components/ui/button"
-import { ArrowUp02Icon, CircleStopIcon } from "@/components/ui/icons"
+import { ArrowUp02Icon, CheckIcon, CircleStopIcon } from "@/components/ui/icons"
 import type { Dictation } from "@/features/dictation/dictation-adapter"
 import { MicButton } from "@/features/dictation/mic/mic-button"
 import { DictationStrip } from "@/features/dictation/strip/dictation-strip"
 import { useDictationKeys } from "@/features/dictation/use-dictation-keys"
-import { useDictationStripShown } from "@/features/dictation/use-dictation-view"
+import { useDictationStarted } from "@/features/dictation/use-dictation-view"
 import type { ChatMode } from "@/features/models/capability/api"
 import type { ModelSelection } from "@/features/models/selection/api"
 import { PluginMentions } from "@/features/plugins/in-thread/plugin-mentions"
@@ -63,13 +63,34 @@ function ModelControl({
 function ComposerAction({
   isRunning,
   onSendClick,
+  onStopRecording,
   className,
 }: {
   isRunning: boolean
   // Prevented while voice input runs, which Send then stops instead.
   onSendClick?: (event: MouseEvent<HTMLButtonElement>) => void
+  // Present while voice input records: Send's place stops it and keeps the text.
+  onStopRecording?: () => void
   className?: string
 }) {
+  if (onStopRecording) {
+    return (
+      <Button
+        type="button"
+        size="icon-lg"
+        className={cn("rounded-xl", className)}
+        aria-label={intl.formatMessage({
+          id: "chat_composer_stop_recording_aria",
+          defaultMessage: "Stop and insert",
+        })}
+        // The message box keeps the focus, so Enter and Escape still reach it.
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={onStopRecording}
+      >
+        <CheckIcon />
+      </Button>
+    )
+  }
   if (!isRunning) {
     return (
       <ComposerPrimitive.Send asChild onClick={onSendClick}>
@@ -189,7 +210,10 @@ export function ChatComposer({
     ({ composer }) => composer.text.length >= QUESTION_MAX_CHARS
   )
   const dictationKeys = useDictationKeys(dictation)
-  const stripShown = useDictationStripShown(dictation)
+  // While the microphone starts, the mic's spinner says so and nothing else moves.
+  const recording = useDictationStarted(dictation)
+  const stopRecording =
+    recording && dictation ? () => dictation.stop() : undefined
   const inputDisabled =
     !model || !providerAvailable || blockedPlaceholder !== undefined
   const mic = (className: string) =>
@@ -203,11 +227,7 @@ export function ChatComposer({
     ) : null
   const strip = (className: string) =>
     dictation ? (
-      <DictationStrip
-        dictation={dictation}
-        onOpenSpeechSettings={onOpenSpeechSettings}
-        className={className}
-      />
+      <DictationStrip dictation={dictation} className={className} />
     ) : null
   const limitNotice = atLimit
     ? intl.formatMessage(
@@ -314,7 +334,7 @@ export function ChatComposer({
                 {model ? <ModePicker model={model} threadMode={null} /> : null}
               </div>
               <div className="flex min-w-0 items-center gap-2">
-                {stripShown ? (
+                {recording ? (
                   strip("max-w-56")
                 ) : (
                   <>
@@ -330,16 +350,22 @@ export function ChatComposer({
                 <ComposerAction
                   isRunning={isRunning}
                   onSendClick={dictationKeys.onSendClick}
+                  onStopRecording={stopRecording}
                 />
               </div>
             </div>
           ) : (
             <>
-              <SourceCount count={sourceCount} className="mb-2" />
+              {recording ? (
+                strip("mb-1.5 max-w-56 shrink-0")
+              ) : (
+                <SourceCount count={sourceCount} className="mb-2" />
+              )}
               {mic("-mr-1 mb-0.5")}
               <ComposerAction
                 isRunning={isRunning}
                 onSendClick={dictationKeys.onSendClick}
+                onStopRecording={stopRecording}
                 className="mb-0.5"
               />
             </>
@@ -359,27 +385,23 @@ export function ChatComposer({
           {/* Keeps its line and leaves the mode and the model name what is
           left, never less than 13rem, so a long translation truncates the
           name before wrapping. */}
-          {stripShown ? (
-            strip("max-w-[calc(100%-13rem)] min-h-7 flex-1")
-          ) : (
-            <p className="max-w-[calc(100%-13rem)] shrink-0 text-left text-[11px] text-muted-foreground select-none">
-              {limitNotice ? (
-                <span role="status">{limitNotice}</span>
-              ) : !model || providerAvailable ? (
-                intl.formatMessage({
-                  id: "chat_composer_disclaimer_body",
-                  defaultMessage:
-                    "SurfSense can make mistakes. Check important answers.",
-                })
-              ) : (
-                intl.formatMessage({
-                  id: "chat_composer_provider_offline_body",
-                  defaultMessage:
-                    "Historical chats remain available while the provider is offline.",
-                })
-              )}
-            </p>
-          )}
+          <p className="max-w-[calc(100%-13rem)] shrink-0 text-left text-[11px] text-muted-foreground select-none">
+            {limitNotice ? (
+              <span role="status">{limitNotice}</span>
+            ) : !model || providerAvailable ? (
+              intl.formatMessage({
+                id: "chat_composer_disclaimer_body",
+                defaultMessage:
+                  "SurfSense can make mistakes. Check important answers.",
+              })
+            ) : (
+              intl.formatMessage({
+                id: "chat_composer_provider_offline_body",
+                defaultMessage:
+                  "Historical chats remain available while the provider is offline.",
+              })
+            )}
+          </p>
           <div className="flex min-w-0 items-center gap-1">
             {model && threadMode !== null ? (
               <ModePicker

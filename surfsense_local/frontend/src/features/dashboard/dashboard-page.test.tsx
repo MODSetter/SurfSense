@@ -99,6 +99,7 @@ function selectionStarting(mode: "basic" | "agentic") {
       reason: { code: "measured_pass", values: {} },
       note: null,
       measured: null,
+      studio: "full" as const,
       modes: {
         agentic_allowed: true,
         blocked: null,
@@ -1072,6 +1073,7 @@ describe("dashboard chat", () => {
               reason: { code: "measured_pass", values: {} },
               note: null,
               measured: null,
+              studio: "full",
               modes: {
                 agentic_allowed: true,
                 blocked: null,
@@ -2170,6 +2172,82 @@ describe("dashboard chat", () => {
     expect(
       screen.getByRole("complementary", { name: "Workspace artifacts" })
     ).toBeTruthy()
+  })
+
+  describe("in the Docker image", { tags: ["docker"] }, () => {
+    it("keeps the toggle on the heading's line: Studio's while open, the chat's while hidden", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (input: RequestInfo | URL) => {
+          const path = String(input)
+          if (path === "/llm/providers") {
+            return Response.json([
+              { name: "llamacpp", healthy: true, can_download: true },
+            ])
+          }
+          if (
+            path ===
+            "/workspaces/1/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0"
+          ) {
+            return Response.json([])
+          }
+          if (path === "/workspaces/1/chat/threads") {
+            return Response.json([])
+          }
+          if (path === "/workspaces/1/studio/formats") {
+            return Response.json([])
+          }
+          if (path === "/workspaces/1/artifacts") {
+            return Response.json([])
+          }
+          return Response.json({ detail: "not found" }, { status: 404 })
+        })
+      )
+      const user = userEvent.setup()
+
+      render(
+        <ThemeProvider>
+          <TooltipProvider>
+            <DashboardPage
+              initialProviderAvailable={true}
+              selection={{
+                model_type: "text_gen",
+                provider: "llamacpp",
+                connection_id: null,
+                name: "llama3.2:1b",
+                updated_at: "2026-09-05T00:00:00Z",
+              }}
+              initialWorkspaces={[workspace]}
+              onModelSelected={vi.fn()}
+            />
+          </TooltipProvider>
+        </ThemeProvider>
+      )
+
+      expect(
+        await screen.findByRole("complementary", {
+          name: "Workspace artifacts",
+        })
+      ).toBeTruthy()
+      const hide = within(
+        screen.getByRole("complementary", { name: "Workspace artifacts" })
+      ).getByRole("button", { name: "Hide right panel" })
+      // A browser has no title bar to hold it.
+      expect(hide.closest(".titlebar-controls")).toBeNull()
+      await user.click(hide)
+      expect(
+        screen.queryByRole("complementary", { name: "Workspace artifacts" })
+      ).toBeNull()
+      await user.click(
+        within(screen.getByRole("region", { name: "Conversation" })).getByRole(
+          "button",
+          { name: "Show right panel" }
+        )
+      )
+      expect(
+        screen.getByRole("complementary", { name: "Workspace artifacts" })
+      ).toBeTruthy()
+    })
   })
 
   it("shows how many sources the chat will use", async () => {

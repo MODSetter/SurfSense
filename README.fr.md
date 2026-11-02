@@ -54,6 +54,14 @@ SurfSense est une application de bureau gratuite et open source pour les documen
 | **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
 | **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
 
+**Hébergez-le vous-même sur un serveur** avec Docker, et ouvrez-le depuis n’importe quel appareil de votre réseau. Relancez la même commande pour le mettre à jour.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
+```
+
+Sous Windows avec Docker Desktop : `irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 | iex`
+
 ## Démarrage rapide
 
 1. Installez SurfSense et effectuez la configuration initiale.
@@ -69,9 +77,10 @@ SurfSense est une application de bureau gratuite et open source pour les documen
 | **Excel** `.xlsx` | ✓ l'agent lit aussi les formules | ✓ avec formules et graphiques natifs | ✓ valeurs des cellules et formules | Analyser avec pandas, mettre les résultats en graphique |
 | **PowerPoint** `.pptx` | ✓ | ✓ ou à partir de votre propre `.pptx` comme modèle | Remplacer le texte des diapositives et des notes ; supprimer ou dupliquer des diapositives | En PDF¹ |
 | **CSV** | ✓ | — | — | Analyser avec pandas, mettre les résultats en graphique |
-| **Images** PNG, JPEG, TIFF, BMP, WebP | ✓ texte lu par OCR³ | Images et infographies² | — | Insérer dans de nouveaux documents |
+| **Images** PNG, JPEG, TIFF, BMP, WebP | ✓ texte lu par OCR³ | Images et infographies, modifiables par instruction² | — | Insérer dans de nouveaux documents |
 | **Markdown**, texte brut | ✓ | ✓ Markdown | — | — |
 | **HTML** | ✓ | ✓ page web | — | — |
+| **Livres** EPUB, MOBI, AZW3 | ✓ sans DRM | — | — | — |
 | **Enregistrements** WAV, MP3, FLAC, Ogg Vorbis | ✓ transcrits sur votre machine | — | — | — |
 | **Podcast** (audio) | — | ✓ avec transcription, mis en voix sur votre machine par défaut | — | — |
 | **Cartes mentales, cartes mémoire, quiz** | — | ✓ dans l'application | — | — |

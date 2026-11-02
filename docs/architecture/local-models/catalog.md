@@ -790,16 +790,15 @@ Rules the screen holds:
   Under the model in use, **Spoken language** reads and writes
   `/llm/selection/speech_to_text/language`: "Detect automatically", only when
   the model detects the language, then each language it lists.
-- The speech set-up popover ([`speech-setup/`](../../../surfsense_local/frontend/src/features/speech-setup/))
-  is the same download where speech is needed, for the mic and a recording
-  waiting for a model to open: one card per curated recogniser with its size
-  and "Works well in:" its listed languages.
-  **Download and set up** starts the same install job with `select: true`, so
-  egress consent is the usual refused-request prompt, nested in the popover;
-  the card then shows the job's progress, and once the catalog marks the model
-  in use the popover reads "Speech recognition is ready", with **Start
-  talking** where its opener can listen. **More choices** opens this section.
-  `useSpeechSetup()` holds that state, so an opener can show the download too.
+- The speech set-up popover ([`speech-setup/`](../../../surfsense_local/frontend/src/features/speech-setup/)),
+  where speech is needed, for the mic and a recording waiting for a model,
+  only asks and hands off: **Set up…** opens this section, which alone offers
+  the models, their downloads and their progress. With a speech download under
+  way it says how far it got, **Cancel download** stops it, and **Show progress**
+  opens this section; once
+  the catalog marks a model in use it reads "Speech recognition is ready", with
+  **Start talking** where its opener can listen. `useSpeechDownloadPercent()`
+  reads that download for the popover, the mic's ring and the mic's tooltip.
 
 ## How it is tested
 

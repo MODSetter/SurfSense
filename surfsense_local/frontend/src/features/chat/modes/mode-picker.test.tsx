@@ -37,6 +37,7 @@ function model(name: string, modes: ChatModes): ModelSelection {
       reason: { code: "no_row", values: {} },
       note: null,
       measured: null,
+      studio: "full",
       modes,
     },
   }

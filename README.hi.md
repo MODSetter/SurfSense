@@ -54,6 +54,14 @@ SurfSense एक मुफ़्त, ओपन-सोर्स डेस्क�
 | **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
 | **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
 
+**इसे Docker के साथ अपने सर्वर पर खुद होस्ट करें**, और अपने नेटवर्क के किसी भी डिवाइस से खोलें। अपडेट करने के लिए वही कमांड फिर से चलाएं।
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
+```
+
+Docker Desktop वाले Windows पर: `irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 | iex`
+
 ## झटपट शुरुआत
 
 1. SurfSense इंस्टॉल करें और शुरुआती सेटअप पूरा करें।
@@ -69,9 +77,10 @@ SurfSense एक मुफ़्त, ओपन-सोर्स डेस्क�
 | **Excel** `.xlsx` | ✓ एजेंट फ़ॉर्मूले भी पढ़ता है | ✓ फ़ॉर्मूलों और नेटिव चार्ट के साथ | ✓ सेल की वैल्यू और फ़ॉर्मूले | pandas से विश्लेषण करना, नतीजों का चार्ट बनाना |
 | **PowerPoint** `.pptx` | ✓ | ✓ या अपनी `.pptx` को टेम्प्लेट बनाकर | स्लाइड और नोट्स का टेक्स्ट बदलना; स्लाइड हटाना या डुप्लिकेट करना | PDF में¹ |
 | **CSV** | ✓ | — | — | pandas से विश्लेषण करना, नतीजों का चार्ट बनाना |
-| **इमेज** PNG, JPEG, TIFF, BMP, WebP | ✓ टेक्स्ट OCR से पढ़ा जाता है³ | इमेज और इन्फ़ोग्राफ़िक² | — | नए दस्तावेज़ों में लगाना |
+| **इमेज** PNG, JPEG, TIFF, BMP, WebP | ✓ टेक्स्ट OCR से पढ़ा जाता है³ | इमेज और इन्फ़ोग्राफ़िक, निर्देश से संपादन² | — | नए दस्तावेज़ों में लगाना |
 | **Markdown**, सादा टेक्स्ट | ✓ | ✓ Markdown | — | — |
 | **HTML** | ✓ | ✓ वेब पेज | — | — |
+| **ई-बुक** EPUB, MOBI, AZW3 | ✓ बिना DRM | — | — | — |
 | **रिकॉर्डिंग** WAV, MP3, FLAC, Ogg Vorbis | ✓ आपकी अपनी मशीन पर ट्रांसक्राइब की जाती हैं | — | — | — |
 | **पॉडकास्ट** (ऑडियो) | — | ✓ ट्रांसक्रिप्ट के साथ, आवाज़ डिफ़ॉल्ट रूप से आपकी अपनी मशीन पर दी जाती है | — | — |
 | **माइंड मैप, फ़्लैशकार्ड, क्विज़** | — | ✓ ऐप के अंदर | — | — |

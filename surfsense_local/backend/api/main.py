@@ -24,6 +24,7 @@ from modules.agent.previews.router import file_router as agent_preview_files_rou
 from modules.agent.previews.router import router as agent_previews_router
 from modules.agent.runtime_proxy.server import serving_runtime_proxy
 from modules.agent.tool_endpoint.router import router as agent_tools_router
+from modules.artifacts.image_edits.router import router as image_edit_router
 from modules.artifacts.podcast.router import router as podcast_router
 from modules.artifacts.router import router as artifacts_router
 from modules.artifacts.studio_documents.router import router as refine_router
@@ -75,6 +76,7 @@ from modules.resource_usage.router import router as resource_usage_router
 from modules.runtime_packs.office.router import router as office_pack_router
 from modules.source_scope.router import router as source_scope_router
 from modules.usage_statistics.activity_counts import begin_counting
+from modules.usage_statistics.kept import usage_statistics_kept
 from modules.usage_statistics.router import router as usage_statistics_router
 from modules.workspaces.router import router as workspaces_router
 from modules.workspaces.seed import ensure_default_workspace
@@ -253,6 +255,7 @@ def create_app() -> FastAPI:
     app.include_router(artifacts_router)
     app.include_router(podcast_router)
     app.include_router(refine_router)
+    app.include_router(image_edit_router)
     app.include_router(events_router)
     app.include_router(migration_router)
     app.include_router(license_router)
@@ -260,7 +263,8 @@ def create_app() -> FastAPI:
     app.include_router(embedding_router)
     app.include_router(embedding_huggingface_router)
     app.include_router(resource_usage_router)
-    app.include_router(usage_statistics_router)
+    if usage_statistics_kept():
+        app.include_router(usage_statistics_router)
     app.include_router(office_pack_router)
     # Before `/plugins/{id}/...`, which would otherwise take `registry` or `license` for an id.
     app.include_router(plugin_registry_router)

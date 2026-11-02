@@ -34,6 +34,7 @@ function artifact(overrides: Partial<Artifact> = {}): Artifact {
     version: null,
     spec_kind: null,
     refinable: false,
+    image_editable: false,
     ...overrides,
   }
 }
@@ -320,6 +321,7 @@ describe("useStudio", () => {
       version: { root_id: 1, number: 1, parent_id: null },
       spec_kind: "python",
       refinable: false,
+      image_editable: false,
     } as const
     const api = studioApi([
       [artifact(scriptDocument)],
@@ -348,6 +350,7 @@ describe("useStudio", () => {
       version: { root_id: 1, number: 1, parent_id: null },
       spec_kind: "python",
       refinable: false,
+      image_editable: false,
     } as const
     const api = studioApi([
       [artifact(scriptDocument)],
@@ -416,6 +419,7 @@ describe("useStudio refine", () => {
     version: { root_id: 40, number: 1, parent_id: null },
     spec_kind: "markdown",
     refinable: true,
+    image_editable: false,
   })
 
   function refineApi(answer: Response) {

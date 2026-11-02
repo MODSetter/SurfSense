@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { cleanup, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
+import { toast } from "sonner"
+
 import { render } from "@/test-utils"
 
 import { fakeInstallApi } from "@/features/models/local/installs/fake-install-api"
@@ -103,7 +105,39 @@ function serving(
   })
 }
 
+vi.mock("sonner", () => ({
+  toast: { error: vi.fn(), info: vi.fn() },
+}))
+
 describe("image model settings", () => {
+  it("says in a toast when Use fails, never with a bare status text", async () => {
+    vi.stubGlobal(
+      "fetch",
+      serving([imageRow({ installed_as: "sdxl-turbo-q4_0" })], (path, init) =>
+        path === "/llm/selection/image_gen" && init?.method === "PUT"
+          ? new Response("Internal Server Error", {
+              status: 500,
+              statusText: "Internal Server Error",
+            })
+          : null
+      )
+    )
+    const user = userEvent.setup()
+
+    render(<ImageModelsSettings onModelUnavailable={() => undefined} />)
+    await user.click(
+      await screen.findByRole("button", { name: "Use SDXL Turbo" })
+    )
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        "Couldn’t use this model",
+        expect.objectContaining({ description: undefined })
+      )
+    )
+    expect(screen.queryByText("Internal Server Error")).toBeNull()
+  })
+
   it("says why a model on disk cannot run in the interface's own words", async () => {
     vi.stubGlobal(
       "fetch",

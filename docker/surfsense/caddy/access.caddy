@@ -1,0 +1,8 @@
+# Every request but the access service's own goes through forward_auth: the
+# service decides, from the host, the client and the session (ADR 0074).
+handle /access/* {
+	reverse_proxy 127.0.0.1:{$SURFSENSE_ACCESS_PORT}
+}
+forward_auth 127.0.0.1:{$SURFSENSE_ACCESS_PORT} {
+	uri /verify
+}

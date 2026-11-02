@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from modules.plugins.installed.awaiting_sign_in import store_awaiting_sign_in
 from modules.plugins.installed.models import CheckFailure, InstalledPlugin
+from modules.plugins.remote.sign_in.oauth.browser_origin import BrowserOrigin
 from modules.plugins.remote.sign_in.oauth.own_app import (
     needs_own_app,
     registration_refused,
@@ -24,11 +25,11 @@ class OwnAppNeededError(Exception):
         super().__init__(reason)
         self.reason = reason
 
-    def refusal(self) -> HTTPException:
+    def refusal(self, origin: BrowserOrigin) -> HTTPException:
         """For a sign-in asked of a saved plugin, which the screen answers with the app."""
-        return (
-            needs_own_app() if self.reason == "needs_client" else registration_refused()
-        )
+        if self.reason == "needs_client":
+            return needs_own_app(origin)
+        return registration_refused(origin)
 
 
 def keep_needing_own_app(

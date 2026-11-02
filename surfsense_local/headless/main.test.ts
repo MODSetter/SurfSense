@@ -15,10 +15,20 @@ const fs = require("node:fs")
 const http = require("node:http")
 const path = require("node:path")
 const [entry, queue] = process.argv.slice(2)
-const role = path.basename(process.argv[1]) === "llama-server" ? "llama-server" : entry === "main.py" ? "api" : "worker-" + queue
-const keys = ["HF_HUB_OFFLINE", "SURFSENSE_LOCAL_SIGNED_REGISTRY", "SURFSENSE_LOCAL_RUNTIME", "HOME", "SURFSENSE_LOCAL_SECRET", "SURFSENSE_LOCAL_DATA_DIR"]
+const name = path.basename(process.argv[1])
+const role = name === "llama-server" || name === "caddy" ? name : entry === "main.py" ? "api" : "worker-" + queue
+const keys = ["HF_HUB_OFFLINE", "SURFSENSE_LOCAL_SIGNED_REGISTRY", "SURFSENSE_LOCAL_RUNTIME", "HOME", "SURFSENSE_LOCAL_SECRET", "SURFSENSE_LOCAL_DATA_DIR", "SURFSENSE_PASSWORD", "SURFSENSE_LOCAL_DOMAIN"]
 fs.writeFileSync(path.join(process.env.FAKE_LOG, role + ".json"),
-  JSON.stringify({ pid: process.pid, env: Object.fromEntries(keys.map((k) => [k, process.env[k]])) }))
+  JSON.stringify({
+    pid: process.pid,
+    env: Object.fromEntries(keys.map((k) => [k, process.env[k]])),
+    args: process.argv.slice(2),
+    cwd: process.cwd(),
+    caddy: Object.fromEntries(["SURFSENSE_API_PORT", "SURFSENSE_CHATGPT_CALLBACK_PORT", "SURFSENSE_FRONTEND_DIR", "SURFSENSE_ACCESS_PORT", "SURFSENSE_TLS_SITES", "SURFSENSE_HTTPS_PORT"].map((k) => [k, process.env[k]])),
+    chatgptCallbackPort: process.env.SURFSENSE_LOCAL_CHATGPT_CALLBACK_PORT,
+  }))
+const caddyExit = Number(process.env.FAKE_CADDY_EXIT_AFTER_MS)
+if (role === "caddy" && caddyExit) setTimeout(() => process.exit(4), caddyExit)
 if (role === "api") {
   http.createServer((req, res) => res.writeHead(req.url === "/health" ? 200 : 404).end())
     .listen(Number(process.env.SURFSENSE_LOCAL_PORT), process.env.SURFSENSE_LOCAL_HOST)
@@ -47,7 +57,11 @@ function fake(path: string): void {
 
 function startHeadless(
   t: TestContext,
-  { env = {}, llamaServer = false }: { env?: Record<string, string>; llamaServer?: boolean } = {},
+  {
+    env = {},
+    llamaServer = false,
+    caddy = false,
+  }: { env?: Record<string, string>; llamaServer?: boolean; caddy?: boolean } = {},
 ): Run {
   const root = mkdtempSync(join(tmpdir(), "surfsense-headless-"))
   t.after(() => rmSync(root, { recursive: true, force: true }))
@@ -58,6 +72,17 @@ function startHeadless(
   mkdirSync(log)
   mkdirSync(join(root, "runtimes"))
   if (llamaServer) fake(join(root, "runtimes", "llamacpp", "llama-server"))
+  const caddyEnv: Record<string, string> = {}
+  if (caddy) {
+    fake(join(root, "bin", "caddy"))
+    mkdirSync(join(root, "caddy"))
+    writeFileSync(join(root, "caddy", "Caddyfile"), "")
+    Object.assign(caddyEnv, {
+      SURFSENSE_LOCAL_CADDY: join(root, "bin", "caddy"),
+      SURFSENSE_LOCAL_CADDYFILE: join(root, "caddy", "Caddyfile"),
+      SURFSENSE_LOCAL_FRONTEND_DIR: join(root, "dist"),
+    })
+  }
 
   const child = spawn(process.execPath, [MAIN], {
     env: {
@@ -68,6 +93,7 @@ function startHeadless(
       SURFSENSE_LOCAL_RUNTIMES_DIR: join(root, "runtimes"),
       SURFSENSE_LOCAL_SECRET: "",
       FAKE_LOG: log,
+      ...caddyEnv,
       ...env,
     },
     stdio: ["ignore", "pipe", "pipe"],
@@ -88,7 +114,17 @@ function startHeadless(
   return { child, dataDir, log, exited, ready }
 }
 
-type Recorded = Record<string, { pid: number; env: Record<string, string | undefined> }>
+type Recorded = Record<
+  string,
+  {
+    pid: number
+    env: Record<string, string | undefined>
+    args: string[]
+    cwd: string
+    caddy: Record<string, string | undefined>
+    chatgptCallbackPort?: string
+  }
+>
 
 /** Every fake's record, once `count` have written one: ready waits on the API alone. */
 async function recorded(log: string, count = 4): Promise<Recorded> {
@@ -173,5 +209,149 @@ test("a second signal while stopping waits for every child instead of leaving th
   await new Promise((resolve) => setTimeout(resolve, 200))
   run.child.kill("SIGINT")
   assert.equal(await run.exited, 0)
+  assert.deepEqual(pids.filter(alive), [])
+})
+
+test("with a Caddyfile it starts Caddy on the API's port, ChatGPT's callback port and the SPA", { skip }, async (t) => {
+  const run = startHeadless(t, { caddy: true })
+  const url = await run.ready
+  const children = await recorded(run.log, 5)
+  const caddy = children.caddy
+  assert.ok(caddy, "caddy started")
+  const caddyfile = join(run.dataDir, "..", "caddy", "Caddyfile")
+  assert.deepEqual(caddy.args, ["run", "--config", caddyfile, "--adapter", "caddyfile"])
+  assert.equal(caddy.cwd, join(run.dataDir, "..", "caddy"))
+  assert.equal(caddy.caddy.SURFSENSE_API_PORT, new URL(url).port)
+  assert.equal(caddy.caddy.SURFSENSE_FRONTEND_DIR, join(run.dataDir, "..", "dist"))
+  // The API listens for ChatGPT where Caddy forwards `/callback`.
+  assert.ok(Number(caddy.caddy.SURFSENSE_CHATGPT_CALLBACK_PORT) > 0)
+  assert.equal(children.api?.chatgptCallbackPort, caddy.caddy.SURFSENSE_CHATGPT_CALLBACK_PORT)
+  run.child.kill("SIGTERM")
+  assert.equal(await run.exited, 0)
+  assert.equal(alive(caddy.pid), false)
+})
+
+test("Caddy asks the access service, which answers on the port Caddy is given", { skip }, async (t) => {
+  const run = startHeadless(t, { caddy: true })
+  await run.ready
+  const children = await recorded(run.log, 5)
+  const port = children.caddy?.caddy.SURFSENSE_ACCESS_PORT
+  assert.ok(Number(port) > 0)
+  const state = await fetch(`http://127.0.0.1:${port}/access/state`, {
+    headers: { "X-Forwarded-Host": "localhost:4929", "X-Forwarded-For": "127.0.0.1" },
+  })
+  assert.deepEqual(await state.json(), {
+    password: false,
+    signedIn: false,
+    host: true,
+    source: null,
+    signInOff: false,
+  })
+  run.child.kill("SIGTERM")
+  assert.equal(await run.exited, 0)
+})
+
+test("with no password yet, the log says to open SurfSense and create one", { skip }, async (t) => {
+  const run = startHeadless(t, { caddy: true })
+  let stdout = ""
+  run.child.stdout?.on("data", (chunk) => (stdout += chunk))
+  await run.ready
+  await recorded(run.log, 5)
+  assert.match(stdout, /No password yet/)
+  run.child.kill("SIGTERM")
+  assert.equal(await run.exited, 0)
+})
+
+test("SURFSENSE_AUTH=none turns sign-in off, and the log warns of it", { skip }, async (t) => {
+  const run = startHeadless(t, { caddy: true, env: { SURFSENSE_AUTH: "none" } })
+  let stderr = ""
+  run.child.stderr?.on("data", (chunk) => (stderr += chunk))
+  await run.ready
+  const children = await recorded(run.log, 5)
+  const port = children.caddy?.caddy.SURFSENSE_ACCESS_PORT
+  const state = await fetch(`http://127.0.0.1:${port}/access/state`, {
+    headers: { "X-Forwarded-Host": "localhost:4929", "X-Forwarded-For": "127.0.0.1" },
+  })
+  assert.equal(((await state.json()) as { signInOff: boolean }).signInOff, true)
+  assert.match(stderr, /sign-in is off/i)
+  run.child.kill("SIGTERM")
+  assert.equal(await run.exited, 0)
+})
+
+test("a SURFSENSE_AUTH it does not know stops the container at start, saying why", { skip }, async (t) => {
+  const run = startHeadless(t, { caddy: true, env: { SURFSENSE_AUTH: "off" } })
+  run.ready.catch(() => undefined)
+  let stderr = ""
+  run.child.stderr?.on("data", (chunk) => (stderr += chunk))
+  assert.notEqual(await run.exited, 0)
+  assert.match(stderr, /SURFSENSE_AUTH/)
+})
+
+test("SURFSENSE_PASSWORD sets the password at start, and no sidecar sees it", { skip }, async (t) => {
+  const run = startHeadless(t, { caddy: true, env: { SURFSENSE_PASSWORD: "correct horse battery" } })
+  await run.ready
+  const children = await recorded(run.log, 5)
+  const port = children.caddy?.caddy.SURFSENSE_ACCESS_PORT
+  const state = await fetch(`http://127.0.0.1:${port}/access/state`, {
+    headers: { "X-Forwarded-Host": "localhost:4929", "X-Forwarded-For": "127.0.0.1" },
+  })
+  const read = (await state.json()) as { password: boolean; source: string }
+  assert.equal(read.password, true)
+  // Its owner is the setup, so the app shows it locked.
+  assert.equal(read.source, "setup")
+  for (const child of Object.values(children)) assert.equal(child.env.SURFSENSE_PASSWORD, undefined)
+  run.child.kill("SIGTERM")
+  assert.equal(await run.exited, 0)
+})
+
+test("SURFSENSE_TLS=internal starts Caddy on its LAN configuration, for the allowed hosts", { skip }, async (t) => {
+  const run = startHeadless(t, {
+    caddy: true,
+    env: { SURFSENSE_TLS: "internal", SURFSENSE_ALLOWED_HOSTS: "surfsense.lan", SURFSENSE_HTTPS_PORT: "4943" },
+  })
+  await run.ready
+  const caddy = (await recorded(run.log, 5)).caddy
+  assert.deepEqual(caddy?.args, ["run", "--config", join(run.dataDir, "..", "caddy", "Caddyfile.lan"), "--adapter", "caddyfile"])
+  assert.equal(caddy?.caddy.SURFSENSE_TLS_SITES, "https://surfsense.lan")
+  assert.equal(caddy?.caddy.SURFSENSE_HTTPS_PORT, "4943")
+  run.child.kill("SIGTERM")
+  assert.equal(await run.exited, 0)
+})
+
+test("SURFSENSE_DOMAIN tells the API its public domain, for plugin sign-ins there", { skip }, async (t) => {
+  const run = startHeadless(t, { caddy: true, env: { SURFSENSE_DOMAIN: "surfsense.example.com" } })
+  await run.ready
+  const children = await recorded(run.log, 5)
+  assert.equal(children.api?.env.SURFSENSE_LOCAL_DOMAIN, "surfsense.example.com")
+  run.child.kill("SIGTERM")
+  assert.equal(await run.exited, 0)
+})
+
+test("a TLS setting it cannot serve stops the container at start, saying why", { skip }, async (t) => {
+  const run = startHeadless(t, { caddy: true, env: { SURFSENSE_TLS: "internal" } })
+  // It never gets ready; that is the point.
+  run.ready.catch(() => undefined)
+  let stderr = ""
+  run.child.stderr?.on("data", (chunk) => (stderr += chunk))
+  assert.notEqual(await run.exited, 0)
+  assert.match(stderr, /SURFSENSE_ALLOWED_HOSTS/)
+  // Before anything started: no sidecar wrote a record.
+  assert.deepEqual(readdirSync(run.log), [])
+})
+
+test("without a Caddyfile, as on a checkout, it starts no Caddy and fixes no callback port", { skip }, async (t) => {
+  const run = startHeadless(t)
+  await run.ready
+  const children = await recorded(run.log)
+  assert.equal(children.caddy, undefined)
+  assert.equal(children.api?.chatgptCallbackPort, undefined)
+  run.child.kill("SIGTERM")
+})
+
+test("Caddy exiting stops the rest and exits non-zero, since nothing can reach the app", { skip }, async (t) => {
+  const run = startHeadless(t, { caddy: true, env: { FAKE_CADDY_EXIT_AFTER_MS: "700" } })
+  await run.ready
+  const pids = Object.values(await recorded(run.log, 5)).map((c) => c.pid)
+  assert.notEqual(await run.exited, 0)
   assert.deepEqual(pids.filter(alive), [])
 })

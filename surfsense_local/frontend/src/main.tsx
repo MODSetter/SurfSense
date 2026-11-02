@@ -16,7 +16,7 @@ import { SidecarCrashReporter } from "@/features/feedback/sidecar-crash-reporter
 import { InstallFeed } from "@/features/models/local/installs/install-feed.tsx"
 import { MenuUpdateCheck } from "@/features/updates/menu-update-check.tsx"
 import { intl } from "@/i18n/intl.ts"
-import { followMainLocale } from "@/i18n/locale.ts"
+import { followLocale } from "@/i18n/locale.ts"
 import { queryClient } from "@/lib/query-client.ts"
 
 const root = document.getElementById("root")
@@ -31,7 +31,7 @@ if (window.surfsense?.platform) {
   }
 }
 
-followMainLocale()
+followLocale()
 guardFileDrops(window)
 
 // Open over any dialog as its nested dialog, or on their own when none is open.

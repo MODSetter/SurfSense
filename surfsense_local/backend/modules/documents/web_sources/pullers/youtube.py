@@ -1,5 +1,5 @@
 import re
-from urllib.parse import SplitResult, parse_qs
+from urllib.parse import SplitResult, parse_qs, urlsplit
 
 from modules.documents.web_sources.pullers.puller import (
     MAX_REPLIES,
@@ -22,6 +22,9 @@ from modules.documents.web_sources.source_text.subtitles import transcript
 _HOSTS = {"youtube.com", "www.youtube.com", "m.youtube.com"}
 # The video paths the plugin's resolver reads as one video; `watch?v=` aside.
 _VIDEO_PATH = re.compile(r"^/(shorts|embed|v)/[\w-]+/?$")
+# A live stream's own link, kept as its video once the stream ends. The resolver
+# does not read it, so the plugin is sent the same video's watch page.
+_LIVE_PATH = re.compile(r"^/live/([\w-]+)/?$")
 
 
 def _fit(url: SplitResult) -> Fit | None:
@@ -31,11 +34,20 @@ def _fit(url: SplitResult) -> Fit | None:
         return None
     if url.path == "/watch" and parse_qs(url.query).get("v"):
         return Fit.ONE
-    return Fit.ONE if _VIDEO_PATH.match(url.path) else Fit.LIST
+    if _VIDEO_PATH.match(url.path) or _LIVE_PATH.match(url.path):
+        return Fit.ONE
+    return Fit.LIST
+
+
+def _video_url(url: str) -> str:
+    parts = urlsplit(url)
+    live = _LIVE_PATH.match(parts.path) if parts.hostname in _HOSTS else None
+    return f"https://www.youtube.com/watch?v={live[1]}" if live else url
 
 
 def _calls(url: str) -> list[ToolCall]:
     """The video with its subtitles, and its comments most-liked first."""
+    url = _video_url(url)
     return [
         ToolCall(
             "scrape", {"urls": [url], "max_results": 1, "download_subtitles": True}

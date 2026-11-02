@@ -405,3 +405,14 @@ describe("SettingsDialog", () => {
     expect(screen.queryByRole("status")).toBeNull()
   })
 })
+
+describe("SettingsDialog in the Docker image", { tags: ["docker"] }, () => {
+  it("lists Access after General, where the sign-in password is set", () => {
+    render(<SettingsHarness />)
+
+    const nav = screen.getByRole("navigation", { name: "Settings" })
+    expect(
+      Array.from(nav.querySelectorAll("button"), (b) => b.textContent)
+    ).toEqual(["General", "Access", "License", "Plugins"])
+  })
+})

@@ -20,6 +20,7 @@ import {
   type VersionedArtifact,
 } from "./artifact-versions"
 import { canRefine } from "./can-refine"
+import { EDIT_MODEL_SECTION, type EditModelSection } from "./edit-model"
 import { RefineBox } from "./refine-box"
 import { RevisedCopyBar } from "./revised-copy-bar"
 import { RevisedCopyDownloads } from "./revised-copy-downloads"
@@ -71,6 +72,8 @@ export function ArtifactPanel({
   artifacts,
   onOpenVersion,
   onRefine,
+  onImageEdit = async () => {},
+  onOpenModelSettings,
   onDecideAll = async () => {},
   onClose,
 }: {
@@ -80,6 +83,10 @@ export function ArtifactPanel({
   onOpenVersion: (artifactId: number) => void
   /** Rejects with the reason the next version was refused. */
   onRefine: (artifactId: number, instruction: string) => Promise<void>
+  /** Rejects with the reason the edited version was refused. */
+  onImageEdit?: (artifactId: number, instruction: string) => Promise<void>
+  /** Opens Settings at the section that chooses the model an edit needs. */
+  onOpenModelSettings?: (section: EditModelSection) => void
   /** Accepts or rejects all of a revised copy's changes as its next version;
    *  rejects with the reason it was refused. */
   onDecideAll?: (
@@ -215,16 +222,26 @@ export function ArtifactPanel({
             their own bottom margin is what it covers at the end. One per
             document, kept through a switch of version so the version being
             made turns back into the button in place. */}
-        {!error && shown && canRefine(shown) ? (
+        {!error && shown && (canRefine(shown) || shown.image_editable) ? (
           // Clicks pass through to the document beside the button. The
           // container is what the refine box measures its open width by.
           <div className="@container pointer-events-none absolute inset-x-0 bottom-0 flex justify-end px-3 pb-3">
             <RefineBox
               key={shown.version?.root_id ?? artifactId}
               artifactId={artifactId}
+              subject={shown.image_editable ? "image" : "document"}
               versionShown={!isLoading}
               writingVersion={writing?.version.number ?? null}
-              onRefine={onRefine}
+              onRefine={shown.image_editable ? onImageEdit : onRefine}
+              onChooseModel={
+                onOpenModelSettings &&
+                (() =>
+                  onOpenModelSettings(
+                    EDIT_MODEL_SECTION[
+                      shown.image_editable ? "image" : "document"
+                    ]
+                  ))
+              }
             />
           </div>
         ) : null}

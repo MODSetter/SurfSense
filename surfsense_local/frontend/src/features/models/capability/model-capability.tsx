@@ -1,141 +1,83 @@
-import { Badge } from "@/components/ui/badge"
+import { useId, useState } from "react"
+
+import { Button } from "@/components/ui/button"
+import { ChevronDownIcon } from "@/components/ui/icons"
 import { intl } from "@/i18n/intl"
+import { cn } from "@/lib/utils"
 
 import { useSelection } from "../selection/use-selection"
-import type { ModelCapability } from "./api"
-import { capabilityLabel } from "./capability-label"
+import { chatLine, studioLine, testedLine } from "./capability-lines"
 
 /**
- * What the chat model in use is measured to do, under the model in use: the
- * level, its evidence, and the mode its new chats start in.
+ * What the chat model in use does in SurfSense, under the model in use: closed
+ * until asked, so a rating never reads as a verdict beside the model's name.
  */
 export function ModelCapabilitySummary() {
   const selection = useSelection("text_gen")
   const capability = selection.data?.capability
-  // Dev builds only, like the model picker's level badge.
-  if (!import.meta.env.DEV || !capability) return null
-  // Listed at the agent level without a run: said once, never as a pass.
-  const assumed = capability.measured?.assumed === true
+  const [open, setOpen] = useState(false)
+  const regionId = useId()
+  if (!capability) return null
+
+  const title = intl.formatMessage({
+    id: "models_capability_toggle_button",
+    defaultMessage: "What this model can do",
+  })
+  const rows = [
+    {
+      label: intl.formatMessage({
+        id: "models_capability_chat_label",
+        defaultMessage: "Chat",
+      }),
+      line: chatLine(capability),
+    },
+    {
+      label: intl.formatMessage({
+        id: "models_capability_studio_label",
+        defaultMessage: "Studio",
+      }),
+      line: studioLine(capability),
+    },
+  ]
 
   return (
-    <section
-      aria-label={intl.formatMessage({
-        id: "models_capability_summary_aria",
-        defaultMessage: "What this chat model can do",
-      })}
-      className="flex flex-col gap-1.5 rounded-lg border px-3 py-2.5 text-sm"
-    >
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge
-          variant={
-            capability.level === "studio_only" ||
-            capability.level === "not_measured"
-              ? "outline"
-              : "secondary"
-          }
+    // Close under the In use row, inside the settings list's wider gap.
+    <div className="-mt-3 flex flex-col gap-2 text-sm">
+      <Button
+        type="button"
+        variant="bare"
+        aria-expanded={open}
+        aria-controls={regionId}
+        onClick={() => setOpen((value) => !value)}
+        className="-ml-1 flex w-fit items-center gap-1.5 rounded-md px-1 py-0.5 text-muted-foreground hover:text-foreground focus-visible:ring-2"
+      >
+        <ChevronDownIcon
+          className={cn(
+            "size-4 transition-transform duration-150 motion-reduce:transition-none",
+            !open && "-rotate-90"
+          )}
+        />
+        {title}
+      </Button>
+      {open ? (
+        <section
+          id={regionId}
+          aria-label={title}
+          className="flex flex-col gap-3 pl-6"
         >
-          {capabilityLabel(capability.level)}
-        </Badge>
-        <span className="text-muted-foreground">
-          {assumed
-            ? intl.formatMessage({
-                id: "models_capability_assumed_body",
-                defaultMessage:
-                  "Not run: SurfSense expects this expensive flagship model to pass.",
-              })
-            : intl.formatMessage(
-                {
-                  id: "models_capability_level_body",
-                  defaultMessage:
-                    "{level, select, agent {Passed SurfSense’s Agentic tests.} agent_limited {Near the bar in SurfSense’s Agentic tests: it may need a nudge, such as asking it to check each page.} studio_only {Below the bar in SurfSense’s Agentic tests, so Studio writes Word and PDF from Markdown.} other {Not tested for Agentic mode yet.}}",
-                },
-                { level: capability.level }
-              )}
-        </span>
-      </div>
-      {assumed ? null : <Evidence capability={capability} />}
-      {capability.note && !assumed ? (
-        <p className="text-muted-foreground">{capability.note}</p>
+          <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1.5">
+            {rows.map((row) => (
+              <div key={row.label} className="contents">
+                <dt className="text-muted-foreground">{row.label}</dt>
+                <dd>{row.line}</dd>
+              </div>
+            ))}
+          </dl>
+          <p className="text-xs text-muted-foreground">
+            {testedLine(capability)}
+          </p>
+        </section>
       ) : null}
-      <Modes capability={capability} />
-    </section>
-  )
-}
-
-function Evidence({ capability }: { capability: ModelCapability }) {
-  const measured = capability.measured
-  if (measured) {
-    return (
-      <p className="text-muted-foreground">
-        {intl.formatMessage(
-          {
-            id: "models_capability_evidence_body",
-            defaultMessage:
-              "Passed {passed, number} of {counted, number} cases in SurfSense’s tests on {date, date, ::yyyyMMMd}.",
-          },
-          {
-            passed: measured.passed,
-            counted: measured.counted,
-            // Noon UTC, so the day reads the same in every time zone.
-            date: new Date(`${measured.measured_on}T12:00:00Z`),
-          }
-        )}
-        {measured.provisional
-          ? ` ${intl.formatMessage({
-              id: "models_capability_provisional_body",
-              defaultMessage: "Provisional: one run per case so far.",
-            })}`
-          : null}
-      </p>
-    )
-  }
-  return (
-    <p className="text-muted-foreground">
-      {intl.formatMessage(
-        {
-          id: "models_capability_not_measured_body",
-          defaultMessage:
-            "{code, select, measured_elsewhere {SurfSense measured this model through {host}, not on a computer of your own.} alias {A name ending in “latest” can point to a new model, so it is never counted as measured.} other {SurfSense has not measured this model.}}",
-        },
-        {
-          code: capability.reason.code,
-          host: String(capability.reason.values.host ?? ""),
-        }
-      )}
-    </p>
-  )
-}
-
-function Modes({ capability }: { capability: ModelCapability }) {
-  const { modes } = capability
-  return (
-    <div className="flex flex-col gap-1 pt-1">
-      <p>
-        {intl.formatMessage(
-          {
-            id: "models_capability_default_mode_body",
-            defaultMessage:
-              "{mode, select, agentic {New chats start in Agentic mode.} other {New chats start in Basic (Q&A) mode.}}",
-          },
-          { mode: modes.default_mode }
-        )}
-      </p>
-      <p className="text-muted-foreground">
-        {modes.agentic_allowed
-          ? intl.formatMessage({
-              id: "models_capability_modes_body",
-              defaultMessage:
-                "Choose Basic (Q&A) or Agentic for each new chat in the composer. A chat keeps the mode it started in.",
-            })
-          : intl.formatMessage(
-              {
-                id: "models_capability_agentic_blocked_body",
-                defaultMessage:
-                  "{blocked, select, agent_not_installed {Agentic mode isn’t available: this install doesn’t include the agent.} window_below_floor {Agentic mode isn’t available: it needs a context window of at least 32,768 tokens, and this model has less.} other {Agentic mode isn’t available: this model can’t use tools.}}",
-              },
-              { blocked: modes.blocked ?? "" }
-            )}
-      </p>
     </div>
   )
 }

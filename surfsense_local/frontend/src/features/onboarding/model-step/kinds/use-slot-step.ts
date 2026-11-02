@@ -1,3 +1,4 @@
+import { toastUseFailure } from "@/features/models/selection/toast-use-failure"
 import { useSelect } from "@/features/models/selection/use-selection"
 
 import { LOCAL_PROVIDER, type OnboardingSlot } from "./slot"
@@ -19,9 +20,8 @@ export function useSlotStep(slot: OnboardingSlot): StepModels {
             name,
           },
         })
-        .catch(() => undefined),
+        .catch(toastUseFailure),
     choosing: select.isPending,
-    chooseError: select.isError ? select.error : null,
     install: { select: true, modelType: slot },
     value: null,
   }

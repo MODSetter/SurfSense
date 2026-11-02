@@ -6,10 +6,12 @@ from zipfile import ZipFile
 import pytest
 
 from modules.documents.storage import (
+    MAX_ARCHIVE_ENTRIES,
     SUPPORTED_UPLOAD_SUFFIXES,
     UPLOAD_MIME_BY_SUFFIX,
     validate_upload,
 )
+from tests import kindle_samples
 
 pytestmark = pytest.mark.unit
 
@@ -21,6 +23,9 @@ def test_the_public_allowlist_is_deliberately_small() -> None:
         ".docx",
         ".pptx",
         ".xlsx",
+        ".epub",
+        ".mobi",
+        ".azw3",
         ".html",
         ".htm",
         ".csv",
@@ -99,6 +104,105 @@ def test_ooxml_container_must_match_its_extension(
     wrong_suffix = ".pptx" if suffix == ".docx" else ".docx"
     with pytest.raises(ValueError, match="file contents do not match"):
         validate_upload(upload, wrong_suffix)
+
+
+def _epub(
+    path: Path, *, mimetype: str = "application/epub+zip", extra: int = 0
+) -> Path:
+    with ZipFile(path, "w") as archive:
+        archive.writestr("mimetype", mimetype)
+        archive.writestr("META-INF/container.xml", "<container />")
+        for index in range(extra):
+            archive.writestr(f"OEBPS/{index}.xhtml", "")
+    return path
+
+
+def test_an_epub_names_its_media_type_first(tmp_path: Path) -> None:
+    """The EPUB spec's mimetype entry tells a book from any other ZIP."""
+    book = _epub(tmp_path / "book.epub")
+    assert validate_upload(book, ".epub") == "application/epub+zip"
+
+    renamed = _epub(tmp_path / "renamed.epub", mimetype="application/zip")
+    with pytest.raises(ValueError, match="file contents do not match"):
+        validate_upload(renamed, ".epub")
+
+    word = tmp_path / "word.epub"
+    with ZipFile(word, "w") as archive:
+        archive.writestr("[Content_Types].xml", "<Types />")
+        archive.writestr("word/document.xml", "<document />")
+    with pytest.raises(ValueError, match="file contents do not match"):
+        validate_upload(word, ".epub")
+
+
+def test_an_epub_keeps_the_archive_limits(tmp_path: Path) -> None:
+    """A book is a ZIP, so it gets the same guard against a ZIP bomb as Office files."""
+    book = _epub(tmp_path / "bomb.epub", extra=MAX_ARCHIVE_ENTRIES)
+
+    with pytest.raises(ValueError, match="file contents do not match"):
+        validate_upload(book, ".epub")
+
+
+@pytest.mark.parametrize(
+    ("suffix", "mime"),
+    [
+        (".mobi", "application/x-mobipocket-ebook"),
+        (".azw3", "application/vnd.amazon.mobi8-ebook"),
+    ],
+)
+def test_a_kindle_book_is_accepted_by_its_header(
+    tmp_path: Path, suffix: str, mime: str
+) -> None:
+    """Either name holds the same container; the reader picks the part inside."""
+    book = tmp_path / f"book{suffix}"
+    book.write_bytes(kindle_samples.mobi("<p>Call me Ishmael.</p>"))
+
+    assert validate_upload(book, suffix) == mime
+
+
+def test_a_kf8_only_azw3_is_accepted_on_upload(tmp_path: Path) -> None:
+    """calibre's AZW3 holds only the KF8 part, whose header is version 8."""
+    book = tmp_path / "novel.azw3"
+    book.write_bytes(kindle_samples.azw3([["<p>Call me Ishmael.</p>"]]))
+
+    assert validate_upload(book, ".azw3") == "application/vnd.amazon.mobi8-ebook"
+
+
+def test_a_kindle_book_whose_name_starts_like_kfx_is_accepted(tmp_path: Path) -> None:
+    """A Palm database opens with the book's name; "CONTACT" is not KFX's CONT."""
+    book = tmp_path / "contact.mobi"
+    book.write_bytes(b"CONTACT\0" + kindle_samples.mobi("<p>Ellie.</p>")[8:])
+
+    assert validate_upload(book, ".mobi") == "application/x-mobipocket-ebook"
+
+
+def test_a_kindle_book_with_drm_is_refused_on_upload(tmp_path: Path) -> None:
+    """Most Kindle Store books are locked; say so at once, not after a failed ingest."""
+    book = tmp_path / "bought.azw3"
+    book.write_bytes(kindle_samples.mobi("<p>Locked.</p>", encryption=2))
+
+    with pytest.raises(ValueError, match="DRM"):
+        validate_upload(book, ".azw3")
+
+
+@pytest.mark.parametrize(
+    ("content", "reason"),
+    [
+        # Amazon's newer KFX books, often saved under an .azw3 name.
+        (b"\xeaDRMION\xee" + bytes(200), "KFX"),
+        (b"CONT\x02\x00" + bytes(200), "KFX"),
+        (b"PK\x03\x04" + bytes(200), "file contents do not match"),
+    ],
+    ids=["kfx-with-drm", "kfx", "zip"],
+)
+def test_what_is_not_a_kindle_book_is_refused(
+    tmp_path: Path, content: bytes, reason: str
+) -> None:
+    """KFX gets its own reason; anything else is not the book it is named."""
+    book = tmp_path / "book.azw3"
+    book.write_bytes(content)
+
+    with pytest.raises(ValueError, match=reason):
+        validate_upload(book, ".azw3")
 
 
 # Made with ffmpeg from a 440 Hz tone, stereo at 44.1 kHz, under a second long.

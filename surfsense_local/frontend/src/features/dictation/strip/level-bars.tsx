@@ -9,7 +9,6 @@ const BARS = 9
 const QUIET_DB = -60
 const LOUD_DB = -20
 const CURVE = 0.7
-const ARMING_HEIGHTS = [4, 6, 8, 10, 12, 10, 8, 6, 4]
 
 function barHeight(level: number): number {
   const db = 20 * Math.log10(Math.max(level, 1e-6))
@@ -18,16 +17,10 @@ function barHeight(level: number): number {
 }
 
 /**
- * The last 9 frames' levels, newest on the right. Muted and pulsing while the
- * device starts; hidden under reduced motion, where the dot beside it stays still.
+ * The last 9 frames' levels, newest on the right. Hidden under reduced motion,
+ * where the running timer beside it says it records.
  */
-export function LevelBars({
-  dictation,
-  arming,
-}: {
-  dictation: Dictation
-  arming: boolean
-}) {
+export function LevelBars({ dictation }: { dictation: Dictation }) {
   const [levels, setLevels] = useState<number[]>(() =>
     new Array<number>(BARS).fill(0)
   )
@@ -44,19 +37,16 @@ export function LevelBars({
     <span
       aria-hidden="true"
       className={cn(
-        "flex h-4 shrink-0 items-center gap-0.5 motion-reduce:hidden",
-        arming ? "animate-pulse text-muted-foreground/60" : "text-foreground/70"
+        "flex h-4 shrink-0 items-center gap-0.5 text-foreground/70 motion-reduce:hidden"
       )}
     >
-      {(arming ? ARMING_HEIGHTS : levels.map(barHeight)).map(
-        (height, index) => (
-          <span
-            key={index}
-            className="w-0.5 rounded-full bg-current transition-[height] duration-75"
-            style={{ height }}
-          />
-        )
-      )}
+      {levels.map(barHeight).map((height, index) => (
+        <span
+          key={index}
+          className="w-0.5 rounded-full bg-current transition-[height] duration-75"
+          style={{ height }}
+        />
+      ))}
     </span>
   )
 }

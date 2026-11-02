@@ -1,3 +1,4 @@
+import { IN_CONTAINER } from "@/app/in-container"
 import { siteVisitUrl } from "@/features/external-links/site-visit-url"
 
 // Each must pass electron/src/main/external-url.ts, or the click does nothing.
@@ -16,9 +17,18 @@ export function releaseNotesUrl(version: string): string {
   return `${REPO_URL}/releases/tag/v${version}`
 }
 
-// `what` is a field id in .github/ISSUE_TEMPLATE/bug.yml; GitHub prefills it, and `title`.
+// The "Which part?" answer in .github/ISSUE_TEMPLATE/bug.yml, filled in so the reporter need not pick it.
+function reportArea(): string {
+  return IN_CONTAINER ? "Docker" : "Desktop app"
+}
+
+// `what` and `area` are field ids in .github/ISSUE_TEMPLATE/bug.yml; GitHub prefills them, and `title`.
 export function bugReportUrl(what: string, title?: string): string {
-  const params = new URLSearchParams({ template: "bug.yml", what })
+  const params = new URLSearchParams({
+    template: "bug.yml",
+    area: reportArea(),
+    what,
+  })
   if (title) params.set("title", title)
   return `${REPO_URL}/issues/new?${params}`
 }

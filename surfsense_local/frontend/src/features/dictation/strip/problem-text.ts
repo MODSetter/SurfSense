@@ -12,6 +12,14 @@ export function isNotice(problem: DictationProblem): boolean {
   return problem.kind === "at_limit" || problem.kind === "time_limit"
 }
 
+/** True until something outside the app changes, so the mic says it rather than a passing toast. */
+export function isLasting(problem: DictationProblem): boolean {
+  return (
+    problem.kind === "no_microphone" ||
+    problem.kind === "needs_secure_connection"
+  )
+}
+
 /** Only Windows and macOS have a microphone switch the app can open. */
 function systemHasMicrophoneSettings(): boolean {
   const bridge = window.surfsense
@@ -67,6 +75,12 @@ export function problemText(problem: DictationProblem): string {
       return intl.formatMessage({
         id: "dictation_strip_microphone_failed_error",
         defaultMessage: "The microphone couldn’t start.",
+      })
+    case "needs_secure_connection":
+      return intl.formatMessage({
+        id: "dictation_strip_needs_secure_connection_error",
+        defaultMessage:
+          "Your browser allows the microphone only over HTTPS, or on the computer running SurfSense.",
       })
     case "microphone_disconnected":
       return intl.formatMessage({

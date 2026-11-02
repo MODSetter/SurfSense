@@ -54,6 +54,14 @@ SurfSense — бесплатное настольное приложение с 
 | **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
 | **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
 
+**Разверните на своём сервере** с Docker и открывайте с любого устройства в вашей сети. Чтобы обновить, запустите ту же команду ещё раз.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
+```
+
+В Windows с Docker Desktop: `irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 | iex`
+
 ## Быстрый старт
 
 1. Установите SurfSense и пройдите первоначальную настройку.
@@ -69,9 +77,10 @@ SurfSense — бесплатное настольное приложение с 
 | **Excel** `.xlsx` | ✓ агент читает и формулы | ✓ с формулами и нативными диаграммами | ✓ значения ячеек и формулы | Анализ в pandas, диаграммы по результатам |
 | **PowerPoint** `.pptx` | ✓ | ✓ или на основе вашего `.pptx` как шаблона | Замена текста на слайдах и в заметках; удаление и дублирование слайдов | В PDF¹ |
 | **CSV** | ✓ | — | — | Анализ в pandas, диаграммы по результатам |
-| **Изображения** PNG, JPEG, TIFF, BMP, WebP | ✓ текст распознаётся через OCR³ | Изображения и инфографика² | — | Вставка в новые документы |
+| **Изображения** PNG, JPEG, TIFF, BMP, WebP | ✓ текст распознаётся через OCR³ | Изображения и инфографика, с правкой по инструкции² | — | Вставка в новые документы |
 | **Markdown**, обычный текст | ✓ | ✓ Markdown | — | — |
 | **HTML** | ✓ | ✓ веб-страница | — | — |
+| **Книги** EPUB, MOBI, AZW3 | ✓ без DRM | — | — | — |
 | **Аудиозаписи** WAV, MP3, FLAC, Ogg Vorbis | ✓ расшифровываются на вашем компьютере | — | — | — |
 | **Подкаст** (аудио) | — | ✓ с расшифровкой, по умолчанию озвучивается на вашем компьютере | — | — |
 | **Интеллект-карты, карточки, тесты** | — | ✓ в приложении | — | — |

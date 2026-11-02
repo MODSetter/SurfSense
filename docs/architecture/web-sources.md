@@ -33,7 +33,7 @@ The link alone decides which plugin pulls it, whether it was pasted or picked fr
 
 | Puller | Takes as one source | Tool calls | Opens as a list |
 |---|---|---|---|
-| YouTube | `watch?v=`, `youtu.be`, `/shorts/`, `/embed/`, `/v/` | `scrape` with `download_subtitles`; `comments`, 100, top first, optional | channels, playlists, hashtags, searches, with `scrape` and `max_results` |
+| YouTube | `watch?v=`, `youtu.be`, `/shorts/`, `/embed/`, `/v/`, `/live/` (sent as its `watch?v=`) | `scrape` with `download_subtitles`; `comments`, 100, top first, optional | channels, playlists, hashtags, searches, with `scrape` and `max_results` |
 | TikTok | `/@user/video/<id>` | `scrape`; `comments`, 100, optional | profiles, hashtags, searches; `vm.` and `vt.tiktok.com` are short links |
 | Google Maps | `/maps/place/`, `?cid=`, `maps.app.goo.gl` | `scrape` with `include_details` and `max_reviews` 100 | searches, with `max_places` |
 | Amazon | `/dp/`, `/gp/product/`, `?asin=`, `a.co`, `amzn.to`, `amzn.eu` | `scrape` with `include_details` | searches, categories, best sellers, as cards without details |
@@ -84,7 +84,6 @@ A pull that fails marks the note `failed` with a sentence the panel shows:
 - **Instagram stops at what a logged-out visitor sees.** A profile lists its latest 12 posts with no Show more, and a post comes without its comments ([plugin host](plugin-host.md#known-gaps)).
 - **Amazon reviews.** An Amazon source holds only the reviews on the product page: the plugin takes no count of them.
 - **Transcript language.** The YouTube pull asks the plugin for English subtitles, its default, so a video without an English track, such as a French one, has no transcript. The source should hold the original-language transcript: a person-written track in the spoken language, else the auto-generated one, never a translation. That needs an `original` mode in the YouTube plugin (`subtitles_language`), with no translation call for it. The plugin host must ship that mode before the app sends it.
-- **YouTube live links.** A `/live/<id>` link is opened as a list, which the plugin cannot read, so its group comes back failed.
 - **List pages cost more each time.** Page 2 of a list reads 60 items to show the last 20, since plugins take a count, not an offset. A list that changes between pages shifts: the dialog drops an item it already shows, but an item that moved back past a page is never shown. Plugins that take the site's own next-page token would fix both.
 - **Site searches use the plugins' defaults.** Amazon searches its US store and Indeed its US site, since only the query is sent. A place belongs in the query, "cafes in Kinshasa"; there is no region or place field.
 - **No refresh.** A source cannot be refreshed from its link.

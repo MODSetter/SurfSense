@@ -18,7 +18,7 @@ from shared.db import create_db_engine, create_session_factory
 from shared.migrations import upgrade_to_head
 from shared.queue import ingest_queue
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.image]
 
 BACKEND = Path(__file__).resolve().parents[3]
 # The queue opens its file at import, so the worker has to be handed the same

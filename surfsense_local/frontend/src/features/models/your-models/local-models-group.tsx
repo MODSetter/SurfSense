@@ -3,6 +3,8 @@ import { useId, useState, type ReactNode } from "react"
 import { Button } from "@/components/ui/button"
 import { intl } from "@/i18n/intl"
 
+import { toastUseFailure } from "../selection/toast-use-failure"
+
 import { DeleteModelDialog } from "./delete-model-dialog"
 import { ModelRow } from "./model-row"
 import type { YourModelRow } from "./your-model-row"
@@ -34,20 +36,13 @@ export function LocalModelsGroup({
 }) {
   const headingId = useId()
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<YourModelRow | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const run = (action: () => Promise<unknown>) => {
     setBusy(true)
-    setError(null)
-    return action()
-      .catch((cause: unknown) => {
-        setError(messageFrom(cause))
-        throw cause
-      })
-      .finally(() => setBusy(false))
+    return action().finally(() => setBusy(false))
   }
 
   const confirmDelete = () => {
@@ -101,7 +96,7 @@ export function LocalModelsGroup({
               key={row.key}
               row={row}
               disabled={busy}
-              onUse={() => void run(() => onUse(row)).catch(() => undefined)}
+              onUse={() => void run(() => onUse(row)).catch(toastUseFailure)}
               onDelete={() => {
                 setDeleteError(null)
                 setDeleting(row)
@@ -111,12 +106,6 @@ export function LocalModelsGroup({
           ))}
         </ul>
       )}
-
-      {error && deleting === null ? (
-        <p className="text-sm text-destructive" role="alert">
-          {error}
-        </p>
-      ) : null}
 
       <DeleteModelDialog
         open={deleteOpen}

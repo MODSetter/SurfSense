@@ -360,7 +360,27 @@ async def test_a_document_longer_than_the_models_window_is_refused_with_a_reason
     response = await _refine(client, session, first.id, "Make it shorter")
 
     assert response.status_code == 409
-    assert "too long for Qwen3-4B" in response.json()["detail"]
+    detail = response.json()["detail"]
+    # The sentence, and beside it the numbers it is made of, raw, for the
+    # interface to format in its own language.
+    assert detail["code"] == "rewrite_too_long"
+    assert detail["model"] == "Qwen3-4B"
+    assert detail["window_tokens"] == 1_000
+    assert detail["needed_tokens"] > 1_000
+    assert 0 < detail["spec_tokens"] < detail["needed_tokens"]
+    assert detail["message"] == (
+        "This document is too long for Qwen3-4B to rewrite in one go: it is about "
+        f"{detail['spec_tokens']:,} tokens, and reading it and writing it again needs "
+        f"about {detail['needed_tokens']:,} of the model's 1,000-token window."
+    )
+    assert set(detail) == {
+        "message",
+        "code",
+        "model",
+        "spec_tokens",
+        "needed_tokens",
+        "window_tokens",
+    }
     assert _count(session) == before
     assert studio_queue.pending_count() == 0
 
@@ -493,7 +513,10 @@ async def test_the_figures_listed_in_the_prompt_count_against_the_window(
     response = await _refine(client, session, first.id, "Make it shorter")
 
     assert response.status_code == 409, response.text
-    assert "too long for Qwen3-4B" in response.json()["detail"]
+    detail = response.json()["detail"]
+    assert detail["code"] == "rewrite_too_long"
+    assert "too long for Qwen3-4B" in detail["message"]
+    assert detail["window_tokens"] == 4_000
     assert _count(session) == before
 
 
@@ -540,7 +563,10 @@ async def test_regenerating_a_refined_version_is_refused_when_it_no_longer_fits(
     retried = await client.post(f"/artifacts/{second_id}/regenerate")
 
     assert retried.status_code == 409
-    assert "too long for Qwen3-4B" in retried.json()["detail"]
+    detail = retried.json()["detail"]
+    assert detail["code"] == "rewrite_too_long"
+    assert "too long for Qwen3-4B" in detail["message"]
+    assert detail["window_tokens"] == 1_000
     session.expire_all()
     assert session.get(Artifact, second_id).document.status is DocumentStatus.FAILED
     assert studio_queue.pending_count() == 0

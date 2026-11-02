@@ -26,9 +26,17 @@ BULK_UPLOAD_FILES = 20
 def ingest_document(document_id: int, task: Any = None) -> None:
     """Parse, chunk, embed and index one document."""
     # Lazy: the body pulls in Docling and torch, which the API never needs.
-    from worker.ingestion import run
-    from worker.ingestion.audio.failures import RecordingRefusedError
-    from worker.ingestion.parsing import UnreadableFileError
+    try:
+        from worker.ingestion import run
+        from worker.ingestion.audio.failures import RecordingRefusedError
+        from worker.ingestion.parsing import UnreadableFileError
+    except ImportError as unloadable:
+        # A native module the OS refused, as Smart App Control refuses one that
+        # is unsigned: every retry would be refused alike.
+        from worker.unloadable_ingest import fail_unloadable_ingest
+
+        fail_unloadable_ingest(document_id, unloadable)
+        raise CancelExecution(retry=False) from unloadable
 
     try:
         run(document_id, PRIORITY_ASKED if task is None else task.priority)

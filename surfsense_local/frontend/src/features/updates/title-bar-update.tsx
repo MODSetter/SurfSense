@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState, type ReactNode } from "react"
 
 import { Button } from "@/components/ui/button"
-import { ArrowDown02Icon } from "@/components/ui/icons"
+import { DownloadRing } from "@/components/ui/download-ring"
+import { ArrowDown02Icon, CircleArrowUp02Icon } from "@/components/ui/icons"
 import { Spinner } from "@/components/ui/spinner"
+import { usePrivacyState } from "@/features/privacy-choices/use-privacy-state"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
-import { DownloadRing } from "./download-ring"
+import { useReportedCheck } from "./use-reported-check"
 import { updatesBridge, useUpdateState } from "./use-update-state"
 
 // A 20px circle that widens leftwards to show its label on hover or focus.
@@ -17,6 +19,13 @@ const PILL =
 // Fades in while sliding out from behind the icon.
 const LABEL =
   "translate-x-2 ps-2 pe-0.5 text-[11px] leading-4 font-medium whitespace-nowrap text-notice opacity-0 transition-[opacity,translate] duration-150 ease-out group-hover:translate-x-0 group-hover:opacity-100 group-focus-visible:translate-x-0 group-focus-visible:opacity-100 motion-reduce:translate-x-0 motion-reduce:transition-none"
+
+// Until an update is found, the pill stays as quiet as the title bar around it.
+const QUIET_PILL = cn(
+  PILL,
+  "outline-none hover:bg-muted focus-visible:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
+)
+const QUIET_LABEL = cn(LABEL, "text-muted-foreground")
 
 // Long enough for the quit to begin; if it was cancelled, the pill comes back.
 const RESTART_SETTLE_MS = 3000
@@ -31,11 +40,13 @@ function Slot({ children }: { children: ReactNode }) {
 
 /**
  * Beside the right-panel toggle, the one place updates show outside Settings:
- * a download's progress, then the restart into it. Nothing otherwise, so the
- * title bar keeps no space for it.
+ * a check, a download's progress, then the restart into it. Where a policy or
+ * a package manager owns updates there is nothing to check, so it keeps no space.
  */
 export function TitleBarUpdate() {
   const state = useUpdateState()
+  const check = useReportedCheck()
+  const { state: privacy } = usePrivacyState()
   const [restarting, setRestarting] = useState(false)
   const settle = useRef<number | undefined>(undefined)
   useEffect(() => () => window.clearTimeout(settle.current), [])
@@ -83,7 +94,64 @@ export function TitleBarUpdate() {
     )
   }
 
-  if (state.status !== "ready") return null
+  // Privacy is undefined while it is read, so a locked install never shows a
+  // check, even briefly. Docker and a bare browser have no updater to check.
+  const checkable =
+    Boolean(updatesBridge()) &&
+    privacy !== undefined &&
+    !privacy?.updates.locked
+  if (state.status !== "ready" && !checkable) return null
+
+  if (state.status === "checking")
+    return (
+      <div
+        role="status"
+        tabIndex={0}
+        aria-label={intl.formatMessage({
+          id: "updates_title_bar_checking_aria",
+          defaultMessage: "Checking for updates",
+        })}
+        className={QUIET_PILL}
+      >
+        <span className={QUIET_LABEL}>
+          {intl.formatMessage({
+            id: "updates_title_bar_checking_label",
+            defaultMessage: "Checking…",
+          })}
+        </span>
+        <Slot>
+          <Spinner
+            aria-hidden="true"
+            className="size-3 text-muted-foreground"
+          />
+        </Slot>
+      </div>
+    )
+
+  if (state.status !== "ready")
+    return (
+      <Button
+        type="button"
+        variant="bare"
+        static
+        aria-label={intl.formatMessage({
+          id: "updates_title_bar_check_aria",
+          defaultMessage: "Check for updates",
+        })}
+        className={QUIET_PILL}
+        onClick={() => void check()}
+      >
+        <span className={QUIET_LABEL}>
+          {intl.formatMessage({
+            id: "updates_title_bar_check_label",
+            defaultMessage: "Check for updates",
+          })}
+        </span>
+        <Slot>
+          <CircleArrowUp02Icon className="size-3 text-muted-foreground" />
+        </Slot>
+      </Button>
+    )
   const { version } = state
   const restart = () => {
     setRestarting(true)

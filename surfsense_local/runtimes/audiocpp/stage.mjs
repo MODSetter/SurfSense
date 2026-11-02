@@ -7,7 +7,7 @@
 import { execFileSync } from "node:child_process"
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
-import { join } from "node:path"
+import { join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { verifyBuiltFamilies } from "./built-families.mjs"
@@ -22,7 +22,15 @@ import { copyServerFiles, SERVER } from "./server-files.mjs"
 import { stagedServer } from "./staged-server.mjs"
 import { unpackUpstream } from "./upstream-archive.mjs"
 
-const OUT = fileURLToPath(new URL("../../electron/audiocpp", import.meta.url))
+function option(name) {
+  const at = process.argv.indexOf(`--${name}`)
+  return at === -1 ? undefined : process.argv[at + 1]
+}
+
+// Without --out, the desktop's folder. Linux builds only for the CPU, so the
+// Docker image stages this same build (docs/proposals/docker-gpu.md).
+// Absolute: each stage runs its server by path with the stage as its working directory.
+const OUT = resolve(option("out") ?? fileURLToPath(new URL("../../electron/audiocpp", import.meta.url)))
 const HOSTS = ["darwin-arm64", "linux-x64", "win32-x64"]
 
 /** Prove the stage runs from its own directory and finds its CPU library. */
@@ -108,7 +116,7 @@ async function main() {
     return keep(`${OUT} is in use; quit SurfSense and run this again.`)
   }
   try {
-    mkdirSync(stage)
+    mkdirSync(stage, { recursive: true })
     if (process.platform !== "darwin") {
       console.log(`compiling audio.cpp ${TAG}; this runs once and takes a few minutes`)
     }

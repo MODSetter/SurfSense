@@ -299,15 +299,8 @@ describe("recordings in the sources panel", () => {
     const popover = await screen.findByRole("dialog", {
       name: "Set up speech recognition",
     })
-    expect(
-      await within(popover).findByRole("button", {
-        name: "Download and set up",
-      })
-    ).toBeTruthy()
-
-    await user.click(
-      within(popover).getByRole("button", { name: "More choices" })
-    )
+    // The model is chosen and downloaded in Settings, not here.
+    await user.click(within(popover).getByRole("button", { name: "Set up…" }))
     expect(onOpenSpeechSettings).toHaveBeenCalledOnce()
   })
 

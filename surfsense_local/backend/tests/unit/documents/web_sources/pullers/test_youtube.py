@@ -64,10 +64,15 @@ COMMENTS = [
 
 @pytest.mark.parametrize(
     "url",
-    [VIDEO, "https://youtu.be/tide1", "https://m.youtube.com/shorts/tide1"],
+    [
+        VIDEO,
+        "https://youtu.be/tide1",
+        "https://m.youtube.com/shorts/tide1",
+        "https://www.youtube.com/live/tide1?si=x",
+    ],
 )
 def test_a_video_is_one_source(url: str) -> None:
-    """A watch page, a short link, or a short."""
+    """A watch page, a short link, a short, or a live stream's link."""
     assert PULLER.fit(urlsplit(url)) == Fit.ONE
 
 
@@ -101,6 +106,13 @@ def test_the_video_comes_with_its_subtitles_and_its_top_comments() -> None:
             optional=True,
         ),
     ]
+
+
+def test_a_live_link_is_pulled_as_its_watch_page() -> None:
+    """The plugin reads no `/live/` link, so it is asked for the same video's watch page."""
+    calls = PULLER.calls("https://www.youtube.com/live/tide1?si=x")
+
+    assert [call.arguments["urls"] for call in calls] == [[VIDEO], [VIDEO]]
 
 
 def test_a_video_is_written_with_its_transcript_and_comments() -> None:

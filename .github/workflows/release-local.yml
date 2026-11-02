@@ -372,6 +372,18 @@ jobs:
           "$BIN" --check-retrieval-runtime
           "$BIN" --check-vision-runtime
 
+      # On a tag, electron-builder's afterPack hook signed this copy's libraries
+      # (electron/scripts/windows-signing/), so every extension is imported again
+      # from it: a library a signature broke fails the build, so the release stays
+      # a draft (RELEASE.md). A dry run's copy is unsigned; this repeats the frozen check.
+      - name: Import every native extension of the packaged backend (Windows)
+        if: runner.os == 'Windows'
+        working-directory: surfsense_local/backend
+        # addopts pins -m 'not packaging'; the later -m on the command line wins.
+        run: |
+          SURFSENSE_TEST_FROZEN_BACKEND=../electron/release/win-unpacked/resources/backend/surfsense-backend.exe \
+            uv run pytest tests/packaging/test_frozen_native_extensions.py -m packaging
+
       - name: Smoke the frozen API (Linux)
         if: matrix.os == 'ubuntu-22.04'
         run: |

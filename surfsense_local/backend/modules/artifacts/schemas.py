@@ -7,6 +7,7 @@ from modules.artifacts.flashcard_progress import (
     read_flashcard_count,
     sanitize_flashcard_state,
 )
+from modules.artifacts.image_edits.editable import image_editable
 from modules.artifacts.models import Artifact, ArtifactFileRole
 from modules.artifacts.quiz_progress import read_quiz_questions, sanitize_quiz_state
 from modules.artifacts.revised_copies.revision import revision_of
@@ -35,7 +36,8 @@ class StudioJobCreate(BaseModel):
 
 
 class RefineRequest(BaseModel):
-    """What to change in a Word document, a PDF or a written web page; the whole spec is rewritten for it."""
+    """What to change in a Word document, a PDF or a written web page, whose whole
+    spec is rewritten for it; or in an image or infographic, sent to its edit model."""
 
     instruction: Annotated[
         str, StringConstraints(strip_whitespace=True, min_length=1, max_length=2000)
@@ -160,6 +162,8 @@ class ArtifactRead(BaseModel):
     spec_kind: SpecKind | None = None
     # Whether Refine may rewrite this version: a ready Word or PDF Studio made, or a web page a model wrote there.
     refinable: bool = False
+    # Whether the Edit box may change this version's picture: a ready image or infographic.
+    image_editable: bool = False
 
     @classmethod
     def of(cls, artifact: Artifact) -> "ArtifactRead":
@@ -177,6 +181,7 @@ class ArtifactRead(BaseModel):
             version=_version(artifact),
             spec_kind=shown_spec_kind(artifact.artifact_metadata),
             refinable=_refinable(artifact),
+            image_editable=image_editable(artifact),
         )
 
 

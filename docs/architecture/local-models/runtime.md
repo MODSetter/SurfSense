@@ -493,7 +493,13 @@ The rest of the installer is in [`../packaging.md`](../packaging.md).
 - **Runtime missing or crashed.** The catalog still renders, because it comes
   from the manifest and the disk. A selected remote connection still answers,
   because resolving it never touches the sidecar. An install still downloads and
-  ends with "Downloaded. It becomes available once the runtime restarts."
+  ends with "Downloaded. It becomes available once the runtime restarts.", and
+  one asked to select the model, as onboarding's are, ends the same way without
+  choosing it ([`steps.py`](../../../surfsense_local/backend/modules/llm/catalog/local/install_jobs/steps.py)).
+  Choosing a local model answers `503` `local_runtime_unavailable`
+  ([`selection.py`](../../../surfsense_local/backend/modules/llm/selection.py)),
+  which onboarding and Settings show as a toast with Report issue
+  ([`toast-use-failure.ts`](../../../surfsense_local/frontend/src/features/models/selection/toast-use-failure.ts)).
 - **No Vulkan loader.** `dlopen` fails, ggml skips the backend silently, and the
   CPU runs. The `.deb` recommends `libvulkan1` and the `.rpm` `vulkan-loader`,
   so apt and dnf install the loader by default, and the snap stages it; a user

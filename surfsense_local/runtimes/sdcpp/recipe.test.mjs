@@ -77,3 +77,16 @@ test("darwin: finds its library beside the server", () => {
   assert.equal(defs.get("CMAKE_BUILD_WITH_INSTALL_RPATH"), "ON")
   assert.equal(defs.get("CMAKE_INSTALL_RPATH"), "@loader_path")
 })
+
+test("linux cpu, the Docker image's variant: no Vulkan, the same per-CPU modules", () => {
+  const defs = definitions(configureArgs("linux", "cpu"))
+  // Neither the Vulkan SDK to build it nor a loader to run it.
+  assert.equal(defs.get("SD_VULKAN"), undefined)
+  assert.equal(defs.get("GGML_CPU_ALL_VARIANTS"), "ON")
+  assert.equal(defs.get("GGML_BACKEND_DL"), "ON")
+  assert.equal(defs.get("SD_WEBM"), "ON")
+})
+
+test("an unknown variant is refused rather than guessed", () => {
+  assert.throws(() => configureArgs("linux", "rocm"), /no sd.cpp variant/)
+})

@@ -30,7 +30,7 @@ import {
   writeFileSync,
 } from "node:fs"
 import { tmpdir } from "node:os"
-import { basename, dirname, join } from "node:path"
+import { basename, dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { stageLicences } from "./llamacpp/licences.mjs"
@@ -39,7 +39,6 @@ import { renameWhenUnlocked } from "./windows-locks/rename-when-unlocked.mjs"
 export const BUILD = "b11050"
 const BASE = `https://github.com/ggml-org/llama.cpp/releases/download/${BUILD}`
 const HERE = fileURLToPath(new URL(".", import.meta.url))
-const OUT = join(HERE, "..", "electron", "llamacpp")
 
 export const TARGETS = {
   "darwin-arm64": {
@@ -54,6 +53,29 @@ export const TARGETS = {
     asset: `llama-${BUILD}-bin-ubuntu-vulkan-x64.tar.gz`,
     sha256: "eba230a6c76dee7422d1851651d7c4634fb6a39aed57e524a3612e9ed2bd1d89", // pragma: allowlist secret
   },
+}
+
+// Builds a target takes besides the desktop's: the Docker image runs the CPU one,
+// which needs no Vulkan loader (docs/proposals/docker-gpu.md).
+export const VARIANTS = {
+  "linux-x64": {
+    cpu: {
+      asset: `llama-${BUILD}-bin-ubuntu-x64.tar.gz`,
+      sha256: "2fe91bda793e233c6ff306690f7285e32f0271c0c28974aa3c791497680da04d", // pragma: allowlist secret
+    },
+  },
+}
+
+/** The pinned build for a target, the desktop's unless a variant is named. */
+export function pinnedBuild(target, variant) {
+  const build = variant === undefined ? TARGETS[target] : VARIANTS[target]?.[variant]
+  if (!build) throw new Error(`no pinned llama.cpp ${BUILD} for ${target}${variant ? ` (${variant})` : ""}`)
+  return build
+}
+
+function option(name) {
+  const at = process.argv.indexOf(`--${name}`)
+  return at === -1 ? undefined : process.argv[at + 1]
 }
 
 const key = `${process.platform}-${process.arch}`
@@ -119,6 +141,17 @@ export function checkConfiguration() {
       throw new Error(`${target} must ship the Vulkan build, got ${config.asset}`)
     }
   }
+  // The Vulkan rule is the desktop's; a variant is pinned as strictly otherwise.
+  for (const [target, variants] of Object.entries(VARIANTS)) {
+    for (const [variant, config] of Object.entries(variants)) {
+      if (!config.asset.includes(`-${BUILD}-`)) {
+        throw new Error(`missing pinned ${BUILD} asset for ${target} (${variant})`)
+      }
+      if (!/^[0-9a-f]{64}$/.test(config.sha256)) {
+        throw new Error(`invalid SHA-256 for ${target} (${variant})`)
+      }
+    }
+  }
 }
 
 async function main() {
@@ -128,8 +161,11 @@ async function main() {
     return
   }
 
-  const target = TARGETS[key]
-  if (!target) throw new Error(`no bundled llama.cpp for ${key}`)
+  // With neither, the desktop's build for this host, into electron/llamacpp/.
+  const variant = option("variant")
+  // Absolute: each stage runs its server by path with the stage as its working directory.
+  const OUT = resolve(option("out") ?? join(HERE, "..", "electron", "llamacpp"))
+  const target = pinnedBuild(key, variant)
 
   if (existsSync(join(OUT, SERVER))) {
     console.log(`llama.cpp ${BUILD} already staged in ${OUT}`)

@@ -10,6 +10,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from modules.artifacts.models import Artifact
+from modules.artifacts.queued_job import queue_job
 from modules.artifacts.revised_copies.refusals import RevisedCopyRefusedError
 from modules.artifacts.revised_copies.revision import (
     REVISION_KEY,
@@ -22,7 +23,6 @@ from modules.artifacts.script_documents.version import (
     ArtifactVersion,
     next_version_number,
 )
-from modules.artifacts.tasks import studio_job
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.embedding.active import EmbeddingNotChosenError, require_active_index
 
@@ -150,8 +150,7 @@ def _create(
         "prompt": None,
         REVISION_KEY: revision,
     }
-    session.commit()
-    studio_job(artifact.id)
+    queue_job(session, artifact)
     logger.info(
         "studio: enqueued revised copy %s action=%s root=%s v%s",
         artifact.id,

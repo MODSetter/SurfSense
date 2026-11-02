@@ -4,6 +4,7 @@ from pydantic import BaseModel
 
 from modules.llm.capability.level import Level
 from modules.llm.capability.modes import ChatMode
+from modules.llm.capability.studio_output import StudioOutput
 
 
 class ReasonRead(BaseModel):
@@ -55,3 +56,6 @@ class CapabilityRead(BaseModel):
     note: str | None = None
     measured: MeasuredRead | None = None
     modes: ModesRead
+    # Whether Studio has the model write its own pages and Office files, or
+    # takes the simple path: what worker/studio decides with the same rule.
+    studio: StudioOutput

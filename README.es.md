@@ -55,6 +55,14 @@ SurfSense es una aplicación de escritorio gratuita y de código abierto para lo
 | **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
 | **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
 
+**Alójalo en tu propio servidor** con Docker y ábrelo desde cualquier dispositivo de tu red. Ejecuta el mismo comando de nuevo para actualizarlo.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
+```
+
+En Windows con Docker Desktop: `irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 | iex`
+
 ## Inicio rápido
 
 1. Instala SurfSense y completa la configuración inicial.
@@ -70,9 +78,10 @@ SurfSense es una aplicación de escritorio gratuita y de código abierto para lo
 | **Excel** `.xlsx` | ✓ el agente también lee las fórmulas | ✓ con fórmulas y gráficos nativos | ✓ valores de celda y fórmulas | Analizar con pandas y representar los resultados en gráficos |
 | **PowerPoint** `.pptx` | ✓ | ✓ o a partir de tu propio `.pptx` como plantilla | Reemplazar texto en diapositivas y notas; eliminar o duplicar diapositivas | A PDF¹ |
 | **CSV** | ✓ | — | — | Analizar con pandas y representar los resultados en gráficos |
-| **Imágenes** PNG, JPEG, TIFF, BMP, WebP | ✓ texto leído por OCR³ | Imágenes e infografías² | — | Insertar en documentos nuevos |
+| **Imágenes** PNG, JPEG, TIFF, BMP, WebP | ✓ texto leído por OCR³ | Imágenes e infografías, editables con una instrucción² | — | Insertar en documentos nuevos |
 | **Markdown**, texto sin formato | ✓ | ✓ Markdown | — | — |
 | **HTML** | ✓ | ✓ página web | — | — |
+| **Libros** EPUB, MOBI, AZW3 | ✓ sin DRM | — | — | — |
 | **Grabaciones** WAV, MP3, FLAC, Ogg Vorbis | ✓ transcritas en tu equipo | — | — | — |
 | **Podcast** (audio) | — | ✓ con transcripción; por defecto, la voz se genera en tu equipo | — | — |
 | **Mapas mentales, tarjetas didácticas, cuestionarios** | — | ✓ en la aplicación | — | — |
