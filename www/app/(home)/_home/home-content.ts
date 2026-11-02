@@ -197,8 +197,8 @@ export const FEATURES: {
 				body: "Google Search, Reddit, YouTube, Instagram, TikTok, Google Maps, Amazon, Walmart, Indeed and the open web.",
 			},
 			{
-				title: "Open by pull request",
-				body: "Our plugins are code in the public repo; anyone can list an MCP server in the registry.",
+				title: "Open to everyone",
+				body: "Every plugin is open source, and anyone can add their own MCP server to the registry.",
 			},
 		],
 		action: { label: "See the plugins", href: "/plugins" },
