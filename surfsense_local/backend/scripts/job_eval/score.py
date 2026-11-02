@@ -30,6 +30,7 @@ class RowScore:
     source: str
     codes: list[str]
     evidence: str
+    missing: str  # what the second check found the quote leaves out
 
 
 @dataclass
@@ -89,6 +90,7 @@ def score_case(case: Case, results: list[RowResult]) -> CaseScore:
                 source=result.source if result else "",
                 codes=list(result.codes) if result else ["UNREACHED"],
                 evidence=gold.evidence,
+                missing=result.missing if result else "",
             )
         )
     scored.dropdown_violations = sum(

@@ -114,7 +114,7 @@ class Model:
 def test_a_real_quote_that_does_not_settle_the_question_is_left_for_review(
     workbook, config
 ):
-    """The verified Yes stands; the Yes resting on an unrelated sentence becomes Needs review, with what is missing."""
+    """The verified Yes stands; the Yes resting on an unrelated sentence is asked again, then becomes Needs review with what is missing."""
     model = Model()
 
     filled = fill_workbook(workbook, [PLAN], config, model)
@@ -128,7 +128,8 @@ def test_a_real_quote_that_does_not_settle_the_question_is_left_for_review(
     )
     assert virtualization.codes == ["NOT_SUPPORTED", "NEEDS_REVIEW"]
     assert "virtualization" in filled.exceptions[0][4]
-    assert len(model.checks) == 2
+    # The refused answer is asked once more with the reason, and checked again.
+    assert len(model.checks) == 3
 
 
 def test_a_check_that_cannot_be_read_does_not_let_the_answer_through(workbook, config):

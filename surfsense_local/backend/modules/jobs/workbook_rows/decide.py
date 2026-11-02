@@ -72,14 +72,27 @@ def answer_row(
                 ),
                 earlier=asked,
             )
-    return _decided(
-        asked,
-        config,
-        row,
-        passages,
-        sources,
-        _verdict(model, config, row, asked, passages, sources),
-    )
+    verdict = _verdict(model, config, row, asked, passages, sources)
+    if verdict is not None and not verdict.supported:
+        # Right answer, wrong evidence is common: say what the check found, ask once more.
+        refused_answer = asked.draft.answer
+        asked.calls += 1
+        asked.input_tokens += verdict.input_tokens
+        asked.output_tokens += verdict.output_tokens
+        asked = ask_row(
+            model,
+            config,
+            row,
+            block,
+            repair=(
+                f"A check found your quote is not evidence for {refused_answer}: "
+                f"{verdict.missing} Quote, word for word, the passage that is evidence, "
+                f"or answer {config.fallback.answer} if no passage is."
+            ),
+            earlier=asked,
+        )
+        verdict = _verdict(model, config, row, asked, passages, sources)
+    return _decided(asked, config, row, passages, sources, verdict)
 
 
 def _verdict(
