@@ -36,6 +36,10 @@ const nextConfig: NextConfig = {
 			...installScriptRedirects,
 		];
 	},
+	async rewrites() {
+		// A docs page's Markdown sits at its URL plus `.mdx`.
+		return [{ source: "/docs/:path*.mdx", destination: "/llms.mdx/docs/:path*" }];
+	},
 	outputFileTracingRoot: path.join(import.meta.dirname, ".."),
 	reactStrictMode: false,
 	typescript: {
