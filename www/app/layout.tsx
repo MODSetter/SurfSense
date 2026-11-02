@@ -93,6 +93,11 @@ export default function RootLayout({
 				<OrganizationJsonLd />
 				<WebSiteJsonLd />
 				<SoftwareApplicationJsonLd />
+				{/* Fumadocs' search-match highlight, outside `globals.css`: Turbopack's
+				    CSS parser doesn't know `::highlight` and would warn on every compile. */}
+				<style>
+					{"::highlight(fd-search){color:var(--color-fd-primary);text-decoration-line:underline}"}
+				</style>
 			</head>
 			<body
 				className={cn(

@@ -4,6 +4,10 @@
 
 @plugin "tailwindcss-animate";
 
+/* Turbopack's CSS parser doesn't know `::highlight` and warns on every compile;
+ * the search highlight these utilities set is in `app/layout.tsx` instead. */
+@source not inline("[&_::highlight(fd-search)]:text-fd-primary [&_::highlight(fd-search)]:underline");
+
 /* Not inside `.ss-home`: the marketing site is light for every visitor, even
  * when <html> carries `.dark`. */
 @custom-variant dark (&:is(.dark *):not(.ss-home, .ss-home *));
