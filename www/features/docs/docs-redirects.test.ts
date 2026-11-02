@@ -9,7 +9,7 @@ import test from "node:test";
 // assertions cannot drift from runtime behaviour.
 import { getPathMatch } from "next/dist/shared/lib/router/utils/path-match";
 import { prepareDestination } from "next/dist/shared/lib/router/utils/prepare-destination";
-import { CURRENT_DOCS_PATH, docsRedirects, LEGACY_DOCS_PATH } from "./docs-redirects";
+import { CURRENT_DOCS_PATH, docsRedirects, LEGACY_DOCS_PATH } from "./docs-redirects.mts";
 
 const matchers = docsRedirects.map((rule) => ({
 	match: getPathMatch(rule.source, { strict: true, removeUnnamedParams: true }),
