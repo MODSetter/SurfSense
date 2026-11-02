@@ -53,14 +53,11 @@ SurfSense は、アップロードできない文書のための、無料のオ�
 | **Windows** x64 | [SurfSense-Setup.exe](https://www.surfsense.com/downloads/windows?src=readme) |
 | **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
 | **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
+| **Docker** Linux, macOS | `curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh \| bash` |
+| **Docker** Windows (Docker Desktop) | `irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 \| iex` |
 
-**Docker でサーバーにセルフホスト**し、ネットワーク上のどのデバイスからでも開けます。更新するには、同じコマンドをもう一度実行してください。
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
-```
-
-Windows（Docker Desktop）の場合：`irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 | iex`
+> [!NOTE]
+> Docker でサーバーにセルフホストし、ネットワーク上のどのデバイスからでも開けます。更新するには、同じコマンドをもう一度実行してください。
 
 ## クイックスタート
 

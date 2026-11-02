@@ -61,14 +61,11 @@ SurfSense is a free, open-source desktop app for documents you can't upload. A p
 | **Windows** x64 | [SurfSense-Setup.exe](https://www.surfsense.com/downloads/windows?src=readme) |
 | **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
 | **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
+| **Docker** Linux, macOS | `curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh \| bash` |
+| **Docker** Windows (Docker Desktop) | `irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 \| iex` |
 
-**Self-host it on a server** with Docker, and open it from any device on your network. Run the same command again to update.
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
-```
-
-On Windows with Docker Desktop: `irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 | iex`
+> [!NOTE]
+> Docker self-hosts it on a server you open from any device on your network. Run the same command again to update.
 
 ## Quick start
 

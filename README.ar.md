@@ -53,14 +53,11 @@ https://github.com/user-attachments/assets/073577b7-f055-4f59-8540-330bd764aeb0
 | **Windows** x64 | [SurfSense-Setup.exe](https://www.surfsense.com/downloads/windows?src=readme) |
 | **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
 | **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
+| **Docker** Linux, macOS | `curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh \| bash` |
+| **Docker** Windows (Docker Desktop) | `irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 \| iex` |
 
-**استضفه بنفسك على خادم** باستخدام Docker، وافتحه من أي جهاز على شبكتك. شغّل الأمر نفسه مرة أخرى للتحديث.
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
-```
-
-على Windows مع Docker Desktop: `irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 | iex`
+> [!NOTE]
+> مع Docker تستضيفه بنفسك على خادم وتفتحه من أي جهاز على شبكتك. شغّل الأمر نفسه مرة أخرى للتحديث.
 
 ## بداية سريعة
 
