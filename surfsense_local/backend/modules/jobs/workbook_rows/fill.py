@@ -84,7 +84,9 @@ def fill_workbook(
     retriever = Retriever(passages, budget, config.passages_per_question)
 
     def one(row: QuestionRow) -> RowResult:
-        shown = retriever.for_question(f"{row.question} {row.context}")
+        # The question alone: CAIQ's row repeats its control's boilerplate, which drowned
+        # the words that tell one question from the next (deciding passages 22 of 34, not 20).
+        shown = retriever.for_question(row.question)
         return answer_row(
             model, config, row, passages_block(passages, shown), passages, sources
         )
