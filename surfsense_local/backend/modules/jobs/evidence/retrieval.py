@@ -182,7 +182,8 @@ class Retriever:
     def _agreed(self, query: str) -> list[int]:
         """A standing query's passages, best first, only where the evidence for them is strong:
         among the first few of both rankings, or with words alone, holding half the query's
-        terms. A weak pick would be shown with every question, so none is better."""
+        terms under a heading or title that shares one. A weak pick would be shown with every
+        question, so none is better."""
         lexical, semantic = self._lanes(query)
         if semantic is not None:
             near = set(semantic[:STANDING_TOP])
@@ -192,6 +193,8 @@ class Retriever:
             i
             for i in lexical[:STANDING_TOP]
             if len(wanted & self._bags[i].keys()) * 2 >= len(wanted)
+            and wanted
+            & set(terms(f"{self.passages[i].title} {self.passages[i].section}"))
         ]
 
     def _lanes(self, text: str) -> tuple[list[int], list[int] | None]:
