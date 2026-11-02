@@ -64,9 +64,11 @@ class JobConfig:
     whole_sources_share: float = 0.5
     # And a ceiling whatever the window: every question re-reads what the prompt holds.
     max_whole_chars: int = 120_000
-    labels: dict[str, str] = field(
-        default_factory=dict
-    )  # column titles of the added sheets
+    # Column titles of the added sheets.
+    labels: dict[str, str] = field(default_factory=dict)
+    # A second call checks that the quote settles the question, for these answers.
+    verify_prompt: str = ""
+    verify_answers: tuple[str, ...] = ()
 
     @property
     def fallback(self) -> AnswerChoice:
@@ -118,6 +120,10 @@ def load_config(config_file: Path) -> JobConfig:
             whole_sources_share=float(raw.get("whole_sources_share", 0.5)),
             max_whole_chars=int(raw.get("max_whole_chars", 120_000)),
             labels=dict(raw.get("labels", {})),
+            verify_prompt=_prompt(folder, raw["verify"]["prompt"])
+            if "verify" in raw
+            else "",
+            verify_answers=tuple(raw["verify"]["answers"]) if "verify" in raw else (),
         )
     except (OSError, ValueError, KeyError, TypeError) as broken:
         raise PackRefusedError(

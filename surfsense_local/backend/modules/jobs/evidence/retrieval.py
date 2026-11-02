@@ -88,7 +88,8 @@ def terms(text: str) -> list[str]:
             continue
         for suffix in _SUFFIXES:
             if word.endswith(suffix) and len(word) - len(suffix) >= 4:
-                word = word[: -len(suffix)]
+                # "policies" and "policy" are one term; "ies" alone would leave "polic".
+                word = word[: -len(suffix)] + ("y" if suffix in ("ies", "ied") else "")
                 break
         found.append(word)
     return found
@@ -102,7 +103,11 @@ class Retriever:
     per_question: int = 8
 
     def __post_init__(self) -> None:
-        self._bags = [Counter(terms(f"{p.section} {p.text}")) for p in self.passages]
+        # A policy is named for what it covers, so its title counts in every passage it holds:
+        # without it half of CAIQ's Yes answers never saw their deciding passage.
+        self._bags = [
+            Counter(terms(f"{p.title} {p.section} {p.text}")) for p in self.passages
+        ]
         lengths = [sum(bag.values()) for bag in self._bags]
         self._average = sum(lengths) / len(lengths) if lengths else 0.0
         self._lengths = lengths

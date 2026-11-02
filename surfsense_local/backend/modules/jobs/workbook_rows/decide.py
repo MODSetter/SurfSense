@@ -12,11 +12,13 @@ from modules.jobs.workbook_rows.ask import AnswerModel, Asked, ask_row
 from modules.jobs.workbook_rows.cell_answers import cell_value
 from modules.jobs.workbook_rows.config import JobConfig
 from modules.jobs.workbook_rows.layout import QuestionRow
+from modules.jobs.workbook_rows.verify import Verdict, verify_answer
 
 # Why a row needs a person, in the words the exceptions sheet uses.
 EXCEPTIONS = {
     "NEEDS_REVIEW": "The documents do not settle this question.",
     "QUOTE_NOT_FOUND": "The model answered {said}, but its quote is not in any source, so the answer was not given.",
+    "NOT_SUPPORTED": "The model answered {said}, but a second check found its quote does not settle the question: {missing}",
     "NOT_ON_DROPDOWN": "The cell's dropdown has no value for {answer}, so the cell was left blank.",
     "LOW_CONFIDENCE": "The model was not confident: check the source.",
     "UNREADABLE_REPLY": "The model's reply could not be read.",
@@ -42,6 +44,7 @@ class RowResult:
     calls: int = 0
     input_tokens: int = 0
     output_tokens: int = 0
+    missing: str = ""  # what the second check found the quote leaves out
 
 
 def answer_row(
@@ -69,7 +72,38 @@ def answer_row(
                 ),
                 earlier=asked,
             )
-    return _decided(asked, config, row, passages, sources)
+    return _decided(
+        asked,
+        config,
+        row,
+        passages,
+        sources,
+        _verdict(model, config, row, asked, passages, sources),
+    )
+
+
+def _verdict(
+    model: AnswerModel,
+    config: JobConfig,
+    row: QuestionRow,
+    asked: Asked,
+    passages: list[Passage],
+    sources: list[SourceText],
+) -> Verdict | None:
+    """The second check, for a quoted answer the job checks; None when there is nothing to check."""
+    draft = asked.draft
+    if (
+        draft is None
+        or not config.verify_prompt
+        or draft.answer not in config.verify_answers
+    ):
+        return None
+    located = _located(asked, config, passages, sources)
+    if located is None:
+        return None
+    return verify_answer(
+        model, config, row, draft.answer, draft.quote, sources[located[0]].title
+    )
 
 
 def _needs_quote(asked: Asked, config: JobConfig) -> bool:
@@ -99,6 +133,7 @@ def _decided(
     row: QuestionRow,
     passages: list[Passage],
     sources: list[SourceText],
+    verdict: Verdict | None = None,
 ) -> RowResult:
     fallback = config.fallback
     result = RowResult(
@@ -112,9 +147,9 @@ def _decided(
         line=None,
         comment="",
         confidence="low",
-        calls=asked.calls,
-        input_tokens=asked.input_tokens,
-        output_tokens=asked.output_tokens,
+        calls=asked.calls + (verdict is not None),
+        input_tokens=asked.input_tokens + (verdict.input_tokens if verdict else 0),
+        output_tokens=asked.output_tokens + (verdict.output_tokens if verdict else 0),
     )
     draft = asked.draft
     if draft is None:
@@ -132,6 +167,10 @@ def _decided(
         if choice.needs_quote and located is None:
             result.said = choice.answer
             result.codes.append("QUOTE_NOT_FOUND")
+        elif verdict is not None and not verdict.supported:
+            result.said = choice.answer
+            result.missing = verdict.missing
+            result.codes.append("NOT_SUPPORTED")
         else:
             result.answer = choice.answer
     chosen = config.choice(result.answer) or fallback

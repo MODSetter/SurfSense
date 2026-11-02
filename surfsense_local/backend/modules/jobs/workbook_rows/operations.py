@@ -88,9 +88,10 @@ def exception_lines(
     for result in results:
         for code in result.codes:
             message = EXCEPTIONS[code].format(
-                said=result.said or "", answer=result.answer
+                said=result.said or "", answer=result.answer, missing=result.missing
             )
-            if code == "NEEDS_REVIEW" and result.comment:
+            # The model's comment argued for the answer the second check refused.
+            if code == "NEEDS_REVIEW" and result.comment and not result.missing:
                 message = f"{message} {result.comment}"
             lines.append(
                 [
