@@ -5,7 +5,7 @@
  * indexed and linked from the READMEs, so they move permanently into the
  * version folder rather than 404ing.
  *
- * Kept out of `next.config.ts` because that module cannot be imported from a
+ * Kept out of `next.config.mts` because that module cannot be imported from a
  * test: `createMDX()` spawns esbuild on load. `features/docs/docs-redirects.test.ts`
  * asserts these patterns against real path matching.
  */
