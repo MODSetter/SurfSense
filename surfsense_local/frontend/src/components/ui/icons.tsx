@@ -30,6 +30,7 @@ import {
   ChevronDownIcon as ChevronDownIconData,
   ChevronRightIcon as ChevronRightIconData,
   Clock01Icon as Clock01IconData,
+  CircleArrowUp02Icon as CircleArrowUp02IconData,
   ComputerEthernetIcon as ComputerEthernetIconData,
   Copy01Icon,
   CpuIcon as CpuIconData,
@@ -159,6 +160,7 @@ export const CheckmarkBadgeIcon = createIcon(CheckmarkBadge02IconData)
 export const ChevronDownIcon = createIcon(ChevronDownIconData)
 export const ChevronRightIcon = createIcon(ChevronRightIconData)
 export const ClockIcon = createIcon(Clock01IconData)
+export const CircleArrowUp02Icon = createIcon(CircleArrowUp02IconData)
 export const ComputerEthernetIcon = createIcon(ComputerEthernetIconData)
 export const CircleAlertIcon = createIcon(AlertCircleIcon)
 export const CircleStopIcon = createIcon(StopCircleIcon)
