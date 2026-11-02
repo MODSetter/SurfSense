@@ -77,9 +77,10 @@ Unter Windows mit Docker Desktop: `irm https://raw.githubusercontent.com/MODSett
 | **Excel** `.xlsx` | ✓ der Agent liest auch Formeln | ✓ mit Formeln und nativen Diagrammen | ✓ Zellwerte und Formeln | Mit pandas analysieren, Ergebnisse als Diagramm darstellen |
 | **PowerPoint** `.pptx` | ✓ | ✓ oder aus deiner eigenen `.pptx` als Vorlage | Text auf Folien und in Notizen ersetzen; Folien löschen oder duplizieren | In PDF¹ |
 | **CSV** | ✓ | — | — | Mit pandas analysieren, Ergebnisse als Diagramm darstellen |
-| **Bilder** PNG, JPEG, TIFF, BMP, WebP | ✓ Text per OCR erkannt³ | Bilder und Infografiken² | — | In neue Dokumente einfügen |
+| **Bilder** PNG, JPEG, TIFF, BMP, WebP | ✓ Text per OCR erkannt³ | Bilder und Infografiken, per Anweisung bearbeitet² | — | In neue Dokumente einfügen |
 | **Markdown**, reiner Text | ✓ | ✓ Markdown | — | — |
 | **HTML** | ✓ | ✓ Webseite | — | — |
+| **Bücher** EPUB, MOBI, AZW3 | ✓ ohne DRM | — | — | — |
 | **Aufnahmen** WAV, MP3, FLAC, Ogg Vorbis | ✓ auf deinem Rechner transkribiert | — | — | — |
 | **Podcast** (Audio) | — | ✓ mit Transkript, standardmäßig auf deinem Rechner vertont | — | — |
 | **Mindmaps, Karteikarten, Quizze** | — | ✓ in der App | — | — |

@@ -77,9 +77,10 @@ Sous Windows avec Docker Desktop : `irm https://raw.githubusercontent.com/MODSe
 | **Excel** `.xlsx` | ✓ l'agent lit aussi les formules | ✓ avec formules et graphiques natifs | ✓ valeurs des cellules et formules | Analyser avec pandas, mettre les résultats en graphique |
 | **PowerPoint** `.pptx` | ✓ | ✓ ou à partir de votre propre `.pptx` comme modèle | Remplacer le texte des diapositives et des notes ; supprimer ou dupliquer des diapositives | En PDF¹ |
 | **CSV** | ✓ | — | — | Analyser avec pandas, mettre les résultats en graphique |
-| **Images** PNG, JPEG, TIFF, BMP, WebP | ✓ texte lu par OCR³ | Images et infographies² | — | Insérer dans de nouveaux documents |
+| **Images** PNG, JPEG, TIFF, BMP, WebP | ✓ texte lu par OCR³ | Images et infographies, modifiables par instruction² | — | Insérer dans de nouveaux documents |
 | **Markdown**, texte brut | ✓ | ✓ Markdown | — | — |
 | **HTML** | ✓ | ✓ page web | — | — |
+| **Livres** EPUB, MOBI, AZW3 | ✓ sans DRM | — | — | — |
 | **Enregistrements** WAV, MP3, FLAC, Ogg Vorbis | ✓ transcrits sur votre machine | — | — | — |
 | **Podcast** (audio) | — | ✓ avec transcription, mis en voix sur votre machine par défaut | — | — |
 | **Cartes mentales, cartes mémoire, quiz** | — | ✓ dans l'application | — | — |

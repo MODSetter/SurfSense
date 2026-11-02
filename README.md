@@ -2,7 +2,7 @@
   Rationale and how to change it: plans/community-local/seo/06-repo-readme.md. Anything
   added replaces something (AGENTS.md). The agent copy holds from v2.2.0, the first
   release whose installers carry the agent.
-  The format table is checked against origin/dev c5ff7938a, which v2.2.0 contains; re-check
+  The format table is checked against origin/dev 3da73d28e, which v2.3.0 contains; re-check
   each cell against the release commit before a release.
   The demo videos under the header are GitHub uploads, not files in the repo, each under a bold
   caption on its own line. To replace one, drag an MP4 under 10 MB into any comment box in this
@@ -85,9 +85,10 @@ On Windows with Docker Desktop: `irm https://raw.githubusercontent.com/MODSetter
 | **Excel** `.xlsx` | ✓ the agent also reads formulas | ✓ with formulas and native charts | ✓ cell values and formulas | Analyse with pandas, chart the results |
 | **PowerPoint** `.pptx` | ✓ | ✓ or from your own `.pptx` as a template | Replace text on slides and notes; delete or duplicate slides | To PDF¹ |
 | **CSV** | ✓ | — | — | Analyse with pandas, chart the results |
-| **Images** PNG, JPEG, TIFF, BMP, WebP | ✓ text read by OCR³ | Images and infographics² | — | Place in new documents |
+| **Images** PNG, JPEG, TIFF, BMP, WebP | ✓ text read by OCR³ | Images and infographics, edited by instruction² | — | Place in new documents |
 | **Markdown**, plain text | ✓ | ✓ Markdown | — | — |
 | **HTML** | ✓ | ✓ web page | — | — |
+| **Books** EPUB, MOBI, AZW3 | ✓ without DRM | — | — | — |
 | **Recordings** WAV, MP3, FLAC, Ogg Vorbis | ✓ transcribed on your machine | — | — | — |
 | **Podcast** (audio) | — | ✓ with a transcript, voiced on your machine by default | — | — |
 | **Mind maps, flashcards, quizzes** | — | ✓ in the app | — | — |
