@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react"
+import { useEffect } from "react"
 import { toast } from "sonner"
 
 import { intl } from "@/i18n/intl"
@@ -7,6 +7,29 @@ import type { UpdateState } from "@/lib/api"
 import { useCheckForUpdates } from "./use-check-for-updates"
 import { updatesBridge } from "./use-update-state"
 
+type Updates = NonNullable<ReturnType<typeof updatesBridge>>
+
+type Reporting = {
+  // A result counts only once this check is seen running, so an earlier
+  // check's "up to date" never answers it.
+  phase: "none" | "requested" | "running"
+  // Until the first click's consent is answered, so a second click never asks again.
+  asking: boolean
+}
+
+// One per updater, not per surface: the menu and the title bar share a check,
+// so its one result is reported once.
+const reporting = new WeakMap<Updates, Reporting>()
+
+function reportingFor(updates: Updates) {
+  let shared = reporting.get(updates)
+  if (!shared) {
+    shared = { phase: "none", asking: false }
+    reporting.set(updates, shared)
+  }
+  return shared
+}
+
 /**
  * A check whose result comes back as a toast, up to date or failed, for the
  * app menu and the title bar, where Settings may be closed. A found update
@@ -14,50 +37,49 @@ import { updatesBridge } from "./use-update-state"
  */
 export function useReportedCheck() {
   const check = useCheckForUpdates()
-  // A result counts only once this check is seen running, so an earlier
-  // check's "up to date" never answers it.
-  const phase = useRef<"none" | "requested" | "running">("none")
-  // Until the first click's consent is answered, so a second click never asks again.
-  const asking = useRef(false)
 
   // Every state main sends, not the rendered one: a render can batch away "checking".
-  useEffect(
-    () =>
-      updatesBridge()?.onState((state: UpdateState) => {
-        if (state.status === "checking") {
-          if (phase.current === "requested") phase.current = "running"
-          return
-        }
-        if (phase.current !== "running") return
-        phase.current = "none"
-        if (state.status === "up-to-date")
-          toast.success(
-            intl.formatMessage({
-              id: "updates_check_up_to_date_toast",
-              defaultMessage: "SurfSense is up to date",
-            })
-          )
-        else if (state.status === "error")
-          toast.error(
-            intl.formatMessage({
-              id: "updates_check_failed_toast",
-              defaultMessage: "Couldn’t check for updates",
-            }),
-            { description: state.message }
-          )
-      }),
-    []
-  )
+  useEffect(() => {
+    const updates = updatesBridge()
+    if (!updates) return
+    const shared = reportingFor(updates)
+    return updates.onState((state: UpdateState) => {
+      if (state.status === "checking") {
+        if (shared.phase === "requested") shared.phase = "running"
+        return
+      }
+      if (shared.phase !== "running") return
+      shared.phase = "none"
+      if (state.status === "up-to-date")
+        toast.success(
+          intl.formatMessage({
+            id: "updates_check_up_to_date_toast",
+            defaultMessage: "SurfSense is up to date",
+          })
+        )
+      else if (state.status === "error")
+        toast.error(
+          intl.formatMessage({
+            id: "updates_check_failed_toast",
+            defaultMessage: "Couldn’t check for updates",
+          }),
+          { description: state.message }
+        )
+    })
+  }, [])
 
   return async () => {
-    if (asking.current) return
-    asking.current = true
+    const updates = updatesBridge()
+    if (!updates) return
+    const shared = reportingFor(updates)
+    if (shared.asking) return
+    shared.asking = true
     try {
-      phase.current = "requested"
+      shared.phase = "requested"
       const started = await check()
-      if (!started && phase.current === "requested") phase.current = "none"
+      if (!started && shared.phase === "requested") shared.phase = "none"
     } finally {
-      asking.current = false
+      shared.asking = false
     }
   }
 }

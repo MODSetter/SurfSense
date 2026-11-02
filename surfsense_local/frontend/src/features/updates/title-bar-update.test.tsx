@@ -7,6 +7,7 @@ import { stubPrivacyBridge } from "@/features/privacy-choices/stub-privacy-bridg
 import { render } from "@/test-utils"
 import { toast } from "sonner"
 
+import { MenuUpdateCheck } from "./menu-update-check"
 import { stubUpdateBridge as stubBridge } from "./stub-bridge"
 import { TitleBarUpdate } from "./title-bar-update"
 
@@ -111,6 +112,26 @@ describe("the title bar's update pill", () => {
     })
 
     expect(toast.success).toHaveBeenCalledWith("SurfSense is up to date")
+  })
+
+  it("reports one result once, when the menu checks too", async () => {
+    const bridge = stubBridge({ automatic: true, state: { status: "idle" } })
+    const user = userEvent.setup()
+    render(
+      <>
+        <MenuUpdateCheck />
+        <TitleBarUpdate />
+      </>
+    )
+
+    await user.click(
+      await screen.findByRole("button", { name: "Check for updates" })
+    )
+    await act(async () => bridge.checkFromMenu())
+    act(() => bridge.push({ status: "checking" }))
+    act(() => bridge.push({ status: "up-to-date" }))
+
+    expect(toast.success).toHaveBeenCalledTimes(1)
   })
 
   it.each(["policy", "channel"] as const)(
