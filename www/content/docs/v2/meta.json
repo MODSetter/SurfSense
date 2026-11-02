@@ -1,7 +1,7 @@
 {
 	"title": "SurfSense 2.0",
 	"description": "The desktop app, and its Docker image",
-	"icon": "BookOpen",
+	"icon": "Laptop",
 	"root": true,
 	"pages": [
 		"---Introduction---",
