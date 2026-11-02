@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { act, cleanup, screen } from "@testing-library/react"
+import { act, cleanup, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
+import { EgressPrompt } from "@/features/egress/egress-prompt"
 import { stubPrivacyBridge } from "@/features/privacy-choices/stub-privacy-bridge"
 import { render } from "@/test-utils"
 import { toast } from "sonner"
@@ -74,6 +75,44 @@ describe("the title bar's update pill", () => {
     })
   })
 
+  it("asks once, however often it is clicked while asking", async () => {
+    const bridge = stubBridge({ automatic: false, state: { status: "idle" } })
+    const user = userEvent.setup()
+    render(
+      <>
+        <TitleBarUpdate />
+        <EgressPrompt />
+      </>
+    )
+
+    await user.dblClick(
+      await screen.findByRole("button", { name: "Check for updates" })
+    )
+    await user.click(await screen.findByRole("button", { name: "Allow" }))
+
+    await waitFor(() =>
+      expect(bridge.calls).toEqual(["automatic:true", "check"])
+    )
+    // A second prompt would open as the first one closes.
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull())
+  })
+
+  it("answers its check even when the result lands in the same render", async () => {
+    const bridge = stubBridge({ automatic: true, state: { status: "idle" } })
+    const user = userEvent.setup()
+    render(<TitleBarUpdate />)
+
+    await user.click(
+      await screen.findByRole("button", { name: "Check for updates" })
+    )
+    act(() => {
+      bridge.push({ status: "checking" })
+      bridge.push({ status: "up-to-date" })
+    })
+
+    expect(toast.success).toHaveBeenCalledWith("SurfSense is up to date")
+  })
+
   it.each(["policy", "channel"] as const)(
     "keeps no space when updates are locked (%s)",
     async (lockedReason) => {
@@ -144,6 +183,10 @@ describe("the title bar's update pill", () => {
     } as unknown as NonNullable<typeof window.surfsense>["privacy"]
     render(<TitleBarUpdate />)
     await act(() => new Promise((settle) => setTimeout(settle, 0)))
+    // Unknown whether checks are locked, so no check is offered.
+    expect(
+      screen.queryByRole("button", { name: "Check for updates" })
+    ).toBeNull()
 
     act(() => bridge.push({ status: "ready", version: "1.0.1" }))
 
