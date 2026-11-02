@@ -2,7 +2,6 @@
 
 import base64
 import binascii
-from collections.abc import Awaitable, Callable
 from urllib.parse import urlsplit
 
 import httpx
@@ -13,18 +12,15 @@ DOWNLOAD_TIMEOUT = httpx.Timeout(180.0, connect=5.0)
 MAX_IMAGE_BYTES = 20 * 1024 * 1024
 MAX_RESPONSE_BYTES = 28 * 1024 * 1024
 MAX_REDIRECTS = 3
+# Asked for on every request, so no picture comes back as a link to fetch.
+PICTURE_ITSELF = {"response_format": "b64_json"}
 
 
 class NonRetryableImageError(RuntimeError):
     """An image request began, so repeating it could duplicate a billed result."""
 
 
-# Raises to refuse a host the endpoint named for its image. The caller owns the
-# egress decision, so this provider never needs the database.
-AllowUrlHost = Callable[[str], Awaitable[None]]
-
-
-async def read_image(payload: object, allow_url_host: AllowUrlHost) -> GeneratedImage:
+async def read_image(payload: object) -> GeneratedImage:
     if not isinstance(payload, dict) or not isinstance(payload.get("data"), list):
         raise ValueError("image endpoint returned no data list")
     entry = next((item for item in payload["data"] if isinstance(item, dict)), None)
@@ -43,8 +39,7 @@ async def read_image(payload: object, allow_url_host: AllowUrlHost) -> Generated
         raise ValueError("image endpoint returned neither b64_json nor url")
     if url.startswith("data:"):
         return _decode_data_url(url)
-    await allow_url_host(url)
-    return await download_image(url, allow_url_host)
+    return await download_image(url)
 
 
 async def bounded_body(reply: httpx.Response, limit: int) -> bytes:
@@ -80,35 +75,32 @@ def decode_image(encoded: str, media_type: str | None) -> GeneratedImage:
 
 
 async def download_image(
-    url: str,
-    allow_url_host: AllowUrlHost,
-    *,
-    transport: httpx.AsyncBaseTransport | None = None,
+    url: str, *, transport: httpx.AsyncBaseTransport | None = None
 ) -> GeneratedImage:
-    """The image at `url`, which the caller has allowed. Redirects are followed
-    by hand, so each host they name passes egress before it is asked."""
-    _require_plain_http(url)
-    # Never forward the model endpoint's bearer token to a returned URL.
-    async with httpx.AsyncClient(
-        timeout=DOWNLOAD_TIMEOUT, transport=transport
-    ) as client:
-        for hop in range(MAX_REDIRECTS + 1):
-            async with client.stream("GET", url) as reply:
-                if not reply.is_redirect:
-                    reply.raise_for_status()
-                    content = await bounded_body(reply, MAX_IMAGE_BYTES)
-                    media_type = reply.headers.get("content-type", "")
-                    media_type = media_type.split(";", 1)[0]
-                    break
-                # Before the check: a refused host is recorded for Settings.
-                if hop == MAX_REDIRECTS:
-                    raise ValueError("generated image URL redirected too many times")
-                url = str(reply.url.join(reply.headers["location"]))
-            _require_plain_http(url)
-            await allow_url_host(url)
+    """The picture a connected model linked to, fetched as part of that connection
+    (ADR 0078): the provider picked the host, often another site's storage."""
+    # Never forward the model endpoint's bearer token to a returned URL. Each
+    # request is checked, redirects included, so no other scheme is read.
+    async with (
+        httpx.AsyncClient(
+            timeout=DOWNLOAD_TIMEOUT,
+            follow_redirects=True,
+            max_redirects=MAX_REDIRECTS,
+            transport=transport,
+            event_hooks={"request": [_plain_http_request]},
+        ) as client,
+        client.stream("GET", url) as reply,
+    ):
+        reply.raise_for_status()
+        content = await bounded_body(reply, MAX_IMAGE_BYTES)
+        media_type = reply.headers.get("content-type", "").split(";", 1)[0]
     if not content:
         raise ValueError("generated image download was empty")
     return GeneratedImage(content, _validated_media_type(content, media_type))
+
+
+async def _plain_http_request(request: httpx.Request) -> None:
+    _require_plain_http(str(request.url))
 
 
 def _require_plain_http(url: str) -> None:

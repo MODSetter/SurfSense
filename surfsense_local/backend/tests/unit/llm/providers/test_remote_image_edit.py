@@ -7,6 +7,7 @@ import pytest
 
 from modules.llm.providers.openai_compatible.image_edit import (
     OpenAICompatibleImageEditor,
+    _asks_for_picture,
 )
 from modules.llm.providers.openai_compatible.image_response import (
     NonRetryableImageError,
@@ -19,10 +20,6 @@ BASE = GeneratedImage(b"\x89PNG\r\n\x1a\nbase", "image/png")
 EDITED = b"\x89PNG\r\n\x1a\nedited"
 
 
-async def _allow_any(_url: str) -> None:
-    return None
-
-
 def _editor(
     reply: httpx.Response, asked: list[httpx.Request]
 ) -> OpenAICompatibleImageEditor:
@@ -33,7 +30,6 @@ def _editor(
     return OpenAICompatibleImageEditor(
         "https://example.test/v1/",
         "sk-test",
-        allow_url_host=_allow_any,
         transport=httpx.MockTransport(answer),
     )
 
@@ -60,6 +56,8 @@ async def test_it_posts_the_picture_and_the_instruction_as_a_form() -> None:
     assert BASE.content in form
     # Only some GPT image models take it, and the rest refuse the request.
     assert b"input_fidelity" not in form
+    # The picture itself, not a link to fetch from wherever the provider put it.
+    assert b'name="response_format"\r\n\r\nb64_json' in form
 
 
 async def test_a_refused_edit_is_not_retried() -> None:
@@ -75,3 +73,26 @@ async def test_an_answer_with_no_picture_fails_the_edit() -> None:
     """Read as a generation's answer is."""
     with pytest.raises(NonRetryableImageError, match="no data list"):
         await _editor(httpx.Response(200, json={"error": "?"}), []).edit("m", "x", BASE)
+
+
+async def test_a_model_that_refuses_the_setting_is_asked_again_without_it() -> None:
+    """GPT image models answer with the picture and refuse the setting; a 400
+    comes before any work, so asking again bills nothing twice."""
+    _asks_for_picture.clear()
+    asked: list[bytes] = []
+    done = httpx.Response(
+        200, json={"data": [{"b64_json": base64.b64encode(EDITED).decode()}]}
+    )
+
+    def answer(request: httpx.Request) -> httpx.Response:
+        asked.append(request.read())
+        refused = b"response_format" in asked[-1]
+        return httpx.Response(400, json={}) if refused else done
+
+    editor = OpenAICompatibleImageEditor(
+        "https://example.test/v1", transport=httpx.MockTransport(answer)
+    )
+    image = await editor.edit("gpt-image-1", "make it night", BASE)
+
+    assert image.content == EDITED
+    assert [b"response_format" in form for form in asked] == [True, False]

@@ -7,7 +7,7 @@ import httpx
 from modules.llm.connections.key_headers import key_headers
 from modules.llm.providers.openai_compatible.image_response import (
     MAX_RESPONSE_BYTES,
-    AllowUrlHost,
+    PICTURE_ITSELF,
     NonRetryableImageError,
     bounded_body,
     read_image,
@@ -18,6 +18,9 @@ from modules.llm.providers.protocols import GeneratedImage
 TIMEOUT = httpx.Timeout(300.0, connect=5.0)
 ROUTE = "/images/edits"
 
+# Whether an endpoint takes PICTURE_ITSELF; GPT image models refuse it.
+_asks_for_picture: dict[str, bool] = {}
+
 
 class OpenAICompatibleImageEditor:
     def __init__(
@@ -25,29 +28,34 @@ class OpenAICompatibleImageEditor:
         base_url: str,
         api_key: str | None = None,
         *,
-        allow_url_host: AllowUrlHost,
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._api_key = api_key
-        self._allow_url_host = allow_url_host
         self._transport = transport
 
     async def edit(
         self, model: str, prompt: str, image: GeneratedImage
     ) -> GeneratedImage:
+        picture = _asks_for_picture.get(self._base_url, True)
         try:
-            status, payload = await self._post(model, prompt, image)
+            status, payload = await self._post(model, prompt, image, picture)
+            # Once more without it if refused: a 400 comes before any work.
+            if status == 400 and picture:
+                picture = False
+                status, payload = await self._post(model, prompt, image, picture)
             if status >= 400:
                 raise NonRetryableImageError(f"image endpoint returned HTTP {status}")
-            return await read_image(payload, self._allow_url_host)
+            edited = await read_image(payload)
         except NonRetryableImageError:
             raise
         except (httpx.HTTPError, ValueError, KeyError, json.JSONDecodeError) as error:
             raise NonRetryableImageError(str(error)) from error
+        _asks_for_picture[self._base_url] = picture
+        return edited
 
     async def _post(
-        self, model: str, prompt: str, image: GeneratedImage
+        self, model: str, prompt: str, image: GeneratedImage, picture: bool
     ) -> tuple[int, object]:
         extension = image.media_type.removeprefix("image/").replace("jpeg", "jpg")
         # No `input_fidelity`: only some GPT image models take it.
@@ -60,7 +68,11 @@ class OpenAICompatibleImageEditor:
             client.stream(
                 "POST",
                 f"{self._base_url}{ROUTE}",
-                data={"model": model, "prompt": prompt},
+                data={
+                    "model": model,
+                    "prompt": prompt,
+                    **(PICTURE_ITSELF if picture else {}),
+                },
                 files={
                     "image": (f"image.{extension}", image.content, image.media_type)
                 },

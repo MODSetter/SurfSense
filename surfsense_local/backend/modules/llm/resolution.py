@@ -17,10 +17,8 @@ from modules.llm.profile import Tier
 from modules.llm.providers import audiocpp, get_provider, llamacpp
 from modules.llm.providers.audiocpp.speech import AudioCppSpeech, VoicedModel
 from modules.llm.providers.openai_compatible import (
-    NonRetryableImageError,
     OpenAICompatibleImageProvider,
 )
-from modules.llm.providers.openai_compatible.image import AllowUrlHost
 from modules.llm.providers.openai_compatible.image_edit import (
     OpenAICompatibleImageEditor,
 )
@@ -117,12 +115,7 @@ def resolve_image_generation(session: Session) -> ResolvedImageGeneration:
         return ResolvedImageGeneration(
             selected,
             LocalImageGenerator(
-                OpenAICompatibleImageProvider(
-                    0,
-                    sdcpp.base_url(),
-                    None,
-                    allow_url_host=_allow_url_host(session),
-                ),
+                OpenAICompatibleImageProvider(0, sdcpp.base_url(), None),
                 sdcpp.root_url(),
                 image.served_file,
                 text_runtime_given_up,
@@ -133,10 +126,7 @@ def resolve_image_generation(session: Session) -> ResolvedImageGeneration:
     return ResolvedImageGeneration(
         selected,
         OpenAICompatibleImageProvider(
-            connection.id,
-            connection.base_url,
-            connection.api_key,
-            allow_url_host=_allow_url_host(session),
+            connection.id, connection.base_url, connection.api_key
         ),
     )
 
@@ -162,27 +152,8 @@ def resolve_image_edit(session: Session) -> ResolvedImageEdit:
     _require_serves(connection, ModelType.IMAGE_EDIT)
     return ResolvedImageEdit(
         selected,
-        OpenAICompatibleImageEditor(
-            connection.base_url,
-            connection.api_key,
-            allow_url_host=_allow_url_host(session),
-        ),
+        OpenAICompatibleImageEditor(connection.base_url, connection.api_key),
     )
-
-
-def _allow_url_host(session: Session) -> AllowUrlHost:
-    """The egress check for an image's URL, run in the Studio worker's thread."""
-
-    async def allow(url: str) -> None:
-        refused = egress.refused_named_host(session, url)
-        session.commit()
-        if refused is not None:
-            # No dialog reaches the worker, so the job fails with the refusal as
-            # its reason. The image was already generated, and billed, before
-            # its URL was known: a retry would pay again for the same refusal.
-            raise NonRetryableImageError(str(refused)) from refused
-
-    return allow
 
 
 def speech_selected(session: Session) -> None:
