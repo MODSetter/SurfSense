@@ -8,10 +8,10 @@ from modules.artifacts.formats import FORMATS, FORMATS_BY_KEY, Format
 from modules.artifacts.image_edits.model import require_image_edit_model
 from modules.artifacts.image_edits.recipe import image_edit_of
 from modules.artifacts.models import Artifact
+from modules.artifacts.queued_job import queue_job
 from modules.artifacts.refused import refused
 from modules.artifacts.schemas import FormatRead, StudioJobCreate
 from modules.artifacts.studio_documents.recipe import refinement, renders_as_stored
-from modules.artifacts.tasks import studio_job
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.documents.sources import load_selected_sources
 from modules.llm.model_type import ModelType
@@ -92,10 +92,7 @@ def create_artifact_job(
     session.add(artifact)
     session.flush()
 
-    # Before enqueueing, not by the request session afterwards: the worker is
-    # another process and would look for a row this request had not written.
-    session.commit()
-    studio_job(artifact.id)
+    queue_job(session, artifact)
     logger.info("studio: enqueued artifact %s format=%s", artifact.id, fmt.key)
     return artifact
 
@@ -130,8 +127,7 @@ def regenerate_artifact(session: Session, artifact: Artifact) -> Artifact:
     document.status = DocumentStatus.PENDING
     document.error_message = None
     artifact.generation += 1
-    session.commit()
-    studio_job(artifact.id)
+    queue_job(session, artifact)
     logger.info(
         "studio: re-enqueued artifact %s generation=%s",
         artifact.id,

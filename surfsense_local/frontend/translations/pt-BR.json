@@ -1527,6 +1527,7 @@
   "studio_docx_viewer_zoom_out_aria": "Reduzir",
   "studio_error_agent_made": "O agente criou este documento: peça as alterações no chat dele.",
   "studio_error_already_generating": "Já está sendo gerado.",
+  "studio_error_edited_from": "Uma versão posterior foi editada a partir desta: exclua o documento inteiro.",
   "studio_error_image_version_unfinished": "Esta versão não foi concluída: tente novamente ou edite outra versão.",
   "studio_error_needs_audio": "É necessário um modelo de áudio.",
   "studio_error_needs_chat": "É necessário um modelo de chat.",

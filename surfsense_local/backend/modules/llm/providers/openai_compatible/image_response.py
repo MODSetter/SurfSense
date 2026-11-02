@@ -2,7 +2,6 @@
 
 import base64
 import binascii
-from collections.abc import Awaitable, Callable
 from urllib.parse import urlsplit
 
 import httpx
@@ -12,18 +11,16 @@ from modules.llm.providers.protocols import GeneratedImage
 DOWNLOAD_TIMEOUT = httpx.Timeout(180.0, connect=5.0)
 MAX_IMAGE_BYTES = 20 * 1024 * 1024
 MAX_RESPONSE_BYTES = 28 * 1024 * 1024
+MAX_REDIRECTS = 3
+# Asked for on every request, so no picture comes back as a link to fetch.
+PICTURE_ITSELF = {"response_format": "b64_json"}
 
 
 class NonRetryableImageError(RuntimeError):
     """An image request began, so repeating it could duplicate a billed result."""
 
 
-# Raises to refuse a host the endpoint named for its image. The caller owns the
-# egress decision, so this provider never needs the database.
-AllowUrlHost = Callable[[str], Awaitable[None]]
-
-
-async def read_image(payload: object, allow_url_host: AllowUrlHost) -> GeneratedImage:
+async def read_image(payload: object) -> GeneratedImage:
     if not isinstance(payload, dict) or not isinstance(payload.get("data"), list):
         raise ValueError("image endpoint returned no data list")
     entry = next((item for item in payload["data"] if isinstance(item, dict)), None)
@@ -42,7 +39,6 @@ async def read_image(payload: object, allow_url_host: AllowUrlHost) -> Generated
         raise ValueError("image endpoint returned neither b64_json nor url")
     if url.startswith("data:"):
         return _decode_data_url(url)
-    await allow_url_host(url)
     return await download_image(url)
 
 
@@ -78,17 +74,20 @@ def decode_image(encoded: str, media_type: str | None) -> GeneratedImage:
     return GeneratedImage(content, _validated_media_type(content, media_type))
 
 
-async def download_image(url: str) -> GeneratedImage:
-    parsed = urlsplit(url)
-    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
-        raise ValueError("generated image URL must be HTTP(S)")
-    if parsed.username or parsed.password:
-        raise ValueError("generated image URL must not contain credentials")
-
-    # Never forward the model endpoint's bearer token to a returned URL.
+async def download_image(
+    url: str, *, transport: httpx.AsyncBaseTransport | None = None
+) -> GeneratedImage:
+    """The picture a connected model linked to, fetched as part of that connection
+    (ADR 0078): the provider picked the host, often another site's storage."""
+    # Never forward the model endpoint's bearer token to a returned URL. Each
+    # request is checked, redirects included, so no other scheme is read.
     async with (
         httpx.AsyncClient(
-            timeout=DOWNLOAD_TIMEOUT, follow_redirects=True, max_redirects=3
+            timeout=DOWNLOAD_TIMEOUT,
+            follow_redirects=True,
+            max_redirects=MAX_REDIRECTS,
+            transport=transport,
+            event_hooks={"request": [_plain_http_request]},
         ) as client,
         client.stream("GET", url) as reply,
     ):
@@ -98,6 +97,18 @@ async def download_image(url: str) -> GeneratedImage:
     if not content:
         raise ValueError("generated image download was empty")
     return GeneratedImage(content, _validated_media_type(content, media_type))
+
+
+async def _plain_http_request(request: httpx.Request) -> None:
+    _require_plain_http(str(request.url))
+
+
+def _require_plain_http(url: str) -> None:
+    parsed = urlsplit(url)
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        raise ValueError("generated image URL must be HTTP(S)")
+    if parsed.username or parsed.password:
+        raise ValueError("generated image URL must not contain credentials")
 
 
 def _validated_media_type(content: bytes, claimed: str | None) -> str:

@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from modules.artifacts.image_edits.editable import EDITABLE_FORMATS, has_picture
 from modules.artifacts.image_edits.recipe import image_edited
 from modules.artifacts.models import Artifact
+from modules.artifacts.queued_job import queue_job
 from modules.artifacts.refused import refused
 from modules.artifacts.script_documents.version import (
     ArtifactVersion,
@@ -15,7 +16,6 @@ from modules.artifacts.script_documents.version import (
     version_of,
 )
 from modules.artifacts.studio_documents.recipe import RECIPE_KEY
-from modules.artifacts.tasks import studio_job
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.embedding.active import require_active_index
 
@@ -96,8 +96,7 @@ def create_image_edit_version(
         "source_document_ids": list(meta.get("source_document_ids") or []),
         "prompt": meta.get("prompt"),
     }
-    session.commit()
-    studio_job(artifact.id)
+    queue_job(session, artifact)
     logger.info(
         "studio: enqueued image edit %s of %s root=%s v%s",
         artifact.id,

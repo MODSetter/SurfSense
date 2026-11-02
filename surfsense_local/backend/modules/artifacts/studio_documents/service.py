@@ -6,6 +6,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from modules.artifacts.models import Artifact
+from modules.artifacts.queued_job import queue_job
 from modules.artifacts.refused import refused
 from modules.artifacts.script_documents.spec import DocumentSpec, document_spec
 from modules.artifacts.script_documents.version import (
@@ -19,7 +20,6 @@ from modules.artifacts.studio_documents.recipe import (
     refined,
     studio_made,
 )
-from modules.artifacts.tasks import studio_job
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.documents.source_figures.layout import read_index
 from modules.documents.source_figures.source import (
@@ -122,8 +122,7 @@ def create_refine_version(
         "grounded_document_ids": figure_sources(meta),
         "prompt": meta.get("prompt"),
     }
-    session.commit()
-    studio_job(artifact.id)
+    queue_job(session, artifact)
     logger.info(
         "studio: enqueued refine %s of %s root=%s v%s",
         artifact.id,

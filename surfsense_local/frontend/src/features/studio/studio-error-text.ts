@@ -68,6 +68,12 @@ const studioErrorText: Record<string, (detail: Detail) => string | null> = {
       defaultMessage:
         "This version did not finish: retry it, or edit another version.",
     }),
+  edited_from: () =>
+    intl.formatMessage({
+      id: "studio_error_edited_from",
+      defaultMessage:
+        "A later version is edited from this one: delete the whole document.",
+    }),
   // The sentence's name and numbers arrive raw beside the code.
   rewrite_too_long: ({ model, spec_tokens, needed_tokens, window_tokens }) =>
     typeof model === "string" &&

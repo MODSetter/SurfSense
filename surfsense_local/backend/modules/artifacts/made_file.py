@@ -14,7 +14,7 @@ from pathvalidate import sanitize_filename
 from sqlalchemy.orm import Session
 
 from modules.artifacts.models import Artifact, ArtifactFile, ArtifactFileRole
-from modules.artifacts.tasks import studio_job
+from modules.artifacts.queued_job import queue_job
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.embedding.active import EmbeddingNotChosenError, require_active_index
 from shared.config import get_storage_settings
@@ -72,8 +72,7 @@ def keep_made_file(
 
 def queue_made_file(session: Session, artifact: Artifact) -> None:
     """Commit, then queue the job: the worker is another process and must find the row."""
-    session.commit()
-    studio_job(artifact.id)
+    queue_job(session, artifact)
     logger.info(
         "studio: kept made %s file as artifact %s", artifact.format, artifact.id
     )

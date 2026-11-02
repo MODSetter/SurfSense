@@ -397,3 +397,27 @@ async def test_an_instruction_must_say_something_and_fit(
     response = await _edit(client, session, first.id, instruction)
 
     assert response.status_code == 422
+
+
+async def test_a_version_an_edit_starts_from_is_not_deleted_alone(
+    client: AsyncClient,
+    session: Session,
+    workspace: Workspace,
+    logo_source: Document,
+    painter: Painter,
+) -> None:
+    """The edit's Retry would have no picture to start from; the app deletes a
+    document's versions newest first, so it never meets this."""
+    first = await _drawn(session, workspace, logo_source)
+    second = await _edited(client, session, first.id, "Make it night")
+    first_id, second_id = first.id, second.id
+    document_path = f"/workspaces/{workspace.id}/documents/{first.document_id}"
+    session.commit()
+
+    for path in (f"/artifacts/{first_id}", document_path):
+        refused = await client.delete(path)
+        assert refused.status_code == 409, path
+        assert refused.json()["detail"]["code"] == "edited_from"
+
+    assert (await client.delete(f"/artifacts/{second_id}")).status_code == 204
+    assert (await client.delete(f"/artifacts/{first_id}")).status_code == 204
