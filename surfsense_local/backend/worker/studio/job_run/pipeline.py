@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import json
 import logging
 from collections.abc import Callable
 from typing import Any
@@ -88,6 +89,13 @@ class SelectedModel:
                     raise
                 logger.info("%s refuses a JSON schema; asking by prompt", self.name)
                 self._schema_taken = False
+        # Held to no schema, a model follows the one it is shown: without it Sonnet gave
+        # quotes as bare strings, which cost it 5 of 15 answers on the live WISP case.
+        messages[0] = Message(
+            "system",
+            f"{system}\n\nYour reply is one JSON object matching this JSON Schema:\n"
+            f"{json.dumps(schema)}",
+        )
         return ModelReply(
             complete(
                 self._model,

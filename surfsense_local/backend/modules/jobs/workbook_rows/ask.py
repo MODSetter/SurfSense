@@ -193,17 +193,32 @@ def parse_draft(text: str, config: JobConfig) -> Draft | None:
         return None
     confidence = str(raw.get("confidence", "")).strip().casefold()
     return Draft(
-        quotes=_quotes(raw.get("quotes"))[: config.max_quotes],
+        quotes=_quotes(raw)[: config.max_quotes],
         answer=by_folded[answer.casefold()],
         comment=str(raw.get("comment") or "").strip(),
         confidence=confidence if confidence in CONFIDENCE else "low",
     )
 
 
-def _quotes(raw: object) -> tuple[Quoted, ...]:
-    """The reply's quotes that hold any text, in its order."""
+def _quotes(raw: dict) -> tuple[Quoted, ...]:
+    """The reply's quotes that hold any text, in its order.
+
+    Read leniently: a model held to no schema, as on Anthropic's OpenAI-compatible API, lists
+    the quotes as strings about half the time, their passage numbers in a list beside them,
+    or gives a single quote.
+    """
+    numbers = raw.get("passage")
+    items = raw.get("quotes")
+    if not isinstance(items, list):
+        items = [{"quote": raw.get("quote"), "passage": numbers}]
+    beside = numbers if isinstance(numbers, list) else []
     found = []
-    for item in raw if isinstance(raw, list) else []:
+    for index, item in enumerate(items):
+        if isinstance(item, str):
+            item = {
+                "quote": item,
+                "passage": beside[index] if index < len(beside) else 0,
+            }
         if not isinstance(item, dict):
             continue
         quote = str(item.get("quote") or "").strip()
