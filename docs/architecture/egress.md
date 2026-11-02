@@ -35,7 +35,6 @@ Fetching the registry is refused with `purpose: "plugin_registry"`, and its prom
 | Checking a connection's rows against its live listing | `GET /llm/catalog/remote/connections/{id}` in `modules/llm/catalog/remote/router.py`, through `allowed_connection()` | `host:` |
 | Chat and Studio generation, text or image, through a remote connection | `_connection()` in `modules/llm/resolution.py` | `host:` |
 | The agent's turns, which opencode sends to SurfSense's model endpoint and SurfSense forwards to a remote connection | `address_selected_model()` in `modules/agent/model_endpoint/model_address.py`, through `allowed_connection()`; a refusal answers opencode with a `403` whose message names the host | `host:` |
-| Downloading an image an endpoint returned as a URL, whose host the endpoint chose | `refused_named_host()`, called before the download through the image provider's `allow_url_host`: by `POST /llm/connections/{id}/image-test` (a `403`) and by `resolution.py` for Studio (the job fails with the refusal, not retried, since the image was already billed). A refused host with no row is recorded off, so it is listed | `host:` |
 | Adding a plugin by URL, before its server is contacted | `POST /plugins/custom` in `modules/plugins/routes.py`, through `refused_hosts()` | `host:` |
 | Connecting a plugin from the registry, for every host its entry lists | `POST /plugins/registry/{id}` in `modules/plugins/lists/registry/routes.py`, through `refused_hosts()` | `host:` |
 | Fetching the registry, its signature and its icons | `GET /plugins/registry` and `POST /plugins/registry/{id}`, through `registry_refusal()` in `modules/plugins/lists/registry/registry_consent.py`; never while third-party plugins are off, and not in an unpackaged build, which reads the checkout | `host:plugins.surfsense.com` |
@@ -52,6 +51,8 @@ Fetching the registry is refused with `purpose: "plugin_registry"`, and its prom
 The GGUF download runs inside the API (`modules/llm/providers/llamacpp/download.py`) instead of through llama-server's own fetch. llama-server is a second process the app does not proxy, so an in-process fetch is the only place the check can hold.
 
 ## Not egress
+
+- A picture a connected image model returns as a link: it is fetched as part of that connection, its redirects included, with no decision of its own ([ADR 0078](../adr/0078-a-picture-a-connected-model-returns-is-fetched-with-its-connection.md)). Every request asks for the picture itself (`response_format: "b64_json"`), so most providers send no link at all; where one is sent, the provider chose its host, often another site's storage, as DALL·E's on Azure. The fetch sends no bearer token, no prompt and no document, and takes HTTP(S) only ([`image_response.py`](../../surfsense_local/backend/modules/llm/providers/openai_compatible/image_response.py)).
 
 - llama-server and sd-server, which the backend reaches on `127.0.0.1`.
 - The worker's `POST /internal/events` to the API, and Electron polling the API: `/health` at startup, the image runtime every few seconds.

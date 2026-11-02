@@ -106,3 +106,4 @@ The Date is the day the decision was first written down. Source links are permal
 | 0075 | [What differs in the Docker image is gated by one build flag, the Electron bridge, or the API's own setting](0075-what-differs-in-docker-is-gated-by-one-build-flag-or-the-bridge.md) | Accepted |
 | 0076 | [The legacy self-hosted stack lives on its own branch, tagged `legacy-v*`, and its install paths on `main` pass to the new stack](0076-the-legacy-stack-lives-on-its-own-branch.md) | Accepted |
 | 0077 | [An image edit is the next version of the same document](0077-an-image-edit-is-the-next-version.md) | Accepted |
+| 0078 | [A picture a connected model returns is fetched with its connection](0078-a-picture-a-connected-model-returns-is-fetched-with-its-connection.md) | Accepted |
