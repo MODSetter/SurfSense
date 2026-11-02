@@ -114,6 +114,6 @@ SurfSense does not check for updates until you allow it during setup. How update
 - **macOS:** Quit SurfSense, then drag it from Applications to the Trash.
 - **Linux, deb:** `sudo apt remove surfsense-local-electron`
 - **Linux, rpm:** `sudo dnf remove surfsense-local-electron`, or the same with zypper.
-- **Linux, AppImage:** Delete the `SurfSense.AppImage` file.
+- **Linux, AppImage:** Delete the `SurfSense.AppImage` file. If the install script put it in your app menu, also delete `~/.local/share/applications/surfsense-appimage.desktop`.
 
 Uninstalling removes the app, not your workspaces, sources, chats or downloaded models. To remove those too, delete your data folder. [Data folder](/docs/v2/data-folder) says where it is.

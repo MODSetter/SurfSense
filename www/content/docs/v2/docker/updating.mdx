@@ -19,7 +19,7 @@ curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scr
 irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 | iex
 ```
 
-It finds your install by its container, keeps `.env`, replaces `docker-compose.yml` with the current one, pulls, and restarts. It removes the image it replaced, and says whether anything changed:
+It finds your install by its container, running or stopped. After `docker compose down` there is no container, so run the installer from the folder that holds your `surfsense` folder; from anywhere else it makes a new install. It keeps `.env`, replaces `docker-compose.yml` with the current one, pulls, and restarts. It removes the image it replaced, and says whether anything changed:
 
 ```text
 SurfSense updated to 2.3.0
@@ -75,12 +75,12 @@ docker run --rm -v surfsense_surfsense_data:/data -v "$PWD":/backup ubuntu \
 docker compose up -d
 ```
 
-To restore into an empty volume:
+To restore, empty the volume and extract the backup into it. This deletes everything in the volume now, including anything added since the backup:
 
 ```bash
 docker compose down
 docker run --rm -v surfsense_surfsense_data:/data -v "$PWD":/backup ubuntu \
-  tar xzf /backup/surfsense-data.tar.gz -C /data
+  sh -c 'find /data -mindepth 1 -delete && tar xzf /backup/surfsense-data.tar.gz -C /data'
 docker compose up -d
 ```
 

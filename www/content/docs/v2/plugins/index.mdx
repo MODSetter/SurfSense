@@ -100,7 +100,7 @@ Some choices are closed, and the icon's tooltip says why:
 
 Every tool a plugin offers when you connect it starts on. After that, SurfSense checks the plugin's tools before chats. A tool the server adds later starts **off** and is marked **New**. A tool whose description changes, or that becomes less safe, is switched off and marked **Changed**. The plugin's details say "Some tools are new or changed. They stay off until you allow them." Pick a permission for the tool to allow it.
 
-This stops a server from changing what a tool does behind your back.
+The check covers a tool's description and how safe its server says it is. A server can still change what a tool does without changing either, so allow tools only from servers you trust.
 
 ## Use plugins in a chat
 
@@ -124,6 +124,6 @@ When a plugin can't be used, the reply says so above its steps and carries on wi
 
 ## What a plugin can see
 
-A plugin's server gets only what the agent sends its tools, plus your IP address. It never sees your files, your Sources or your other chats. Nothing a plugin returns goes into your Sources unless you save it.
+A plugin's server gets what the agent sends its tools, the keys, headers or sign-in you saved for that plugin, and your IP address. It can't open your files or Sources, but the agent may put text from the sources ticked for a chat into what it sends, such as a search query. Nothing a plugin returns goes into your Sources unless you save it.
 
-Your keys, headers and sign-ins are stored encrypted on your computer. SurfSense adds them to each request itself, so they never reach the agent or the model.
+Your keys, headers and sign-ins are stored encrypted on your computer. SurfSense adds them to each request itself, so the agent and the model aren't given them. A plugin's reply goes to the agent as it is, though, so if a server echoes a key back, such as in an error, the model and the chat see it.

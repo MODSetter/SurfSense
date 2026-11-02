@@ -21,7 +21,7 @@ Read the dialog, **Allow third-party plugins?**, and click **Allow**.
 </Step>
 </Steps>
 
-The dialog says what this means: other people run these servers, what the agent sends a tool goes to its publisher, and SurfSense doesn't review changes to their servers. You still choose each tool, and tools that can make changes ask first.
+The dialog says what this means: other people run these servers, what the agent sends a tool goes to its publisher, and SurfSense doesn't review changes to their servers. You still choose each tool, and its tools ask before each use until you set them to Always allowed. Always allowed is offered only for tools the server marks as read-only or harmless.
 
 The list of third-party plugins comes from `plugins.surfsense.com`. If that host isn't allowed yet, Browse says so with an **Allow** button. Fetching the list sends your IP address and nothing else.
 
@@ -154,6 +154,6 @@ On a custom plugin, **Submit to the registry** in its menu opens the submission 
 
 ## Your keys stay with SurfSense
 
-Keys, headers and sign-ins are stored encrypted on your computer. When the agent calls a tool, SurfSense adds them to the request itself. The agent, the model and its provider never see them, and they never appear in a chat.
+Keys, headers and sign-ins are stored encrypted on your computer. When the agent calls a tool, SurfSense adds them to the request itself, so the agent, the model and its provider aren't given them. A plugin's reply reaches the agent unchanged, so if its server sends a key back, such as in an error, the model and the chat see it.
 
-The plugin's server gets what the agent sends its tools, plus your IP address. That's why third-party plugins stay off until you allow them, and why tools that may make changes ask before each use.
+The plugin's server gets what the agent sends its tools, the keys, headers and sign-in you saved for it, and your IP address. That's why third-party plugins stay off until you allow them, and why tools that may make changes ask before each use.

@@ -63,6 +63,12 @@ Click **Use** on a model. **Test chat** sends one short prompt so you can see it
 
 Replace `<host>` with that computer's IP address or name. Ollama only listens on its own computer by default. To reach it from another computer or from Docker, start it with `OLLAMA_HOST=0.0.0.0`.
 
+<Callout type="warn">
+  Ollama has no sign-in, so then any computer that can reach the port can use
+  your models. Limit who can reach it with a firewall, or put it behind a
+  reverse proxy that asks for a password.
+</Callout>
+
 Include `/v1`. SurfSense uses the URL exactly as you enter it, and Ollama's OpenAI API lives under `/v1`.
 
 ## Network permission

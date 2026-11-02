@@ -54,12 +54,13 @@ To see the last request exactly as it was sent, open Settings › About and choo
 
 ## How you installed SurfSense
 
-Every way of [installing SurfSense](/docs/v2/install) today uses the app's own installer, so the in-app updater works the same:
+Most ways of [installing SurfSense](/docs/v2/install) use the app's own installer, so the in-app updater works the same. The exception is the one-line install script on Linux with apt, which adds SurfSense's apt repository: apt then updates SurfSense.
 
 | Installed with | Update with |
 |---|---|
 | The download from the website | the in-app updater |
-| The one-line install script | the in-app updater |
+| The one-line install script, on Linux with apt | `sudo apt-get update && sudo apt-get upgrade` |
+| The one-line install script, anywhere else | the in-app updater |
 | A deb or rpm you installed by hand | the in-app updater |
 
 A deb or rpm update installs as an administrator, so expect a password prompt.
