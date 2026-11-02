@@ -128,6 +128,8 @@ describe("the title bar's update pill", () => {
       await screen.findByRole("button", { name: "Check for updates" })
     )
     await act(async () => bridge.checkFromMenu())
+    // Both checks ran, so the one toast is not just the title bar's alone.
+    await waitFor(() => expect(bridge.calls).toEqual(["check", "check"]))
     act(() => bridge.push({ status: "checking" }))
     act(() => bridge.push({ status: "up-to-date" }))
 
