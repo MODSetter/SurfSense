@@ -53,14 +53,11 @@ SurfSense는 업로드할 수 없는 문서를 위한 무료 오픈소스 데스
 | **Windows** x64 | [SurfSense-Setup.exe](https://www.surfsense.com/downloads/windows?src=readme) |
 | **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
 | **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
+| **Docker** Linux, macOS | `curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh \| bash` |
+| **Docker** Windows (Docker Desktop) | `irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 \| iex` |
 
-**Docker로 서버에 직접 호스팅**하고, 네트워크의 어느 기기에서든 여세요. 업데이트하려면 같은 명령을 다시 실행하세요.
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
-```
-
-Docker Desktop이 설치된 Windows에서: `irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 | iex`
+> [!NOTE]
+> Docker로 서버에 직접 호스팅하고, 네트워크의 어느 기기에서든 열 수 있습니다. 업데이트하려면 같은 명령을 다시 실행하세요.
 
 ## 빠른 시작
 

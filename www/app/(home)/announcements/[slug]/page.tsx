@@ -21,7 +21,7 @@ import { formatAnnouncementDate } from "../format-announcement-date";
 /**
  * One announcement, laid out like a blog post. The header and image come from
  * `features/announcements/announcements-data.ts`, the text from its MDX body.
- * Site design via the `/announcements/` prefix in `components/site/site-shell.tsx`.
+ * Site design from `app/(home)/layout.tsx`.
  */
 
 const BASE_URL = "https://www.surfsense.com";

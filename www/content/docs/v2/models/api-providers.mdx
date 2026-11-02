@@ -1,0 +1,114 @@
+---
+title: API providers
+description: Use OpenAI, OpenRouter, Anthropic and other hosted APIs with your own key
+---
+
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+
+You can use models from a hosted provider, such as OpenAI, Anthropic, OpenRouter, Mistral or Groq, with your own API key. SurfSense talks to the provider directly. There is no SurfSense account or middleman, and you pay the provider for what you use.
+
+## Add a provider
+
+<Steps>
+<Step>
+
+Open **Settings** and the model section you want, such as **Text gen**. Click **Add model**, then **Use a server**. In onboarding, click **Connect** under **Use a server**.
+
+</Step>
+<Step>
+
+In **Connect a server**, enter a **Name**, such as `OpenAI`.
+
+</Step>
+<Step>
+
+Under **Provider**, search for your provider and pick it. SurfSense fills in its **Base URL**. You can still change it, for example to go through a proxy.
+
+- A provider marked **Needs your account details** asks for them, such as a Cloudflare account ID, and builds the URL for you.
+- A provider marked **Enter its URL** leaves the URL to you.
+- A provider SurfSense can't connect to, such as one that needs a cloud account sign-in instead of a key, is listed but can't be picked, with the reason.
+
+Not in the list? Pick **Local or custom server** and enter its OpenAI-compatible URL.
+
+</Step>
+<Step>
+
+Paste your key under **API key**.
+
+</Step>
+<Step>
+
+Click **Save server**. The first time, SurfSense asks **Allow sending data to** the provider's host. Allow it. SurfSense then checks your key by asking the provider for its model list, and opens the list.
+
+</Step>
+<Step>
+
+Find a model and click **Use**. Test it, then click **Use this model**.
+
+</Step>
+</Steps>
+
+The provider now appears as its own group in each model section it can fill: text, image, image editing, audio and video. Open the group to pick a model for that section. One key serves all of them.
+
+## Choosing a model from a provider
+
+A provider can list hundreds of models. SurfSense shows each section only the models that can do that job, such as image models under **Image gen**. Each model shows what it does, and **Vision** when it can read images you attach in chat.
+
+When the list doesn't have a model you know the provider serves, type its ID under **Exact model ID**.
+
+For chat, check **What this model can do** under the model in use. It shows whether the model passed SurfSense's Agentic tests and what Studio makes with it. See [Basic and Agentic chat](/docs/v2/models#basic-and-agentic-chat).
+
+## Test before you use
+
+Before a model becomes the one in use, you can try it:
+
+- **Test chat** sends one short prompt and shows the answer.
+- **Test image** makes one picture.
+- **Test voice** voices one short line. For an audio model you can name a voice.
+
+Each test is a real request, so it may cost a little money. **Use without testing** skips it.
+
+## Your key
+
+- **Encrypted.** SurfSense encrypts every key on your computer, with a secret that your operating system protects: the Keychain on macOS, your Windows account's data protection, and the keyring on Linux.
+- **Never shown again.** After you save, the key field reads **Leave blank to keep the saved key**. Type a new key to replace it, or tick **Remove saved API key**.
+- **Never sent anywhere else.** A key goes only to the provider it belongs to.
+
+<Callout type="warn">
+  On Linux without a keyring, such as some minimal desktops, the secret can't
+  be protected by the keychain and is kept with weaker protection. Install and
+  unlock a keyring, such as GNOME Keyring or KWallet, for full protection.
+</Callout>
+
+If your keychain is reset, or you restore your data folder on another computer, SurfSense can no longer read the saved keys. Chat then says **Couldn’t use** the model, **its saved key has to be entered again**. Open the server's **Edit** and enter the key again.
+
+## What is sent, and network permission
+
+Nothing goes to a provider until you allow its host. When you do, chats and Studio jobs that use its models send it your prompts and excerpts of your documents. Each provider's host is its own permission.
+
+- **Settings › Network** lists every host and when it was last called. Turn one off to block it at once.
+- If you turn off a host your chat model needs, the chat shows a notice with **Allow…** and **Open settings**, and holds your message until you choose.
+- An image a provider returns as a link is downloaded through the same connection you allowed, so it needs no separate permission.
+
+See [Privacy](/docs/v2/privacy) for everything SurfSense can send.
+
+## Edit or remove a provider
+
+Each provider is a group in every model section it serves.
+
+- **Edit** changes its name, URL or key. A change applies to every model type.
+- **Disconnect** removes it, and clears the models in use that came from it. The dialog names them first.
+
+## Troubleshooting
+
+### The endpoint's model list could not be verified
+
+The provider refused the key, or SurfSense couldn't reach it. Check the key and that it has access to the API. If you are sure both are right, the provider may not list models: click **Save anyway** and type a model ID by hand.
+
+### The provider is rate-limiting requests
+
+Your key has hit the provider's limit. Wait a moment, or raise the limit with the provider.
+
+### A model disappeared
+
+Providers retire models. If the model in use is no longer listed, chat offers **Set up model** so you can choose another.

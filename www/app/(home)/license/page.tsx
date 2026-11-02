@@ -11,8 +11,7 @@ import { ResendForm } from "@/features/license/license-forms";
 /**
  * Rendered in the site design: the palette, column, navigation and footer all
  * come from `app/(home)/layout.tsx`; the page uses the homepage's centred heads
- * and the same email pill as `/downloads`. Listed in `SITE_DESIGN_ROUTES` in
- * `components/site/site-shell.tsx`.
+ * and the same email pill as `/downloads`.
  *
  * This page does one thing: send a licence file back to the address it was
  * issued to. Without accounts, that file is the only thing a customer holds,

@@ -49,6 +49,7 @@ Small, focused PRs are easier to review.
 
 - Say what changed, why, and how you tried it.
 - If your change alters behaviour that a doc in `docs/architecture/` describes, update the doc in the same PR. If it fixes a Known gap, delete that line.
+- If it changes something a user sees, such as a setting, label, flow or limit, that a page in [`www/content/docs/v2/`](www/content/docs/v2/) describes, update that page in the same PR. [`www/AGENTS.md`](www/AGENTS.md) has the rules for those pages.
 - Run the tests for what you changed. The commands are in each product's README and in the Testing table in [AGENTS.md](AGENTS.md).
 - After editing anything under `docs/` or `plans/`, run `python scripts/check_docs.py`.
 - [Allow edits from maintainers](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/allowing-changes-to-a-pull-request-branch-created-from-a-fork) lets us help on the branch.

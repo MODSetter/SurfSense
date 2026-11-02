@@ -1,0 +1,40 @@
+---
+title: TikTok
+description: Read TikTok videos and their comments, search users, and see what is trending
+---
+
+TikTok follows what is happening on the platform from your chats. It reads public videos from links, profiles or hashtags with their comments, shows what is trending right now, and finds accounts by keyword, without your own TikTok account.
+
+Needs a [SurfSense license](/docs/v2/license). See [SurfSense plugins](/docs/v2/plugins/surfsense-plugins) to connect it.
+
+## Tools
+
+| Tool | What it does |
+|---|---|
+| `scrape` | Reads videos from a video, profile, hashtag or search link, or from profile names and hashtags. A profile also comes with its account: name, followers and bio. |
+| `comments` | Reads the comments under one or more videos: text, author, likes and reply counts. |
+| `trending` | Lists the videos trending now on TikTok's Explore feed. |
+| `user_search` | Finds accounts by keyword, with name, followers, bio and whether they're verified. |
+
+## Example prompts
+
+- "@tiktok What's trending on TikTok right now? Group the videos by theme."
+- "Read the last ten videos from @username and summarise what they're about."
+- "Find TikTok accounts about sourdough baking and list their follower counts."
+- "What are people saying in the comments of this video? https://www.tiktok.com/@…/video/…"
+
+## Add from the web
+
+In **+ › Add from the web…**:
+
+- **A video link** becomes one source with the video's details and comments.
+- **A profile, hashtag or search link** opens as a list of videos. Add the ones you want.
+- **Search TikTok itself**: pick TikTok in the **Search on** menu under the box.
+
+Short links, `vm.tiktok.com` and `vt.tiktok.com`, can't be added. Open them in your browser and copy the full link instead.
+
+## Limits
+
+- **Comments can come back empty.** TikTok sometimes withholds a public video's comments. The result then says no comments were found.
+- **Public content only.**
+- **TikTok can refuse.** When TikTok blocks every attempt, the call fails with that reason. Try again later.

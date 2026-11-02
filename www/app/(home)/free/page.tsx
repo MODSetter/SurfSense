@@ -12,8 +12,7 @@ import { LinkSquare02Icon } from "@/components/ui/icons";
 /**
  * Rendered in the site design: the palette, ruled column, navigation and footer
  * all come from `app/(home)/layout.tsx`; the page uses Tailwind plus the shared
- * `siteText` styles. Listed in `SITE_DESIGN_ROUTES` in
- * `components/site/site-shell.tsx`.
+ * `siteText` styles.
  *
  * The copy, metadata, keyword set and structured data are the ones this page
  * already ranks on and are left alone.

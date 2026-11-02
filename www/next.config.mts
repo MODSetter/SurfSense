@@ -1,8 +1,8 @@
 import path from "node:path";
 import { createMDX } from "fumadocs-mdx/next";
 import type { NextConfig } from "next";
-import { docsRedirects } from "./features/docs/docs-redirects";
-import { installScriptRedirects } from "./features/downloads/install-script-redirects";
+import { docsRedirects } from "./features/docs/docs-redirects.mts";
+import { installScriptRedirects } from "./features/downloads/install-script-redirects.mts";
 
 // The per-scraper marketing pages gave way to each plugin's page under /plugins.
 const LISTED_SCRAPERS = [
@@ -36,7 +36,11 @@ const nextConfig: NextConfig = {
 			...installScriptRedirects,
 		];
 	},
-	outputFileTracingRoot: path.join(__dirname, ".."),
+	async rewrites() {
+		// A docs page's Markdown sits at its URL plus `.mdx`.
+		return [{ source: "/docs/:path*.mdx", destination: "/llms.mdx/docs/:path*" }];
+	},
+	outputFileTracingRoot: path.join(import.meta.dirname, ".."),
 	reactStrictMode: false,
 	typescript: {
 		ignoreBuildErrors: true,

@@ -53,14 +53,11 @@ SurfSense एक मुफ़्त, ओपन-सोर्स डेस्क�
 | **Windows** x64 | [SurfSense-Setup.exe](https://www.surfsense.com/downloads/windows?src=readme) |
 | **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
 | **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
+| **Docker** Linux, macOS | `curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh \| bash` |
+| **Docker** Windows (Docker Desktop) | `irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 \| iex` |
 
-**इसे Docker के साथ अपने सर्वर पर खुद होस्ट करें**, और अपने नेटवर्क के किसी भी डिवाइस से खोलें। अपडेट करने के लिए वही कमांड फिर से चलाएं।
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
-```
-
-Docker Desktop वाले Windows पर: `irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 | iex`
+> [!NOTE]
+> Docker के साथ आप इसे अपने सर्वर पर खुद होस्ट करते हैं और अपने नेटवर्क के किसी भी डिवाइस से खोलते हैं। अपडेट करने के लिए वही कमांड फिर से चलाएं।
 
 ## झटपट शुरुआत
 

@@ -35,9 +35,9 @@
 		"class-variance-authority": "^0.7.1",
 		"clsx": "^2.1.1",
 		"date-fns": "^4.1.0",
-		"fumadocs-core": "^16.3.1",
-		"fumadocs-mdx": "^14.2.1",
-		"fumadocs-ui": "^16.3.1",
+		"fumadocs-core": "^16.17.8",
+		"fumadocs-mdx": "^15.4.10",
+		"fumadocs-ui": "npm:@fumadocs/base-ui@^16.17.8",
 		"fuzzy-search": "^3.2.1",
 		"lenis": "^1.3.17",
 		"motion": "^12.23.22",
@@ -50,7 +50,7 @@
 		"server-only": "^0.0.1",
 		"tailwind-merge": "^3.3.1",
 		"tailwindcss-animate": "^1.0.7",
-		"zod": "^4.2.1"
+		"zod": "^4.6.7"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.5.15",
