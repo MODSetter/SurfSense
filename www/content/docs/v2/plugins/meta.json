@@ -3,7 +3,6 @@
 	"icon": "Plug",
 	"defaultOpen": false,
 	"pages": [
-		"index",
 		"third-party",
 		"---SurfSense plugins---",
 		"surfsense-plugins",

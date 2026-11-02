@@ -3,7 +3,6 @@
 	"icon": "Cpu",
 	"defaultOpen": false,
 	"pages": [
-		"index",
 		"---On this computer---",
 		"local",
 		"lm-studio",
