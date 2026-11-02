@@ -16,6 +16,7 @@ from pathlib import Path
 from modules.artifacts.revised_copies.engines.excel_inspection import inspect_workbook
 from modules.jobs.evidence.passages import SourceText, passages_of
 from modules.jobs.evidence.retrieval import Embed, Retriever
+from modules.jobs.provenance import quote_check
 from modules.jobs.workbook_rows.ask import AnswerModel, passages_block
 from modules.jobs.workbook_rows.config import JobConfig
 from modules.jobs.workbook_rows.decide import RowResult, answer_row
@@ -82,11 +83,18 @@ def fill_workbook(
         ),
         config.max_whole_chars,
     )
+
+    def embedding(texts: list[str], query: bool) -> list[list[float]]:
+        # Embedding a library takes minutes on a laptop: a cancel is honoured between batches.
+        if stop is not None and stop():
+            raise FillStoppedError("Stopped before the first question.")
+        return embed(texts, query)  # type: ignore[misc]
+
     retriever = Retriever(
         passages,
         budget,
         config.passages_per_question,
-        embed=embed,
+        embed=embedding if embed is not None else None,
         standing=config.standing_queries,
         per_standing=config.standing_per_query,
     )
@@ -100,7 +108,10 @@ def fill_workbook(
         )
         return answer_row(model, config, row, block, passages, sources)
 
-    results = _answer_all(rows, one, max(model.concurrency, 1), on_row, stop)
+    try:
+        results = _answer_all(rows, one, max(model.concurrency, 1), on_row, stop)
+    finally:
+        quote_check.forget()
     ops = operations(results, layout.skipped, config, [s.name for s in facts.sheets])
     counts = Counter(r.answer for r in results)
     counts["blank"] = sum(1 for r in results if r.written is None)

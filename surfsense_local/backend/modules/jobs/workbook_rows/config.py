@@ -146,7 +146,7 @@ def load_config(config_file: Path) -> JobConfig:
             if "second_look" in raw
             else "",
         )
-    except (OSError, ValueError, KeyError, TypeError) as broken:
+    except (OSError, ValueError, KeyError, TypeError, AttributeError) as broken:
         raise PackRefusedError(
             "BAD_JOB_CONFIG", f"{config_file.name} is not a job config: {broken}"
         ) from broken

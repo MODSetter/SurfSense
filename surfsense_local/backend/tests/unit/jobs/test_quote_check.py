@@ -77,3 +77,24 @@ def test_a_link_reads_as_its_text_and_far_apart_parts_are_not_one_quote():
     assert (
         find_quote("Keys rotate every year ... Access is logged daily", [far]) is None
     )
+
+
+def test_a_quote_may_not_skip_a_negation_and_a_hint_never_turns_a_claim_around():
+    """ "... " can leave words out, but not a "not"; the closest-sentence hint never offers a
+    sentence that differs from the quote by a negation or a number."""
+    source = "Customer data is not encrypted at rest. Backups are kept for a year."
+
+    assert find_quote("Customer data is ... encrypted at rest", [source]) is None
+    assert find_quote("Customer data is not encrypted ... kept for a year", [source])
+    assert nearest_sentence("Customer data is encrypted at rest", [source]) is None
+    assert nearest_sentence("Backups are kept for 2 years", [source]) is None
+
+
+def test_a_line_of_brackets_is_read_in_linear_time():
+    """A source line of many "[" and no "]" does not stall the check."""
+    import time
+
+    started = time.monotonic()
+    find_quote("words that are not there", ["[" * 50_000])
+
+    assert time.monotonic() - started < 2

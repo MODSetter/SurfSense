@@ -20,6 +20,10 @@ from modules.jobs.evidence.passages import Passage
 
 # Texts to unit vectors, a question's when the flag is True, else passages'.
 Embed = Callable[[list[str], bool], list[list[float]]]
+# Passages embedded per call.
+EMBED_BATCH = 64
+# How high in both rankings a standing query's passage must sit to be shown with every question.
+STANDING_TOP = 10
 
 _STOP = frozenset(
     [
@@ -137,13 +141,17 @@ class Retriever:
         if self.whole:
             return
         if self.embed is not None and self.passages:
+            texts = [f"{p.title} {p.section}\n{p.text}" for p in self.passages]
+            # In batches, so an embed that checks for a cancel is asked between them.
             self._vectors = _unit(
-                self.embed(
-                    [f"{p.title} {p.section}\n{p.text}" for p in self.passages], False
-                )
+                [
+                    vector
+                    for start in range(0, len(texts), EMBED_BATCH)
+                    for vector in self.embed(texts[start : start + EMBED_BATCH], False)
+                ]
             )
         for query in self.standing:
-            self._standing += self._ranked(query)[: self.per_standing]
+            self._standing += self._agreed(query)[: self.per_standing]
 
     @property
     def whole(self) -> bool:
@@ -163,6 +171,31 @@ class Retriever:
 
     def _ranked(self, text: str) -> list[int]:
         """Passages best first: by BM25, or by BM25's ranking and meaning's in turn."""
+        lexical, semantic = self._lanes(text)
+        if semantic is None:
+            return lexical
+        merged: dict[int, None] = {}
+        for pair in zip_longest(lexical, semantic):
+            merged.update((i, None) for i in pair if i is not None)
+        return list(merged)
+
+    def _agreed(self, query: str) -> list[int]:
+        """A standing query's passages, best first, only where the evidence for them is strong:
+        among the first few of both rankings, or with words alone, holding half the query's
+        terms. A weak pick would be shown with every question, so none is better."""
+        lexical, semantic = self._lanes(query)
+        if semantic is not None:
+            near = set(semantic[:STANDING_TOP])
+            return [i for i in lexical[:STANDING_TOP] if i in near]
+        wanted = set(terms(query))
+        return [
+            i
+            for i in lexical[:STANDING_TOP]
+            if len(wanted & self._bags[i].keys()) * 2 >= len(wanted)
+        ]
+
+    def _lanes(self, text: str) -> tuple[list[int], list[int] | None]:
+        """BM25's ranking of the passages that share a term, and the embedder's of all of them."""
         wanted = terms(text)
         scored = sorted(
             ((self._score(i, wanted), i) for i in range(len(self.passages))),
@@ -170,13 +203,9 @@ class Retriever:
         )
         lexical = [i for score, i in scored if score > 0]
         if self._vectors is None or self.embed is None:
-            return lexical
+            return lexical, None
         query = _unit(self.embed([text], True))[0]
-        semantic = np.argsort(-(self._vectors @ query), kind="stable").tolist()
-        merged: dict[int, None] = {}
-        for pair in zip_longest(lexical, semantic):
-            merged.update((i, None) for i in pair if i is not None)
-        return list(merged)
+        return lexical, np.argsort(-(self._vectors @ query), kind="stable").tolist()
 
     def _score(self, index: int, wanted: list[str]) -> float:
         bag = self._bags[index]

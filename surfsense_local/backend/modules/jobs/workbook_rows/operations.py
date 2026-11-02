@@ -7,7 +7,7 @@ from __future__ import annotations
 from string import Template
 
 from modules.jobs.workbook_rows.config import JobConfig
-from modules.jobs.workbook_rows.decide import EXCEPTIONS, Cited, RowResult
+from modules.jobs.workbook_rows.decide import EXCEPTIONS, RowResult, template_fields
 from modules.jobs.workbook_rows.layout import Skipped
 
 ANSWER_COLUMNS = (
@@ -70,14 +70,16 @@ def operations(
 def comment_text(result: RowResult, config: JobConfig) -> str:
     templates = config.templates.comment
     template = templates.get(result.answer) or templates.get("*") or ""
-    return " ".join(Template(template).safe_substitute(_fields(result)).split())
+    return " ".join(Template(template).safe_substitute(template_fields(result)).split())
 
 
 def evidence_text(result: RowResult, config: JobConfig) -> str:
     if not result.source:
         return ""
     return " ".join(
-        Template(config.templates.evidence).safe_substitute(_fields(result)).split()
+        Template(config.templates.evidence)
+        .safe_substitute(template_fields(result))
+        .split()
     )
 
 
@@ -90,8 +92,8 @@ def exception_lines(
             message = EXCEPTIONS[code].format(
                 said=result.said or "", answer=result.answer, missing=result.missing
             )
-            # The model's comment argued for the answer the second check refused.
-            if code == "NEEDS_REVIEW" and result.comment and not result.missing:
+            # Where the checks set the answer aside, the model's comment argued for it.
+            if code == "NEEDS_REVIEW" and result.comment and result.said is None:
                 message = f"{message} {result.comment}"
             lines.append(
                 [
@@ -124,28 +126,6 @@ def _answer_lines(result: RowResult) -> list[list[object]]:
         [*head, c.source, c.section, c.line, c.quote, result.comment]
         for c in result.cited
     ]
-
-
-def _fields(result: RowResult) -> dict[str, str]:
-    """$quote, $source, $section and $where name the main quote; $citations and $sources all of them."""
-    wheres = [_where(c) for c in result.cited]
-    return {
-        "answer": result.answer,
-        "comment": result.comment,
-        "quote": result.quote,
-        "source": result.source,
-        "section": result.section,
-        "where": wheres[0] if wheres else "",
-        "citations": "; ".join(
-            f'{where}: "{c.quote}"'
-            for where, c in zip(wheres, result.cited, strict=True)
-        ),
-        "sources": "; ".join(dict.fromkeys(wheres)),
-    }
-
-
-def _where(cited: Cited) -> str:
-    return cited.source + (f", {cited.section}" if cited.section else "")
 
 
 def _set(sheet: str, cell: str, value: str) -> dict:

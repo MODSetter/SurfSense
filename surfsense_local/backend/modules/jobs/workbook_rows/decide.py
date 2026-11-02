@@ -104,15 +104,13 @@ def answer_row(
         )
         if asked.draft is None:
             asked.draft = cautious  # an unreadable second look leaves the first answer
-    verdict = _verdict(model, config, row, asked, passages, sources, trace)
+    checks: list[Verdict] = []
+    verdict = _verdict(model, config, row, asked, passages, sources, trace, checks)
     switched = None
     if verdict is not None and not verdict.supported:
         # Right answer, wrong evidence is common: say what the check found, ask once more.
         refused = asked.draft
-        _, unfound = _cited(refused, config, passages, sources)
-        asked.calls += 1
-        asked.input_tokens += verdict.input_tokens
-        asked.output_tokens += verdict.output_tokens
+        refused_cited, unfound = _cited(refused, config, passages, sources)
         asked = ask_row(
             model,
             config,
@@ -134,10 +132,22 @@ def answer_row(
         ):
             # Refused, an answer may find better evidence or give way, never turn into
             # another, which nothing checked: all 11 of Qwen's last-turn No were refused.
-            switched, verdict = refused.answer, None
+            switched = refused.answer
+        if (
+            again is None
+            or switched
+            or again.answer == config.fallback.answer
+            # The same evidence again: a second sample of the check is not a second check.
+            or set(_cited(again, config, passages, sources)[0]) <= set(refused_cited)
+        ):
+            # The refusal stands, and the row keeps what was refused and why: for a person,
+            # the refused quotes are the best place to start.
+            asked.draft = refused
         else:
-            verdict = _verdict(model, config, row, asked, passages, sources, trace)
-    result = _decided(asked, config, row, passages, sources, verdict, switched)
+            verdict = _verdict(
+                model, config, row, asked, passages, sources, trace, checks
+            )
+    result = _decided(asked, config, row, passages, sources, verdict, switched, checks)
     result.looked_again = looked_again
     result.trace = trace
     return result
@@ -224,8 +234,10 @@ def _verdict(
     passages: list[Passage],
     sources: list[SourceText],
     trace: list[dict],
+    checks: list[Verdict],
 ) -> Verdict | None:
-    """The second check, for a quoted answer the job checks; None when there is nothing to check."""
+    """The second check, for a quoted answer the job checks; None when there is nothing to
+    check. Every check made is kept in `checks`, which the row's cost counts."""
     draft = asked.draft
     if (
         draft is None
@@ -239,6 +251,7 @@ def _verdict(
     verdict = verify_answer(
         model, config, row, draft.answer, [(c.source, c.quote) for c in cited]
     )
+    checks.append(verdict)
     trace.append(
         {"step": "check", "supported": verdict.supported, "missing": verdict.missing}
     )
@@ -326,8 +339,10 @@ def _decided(
     sources: list[SourceText],
     verdict: Verdict | None = None,
     switched: str | None = None,
+    checks: list[Verdict] | None = None,
 ) -> RowResult:
     fallback = config.fallback
+    checks = checks or []
     result = RowResult(
         row=row,
         answer=fallback.answer,
@@ -335,9 +350,9 @@ def _decided(
         written=None,
         comment="",
         confidence="low",
-        calls=asked.calls + (verdict is not None),
-        input_tokens=asked.input_tokens + (verdict.input_tokens if verdict else 0),
-        output_tokens=asked.output_tokens + (verdict.output_tokens if verdict else 0),
+        calls=asked.calls + len(checks),
+        input_tokens=asked.input_tokens + sum(c.input_tokens for c in checks),
+        output_tokens=asked.output_tokens + sum(c.output_tokens for c in checks),
     )
     draft = asked.draft
     if draft is None:
@@ -348,6 +363,7 @@ def _decided(
         result.cited, _ = _cited(draft, config, passages, sources)
         if switched is not None:
             result.said = switched
+            result.missing = verdict.missing if verdict else ""
             result.codes.append("ANSWER_SWITCHED")
         elif choice.needs_quote and not result.cited:
             result.said = choice.answer
@@ -364,9 +380,7 @@ def _decided(
         # A free-text cell takes the answer in words, as a person filling it in would.
         result.written = " ".join(
             Template(config.templates.free_text)
-            .safe_substitute(
-                answer=result.answer, comment=result.comment, quote=result.quote
-            )
+            .safe_substitute(template_fields(result))
             .split()
         )
     if chosen.fallback:
@@ -376,6 +390,37 @@ def _decided(
     if result.confidence == "low" and not chosen.fallback:
         result.codes.append("LOW_CONFIDENCE")
     return result
+
+
+def template_fields(result: RowResult) -> dict[str, str]:
+    """What a pack's templates may say of an answer. $quote, $source, $section and $where name
+    the main quote, $citations and $sources all of them. $comment is the model's own words only
+    when they stand: where the checks set its answer aside, it is the reason instead, so a
+    claim nothing checked never reaches the requester's cells."""
+    wheres = [_where(c) for c in result.cited]
+    comment = result.comment
+    if result.said is not None:
+        code = next((c for c in result.codes if c != "NEEDS_REVIEW"), "NEEDS_REVIEW")
+        comment = result.missing or EXCEPTIONS[code].format(
+            said=result.said, answer=result.answer, missing=result.missing
+        )
+    return {
+        "answer": result.answer,
+        "comment": comment,
+        "quote": result.quote,
+        "source": result.source,
+        "section": result.section,
+        "where": wheres[0] if wheres else "",
+        "citations": "; ".join(
+            f'{where}: "{c.quote}"'
+            for where, c in zip(wheres, result.cited, strict=True)
+        ),
+        "sources": "; ".join(dict.fromkeys(wheres)),
+    }
+
+
+def _where(cited: Cited) -> str:
+    return cited.source + (f", {cited.section}" if cited.section else "")
 
 
 def _section(passages: list[Passage], source: int, line: int) -> str:

@@ -84,3 +84,34 @@ def test_with_an_embedder_meaning_takes_turns_with_the_words():
 
     assert vendors not in words_only.for_question(question)
     assert vendors in with_meaning.for_question(question)
+
+
+def test_a_standing_query_with_no_strong_match_pins_nothing():
+    """A query no passage answers well shows nothing with every question rather than noise."""
+    passages = passages_of(SOURCES)
+    retriever = Retriever(
+        passages,
+        budget_chars=100,
+        per_question=1,
+        standing=("how often the firm's insurance cover is renewed",),
+    )
+
+    assert retriever.pinned == []
+
+
+def test_passages_are_embedded_in_batches():
+    """The embedder is asked a batch at a time, so a cancel can come between batches."""
+    from modules.jobs.evidence.retrieval import EMBED_BATCH
+
+    filler = "\n\n".join(f"## Part {n}\n\nText {n}." for n in range(EMBED_BATCH + 5))
+    passages = passages_of([SourceText(1, "long", filler)])
+    sizes: list[int] = []
+
+    def embed(texts, query):
+        if not query:
+            sizes.append(len(texts))
+        return [[1.0, 0.0] for _ in texts]
+
+    Retriever(passages, budget_chars=100, per_question=2, embed=embed)
+
+    assert sizes == [EMBED_BATCH, len(passages) - EMBED_BATCH]
