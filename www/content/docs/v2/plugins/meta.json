@@ -2,5 +2,20 @@
 	"title": "Plugins",
 	"icon": "Unplug",
 	"defaultOpen": false,
-	"pages": ["index", "surfsense-plugins", "third-party"]
+	"pages": [
+		"index",
+		"third-party",
+		"---SurfSense plugins---",
+		"surfsense-plugins",
+		"google-search",
+		"web-crawl",
+		"youtube",
+		"reddit",
+		"instagram",
+		"tiktok",
+		"google-maps",
+		"amazon",
+		"walmart",
+		"indeed"
+	]
 }

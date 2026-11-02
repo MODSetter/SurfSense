@@ -40,4 +40,10 @@ export const docsRedirects = [
 		destination: `/docs/${LEGACY_DOCS_PATH}/:path`,
 		permanent: true,
 	},
+	// SurfSense's own plugins moved up out of their subfolder; the overview kept its address.
+	{
+		source: `/docs/${CURRENT_DOCS_PATH}/plugins/surfsense-plugins/:plugin`,
+		destination: `/docs/${CURRENT_DOCS_PATH}/plugins/:plugin`,
+		permanent: true,
+	},
 ];

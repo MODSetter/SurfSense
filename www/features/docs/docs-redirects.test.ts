@@ -125,6 +125,15 @@ test("the docs split into exactly the two sections", () => {
 	assert.deepEqual(roots.toSorted(), [CURRENT_DOCS_PATH, LEGACY_DOCS_PATH].toSorted());
 });
 
+test("a SurfSense plugin's page keeps its address from before it moved up a folder", () => {
+	assert.equal(
+		redirect(`/docs/${CURRENT_DOCS_PATH}/plugins/surfsense-plugins/youtube`),
+		`/docs/${CURRENT_DOCS_PATH}/plugins/youtube`
+	);
+	// The overview kept its own address, so it must not redirect.
+	assert.equal(redirect(`/docs/${CURRENT_DOCS_PATH}/plugins/surfsense-plugins`), null);
+});
+
 test("unknown docs paths still land in the legacy version", () => {
 	// Better a 404 inside the old docs than a 404 at a URL with no owner.
 	assert.equal(redirect("/docs/some-deleted-page"), `/docs/${LEGACY_DOCS_PATH}/some-deleted-page`);
