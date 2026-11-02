@@ -4,7 +4,6 @@ import {
 	DocsPage,
 	DocsTitle,
 	MarkdownCopyButton,
-	PageLastUpdate,
 	ViewOptionsPopover,
 } from "fumadocs-ui/layouts/spacious/page";
 import { notFound } from "next/navigation";
@@ -40,7 +39,17 @@ export default async function Page(props: { params: Promise<{ slug?: string[] }>
 			<DocsBody>
 				<MDX components={getMDXComponents()} />
 			</DocsBody>
-			{page.data.lastModified && <PageLastUpdate date={page.data.lastModified} />}
+			{/* Not Fumadocs' PageLastUpdate: it leaves the date out of the server HTML and
+			    formats it only as an ambiguous numeric date, such as 11/2/2026. */}
+			{page.data.lastModified && (
+				<p className="text-sm text-fd-muted-foreground">
+					Last updated on{" "}
+					{page.data.lastModified.toLocaleDateString("en-US", {
+						dateStyle: "long",
+						timeZone: "UTC",
+					})}
+				</p>
+			)}
 		</DocsPage>
 	);
 }
