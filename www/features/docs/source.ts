@@ -13,6 +13,7 @@ import {
 	FlaskConicalIcon,
 	HistoryIcon,
 	LaptopIcon,
+	Plug01Icon,
 	Radar01Icon,
 	UnplugIcon,
 	Wrench01Icon,
@@ -34,6 +35,8 @@ const DOCS_ICONS: Record<string, React.ComponentType> = {
 	History: HistoryIcon,
 	Laptop: LaptopIcon,
 	MessageCircle: BubbleChatIcon,
+	// The desktop app's plugin icon, so the docs and the app match.
+	Plug: Plug01Icon,
 	Radar: Radar01Icon,
 	Unplug: UnplugIcon,
 	Wrench: Wrench01Icon,

@@ -1,6 +1,6 @@
 {
 	"title": "Plugins",
-	"icon": "Unplug",
+	"icon": "Plug",
 	"defaultOpen": false,
 	"pages": [
 		"index",
