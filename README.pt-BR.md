@@ -78,9 +78,10 @@ No Windows com Docker Desktop: `irm https://raw.githubusercontent.com/MODSetter/
 | **Excel** `.xlsx` | ✓ o agente também lê as fórmulas | ✓ com fórmulas e gráficos nativos | ✓ valores das células e fórmulas | Analisar com pandas e gerar gráficos dos resultados |
 | **PowerPoint** `.pptx` | ✓ | ✓ ou a partir do seu próprio `.pptx` como modelo | Substituir texto nos slides e nas anotações; excluir ou duplicar slides | Para PDF¹ |
 | **CSV** | ✓ | — | — | Analisar com pandas e gerar gráficos dos resultados |
-| **Imagens** PNG, JPEG, TIFF, BMP, WebP | ✓ texto lido por OCR³ | Imagens e infográficos² | — | Inserir em novos documentos |
+| **Imagens** PNG, JPEG, TIFF, BMP, WebP | ✓ texto lido por OCR³ | Imagens e infográficos, editáveis por instrução² | — | Inserir em novos documentos |
 | **Markdown**, texto simples | ✓ | ✓ Markdown | — | — |
 | **HTML** | ✓ | ✓ página web | — | — |
+| **Livros** EPUB, MOBI, AZW3 | ✓ sem DRM | — | — | — |
 | **Gravações** WAV, MP3, FLAC, Ogg Vorbis | ✓ transcritas na sua máquina | — | — | — |
 | **Podcast** (áudio) | — | ✓ com transcrição; por padrão, a voz é gerada na sua máquina | — | — |
 | **Mapas mentais, flashcards, quizzes** | — | ✓ no aplicativo | — | — |

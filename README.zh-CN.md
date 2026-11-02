@@ -77,9 +77,10 @@ curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scr
 | **Excel** `.xlsx` | ✓ 智能体还会读取公式 | ✓ 带公式和原生图表 | ✓ 单元格的值和公式 | 用 pandas 分析，并把结果做成图表 |
 | **PowerPoint** `.pptx` | ✓ | ✓ 也可以用你自己的 `.pptx` 作模板 | 替换幻灯片和备注中的文字；删除或复制幻灯片 | 转为 PDF¹ |
 | **CSV** | ✓ | — | — | 用 pandas 分析，并把结果做成图表 |
-| **图像** PNG、JPEG、TIFF、BMP、WebP | ✓ 通过 OCR 识别其中的文字³ | 图像和信息图² | — | 放入新文档 |
+| **图像** PNG、JPEG、TIFF、BMP、WebP | ✓ 通过 OCR 识别其中的文字³ | 图像和信息图，可按指令编辑² | — | 放入新文档 |
 | **Markdown**、纯文本 | ✓ | ✓ Markdown | — | — |
 | **HTML** | ✓ | ✓ 网页 | — | — |
+| **电子书** EPUB、MOBI、AZW3 | ✓ 无 DRM | — | — | — |
 | **录音** WAV、MP3、FLAC、Ogg Vorbis | ✓ 在你的电脑上转写 | — | — | — |
 | **播客**（音频） | — | ✓ 附文字稿，默认在你的电脑上配音 | — | — |
 | **思维导图、记忆卡片、测验** | — | ✓ 在应用内 | — | — |

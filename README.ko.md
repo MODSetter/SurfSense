@@ -77,9 +77,10 @@ Docker Desktop이 설치된 Windows에서: `irm https://raw.githubusercontent.co
 | **Excel** `.xlsx` | ✓ 에이전트가 수식도 읽음 | ✓ 수식과 네이티브 차트 포함 | ✓ 셀 값과 수식 | pandas로 분석하고 결과를 차트로 |
 | **PowerPoint** `.pptx` | ✓ | ✓ 또는 내 `.pptx`를 템플릿으로 | 슬라이드와 노트의 텍스트 바꾸기, 슬라이드 삭제·복제 | PDF로¹ |
 | **CSV** | ✓ | — | — | pandas로 분석하고 결과를 차트로 |
-| **이미지** PNG, JPEG, TIFF, BMP, WebP | ✓ OCR로 텍스트 인식³ | 이미지와 인포그래픽² | — | 새 문서에 넣기 |
+| **이미지** PNG, JPEG, TIFF, BMP, WebP | ✓ OCR로 텍스트 인식³ | 이미지와 인포그래픽, 지시로 편집² | — | 새 문서에 넣기 |
 | **Markdown**, 일반 텍스트 | ✓ | ✓ Markdown | — | — |
 | **HTML** | ✓ | ✓ 웹 페이지 | — | — |
+| **전자책** EPUB, MOBI, AZW3 | ✓ DRM 없는 책 | — | — | — |
 | **녹음 파일** WAV, MP3, FLAC, Ogg Vorbis | ✓ 내 컴퓨터에서 텍스트로 변환 | — | — | — |
 | **팟캐스트** (오디오) | — | ✓ 스크립트 포함, 기본적으로 내 컴퓨터에서 음성 생성 | — | — |
 | **마인드맵, 플래시카드, 퀴즈** | — | ✓ 앱 안에서 | — | — |
