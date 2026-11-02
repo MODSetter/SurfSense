@@ -1,10 +1,17 @@
-import { DocsBody, DocsDescription, DocsPage, DocsTitle } from "fumadocs-ui/page";
+import {
+	DocsBody,
+	DocsDescription,
+	DocsPage,
+	DocsTitle,
+	MarkdownCopyButton,
+	PageLastUpdate,
+	ViewOptionsPopover,
+} from "fumadocs-ui/layouts/spacious/page";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { markdownUrlOf } from "@/features/docs/docs-llms";
 import { source } from "@/features/docs/source";
 import { getMDXComponents } from "@/mdx-components";
-import { MarkdownCopyButton, ViewOptionsPopover } from "./page-actions";
 
 const getDocPage = cache((slug?: string[]) => {
 	return source.getPage(slug);
@@ -19,19 +26,9 @@ export default async function Page(props: { params: Promise<{ slug?: string[] }>
 	const markdownUrl = markdownUrlOf(page);
 
 	return (
-		<DocsPage
-			toc={page.data.toc}
-			full={page.data.full}
-			tableOfContent={{
-				style: "clerk",
-				single: false,
-			}}
-			tableOfContentPopover={{
-				style: "clerk",
-			}}
-		>
+		<DocsPage toc={page.data.toc} full={page.data.full}>
 			<DocsTitle>{page.data.title}</DocsTitle>
-			<DocsDescription>{page.data.description}</DocsDescription>
+			<DocsDescription className="mb-0">{page.data.description}</DocsDescription>
 			<div className="flex flex-row items-center gap-2 border-b pb-6">
 				<MarkdownCopyButton markdownUrl={markdownUrl} />
 				<ViewOptionsPopover
@@ -43,6 +40,7 @@ export default async function Page(props: { params: Promise<{ slug?: string[] }>
 			<DocsBody>
 				<MDX components={getMDXComponents()} />
 			</DocsBody>
+			{page.data.lastModified && <PageLastUpdate date={page.data.lastModified} />}
 		</DocsPage>
 	);
 }

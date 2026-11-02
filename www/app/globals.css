@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "fumadocs-ui/css/neutral.css";
+@import "fumadocs-ui/css/generated/spacious.css";
 @import "fumadocs-ui/css/preset.css";
 
 @plugin "tailwindcss-animate";
@@ -40,9 +41,6 @@
 	--input: oklch(0.922 0 0);
 	--ring: oklch(0.708 0 0);
 	--radius: 0.625rem;
-	/* The docs page surface, through --main-panel. */
-	--panel: oklch(0.96 0 0);
-	--main-panel: var(--panel);
 	--brand: oklch(0.546 0.245 262.881);
 }
 
@@ -66,9 +64,6 @@
 	--border: oklch(0.32 0 0);
 	--input: oklch(0.32 0 0);
 	--ring: oklch(0.439 0 0);
-	/* The docs page surface, through --main-panel. */
-	--panel: oklch(0.24 0 0);
-	--main-panel: var(--panel);
 	--brand: oklch(0.546 0.245 262.881);
 }
 
@@ -92,7 +87,6 @@
 	--color-border: var(--border);
 	--color-input: var(--input);
 	--color-ring: var(--ring);
-	--color-main-panel: var(--main-panel);
 	--radius-sm: calc(var(--radius) - 4px);
 	--radius-md: calc(var(--radius) - 2px);
 	--radius-lg: var(--radius);

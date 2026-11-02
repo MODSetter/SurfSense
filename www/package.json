@@ -37,7 +37,7 @@
 		"date-fns": "^4.1.0",
 		"fumadocs-core": "^16.17.8",
 		"fumadocs-mdx": "^15.4.10",
-		"fumadocs-ui": "^16.17.8",
+		"fumadocs-ui": "npm:@fumadocs/base-ui@^16.17.8",
 		"fuzzy-search": "^3.2.1",
 		"lenis": "^1.3.17",
 		"motion": "^12.23.22",
