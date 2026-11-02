@@ -13,6 +13,7 @@ import logging
 from collections.abc import Callable
 from typing import Any
 
+import httpx
 from sqlalchemy.orm import Session
 
 from modules.agent.model_window import selected_model_window
@@ -54,6 +55,9 @@ class SelectedModel:
         self.window = window
         local = model.selection.provider == llamacpp.PROVIDER
         self.concurrency = 1 if local else REMOTE_AT_ONCE
+        # Anthropic's OpenAI-compatible API refuses a schema without "strict"; from the
+        # first refusal on, the prompt alone asks for the JSON, and the runner reads it.
+        self._schema_taken = True
 
     def ask(
         self, system: str, turns: list[tuple[str, str]], schema: dict, shared: int
@@ -64,14 +68,31 @@ class SelectedModel:
         ]
         # Questions over the same passages share a start: one key routes them to one cache.
         shared_start = hashlib.sha256(turns[0][1][:shared].encode()).hexdigest()[:24]
-        text = complete(
-            self._model,
-            messages,
-            max_tokens=MAX_REPLY_TOKENS,
-            json_schema=schema,
-            conversation=f"surfsense-job-{shared_start}",
+        conversation = f"surfsense-job-{shared_start}"
+        if self._schema_taken:
+            try:
+                return ModelReply(
+                    complete(
+                        self._model,
+                        messages,
+                        max_tokens=MAX_REPLY_TOKENS,
+                        json_schema=schema,
+                        conversation=conversation,
+                    )
+                )
+            except httpx.HTTPStatusError as refused:
+                if "response_format" not in str(refused):
+                    raise
+                logger.info("%s refuses a JSON schema; asking by prompt", self.name)
+                self._schema_taken = False
+        return ModelReply(
+            complete(
+                self._model,
+                messages,
+                max_tokens=MAX_REPLY_TOKENS,
+                conversation=conversation,
+            )
         )
-        return ModelReply(text)
 
 
 def work_out(
