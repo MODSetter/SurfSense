@@ -29,8 +29,12 @@ class RowScore:
     quote: str
     source: str
     codes: list[str]
+    cited: list[dict]  # every quote found in a source: source, section, line, quote
     evidence: str
     missing: str  # what the second check found the quote leaves out
+    comment: str = ""
+    looked_again: bool = False
+    trace: list[dict] = field(default_factory=list)
 
 
 @dataclass
@@ -89,8 +93,12 @@ def score_case(case: Case, results: list[RowResult]) -> CaseScore:
                 quote=result.quote if result else "",
                 source=result.source if result else "",
                 codes=list(result.codes) if result else ["UNREACHED"],
+                cited=[c.__dict__ for c in result.cited] if result else [],
                 evidence=gold.evidence,
                 missing=result.missing if result else "",
+                comment=result.comment if result else "",
+                looked_again=result.looked_again if result else False,
+                trace=result.trace if result else [],
             )
         )
     scored.dropdown_violations = sum(

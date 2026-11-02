@@ -16,18 +16,22 @@ def report(out: Path) -> str:
     for record in runs:
         grouped[(record["case"], record["model"])].append(record)
     lines = [
-        "| case | model | runs | correct (per run) | accuracy | false Yes | Yes without quote | dropdown or integrity problems | $ per run | seconds per run |",
-        "|---|---|---|---|---|---|---|---|---|---|",
+        "| case | model | runs | correct (per run) | accuracy | false Yes | other wrong answers | Yes without quote | dropdown or integrity problems | $ first run | $ per run | seconds per run |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     for (case, model), records in sorted(grouped.items()):
+        records.sort(key=lambda r: r["started"])
         scored = sum(r["scored_rows"] for r in records)
         correct = sum(r["correct"] for r in records)
         problems = sum(r["dropdown_violations"] + len(r["integrity"]) for r in records)
         per_run = ", ".join(f"{r['correct']}/{r['scored_rows']}" for r in records)
         lines.append(
             f"| {case} | {model} | {len(records)} | {per_run} | {correct / scored:.1%} | "
-            f"{sum(r['false_yes'] for r in records)} | {sum(r['yes_without_quote'] for r in records)} | "
-            f"{problems} | {sum(r['spend']['dollars'] for r in records) / len(records):.4f} | "
+            f"{sum(r['false_yes'] for r in records)} | {sum(_other_wrong(r) for r in records)} | "
+            f"{sum(r['yes_without_quote'] for r in records)} | {problems} | "
+            # The first run pays to fill the provider's cache; later ones read it.
+            f"{records[0]['spend']['dollars']:.4f} | "
+            f"{sum(r['spend']['dollars'] for r in records) / len(records):.4f} | "
             f"{sum(r['seconds'] for r in records) / len(records):.0f} |"
         )
     statuses = sorted({r["gold_status"] for r in runs})
@@ -44,3 +48,12 @@ def report(out: Path) -> str:
             )
             lines.append(f"- {case} on {model}: {listed}")
     return "\n".join(lines) + "\n"
+
+
+def _other_wrong(record: dict) -> int:
+    """Written answers other than Yes that the gold does not give: a wrong No or N/A."""
+    return sum(
+        count
+        for kind, count in record["misses"].items()
+        if kind.split(">")[1] not in ("Yes", "Needs review", "unreached")
+    )

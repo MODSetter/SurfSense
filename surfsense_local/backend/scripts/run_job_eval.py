@@ -12,6 +12,7 @@ Each run writes its filled workbook and a JSON record; `report` rolls them up pe
 
 import argparse
 import json
+import os
 import sys
 import time
 from datetime import UTC, datetime
@@ -25,6 +26,7 @@ from job_eval.source_files import source_text
 from job_eval.workbook_integrity import integrity_problems
 
 from modules.artifacts.revised_copies.engines import excel
+from modules.jobs.evidence.retrieval import Embed
 from modules.jobs.packs.manifest import read_manifest
 from modules.jobs.workbook_rows.config import load_config
 from modules.jobs.workbook_rows.fill import fill_workbook
@@ -35,15 +37,35 @@ def run(args: argparse.Namespace) -> None:
     cases = load_cases(args.eval, args.case or None)
     if not cases:
         raise SystemExit("No case matched.")
+    embed = _embedder(args.embedder)
     for spec in args.model:
         for case in cases:
             job = next(j for j in manifest.jobs if j.key == case.job)
             config = load_config(args.pack / job.config)
             for number in range(1, args.runs + 1):
-                _one_run(args, spec, case, config, number)
+                _one_run(args, spec, case, config, number, embed)
 
 
-def _one_run(args, spec: str, case: Case, config, number: int) -> None:
+def _embedder(name: str) -> Embed | None:
+    """The app's bundled embedder, as a fresh install searches with; "none" for words alone."""
+    if name == "none":
+        return None
+    # The checkout keeps the bundled model beside the backend; a packaged app ships it so.
+    os.environ.setdefault(
+        "SURFSENSE_LOCAL_MODELS_DIR",
+        str(Path(__file__).resolve().parents[1] / "models"),
+    )
+    from modules.embedding import encoder
+    from modules.embedding.bundled import BGE
+
+    def embed(texts: list[str], query: bool) -> list[list[float]]:
+        purpose = encoder.Purpose.QUERY if query else encoder.Purpose.DOCUMENT
+        return encoder.embed(BGE, texts, purpose)
+
+    return embed
+
+
+def _one_run(args, spec: str, case: Case, config, number: int, embed) -> None:
     model = model_for(
         spec, concurrency=args.concurrency, effort=args.effort, reasoning=args.reasoning
     )
@@ -66,6 +88,7 @@ def _one_run(args, spec: str, case: Case, config, number: int) -> None:
         if args.all_rows
         else (lambda row: (row.sheet.casefold(), row.answer_cell) in gold_cells),
         on_row=lambda done, total: print(f"  {done}/{total}", flush=True),
+        embed=embed,
     )
     out = folder / f"filled{case.workbook.suffix}"
     applied = excel.apply(case.workbook, filled.operations, out)
@@ -93,6 +116,7 @@ def _one_run(args, spec: str, case: Case, config, number: int) -> None:
             "effort": args.effort,
             "reasoning": args.reasoning,
             "all_rows": args.all_rows,
+            "embedder": args.embedder,
         },
         "whole_sources": filled.whole_sources,
         "questions_found": len(filled.layout.rows),
@@ -144,6 +168,12 @@ def main() -> None:
         choices=("default", "off", "on"),
         default="default",
         help="an open model's thinking: as the app leaves it, or forced off or on",
+    )
+    run_parser.add_argument(
+        "--embedder",
+        choices=("bge", "none"),
+        default="bge",
+        help="find passages by meaning too, with the app's bundled embedder, or by words alone",
     )
     run_parser.add_argument(
         "--all-rows",
