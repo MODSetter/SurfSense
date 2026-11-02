@@ -6,8 +6,9 @@ import heroScene from "@/app/(home)/_home/home-hero-scene.webp";
  * positioned parent.
  *
  * `next/image` serves AVIF or WebP at the width each screen needs, from the
- * 3296px master, and inlines a tiny blurred preview so the scene shows before
- * the image arrives.
+ * 3296px master. Until it arrives, a gradient of the scene's own sky and ground
+ * stands in, so white copy stays readable from the first paint. No
+ * `placeholder="blur"`: its SVG blur filter is costly to paint at full width.
  *
  * `sizes` is the width the scene is drawn at, not the box width: the 1.73:1 image
  * covers its box, so in a tall box it renders 1.73 times the box height wide.
@@ -22,6 +23,11 @@ const FILM_GRAIN = `url("data:image/svg+xml,${encodeURIComponent(GRAIN_SVG)}")`;
 export function HomeScene({ sizes, priority = false }: { sizes: string; priority?: boolean }) {
 	return (
 		<>
+			{/* Averages of the scene's bands, sampled from the master: sky, haze, ground. */}
+			<div
+				aria-hidden
+				className="absolute inset-0 bg-linear-to-b from-[#21a0ff] via-[#41abf7] via-55% to-[#9fb2a5]"
+			/>
 			<Image
 				src={heroScene}
 				alt=""
@@ -29,7 +35,6 @@ export function HomeScene({ sizes, priority = false }: { sizes: string; priority
 				priority={priority}
 				sizes={sizes}
 				quality={85}
-				placeholder="blur"
 				draggable={false}
 				className="object-cover object-center select-none"
 			/>
