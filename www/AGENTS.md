@@ -23,7 +23,7 @@ pnpm test:unit
 | `app/` | Routes. A page's body is its `page.tsx`; files only that route uses sit beside it. The home page's sections are in `app/(home)/_home/` |
 | `features/<name>/` | Code more than one route uses: downloads, license, announcements, analytics, docs, desktop telemetry |
 | `components/ui/` | shadcn primitives and `cn` |
-| `components/site/` | The site's shared blocks: nav, footer, shell, FAQ, buttons, logos, JSON-LD |
+| `components/site/` | The site's shared blocks: nav, footer, FAQ, buttons, logos, JSON-LD |
 | `content/` | MDX: `docs/`, `blog/`, `changelog/`, `announcements/` |
 
 New code starts beside the route that uses it and moves to `features/` when a second route needs it. `sitemap.ts` reads each route's data directly. Tests sit beside their code as `*.test.ts`.

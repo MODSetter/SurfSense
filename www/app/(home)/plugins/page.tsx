@@ -11,8 +11,7 @@ import { registryPlugins } from "./registry-plugins";
 /**
  * Plugins page: every plugin SurfSense lists, as a browsable gallery.
  *
- * Rendered in the site design from `app/(home)/layout.tsx`; listed in
- * `SITE_DESIGN_ROUTES` in `components/site/site-shell.tsx`. Replaces the old
+ * Rendered in the site design from `app/(home)/layout.tsx`. Replaces the old
  * `/connectors` index, which redirects here from `next.config.mts`. Other publishers'
  * plugins are read from the registry container when the page is rendered.
  */

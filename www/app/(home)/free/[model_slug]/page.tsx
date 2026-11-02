@@ -41,9 +41,8 @@ import { HomeDownloadButton } from "@/features/downloads/home-download-button";
  *   false, so none of it survived. What replaced it says only what the desktop
  *   app does: no account, your own key or a local model, files on your disk.
  *
- * Rendered in the site design via the `/free/` prefix in `SITE_DESIGN_PREFIXES`
- * (`components/site/site-shell.tsx`). A server component, no client JavaScript
- * beyond the hero button.
+ * Rendered in the site design from `app/(home)/layout.tsx`. A server component,
+ * no client JavaScript beyond the hero button.
  */
 
 interface PageProps {

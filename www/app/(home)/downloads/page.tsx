@@ -10,8 +10,7 @@ import { AllReleasesLink, OSDownloadGrid } from "./download-panels";
 /**
  * Rendered in the site design: the palette, column, navigation and footer all
  * come from `app/(home)/layout.tsx`; the page uses the homepage's centred heads
- * and rounded cards. Listed in `SITE_DESIGN_ROUTES` in
- * `components/site/site-shell.tsx`.
+ * and rounded cards.
  */
 
 export const metadata: Metadata = {

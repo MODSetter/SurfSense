@@ -438,7 +438,8 @@ def test_ten_minutes_short_of_memory_fails_with_the_apis_sentence(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Summed across yields; the person reads what to free."""
-    monkeypatch.setattr(window_loop, "MEMORY_WAIT_LIMIT_S", 0.0)
+    # Below zero: Windows' monotonic clock ticks every ~15.6 ms, so a quick reply waits 0.0.
+    monkeypatch.setattr(window_loop, "MEMORY_WAIT_LIMIT_S", -1.0)
     sentence = "Transcribing needs about 2.9 GB free; this computer has 1.8 GB."
     speech_api.replies = [SpeechApi.waiting("memory", sentence)]
     recording = add_recording(session)

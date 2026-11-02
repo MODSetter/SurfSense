@@ -11,9 +11,7 @@ import {
  *
  * Rendered in the site design: the palette, ruled column, navigation and footer
  * all come from `app/(home)/layout.tsx`, and every style on this page resolves
- * from `app/(home)/home.css`. It is listed in `SITE_DESIGN_ROUTES` in
- * `components/site/site-shell.tsx`, which is what puts it inside the ruled
- * column rather than on the older gradient ground.
+ * from `app/(home)/home.css`.
  *
  * A server component with no client JavaScript. Every element on the page is a
  * link.

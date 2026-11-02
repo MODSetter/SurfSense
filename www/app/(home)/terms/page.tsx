@@ -5,9 +5,8 @@ import { siteText } from "@/components/site/site-text";
 /**
  * Terms of Service. Plain long-form prose, laid out like a blog post: the
  * padded `max-w-3xl` + Tailwind `prose` wrapper is copied from
- * `app/(home)/blog/[slug]/page.tsx`. Listed in `SITE_DESIGN_ROUTES` in
- * `components/site/site-shell.tsx`, which supplies the light palette, the
- * navigation and the footer.
+ * `app/(home)/blog/[slug]/page.tsx`. `app/(home)/layout.tsx` supplies the light
+ * palette, the navigation and the footer.
  *
  * Substantive changes from the version this replaces, all because the product
  * changed shape:
