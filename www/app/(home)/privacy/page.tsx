@@ -6,9 +6,8 @@ import { siteText } from "@/components/site/site-text";
  * Privacy Policy. Plain long-form prose, laid out like a blog post: the
  * padded `max-w-3xl` + Tailwind `prose` wrapper is copied from
  * `app/(home)/blog/[slug]/page.tsx` so a legal page reads like body text
- * rather than like a landing page. Listed in `SITE_DESIGN_ROUTES` in
- * `components/site/site-shell.tsx`, which supplies the light palette, the
- * navigation and the footer.
+ * rather than like a landing page. `app/(home)/layout.tsx` supplies the light
+ * palette, the navigation and the footer.
  *
  * Every factual claim here was checked against the code, not against the
  * previous policy or the marketing copy. The version this replaced described
