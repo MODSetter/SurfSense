@@ -45,6 +45,7 @@ from modules.events.router import router as events_router
 from modules.folders.finish_deletes import finish_interrupted_deletes
 from modules.folders.router import router as folders_router
 from modules.health.router import router as health_router
+from modules.jobs.router import router as jobs_router
 from modules.license.router import router as license_router
 from modules.llm.admission.local_runtime import LocalAdmission
 from modules.llm.catalog.local.dependencies import get_local_catalog
@@ -257,6 +258,7 @@ def create_app() -> FastAPI:
     app.include_router(events_router)
     app.include_router(migration_router)
     app.include_router(license_router)
+    app.include_router(jobs_router)
     app.include_router(egress_router)
     app.include_router(embedding_router)
     app.include_router(embedding_huggingface_router)

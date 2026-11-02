@@ -19,6 +19,7 @@ from modules.agent.tool_endpoint.pdf_stamp import PDF_STAMP
 from modules.agent.tool_endpoint.read_document import READ_DOCUMENT
 from modules.agent.tool_endpoint.render_document import RENDER_DOCUMENT
 from modules.agent.tool_endpoint.revise_document import REVISE_DOCUMENT
+from modules.agent.tool_endpoint.run_job import RUN_JOB, job_listing
 from modules.agent.tool_endpoint.save_page import SAVE_PAGE
 from modules.agent.tool_endpoint.search_sources import SEARCH_SOURCES
 from modules.agent.tool_endpoint.source_pages import SOURCE_PAGES
@@ -54,6 +55,7 @@ TOOLS: dict[str, Tool] = {
         PDF_PAGES,
         PDF_STAMP,
         PDF_FORM,
+        RUN_JOB,
     )
 }
 
@@ -61,12 +63,19 @@ TOOLS: dict[str, Tool] = {
 def listings(scope: TurnScope) -> list[dict[str, Any]]:
     """What `tools/list` shows: each tool's name, description and input schema.
 
-    A tool returning images is left out for a model that cannot see them.
+    A tool returning images is left out for a model that cannot see them, and the
+    job tool while no job pack is installed.
     """
     reads = scope.reads_images()
-    return [
-        tool.listing for tool in TOOLS.values() if reads or not tool.needs_image_input
-    ]
+    shown = []
+    for tool in TOOLS.values():
+        if tool is RUN_JOB:
+            listing = job_listing()
+            if listing is not None:
+                shown.append(listing)
+        elif reads or not tool.needs_image_input:
+            shown.append(tool.listing)
+    return shown
 
 
 async def call(

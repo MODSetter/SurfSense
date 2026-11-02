@@ -29,6 +29,8 @@ from modules.artifacts.studio_documents.recipe import (
     renders_as_stored,
 )
 from modules.documents.models import Document, DocumentStatus
+from modules.jobs.runs.record import job_run_of
+from modules.jobs.workbook_rows.fill import FillStoppedError
 from modules.llm.model_route.client import resolve_routed_generation
 from modules.llm.model_type import ModelType
 from modules.llm.providers.audiocpp.memory import NotEnoughMemoryError
@@ -49,6 +51,7 @@ from worker.jobs import JobCancelledError, begin_job, finish_job, raise_if_cance
 from worker.notify import notify_artifact_updates
 from worker.studio import job_router
 from worker.studio.converted_document import pipeline as converted_document
+from worker.studio.job_run import pipeline as job_run
 from worker.studio.made_file import pipeline as made_file
 from worker.studio.office.document import figure_shelf
 from worker.studio.office.document.refine import refine
@@ -265,7 +268,15 @@ def _convert(
 def _revise(
     session: Session, document: Document, artifact: Artifact
 ) -> revised_copy.Made:
-    """An engine edits a copy of the input; no model is asked and no source is gathered."""
+    """An engine edits a copy of the input; only a job run asks a model first, for the edits."""
+    if job_run_of(artifact.artifact_metadata) is not None:
+        try:
+            job_run.work_out(
+                session, artifact, cancelled=lambda: _cancel_asked(session, document)
+            )
+        except FillStoppedError:
+            raise_if_cancelled(session, document)
+            raise
     prepared = revised_copy.prepare(session, artifact)
     session.commit()
     raise_if_cancelled(session, document)
@@ -306,6 +317,15 @@ def _keep_spec(artifact: Artifact, spec: dict) -> None:
     )
     meta.setdefault(RECIPE_KEY, drafted())
     artifact.artifact_metadata = meta
+
+
+def _cancel_asked(session: Session, document: Document) -> bool:
+    """For a step that stops itself between units of work rather than being interrupted."""
+    try:
+        _check_cancelled(session, document)
+    except JobCancelledError:
+        return True
+    return False
 
 
 def _check_cancelled(session: Session, document: Document) -> None:
