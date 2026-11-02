@@ -1,0 +1,159 @@
+---
+title: Third-party and custom plugins
+description: Connect plugins from other publishers, or any remote MCP server by its URL
+---
+
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+
+Besides SurfSense's own plugins, you can connect plugins that other people run: ones listed in Browse, and any remote MCP server you add by its URL. Both count as third-party plugins, and both are off until you allow them.
+
+## Allow third-party plugins
+
+<Steps>
+<Step>
+Open **Settings › Plugins › Browse**.
+</Step>
+<Step>
+Turn on **Allow third-party plugins** in the **Third-party** header.
+</Step>
+<Step>
+Read the dialog, **Allow third-party plugins?**, and click **Allow**.
+</Step>
+</Steps>
+
+The dialog says what this means: other people run these servers, what the agent sends a tool goes to its publisher, and SurfSense doesn't review changes to their servers. You still choose each tool, and tools that can make changes ask first.
+
+The list of third-party plugins comes from `plugins.surfsense.com`. If that host isn't allowed yet, Browse says so with an **Allow** button. Fetching the list sends your IP address and nothing else.
+
+Turning the switch off asks nothing. While it's off, every third-party and custom plugin shows **Third-party plugins are off** in Yours, and the agent doesn't use them. Their keys and tool settings are kept, so turning it back on brings them back.
+
+## Verified and Community
+
+Each listed plugin shows who runs it, "By" its author, and one of two marks:
+
+- **Verified** (a checkmark): "Verified publisher. SurfSense checked that [author] runs it." A SurfSense maintainer judged that the named author really runs the server.
+- **Community**: "Community plugin. Not verified by SurfSense." Before you connect one, SurfSense asks you to confirm and reminds you that your requests and sign-in go to that author's server.
+
+Neither mark means SurfSense reviews the server's code or watches its changes. Read a plugin's page, its **About**, **Tools** and privacy policy, before you connect it.
+
+### The signed list
+
+SurfSense's maintainers review every plugin before it's listed. The list is signed, and SurfSense checks the signature before it shows anything, so no one can slip a plugin in on the way to you. If SurfSense can't fetch a new list, it shows the last good one with the date it was **Updated**.
+
+A plugin can be removed from the list, for example after a report. A removed plugin you connected stays in Yours as **No longer listed**, with the reason, and the agent stops using it.
+
+You can see the same list on the website at [surfsense.com/plugins](/plugins).
+
+## Connect a listed plugin
+
+Click **Connect** on its card or page in Browse. What happens next depends on the plugin:
+
+- **No sign-in.** It connects at once.
+- **A key.** A dialog asks for the key from the plugin's publisher. SurfSense tries it before saving it.
+- **Your account.** The plugin opens in Yours, and its sign-in page opens in your browser. Sign in there. SurfSense shows "Waiting for sign-in…" with **Cancel** until it finishes.
+
+## Add a custom plugin
+
+Any remote MCP server can be a plugin, even one only you use.
+
+<Steps>
+<Step>
+Turn on **Allow third-party plugins**. A server added by URL is a third-party plugin, so **Add custom plugin** asks for this first.
+</Step>
+<Step>
+Click **Add custom plugin**. The **Add an MCP server** dialog opens.
+</Step>
+<Step>
+Enter a **Name** and the **Server URL**. Use the server's Streamable HTTP address, which often ends in `/mcp`.
+</Step>
+<Step>
+If the server needs a key, open **Advanced settings** and fill in **Headers**.
+</Step>
+<Step>
+Click **Add**. SurfSense lists the server's tools before it adds it.
+</Step>
+</Steps>
+
+A toast says how it went: "Team wiki connected", or "Team wiki added. Connect it to sign in." for a server that signs in with an account.
+
+### Transports
+
+SurfSense speaks **Streamable HTTP** only. It does not support the older SSE transport, which MCP has replaced. An address ending in `/sse` is refused as you type it: "SurfSense doesn’t support SSE servers. Use the server’s Streamable HTTP address, which often ends in /mcp." Check the provider's documentation for that address.
+
+A server on another computer must use `https://`. A server on your own computer can use `http://`.
+
+### Keys and headers
+
+Under **Advanced settings**, **Headers** holds rows of a **Header name** and **Header value**. Most servers read a key as `Authorization: Bearer your-key`, which is what the first row is set up for. Some name their own header, such as `x-api-key`: rename the row. **Add header** adds more rows.
+
+Saved values are never shown again. To change them, use **Edit connection** in the plugin's details and enter each value again. SurfSense tries the new values before saving them, and your tool settings stay.
+
+<Callout type="warn">
+  Put keys in a header, not in the URL. A key inside the URL is stored as part of the address, in the clear.
+</Callout>
+
+### Sign in with an account (OAuth)
+
+Some servers ask you to sign in with your account on their service instead of a key. SurfSense handles this for you:
+
+1. Add the server. It's saved in Yours with **Connect**.
+2. Click **Connect** on its row. The provider's sign-in page opens in your browser.
+3. Sign in and approve. Back in SurfSense, the plugin connects and lists its tools.
+
+If the server later needs more permissions, the plugin shows **Needs more access**. If a sign-in expires and can't be renewed, it shows **Sign-in expired**. Click **Connect** to sign in again. Your tool settings stay.
+
+In the [Docker image](/docs/v2/docker), a sign-in you start from another device returns to that device.
+
+### Register your own OAuth app
+
+Most providers let SurfSense register itself when you sign in. Some, such as GitHub, accept only apps registered with them in advance. Others refuse SurfSense and accept only apps they approved. Such a plugin shows **Needs an OAuth app**, and **Connect** opens **Connect [plugin] with your own app**:
+
+<Steps>
+<Step>
+**Register an OAuth app with [provider].** In the provider's developer settings, create a new OAuth app. For GitHub, that's **Settings › Developer settings › OAuth Apps** on github.com.
+</Step>
+<Step>
+**Give it this callback address.** Copy the **Callback address** SurfSense shows, with one click, and paste it into the app's callback or redirect URL field.
+</Step>
+<Step>
+**Paste what [provider] gives you.** Enter the **Client ID**, and the **Client secret** if the provider gave one. Add **Scopes** only if the provider asks for some. Click **Sign in**.
+</Step>
+</Steps>
+
+To switch to another app later, use **Change OAuth app** in the plugin's menu.
+
+### Not supported yet
+
+- **Local servers started by a command.** Servers you run with `npx`, `uvx` or similar, as many MCP clients' config files do, can't be added. Only remote servers reached by URL work.
+- **The SSE transport**, as above.
+- **Basic chats.** Plugins work in Agentic chats only.
+
+### Share your plugin
+
+On a custom plugin, **Submit to the registry** in its menu opens the submission form on GitHub with its name and URL filled in. Once a maintainer accepts it, everyone can find it in Browse.
+
+## Error messages
+
+| Message | What to do |
+|---|---|
+| This address doesn’t answer as an MCP server. Check the URL. | The URL points to a web page or something else. Find the server's MCP address. |
+| This server speaks only the older SSE transport, which SurfSense no longer supports. Use its Streamable HTTP address, which often ends in /mcp. | Use the server's Streamable HTTP address. |
+| This address is no longer served; its server may have moved it. Check its documentation for a new one. | The provider retired this address. Look up the new one. |
+| This server needs a key. Add one and try again. | Add the key under **Advanced settings › Headers**. |
+| The server refused this key. Check it and try again. | The key is wrong or expired. |
+| A server on another computer must use an https:// URL. | Use `https://`. |
+| Couldn’t reach this server. Check the URL and that the server is running. | The server is down, or the URL is wrong. |
+| SurfSense isn’t allowed to contact this server. Allow its host to connect it. | Allow the host when asked, or in **Settings › Network**. |
+| This server is already connected as [name]. | You've already added it. |
+| A plugin named [name] is already connected. Choose another name. | Pick another name. |
+| This server’s sign-in accepts only apps registered with it. Register one with the callback address below, then connect. | [Register your own OAuth app](#register-your-own-oauth-app). |
+| This server’s sign-in refused SurfSense. It may accept only apps it approved; you can try your own registered app below. | [Register your own OAuth app](#register-your-own-oauth-app). |
+| Couldn’t start signing in to this server. Try again later. | The provider's sign-in didn't start. Try again later. |
+| The sign-in was declined. | You, or the provider, declined. Click **Connect** to try again. |
+| The sign-in wasn’t finished in time. Try again. | Click **Connect** and finish the sign-in within ten minutes. |
+
+## Your keys stay with SurfSense
+
+Keys, headers and sign-ins are stored encrypted on your computer. When the agent calls a tool, SurfSense adds them to the request itself. The agent, the model and its provider never see them, and they never appear in a chat.
+
+The plugin's server gets what the agent sends its tools, plus your IP address. That's why third-party plugins stay off until you allow them, and why tools that may make changes ask before each use.

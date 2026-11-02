@@ -1,0 +1,16 @@
+{
+	"title": "Models",
+	"icon": "Cpu",
+	"defaultOpen": false,
+	"pages": [
+		"index",
+		"local",
+		"lm-studio",
+		"ollama",
+		"other-local-servers",
+		"api-providers",
+		"chatgpt-plan",
+		"claude-plan",
+		"other-models"
+	]
+}

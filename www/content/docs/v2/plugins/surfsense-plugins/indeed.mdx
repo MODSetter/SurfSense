@@ -1,0 +1,36 @@
+---
+title: Indeed
+description: Read job listings on Indeed
+---
+
+Indeed researches jobs from your chats. It reads public job postings with their title, company, location, salary and full description, without your Indeed account, so nothing is ever applied for.
+
+Needs a [SurfSense license](/docs/v2/license). See [SurfSense plugins](/docs/v2/plugins/surfsense-plugins) to connect it.
+
+## Tools
+
+| Tool | What it does |
+|---|---|
+| `scrape` | Reads jobs from a search link, a company's jobs page or a single job link, or runs a job search. It works on Indeed's site for any country. Each job comes with its title, company, location and salary, and, if asked, its full description, pay and company rating. |
+
+A search can be narrowed by location and radius, job type such as full-time or contract, experience level, remote or hybrid work, and how many days ago the job was posted.
+
+## Example prompts
+
+- "@indeed Find remote senior data engineer jobs in Germany posted in the last week."
+- "What's the typical salary for a UX designer in Toronto, based on current listings?"
+- "List the jobs open at this company and group them by team: https://www.indeed.com/cmp/…/jobs"
+- "Read this job posting and tell me which of my skills match: https://www.indeed.com/viewjob?jk=…"
+
+## Add from the web
+
+In **+ › Add from the web…**:
+
+- **A job link**, any Indeed link with `jk=` in it, becomes one source with the full posting.
+- **A search or company page link** opens as a list of jobs. Add the ones you want.
+- **Search Indeed itself**: pick Indeed in the **Search on** menu under the box. It searches Indeed's US site. For another country, paste a search link from that country's Indeed site.
+
+## Limits
+
+- **Public postings only.**
+- **Indeed can refuse.** When Indeed keeps blocking, the call fails with that reason. Try again later.

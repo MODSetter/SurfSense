@@ -1,6 +1,30 @@
 {
 	"title": "SurfSense 2.0",
-	"description": "The airgapped desktop app",
+	"description": "The desktop app, and its Docker image",
 	"root": true,
-	"pages": ["index"]
+	"pages": [
+		"---Getting started---",
+		"index",
+		"install",
+		"quick-start",
+		"---Using SurfSense---",
+		"workspaces",
+		"sources",
+		"chat",
+		"agent",
+		"studio",
+		"voice",
+		"---Set up---",
+		"models",
+		"plugins",
+		"docker",
+		"---Privacy and license---",
+		"privacy",
+		"license",
+		"---Reference---",
+		"data-folder",
+		"updates",
+		"languages",
+		"troubleshooting"
+	]
 }

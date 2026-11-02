@@ -1,0 +1,96 @@
+---
+title: Ollama
+description: Use models you run in Ollama
+---
+
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+
+Ollama runs models on your computer and also serves them over the OpenAI API. SurfSense connects to that API like any other server.
+
+<Callout>
+  You don't need Ollama to run models locally. SurfSense can
+  [download and run models itself](/docs/v2/models/local). Connect Ollama if
+  you already use it and want to keep your models there.
+</Callout>
+
+## Start Ollama
+
+1. Install Ollama and pull a model, for example `ollama pull qwen3:8b`.
+2. Make sure Ollama is running. It listens on port `11434`.
+
+## Connect it
+
+<Steps>
+<Step>
+
+Open **Settings › Text gen** and click **Add model**, then **Use a server**. In onboarding, click **Connect** under **Use a server**.
+
+</Step>
+<Step>
+
+In **Connect a server**, enter a **Name**, such as `Ollama`.
+
+</Step>
+<Step>
+
+Under **Provider**, pick **Local or custom server**. (**Ollama Cloud** is Ollama's hosted service, not the app on your computer.)
+
+</Step>
+<Step>
+
+Enter the **Base URL**: `http://localhost:11434/v1`. Leave **API key** empty.
+
+</Step>
+<Step>
+
+Click **Save server**. SurfSense asks Ollama for its models, then opens the list.
+
+</Step>
+<Step>
+
+Click **Use** on a model. **Test chat** sends one short prompt so you can see it answer. Then click **Use this model**, or **Use without testing**.
+
+</Step>
+</Steps>
+
+## Base URL
+
+| Where things run | Base URL |
+|---|---|
+| SurfSense and Ollama on the same computer | `http://localhost:11434/v1` |
+| Ollama on another computer in your network | `http://<host>:11434/v1` |
+| SurfSense in [Docker](/docs/v2/docker), Ollama on the computer running Docker | `http://host.docker.internal:11434/v1` with Docker Desktop, or the computer's network address |
+
+Replace `<host>` with that computer's IP address or name. Ollama only listens on its own computer by default. To reach it from another computer or from Docker, start it with `OLLAMA_HOST=0.0.0.0`.
+
+Include `/v1`. SurfSense uses the URL exactly as you enter it, and Ollama's OpenAI API lives under `/v1`.
+
+## Network permission
+
+A server on the same computer (`localhost` or `127.0.0.1`) needs no permission: nothing leaves your computer.
+
+Any other address, including a computer on your own network or `host.docker.internal`, counts as sending data out. When you save, SurfSense asks **Allow sending data to** that address. Allow it to continue. You can turn it off later in **Settings › Network**.
+
+## Agentic mode and Ollama
+
+Agentic mode needs a model that can use tools and a context window of at least 32,768 tokens. Ollama loads models with a short context window unless you raise it, for example with `OLLAMA_CONTEXT_LENGTH=32768` when you start Ollama. With a short window, long Agentic tasks run out of room.
+
+A model you run in Ollama shows as not tested for Agentic mode, even when SurfSense tested the full-size model through a provider. See [Basic and Agentic chat](/docs/v2/models#basic-and-agentic-chat).
+
+## Troubleshooting
+
+### The endpoint's model list could not be verified
+
+SurfSense could not reach Ollama.
+
+- Check Ollama is running.
+- Check the URL ends in `/v1`.
+- From the same computer, run `curl http://localhost:11434/v1/models`. It should list your models.
+
+### No models listed
+
+Pull a model with `ollama pull`, then open the server's group in SurfSense again. You can also type the model's name, such as `qwen3:8b`, under **Exact model ID**.
+
+### The first reply is slow
+
+Ollama loads a model into memory on its first request. SurfSense waits up to five minutes for the first word.

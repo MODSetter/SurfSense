@@ -1,0 +1,86 @@
+---
+title: ChatGPT plan
+description: Use your ChatGPT Plus or Pro plan for chat, with no API key
+---
+
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+
+If you pay for ChatGPT Plus or Pro, you can use your plan's models in SurfSense instead of an API key. You sign in with your ChatGPT account in your browser, through OpenAI's own sign-in page. SurfSense never sees your password.
+
+## What you get
+
+- **Chat**, in Basic and Agentic mode, chat titles, and everything Studio writes.
+- **The models your plan lists.** SurfSense reads the list from OpenAI when you open it.
+- **Your plan's limits.** Use counts toward your plan, as it does in ChatGPT. There is nothing extra to pay.
+
+A ChatGPT plan only provides text generation. For images, audio or video, use a [local model](/docs/v2/models/local) or an [API provider](/docs/v2/models/api-providers).
+
+## Sign in
+
+<Steps>
+<Step>
+
+Open **Settings › Text gen** and click **Add model**. In onboarding, this is on the text generation step.
+
+</Step>
+<Step>
+
+Under **Use your ChatGPT plan**, click **Sign in with ChatGPT**.
+
+</Step>
+<Step>
+
+SurfSense asks to reach OpenAI's sign-in and API hosts, in one question. Allow it. Each host is still listed on its own in **Settings › Network**.
+
+</Step>
+<Step>
+
+Your browser opens OpenAI's sign-in page. Sign in and agree. SurfSense shows **Finish signing in in your browser.** while it waits.
+
+</Step>
+<Step>
+
+Back in SurfSense, the plan's models open. Click **Use** on one, then **Use this model**. **Test chat** sends one short prompt, which counts toward your plan's limits.
+
+</Step>
+</Steps>
+
+If the browser didn't open, or you closed it, click **Open the sign-in page again**. A sign-in not finished within five minutes is cancelled. Click **Cancel** to stop waiting.
+
+Once connected, **Use your ChatGPT plan** reads **Connected as** your email, and **Show models** opens the list again.
+
+## Sign out, or switch accounts
+
+In **Settings › Text gen**, find the **ChatGPT subscription** group, which shows your account's email, and click **Edit**.
+
+- **Sign in again** signs in afresh, for example with another account.
+- **Sign out** removes your sign-in from SurfSense and tells OpenAI to end it. Your chosen model stays, and works again once you sign back in.
+- **Save changes** saves a new name.
+
+**Disconnect** on the group removes the connection entirely, and signs you out.
+
+## In Docker
+
+When SurfSense runs in [Docker](/docs/v2/docker) and you open it from another device, the sign-in's last step can't find its way back: your browser ends on an error page, because it tries to reach `127.0.0.1` on your own device. That is expected.
+
+1. Copy the whole address from that error tab's address bar.
+2. Paste it under **Address your browser ended on**.
+3. Click **Finish signing in**.
+
+## Troubleshooting
+
+### Signing in needs a host
+
+You turned off one of OpenAI's hosts. Allow it in **Settings › Network**, then sign in again.
+
+### Your ChatGPT plan's usage limit is reached
+
+You have used your plan's allowance. It resets on its own. Check your usage in ChatGPT's settings, or switch to another model for now.
+
+### Your ChatGPT account needs to sign in again
+
+OpenAI ended the sign-in, for example after you changed your password. Open the **ChatGPT subscription** group's **Edit** and click **Sign in again**.
+
+### The model list doesn't load
+
+SurfSense needs OpenAI to list your plan's models and has no list of its own to fall back on. Check your network, and that the OpenAI hosts are allowed in **Settings › Network**, then open the group again.

@@ -1,0 +1,37 @@
+---
+title: Google Search
+description: Search Google and read its results, ads and related questions
+---
+
+Google Search brings live web results into your chats, so answers can draw on what the web says today, not only on your sources. It reads Google's results as you would see them, including ads, People Also Ask, the AI Overview and related searches.
+
+Needs a [SurfSense license](/docs/v2/license). See [SurfSense plugins](/docs/v2/plugins/surfsense-plugins) to connect it.
+
+## Tools
+
+| Tool | What it does |
+|---|---|
+| `scrape` | Searches Google for one or more queries, or opens Google Search URLs. Each results page comes back with its results, ads, People Also Ask answers, the AI Overview and related searches. |
+
+The agent can also ask for:
+
+- more than one results page per query;
+- results from a country or in a language, such as Germany or French;
+- results from one site only, such as `example.com`.
+
+## Example prompts
+
+- "@google-search What are people saying about the new EU AI Act deadlines? Give me the top results with links."
+- "Search Google for the best-rated standing desks under $500 and compare the first page of results."
+- "Search for 'site reliability engineer salary' from the UK, in English, and summarise the People Also Ask answers."
+- "What does Google's AI Overview say about intermittent fasting, and which pages does it cite?"
+
+## Add from the web
+
+In **+ › Add from the web…**, **Google Search** is the default search. Type a query to see Google's organic results as rows, then add the ones you want. Ads, related questions and the AI Overview are left out there. **Show more** fetches the next results page.
+
+## Limits
+
+- **It searches, it doesn't read pages.** Give it a search, not another site's address. To read a page, use [Web Crawl](/docs/v2/plugins/surfsense-plugins/web-crawl).
+- **It can be slow.** Google often shows a check before its results, and getting past it can take a minute or more per page.
+- **Results can come from elsewhere.** When Google refuses every attempt, results may come from another search engine, with organic results only. The agent is told when this happens, since that isn't Google's ranking.

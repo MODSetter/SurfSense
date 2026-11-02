@@ -1,0 +1,230 @@
+---
+title: Troubleshooting
+description: Fixes for common problems, and how to report one
+---
+
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+
+Find the message you see, or the problem you have, below. If nothing here helps, [report it](#reporting-a-problem).
+
+## Local models
+
+<Accordion type="multiple" className="w-full not-prose">
+  <AccordionItem value="wont-fit">
+    <AccordionTrigger>A model says "Won't fit" or "Reduced speed"</AccordionTrigger>
+    <AccordionContent className="flex flex-col gap-4">
+      SurfSense estimates how much memory each model needs before you download it. **Won't fit** means the model needs more memory than this computer has: pick a smaller model or a smaller build of it. **Reduced speed** means it's too big for your graphics card, so part of it runs on the processor and answers come more slowly.
+
+      To see what's using memory right now, open Settings › Resources. Closing other heavy apps leaves more room for the model. See [local models](/docs/v2/models/local).
+    </AccordionContent>
+  </AccordionItem>
+
+  <AccordionItem value="out-of-room">
+    <AccordionTrigger>"The replies running together ran out of room in the local model's memory"</AccordionTrigger>
+    <AccordionContent className="flex flex-col gap-4">
+      Several replies were running at once, such as a chat and a Studio job, and together they filled the model's memory. Choose **Retry**. If it keeps happening, wait for Studio jobs to finish before chatting, or pick a smaller model.
+    </AccordionContent>
+  </AccordionItem>
+
+  <AccordionItem value="runtime">
+    <AccordionTrigger>"Couldn't reach the local model runtime"</AccordionTrigger>
+    <AccordionContent className="flex flex-col gap-4">
+      The part of SurfSense that runs local models stopped. Restart SurfSense to start it again. If it stops again soon after, the model may be too big for this computer: try a smaller one, and [report it](#reporting-a-problem) with the session log.
+    </AccordionContent>
+  </AccordionItem>
+
+  <AccordionItem value="download">
+    <AccordionTrigger>A model download fails</AccordionTrigger>
+    <AccordionContent className="flex flex-col gap-4">
+      - **"This download needs … free"**: free up disk space, or pick a smaller model.
+      - **"The downloaded file did not match the expected one"** or **"The model could not be installed"**: retry the download. A flaky connection is the usual cause.
+      - **Model search doesn't work**: searching and downloading need `huggingface.co`. If you chose **Cancel** when asked, tick **Model search and downloads** in Settings › Network.
+    </AccordionContent>
+  </AccordionItem>
+</Accordion>
+
+## Chat and the agent
+
+<Accordion type="multiple" className="w-full not-prose">
+  <AccordionItem value="agentic-unavailable">
+    <AccordionTrigger>Agentic mode isn't available for a model</AccordionTrigger>
+    <AccordionContent className="flex flex-col gap-4">
+      Agentic mode needs a model that can use tools and has a large enough context window. Settings shows what the model in use can do. You may see:
+
+      - **"This model can't use tools, so it can't run Agentic mode."** Pick another model.
+      - **"This model's context window is too small for Agentic mode."** Pick a model with a larger context window.
+      - **"This install doesn't include the agent."** Use a Basic (Q&A) chat, or install SurfSense from the [downloads page](/downloads).
+      - **"The agent didn't start. Try again, or start a Basic (Q&A) chat."** Try again. If it keeps failing, [report it](#reporting-a-problem).
+
+      See [the agent](/docs/v2/agent) and [models](/docs/v2/models).
+    </AccordionContent>
+  </AccordionItem>
+
+  <AccordionItem value="host-off">
+    <AccordionTrigger>"A host this model needs was turned off in Settings › Network"</AccordionTrigger>
+    <AccordionContent className="flex flex-col gap-4">
+      You unticked the host of a remote model, or chose **Cancel** when asked. Open Settings › Network, tick the host, then try again. A Studio job that failed for the same reason works once you retry it. See [privacy](/docs/v2/privacy).
+    </AccordionContent>
+  </AccordionItem>
+
+  <AccordionItem value="api-key">
+    <AccordionTrigger>"Your model connection needs a new API key" or "its saved key has to be entered again"</AccordionTrigger>
+    <AccordionContent className="flex flex-col gap-4">
+      The provider refused your key, or SurfSense can no longer read the saved one. Keys can't be read after a keychain reset, or when you move your [data folder](/docs/v2/data-folder) to another computer. Enter the key again in the connection's settings. See [API providers](/docs/v2/models/api-providers).
+    </AccordionContent>
+  </AccordionItem>
+
+  <AccordionItem value="provider">
+    <AccordionTrigger>"Couldn't reach the model provider"</AccordionTrigger>
+    <AccordionContent className="flex flex-col gap-4">
+      SurfSense couldn't connect to a remote model. Check that you're online and that the connection's address is right. For a server on your own computer, such as LM Studio or Ollama, check that it's running.
+    </AccordionContent>
+  </AccordionItem>
+
+  <AccordionItem value="too-long">
+    <AccordionTrigger>"This conversation is too long for the model's context window"</AccordionTrigger>
+    <AccordionContent className="flex flex-col gap-4">
+      Start a new chat, or pick a model with a larger context window.
+    </AccordionContent>
+  </AccordionItem>
+</Accordion>
+
+## Sources
+
+<Accordion type="multiple" className="w-full not-prose">
+  <AccordionItem value="failed">
+    <AccordionTrigger>A source shows "Ingestion failed"</AccordionTrigger>
+    <AccordionContent className="flex flex-col gap-4">
+      SurfSense couldn't read the file. Choose **Retry** from the source's menu, or click its retry button. If it fails again, check that the file opens in its own app. A book with DRM can't be added.
+    </AccordionContent>
+  </AccordionItem>
+
+  <AccordionItem value="unreadable">
+    <AccordionTrigger>"Couldn't be read; it may be open in another app"</AccordionTrigger>
+    <AccordionContent className="flex flex-col gap-4">
+      Another app, often Office, is holding the file. Close it there and add it again. The rest of a folder upload carries on without it.
+    </AccordionContent>
+  </AccordionItem>
+
+  <AccordionItem value="speech">
+    <AccordionTrigger>A recording stays on "Waiting for speech recognition"</AccordionTrigger>
+    <AccordionContent className="flex flex-col gap-4">
+      Audio and video need a speech recognition model before SurfSense can transcribe them. Set one up in Settings › Speech recognition, and waiting recordings start. See [voice](/docs/v2/voice).
+    </AccordionContent>
+  </AccordionItem>
+</Accordion>
+
+## Plugins
+
+<Accordion type="multiple" className="w-full not-prose">
+  <AccordionItem value="couldnt-connect">
+    <AccordionTrigger>A plugin shows "Couldn't connect"</AccordionTrigger>
+    <AccordionContent className="flex flex-col gap-4">
+      - Check that the plugin's host is ticked in Settings › Network. A plugin can't connect until every host it needs is allowed.
+      - Check that you're online, and that the plugin's server is up.
+      - SurfSense checks a plugin when you connect it and around each agent turn, so a server that came back is seen at the next turn.
+
+      See [plugins](/docs/v2/plugins).
+    </AccordionContent>
+  </AccordionItem>
+
+  <AccordionItem value="no-tools">
+    <AccordionTrigger>The agent doesn't use my plugins</AccordionTrigger>
+    <AccordionContent className="flex flex-col gap-4">
+      Plugins work in Agentic chats only, not in Basic (Q&A) chats. Switch the chat's mode to **Agentic**.
+    </AccordionContent>
+  </AccordionItem>
+
+  <AccordionItem value="needs-license">
+    <AccordionTrigger>A plugin says "Needs a license" or "License expired"</AccordionTrigger>
+    <AccordionContent className="flex flex-col gap-4">
+      SurfSense's own plugins need a license. Add or renew one in Settings › License. See [license](/docs/v2/license).
+    </AccordionContent>
+  </AccordionItem>
+</Accordion>
+
+## Studio and previews
+
+<Accordion type="multiple" className="w-full not-prose">
+  <AccordionItem value="office">
+    <AccordionTrigger>Word and PowerPoint previews don't look like Office</AccordionTrigger>
+    <AccordionContent className="flex flex-col gap-4">
+      For pages laid out exactly as Office lays them out, real totals in workbooks SurfSense makes, and conversion to PDF, turn on Office support. Open Settings › Office support and choose **Turn on**, which downloads LibreOffice, or **Use the LibreOffice I have** if SurfSense finds one already installed.
+
+      If a document still can't be previewed, download it and open it in its own app.
+    </AccordionContent>
+  </AccordionItem>
+
+  <AccordionItem value="studio-failed">
+    <AccordionTrigger>A Studio output failed</AccordionTrigger>
+    <AccordionContent className="flex flex-col gap-4">
+      Retry it from its row. If it says it needs a model type you haven't set up, such as an image model, choose one in Settings first. See [Studio](/docs/v2/studio).
+    </AccordionContent>
+  </AccordionItem>
+</Accordion>
+
+## The app
+
+<Accordion type="multiple" className="w-full not-prose">
+  <AccordionItem value="stopped">
+    <AccordionTrigger>"SurfSense stopped working" or "Document processing stopped"</AccordionTrigger>
+    <AccordionContent className="flex flex-col gap-4">
+      One part of SurfSense quit unexpectedly. Restart SurfSense to restore it. Then choose **Report issue** on the message, so the team can find out why.
+    </AccordionContent>
+  </AccordionItem>
+
+  <AccordionItem value="update-failed">
+    <AccordionTrigger>"Couldn't check for updates"</AccordionTrigger>
+    <AccordionContent className="flex flex-col gap-4">
+      Check that you're online. A proxy or firewall that blocks GitHub stops updates too. See [updates](/docs/v2/updates).
+    </AccordionContent>
+  </AccordionItem>
+
+  <AccordionItem value="clock">
+    <AccordionTrigger>The sidebar says "Clock is off"</AccordionTrigger>
+    <AccordionContent className="flex flex-col gap-4">
+      Your computer's clock is behind the last time SurfSense ran. Set the correct time, and your license works again.
+    </AccordionContent>
+  </AccordionItem>
+
+  <AccordionItem value="spellcheck">
+    <AccordionTrigger>There's no spellchecking</AccordionTrigger>
+    <AccordionContent className="flex flex-col gap-4">
+      On Windows and Linux, spellchecking is off on purpose: it would download dictionaries from Google. On macOS, the system's own spellchecker works. See [privacy](/docs/v2/privacy).
+    </AccordionContent>
+  </AccordionItem>
+
+  <AccordionItem value="mic">
+    <AccordionTrigger>Dictation says the microphone isn't available</AccordionTrigger>
+    <AccordionContent className="flex flex-col gap-4">
+      - **"Microphone access is off for SurfSense."** Turn it on in your system's privacy settings.
+      - **"The microphone is in use by another app."** Close the other app.
+      - **"Your browser allows the microphone only over HTTPS, or on the computer running SurfSense."** In [Docker](/docs/v2/docker), open SurfSense over HTTPS to dictate from another device.
+    </AccordionContent>
+  </AccordionItem>
+</Accordion>
+
+## Reporting a problem
+
+Report a bug from inside SurfSense, so the report carries what the team needs:
+
+<Steps>
+  <Step>
+    Open Settings › Report issue, or choose **Report issue** on an error message. On a Mac, **Help › Report Issue…** works too.
+  </Step>
+  <Step>
+    Under **What went wrong?**, say what you were doing and what happened instead.
+  </Step>
+  <Step>
+    Keep **Include the session log** on, and choose **Continue on GitHub**. GitHub opens with your report filled in, and the log is copied for you.
+  </Step>
+  <Step>
+    Paste the log into **Logs** on GitHub, then submit.
+  </Step>
+</Steps>
+
+GitHub issues are public. The log is copied, not sent, so you can read it and remove anything you'd rather not share before you paste it. It only covers the current session, so report from the same session the problem happened in, before you restart.
+
+To add your version and system details to a report by hand, use **Copy system info** in Settings › About.
+
+You can also browse or open issues directly on [GitHub](https://github.com/MODSetter/SurfSense/issues).

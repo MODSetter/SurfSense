@@ -1,0 +1,159 @@
+---
+title: Sources
+description: Add files, folders, notes, recordings and web pages, and choose which ones chat and Studio use
+---
+
+Sources are what SurfSense answers from. Each workspace has its own **Sources** panel on the left. SurfSense copies what you add into its data folder, reads it, and indexes it on your computer. A source is ready once it is searchable.
+
+## Add sources
+
+Click **+** at the top of the **Sources** panel:
+
+| Item | Does |
+|---|---|
+| **Upload files…** | Picks one or more files. |
+| **Upload folder…** | Adds a whole folder, keeping its subfolders. |
+| **Add from the web…** | Searches the web or opens links, and adds pages, videos and posts. See [Add from the web](#add-from-the-web). |
+| **New folder** | Makes a folder in the panel. |
+| **New note** | Writes a note in the app. |
+
+You can also drag files or folders from your file manager onto the panel. It shows "Drop files to add them as sources" while you drag. In a chat, **+ › Upload sources** in the composer opens the same file picker.
+
+A file dropped onto a folder in the panel goes into that folder.
+
+### What gets skipped
+
+- A file of a type SurfSense cannot read. A folder upload tells you how many it skipped.
+- A file over 500 MB.
+- A file that is already in the same folder. SurfSense compares the contents, not the name, so two different files called `report.pdf` are both added, and the same file saved twice is added once.
+- When you add a folder: `.git`, `node_modules`, `__pycache__`, `.obsidian` and `.trash` folders, `.DS_Store`, and the hidden lock files Office keeps beside a document it has open.
+- A file another app holds open and won't share. It is listed as "Couldn’t be read; it may be open in another app", and the rest of the folder still arrives.
+
+## Supported file types
+
+| Kind | Extensions |
+|---|---|
+| Documents | `.pdf`, `.docx`, `.pptx`, `.xlsx` |
+| Books | `.epub`, `.mobi`, `.azw3` |
+| Web and data | `.html`, `.htm`, `.csv` |
+| Text | `.md`, `.markdown`, `.txt`, `.text` |
+| Images | `.png`, `.jpg`, `.jpeg`, `.tif`, `.tiff`, `.bmp`, `.webp` |
+| Recordings | `.wav`, `.mp3`, `.flac`, `.ogg` (Ogg Vorbis), `.oga` |
+
+The file's contents must match its extension. Older Office formats (`.doc`, `.ppt`, `.xls`) are not read: save them in the newer format first.
+
+<Callout type="info">
+  A MOBI or AZW3 book with DRM, and a KFX book (Amazon's newer format, often
+  saved as `.azw3`), are refused when you upload them. Ogg Opus, M4A, AAC and
+  WebM recordings are not supported yet.
+</Callout>
+
+## How files are read
+
+Everything is read on your computer, with no network.
+
+- **PDFs with text.** A PDF made by a program, such as an exported report or paper, is read from the text it already holds. This is fast.
+- **Scans and photos.** A scanned page, or an uploaded image, is read with OCR (text recognition). On a Mac, SurfSense uses the Mac's own text recognition. A page that OCR cannot read well goes to a slower, more thorough reader, Docling, which also reads layout and tables. A PDF that mixes text pages and scanned pages is read page by page.
+- **Word files** are read with their headings, numbered lists, tables and footnotes. Tracked changes are read as if accepted.
+- **PowerPoint, Excel, EPUB and HTML** are read by Docling.
+- **Kindle books** (MOBI and AZW3) are read as their text and headings.
+- **Recordings** are turned into a transcript by the speech recognition model. See [Recordings](#recordings).
+
+SurfSense also keeps the pictures it finds in a source, so the [agent](/docs/v2/agent) can place a source's chart or logo in a document it makes.
+
+<Callout type="info">
+  OCR reads Latin, Chinese and Japanese text. Scanned Korean, Cyrillic,
+  Devanagari or Arabic text is not read correctly yet. A source's pictures are
+  not searched: only its text is.
+</Callout>
+
+## Progress, cancel and retry
+
+A source shows a spinner while it is read. Large batches are read smallest first, so short files are ready sooner, and a note you write during a long folder upload is read ahead of it.
+
+Open a row's **⋯** menu for its actions:
+
+- **Cancel** stops a source that is waiting or being read. It shows as **Cancelled**.
+- **Retry** reads a failed or cancelled source again. A failed source shows **Ingestion failed** with the reason.
+
+Chat and Studio only use sources that are ready. If you ask about sources that are still being read, the answer says so.
+
+## Organize sources
+
+Folders come first in the panel, then sources, newest first.
+
+- **Rename**, **Move to…** and **Delete** are in each row's **⋯** menu. You can also drag a source onto a folder.
+- **New folder** inside a folder is in that folder's menu.
+- The search button at the top filters the panel by name.
+- **Edit note** reopens a note you wrote. Files cannot be edited, only renamed.
+
+Deleting a folder deletes everything in it, including Studio outputs you filed there, for good. The dialog says how many sources go with it.
+
+## Open and preview a source
+
+- **Preview** shows a PDF inside SurfSense, in place of the left sidebar.
+- **Open** opens the original in its own app, and **Show in folder** shows it in your file manager.
+- In the [Docker image](/docs/v2/docker), **Download** saves a copy instead.
+
+## Notes
+
+**+ › New note** writes a note with a title and text. It is indexed like any file. Editing a note re-indexes it, so search stops finding the old text.
+
+## Recordings
+
+A recording becomes a source through the speech recognition model, on your computer. The transcript marks the time each passage starts, so a cited passage shows where in the recording it was said.
+
+- While it transcribes, the row reads, for example, "Transcribing · 23 of 58 min · about 7 min left".
+- With no speech recognition model chosen, it waits and reads **Waiting for speech recognition**. Click **Set up** to choose one. The recording is transcribed as soon as you do: you don't need to upload it again.
+- In **Settings › Speech recognition**, **Spoken language** sets the language your recordings are in, or **Detect automatically**.
+
+A recording cannot be played back in SurfSense yet. See [Voice](/docs/v2/voice) for the speech models.
+
+<Callout type="info">
+  Search finds a recording best with questions in the recording's own
+  language. For a recording that isn't in English, the row says so.
+</Callout>
+
+## Choose what chat, Studio and the agent use
+
+Each row in the **Sources** panel has a tick box. Ticked sources are the ones a chat answers from, Studio makes things from, and the agent may work on.
+
+- Tick a folder to include everything in it, including files you add to it later.
+- Untick a source inside a ticked folder to leave just that one out.
+- **Select all** at the top ticks everything. **Clear** unticks it.
+- The composer shows how many sources are ticked.
+
+The same ticks apply to chat and Studio. Each message sends the ticks on screen when you send it.
+
+## Add from the web
+
+**+ › Add from the web…** opens one box: **Search Google or paste links**.
+
+- **Search.** Type words to search Google, or choose a site under the box to search it instead: YouTube, TikTok, Google Maps, Amazon, Walmart, Indeed, Reddit or Instagram.
+- **Paste links.** Paste one or more links, one per line or several on a line.
+- **Add** a result to make it a source, or **Add all**. A link already in Sources says **Already in Sources**.
+- **Open** a list, such as a YouTube channel, a playlist, a subreddit or a search page, to see its items and add the ones you want. **Show more** loads more.
+
+What each link becomes:
+
+| Link | Becomes |
+|---|---|
+| YouTube video | its transcript and top comments |
+| Google Maps place | the place and its reviews |
+| Amazon or Walmart product | the product and its reviews |
+| Indeed job | the job posting |
+| Reddit post | the post and its comments |
+| Instagram post or reel | its caption |
+| TikTok video | the video's details and comments |
+| Any other page | the page's text |
+
+The pages are fetched by SurfSense's own plugins, then indexed like any source. Each one is ready once SurfSense has read it.
+
+<Callout title="Needs a license">
+  Adding from the web comes with a SurfSense
+  [license](/docs/v2/license), and the first time it asks to allow
+  `plugins.surfsense.com` in **Settings › Network**. See
+  [Plugins](/docs/v2/plugins) for the site readers.
+</Callout>
+
+Short links such as `redd.it` or `vm.tiktok.com` can't be added: open them and copy the full link. A source added from the web is not refreshed from its link later.

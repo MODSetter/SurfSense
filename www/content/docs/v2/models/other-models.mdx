@@ -1,0 +1,75 @@
+---
+title: Image, voice and search models
+description: Image, image editing, audio, video, speech recognition and embedding models
+---
+
+Besides the chat model, SurfSense uses a model for each of these jobs. All are optional except embedding, which is built in. Each has its own section under **Models** in **Settings**, and each section works like **Text gen**: **Add model** offers **On this computer** and **Use a server**.
+
+| Settings section | Used for | On this computer | From a server |
+|---|---|---|---|
+| **Image gen** | Images and infographics in [Studio](/docs/v2/studio) | Yes | Yes |
+| **Image edit** | Editing an image Studio made | Yes | Yes |
+| **Audio** | Voicing podcasts in Studio | Yes, one comes with the app | Yes |
+| **Video** | Nothing yet | Yes | Yes |
+| **Speech recognition** | Recordings and [voice input](/docs/v2/voice) | Yes | No |
+| **Embedding** | Search over your sources | Yes, one comes with the app | No |
+
+## Image models
+
+**Settings › Image gen** holds the model Studio uses to make images and infographics.
+
+**On this computer.** The list includes FLUX.2 klein 4B, Z-Image Turbo, ERNIE-Image Turbo, LongCat-Image, and Stable Diffusion 1.5 and XL. Click **Download**, then **Use**. Image models don't show a fit badge: SurfSense shows the download size and doesn't judge whether your computer can run it, so check you have the memory for a larger model.
+
+- The image runtime starts only when Studio needs it, and stops a few minutes after the last image. The section shows **Starts when Studio needs it** or **Running**.
+- It uses your graphics card where it can: Metal on Apple Silicon, Vulkan on Windows and Linux. Without one, images are drawn on the processor, which is much slower. In [Docker](/docs/v2/docker) it always runs on the processor.
+- While it draws, the local chat model is unloaded to free memory. A chat sent meanwhile waits, then the chat model loads again.
+
+**From a server.** Pick an image model from any connected provider, such as OpenAI's image models or one on OpenRouter. The server must implement `/images/generations` or `/images`. **Test image** makes one picture, a blue circle, before you commit. It is a real request and may cost money.
+
+## Image editing models
+
+**Settings › Image edit** holds the model that changes an image Studio made, from an instruction such as "use a darker colour scheme". Each edit becomes the image's next version. See [Studio](/docs/v2/studio).
+
+- **On this computer**, FLUX.2 klein 4B both draws and edits from one download, so if you use it for images, choose it here too. In onboarding, the editing step lists it first when you chose it for images. Editing on a processor without a graphics card is slow: expect many minutes per edit.
+- **From a server**, use a model that takes a picture in and gives one back. The server must implement `/images/edits`.
+
+Without an image editing model, Studio's edit box says so and links to this section.
+
+## Audio models
+
+**Settings › Audio** holds the model that voices podcasts in Studio.
+
+**On this computer.** SurfSense comes with Kokoro, and uses it when you haven't chosen another. Supertonic and KittenTTS are a download away. Each model shows its voices, its languages, and how much memory it needs **while voicing**. Before a podcast is voiced, SurfSense checks that much memory is free. If not, it says how much is needed and suggests a smaller model.
+
+**From a server.** Pick a text-to-speech model from a connected provider. The server must implement `/audio/speech`. **Test voice** voices one short line, and you can name a voice to try.
+
+A podcast needs a voice for each speaker. If the server lists its voices, SurfSense shows them. If not, open **Voices for this model**, type a voice ID and click **Add and test**. Each voice is played once before it is kept.
+
+## Video models
+
+**Settings › Video** lets you choose a video model, on this computer or from a server. No feature in SurfSense uses it yet.
+
+## Speech recognition models
+
+**Settings › Speech recognition** holds the model that turns recordings and dictation into text. It runs only on your computer: speech recognition models can't come from a server. See [Voice input](/docs/v2/voice) for the models, their languages and how to set the **Spoken language**.
+
+## Embedding model
+
+The embedding model reads your sources so search can find the passages your question is about. It runs on your computer and can't come from a server.
+
+- **Chosen once, in onboarding.** The last onboarding step is **Choose an embedding model**. The default, BGE Small (English), comes with the app and works well for English. For sources in other languages, choose one of the multilingual models, which SurfSense downloads. You can also search Hugging Face for another. One SurfSense hasn't tested is marked **Not tested by SurfSense**, and SurfSense checks it can find answers before you can use it.
+- **Larger is slower.** A larger embedding model makes adding sources slower and uses more memory.
+- **Fixed afterwards.** Every source in your library is read by the same model, so it can't be changed later. **Settings › Embedding** shows the model in use and its vector size.
+
+<Callout type="warn">
+  Choose the embedding model with care. Changing it later would mean reading
+  every source again, which SurfSense can't do yet. If you're unsure, keep the
+  default for English, or pick a multilingual model if your sources are in
+  other languages.
+</Callout>
+
+## Related
+
+- [Choosing a model](/docs/v2/models)
+- [Local models](/docs/v2/models/local): downloads, GPU support and memory
+- [API providers](/docs/v2/models/api-providers): keys and network permission

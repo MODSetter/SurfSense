@@ -1,0 +1,6 @@
+{
+	"title": "Docker",
+	"icon": "Container",
+	"defaultOpen": false,
+	"pages": ["index", "configuration", "access", "updating", "differences"]
+}

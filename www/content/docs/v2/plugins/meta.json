@@ -1,0 +1,6 @@
+{
+	"title": "Plugins",
+	"icon": "Unplug",
+	"defaultOpen": false,
+	"pages": ["index", "surfsense-plugins", "third-party"]
+}

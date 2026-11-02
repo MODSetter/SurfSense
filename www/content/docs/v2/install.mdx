@@ -1,0 +1,119 @@
+---
+title: Install
+description: Download and install SurfSense on Windows, macOS or Linux
+---
+
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+
+SurfSense is a desktop app. Download it from the [downloads page](/downloads), or install it with one command in a terminal.
+
+<Callout title="Running SurfSense on a server?">
+  The same app also runs as one Docker container that you open in a browser.
+  See [Docker](/docs/v2/docker).
+</Callout>
+
+## System requirements
+
+| System | What you need |
+|---|---|
+| Windows | 64-bit (x64) Windows |
+| macOS | A Mac with Apple Silicon, on macOS 13.3 or later |
+| Linux | 64-bit (x64), with glibc 2.35 or later: Ubuntu 22.04 and later, Debian 12 and later, current Fedora, or EL10 |
+
+- **No Intel Mac build.** SurfSense does not run on a Mac with an Intel chip.
+- **Windows on Arm.** The x64 build runs under emulation. It has not been tested there.
+- **RHEL, Rocky and Alma 9 are too old.** Depending on the point release, the app either does not start or cannot run local models.
+- **Models on your computer.** Running a model locally needs enough memory, and a graphics card helps. During setup, SurfSense only lists models that fit your computer. If none fit, you can use a model from a server instead. See [Models](/docs/v2/models).
+
+## Download and install
+
+<Tabs items={['Windows', 'macOS', 'Linux']}>
+  <Tab value="Windows">
+    **From the website**
+
+    1. On the [downloads page](/downloads), download `SurfSense-Setup.exe`.
+    2. Run it. SurfSense installs for your user and starts.
+
+    **From a terminal**
+
+    In PowerShell, run:
+
+    ```powershell
+    irm https://www.surfsense.com/install.ps1 | iex
+    ```
+
+    The script downloads the installer, checks it, and installs SurfSense without any prompts. Quit SurfSense first if it is running, or the script stops.
+  </Tab>
+  <Tab value="macOS">
+    **From the website**
+
+    1. On the [downloads page](/downloads), download `SurfSense-arm64.dmg`.
+    2. Open it and drag SurfSense into Applications.
+    3. Open SurfSense from Applications.
+
+    **From a terminal**
+
+    ```bash
+    curl -fsSL https://www.surfsense.com/install.sh | sh
+    ```
+
+    The script puts SurfSense in Applications, or in the Applications folder in your home folder if you can't write to the main one. Quit SurfSense first if it is running, or the script stops.
+  </Tab>
+  <Tab value="Linux">
+    **From the website**
+
+    On the [downloads page](/downloads), pick the file for your system:
+
+    - **Debian or Ubuntu:** `SurfSense.deb`. Install it with `sudo apt install ./SurfSense.deb`.
+    - **Fedora or openSUSE:** `SurfSense.rpm`. Install it with `sudo dnf install ./SurfSense.rpm`, or with zypper.
+    - **Any other distribution:** `SurfSense.AppImage`. Make it executable with `chmod +x SurfSense.AppImage`, then run it.
+
+    **From a terminal**
+
+    ```bash
+    curl -fsSL https://www.surfsense.com/install.sh | sh
+    ```
+
+    The script picks the right package for your system. It uses apt, dnf or zypper when your system has one, which asks for your password through `sudo`. Otherwise, and on image-based systems such as Fedora Atomic desktops, it installs the AppImage in `~/Applications` and adds SurfSense to your app menu. It stops before downloading anything if your system is older than glibc 2.35.
+  </Tab>
+</Tabs>
+
+### What the install script checks
+
+Both scripts download from one GitHub release and check every file against that release's published checksums before using it. On macOS the app must also pass Gatekeeper, and on Windows the installer must carry a valid SurfSense signature. Nothing is sent anywhere except the downloads themselves.
+
+Two settings change what the scripts do:
+
+- `SURFSENSE_VERSION=2.2.5` installs that version instead of the latest, even if it is older than the one you have.
+- `SURFSENSE_INSTALL_DRY_RUN=1` prints what the script would do, and changes nothing.
+
+On macOS and Linux, put the setting before `sh`:
+
+```bash
+curl -fsSL https://www.surfsense.com/install.sh | SURFSENSE_INSTALL_DRY_RUN=1 sh
+```
+
+On Windows, set it first:
+
+```powershell
+$env:SURFSENSE_INSTALL_DRY_RUN = '1'
+irm https://www.surfsense.com/install.ps1 | iex
+```
+
+Older versions, checksums and release notes are on [GitHub Releases](https://github.com/MODSetter/SurfSense/releases).
+
+## First launch
+
+Open SurfSense from the Start menu, Applications, or your app menu. The first time, it walks you through setup: two privacy choices, then the models it uses. There is no account to create. The [quick start](/docs/v2/quick-start) goes through it step by step.
+
+SurfSense does not check for updates until you allow it during setup. How updates work, and how to install one, is on [Updates](/docs/v2/updates).
+
+## Uninstall
+
+- **Windows:** Open Windows Settings › Apps › Installed apps, find SurfSense, and choose Uninstall.
+- **macOS:** Quit SurfSense, then drag it from Applications to the Trash.
+- **Linux, deb:** `sudo apt remove surfsense-local-electron`
+- **Linux, rpm:** `sudo dnf remove surfsense-local-electron`, or the same with zypper.
+- **Linux, AppImage:** Delete the `SurfSense.AppImage` file.
+
+Uninstalling removes the app, not your workspaces, sources, chats or downloaded models. To remove those too, delete your data folder. [Data folder](/docs/v2/data-folder) says where it is.

@@ -1,0 +1,45 @@
+---
+title: Languages
+description: Change the language SurfSense's interface uses, and help translate it
+---
+
+SurfSense's interface is available in:
+
+- English
+- Deutsch (German)
+- Español (Spanish)
+- Français (French)
+- हिन्दी (Hindi)
+- 日本語 (Japanese)
+- 한국어 (Korean)
+- Português do Brasil (Brazilian Portuguese)
+- Русский (Russian)
+- 简体中文 (Simplified Chinese)
+
+## Change the language
+
+Open Settings › General and pick a language under **Language**. Each language is listed in its own name. SurfSense reloads in the new language, so an open dialog closes.
+
+**Match system**, the default, follows your computer's language. If SurfSense isn't available in it, it tries your computer's next preferred language, then English. Any Portuguese uses Brazilian Portuguese. Traditional Chinese isn't available yet, so it falls through to your next language; you can still choose Simplified Chinese.
+
+The choice applies to this computer only. Translations are built into the app, so changing the language downloads nothing.
+
+In [Docker](/docs/v2/docker), **Match system** follows your browser's languages, and each browser keeps its own choice.
+
+## What changes
+
+The interface language covers SurfSense's own buttons, menus, messages and settings. It doesn't change:
+
+- **Your content**: workspace, source and chat names, and what's in your files.
+- **Chat answers.** Chat answers in the language of your question. A Studio podcast has its own **Language** option.
+- **Model names and descriptions**, which stay as their makers wrote them.
+- **The app menu.** Its labels come from your operating system. On a Mac, **Check for Updates…** and the **Help** menu stay in English.
+- **Some error messages** from deep inside the app, which stay in English.
+
+The language you speak for [voice input](/docs/v2/voice) is a separate setting, under Settings › Speech recognition.
+
+## Help translate
+
+Translations live in the [SurfSense repository](https://github.com/MODSetter/SurfSense) on GitHub, one file per language in `surfsense_local/frontend/translations/`. If you read one of these languages and spot a wrong or awkward translation, open a pull request that fixes it.
+
+SurfSense doesn't use a machine-translation service.

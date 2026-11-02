@@ -1,0 +1,36 @@
+---
+title: YouTube
+description: Read YouTube videos, channels, transcripts and comments
+---
+
+YouTube lets you work with videos without watching every one. It reads public videos, channels and playlists with their subtitles, and the comments and replies under a video.
+
+Needs a [SurfSense license](/docs/v2/license). See [SurfSense plugins](/docs/v2/plugins/surfsense-plugins) to connect it.
+
+## Tools
+
+| Tool | What it does |
+|---|---|
+| `scrape` | Reads videos from a video, channel, playlist, Shorts or hashtag link, or from a YouTube search. Each video comes with its title, description, date, length, views, likes, comment count and channel. It can also fetch subtitles in a chosen language. |
+| `comments` | Reads the comments and replies under one or more videos, with authors, text, likes and dates, top comments or newest first. |
+
+## Example prompts
+
+- "@youtube Summarise this talk and list its main arguments: https://www.youtube.com/watch?v=…"
+- "List the last ten videos on @channelname with their view counts."
+- "Pull the French subtitles of this video and translate the first five minutes."
+- "What do the top comments under this video say about the product?"
+
+## Add from the web
+
+In **+ › Add from the web…**:
+
+- **A video link** becomes one source with the video's details, its transcript and its top comments. Watch, `youtu.be`, Shorts, embed and live links all work.
+- **A channel, playlist, hashtag or search link** opens as a list of its videos. Add the ones you want.
+- **Search YouTube itself**: pick YouTube in the **Search on** menu under the box.
+
+## Limits
+
+- **Transcripts in English.** Add from the web asks for English subtitles, so a video without an English track gets no transcript there. In a chat, ask the agent for the video's language.
+- **Public videos only.**
+- **A block reads as nothing found.** When YouTube refuses a request, the result can come back empty rather than as an error. Try again later.

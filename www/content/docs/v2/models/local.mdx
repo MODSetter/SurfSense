@@ -1,0 +1,110 @@
+---
+title: Local models
+description: Download models and run them on your own computer
+---
+
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+
+SurfSense can download a model and run it on your computer, with its own built-in runtime. You don't need to install anything else. Once a model is downloaded, chat works with the network off, and your questions and documents never leave your computer.
+
+## Download a chat model
+
+<Steps>
+<Step>
+
+### Open the catalog
+
+Open **Settings › Text gen**, click **Add model**, then **On this computer**. During onboarding, the first model step shows the same list.
+
+</Step>
+<Step>
+
+### Pick a model
+
+The list starts with **Tested by SurfSense**: models the SurfSense team has run, sorted so the ones that fit your computer come first. The model with a star is **Recommended for your computer**. If you are unsure, take that one.
+
+</Step>
+<Step>
+
+### Download it
+
+Click **Download**. The first download asks to reach `huggingface.co` (**Allow searching and downloading models?**). Allow it. SurfSense sends Hugging Face only the name of the model you chose, plus your IP address, as any download does. Your chats and documents are never sent.
+
+</Step>
+<Step>
+
+### Use it
+
+When the download finishes, the model is ready, and **Use** makes it your chat model. In onboarding, a download is also your choice.
+
+</Step>
+</Steps>
+
+## What you see on each model
+
+- **Your computer.** At the top, SurfSense shows what it found: **Graphics card**, **Apple Silicon GPU** or **Runs on your processor**, and how much memory it can use. **Every model below is priced against this computer.** You don't run a scan yourself. If it reads **Graphics card not detected by the runtime. Reinstall to fix**, your computer has a graphics card that SurfSense can't use. See [GPU support](#gpu-support).
+- **Builds.** A model comes in several builds: the same model compressed by different amounts. A smaller build needs less memory and loses a little quality. Each row leads with the build that suits your computer best, and the others are one click away.
+- **Fit.** A build with no badge runs at full speed. **Reduced speed** means part of it runs on the processor, so it works but is slower. **Won't fit** means your computer doesn't have the memory, and the download is refused.
+- **Vision.** The model can read images you attach in chat.
+
+SurfSense also lowers how much a model can read at once, its context window, when memory is tight, so the model stays on the graphics card instead of slowing down.
+
+## Search Hugging Face
+
+Not every model is in the tested list. Under **All models**, search Hugging Face for any model in the GGUF format. In onboarding, click **Not listed? Search Hugging Face**.
+
+- Results are sorted by downloads. They are not reviewed by SurfSense.
+- Open a result to see its builds. **Sizes are exact. Fit is estimated and checked before download.** An estimate is marked with `~`.
+- SurfSense checks the file before it downloads anything. A file that isn't a chat model, or doesn't fit, is refused with the reason.
+- A repository marked **Needs an account** can't be downloaded. SurfSense does not sign in to Hugging Face.
+
+Searching sends what you type to `huggingface.co` as you type. If you turned that off, search says so, and tested and downloaded models keep working.
+
+## Downloads
+
+- **One at a time.** A second download waits for the first: **Waiting for the download ahead of it**.
+- **Keep working.** A download carries on when you close Settings, and you get a message when it ends.
+- **Cancel** stops a download. Starting it again picks up where it stopped.
+- **Checked.** Each file is checked against the exact file SurfSense expects. If it doesn't match, the download fails with **The downloaded file did not match the expected one. Retry the download.**
+- **Disk space.** SurfSense checks there is room before it starts and tells you how much the download needs.
+
+Models are saved in the `models` folder of your [data folder](/docs/v2/data-folder). If you already have a GGUF file, you can copy it there and it appears under **This computer**. For a model that reads images, name its vision file `mmproj-<model>.gguf`, after the model's file name. SurfSense tells you the name to use if it finds one that doesn't match.
+
+## Delete a model
+
+In **Settings › Text gen**, find the model under **This computer** and click **Delete**. **Delete model** removes its files from your computer. If it is the model in use, you choose another afterwards. Files another model still needs stay.
+
+## GPU support
+
+| Computer | What SurfSense uses |
+|---|---|
+| Mac with Apple Silicon | The built-in GPU, through Metal |
+| Windows or Linux with a graphics card | The graphics card, through Vulkan: NVIDIA, AMD and Intel cards all work |
+| No graphics card | The processor |
+| [Docker](/docs/v2/docker) | The processor only, for now |
+
+- **Vulkan comes with your graphics driver.** On Windows there is nothing to install. On Linux, install your distribution's Vulkan loader (`libvulkan1` on Debian and Ubuntu, `vulkan-loader` on Fedora) and an up-to-date driver.
+- **CUDA is not used.** NVIDIA cards run through Vulkan.
+- **Integrated graphics count as the processor.** Graphics built into a PC processor share its memory, so SurfSense sizes models against your system memory.
+- **One card.** When a computer has several graphics cards, SurfSense uses the first one the runtime reports and never adds their memory together.
+- **On a Mac**, the GPU and the processor share one pool of memory, and SurfSense leaves part of it for macOS and your other apps.
+
+If your computer has a graphics card but SurfSense reports **Graphics card not detected by the runtime. Reinstall to fix**, update the graphics driver, then reinstall SurfSense. On Linux, check the Vulkan loader is installed.
+
+## Memory
+
+A local model needs room for itself and for what it is reading. If other apps fill your memory, replies get slower. **Settings › Resources** shows how much memory, graphics memory and processor time SurfSense and your other apps are using.
+
+SurfSense keeps one chat model loaded at a time, and serves several replies from it at once. Making an image or voicing a podcast on this computer briefly unloads the chat model to free memory. A chat sent meanwhile waits, then the chat model loads again.
+
+<Callout title="Mac users">
+  [LM Studio](/docs/v2/models/lm-studio) can run MLX models, which are faster
+  than GGUF on Apple Silicon for smaller models. Connect it as a server if
+  speed matters more to you than one app.
+</Callout>
+
+## Related
+
+- [Choosing a model](/docs/v2/models): local, server or plan, and which models run Agentic.
+- [Image, voice and search models](/docs/v2/models/other-models): local image, podcast and embedding models.
+- [Privacy](/docs/v2/privacy): what leaves your computer, and how to switch it off.

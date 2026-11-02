@@ -1,0 +1,35 @@
+---
+title: Google Maps
+description: Find places on Google Maps and read their reviews
+---
+
+Google Maps researches places from your chats. It finds businesses and locations with their address, hours, rating and photos, and reads their reviews along with the owners' replies.
+
+Needs a [SurfSense license](/docs/v2/license). See [SurfSense plugins](/docs/v2/plugins/surfsense-plugins) to connect it.
+
+## Tools
+
+| Tool | What it does |
+|---|---|
+| `scrape` | Finds places by search, such as "coffee shops" in "Lisbon, Portugal", or reads them by link or place ID. Each place comes with its address, rating and contact details. It can also fetch opening hours, popular times, photos and reviews. |
+| `reviews` | Reads a place's reviews: author, rating, text and the owner's reply. Sorted newest, most relevant, highest or lowest rated, optionally only since a date. |
+
+## Example prompts
+
+- "@google-maps Find the five best-rated ramen places in Manchester and compare them."
+- "What do recent reviews of this hotel complain about? https://www.google.com/maps/place/…"
+- "List coworking spaces in Austin with their opening hours and websites."
+- "Read the one-star reviews of this restaurant since January and summarise them."
+
+## Add from the web
+
+In **+ › Add from the web…**:
+
+- **A place link** becomes one source with the place's details and its reviews. `/maps/place/` links, `?cid=` links and `maps.app.goo.gl` links all work.
+- **A search link** opens as a list of places. Add the ones you want.
+- **Search Google Maps itself**: pick Google Maps in the **Search on** menu under the box. Put the place in the query, such as "cafes in Kinshasa".
+
+## Limits
+
+- **Public places only.** When Google asks for a sign-in, the call fails with that reason.
+- **Big review counts take time.** Ask for the reviews you need, such as the newest 50, rather than all of them.

@@ -1,18 +1,61 @@
 ---
 title: SurfSense 2.0
-description: Documentation for SurfSense 2.0 is still being written
+description: A free, open-source desktop app for research over your own documents
 icon: BookOpen
 ---
 
-<Callout title="Docs in progress">
-  SurfSense 2.0 is a rebuild, not an upgrade of 0.0.41. Its documentation is
-  being written now and will appear here.
+import { Card, Cards } from 'fumadocs-ui/components/card';
+import { ContainerIcon, CpuIcon, DownloadIcon, SecurityCheckIcon, UnplugIcon, ZapIcon } from '@/components/ui/icons';
+
+SurfSense is a desktop app for Windows, macOS (Apple Silicon) and Linux. Add your documents, ask questions across them and get answers that cite where each point came from, then turn the same documents into slides, reports, study material and podcasts.
+
+- **On your computer.** Your documents are read, indexed and stored on your disk. There is no account.
+- **Your choice of model.** Run a model on your own computer, connect any OpenAI-compatible API, or use your ChatGPT or Claude plan.
+- **Off until you say yes.** Model downloads, remote providers, update checks and usage statistics stay off until you allow them.
+- **Works offline.** With a local model, SurfSense works with the network off.
+
+<Callout title="Coming from 0.0.41?">
+  SurfSense 2.0 is a rebuild, not an upgrade. The self-hosted web app, its
+  connectors and messaging channels are documented under
+  [SurfSense Legacy](/docs/legacy). Use the version dropdown at the top of the
+  sidebar to switch between them.
 </Callout>
 
-Until then, the [SurfSense Legacy docs](/docs/legacy) remain accurate for the
-release that ships today: the Docker self-host stack, connectors, messaging
-channels, and local model setup. Use the version dropdown at the top of the
-sidebar to switch between them.
-
-Anything published under 0.0.41 describes that version only. Do not assume it
-carries over to 2.0.
+<Cards>
+  <Card
+    icon={<DownloadIcon />}
+    title="Install"
+    description="Download SurfSense for Windows, macOS or Linux"
+    href="/docs/v2/install"
+  />
+  <Card
+    icon={<ZapIcon />}
+    title="Quick start"
+    description="Pick a model, add sources and ask your first question"
+    href="/docs/v2/quick-start"
+  />
+  <Card
+    icon={<CpuIcon />}
+    title="Models"
+    description="Local models, OpenAI-compatible APIs, and ChatGPT or Claude plans"
+    href="/docs/v2/models"
+  />
+  <Card
+    icon={<UnplugIcon />}
+    title="Plugins"
+    description="Give the agent tools such as web search and site readers"
+    href="/docs/v2/plugins"
+  />
+  <Card
+    icon={<ContainerIcon />}
+    title="Docker"
+    description="Run the same app as one container on a server"
+    href="/docs/v2/docker"
+  />
+  <Card
+    icon={<SecurityCheckIcon />}
+    title="Privacy"
+    description="What leaves your computer, and how to switch it off"
+    href="/docs/v2/privacy"
+  />
+</Cards>

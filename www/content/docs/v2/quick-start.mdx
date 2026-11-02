@@ -1,0 +1,111 @@
+---
+title: Quick start
+description: Set up SurfSense, add your sources, ask a question and make something in Studio
+---
+
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+
+This page takes you from a fresh install to your first answer and your first Studio output. If you haven't installed SurfSense yet, start with [Install](/docs/v2/install).
+
+## Set up
+
+The first time you open SurfSense, a short setup runs. You can't use the app until it's done, and you only see it once.
+
+<Steps>
+<Step>
+
+### Start
+
+On the welcome screen, click **Start setting up**.
+
+</Step>
+<Step>
+
+### Make your privacy choices
+
+Answer **Yes** or **No** to each of these, then click **Continue**:
+
+- **Check for updates.** Lets SurfSense ask whether a newer version exists.
+- **Share usage statistics.** Lets SurfSense send anonymous counts of how the app is used.
+
+Nothing is sent until you choose. **Show exactly what’s sent** lists what each one sends. You can change both later in Settings. See [Privacy](/docs/v2/privacy).
+
+</Step>
+<Step>
+
+### Choose a text generation model
+
+This is the model that answers you in chat, and the one step you can't skip. Pick one of these:
+
+- **On this computer.** SurfSense lists the models that fit your computer and marks one **Recommended**. Click **Download**, then **Use**. Your chats stay on your computer. If the model you want isn't listed, click **Not listed? Search Hugging Face**.
+- **Use a server.** Connect vLLM, LM Studio, OpenRouter or any other OpenAI-compatible API.
+- **Use your ChatGPT plan.** Sign in with your ChatGPT account.
+- **Use your Claude plan.** Use your Pro, Max or Team plan through Claude Code on this computer.
+
+SurfSense asks before it downloads a model or sends anything to a server. [Models](/docs/v2/models) covers each option in detail.
+
+</Step>
+<Step>
+
+### Choose the optional models
+
+The next steps are marked **Optional**: image generation, image editing, audio and video. Studio uses them to make images, infographics, podcasts and video. Choose a model for any you want, or click **Skip**. You can add them later in Settings.
+
+</Step>
+<Step>
+
+### Choose an embedding model
+
+The embedding model finds what you ask about in your documents. The default works well for English. Pick a multilingual model if your documents are in other languages.
+
+<Callout type="warn">
+  You can’t change the embedding model later. Choose it with care.
+</Callout>
+
+Click **Finish**. SurfSense opens your first workspace.
+
+</Step>
+</Steps>
+
+## Use SurfSense
+
+<Steps>
+<Step>
+
+### Add sources
+
+In **Sources**, open the add menu and choose **Upload files…** or **Upload folder…**, or drag files onto the list. You can also use **Add from the web…** for a web page or video, or **New note** to write one yourself.
+
+Each source is processed on your computer before you can use it. A source shows as processing until it's ready. [Sources](/docs/v2/sources) lists the file types SurfSense reads.
+
+</Step>
+<Step>
+
+### Ask a question
+
+Type your question in the chat box and send it. The answer cites the sources each point came from. Click a citation to see the passage it points to.
+
+A chat runs in one of two modes:
+
+- **Basic (Q&A)** answers from your sources.
+- **Agentic** does tasks across your files, with tools.
+
+See [Chat](/docs/v2/chat) and [Agent](/docs/v2/agent).
+
+</Step>
+<Step>
+
+### Make something in Studio
+
+In **Studio**, pick a format, such as **Slides**, **PDF**, **Podcast**, **Mind map** or **Flashcards**. Choose the sources to use, add a prompt if you want to steer it, and click **Generate**.
+
+The result appears under **Artifacts** when it's ready. Some formats need a model you skipped during setup; Studio tells you which one. See [Studio](/docs/v2/studio).
+
+</Step>
+</Steps>
+
+## Next steps
+
+- Keep separate projects apart with [workspaces](/docs/v2/workspaces).
+- Give the agent tools like web search with [plugins](/docs/v2/plugins).
+- Dictate instead of typing with [voice](/docs/v2/voice).
