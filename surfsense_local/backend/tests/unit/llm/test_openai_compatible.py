@@ -4,7 +4,7 @@ import pytest
 
 from modules.llm.connections.service import normalize_base_url, parse_models
 from modules.llm.model_type import ModelType
-from modules.llm.providers.openai_compatible import image as image_module
+from modules.llm.providers.openai_compatible import image_response
 from modules.llm.providers.openai_compatible.chat import _delta
 from modules.llm.providers.openai_compatible.image import (
     NonRetryableImageError,
@@ -203,7 +203,7 @@ async def test_an_image_url_is_not_fetched_until_its_host_is_allowed(
         3, "https://example.test/v1", allow_url_host=refuse
     )
     monkeypatch.setattr(provider, "_post", post)
-    monkeypatch.setattr(image_module, "_download_image", download)
+    monkeypatch.setattr(image_response, "download_image", download)
 
     with pytest.raises(PermissionError, match=r"cdn\.example\.test"):
         await provider.generate("image", "draw")

@@ -20,6 +20,7 @@ const artifact: Artifact = {
   version: null,
   spec_kind: null,
   refinable: false,
+  image_editable: false,
 }
 
 type ListProps = Partial<Parameters<typeof ArtifactList>[0]>
@@ -507,6 +508,7 @@ describe("artifact list versions", () => {
       version: { root_id: 30, number, parent_id: number > 1 ? id - 1 : null },
       spec_kind: "python",
       refinable: false,
+      image_editable: false,
       ...extra,
     } satisfies Artifact
   }

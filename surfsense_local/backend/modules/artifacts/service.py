@@ -5,6 +5,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from modules.artifacts.formats import FORMATS, FORMATS_BY_KEY, Format
+from modules.artifacts.image_edits.model import require_image_edit_model
+from modules.artifacts.image_edits.recipe import image_edit_of
 from modules.artifacts.models import Artifact
 from modules.artifacts.refused import refused
 from modules.artifacts.schemas import FormatRead, StudioJobCreate
@@ -100,7 +102,8 @@ def create_artifact_job(
 
 def regenerate_artifact(session: Session, artifact: Artifact) -> Artifact:
     """Run a finished or failed artifact's job again: a draft from its sources
-    re-resolved, a refine's same rewrite, or the same document script.
+    re-resolved, a refine's same rewrite, an image's same edit, or the same
+    document script.
 
     The artifact_metadata that created it (sources, prompt, options, spec) is still
     there, so this resets the backing document and re-enqueues — no new row.
@@ -111,8 +114,11 @@ def regenerate_artifact(session: Session, artifact: Artifact) -> Artifact:
             status.HTTP_409_CONFLICT, "already generating", "already_generating"
         )
     meta = artifact.artifact_metadata
+    # An edit asks only the edit model, and starts from its base, not the sources.
+    if image_edit_of(meta) is not None:
+        require_image_edit_model(session)
     # A document script runs as stored: its format's models are never asked.
-    if not renders_as_stored(meta):
+    elif not renders_as_stored(meta):
         _require_available(session, FORMATS_BY_KEY[artifact.format])
         # A refine rewrites its base's spec, so it needs none of its sources back.
         if refinement(meta) is None:

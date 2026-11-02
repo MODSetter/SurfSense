@@ -5,8 +5,13 @@ from pathlib import Path
 
 # Before the first import that reads settings: shared.queue opens its file at
 # import time, and no test may write to the developer's own ~/.surfsense.
-os.environ.setdefault(
-    "SURFSENSE_LOCAL_DATA_DIR", tempfile.mkdtemp(prefix="surfsense-tests-")
+# A parallel worker inherits the folder its controller made, so it makes its
+# own: every test empties the queue, and a shared file loses another's jobs.
+os.environ["SURFSENSE_LOCAL_DATA_DIR"] = (
+    tempfile.mkdtemp(prefix=f"surfsense-tests-{worker}-")
+    if (worker := os.environ.get("PYTEST_XDIST_WORKER"))
+    else os.environ.get("SURFSENSE_LOCAL_DATA_DIR")
+    or tempfile.mkdtemp(prefix="surfsense-tests-")
 )
 os.environ.setdefault("SURFSENSE_LOCAL_SECRET", "test-secret")
 
