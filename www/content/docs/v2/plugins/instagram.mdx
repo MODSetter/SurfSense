@@ -1,0 +1,39 @@
+---
+title: Instagram
+description: Read Instagram profiles, posts and reels
+---
+
+Instagram looks into public accounts from your chats. It reads public posts and reels from a profile or a link, finds profiles by search, and shows a profile's bio, follower and post counts and latest posts, without your own Instagram account.
+
+Needs a [SurfSense license](/docs/v2/license). See [SurfSense plugins](/docs/v2/plugins/surfsense-plugins) to connect it.
+
+## Tools
+
+| Tool | What it does |
+|---|---|
+| `scrape` | Reads posts or reels from profiles, or single posts and reels by link. It can keep only posts newer than a date and leave out pinned posts. |
+| `details` | Reads a profile's details: bio, follower and post counts, link and latest posts. Given keywords instead of profiles, it finds matching profiles first. |
+
+## Example prompts
+
+- "@instagram What has @natgeo posted this week? List each post with its caption."
+- "Compare the follower counts and bios of these three accounts: …"
+- "Find Instagram profiles of specialty coffee roasters in Berlin."
+- "Read this reel's caption and tell me what product it promotes: https://www.instagram.com/reel/…"
+
+## Add from the web
+
+In **+ › Add from the web…**:
+
+- **A post or reel link** becomes one source with its caption and details.
+- **A profile link** opens as a list of its latest posts, and a profile's `/reels/` link as its latest reels.
+- **Search Instagram itself**: pick Instagram in the **Search on** menu under the box. It finds profiles. Each profile then opens as a list.
+
+Short links, such as `instagr.am/…` or share links, can't be added. Open them in your browser and copy the full link instead.
+
+## Limits
+
+- **What a logged-out visitor sees.** A profile shows only its latest 12 posts or 12 reels, and posts come without their comments.
+- **No hashtags or places.** Instagram puts those behind a login.
+- **Finding profiles goes through Google**, so it can be slower than reading a profile you name.
+- **Video links expire.** A video's address is only valid for hours to days.

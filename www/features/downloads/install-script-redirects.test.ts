@@ -6,7 +6,7 @@ import test from "node:test";
 // The matcher Next's server resolves `redirects()` with, called with its options, so these
 // assertions cannot drift from runtime behaviour.
 import { getPathMatch } from "next/dist/shared/lib/router/utils/path-match";
-import { installScriptRedirects } from "./install-script-redirects";
+import { installScriptRedirects } from "./install-script-redirects.mts";
 
 /** Applies the rules the way Next does: first match wins, or no redirect. */
 function redirect(pathname: string) {

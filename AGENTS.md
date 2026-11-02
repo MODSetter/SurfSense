@@ -43,6 +43,7 @@ The tree is inconsistent. New work follows this. Old work stays until a task exp
 
 - Before changing a feature, read its doc in `docs/architecture/` and the ADRs it links.
 - If a change alters behaviour a doc describes, update the doc in the same change. Fixing a Known gap deletes its line.
+- The user docs at `www.surfsense.com/docs` are `www/content/docs/v2/`, separate from `docs/`. A change to what users see (a setting, label, flow or limit) updates the page that describes it in the same change. Rules: [`www/AGENTS.md`](www/AGENTS.md#user-docs).
 - Run `python scripts/check_docs.py` after editing anything under `docs/` or `plans/`.
 
 ## Commands

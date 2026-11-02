@@ -5,7 +5,7 @@
  * indexed and linked from the READMEs, so they move permanently into the
  * version folder rather than 404ing.
  *
- * Kept out of `next.config.ts` because that module cannot be imported from a
+ * Kept out of `next.config.mts` because that module cannot be imported from a
  * test: `createMDX()` spawns esbuild on load. `features/docs/docs-redirects.test.ts`
  * asserts these patterns against real path matching.
  */
@@ -38,6 +38,12 @@ export const docsRedirects = [
 	{
 		source: `/docs/:path(${notAVersion}${notAnAsset}.*)`,
 		destination: `/docs/${LEGACY_DOCS_PATH}/:path`,
+		permanent: true,
+	},
+	// SurfSense's own plugins moved up out of their subfolder; the overview kept its address.
+	{
+		source: `/docs/${CURRENT_DOCS_PATH}/plugins/surfsense-plugins/:plugin`,
+		destination: `/docs/${CURRENT_DOCS_PATH}/plugins/:plugin`,
 		permanent: true,
 	},
 ];
