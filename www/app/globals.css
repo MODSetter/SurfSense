@@ -67,6 +67,29 @@
 	--brand: oklch(0.546 0.245 262.881);
 }
 
+/* The docs in the canonical light palette (frontend-workflow PALETTE.css), only
+ * while a docs page is shown: on `:root` so its popovers and search, which render
+ * outside the layout, follow. Spacious paints its shell with `fd-card` and the
+ * raised page with `fd-background`, so those take app-shell and card. */
+:root:not(.dark):has(#nd-page-panel) {
+	--color-fd-background: #fbfaf7;
+	--color-fd-foreground: #1e1e1e;
+	--color-fd-card: #f3f2ee;
+	--color-fd-card-foreground: #1e1e1e;
+	--color-fd-popover: #fbfaf7;
+	--color-fd-popover-foreground: #1e1e1e;
+	--color-fd-primary: #2e2e2e;
+	--color-fd-primary-foreground: #f7f7f7;
+	--color-fd-secondary: #e8e7e2;
+	--color-fd-secondary-foreground: #2e2e2e;
+	--color-fd-muted: #ebeae6;
+	--color-fd-muted-foreground: #626262;
+	--color-fd-accent: #e5e4df;
+	--color-fd-accent-foreground: #2e2e2e;
+	--color-fd-border: #dedede;
+	--color-fd-ring: #2e2e2e;
+}
+
 @theme inline {
 	--color-background: var(--background);
 	--color-foreground: var(--foreground);
