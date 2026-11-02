@@ -123,9 +123,9 @@ class Model:
 def test_a_real_quote_that_does_not_settle_the_question_is_left_for_review(
     workbook, config
 ):
-    """The verified Yes stands; the Yes resting on an unrelated sentence is asked again, and
-    quoting the same sentence again keeps its refusal: it becomes Needs review with what is
-    missing, and the requester's comment cell gets that reason, not the model's claim."""
+    """The verified Yes stands; the Yes resting on an unrelated sentence is asked again, checked
+    again, and refused again: it becomes Needs review with what is missing, and the requester's
+    comment cell gets that reason, not the model's claim."""
     model = Model()
 
     filled = fill_workbook(workbook, [PLAN], config, model)
@@ -139,14 +139,15 @@ def test_a_real_quote_that_does_not_settle_the_question_is_left_for_review(
     )
     assert virtualization.codes == ["NOT_SUPPORTED", "NEEDS_REVIEW"]
     assert "virtualization" in filled.exceptions[0][4]
-    # Asked once more with the reason; the same quote back is not checked a second time.
-    assert len(model.checks) == 2
+    # Asked once more with the reason, and checked again.
+    assert len(model.checks) == 3
     assert [s["step"] for s in virtualization.trace] == [
         "answer",
         "check",
         "after the check",
+        "check",
     ]
-    assert virtualization.calls == 3
+    assert virtualization.calls == 4
     assert comment_text(virtualization, config) == "Says nothing of virtualization."
 
 

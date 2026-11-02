@@ -110,7 +110,7 @@ def answer_row(
     if verdict is not None and not verdict.supported:
         # Right answer, wrong evidence is common: say what the check found, ask once more.
         refused = asked.draft
-        refused_cited, unfound = _cited(refused, config, passages, sources)
+        _, unfound = _cited(refused, config, passages, sources)
         asked = ask_row(
             model,
             config,
@@ -133,17 +133,14 @@ def answer_row(
             # Refused, an answer may find better evidence or give way, never turn into
             # another, which nothing checked: all 11 of Qwen's last-turn No were refused.
             switched = refused.answer
-        if (
-            again is None
-            or switched
-            or again.answer == config.fallback.answer
-            # The same evidence again: a second sample of the check is not a second check.
-            or set(_cited(again, config, passages, sources)[0]) <= set(refused_cited)
-        ):
+        if again is None or switched or again.answer == config.fallback.answer:
             # The refusal stands, and the row keeps what was refused and why: for a person,
             # the refused quotes are the best place to start.
             asked.draft = refused
         else:
+            # Checked again even on the same quotes: the check refuses right answers often
+            # enough that a second look rescued 14 of them in the v0.2.0 runs, and every wrong
+            # answer that passed on a second look came with new quotes.
             verdict = _verdict(
                 model, config, row, asked, passages, sources, trace, checks
             )
