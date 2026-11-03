@@ -36,6 +36,7 @@ import sys
 
 from license.admin import correct_license_email
 from license.email.deliver import deliver_licenses
+from license.email.message import BusinessCopy
 from license.models import LicenseNotFoundError
 from license.records import (
     find_license_by_checkout_session,
@@ -93,7 +94,11 @@ async def main() -> int:
         print("aborted")
         return 1
 
-    issued = await correct_license_email(record, args.email)
+    try:
+        issued = await correct_license_email(record, args.email)
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
     print(f"\ncorrected. {issued.email} can now use /license/resend.")
 
     if args.mail:
@@ -101,6 +106,7 @@ async def main() -> int:
             "resend",
             to=issued.email,
             certificates=[issued.certificate],
+            business=BusinessCopy.of(issued),
             idempotency_key=f"correct:{issued.keygen_license_id}",
         )
         print("emailed the license file")

@@ -7,7 +7,8 @@ from collections.abc import Mapping
 class LicenseSettings:
     def __init__(self, env: Mapping[str, str] = os.environ) -> None:
         self.KEYGEN_ACCOUNT_ID = env.get("KEYGEN_ACCOUNT_ID")
-        # The admin token: without it the license routes are not served.
+        # The product token every license policy belongs to (the admin token
+        # also works, but stays offline): without it the license routes are not served.
         self.KEYGEN_API_TOKEN = env.get("KEYGEN_API_TOKEN")
         # Self-hosted CE only; unset means Keygen Cloud.
         self.KEYGEN_API_URL = env.get("KEYGEN_API_URL", "").strip()
@@ -15,9 +16,17 @@ class LicenseSettings:
         self.KEYGEN_POLICY_TRIAL = env.get("KEYGEN_POLICY_TRIAL")
         self.KEYGEN_POLICY_INDIVIDUAL = env.get("KEYGEN_POLICY_INDIVIDUAL")
         self.KEYGEN_POLICY_TEAM = env.get("KEYGEN_POLICY_TEAM")
+        # Printed by scripts/setup_business_policies.py.
+        self.KEYGEN_POLICY_BUSINESS = env.get("KEYGEN_POLICY_BUSINESS")
+        self.KEYGEN_POLICY_BUSINESS_TRIAL = env.get("KEYGEN_POLICY_BUSINESS_TRIAL")
 
         self.LICENSE_TRIAL_ENABLED = (
             env.get("LICENSE_TRIAL_ENABLED", "FALSE").upper() == "TRUE"
+        )
+        # TRUE issues trials on the business-trial policy, with the jobs; off
+        # until Business goes on sale, so today's trial keeps working.
+        self.LICENSE_TRIAL_BUSINESS = (
+            env.get("LICENSE_TRIAL_BUSINESS", "FALSE").upper() == "TRUE"
         )
         self.LICENSE_TRIAL_DAYS = int(env.get("LICENSE_TRIAL_DAYS", "14"))
         # ISO date; a trial issued before it expires that many days after it instead.
@@ -38,6 +47,14 @@ class LicenseSettings:
         self.LICENSE_TRIAL_RATE_LIMIT_PER_HOUR = int(
             env.get("LICENSE_TRIAL_RATE_LIMIT_PER_HOUR", "3")
         )
+        # A firm's people share one key and often one address, so the app's
+        # refresh gets more room than the mailing routes.
+        self.LICENSE_REFRESH_RATE_LIMIT_PER_HOUR = int(
+            env.get("LICENSE_REFRESH_RATE_LIMIT_PER_HOUR", "30")
+        )
+        self.LICENSE_REFRESH_RATE_LIMIT_IP_PER_HOUR = int(
+            env.get("LICENSE_REFRESH_RATE_LIMIT_IP_PER_HOUR", "60")
+        )
 
         self.STRIPE_SECRET_KEY = env.get("STRIPE_SECRET_KEY")
         self.STRIPE_WEBHOOK_SECRET = env.get("STRIPE_WEBHOOK_SECRET")
@@ -46,6 +63,15 @@ class LicenseSettings:
             "STRIPE_PRICE_LICENSE_INDIVIDUAL", ""
         )
         self.STRIPE_PRICE_LICENSE_TEAM = env.get("STRIPE_PRICE_LICENSE_TEAM", "")
+        # The graduated yearly price; its quantity is the number of people.
+        self.STRIPE_PRICE_LICENSE_BUSINESS = env.get(
+            "STRIPE_PRICE_LICENSE_BUSINESS", ""
+        )
+        # The customer portal's login link, mailed with every Business license
+        # for changing people or cancelling; unset, the mail says to reply.
+        self.STRIPE_CUSTOMER_PORTAL_URL = env.get(
+            "STRIPE_CUSTOMER_PORTAL_URL", ""
+        ).strip()
 
         self.SMTP_LICENSE_FROM = env.get("SMTP_LICENSE_FROM", "").strip()
         self.SMTP_LICENSE_REPLY_TO = env.get("SMTP_LICENSE_REPLY_TO", "").strip()

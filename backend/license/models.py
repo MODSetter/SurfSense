@@ -23,6 +23,12 @@ META_EMAIL = "email"
 META_PLAN = "plan"
 META_CUSTOMER = "stripeCustomerId"
 META_SESSION = "checkoutSessionId"
+# The subscription a license renews with. Licenses sold before it was written
+# are found through their checkout session instead, and get it on renewal.
+META_SUBSCRIPTION = "stripeSubscriptionId"
+# Business only: the firm's name from the checkout's custom field, and the jobs.
+META_FIRM = "firm"
+META_JOBS = "jobs"
 # Trials carry a second index. ``email`` is the address as typed, because that
 # is where mail goes and what resend looks up; ``trialKey`` is the folded form
 # the one-trial-per-person check filters on. Storing only the folded form would
@@ -52,6 +58,9 @@ class IssuedLicense:
     plan: LicensePlan
     email: str
     max_users: int | None = None
+    firm: str | None = None
+    # Non-empty for Business and the Business trial.
+    jobs: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
