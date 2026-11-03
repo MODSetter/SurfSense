@@ -38,6 +38,10 @@ Most updates download only the parts of the app that changed, so they're much sm
 
 What's new in each version is on the [changelog](/changelog).
 
+### On a Mac with SurfSense 2.3.0 or earlier
+
+These versions can't install a newer version themselves: the update downloads, then SurfSense closes when it tries to install it. Install the new version once by hand: download it from the [downloads page](/downloads) and replace the app in Applications, or run `brew upgrade` if you installed it with Homebrew. Your data folder stays as it is. From then on, updates install in the app as usual.
+
 ## What a check sends
 
 A check asks `updates.surfsense.com` for the newest release for your system. If that server fails, SurfSense asks `github.com` directly, so an update never depends on SurfSense's own server. A check sends:
