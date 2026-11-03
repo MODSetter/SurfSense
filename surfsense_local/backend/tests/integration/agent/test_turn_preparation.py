@@ -246,15 +246,15 @@ async def _tools_once_checked(api: AgentAPI) -> dict[str, bool]:
     return tools
 
 
-def slow_amazon_server(seconds: float) -> MCPServer:
-    """SurfSense's Amazon plugin, its search taking `seconds` with no progress."""
-    server = MCPServer("amazon")
+def slow_youtube_server(seconds: float) -> MCPServer:
+    """SurfSense's YouTube plugin, its search taking `seconds` with no progress."""
+    server = MCPServer("youtube")
 
     @server.tool(annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=True))
-    async def search_products(query: str) -> str:
-        """Search Amazon's products."""
+    async def search_videos(query: str) -> str:
+        """Search YouTube's videos."""
         await asyncio.sleep(seconds)
-        return f"products about {query}"
+        return f"videos about {query}"
 
     return server
 
@@ -275,13 +275,13 @@ async def test_a_call_opencode_gives_up_on_is_ended_on_surfsense_s_plugin_host(
         texts.append(RecordingHeaders(guarded[0], "x-surfsense-text-only"))
         return texts[0]
 
-    host = plugin_host("amazon", slow_amazon_server(30), around, cancels)
+    host = plugin_host("youtube", slow_youtube_server(30), around, cancels)
     with serving(host) as base:
         monkeypatch.setattr(get_plugin_host_settings(), "plugin_host_url", base)
-        connected = await agent_api.http.post("/plugins/first-party/amazon")
+        connected = await agent_api.http.post("/plugins/first-party/youtube")
         assert connected.status_code == 201, connected.text
         agent_api.model.replies = [
-            call("amazon_search_products", query="ship"),
+            call("youtube_search_videos", query="ship"),
             ("text", "It took too long."),
         ]
         thread = await open_thread(agent_api)
@@ -294,7 +294,7 @@ async def test_a_call_opencode_gives_up_on_is_ended_on_surfsense_s_plugin_host(
             await asyncio.sleep(0.1)
 
     step = of_type(frames, "agent-step")[-1]
-    assert (step["tool"], step["status"]) == ("amazon_search_products", "error")
+    assert (step["tool"], step["status"]) == ("youtube_search_videos", "error")
     assert time.monotonic() - began < 30
     (token,) = {token for token in guarded[0].calls_tokens if token}
     assert [c["x-surfsense-calls"] for c in cancels] == [token]

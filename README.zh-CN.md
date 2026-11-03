@@ -97,15 +97,10 @@ SurfSense 是一款免费开源的桌面应用，专为那些不能上传的文�
 | **Google Search** | 在 Google 上搜索，并读取搜索结果、广告和相关问题 |
 | **Web Crawl** | 读取单个网页，或把整个网站抓取为干净的文本 |
 | **YouTube** | 读取 YouTube 视频、频道及其评论 |
-| **TikTok** | 读取 TikTok 视频及其评论，搜索用户，查看当前的热门内容 |
-| **Reddit** | 读取 Reddit 的公开帖子及其评论串，或整个社区 |
-| **Instagram** | 读取 Instagram 的公开主页、帖子和 Reels，并搜索主页 |
-| **Google Maps** | 在 Google Maps 上查找地点，并读取这些地点的评价 |
-| **Amazon** | 读取 Amazon 商品和搜索结果 |
-| **Walmart** | 读取 Walmart 商品、搜索结果和评价 |
-| **Indeed** | 读取 Indeed 上的职位信息 |
 
 **第三方：** 来自[插件注册表](backend/plugins/registry)的 MCP 服务器，例如 DeepWiki 和 Notion，或者你通过网址添加的任意服务器。不需要许可证；在你允许之前，它们一直保持关闭。
+
+来源中的**从网页添加**既不需要插件，也不需要许可证：它使用你自己的网络连接读取网页和 YouTube 文字稿，并通过 SearXNG 搜索。
 
 ## SurfSense 与同类工具对比
 

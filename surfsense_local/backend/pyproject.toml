@@ -18,6 +18,13 @@ dependencies = [
     # Parses the Markdown a small model writes for Studio's Word and PDF builders
     # (worker/studio/office/markdown). rich brings it too; named so it cannot vanish.
     "markdown-it-py>=4.0",
+    # Add from the web reads a page on the user's own connection
+    # (modules/documents/web_sources/page_reading): curl_cffi asks as Chrome
+    # does, without a browser; trafilatura keeps the page's text as markdown,
+    # and markdownify the whole body when it drops the prices.
+    "curl-cffi>=0.16.3",
+    "markdownify>=1.2.3",
+    "trafilatura>=2.3.1",
     # Charts in document scripts (worker/document_script/), which draw one and
     # place the PNG, and in Studio's Markdown builders' chart blocks.
     "matplotlib>=3.11.2",
@@ -67,6 +74,9 @@ dependencies = [
     "torchvision>=0.17",
     "uvicorn[standard]>=0.34.0",
     "xlsxwriter>=3.2.9",
+    # A YouTube video's transcript, read from www.youtube.com on the user's
+    # own connection (modules/documents/web_sources/video_reading).
+    "youtube-transcript-api>=1.2.4",
     "lameenc>=1.8.4",
     "mcp>=2.3,<2.4",
     "claude-agent-sdk==0.2.168",

@@ -1,138 +1,177 @@
+"""Search in Add from the web: a SearXNG server's results as rows to add."""
+
 import pytest
 from httpx import AsyncClient
+from starlette.responses import JSONResponse
 
-from shared.config import get_plugin_host_settings
-from tests.integration.documents.web_sources.conftest import ScraperHost
-from tests.license_samples import INDIVIDUAL_KEY, import_license
+from tests.integration.documents.web_sources.conftest import SearchServer
+from tests.integration.documents.web_sources.stand_in_site import found, results
 
 pytestmark = pytest.mark.integration
 
-TIDES = "https://tides.example/explained"
-VIDEO = "https://www.youtube.com/watch?v=tide1"
-CHANNEL = "https://www.youtube.com/@tides"
-
-
-def results_page(organic: list[dict]) -> dict:
-    """One Google results page, as the Google Search plugin answers it."""
-    return {
-        "searchQuery": {"term": "tides", "page": 1},
-        "organicResults": organic,
-        "paidResults": [{"title": "Buy tide clocks", "url": "https://ads.example"}],
-        "peopleAlsoAsk": [{"question": "Why are there two tides?"}],
-    }
-
 
 def search_url(workspace_id: int) -> str:
-    """Where the dialog sends a query."""
+    """Where the dialog sends a search."""
     return f"/workspaces/{workspace_id}/documents/web/search"
 
 
-async def test_a_search_lists_google_s_pages_each_once_with_who_would_pull_it(
-    client: AsyncClient, workspace_id: int, scraper_host: ScraperHost
+async def test_a_search_shows_the_servers_results_as_rows_to_add(
+    client: AsyncClient, workspace_id: int, search_server: SearchServer
 ) -> None:
-    """Ads and questions are left out; a repeated page is listed once."""
-    organic = [
-        {"title": "Tide tables explained", "url": TIDES, "description": "The moon."},
-        {"title": "Tides in 3 minutes", "url": VIDEO, "description": ""},
-        {"title": "Tide tables explained", "url": TIDES, "description": "The moon."},
-        {"title": "The tides channel", "url": CHANNEL, "description": "Videos."},
-    ]
-    scraper_host.start({("google-search", "scrape"): lambda _: [results_page(organic)]})
-    await import_license(client, "individual.lic")
+    """Each web link once, in the server's order, with the puller that would add it."""
+    search_server.answer(
+        results(
+            found(
+                "https://tides.example/explained", "Tide tables", "How  tides\nwork."
+            ),
+            found("https://youtu.be/dQw4w9WgXcQ", "Tides in a minute"),
+            found("https://tides.example/explained", "Tide tables again"),
+            found("ftp://tides.example/table.txt", "A file server"),
+        )
+    )
 
-    found = await client.post(search_url(workspace_id), json={"query": "tides"})
+    searched = await client.post(search_url(workspace_id), json={"query": "tides"})
 
-    assert found.status_code == 200, found.text
-    assert found.json() == {
-        "link": None,
-        "more": True,
-        "failed": False,
+    assert searched.status_code == 200, searched.text
+    assert searched.json() == {
         "results": [
             {
-                "url": TIDES,
-                "title": "Tide tables explained",
-                "description": "The moon.",
+                "url": "https://tides.example/explained",
+                "title": "Tide tables",
+                "description": "How tides work.",
                 "site": "tides.example",
                 "puller": "web_page",
-                "fit": "one",
             },
             {
-                "url": VIDEO,
-                "title": "Tides in 3 minutes",
+                "url": "https://youtu.be/dQw4w9WgXcQ",
+                "title": "Tides in a minute",
                 "description": None,
-                "site": "www.youtube.com",
+                "site": "youtu.be",
                 "puller": "youtube",
-                "fit": "one",
-            },
-            {
-                "url": CHANNEL,
-                "title": "The tides channel",
-                "description": "Videos.",
-                "site": "www.youtube.com",
-                "puller": "youtube",
-                "fit": "list",
             },
         ],
+        "more": True,
     }
-    assert scraper_host.calls == [
-        ("google-search", "scrape", {"queries": ["tides"], "max_pages_per_query": 1})
+    [asked] = search_server.asked
+    assert dict(asked.query_params) == {
+        "q": "tides",
+        "format": "json",
+        "pageno": "1",
+        "categories": "general",
+    }
+    assert asked.headers["accept-language"] == "*"
+
+
+async def test_show_more_asks_for_the_next_page_until_the_fifth(
+    client: AsyncClient, workspace_id: int, search_server: SearchServer
+) -> None:
+    """SearXNG counts pages from 1; the dialog shows at most five."""
+    search_server.answer(results(found("https://tides.example/5", "Page five")))
+
+    searched = await client.post(
+        search_url(workspace_id), json={"query": "tides", "page": 4}
+    )
+
+    assert searched.json()["more"] is False
+    assert search_server.asked[0].query_params["pageno"] == "5"
+
+
+async def test_a_youtube_search_keeps_only_videos(
+    client: AsyncClient, workspace_id: int, search_server: SearchServer
+) -> None:
+    """Asked of the whole web for youtube.com; a channel is not a video to add."""
+    search_server.answer(
+        results(
+            found("https://www.youtube.com/watch?v=dQw4w9WgXcQ", "Tides explained"),
+            found("https://www.youtube.com/@seaschool", "Sea School"),
+        )
+    )
+
+    searched = await client.post(
+        search_url(workspace_id), json={"query": "tides", "source": "youtube"}
+    )
+
+    assert [row["url"] for row in searched.json()["results"]] == [
+        "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
     ]
-    assert scraper_host.authorizations() == {f"License {INDIVIDUAL_KEY}"}
+    assert search_server.asked[0].query_params["q"] == "tides site:youtube.com"
 
 
-async def test_without_a_license_nothing_is_asked_or_sent(
-    client: AsyncClient, workspace_id: int, scraper_host: ScraperHost
+async def test_a_search_no_engine_answered_fails_rather_than_finding_nothing(
+    client: AsyncClient, workspace_id: int, search_server: SearchServer
 ) -> None:
-    """The dialog shows the activation prompt instead."""
-    scraper_host.start()
+    """An empty page from engines that all failed is no answer, not "no results"."""
+    search_server.answer(results(unresponsive=[["duckduckgo", "timeout"]]))
 
-    found = await client.post(search_url(workspace_id), json={"query": "tides"})
+    searched = await client.post(search_url(workspace_id), json={"query": "tides"})
 
-    assert found.status_code == 403
-    assert found.json()["detail"]["code"] == "license_refused"
-    assert found.json()["detail"]["reason"] == "missing_license"
-    assert scraper_host.calls == []
-    assert scraper_host.authorizations() == set()
+    assert searched.status_code == 502
+    assert searched.json()["detail"] == {
+        "code": "search_failed",
+        "host": "127.0.0.1",
+        "message": "the search server answered without searching",
+    }
 
 
-async def test_a_license_the_plugin_host_refuses_comes_back_with_its_reason(
-    client: AsyncClient, workspace_id: int, scraper_host: ScraperHost
+async def test_a_search_that_finds_nothing_says_so(
+    client: AsyncClient, workspace_id: int, search_server: SearchServer
 ) -> None:
-    """The host judges the license, never the app."""
-    scraper_host.start()
-    await import_license(client, "trial.lic")
+    """Every engine answered, with nothing."""
+    search_server.answer(results())
 
-    found = await client.post(search_url(workspace_id), json={"query": "tides"})
+    searched = await client.post(search_url(workspace_id), json={"query": "tides"})
 
-    assert found.status_code == 403
-    assert found.json()["detail"]["code"] == "license_refused"
-    assert found.json()["detail"]["reason"] == "expired"
+    assert searched.json() == {"results": [], "more": False}
 
 
-async def test_the_plugin_host_is_asked_about_before_anything_is_sent(
+async def test_a_server_without_its_json_api_fails_the_search(
+    client: AsyncClient, workspace_id: int, search_server: SearchServer
+) -> None:
+    """A stock SearXNG answers 403 until `json` is in its search formats."""
+    search_server.answer(JSONResponse({}, status_code=403))
+
+    searched = await client.post(search_url(workspace_id), json={"query": "tides"})
+
+    assert searched.status_code == 502
+    assert searched.json()["detail"]["code"] == "search_failed"
+
+
+async def test_a_server_that_does_not_answer_is_unreachable(
     client: AsyncClient, workspace_id: int
 ) -> None:
-    """SurfSense's own host with no consent yet: one question, about the plugins."""
-    await import_license(client, "individual.lic")
+    """Nothing listens on the discard port."""
+    await client.put("/web-search/server", json={"url": "http://127.0.0.1:9"})
 
-    found = await client.post(search_url(workspace_id), json={"query": "tides"})
+    searched = await client.post(search_url(workspace_id), json={"query": "tides"})
 
-    assert found.status_code == 403
-    assert found.json()["detail"]["code"] == "egress_disabled"
-    assert found.json()["detail"]["host"] == "plugins.surfsense.com"
-    assert found.json()["detail"]["purpose"] == "plugin"
+    assert searched.status_code == 502
+    assert searched.json()["detail"] == {
+        "code": "search_unreachable",
+        "host": "127.0.0.1",
+        "message": "the search server could not be reached",
+    }
 
 
-async def test_a_plugin_host_that_cannot_be_reached_is_said_so(
-    client: AsyncClient, workspace_id: int, monkeypatch: pytest.MonkeyPatch
+async def test_surfsenses_server_is_asked_about_before_the_first_search(
+    client: AsyncClient, workspace_id: int
 ) -> None:
-    """Told apart from a refused license, so the dialog says to try again later."""
-    monkeypatch.setattr(
-        get_plugin_host_settings(), "plugin_host_url", "http://127.0.0.1:9"
-    )
-    await import_license(client, "individual.lic")
+    """No license, no plugin: the one question is the server's host, recorded off."""
+    searched = await client.post(search_url(workspace_id), json={"query": "tides"})
 
-    found = await client.post(search_url(workspace_id), json={"query": "tides"})
+    assert searched.status_code == 403
+    detail = searched.json()["detail"]
+    assert detail["code"] == "egress_disabled"
+    assert detail["hosts"] == ["searxng.surfsense.com"]
+    assert detail["purpose"] == "web_search"
+    listed = (await client.get("/egress")).json()
+    row = next(r for r in listed if r["destination"] == "host:searxng.surfsense.com")
+    assert row["enabled"] is False
 
-    assert found.status_code == 502
-    assert found.json()["detail"]["code"] == "plugin_unavailable"
+
+async def test_an_empty_query_is_refused(
+    client: AsyncClient, workspace_id: int
+) -> None:
+    """Nothing to send."""
+    searched = await client.post(search_url(workspace_id), json={"query": "  "})
+
+    assert searched.status_code == 422

@@ -277,14 +277,14 @@ class RequiringHeader:
         await self.app(scope, receive, send)
 
 
-def amazon_server() -> MCPServer:
-    """A stand-in for SurfSense's Amazon plugin: one read-only search."""
-    server = MCPServer("amazon")
+def youtube_server() -> MCPServer:
+    """A stand-in for SurfSense's YouTube plugin: one read-only search."""
+    server = MCPServer("youtube")
 
     @server.tool(annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=True))
-    def search_products(query: str) -> str:
-        """Search Amazon's products."""
-        return f"products about {query}"
+    def search_videos(query: str) -> str:
+        """Search YouTube's videos."""
+        return f"videos about {query}"
 
     return server
 

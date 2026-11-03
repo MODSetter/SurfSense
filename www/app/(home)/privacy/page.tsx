@@ -62,7 +62,7 @@ export const metadata: Metadata = {
  * `new Date()`: a render-time date causes a hydration mismatch and tells every
  * reader the document changed the moment they opened it.
  */
-const LAST_UPDATED = "October 27, 2026";
+const LAST_UPDATED = "November 3, 2026";
 
 /** Matches the `prose` treatment used for blog posts. */
 const PROSE =
@@ -182,6 +182,20 @@ export default function PrivacyPolicy() {
 							you type into the model search as you type it. Downloading sends the name of the model
 							you chose. Both send your IP address, as any request does. No document content and no
 							prompts are involved.
+						</li>
+						<li>
+							<strong>Pages and videos you add from the web, to each site.</strong> Adding a link in
+							Sources reads that page from its own site on your own connection, as your browser
+							would: the site receives the page's address and your IP address, and nothing from your
+							documents or chats. A YouTube video's transcript is read the same way, from
+							www.youtube.com. The app asks before it first reads from a site, including one a page
+							sends it on to.
+						</li>
+						<li>
+							<strong>Web search, to searxng.surfsense.com.</strong> A search in Add from the web
+							sends what you search for and your IP address to a SearXNG server, which asks search
+							engines for you and returns their links. By default that is our server, as section 4.4
+							describes; you can name your own in Settings, and then we receive nothing.
 						</li>
 						<li>
 							<strong>Plugins, to plugins.surfsense.com.</strong> Fetching the list of third-party
@@ -392,6 +406,12 @@ export default function PrivacyPolicy() {
 						plugins to improve. They never include what you asked a plugin to fetch. Daily totals
 						with no licence in them, such as how many calls a tool received and how many licences
 						used it, are sent to PostHog.
+					</p>
+					<p>
+						Our web search server at searxng.surfsense.com receives the searches the desktop app
+						sends it, with the IP address each comes from, and asks search engines for results from
+						its own address, so they do not receive yours. It needs no licence and no account. Like
+						our other servers, its logs are short-lived, as section 8 describes.
 					</p>
 
 					<h3>4.5 Hosting and server logs</h3>

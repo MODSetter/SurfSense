@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { useId } from "react"
+import { useId, type ReactNode } from "react"
 
 import { RelativeTime } from "@/components/relative-time"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -140,7 +140,8 @@ function UsageStatisticsRow() {
   )
 }
 
-export function NetworkSettings() {
+/** `children` are settings of where calls go, shown under the destinations. */
+export function NetworkSettings({ children }: { children?: ReactNode }) {
   const queryClient = useQueryClient()
   const destinations = useQuery({
     queryKey: destinationsQueryKey,
@@ -197,6 +198,7 @@ export function NetworkSettings() {
           ))}
         </ul>
       )}
+      {children}
     </SettingsSection>
   )
 }

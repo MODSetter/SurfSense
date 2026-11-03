@@ -89,16 +89,22 @@ def test_the_api_ships_its_release_version() -> None:
     )
 
 
-@pytest.mark.parametrize("name", ["api_inputs.py", "worker_inputs.py"])
-def test_every_role_that_reads_the_first_party_plugin_list_ships_it(
-    name: str,
-) -> None:
-    """The API lists SurfSense's plugins; the plugins worker finds the one a link's pull
-    calls. The list refuses an entry whose icon is not beside it, so both ship."""
-    bundled = literal_data_paths(BUNDLING / name)
+def test_the_api_ships_the_first_party_plugin_list_with_its_icons() -> None:
+    """The API lists SurfSense's plugins. The list refuses an entry whose icon is not
+    beside it, so both ship."""
+    bundled = literal_data_paths(BUNDLING / "api_inputs.py")
 
     assert "modules/plugins/lists/first_party/plugins.json" in bundled
     assert "modules/plugins/lists/first_party/icons" in bundled
+
+
+def test_the_worker_ships_the_files_reading_a_web_page_opens_by_path() -> None:
+    """Without them a frozen worker fails every link added from the web, and only there."""
+    inputs = (BUNDLING / "worker_inputs.py").read_text()
+
+    assert 'collect_data_files("trafilatura", includes=["settings.cfg"])' in inputs
+    assert 'collect_data_files("justext", includes=["stoplists/*.txt"])' in inputs
+    assert 'collect_data_files("tld", includes=["res/*.txt"])' in inputs
 
 
 def test_the_worker_names_every_module_that_registers_a_task() -> None:

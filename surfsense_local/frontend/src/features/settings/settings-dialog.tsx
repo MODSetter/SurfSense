@@ -47,6 +47,7 @@ import type { ModelSelection } from "@/features/models/selection/api"
 import { EmbeddingSettings } from "@/features/embedding/embedding-settings"
 import { ReportIssueSettings } from "@/features/feedback/report-issue-settings"
 import { ResourceSettings } from "@/features/resources/resource-settings"
+import { SearchServerSetting } from "@/features/sources/web/search-server-setting"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
@@ -453,7 +454,11 @@ export function SettingsDialog({
             {activeSection.id === "office-support" ? (
               <OfficeSupportSettings askConsent={askOfficeConsent} />
             ) : null}
-            {activeSection.id === "network" ? <NetworkSettings /> : null}
+            {activeSection.id === "network" ? (
+              <NetworkSettings>
+                <SearchServerSetting />
+              </NetworkSettings>
+            ) : null}
             {activeSection.id === "plugins" ? (
               <PluginsSettings
                 start={pluginsStart}

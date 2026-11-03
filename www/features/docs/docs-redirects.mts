@@ -20,6 +20,17 @@ export const LEGACY_DOCS_PATH = "legacy";
 /** Path segment that bare `/docs` points at, labelled "SurfSense 2.0". */
 export const CURRENT_DOCS_PATH = "v2";
 
+/** SurfSense plugins the app no longer lists, whose pages were removed. */
+export const RETIRED_PLUGINS = [
+	"reddit",
+	"instagram",
+	"tiktok",
+	"google-maps",
+	"amazon",
+	"walmart",
+	"indeed",
+];
+
 /** Segments that are version folders rather than pages, so never re-prefixed. */
 const versionSegments = [LEGACY_DOCS_PATH, CURRENT_DOCS_PATH];
 
@@ -44,6 +55,12 @@ export const docsRedirects = [
 	{
 		source: `/docs/${CURRENT_DOCS_PATH}/plugins/surfsense-plugins/:plugin`,
 		destination: `/docs/${CURRENT_DOCS_PATH}/plugins/:plugin`,
+		permanent: true,
+	},
+	// Seven scraper plugins left the app in November 2026, and their pages with them.
+	{
+		source: `/docs/${CURRENT_DOCS_PATH}/plugins/:plugin(${RETIRED_PLUGINS.join("|")})`,
+		destination: `/docs/${CURRENT_DOCS_PATH}/plugins/surfsense-plugins`,
 		permanent: true,
 	},
 ];

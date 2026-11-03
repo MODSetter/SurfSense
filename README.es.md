@@ -98,15 +98,10 @@ Conéctalos en **Ajustes › Plugins**.
 | **Google Search** | Buscar en Google y leer sus resultados, anuncios y preguntas relacionadas |
 | **Web Crawl** | Leer una página web o rastrear un sitio entero y convertirlo en texto limpio |
 | **YouTube** | Leer videos y canales de YouTube, con sus comentarios |
-| **TikTok** | Leer videos de TikTok y sus comentarios, buscar usuarios y ver qué es tendencia |
-| **Reddit** | Leer publicaciones públicas de Reddit con sus hilos de comentarios, o una comunidad entera |
-| **Instagram** | Leer perfiles, publicaciones y reels públicos de Instagram, y buscar perfiles |
-| **Google Maps** | Encontrar lugares en Google Maps y leer sus reseñas |
-| **Amazon** | Leer productos y resultados de búsqueda de Amazon |
-| **Walmart** | Leer productos, resultados de búsqueda y reseñas de Walmart |
-| **Indeed** | Leer ofertas de empleo en Indeed |
 
 **De terceros.** Servidores MCP del [registro de plugins](backend/plugins/registry), como DeepWiki y Notion, o cualquiera que añadas por URL. No necesitan licencia; siguen desactivados hasta que los permitas.
+
+**Añadir desde la web**, en Fuentes, no necesita plugin ni licencia: lee páginas y transcripciones de YouTube desde tu propia conexión y busca a través de SearXNG.
 
 ## Cómo se compara
 

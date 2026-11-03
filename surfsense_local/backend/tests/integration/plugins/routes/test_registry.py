@@ -261,7 +261,7 @@ async def test_entries_only_the_first_party_list_may_hold_are_dropped(
         [
             entry("wants-license", auth={"type": "license"}),
             entry("sells-license", access="license"),
-            entry("amazon"),
+            entry("youtube"),
             entry("from-the-future", min_app_version="99.0.0"),
             entry("from-the-past", min_app_version="2.0.0"),
             entry("notes"),

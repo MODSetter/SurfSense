@@ -16,45 +16,21 @@ vi.mock("sonner", () => ({
 const LIST =
   "/workspaces/1/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0"
 const PAGE = "https://tides.example/explained"
-const VIDEO = "https://www.youtube.com/watch?v=tide1"
+const VIDEO = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
 const CHANNEL = "https://www.youtube.com/@seaschool"
 
-function row(url: string, title: string, fit = "one", puller = "web_page") {
-  return {
-    url,
-    title,
-    description: null,
-    site: new URL(url).hostname,
-    puller,
-    fit,
-  }
+function row(url: string, title: string, puller = "web_page") {
+  return { url, title, description: null, site: new URL(url).hostname, puller }
 }
 
 const SEARCHED = [
   row(PAGE, "Tide tables explained"),
-  row(VIDEO, "Tides in 3 minutes", "one", "youtube"),
-  row(CHANNEL, "The Sea School channel", "list", "youtube"),
+  row(VIDEO, "Tides in 3 minutes", "youtube"),
 ]
 
-/** A search's answer, as the API gives it: one group of rows. */
+/** A search's answer, as the API gives it. */
 function found(results: object[], more = false) {
-  return Response.json({ link: null, more, failed: false, results })
-}
-
-function channelPage(page: number, more: boolean) {
-  return {
-    link: CHANNEL,
-    more,
-    failed: false,
-    results: [1, 2].map((n) =>
-      row(
-        `https://www.youtube.com/watch?v=p${page}n${n}`,
-        `Tides, page ${page + 1} video ${n}`,
-        "one",
-        "youtube"
-      )
-    ),
-  }
+  return Response.json({ results, more })
 }
 
 function pending(id: number, url: string) {
@@ -71,11 +47,9 @@ function pending(id: number, url: string) {
   }
 }
 
-const onOpenLicense = vi.fn()
-
 function WebHarness() {
   const sources = useSources(1)
-  const web = useWebSources(1, sources.addCreated, onOpenLicense)
+  const web = useWebSources(1, sources.addCreated)
   return (
     <TooltipProvider>
       <SourcesPanel
@@ -103,53 +77,34 @@ type Answer = (body: unknown) => Response | Promise<Response>
 
 let nextId = 20
 
-/** The app's API: a license in `license`, and how each web route answers. */
+/** The app's API: how each web route answers. No license is ever asked for. */
 function serving({
-  license = "active",
   search = () => found(SEARCHED),
   open = (body) => {
     const urls = (body as { urls: string[] }).urls
     return Response.json({
-      groups: [
-        {
-          link: null,
-          more: false,
-          failed: false,
-          results: urls
-            .filter((url) => url !== CHANNEL)
-            .map((url) => row(url, url)),
-        },
-        ...(urls.includes(CHANNEL) ? [channelPage(0, true)] : []),
-      ].filter((group) => group.results.length > 0),
+      results: urls.map((url) =>
+        row(url, url, url === VIDEO ? "youtube" : "web_page")
+      ),
+      more: false,
     })
-  },
-  list = (body) => {
-    const page = (body as { page: number }).page
-    return Response.json(channelPage(page, false))
   },
   add = (body) => {
     const urls = (body as { urls: string[] }).urls
     return Response.json(
-      {
-        created: urls.map((url) => pending(nextId++, url)),
-        duplicates: [],
-        rejected: [],
-      },
+      { created: urls.map((url) => pending(nextId++, url)), duplicates: [] },
       { status: 201 }
     )
   },
 }: {
-  license?: string
   search?: Answer
   open?: Answer
-  list?: Answer
   add?: Answer
 } = {}) {
   const sent: { path: string; body: unknown }[] = []
   const routes: Record<string, Answer> = {
     "/workspaces/1/documents/web/search": search,
     "/workspaces/1/documents/web/open": open,
-    "/workspaces/1/documents/web/list": list,
     "/workspaces/1/documents/web": add,
   }
   vi.stubGlobal(
@@ -158,15 +113,6 @@ function serving({
       const path = String(input)
       const method = init?.method ?? "GET"
       if (method === "GET" && path === LIST) return Response.json([])
-      if (method === "GET" && path === "/license/status") {
-        return Response.json({
-          state: license,
-          plan: null,
-          email: null,
-          expiry: null,
-          max_users: null,
-        })
-      }
       if (method === "GET") return Response.json([])
       const body = init?.body ? JSON.parse(String(init.body)) : null
       sent.push({ path, body })
@@ -177,6 +123,10 @@ function serving({
     })
   )
   return sent
+}
+
+function refused(status: number, detail: object) {
+  return () => Response.json({ detail }, { status })
 }
 
 async function openDialog(user: ReturnType<typeof userEvent.setup>) {
@@ -193,18 +143,14 @@ function box(dialog: HTMLElement) {
   })
 }
 
-// The trigger names the site in use, so this also checks the one before.
+// The trigger names where it searches now, so this also checks the one before.
 async function pickSite(
   user: ReturnType<typeof userEvent.setup>,
   dialog: HTMLElement,
-  from: string,
+  trigger: string,
   to: string
 ) {
-  await user.click(
-    within(dialog).getByRole("button", {
-      name: `Search on ${from}. Change site.`,
-    })
-  )
+  await user.click(within(dialog).getByRole("button", { name: trigger }))
   await user.click(await screen.findByRole("menuitemradio", { name: to }))
 }
 
@@ -235,7 +181,6 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
-  onOpenLicense.mockReset()
 })
 
 describe("adding sources from the web", () => {
@@ -269,6 +214,38 @@ describe("adding sources from the web", () => {
     )
   })
 
+  it("searches at once with no license, and offers none", async () => {
+    const user = userEvent.setup()
+    serving()
+    render(<WebHarness />)
+    const dialog = await openDialog(user)
+
+    await ask(user, dialog, "tides")
+
+    expect(
+      await within(dialog).findByRole("button", {
+        name: "Add Tide tables explained",
+      })
+    ).toBeTruthy()
+    expect(within(dialog).queryByText(/license/i)).toBeNull()
+  })
+
+  it("names a video as YouTube's, since it comes with its transcript", async () => {
+    const user = userEvent.setup()
+    serving()
+    render(<WebHarness />)
+    const dialog = await openDialog(user)
+
+    await ask(user, dialog, "tides")
+
+    const video = (
+      await within(dialog).findByRole("button", {
+        name: "Add Tides in 3 minutes",
+      })
+    ).closest("li")!
+    expect(within(video).getByText("YouTube")).toBeTruthy()
+  })
+
   it("shows each result's whole link, and opens it in the browser once confirmed", async () => {
     // Only the confirmed-link call opens any site; openExternal drops all but SurfSense's own.
     const openConfirmedLink = vi.fn<(url: string) => Promise<void>>(
@@ -296,8 +273,8 @@ describe("adding sources from the web", () => {
       search: () =>
         found([
           {
-            ...row(PAGE, "Tide tables explained", "one", "reddit"),
-            description: "r/oceanography · u/seaschool",
+            ...row(PAGE, "Tide tables explained"),
+            description: "Mar 3, 2026 · Tides rise twice a day",
           },
         ]),
     })
@@ -306,18 +283,18 @@ describe("adding sources from the web", () => {
 
     await ask(user, dialog, "tides")
 
-    expect(await within(dialog).findByText("r/oceanography")).toBeTruthy()
-    expect(within(dialog).getByText("u/seaschool")).toBeTruthy()
+    expect(await within(dialog).findByText("Mar 3, 2026")).toBeTruthy()
+    expect(within(dialog).getByText("Tides rise twice a day")).toBeTruthy()
     expect(within(dialog).queryByText(/·/)).toBeNull()
   })
 
-  it("searches the web unless another site is chosen under the box", async () => {
+  it("searches the web unless YouTube is chosen under the box", async () => {
     const user = userEvent.setup()
     const sent = serving()
     render(<WebHarness />)
     const dialog = await openDialog(user)
 
-    await pickSite(user, dialog, "Google Search", "YouTube")
+    await pickSite(user, dialog, "Search the web. Change site.", "YouTube")
     await ask(user, dialog, "how tides work")
 
     await within(dialog).findByRole("button", {
@@ -352,13 +329,16 @@ describe("adding sources from the web", () => {
     ])
   })
 
-  it("shows more of a search on request", async () => {
+  it("shows more of a search on request, without repeating a row", async () => {
     const user = userEvent.setup()
     const sent = serving({
       search: (body) =>
         (body as { page: number }).page === 0
           ? found(SEARCHED, true)
-          : found([row("https://tides.example/more", "More about tides")]),
+          : found([
+              row(PAGE, "Tide tables explained"),
+              row("https://tides.example/more", "More about tides"),
+            ]),
     })
     render(<WebHarness />)
     const dialog = await openDialog(user)
@@ -374,21 +354,26 @@ describe("adding sources from the web", () => {
       })
     ).toBeTruthy()
     expect(
-      within(dialog).getByRole("button", { name: "Add Tide tables explained" })
-    ).toBeTruthy()
+      within(dialog).getAllByRole("button", {
+        name: "Add Tide tables explained",
+      })
+    ).toHaveLength(1)
+    expect(
+      within(dialog).queryByRole("button", { name: "Show more" })
+    ).toBeNull()
     expect(sent.at(-1)).toEqual({
       path: "/workspaces/1/documents/web/search",
       body: { query: "tides", source: "web", page: 1 },
     })
   })
 
-  it("opens pasted links by their own site, whatever is chosen", async () => {
+  it("opens pasted links as rows, whatever is chosen", async () => {
     const user = userEvent.setup()
     const sent = serving()
     render(<WebHarness />)
     const dialog = await openDialog(user)
 
-    await pickSite(user, dialog, "Google Search", "Amazon")
+    await pickSite(user, dialog, "Search the web. Change site.", "YouTube")
     await ask(user, dialog, PAGE)
 
     await within(dialog).findByRole("button", { name: `Add ${PAGE}` })
@@ -397,7 +382,7 @@ describe("adding sources from the web", () => {
     ])
   })
 
-  it("adds every result left with Add all, but never a list", async () => {
+  it("adds every result left with Add all", async () => {
     const user = userEvent.setup()
     const sent = serving()
     render(<WebHarness />)
@@ -436,143 +421,6 @@ describe("adding sources from the web", () => {
     ).toBeTruthy()
   })
 
-  it("lets a list be opened again after a new search", async () => {
-    const user = userEvent.setup()
-    serving()
-    render(<WebHarness />)
-    const dialog = await openDialog(user)
-    await ask(user, dialog, "tides")
-    await user.click(
-      await within(dialog).findByRole("button", {
-        name: "Open The Sea School channel",
-      })
-    )
-    await within(dialog).findByRole("group", { name: "The Sea School channel" })
-
-    await user.clear(box(dialog))
-    await ask(user, dialog, "tides")
-
-    const open = await within(dialog).findByRole("button", {
-      name: "Open The Sea School channel",
-    })
-    expect(open.hasAttribute("disabled")).toBe(false)
-    expect(open.getAttribute("aria-disabled")).not.toBe("true")
-  })
-
-  it("never lets a list that answers after a new search into Add all", async () => {
-    const user = userEvent.setup()
-    let answerChannel: (response: Response) => void = () => {}
-    let searches = 0
-    serving({
-      search: () =>
-        found(
-          ++searches === 1
-            ? SEARCHED
-            : [row("https://moon.example/", "The moon")]
-        ),
-      open: () =>
-        new Promise<Response>((resolve) => {
-          answerChannel = resolve
-        }),
-    })
-    render(<WebHarness />)
-    const dialog = await openDialog(user)
-    await ask(user, dialog, "tides")
-    await user.click(
-      await within(dialog).findByRole("button", {
-        name: "Open The Sea School channel",
-      })
-    )
-
-    await user.clear(box(dialog))
-    await ask(user, dialog, "moon")
-    await within(dialog).findByRole("button", { name: "Add The moon" })
-    answerChannel(Response.json({ groups: [channelPage(0, true)] }))
-
-    // The late channel's two videos must not be counted, shown or not.
-    await new Promise((resolve) => setTimeout(resolve, 50))
-    expect(
-      within(dialog).getByRole("button", { name: "Add all (1)" })
-    ).toBeTruthy()
-  })
-
-  it("lets a list that failed to open be tried again", async () => {
-    const user = userEvent.setup()
-    let opens = 0
-    serving({
-      open: () =>
-        Response.json({
-          groups: [
-            ++opens === 1
-              ? { link: CHANNEL, more: false, failed: true, results: [] }
-              : channelPage(0, false),
-          ],
-        }),
-    })
-    render(<WebHarness />)
-    const dialog = await openDialog(user)
-    await ask(user, dialog, "tides")
-    const open = await within(dialog).findByRole("button", {
-      name: "Open The Sea School channel",
-    })
-
-    await user.click(open)
-    expect(
-      await within(dialog).findByText(
-        "Couldn’t open this list. Try again later."
-      )
-    ).toBeTruthy()
-    await user.click(open)
-
-    expect(
-      await within(dialog).findByRole("button", {
-        name: "Add Tides, page 1 video 1",
-      })
-    ).toBeTruthy()
-  })
-
-  it("ignores a page that answers after the links were opened again", async () => {
-    const user = userEvent.setup()
-    const pages: number[] = []
-    let answerStale: (response: Response) => void = () => {}
-    const sent = serving({
-      list: (body) => {
-        const page = (body as { page: number }).page
-        pages.push(page)
-        if (pages.length === 1) {
-          return new Promise<Response>((resolve) => {
-            answerStale = resolve
-          })
-        }
-        return Response.json(channelPage(page, false))
-      },
-    })
-    render(<WebHarness />)
-    const dialog = await openDialog(user)
-    await ask(user, dialog, CHANNEL)
-    let channel = await within(dialog).findByRole("group", { name: CHANNEL })
-    await user.click(within(channel).getByRole("button", { name: "Show more" }))
-
-    // The box still holds the link: Enter opens it again.
-    await user.click(box(dialog))
-    await user.keyboard("{Enter}")
-    channel = await within(dialog).findByRole("group", { name: CHANNEL })
-    answerStale(Response.json(channelPage(1, false)))
-    await new Promise((resolve) => setTimeout(resolve, 50))
-
-    expect(
-      within(channel).queryByRole("button", {
-        name: "Add Tides, page 2 video 1",
-      })
-    ).toBeNull()
-    await user.click(within(channel).getByRole("button", { name: "Show more" }))
-    await within(channel).findByRole("button", {
-      name: "Add Tides, page 2 video 1",
-    })
-    expect(pages).toEqual([1, 1])
-    expect(sent.filter((s) => s.path.endsWith("/web/open"))).toHaveLength(2)
-  })
-
   it("starts Add all over with each new search", async () => {
     const user = userEvent.setup()
     let answerSecond: (response: Response) => void = () => {}
@@ -603,78 +451,6 @@ describe("adding sources from the web", () => {
     ).toBeTruthy()
   })
 
-  it("opens a list result into its items, and shows more on request", async () => {
-    const user = userEvent.setup()
-    const sent = serving()
-    render(<WebHarness />)
-    const dialog = await openDialog(user)
-
-    await ask(user, dialog, "tides")
-    const open = await within(dialog).findByRole("button", {
-      name: "Open The Sea School channel",
-    })
-    await user.click(open)
-
-    // Its items sit together under the row that opened them, named after it.
-    const channel = await within(dialog).findByRole("group", {
-      name: "The Sea School channel",
-    })
-    expect(open.closest("li")?.contains(channel)).toBe(true)
-    expect(
-      within(channel).getByRole("button", { name: "Add Tides, page 1 video 1" })
-    ).toBeTruthy()
-    await user.click(within(channel).getByRole("button", { name: "Show more" }))
-
-    expect(
-      await within(channel).findByRole("button", {
-        name: "Add Tides, page 2 video 2",
-      })
-    ).toBeTruthy()
-    expect(
-      within(dialog).queryByRole("button", { name: "Show more" })
-    ).toBeNull()
-    expect(sent.slice(1)).toEqual([
-      { path: "/workspaces/1/documents/web/open", body: { urls: [CHANNEL] } },
-      {
-        path: "/workspaces/1/documents/web/list",
-        body: { url: CHANNEL, page: 1 },
-      },
-    ])
-  })
-
-  it("shows a video once when the list moved between two pages", async () => {
-    const user = userEvent.setup()
-    serving({
-      // A video posted meanwhile pushed the first page's last one onto this page.
-      list: () =>
-        Response.json({
-          ...channelPage(1, false),
-          results: [
-            channelPage(0, true).results[1],
-            ...channelPage(1, false).results,
-          ],
-        }),
-    })
-    render(<WebHarness />)
-    const dialog = await openDialog(user)
-    await user.type(box(dialog), CHANNEL)
-    await user.keyboard("{Enter}")
-    const channel = await within(dialog).findByRole("group", { name: CHANNEL })
-
-    await user.click(within(channel).getByRole("button", { name: "Show more" }))
-
-    expect(
-      await within(channel).findByRole("button", {
-        name: "Add Tides, page 2 video 1",
-      })
-    ).toBeTruthy()
-    expect(
-      within(channel).getAllByRole("button", {
-        name: "Add Tides, page 1 video 2",
-      })
-    ).toHaveLength(1)
-  })
-
   it("opens pasted links in the same box instead of searching", async () => {
     const user = userEvent.setup()
     const sent = serving()
@@ -690,9 +466,8 @@ describe("adding sources from the web", () => {
     expect(
       await within(dialog).findByRole("button", { name: `Add ${PAGE}` })
     ).toBeTruthy()
-    const channel = within(dialog).getByRole("group", { name: CHANNEL })
     expect(
-      within(channel).getByRole("button", { name: "Add Tides, page 1 video 1" })
+      within(dialog).getByRole("button", { name: `Add ${CHANNEL}` })
     ).toBeTruthy()
     expect(within(dialog).getByText("not a link")).toBeTruthy()
     expect(sent).toEqual([
@@ -716,7 +491,7 @@ describe("adding sources from the web", () => {
     await user.keyboard("{Enter}")
 
     expect(
-      await within(dialog).findByRole("group", { name: CHANNEL })
+      await within(dialog).findByRole("button", { name: `Add ${CHANNEL}` })
     ).toBeTruthy()
     expect(sent).toEqual([
       { path: "/workspaces/1/documents/web/open", body: { urls: [CHANNEL] } },
@@ -749,11 +524,7 @@ describe("adding sources from the web", () => {
     serving({
       add: () =>
         Response.json(
-          {
-            created: [],
-            duplicates: [{ url: PAGE, document_id: 3 }],
-            rejected: [],
-          },
+          { created: [], duplicates: [{ url: PAGE, document_id: 3 }] },
           { status: 201 }
         ),
     })
@@ -770,73 +541,75 @@ describe("adding sources from the web", () => {
     expect(await within(dialog).findByText("Already in Sources")).toBeTruthy()
   })
 
-  it("offers a license instead of the search when there is none", async () => {
+  it("says when the search server can't be reached, and where to choose another", async () => {
     const user = userEvent.setup()
-    const sent = serving({ license: "none" })
+    serving({
+      search: refused(502, {
+        code: "search_unreachable",
+        host: "searxng.surfsense.com",
+        message: "the search server could not be reached",
+      }),
+    })
     render(<WebHarness />)
     const dialog = await openDialog(user)
 
+    await ask(user, dialog, "tides")
+
     expect(
-      await within(dialog).findByRole("link", { name: /Start a free trial/ })
+      await within(dialog).findByText(
+        "SurfSense couldn’t reach the search server at searxng.surfsense.com. Check your connection, or choose another server in Settings › Network."
+      )
     ).toBeTruthy()
+  })
+
+  it("says when the search server answered without searching", async () => {
+    const user = userEvent.setup()
+    serving({
+      search: refused(502, {
+        code: "search_failed",
+        host: "search.firm.example",
+        message: "the search server answered without searching",
+      }),
+    })
+    render(<WebHarness />)
+    const dialog = await openDialog(user)
+
+    await ask(user, dialog, "tides")
+
     expect(
-      within(dialog).queryByRole("textbox", {
-        name: "Search or paste links",
-      })
-    ).toBeNull()
+      await within(dialog).findByText(
+        /The search server at search\.firm\.example didn’t search this time/
+      )
+    ).toBeTruthy()
+  })
+
+  it("names every host still to allow when the network question is declined", async () => {
+    const user = userEvent.setup()
+    serving({
+      add: refused(403, {
+        code: "egress_disabled",
+        destination: "host:tides.example",
+        host: "tides.example",
+        hosts: ["tides.example", "www.youtube.com"],
+        purpose: "web_page",
+        message: "sending data to tides.example is off in Settings > Network",
+      }),
+    })
+    render(<WebHarness />)
+    const dialog = await openDialog(user)
+
+    await ask(user, dialog, "tides")
     await user.click(
-      within(dialog).getByRole("button", { name: "License settings" })
+      await within(dialog).findByRole("button", { name: "Add all (2)" })
     )
-    expect(onOpenLicense).toHaveBeenCalled()
-    expect(sent).toEqual([])
-  })
-
-  it("says so when the license is refused on the way", async () => {
-    const user = userEvent.setup()
-    serving({
-      search: () =>
-        Response.json(
-          {
-            detail: {
-              code: "license_refused",
-              reason: "expired",
-              message: "Adding sources from the web needs a SurfSense license.",
-            },
-          },
-          { status: 403 }
-        ),
-    })
-    render(<WebHarness />)
-    const dialog = await openDialog(user)
-
-    await ask(user, dialog, "tides")
 
     expect(
-      await within(dialog).findByText(/Your SurfSense license has expired/)
+      await within(dialog).findByText(
+        "This needs tides.example and www.youtube.com to be allowed in Settings › Network."
+      )
     ).toBeTruthy()
-  })
-
-  it("asks to try again when SurfSense can't reach the web", async () => {
-    const user = userEvent.setup()
-    serving({
-      search: () =>
-        Response.json(
-          {
-            detail: {
-              code: "plugin_unavailable",
-              message: "the plugin's server could not be reached",
-            },
-          },
-          { status: 502 }
-        ),
-    })
-    render(<WebHarness />)
-    const dialog = await openDialog(user)
-
-    await ask(user, dialog, "tides")
-
     expect(
-      await within(dialog).findByText(/couldn’t reach the web/)
+      within(dialog).getByRole("button", { name: "Add Tide tables explained" })
     ).toBeTruthy()
   })
 })

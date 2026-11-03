@@ -30,13 +30,20 @@ export function SearchSitePicker({
             variant="outline"
             type="button"
             className="rounded-full font-normal"
-            aria-label={intl.formatMessage(
-              {
-                id: "sources_web_site_trigger_aria",
-                defaultMessage: "Search on {site}. Change site.",
-              },
-              { site: searchSiteName(site) }
-            )}
+            aria-label={
+              site === "web"
+                ? intl.formatMessage({
+                    id: "sources_web_site_web_trigger_aria",
+                    defaultMessage: "Search the web. Change site.",
+                  })
+                : intl.formatMessage(
+                    {
+                      id: "sources_web_site_trigger_aria",
+                      defaultMessage: "Search on {site}. Change site.",
+                    },
+                    { site: searchSiteName(site) }
+                  )
+            }
           >
             <SearchSiteLogo site={site} />
             <span className="whitespace-nowrap">{searchSiteName(site)}</span>

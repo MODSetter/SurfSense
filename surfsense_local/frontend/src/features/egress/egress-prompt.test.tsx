@@ -310,6 +310,72 @@ describe("egress prompt", () => {
     }
   )
 
+  it("says a site gets a page's address from Add from the web, and asks about every site at once", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json(
+          {
+            detail: {
+              code: "egress_disabled",
+              message: "off",
+              destination: "host:tides.example",
+              host: "tides.example",
+              hosts: ["tides.example", "www.youtube.com"],
+              purpose: "web_page",
+            },
+          },
+          { status: 403 }
+        )
+      )
+    )
+    render(<EgressPrompt />)
+
+    void requestVoid("/workspaces/1/documents/web", { method: "POST" }).catch(
+      () => {}
+    )
+
+    const dialog = await screen.findByRole("alertdialog", {
+      name: "Allow reading pages from tides.example?",
+    })
+    expect(dialog.textContent).toContain(
+      "the page’s address and your IP address"
+    )
+    expect(dialog.textContent).toContain("www.youtube.com")
+    expect(dialog.textContent).not.toContain("license key")
+  })
+
+  it("says a search goes to a SearXNG server, and that SurfSense runs its own", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json(
+          {
+            detail: {
+              code: "egress_disabled",
+              message: "off",
+              destination: "host:searxng.surfsense.com",
+              host: "searxng.surfsense.com",
+              purpose: "web_search",
+            },
+          },
+          { status: 403 }
+        )
+      )
+    )
+    render(<EgressPrompt />)
+
+    void requestVoid("/workspaces/1/documents/web/search", {
+      method: "POST",
+    }).catch(() => {})
+
+    const dialog = await screen.findByRole("alertdialog", {
+      name: "Allow searching with searxng.surfsense.com?",
+    })
+    expect(dialog.textContent).toContain("a SearXNG server")
+    expect(dialog.textContent).toContain("SurfSense runs this server.")
+  })
+
   it("never mentions a license key to a third-party plugin's host", async () => {
     vi.stubGlobal(
       "fetch",

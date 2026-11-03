@@ -98,15 +98,10 @@ SurfSense는 업로드할 수 없는 문서를 위한 무료 오픈소스 데스
 | **Google Search** | Google에서 검색하고 검색 결과, 광고, 관련 질문 읽기 |
 | **Web Crawl** | 웹 페이지를 읽거나 사이트 전체를 크롤링해 깔끔한 텍스트로 만들기 |
 | **YouTube** | YouTube 동영상, 채널, 댓글 읽기 |
-| **TikTok** | TikTok 동영상과 댓글 읽기, 사용자 검색, 지금 인기 있는 콘텐츠 보기 |
-| **Reddit** | Reddit 공개 게시물과 댓글 스레드, 또는 커뮤니티 전체 읽기 |
-| **Instagram** | Instagram 공개 프로필, 게시물, 릴스 읽기, 프로필 검색 |
-| **Google Maps** | Google Maps에서 장소를 찾고 리뷰 읽기 |
-| **Amazon** | Amazon 상품과 검색 결과 읽기 |
-| **Walmart** | Walmart 상품, 검색 결과, 리뷰 읽기 |
-| **Indeed** | Indeed의 채용 공고 읽기 |
 
 **서드파티.** [플러그인 레지스트리](backend/plugins/registry)에 있는 DeepWiki, Notion 같은 MCP 서버 또는 URL로 직접 추가한 서버입니다. 라이선스는 필요 없으며, 허용하기 전까지 꺼져 있습니다.
+
+소스에 있는 **웹에서 추가**는 플러그인도 라이선스도 필요 없습니다. 내 인터넷 연결로 페이지와 YouTube 스크립트를 읽고, SearXNG에서 검색합니다.
 
 ## 비교
 

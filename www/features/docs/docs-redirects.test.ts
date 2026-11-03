@@ -9,7 +9,12 @@ import test from "node:test";
 // assertions cannot drift from runtime behaviour.
 import { getPathMatch } from "next/dist/shared/lib/router/utils/path-match";
 import { prepareDestination } from "next/dist/shared/lib/router/utils/prepare-destination";
-import { CURRENT_DOCS_PATH, docsRedirects, LEGACY_DOCS_PATH } from "./docs-redirects.mts";
+import {
+	CURRENT_DOCS_PATH,
+	docsRedirects,
+	LEGACY_DOCS_PATH,
+	RETIRED_PLUGINS,
+} from "./docs-redirects.mts";
 
 const matchers = docsRedirects.map((rule) => ({
 	match: getPathMatch(rule.source, { strict: true, removeUnnamedParams: true }),
@@ -132,6 +137,23 @@ test("a SurfSense plugin's page keeps its address from before it moved up a fold
 	);
 	// The overview kept its own address, so it must not redirect.
 	assert.equal(redirect(`/docs/${CURRENT_DOCS_PATH}/plugins/surfsense-plugins`), null);
+});
+
+test("a retired plugin's page lands on SurfSense's plugins, and no page left is caught", () => {
+	for (const plugin of RETIRED_PLUGINS) {
+		assert.equal(
+			redirect(`/docs/${CURRENT_DOCS_PATH}/plugins/${plugin}`),
+			`/docs/${CURRENT_DOCS_PATH}/plugins/surfsense-plugins`,
+			plugin
+		);
+		assert.ok(
+			!readdirSync(path.join(DOCS_CONTENT, CURRENT_DOCS_PATH, "plugins")).includes(`${plugin}.mdx`),
+			`${plugin}.mdx is still a page`
+		);
+	}
+	for (const plugin of ["google-search", "web-crawl", "youtube", "third-party"]) {
+		assert.equal(redirect(`/docs/${CURRENT_DOCS_PATH}/plugins/${plugin}`), null, plugin);
+	}
 });
 
 test("unknown docs paths still land in the legacy version", () => {

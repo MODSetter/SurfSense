@@ -105,15 +105,10 @@ Connect them in **Settings › Plugins**.
 | **Google Search** | Search Google and read its results, ads and related questions |
 | **Web Crawl** | Read a web page, or crawl a whole site into clean text |
 | **YouTube** | Read YouTube videos, channels and their comments |
-| **TikTok** | Read TikTok videos and their comments, search users, and see what is trending |
-| **Reddit** | Read public Reddit posts with their comment threads, or a whole community |
-| **Instagram** | Read public Instagram profiles, posts and reels, and find profiles by search |
-| **Google Maps** | Find places on Google Maps and read their reviews |
-| **Amazon** | Read Amazon products and search results |
-| **Walmart** | Read Walmart products, search results and reviews |
-| **Indeed** | Read job listings on Indeed |
 
 **Third-party.** MCP servers from the [plugin registry](backend/plugins/registry), such as DeepWiki and Notion, or any you add by URL. No license needed; they stay off until you allow them.
+
+**Add from the web**, in Sources, needs no plugin and no license: it reads pages and YouTube transcripts on your own connection and searches through SearXNG.
 
 ## How it compares
 

@@ -46,6 +46,8 @@ const CLAUDE_SIGN_IN_HOST = "platform.claude.com"
 
 // SurfSense's own plugins: the one host the license key is ever sent to.
 const SURFSENSE_PLUGIN_HOST = "plugins.surfsense.com"
+// SurfSense's own SearXNG server, where Add from the web searches by default.
+const SURFSENSE_SEARCH_HOST = "searxng.surfsense.com"
 
 export type DestinationCopy = {
   label: string
@@ -79,6 +81,13 @@ export function describeDestination(
         },
         { hosts: intl.formatList(also, { type: "conjunction" }) }
       )
+    )
+  if (purpose === "web_search" && host === SURFSENSE_SEARCH_HOST)
+    details.push(
+      intl.formatMessage({
+        id: "egress_web_search_surfsense_body",
+        defaultMessage: "SurfSense runs this server.",
+      })
     )
   // The registry's own copy already says this; a plugin's does not.
   if (purpose === "plugin" && [host, ...also].includes(SURFSENSE_PLUGIN_HOST))
@@ -226,6 +235,54 @@ function describeOne(destination: string, host: string, purpose?: string) {
           id: "egress_office_download_prompt_body",
           defaultMessage:
             "Turning on Office support downloads LibreOffice from {host}. SurfSense sends your IP address and the file’s name, nothing else.",
+        },
+        { host }
+      ),
+    }
+  }
+  // Add from the web reads each page from its own site, on the user's connection.
+  if (purpose === "web_page") {
+    return {
+      label: host,
+      title: intl.formatMessage(
+        {
+          id: "egress_web_page_prompt_title",
+          defaultMessage: "Allow reading pages from {host}?",
+        },
+        { host }
+      ),
+      body: intl.formatMessage(
+        {
+          id: "egress_web_page_prompt_body",
+          defaultMessage:
+            "SurfSense reads what you add from {host} on your own connection, as your browser would. The site gets the page’s address and your IP address, and nothing from your files or chats. You can turn this off any time in Settings › Network.",
+        },
+        { host }
+      ),
+    }
+  }
+  // A search goes to a SearXNG server, which asks search engines in turn.
+  if (purpose === "web_search" || host === SURFSENSE_SEARCH_HOST) {
+    return {
+      label:
+        host === SURFSENSE_SEARCH_HOST
+          ? intl.formatMessage({
+              id: "egress_web_search_label",
+              defaultMessage: "Web search",
+            })
+          : host,
+      title: intl.formatMessage(
+        {
+          id: "egress_web_search_prompt_title",
+          defaultMessage: "Allow searching with {host}?",
+        },
+        { host }
+      ),
+      body: intl.formatMessage(
+        {
+          id: "egress_web_search_prompt_body",
+          defaultMessage:
+            "SurfSense sends what you search for to {host}, a SearXNG server that asks search engines for you. It gets your search and your IP address, and nothing from your files or chats. You can choose another server, or turn this off, in Settings › Network.",
         },
         { host }
       ),

@@ -28,11 +28,14 @@ def hosts_not_allowed(session: Session, plugin: InstalledPlugin) -> list[str]:
     return missing
 
 
-def refused_hosts(session: Session, hosts: list[str]) -> EgressDeniedError | None:
+def refused_hosts(
+    session: Session, hosts: list[str], purpose: str = "plugin"
+) -> EgressDeniedError | None:
     """The refusal naming every host still to allow, or None when all are allowed.
 
     A refused host with no row is recorded off, so Settings > Network lists it to allow.
-    Returned rather than raised, so the caller's commit keeps those rows.
+    Returned rather than raised, so the caller's commit keeps those rows. `purpose`
+    words the question: a plugin's server, or a page or search sent from Sources.
     """
     missing = []
     for host in dict.fromkeys(hosts):
@@ -48,4 +51,4 @@ def refused_hosts(session: Session, hosts: list[str]) -> EgressDeniedError | Non
         return None
     session.flush()
     first = host_destination(f"https://{missing[0]}")
-    return EgressDeniedError(first, hosts=missing, purpose="plugin")
+    return EgressDeniedError(first, hosts=missing, purpose=purpose)

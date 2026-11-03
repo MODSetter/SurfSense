@@ -1,26 +1,21 @@
+import { GlobalSearchIcon } from "@/components/ui/icons"
 import { PluginIcon } from "@/features/plugins/plugin-icon"
 
 import { searchSiteName, type SearchSite } from "./search-sites"
 
-// Sites are named by their puller, logos by their plugin; Google's search is
-// the one site whose puller is not a plugin of the same name.
-const SITE_PLUGIN = {
-  web: "google-search",
-  youtube: "youtube",
-  tiktok: "tiktok",
-  google_maps: "google-maps",
-  amazon: "amazon",
-  walmart: "walmart",
-  indeed: "indeed",
-  reddit: "reddit",
-  instagram: "instagram",
-} as const satisfies Record<SearchSite, string>
-
-/** The site's own logo, served with SurfSense's plugins. */
+/** A globe for the web; YouTube's own logo, served with SurfSense's plugins. */
 export function SearchSiteLogo({ site }: { site: SearchSite }) {
+  if (site === "web") {
+    return (
+      <GlobalSearchIcon
+        aria-hidden="true"
+        className="size-4 text-muted-foreground"
+      />
+    )
+  }
   return (
     <PluginIcon
-      id={SITE_PLUGIN[site]}
+      id={site}
       name={searchSiteName(site)}
       hasIcon
       firstParty

@@ -59,14 +59,7 @@ def test_the_packaged_list_passes_its_check() -> None:
     assert [entry.id for entry in checked_entries(FIRST_PARTY_LIST)] == [
         "google-search",
         "web-crawl",
-        "reddit",
         "youtube",
-        "instagram",
-        "tiktok",
-        "google-maps",
-        "amazon",
-        "walmart",
-        "indeed",
     ]
 
 

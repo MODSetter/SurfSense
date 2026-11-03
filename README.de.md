@@ -97,15 +97,10 @@ Verbinde sie unter **Einstellungen › Plugins**.
 | **Google Search** | Google durchsuchen und die Ergebnisse, Anzeigen und verwandten Fragen lesen |
 | **Web Crawl** | Eine Webseite lesen oder eine ganze Website crawlen und in sauberen Text umwandeln |
 | **YouTube** | YouTube-Videos, -Kanäle und ihre Kommentare lesen |
-| **TikTok** | TikTok-Videos und ihre Kommentare lesen, Nutzer suchen und sehen, was gerade angesagt ist |
-| **Reddit** | Öffentliche Reddit-Beiträge mit ihren Kommentarverläufen oder eine ganze Community lesen |
-| **Instagram** | Öffentliche Instagram-Profile, -Beiträge und -Reels lesen und Profile suchen |
-| **Google Maps** | Orte auf Google Maps finden und ihre Bewertungen lesen |
-| **Amazon** | Amazon-Produkte und Suchergebnisse lesen |
-| **Walmart** | Walmart-Produkte, Suchergebnisse und Bewertungen lesen |
-| **Indeed** | Stellenanzeigen auf Indeed lesen |
 
 **Drittanbieter.** MCP-Server aus der [Plugin-Registry](backend/plugins/registry), etwa DeepWiki und Notion, oder jeder, den du per URL hinzufügst. Keine Lizenz nötig; sie bleiben aus, bis du sie erlaubst.
+
+**Aus dem Web hinzufügen** in den Quellen braucht kein Plugin und keine Lizenz: Es liest Seiten und YouTube-Transkripte über deine eigene Verbindung und sucht per SearXNG.
 
 ## SurfSense im Vergleich
 
