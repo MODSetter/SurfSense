@@ -42,11 +42,12 @@ def verify_answer(
     config: JobConfig,
     row: QuestionRow,
     answer: str,
-    quotes: list[tuple[str, str]],
+    quotes: list[tuple[str, str, str]],
 ) -> Verdict:
     """Supported only on a reply that says so: an unreadable one leaves the answer to a person.
 
-    `quotes` are (source title, quote) pairs, each already found in its source.
+    `quotes` are (source title, quote, the source's text the quote's parts span, or "") triples,
+    each quote already found in its source.
     """
     fields = {
         "question": row.question,
@@ -61,20 +62,29 @@ def verify_answer(
     )
 
 
-def _claim(fields: dict[str, str], quotes: list[tuple[str, str]]) -> str:
+def _claim(fields: dict[str, str], quotes: list[tuple[str, str, str]]) -> str:
     claim = (
         f"Question: {fields['question']}\n"
         f"Row details (where the question sits, not part of it): {fields['context']}\n"
         f"Answer given: {fields['answer']}\n"
     )
     if len(quotes) == 1:
-        source, quote = quotes[0]
-        return claim + f'Quote it rests on, from {source}: "{quote}"'
+        source, quote, joined = quotes[0]
+        return claim + f'Quote it rests on, from {source}: "{quote}"{_in_full(joined)}'
     listed = "\n".join(
-        f'{number}. From {source}: "{quote}"'
-        for number, (source, quote) in enumerate(quotes, start=1)
+        f'{number}. From {source}: "{quote}"{_in_full(joined)}'
+        for number, (source, quote, joined) in enumerate(quotes, start=1)
     )
     return claim + f"Quotes it rests on:\n{listed}"
+
+
+def _in_full(joined: str) -> str:
+    """What a quote's "..." leaves out, so the check judges the source rather than the cut."""
+    if not joined:
+        return ""
+    return (
+        f'\n   The source in full, from the quote\'s first part to its last: "{joined}"'
+    )
 
 
 def _read(text: str) -> tuple[bool, str]:

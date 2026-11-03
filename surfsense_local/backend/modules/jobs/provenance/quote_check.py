@@ -21,10 +21,9 @@ _SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
 # [text](target) and ![text](target) read as their text. A model that copies a sentence
 # holding a link drops the target or mangles it: Qwen's quotes were not found 29% of the time
 # when the deciding sentence held a link, against 8% otherwise. Bounded, so a line of many
-# brackets costs a linear scan rather than a quadratic one.
-_LINK = re.compile(
-    r"!?\[([^\]\n]{0,300})\]\([^)\s]{0,1000}(?:\s+\"[^\"\n]{0,300}\")?\)"
-)
+# brackets costs a linear scan rather than a quadratic one. Its text may wrap a line: a
+# source is folded whole, and the text keeps its line breaks.
+_LINK = re.compile(r"!?\[([^\]]{0,300})\]\([^)\s]{0,1000}(?:\s+\"[^\"\n]{0,300}\")?\)")
 # Words that turn a claim around: the words a "..." skips may hold none, and a hint may not
 # add or drop one. "t" is what "isn't" and "don't" leave once their apostrophe falls away.
 _NEGATIONS = frozenset(
@@ -58,6 +57,7 @@ _TRIED = 20
 class Found:
     source: int  # index of the source text the quote was found in
     line: int  # 1-based line where it starts
+    end_line: int = 0  # the line where its last part ends, or 0 when it is the first
 
 
 def words(text: str) -> list[str]:
@@ -143,16 +143,17 @@ def find_quote(
         order.remove(prefer)
         order.insert(0, prefer)
     for index in order:
-        line = _all_parts(parts, sources[index])
-        if line is not None:
-            return Found(index, line)
+        found = _all_parts(parts, sources[index])
+        if found is not None:
+            return Found(index, *found)
     return None
 
 
-def _all_parts(parts: list[list[str]], text: str) -> int | None:
-    """The line of the first part, where every other part sits within WINDOW_WORDS of it, in
-    any order, and the words a "..." skips between them hold no negation: "data is ...
-    encrypted at rest" is not in "data is not encrypted at rest"."""
+def _all_parts(parts: list[list[str]], text: str) -> tuple[int, int] | None:
+    """The line of the first part and of the last word a part ends on, where all the parts sit
+    within WINDOW_WORDS of each other, in any order, and the words a "..." skips between them
+    hold no negation: "data is ... encrypted at rest" is not in "data is not encrypted at
+    rest"."""
     joined, lines, starts, tokens = _indexed(text)
     found = [_word_positions(joined, starts, " ".join(part)) for part in parts]
     if not all(found):
@@ -170,12 +171,15 @@ def _all_parts(parts: list[list[str]], text: str) -> int | None:
                 [(first, len(parts[0]))]
                 + [(at, len(part)) for at, part in zip(chosen, parts[1:], strict=True)]
             )
+            if spans[-1][0] - spans[0][0] > WINDOW_WORDS:
+                continue
             if not any(
                 token in _NEGATIONS
                 for (at, size), (following, _) in pairwise(spans)
                 for token in tokens[at + size : following]
             ):
-                return lines[first]
+                last = max(at + size for at, size in spans) - 1
+                return lines[first], lines[last] if len(parts) > 1 else 0
     return None
 
 
@@ -201,7 +205,8 @@ def _indexed(
     and the words: a run checks every quote against the same sources, so each is read once."""
     tokens: list[str] = []
     lines: list[int] = []
-    for number, line in enumerate(text.splitlines(), start=1):
+    # Links folded over the whole text first, so one that wraps a line still reads as its text.
+    for number, line in enumerate(_LINK.sub(r"\1", text).splitlines(), start=1):
         for word in words(line):
             tokens.append(word)
             lines.append(number)

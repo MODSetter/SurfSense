@@ -58,6 +58,13 @@ def _embedder(name: str) -> Embed | None:
     from modules.embedding import encoder
     from modules.embedding.bundled import BGE
 
+    missing = encoder.missing_files(BGE)
+    if missing:
+        raise SystemExit(
+            f"The bundled embedder is not in {os.environ['SURFSENSE_LOCAL_MODELS_DIR']} "
+            f"({', '.join(missing)} missing): stage it there, or pass --embedder none."
+        )
+
     def embed(texts: list[str], query: bool) -> list[list[float]]:
         purpose = encoder.Purpose.QUERY if query else encoder.Purpose.DOCUMENT
         return encoder.embed(BGE, texts, purpose)

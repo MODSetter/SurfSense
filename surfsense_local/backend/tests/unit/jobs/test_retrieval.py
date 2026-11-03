@@ -81,9 +81,11 @@ def test_with_an_embedder_meaning_takes_turns_with_the_words():
     words_only = Retriever(passages, budget_chars=100, per_question=2)
     with_meaning = Retriever(passages, budget_chars=100, per_question=2, embed=embed)
     question = "Is supply chain risk managed for the access management policy?"
+    policy = next(i for i, p in enumerate(passages) if p.title.startswith("access"))
 
     assert vendors not in words_only.for_question(question)
-    assert vendors in with_meaning.for_question(question)
+    # The two rankings take turns: words' best, then meaning's best.
+    assert with_meaning.for_question(question) == sorted([policy, vendors])
 
 
 def test_a_standing_query_with_no_strong_match_pins_nothing():

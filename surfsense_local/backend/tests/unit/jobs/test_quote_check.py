@@ -98,3 +98,29 @@ def test_a_line_of_brackets_is_read_in_linear_time():
     find_quote("words that are not there", ["[" * 50_000])
 
     assert time.monotonic() - started < 2
+
+
+def test_a_link_that_wraps_a_line_still_reads_as_its_text():
+    """A Markdown link whose text breaks across lines matches a quote of the sentence."""
+    source = (
+        "Policies follow the [Controlled\nDocument Procedure](/handbook/cdp/) yearly."
+    )
+
+    found = find_quote("follow the Controlled Document Procedure yearly", [source])
+
+    assert found is not None and found.line == 1
+
+
+def test_every_part_of_a_quote_sits_within_the_window_of_every_other():
+    """Two parts each near the first but far from each other are not one quote."""
+    gap = " filler" * 250
+    source = f"Access is logged daily.{gap} Keys rotate every year.{gap} Badges expire monthly."
+
+    assert find_quote("Keys rotate every year ... Access is logged daily", [source])
+    assert (
+        find_quote(
+            "Keys rotate every year ... Access is logged daily ... Badges expire monthly",
+            [source],
+        )
+        is None
+    )

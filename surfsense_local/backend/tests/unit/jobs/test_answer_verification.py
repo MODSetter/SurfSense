@@ -484,3 +484,114 @@ def test_a_malformed_standing_block_refuses_the_pack(tmp_path, config):
 
     with pytest.raises(PackRefusedError):
         load_config(job)
+
+
+def test_the_check_reads_what_a_quote_s_ellipsis_leaves_out(workbook, config):
+    """For a quote whose parts "..." joins, the second check is shown the source in full."""
+    plan = SourceText(
+        3,
+        "contingency-plan",
+        "## Plan\n\nThe procedures shall be documented, and for production only, "
+        "in a formal contingency plan.",
+    )
+    claims: list[str] = []
+
+    def ask(system, turns, schema, shared):
+        if system.startswith("verify"):
+            claims.append(turns[0][1])
+            return ModelReply(json.dumps({"supported": True, "missing": ""}))
+        return _reply(
+            "The procedures shall be documented ... in a formal contingency plan."
+        )
+
+    model = Model()
+    model.ask = ask
+
+    fill_workbook(workbook, [plan], config, model)
+
+    assert "for production only" in claims[0]
+
+
+def test_an_unreadable_quote_repair_keeps_what_the_model_claimed(workbook, config):
+    """A repair that cannot be read leaves the unfound answer, so the row says what it was."""
+
+    def ask(system, turns, schema, shared):
+        if len(turns) == 1:
+            return _reply("Words that no policy of the firm holds anywhere at all.")
+        return ModelReply("not json")
+
+    model = Model()
+    model.ask = ask
+
+    result = fill_workbook(workbook, [PLAN], config, model).results[0]
+
+    assert (result.answer, result.said, result.codes) == (
+        "Needs review",
+        "Yes",
+        ["QUOTE_NOT_FOUND", "NEEDS_REVIEW"],
+    )
+
+
+def test_a_loose_quote_is_shown_the_sentence_it_meant_when_asked_again(
+    workbook, config
+):
+    """The quote repair carries the closest source sentence for the model to copy."""
+    repairs: list[str] = []
+
+    def ask(system, turns, schema, shared):
+        if system.startswith("verify"):
+            return ModelReply(json.dumps({"supported": True, "missing": ""}))
+        if len(turns) == 1:
+            return _reply("The procedures are documented in a formal contingency plan.")
+        repairs.append(turns[-1][1])
+        return _reply(QUOTE)
+
+    model = Model()
+    model.ask = ask
+
+    filled = fill_workbook(workbook, [PLAN], config, model)
+
+    assert f'"{QUOTE}"' in repairs[0]
+    assert [r.answer for r in filled.results] == ["Yes", "Yes"]
+
+
+def test_a_pack_s_standing_passages_reach_the_prompt_under_its_label(
+    workbook, tmp_path, config
+):
+    """From job.json to the prompt: the standing query's passage comes first, under the label."""
+    job = tmp_path / "job" / "job.json"
+    raw = json.loads(job.read_text(encoding="utf-8"))
+    raw["max_whole_chars"] = 50
+    raw["standing"] = {
+        "queries": ["how every policy is reviewed and approved"],
+        "label": "For all policies:",
+        "then": "For this question:",
+    }
+    job.write_text(json.dumps(raw), encoding="utf-8")
+    standing = load_config(job)
+    prompts: list[str] = []
+
+    def ask(system, turns, schema, shared):
+        prompts.append(turns[0][1])
+        return ModelReply(
+            json.dumps(
+                {
+                    "quotes": [],
+                    "answer": "Needs review",
+                    "comment": "Open.",
+                    "confidence": "high",
+                }
+            )
+        )
+
+    model = Model()
+    model.ask = ask
+
+    fill_workbook(workbook, [PLAN, ISMS], standing, model)
+
+    first = next(p for p in prompts if "contingency plan documented" in p)
+    assert (
+        first.index("For all policies:")
+        < first.index("isms")
+        < first.index("For this question:")
+    )

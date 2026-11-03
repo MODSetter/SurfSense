@@ -14,6 +14,9 @@ from modules.jobs.workbook_rows.config import JobConfig
 from modules.jobs.workbook_rows.layout import QuestionRow
 from modules.jobs.workbook_rows.verify import Verdict, verify_answer
 
+# How much of a source the second check is shown for a quote whose parts "..." joins.
+JOINED_CHARS = 1500
+
 # Why a row needs a person, in the words the exceptions sheet uses.
 EXCEPTIONS = {
     "NEEDS_REVIEW": "The documents do not settle this question.",
@@ -37,6 +40,9 @@ class Cited:
     source: str  # the source's title
     section: str
     line: int
+    # For a quote whose parts "..." joins, the source's lines from its first part to its last,
+    # so the second check reads what the quote leaves out.
+    joined: str = ""
 
 
 @dataclass
@@ -189,6 +195,8 @@ def _quoted(
                 earlier=asked,
             )
             _note(trace, "quote again", asked.draft, config, passages, sources)
+            if asked.draft is None:
+                asked.draft = draft  # unreadable: the row says what the model claimed
     return asked
 
 
@@ -246,7 +254,7 @@ def _verdict(
     if not cited:
         return None
     verdict = verify_answer(
-        model, config, row, draft.answer, [(c.source, c.quote) for c in cited]
+        model, config, row, draft.answer, [(c.source, c.quote, c.joined) for c in cited]
     )
     checks.append(verdict)
     trace.append(
@@ -284,10 +292,19 @@ def _cited(
             sources[found.source].title,
             _section(passages, found.source, found.line),
             found.line,
+            _lines(sources[found.source].text, found.line, found.end_line),
         )
         if quote not in cited:
             cited.append(quote)
     return cited, unfound
+
+
+def _lines(text: str, first: int, last: int) -> str:
+    """A source's lines `first` to `last`, at most JOINED_CHARS; "" for a quote with one part."""
+    if not last:
+        return ""
+    held = "\n".join(text.splitlines()[first - 1 : last]).strip()
+    return held if len(held) <= JOINED_CHARS else held[:JOINED_CHARS].rstrip() + " ..."
 
 
 def _not_found(draft: Draft, config: JobConfig, sources: list[SourceText]) -> str:
