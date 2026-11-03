@@ -1,10 +1,13 @@
 import { readLastThread } from "@/features/chat/last-thread"
+import { readNextNewChatMode } from "@/features/chat/modes/next-new-chat-mode-store"
 import { readRightPanelOpen } from "@/features/dashboard/chrome-prefs"
 import { readStoredWorkspaceId } from "@/features/workspaces/last-workspace"
 
 export type StartupLayout = {
   composer: "center" | "bottom"
   rightPanelOpen: boolean
+  // Whether `@` in a new chat's box names plugins: only in Agentic chats.
+  mentions: boolean
 }
 
 /**
@@ -20,5 +23,6 @@ export function readStartupLayout(): StartupLayout {
         ? "bottom"
         : "center",
     rightPanelOpen: readRightPanelOpen(),
+    mentions: readNextNewChatMode() === "agentic",
   }
 }

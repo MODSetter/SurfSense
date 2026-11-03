@@ -25,6 +25,7 @@ import {
   useNewChatChoice,
 } from "@/features/chat/modes/new-chat-mode"
 import { NewChatModeProvider } from "@/features/chat/modes/new-chat-mode-provider"
+import { rememberNextNewChatMode } from "@/features/chat/modes/next-new-chat-mode"
 import { canSkipThinking } from "@/features/chat/thinking-preference"
 import { ThreadPanel } from "@/features/chat/thread-panel"
 import { useChatRuntime } from "@/features/chat/use-chat-runtime"
@@ -395,7 +396,10 @@ function WorkspaceDashboard({
     <OfficeOfferContext.Provider value={officeOffer}>
       <OpenArtifactContext.Provider value={openArtifact}>
         <div className="titlebar-controls">
-          <div className={cn("titlebar-controls-end", reveal)}>
+          <div
+            {...reveal}
+            className={cn("titlebar-controls-end", reveal.className)}
+          >
             <TitleBarUpdate />
             {/* Docker's browser has no title bar: there the toggle sits on a heading's line. */}
             {IN_CONTAINER
@@ -705,6 +709,9 @@ export function DashboardPage({
     () => openSettings("report-issue"),
     Boolean(workspaces.activeWorkspace)
   )
+
+  // For the startup frame, which offers plugin mentions before this loads.
+  useEffect(() => rememberNextNewChatMode(selection), [selection])
 
   // Checked when the model changes, when settings close (a key entered again,
   // egress switched, a connection edited), after egress is allowed, and after a

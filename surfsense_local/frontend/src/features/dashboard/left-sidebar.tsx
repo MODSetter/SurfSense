@@ -176,7 +176,10 @@ export const LeftSidebar = memo(function LeftSidebar({
   return (
     <SidebarFrame
       nav={
-        <div className={cn("flex flex-col px-3 pt-2", reveal)}>
+        <div
+          {...reveal}
+          className={cn("flex flex-col px-3 pt-2", reveal.className)}
+        >
           <SidebarNavButton
             label={intl.formatMessage({
               id: "dashboard_sidebar_new_chat_button",
@@ -201,14 +204,17 @@ export const LeftSidebar = memo(function LeftSidebar({
       }
     >
       <div
+        {...reveal}
         className={cn(
           "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-3 pt-5 pb-2",
-          reveal
+          reveal.className
         )}
       >
         {sources}
       </div>
-      <div className={cn("contents", reveal)}>{footer}</div>
+      <div {...reveal} className={cn("contents", reveal.className)}>
+        {footer}
+      </div>
       <ChatsDialog
         open={chatsOpen}
         onOpenChange={setChatsOpen}

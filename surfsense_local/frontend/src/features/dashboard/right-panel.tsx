@@ -43,12 +43,15 @@ export function RightPanel({
           </h2>
           {toggle}
         </ColumnHeader>
-        <div className={cn("px-3 pt-2", reveal)}>{studio}</div>
+        <div {...reveal} className={cn("px-3 pt-2", reveal.className)}>
+          {studio}
+        </div>
       </header>
       <div
+        {...reveal}
         className={cn(
           "min-h-0 min-w-0 flex-1 overflow-hidden px-3 pb-2",
-          reveal
+          reveal.className
         )}
       >
         {artifacts}

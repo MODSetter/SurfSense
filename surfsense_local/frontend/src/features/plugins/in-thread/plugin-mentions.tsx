@@ -9,14 +9,16 @@ import { useMemo } from "react"
 
 import { intl } from "@/i18n/intl"
 
-import {
-  listPlugins,
-  pluginsQueryKey,
-  thirdPartyAllowed,
-  thirdPartyQueryKey,
-  type Plugin,
-} from "../api"
+import type { Plugin } from "../api"
 import { licenseRefused } from "../license-refused"
+
+import {
+  MentionItem,
+  MentionItemDescription,
+  MentionList,
+} from "./mention-list"
+import { MENTION_TRIGGER, mentionAt } from "./mention-matcher"
+import { pluginListQuery, thirdPartyQuery } from "./mention-queries"
 
 // A plugin id: lowercase words joined by hyphens.
 const MENTION = /@([a-z0-9-]+)/g
@@ -109,14 +111,8 @@ function emptyMessage(plugins: Plugin[], thirdPartyOn: boolean) {
 
 /** Typing `@` in an Agentic composer lists the ready plugins to name for the agent, which picks their tools. */
 export function PluginMentions() {
-  const plugins = useQuery({
-    queryKey: pluginsQueryKey,
-    queryFn: ({ signal }) => listPlugins(signal),
-  })
-  const thirdParty = useQuery({
-    queryKey: thirdPartyQueryKey,
-    queryFn: ({ signal }) => thirdPartyAllowed(signal),
-  })
+  const plugins = useQuery(pluginListQuery)
+  const thirdParty = useQuery(thirdPartyQuery)
   const items = useMemo(
     () => readyMentions(plugins.data ?? [], thirdParty.data ?? false),
     [plugins.data, thirdParty.data]
@@ -129,14 +125,15 @@ export function PluginMentions() {
   })
 
   return (
-    <ComposerPrimitive.Unstable_TriggerPopover
-      char="@"
-      adapter={mention.adapter}
-      aria-label={intl.formatMessage({
-        id: "plugins_mentions_aria",
-        defaultMessage: "Plugins",
-      })}
-      className="absolute inset-x-1.5 bottom-full z-50 mb-2 max-h-64 overflow-y-auto rounded-xl border bg-popover p-1 text-popover-foreground shadow-md"
+    <MentionList
+      render={
+        <ComposerPrimitive.Unstable_TriggerPopover
+          char={MENTION_TRIGGER}
+          adapter={mention.adapter}
+          // The rule the startup frame's box uses too.
+          matcher={mentionAt}
+        />
+      }
     >
       <ComposerPrimitive.Unstable_TriggerPopover.Directive
         formatter={mention.directive.formatter}
@@ -154,23 +151,27 @@ export function PluginMentions() {
             </p>
           ) : (
             found.map((item, index) => (
-              <ComposerPrimitive.Unstable_TriggerPopoverItem
+              <MentionItem
                 key={item.id}
-                item={item}
-                index={index}
-                className="flex w-full flex-col items-start gap-0.5 rounded-lg px-2 py-1.5 text-left text-sm outline-none hover:bg-accent data-[highlighted]:bg-accent"
+                render={
+                  <ComposerPrimitive.Unstable_TriggerPopoverItem
+                    item={item}
+                    index={index}
+                  />
+                }
+                className="hover:bg-accent data-[highlighted]:bg-accent"
               >
                 <span>{item.label}</span>
                 {item.description ? (
-                  <span className="line-clamp-1 text-xs text-muted-foreground">
+                  <MentionItemDescription>
                     {item.description}
-                  </span>
+                  </MentionItemDescription>
                 ) : null}
-              </ComposerPrimitive.Unstable_TriggerPopoverItem>
+              </MentionItem>
             ))
           )
         }
       </ComposerPrimitive.Unstable_TriggerPopoverItems>
-    </ComposerPrimitive.Unstable_TriggerPopover>
+    </MentionList>
   )
 }

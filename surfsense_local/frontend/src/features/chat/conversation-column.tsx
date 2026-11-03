@@ -1,4 +1,4 @@
-import type { ReactNode } from "react"
+import type { ComponentProps, ReactNode } from "react"
 
 import { ColumnHeader } from "@/components/ui/column-header"
 import { intl } from "@/i18n/intl"
@@ -6,17 +6,17 @@ import { cn } from "@/lib/utils"
 
 /**
  * The conversation's box and its header line, which the startup frame draws
- * empty. `heading` precedes the header; `headerClassName` styles its line.
+ * empty. `heading` precedes the header; `headerProps` go on its line.
  */
 export function ConversationColumn({
   heading,
   header,
-  headerClassName,
+  headerProps,
   children,
 }: {
   heading?: ReactNode
   header?: ReactNode
-  headerClassName?: string
+  headerProps?: ComponentProps<"div">
   children: ReactNode
 }) {
   return (
@@ -29,7 +29,10 @@ export function ConversationColumn({
     >
       {heading}
       <header>
-        <ColumnHeader className={cn("px-5", headerClassName)}>
+        <ColumnHeader
+          {...headerProps}
+          className={cn("px-5", headerProps?.className)}
+        >
           {header}
         </ColumnHeader>
       </header>

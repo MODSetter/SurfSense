@@ -32,8 +32,8 @@ import { useStartupReveal } from "@/features/startup/use-startup-reveal"
 import type { ChatThread } from "./api"
 import { ChatComposer } from "./chat-composer"
 import { ChatViewport } from "./chat-viewport"
-import { THREAD_BODY_CLASS } from "./chat-viewport-layout"
 import { ConversationColumn } from "./conversation-column"
+import { ConversationBody } from "./conversation-scroll"
 import { composerAttachmentOf } from "./image-attachments"
 import { LiveThreadRuntime, type LiveThreadSource } from "./live-thread-runtime"
 import { AssistantMessage, UserMessage } from "./message"
@@ -301,7 +301,7 @@ export function ThreadPanel({
             </h2>
           )
         }
-        headerClassName={reveal}
+        headerProps={reveal}
         header={
           <>
             {thread == null ? null : editing ? (
@@ -420,7 +420,7 @@ export function ThreadPanel({
           </>
         }
       >
-        <ThreadPrimitive.Root className={THREAD_BODY_CLASS}>
+        <ConversationBody render={<ThreadPrimitive.Root />}>
           <ChatViewport footer={bottomFooter} footerHasNotice={notice != null}>
             {isLoading ? <MessagesSkeleton /> : null}
 
@@ -434,7 +434,7 @@ export function ThreadPanel({
               </ThreadPrimitive.Messages>
             ) : null}
           </ChatViewport>
-        </ThreadPrimitive.Root>
+        </ConversationBody>
       </ConversationColumn>
     </LiveThreadRuntime>
   )

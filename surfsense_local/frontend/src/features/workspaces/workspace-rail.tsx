@@ -182,9 +182,10 @@ export function WorkspaceRail({
 
   return (
     <nav
+      {...reveal}
       className={cn(
         "flex h-full flex-col items-center bg-app-shell py-3 text-sidebar-foreground",
-        reveal
+        reveal.className
       )}
       aria-label={intl.formatMessage({
         id: "workspaces_rail_aria",

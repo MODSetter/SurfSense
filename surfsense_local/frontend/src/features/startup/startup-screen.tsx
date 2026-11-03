@@ -9,16 +9,16 @@ import { StartupFrame } from "./startup-frame"
  * onboarding never opens over a glimpse of the dashboard.
  */
 export function StartupScreen({ frame }: { frame: boolean }) {
+  const label = intl.formatMessage({
+    id: "app_bootstrap_loader_aria",
+    defaultMessage: "Starting SurfSense",
+  })
   return (
-    <DashboardShell
-      role="status"
-      aria-busy="true"
-      aria-label={intl.formatMessage({
-        id: "app_bootstrap_loader_aria",
-        defaultMessage: "Starting SurfSense",
-      })}
-      className="select-none"
-    >
+    // Busy, not a status region: the frame holds a box to type in.
+    <DashboardShell aria-busy="true" aria-label={label}>
+      <p role="status" className="sr-only">
+        {label}
+      </p>
       {frame ? <StartupFrame /> : null}
     </DashboardShell>
   )

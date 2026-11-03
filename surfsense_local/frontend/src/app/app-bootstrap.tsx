@@ -1,3 +1,4 @@
+import { useQueryClient, type QueryClient } from "@tanstack/react-query"
 import { useEffect, useState } from "react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -13,6 +14,10 @@ import {
 } from "@/features/models/selection/availability"
 import { getOnboardingStatus } from "@/features/onboarding/api"
 import { OnboardingPage } from "@/features/onboarding/onboarding-page"
+import {
+  pluginListQuery,
+  thirdPartyQuery,
+} from "@/features/plugins/in-thread/mention-queries"
 import { intl } from "@/i18n/intl"
 
 import { listWorkspaces, type Workspace } from "@/features/workspaces/api"
@@ -22,6 +27,11 @@ import {
   forgetDashboard,
   rememberDashboard,
 } from "@/features/startup/dashboard-hint"
+import {
+  createStartupInput,
+  type StartupInput,
+} from "@/features/startup/startup-input"
+import { StartupInputContext } from "@/features/startup/startup-input-context"
 import { StartupRevealProvider } from "@/features/startup/startup-reveal-provider"
 import { StartupScreen } from "@/features/startup/startup-screen"
 
@@ -80,7 +90,7 @@ function messageFrom(error: unknown) {
       })
 }
 
-async function fetchBootstrapState(): Promise<Fetched> {
+async function fetchBootstrapState(queryClient: QueryClient): Promise<Fetched> {
   // Fetched alongside the data rather than after it: one wait, one loader.
   const dashboard = loadDashboard()
   // Handled where it is awaited; this only keeps an early exit from leaving
@@ -93,6 +103,10 @@ async function fetchBootstrapState(): Promise<Fetched> {
       return { status: "onboarding-required" }
     }
     rememberDashboard()
+    // For a mention typed during startup: the list is ready with the composer.
+    // Never awaited, and a failure leaves the list to load as it would.
+    void queryClient.prefetchQuery(pluginListQuery)
+    void queryClient.prefetchQuery(thirdPartyQuery)
     const [selection, workspaces] = await Promise.all([
       getGenerationSelection(),
       listWorkspaces(),
@@ -115,17 +129,33 @@ async function fetchBootstrapState(): Promise<Fetched> {
 }
 
 export function AppBootstrap() {
+  // What is typed into the frame's box, for the composer that replaces it.
+  const [startupInput] = useState(createStartupInput)
+  return (
+    <StartupInputContext.Provider value={startupInput}>
+      <BootstrapScreens startupInput={startupInput} />
+    </StartupInputContext.Provider>
+  )
+}
+
+function BootstrapScreens({ startupInput }: { startupInput: StartupInput }) {
+  // The frame's box may be mid-composition, which a handover would cut.
+  const afterComposing = (next: Fetched) =>
+    startupInput.composingEnded().then(() => next)
+  const queryClient = useQueryClient()
   const [state, setState] = useState<BootstrapState>(startLoading)
 
   useEffect(() => {
     let active = true
-    void fetchBootstrapState().then((next) => {
-      if (active) setState((current) => settle(current, next))
-    })
+    void fetchBootstrapState(queryClient)
+      .then((next) => startupInput.composingEnded().then(() => next))
+      .then((next) => {
+        if (active) setState((current) => settle(current, next))
+      })
     return () => {
       active = false
     }
-  }, [])
+  }, [queryClient, startupInput])
 
   if (state.status === "loading") {
     return <StartupScreen frame={state.frame} />
@@ -139,16 +169,15 @@ export function AppBootstrap() {
           setState(startLoading())
           void Promise.all([listWorkspaces(), loadDashboard()])
             .then(([workspaces, Dashboard]) =>
-              setState((current) =>
-                settle(current, {
-                  status: "ready",
-                  Dashboard,
-                  selection,
-                  availability: { status: "available" },
-                  workspaces,
-                })
-              )
+              afterComposing({
+                status: "ready",
+                Dashboard,
+                selection,
+                availability: { status: "available" },
+                workspaces,
+              })
             )
+            .then((next) => setState((current) => settle(current, next)))
             .catch((error: unknown) =>
               setState({ status: "error", message: messageFrom(error) })
             )
@@ -175,9 +204,9 @@ export function AppBootstrap() {
               variant="outline"
               onClick={() => {
                 setState(startLoading())
-                void fetchBootstrapState().then((next) =>
-                  setState((current) => settle(current, next))
-                )
+                void fetchBootstrapState(queryClient)
+                  .then(afterComposing)
+                  .then((next) => setState((current) => settle(current, next)))
               }}
             >
               {intl.formatMessage({

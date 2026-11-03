@@ -9,6 +9,7 @@ describe("startup layout", () => {
     expect(readStartupLayout()).toEqual({
       composer: "center",
       rightPanelOpen: true,
+      mentions: false,
     })
   })
 
