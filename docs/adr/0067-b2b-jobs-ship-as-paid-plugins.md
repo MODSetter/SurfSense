@@ -1,6 +1,6 @@
 # ADR 0067: SurfSense's B2B jobs ship as paid plugins that run on the user's machine and unlock with a SurfSense license
 
-- **Status:** Accepted
+- **Status:** Accepted; amended by [ADR 0078](0078-surfsense-sells-one-business-license-priced-per-person.md): a job plugin unlocks only with a Business license or the 14-day trial, where the Decision says "Individual, Team, or the 14-day trial", and a lapsed Business license stops new job runs 30 days after it lapses, where it says "When a license lapses the job plugin stops"
 - **Date:** 2026-10-22
 - **Supersedes:** [ADR 0047](0047-premium-plugins-are-source-available.md) in part: "all job content, and job packs" staying Apache-2.0, for SurfSense's B2B jobs
 - **Source:** [08-b2b-artifact-jobs L493–556](https://github.com/MODSetter/SurfSense/blob/9c59b84affccfdcdd9c6c0c20a5f79d02b7f8d8b/plans/community-local/seo/08-b2b-artifact-jobs.md#L493-L556), [ADR 0047 L20](https://github.com/MODSetter/SurfSense/blob/9c59b84affccfdcdd9c6c0c20a5f79d02b7f8d8b/docs/adr/0047-premium-plugins-are-source-available.md#L20), [02 decision 17](https://github.com/MODSetter/SurfSense/blob/9c59b84affccfdcdd9c6c0c20a5f79d02b7f8d8b/docs/proposals/file-agent/02-skills-and-engines.md#L134), maintainer decision, 22 Oct 2026 (no permalink)
