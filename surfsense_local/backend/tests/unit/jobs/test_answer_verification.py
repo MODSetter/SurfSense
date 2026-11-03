@@ -688,7 +688,7 @@ def test_a_call_that_fails_on_every_question_fails_the_run(workbook, config):
 
 GATE = {
     "answers": ["No"],
-    "quote": r"\b(applies to|provided by)\b",
+    "quote": r"\b(applies to|provided by|out of scope)\b",
     "comment": r"\bdocuments?\b[^.]{0,40}\bdo(es)?\s+not\s+state",
 }
 SCOPED = SourceText(
@@ -768,12 +768,22 @@ def test_a_no_resting_on_a_scope_or_on_silence_goes_to_a_person_unchecked(
     assert checks == []
 
 
-def test_a_no_on_a_stated_prohibition_goes_on_to_the_check(workbook, gated_config):
-    """A quote that forbids the thing is a statement: the gate lets it through to the check."""
+@pytest.mark.parametrize(
+    ("supported", "answer"), [(True, "No"), (False, "Needs review")]
+)
+def test_a_no_on_a_stated_prohibition_goes_on_to_the_check(
+    workbook, gated_config, supported, answer
+):
+    """A quote that forbids the thing is a statement: the gate lets it through to the check,
+    which then decides, so a No the check refuses is not written."""
+    checks: list[str] = []
 
     def ask(system, turns, schema, shared):
         if system.startswith("verify"):
-            return ModelReply(json.dumps({"supported": True, "missing": ""}))
+            checks.append(turns[0][1])
+            return ModelReply(
+                json.dumps({"supported": supported, "missing": "Off topic."})
+            )
         return _no("Staff must not store client data on removable media.")
 
     model = Model()
@@ -783,7 +793,67 @@ def test_a_no_on_a_stated_prohibition_goes_on_to_the_check(workbook, gated_confi
         workbook, [SCOPED], gated_config, model, only=lambda row: row.row == 2
     ).results[0]
 
-    assert result.answer == "No" and "NO_STATEMENT" not in result.codes
+    assert result.answer == answer and "NO_STATEMENT" not in result.codes
+    assert len(checks) == (1 if supported else 2)
+
+
+def test_a_refused_no_asked_again_onto_a_scope_keeps_its_refusal(
+    workbook, gated_config
+):
+    """Asked for better evidence, a refused No that now rests on a scope sentence is held by
+    the gate on that turn too: the refusal stands, and no second check is asked."""
+    checks: list[str] = []
+
+    def ask(system, turns, schema, shared):
+        if system.startswith("verify"):
+            checks.append(turns[0][1])
+            return ModelReply(json.dumps({"supported": False, "missing": "Off topic."}))
+        if len(turns) == 1:
+            return _no("Staff must not store client data on removable media.")
+        return _no("This standard applies to laptops issued by the firm.")
+
+    model = Model()
+    model.ask = ask
+
+    result = fill_workbook(
+        workbook, [SCOPED], gated_config, model, only=lambda row: row.row == 2
+    ).results[0]
+
+    assert (result.answer, result.said, result.missing) == (
+        "Needs review",
+        "No",
+        "Off topic.",
+    )
+    assert "NOT_SUPPORTED" in result.codes and len(checks) == 1
+    assert [c.quote for c in result.cited] == [
+        "Staff must not store client data on removable media."
+    ]
+    assert "statement gate" in [step["step"] for step in result.trace]
+
+
+def test_the_gate_reads_a_quote_by_its_words(workbook, gated_config):
+    """A scope phrase split by a hyphen or a line break in the source is caught as surely as
+    the phrase itself, and the comment cell says why in a sentence of its own."""
+    hyphened = SourceText(
+        6,
+        "hyphened",
+        "## Scope\n\nContractors' laptops are out-of-scope\nfor this standard.",
+    )
+
+    def ask(system, turns, schema, shared):
+        if system.startswith("verify"):
+            return ModelReply(json.dumps({"supported": True, "missing": ""}))
+        return _no("Contractors' laptops are out-of-scope for this standard.")
+
+    model = Model()
+    model.ask = ask
+
+    result = fill_workbook(
+        workbook, [hyphened], gated_config, model, only=lambda row: row.row == 2
+    ).results[0]
+
+    assert result.codes[0] == "NO_STATEMENT"
+    assert comment_text(result, gated_config).startswith("The only evidence for No")
 
 
 def test_a_second_look_that_turns_caution_into_a_no_keeps_the_caution(

@@ -12,6 +12,8 @@ from dataclasses import dataclass, field
 
 from job_eval.cases import Case
 
+from modules.jobs.workbook_rows.cell_answers import cell_value
+from modules.jobs.workbook_rows.config import JobConfig
 from modules.jobs.workbook_rows.decide import RowResult
 
 YES = "Yes"
@@ -78,8 +80,9 @@ class CaseScore:
 
 
 def score_case(
-    case: Case, results: list[RowResult], fallback: str = "Needs review"
+    case: Case, results: list[RowResult], config: JobConfig | None = None
 ) -> CaseScore:
+    fallback = config.fallback.answer if config else "Needs review"
     by_cell = {(r.row.sheet.casefold(), r.row.answer_cell): r for r in results}
     scored = CaseScore(case.id)
     for gold in case.gold:
@@ -90,6 +93,12 @@ def score_case(
             # The cell could not hold the answer and was left blank: the requester's workbook
             # says nothing, as for any row left to a person.
             answer, said = fallback, result.answer
+        expected = gold.answer
+        choice = config.choice(gold.answer) if config else None
+        if result and choice and cell_value(choice, result.row.allowed) is None:
+            # A gold answer the cell cannot hold is one no job can write: the right outcome
+            # is the blank a person fills, as for an answer the job could not write.
+            expected = fallback
         scored.rows.append(
             RowScore(
                 sheet=gold.sheet,
@@ -98,7 +107,7 @@ def score_case(
                 gold=gold.answer,
                 answer=answer,
                 said=said,
-                correct=answer == gold.answer,
+                correct=answer == expected,
                 quote=result.quote if result else "",
                 source=result.source if result else "",
                 codes=list(result.codes) if result else ["UNREACHED"],

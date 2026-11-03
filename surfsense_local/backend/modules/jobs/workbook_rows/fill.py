@@ -6,6 +6,7 @@ so an eval row measures what the app does.
 
 from __future__ import annotations
 
+import logging
 import time
 from collections import Counter
 from collections.abc import Callable
@@ -22,6 +23,8 @@ from modules.jobs.workbook_rows.config import JobConfig
 from modules.jobs.workbook_rows.decide import RowResult, answer_row, failed_row
 from modules.jobs.workbook_rows.layout import Layout, QuestionRow, find_questions
 from modules.jobs.workbook_rows.operations import exception_lines, operations
+
+logger = logging.getLogger(__name__)
 
 # A token is about 3.5 characters of English; 3 leaves room for numbers and tables.
 CHARS_PER_TOKEN = 3
@@ -88,8 +91,10 @@ def fill_workbook(
     )
 
     def embedding(texts: list[str], query: bool) -> list[list[float]]:
-        # Embedding a library takes minutes on a laptop: a cancel is honoured between batches.
-        if stop is not None and stop():
+        # Embedding a library takes minutes on a laptop: a cancel is honoured between its
+        # batches. Not for a question's query, which runs on the question threads, while the
+        # worker's cancel reads the run's one database session.
+        if not query and stop is not None and stop():
             raise FillStoppedError("Stopped before the first question.")
         return embed(texts, query)  # type: ignore[misc]
 
@@ -175,6 +180,12 @@ def _answer_all(
                 except Exception as error:
                     # One question's call failing goes to a person; many failing is the
                     # connection itself, which the run reports instead of a sheet of blanks.
+                    logger.warning(
+                        "question in %s!%s failed",
+                        rows[index].sheet,
+                        rows[index].answer_cell,
+                        exc_info=error,
+                    )
                     failures += 1
                     every = failures == len(rows)
                     if every or (

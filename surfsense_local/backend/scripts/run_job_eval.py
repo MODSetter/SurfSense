@@ -107,7 +107,7 @@ def _one_run(args, spec: str, case: Case, config, number: int, embed) -> None:
         for cell in (r.row.answer_cell, r.row.comment_cell, r.row.evidence_cell)
         if cell
     }
-    scored = score_case(case, filled.results, config.fallback.answer)
+    scored = score_case(case, filled.results, config)
     scored.integrity = (
         integrity_problems(case.workbook, out, writable)
         if applied.saved

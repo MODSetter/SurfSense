@@ -11,8 +11,11 @@ import asyncio
 import hashlib
 import json
 import logging
+import math
 import time
 from collections.abc import Callable
+from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
 from typing import Any
 
 import httpx
@@ -50,7 +53,7 @@ MAX_REPLY_TOKENS = 8192
 # Tries a call gets when the provider stalls or fails for a moment, and the pause between them.
 TRIES = 3
 BACKOFF_SECONDS = 2.0
-# The longest pause a rate limit's Retry-After is followed for; past it the row goes to a person.
+# The longest pause a rate limit's Retry-After is followed for; a longer one is cut to this.
 MAX_RETRY_AFTER_SECONDS = 60.0
 
 
@@ -129,12 +132,28 @@ def _pause(failed: Exception, attempt: int) -> float:
     """How long to wait before trying again: what a rate-limited provider asks for in its
     Retry-After header, within reason, else a pause that grows with each try."""
     if isinstance(failed, httpx.HTTPStatusError):
-        asked = failed.response.headers.get("retry-after", "")
-        try:
-            return min(max(float(asked), 0.0), MAX_RETRY_AFTER_SECONDS)
-        except ValueError:
-            pass
+        asked = _retry_after(failed.response.headers.get("retry-after", ""))
+        if asked is not None:
+            return min(asked, MAX_RETRY_AFTER_SECONDS)
     return BACKOFF_SECONDS * (attempt + 1)
+
+
+def _retry_after(value: str) -> float | None:
+    """A Retry-After in seconds, from its delay or its HTTP-date form; None when unusable."""
+    value = value.strip()
+    if not value:
+        return None
+    try:
+        seconds = float(value)
+    except ValueError:
+        try:
+            when = parsedate_to_datetime(value)
+        except (TypeError, ValueError):
+            return None
+        if when.tzinfo is None:
+            when = when.replace(tzinfo=UTC)
+        seconds = (when - datetime.now(UTC)).total_seconds()
+    return max(seconds, 0.0) if math.isfinite(seconds) else None
 
 
 def _transient(failed: Exception) -> bool:

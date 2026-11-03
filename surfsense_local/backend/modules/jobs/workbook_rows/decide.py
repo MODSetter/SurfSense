@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from string import Template
 
 from modules.jobs.evidence.passages import Passage, SourceText
-from modules.jobs.provenance.quote_check import find_quote, nearest_sentence
+from modules.jobs.provenance.quote_check import find_quote, nearest_sentence, words
 from modules.jobs.workbook_rows.ask import AnswerModel, Asked, Draft, ask_row
 from modules.jobs.workbook_rows.cell_answers import cell_value
 from modules.jobs.workbook_rows.config import JobConfig
@@ -26,7 +26,7 @@ EXCEPTIONS = {
     "LOW_CONFIDENCE": "The model was not confident: check the source.",
     "ANSWER_SWITCHED": "The model answered {said}, a second check refused its quotes, and it then gave another answer, so no answer was given.",
     "UNREADABLE_REPLY": "The model's reply could not be read.",
-    "NO_STATEMENT": "The model answered {said}, but {missing}",
+    "NO_STATEMENT": "The model answered {said}. {missing}",
     "CALL_FAILED": "The model could not be asked about this question ({missing}), so it was left to a person.",
     "ROW_HIDDEN": "The row is hidden, so it was left as it was.",
     "ANSWER_LOCKED": "The answer cell is locked, so it was left as it was.",
@@ -167,15 +167,22 @@ def answer_row(
             and _needs_quote(again, config)
             and not _cited(again, config, passages, sources)[0]
         )
+        # Asked for evidence for a refused No or N/A, a model reaches for a scope sentence
+        # or for silence: the gate holds on this turn too.
+        unstated = _unstated(again, config, passages, sources)
+        if unstated:
+            trace.append({"step": "statement gate", "missing": unstated})
         if (
             again is None
             or switched
             or unfounded
+            or unstated
             or again.answer == config.fallback.answer
         ):
             # The refusal stands, and the row keeps what was refused and why: for a person,
             # the refused quotes are the best place to start. A claim kept on quotes that are
-            # nowhere in the sources brings no new evidence, so it is refused the same way.
+            # nowhere in the sources, or on a scope or silence, brings no new evidence, so it
+            # is refused the same way.
             asked.draft = refused
         else:
             # Checked again even on the same quotes: the check refuses right answers often
@@ -310,15 +317,20 @@ def _unstated(
     if draft is None or draft.answer not in gate.answers:
         return ""
     cited, _ = _cited(draft, config, passages, sources)
-    if gate.quote is not None and any(gate.quote.search(c.quote) for c in cited):
+    # A quote is read as the quote check reads it, by its words, so "out-of-scope" or a
+    # line break inside a phrase is caught as surely as the phrase itself.
+    read = [" ".join(words(c.quote)) for c in cited]
+    if gate.quote is not None and any(gate.quote.search(quote) for quote in read):
         return (
-            "a quote it rests on speaks of a scope or a provider, which does not say the "
-            "firm does not do it."
+            f"The only evidence for {draft.answer} speaks of a scope or a provider, which "
+            "does not say the firm does not do it."
         )
-    if gate.comment is not None and gate.comment.search(draft.comment):
+    if gate.comment is not None and gate.comment.search(
+        " ".join(draft.comment.split())
+    ):
         return (
-            "it rests on what the documents leave unsaid, which does not say the firm "
-            "does not do it."
+            f"The only evidence for {draft.answer} is what the documents leave unsaid, which "
+            "does not say the firm does not do it."
         )
     return ""
 

@@ -162,3 +162,36 @@ def test_a_rate_limit_waits_as_long_as_the_provider_asks(monkeypatch):
         response=httpx.Response(429, headers={"Retry-After": "3600"}),
     )
     assert pipeline._pause(too_long, 0) == pipeline.MAX_RETRY_AFTER_SECONDS
+
+
+def test_a_rate_limit_s_retry_after_survives_the_model_route():
+    """The route turns a provider's 429 into a frame and the worker raises it again: the
+    Retry-After the provider sent is still there for the pause."""
+    from modules.llm.model_route.failures import as_frame, raise_from_frame
+
+    limited = httpx.HTTPStatusError(
+        "429 Too Many Requests",
+        request=httpx.Request("POST", "https://example.test"),
+        response=httpx.Response(429, headers={"Retry-After": "12"}),
+    )
+
+    with pytest.raises(httpx.HTTPStatusError) as raised:
+        raise_from_frame(as_frame(limited))
+
+    assert raised.value.response.status_code == 429
+    assert pipeline._pause(raised.value, 0) == 12.0
+
+
+@pytest.mark.parametrize(
+    ("value", "pause"),
+    [("Wed, 21 Oct 2015 07:28:00 GMT", 0.0), ("nan", 2.0), ("soon", 2.0), ("", 2.0)],
+)
+def test_a_retry_after_date_in_the_past_or_one_that_says_nothing_usable(value, pause):
+    """An HTTP date already past means now; a value that is not a delay or a date falls back
+    to the plain pause, never to sleeping for nan."""
+    failed = httpx.HTTPStatusError(
+        "429",
+        request=httpx.Request("POST", "https://example.test"),
+        response=httpx.Response(429, headers={"Retry-After": value} if value else {}),
+    )
+    assert pipeline._pause(failed, 0) == pause
