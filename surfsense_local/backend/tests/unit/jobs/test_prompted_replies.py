@@ -97,3 +97,46 @@ def test_an_endpoint_that_refuses_the_schema_is_shown_it_in_the_prompt(monkeypat
     for messages, _ in sent[1:]:
         assert messages[0].content.startswith("Check the answer.")
         assert json.dumps(schema) in messages[0].content
+
+
+def _model(monkeypatch, replies):
+    """The worker's model over a scripted `complete`: each item is raised, or returned."""
+    queue = list(replies)
+
+    def complete(model, messages, *, max_tokens, json_schema=None, conversation=None):
+        item = queue.pop(0)
+        if isinstance(item, Exception):
+            raise item
+        return item
+
+    monkeypatch.setattr(pipeline, "complete", complete)
+    monkeypatch.setattr(pipeline.time, "sleep", lambda seconds: None)
+    selection = SimpleNamespace(name="qwen/qwen3.8-27b", provider="openrouter")
+    return pipeline.SelectedModel(SimpleNamespace(selection=selection), 131_072), queue
+
+
+def test_a_stalled_stream_is_tried_again_and_then_left_to_a_person(monkeypatch):
+    """A stall is tried again; one that never answers gives an empty reply rather than
+    failing the whole run."""
+    from modules.llm.providers.stream_deadline import StreamTimeoutError
+
+    stall = StreamTimeoutError(30, first_item=False, subject="the model")
+    model, _ = _model(monkeypatch, [stall, '{"answer": "Yes"}'])
+    assert model.ask("s", [("user", "q")], {}, 0).text == '{"answer": "Yes"}'
+
+    model, left = _model(monkeypatch, [stall] * pipeline.TRIES)
+    assert model.ask("s", [("user", "q")], {}, 0).text == ""
+    assert left == []
+
+
+def test_a_refused_key_still_fails_the_run(monkeypatch):
+    """An error that trying again cannot fix is raised, so a run never ends blank in silence."""
+    unauthorized = httpx.HTTPStatusError(
+        "401 Unauthorized",
+        request=httpx.Request("POST", "https://example.test"),
+        response=httpx.Response(401),
+    )
+    model, _ = _model(monkeypatch, [unauthorized])
+
+    with pytest.raises(httpx.HTTPStatusError):
+        model.ask("s", [("user", "q")], {}, 0)

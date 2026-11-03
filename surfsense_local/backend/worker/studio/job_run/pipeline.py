@@ -11,6 +11,7 @@ import asyncio
 import hashlib
 import json
 import logging
+import time
 from collections.abc import Callable
 from typing import Any
 
@@ -33,6 +34,7 @@ from modules.jobs.workbook_rows.config import load_config
 from modules.jobs.workbook_rows.fill import FillResult, fill_workbook
 from modules.llm.model_route.client import resolve_routed_generation
 from modules.llm.providers import llamacpp
+from modules.llm.providers.stream_deadline import StreamTimeoutError
 from modules.llm.providers.types import Message
 from modules.llm.resolution import ResolvedGeneration
 from worker.studio.shared.generate import complete
@@ -44,6 +46,9 @@ REMOTE_AT_ONCE = 4
 # Room for a thinking model's reasoning before its answer: a remote connection does not
 # turn thinking off, and Qwen3.8 spent 2,048 tokens thinking and answered nothing.
 MAX_REPLY_TOKENS = 8192
+# Tries a call gets when the provider stalls or fails for a moment, and the pause between them.
+TRIES = 3
+BACKOFF_SECONDS = 2.0
 
 
 class JobRunFailedError(RuntimeError):
@@ -75,15 +80,7 @@ class SelectedModel:
         conversation = f"surfsense-job-{shared_start}"
         if self._schema_taken:
             try:
-                return ModelReply(
-                    complete(
-                        self._model,
-                        messages,
-                        max_tokens=MAX_REPLY_TOKENS,
-                        json_schema=schema,
-                        conversation=conversation,
-                    )
-                )
+                return self._reply(messages, schema, conversation)
             except httpx.HTTPStatusError as refused:
                 if "response_format" not in str(refused):
                     raise
@@ -96,14 +93,41 @@ class SelectedModel:
             f"{system}\n\nYour reply is one JSON object matching this JSON Schema:\n"
             f"{json.dumps(schema)}",
         )
-        return ModelReply(
-            complete(
-                self._model,
-                messages,
-                max_tokens=MAX_REPLY_TOKENS,
-                conversation=conversation,
-            )
-        )
+        return self._reply(messages, None, conversation)
+
+    def _reply(
+        self, messages: list[Message], schema: dict | None, conversation: str
+    ) -> ModelReply:
+        """One reply, a transient failure tried again. Still failing, an empty reply, which the
+        runner reads as unreadable and leaves to a person: one stream that stalled among a
+        workbook's hundreds of calls failed a whole live run."""
+        for attempt in range(TRIES):
+            try:
+                return ModelReply(
+                    complete(
+                        self._model,
+                        messages,
+                        max_tokens=MAX_REPLY_TOKENS,
+                        json_schema=schema,
+                        conversation=conversation,
+                    )
+                )
+            except (StreamTimeoutError, httpx.HTTPError) as failed:
+                if not _transient(failed):
+                    raise
+                logger.warning(
+                    "%s: %s, try %d of %d", self.name, failed, attempt + 1, TRIES
+                )
+                time.sleep(BACKOFF_SECONDS * (attempt + 1))
+        return ModelReply("")
+
+
+def _transient(failed: Exception) -> bool:
+    """A stall, a dropped connection, a timeout, or the provider's own 408, 429 or 5xx."""
+    if isinstance(failed, httpx.HTTPStatusError):
+        code = failed.response.status_code
+        return code in (408, 429) or code >= 500
+    return True
 
 
 def work_out(
