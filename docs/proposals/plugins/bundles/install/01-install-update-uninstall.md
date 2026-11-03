@@ -17,7 +17,7 @@ The app lists only plugin versions it can run, installs without running plugin c
 - Settings → Network lists what `list_destinations()` returns, which today is the built-in hosts and the hosts of model connections. It also returns every host declared by an installed plugin, with the plugins that declare it, and every host already allowed whatever declared it. Without the first, a plugin's grant could not be seen or revoked; without the second, a grant would stay on but vanish from the list once the plugin that asked for it is uninstalled.
 - Install, given a plugin:
   1. Ask `choose_version.py`. With no answer, refuse with its reason.
-  2. `access: paid` consults the stored license state, `status()` in `modules/license/service.py`. Missing, expired, or `clock_untrusted` refuses with `license_required`. A `trial` license unlocks it for its term. `free` does not consult it.
+  2. `access: paid` consults the stored license state, `status()` in `modules/license/service.py`. Missing, expired, `clock_untrusted`, or lacking the plugin's entitlement refuses with `license_required`. A Business license or a `trial` that carries the entitlement unlocks it, the trial for its term ([ADR 0078](../../../../adr/0078-surfsense-sells-one-business-license-priced-per-person.md)); the license server delivers a paid plugin's files only to such a license ([ADR 0067](../../../../adr/0067-b2b-jobs-ship-as-paid-plugins.md)). `free` does not consult it.
   3. Require both hosts allowed, otherwise raise the existing `EgressDeniedError` naming both, before any connection opens.
   4. Download the `url`. Follow a redirect only to `release-assets.githubusercontent.com`, and reject any other host before writing. Stop reading past the download's `size`.
   5. Compare sha256. Extract with the path rules in the protocol. Compare the packaged `manifest.json` to the catalog version's `manifest` and `version`. Rename into place.
@@ -34,7 +34,7 @@ The app lists only plugin versions it can run, installs without running plugin c
 - A packaged `manifest.json` whose `hosts` or `version` differ from the catalog's is rejected.
 - A redirect to any host but `release-assets.githubusercontent.com` is rejected and the body is not saved.
 - Install with either host not allowed raises `EgressDeniedError` naming both and does not open a connection.
-- A `paid` plugin with no license does not insert `installed_plugins`. With a trial license, it installs. The same plugin with `access: free` does, with no license on disk.
+- A `paid` plugin with no license, or with a license that does not carry its entitlement, does not insert `installed_plugins`. With a Business or trial license that carries it, it installs. The same plugin with `access: free` does, with no license on disk.
 - On SurfSense 2.4.0, with versions 2.3.0, 2.4.0 and 2.5.0 in the catalog, `choose_version.py` picks 2.4.0. With 2.4.0 blocked, it picks 2.3.0.
 - A version with only a `cp312-windows-x64` download is not chosen on Linux. A version with only `any` is chosen everywhere, unless its `platforms` leaves this system out.
 - A version blocked from 2.6.0 still runs on 2.5.0 and is refused on 2.6.0, where the app offers the newest version it can run.

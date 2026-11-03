@@ -55,6 +55,8 @@ What it brings, since the chat engine has no opencode session to keep its calls:
 
 ## Long calls as jobs on the plugin host
 
+Since 1 Nov 2026 the platform scrapers retire, and the web crawler and search stay, free for everyone; whether those two stay on the plugin host is open ([ADR 0079](../../adr/0079-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)). This section and the next apply only to what stays there.
+
 The proxies in front of a server end a request after 100 to 240 seconds, and MCP progress does not lift their limit, so a call to SurfSense's plugins that can run past three minutes becomes a job.
 
 - **Jobs are ordinary tools**, not MCP tasks, which opencode does not use: `crawl_site(...)` queues and answers `{job_id, status: "running"}`, `get_job(job_id)` answers status, progress and the result or a page of it, `cancel_job(job_id)` stops it.
@@ -88,9 +90,9 @@ Enterprise settings that turn plugins off, keep third-party plugins off, or allo
 
 ## Elsewhere
 
-- **A public directory page** on surfsense.com, generated from both lists. Today `surfsense.com/plugins` is a hand-written list of the scraper platforms.
-- **Paid bundles**: a SurfSense paid plugin that runs locally, delivered by the license server ([ADR 0047](../../adr/0047-premium-plugins-are-source-available.md), [bundles](bundles/README.md)). SurfSense's B2B jobs are the first planned ones, so paid bundles now come before the security questionnaire's beta ([ADR 0067](../../adr/0067-b2b-jobs-ship-as-paid-plugins.md)).
-- **Deleting the backend's scraping code** once its scraper API is retired, never before the purge on 18 Oct 2026 ([plugin host](../../architecture/plugin-host.md#layout)).
+- **A public directory page** on surfsense.com, generated from both lists. Today `surfsense.com/plugins` is a hand-written list of the scraper platforms, which retire ([ADR 0079](../../adr/0079-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)).
+- **Paid bundles**: a SurfSense paid plugin that runs locally, delivered by the license server only to a SurfSense Business license, or the 14-day trial, that carries its entitlement ([ADR 0047](../../adr/0047-premium-plugins-are-source-available.md), [ADR 0078](../../adr/0078-surfsense-sells-one-business-license-priced-per-person.md), [bundles](bundles/README.md)). SurfSense's B2B jobs are the first planned ones, so paid bundles now come before the security questionnaire's beta ([ADR 0067](../../adr/0067-b2b-jobs-ship-as-paid-plugins.md)).
+- **Deleting the scraping code**: the plugin host's platform scrapers, which retire ([ADR 0079](../../adr/0079-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)), and the backend's copy once its scraper API is retired, never before the purge on 18 Oct 2026 ([plugin host](../../architecture/plugin-host.md#layout)).
 
 ## Local MCP servers
 
@@ -106,4 +108,4 @@ Decided on 20 Oct 2026: a server started by a command, such as `npx -y @modelcon
 
 - The citation a chat answer gives a tool result, beside today's chunk citations.
 - How long the chat engine keeps tool results, and how large a stored one may be.
-- Whether outside clients, `surfsense_mcp` and direct users of the scraper API, move to the plugin host once the backend's scraper API is retired.
+- Whether outside clients, `surfsense_mcp` and direct users of the scraper API, move to the plugin host once the backend's scraper API is retired. Since 1 Nov 2026 that concerns only the web crawler and search, as the platform scrapers retire ([ADR 0079](../../adr/0079-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)).
