@@ -145,15 +145,15 @@ def ask_row(
     shared = first.find(block) + len(block) if block and block in first else 0
     asked = earlier or Asked(None, 0, 0, 0, [])
     if earlier is not None and repair is not None:
-        turns += [
-            ("assistant", earlier.replies[-1]),
-            (
-                "user",
-                Template(config.repair_prompt).safe_substitute(
-                    {**fields, "problem": repair}
-                ),
-            ),
-        ]
+        ask_again = Template(config.repair_prompt).safe_substitute(
+            {**fields, "problem": repair}
+        )
+        if earlier.replies[-1].strip():
+            turns += [("assistant", earlier.replies[-1]), ("user", ask_again)]
+        else:
+            # An empty reply (a call that failed after its retries) cannot be sent back:
+            # APIs refuse an empty assistant turn, which would fail the whole run.
+            turns = [("user", f"{first}\n\n{ask_again}")]
     reply = model.ask(system, turns, answer_schema(config), shared)
     asked.calls += 1
     asked.input_tokens += reply.input_tokens or 0

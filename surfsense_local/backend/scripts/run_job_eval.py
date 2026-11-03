@@ -27,6 +27,7 @@ from job_eval.workbook_integrity import integrity_problems
 
 from modules.artifacts.revised_copies.engines import excel
 from modules.jobs.evidence.retrieval import Embed
+from modules.jobs.evidence.vectors import remembered
 from modules.jobs.packs.manifest import read_manifest
 from modules.jobs.workbook_rows.config import load_config
 from modules.jobs.workbook_rows.fill import fill_workbook
@@ -69,7 +70,8 @@ def _embedder(name: str) -> Embed | None:
         purpose = encoder.Purpose.QUERY if query else encoder.Purpose.DOCUMENT
         return encoder.embed(BGE, texts, purpose)
 
-    return embed
+    # A case's later runs, and later cases over the same policies, reuse the first run's vectors.
+    return remembered(embed, f"{BGE.id}@{BGE.weights.sha256}")
 
 
 def _one_run(args, spec: str, case: Case, config, number: int, embed) -> None:

@@ -139,9 +139,21 @@ def answer_row(
             # Refused, an answer may find better evidence or give way, never turn into
             # another, which nothing checked: all 11 of Qwen's last-turn No were refused.
             switched = refused.answer
-        if again is None or switched or again.answer == config.fallback.answer:
+        unfounded = (
+            again is not None
+            and again.answer == refused.answer
+            and _needs_quote(again, config)
+            and not _cited(again, config, passages, sources)[0]
+        )
+        if (
+            again is None
+            or switched
+            or unfounded
+            or again.answer == config.fallback.answer
+        ):
             # The refusal stands, and the row keeps what was refused and why: for a person,
-            # the refused quotes are the best place to start.
+            # the refused quotes are the best place to start. A claim kept on quotes that are
+            # nowhere in the sources brings no new evidence, so it is refused the same way.
             asked.draft = refused
         else:
             # Checked again even on the same quotes: the check refuses right answers often

@@ -27,6 +27,7 @@ from modules.embedding import encoder
 from modules.embedding.active import active_index
 from modules.jobs.evidence.passages import SourceText
 from modules.jobs.evidence.retrieval import Embed
+from modules.jobs.evidence.vectors import remembered
 from modules.jobs.packs.installed import find_job
 from modules.jobs.runs.record import JOB_RUN_KEY, job_run_of
 from modules.jobs.workbook_rows.ask import ModelReply
@@ -197,7 +198,7 @@ def _embedder(session: Session) -> Embed | None:
         purpose = encoder.Purpose.QUERY if query else encoder.Purpose.DOCUMENT
         return encoder.embed(spec, texts, purpose)
 
-    return embed
+    return remembered(embed, f"{spec.id}@{spec.weights.sha256}")
 
 
 def report_of(filled: FillResult, model: str) -> dict[str, Any]:

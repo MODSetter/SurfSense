@@ -117,3 +117,33 @@ def test_passages_are_embedded_in_batches():
     Retriever(passages, budget_chars=100, per_question=2, embed=embed)
 
     assert sizes == [EMBED_BATCH, len(passages) - EMBED_BATCH]
+
+
+def test_passage_vectors_are_embedded_once_per_embedder_and_text():
+    """A second run over the same library embeds nothing new; a changed passage, another
+    embedder, and every query are embedded afresh."""
+    from modules.jobs.evidence import vectors
+
+    calls: list[tuple[tuple[str, ...], bool]] = []
+
+    def embed(texts: list[str], query: bool) -> list[list[float]]:
+        calls.append((tuple(texts), query))
+        return [[float(len(text)), 1.0] for text in texts]
+
+    vectors.forget()
+    first = vectors.remembered(embed, "bge@1")
+    assert first(["a policy", "a standard"], False) == [[8.0, 1.0], [10.0, 1.0]]
+    again = vectors.remembered(embed, "bge@1")
+    assert again(["a standard", "a new policy"], False) == [[10.0, 1.0], [12.0, 1.0]]
+    vectors.remembered(embed, "other@2")(["a policy"], False)
+    again(["a policy"], True)
+    again(["a policy"], True)
+
+    assert calls == [
+        (("a policy", "a standard"), False),
+        (("a new policy",), False),
+        (("a policy",), False),
+        (("a policy",), True),
+        (("a policy",), True),
+    ]
+    vectors.forget()

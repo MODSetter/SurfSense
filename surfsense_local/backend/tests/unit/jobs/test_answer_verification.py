@@ -419,6 +419,60 @@ def test_a_switched_answer_keeps_what_was_refused_and_why(workbook, config):
     assert comment_text(result, config) == "Off topic."
 
 
+def test_an_empty_reply_is_asked_again_without_an_empty_assistant_turn(
+    workbook, config
+):
+    """A call that came back empty is asked once more in a single user turn, never sent back
+    as an empty assistant turn, which Anthropic's API refuses."""
+    sent: list[list[tuple[str, str]]] = []
+
+    def ask(system, turns, schema, shared):
+        sent.append(list(turns))
+        if system.startswith("verify"):
+            return ModelReply(json.dumps({"supported": True, "missing": ""}))
+        if len(sent) == 1:
+            return ModelReply("")
+        return _reply(QUOTE)
+
+    model = Model()
+    model.ask = ask
+
+    result = fill_workbook(
+        workbook, [PLAN, ISMS], config, model, only=lambda row: row.row == 3
+    ).results[0]
+
+    assert [role for role, _ in sent[1]] == ["user"]
+    assert all(text.strip() for turns in sent for _, text in turns)
+    assert result.answer == "Yes"
+
+
+def test_a_refused_answer_kept_on_quotes_nowhere_in_the_sources_keeps_the_refusal(
+    workbook, config
+):
+    """Asked again after a refusal, the model keeps its Yes on a quote no source holds: the
+    row still shows the refused quote and the check's reason, not "no quote was found"."""
+
+    def ask(system, turns, schema, shared):
+        if system.startswith("verify"):
+            return ModelReply(json.dumps({"supported": False, "missing": "Off topic."}))
+        if len(turns) == 1:
+            return _reply(QUOTE)
+        return _reply("Every system is virtualized under a written security policy.")
+
+    model = Model()
+    model.ask = ask
+
+    result = fill_workbook(workbook, [PLAN, ISMS], config, model).results[0]
+
+    assert (result.answer, result.said, result.missing) == (
+        "Needs review",
+        "Yes",
+        "Off topic.",
+    )
+    assert "NOT_SUPPORTED" in result.codes and "QUOTE_NOT_FOUND" not in result.codes
+    assert [c.quote for c in result.cited] == [QUOTE]
+
+
 @pytest.mark.parametrize(
     "fallback",
     [
