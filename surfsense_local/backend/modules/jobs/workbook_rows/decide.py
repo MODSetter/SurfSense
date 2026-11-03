@@ -26,6 +26,7 @@ EXCEPTIONS = {
     "LOW_CONFIDENCE": "The model was not confident: check the source.",
     "ANSWER_SWITCHED": "The model answered {said}, a second check refused its quotes, and it then gave another answer, so no answer was given.",
     "UNREADABLE_REPLY": "The model's reply could not be read.",
+    "NO_STATEMENT": "The model answered {said}, but {missing}",
     "CALL_FAILED": "The model could not be asked about this question ({missing}), so it was left to a person.",
     "ROW_HIDDEN": "The row is hidden, so it was left as it was.",
     "ANSWER_LOCKED": "The answer cell is locked, so it was left as it was.",
@@ -113,7 +114,25 @@ def answer_row(
         )
         if asked.draft is None:
             asked.draft = cautious  # an unreadable second look leaves the first answer
+        elif (
+            config.second_look_answers
+            and asked.draft.answer != config.fallback.answer
+            and asked.draft.answer not in config.second_look_answers
+        ):
+            # Asked to look again for evidence, a model also turns caution into a No or an
+            # N/A: all 12 that the v0.2.0 dev sweeps wrote that way were wrong.
+            asked.draft = cautious
     checks: list[Verdict] = []
+    unstated = _unstated(asked.draft, config, passages, sources)
+    if unstated:
+        # No check can turn a scope, a provider or silence into a statement: a person decides.
+        trace.append({"step": "statement gate", "missing": unstated})
+        result = _decided(
+            asked, config, row, passages, sources, checks=checks, unstated=unstated
+        )
+        result.looked_again = looked_again
+        result.trace = trace
+        return result
     verdict = _verdict(model, config, row, asked, passages, sources, trace, checks)
     switched = None
     if verdict is not None and not verdict.supported:
@@ -278,6 +297,32 @@ def _verdict(
     return verdict
 
 
+def _unstated(
+    draft: Draft | None,
+    config: JobConfig,
+    passages: list[Passage],
+    sources: list[SourceText],
+) -> str:
+    """Why an answer the gate covers rests on no statement, or "" when it may go on to the
+    check. In the v0.2.0 dev sweeps this held for all 5 wrong No and N/A writes and none of
+    the 23 right ones; on Qwen3.8-27B's dev runs it cut wrong answers from 3.7 to 1.7 a pass."""
+    gate = config.statement_gate
+    if draft is None or draft.answer not in gate.answers:
+        return ""
+    cited, _ = _cited(draft, config, passages, sources)
+    if gate.quote is not None and any(gate.quote.search(c.quote) for c in cited):
+        return (
+            "a quote it rests on speaks of a scope or a provider, which does not say the "
+            "firm does not do it."
+        )
+    if gate.comment is not None and gate.comment.search(draft.comment):
+        return (
+            "it rests on what the documents leave unsaid, which does not say the firm "
+            "does not do it."
+        )
+    return ""
+
+
 def _needs_quote(draft: Draft, config: JobConfig) -> bool:
     choice = config.choice(draft.answer)
     return choice is not None and choice.needs_quote
@@ -369,6 +414,7 @@ def _decided(
     verdict: Verdict | None = None,
     switched: str | None = None,
     checks: list[Verdict] | None = None,
+    unstated: str = "",
 ) -> RowResult:
     fallback = config.fallback
     checks = checks or []
@@ -397,6 +443,10 @@ def _decided(
         elif choice.needs_quote and not result.cited:
             result.said = choice.answer
             result.codes.append("QUOTE_NOT_FOUND")
+        elif unstated:
+            result.said = choice.answer
+            result.missing = unstated
+            result.codes.append("NO_STATEMENT")
         elif verdict is not None and not verdict.supported:
             result.said = choice.answer
             result.missing = verdict.missing

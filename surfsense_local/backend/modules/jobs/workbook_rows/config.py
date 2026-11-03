@@ -6,6 +6,7 @@ The runner is the app's; everything here is the job's own content, read from the
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -49,6 +50,18 @@ class Templates:
 
 
 @dataclass(frozen=True)
+class StatementGate:
+    """A No or N/A must rest on a statement that rules the thing out: one whose found quote
+    speaks of a scope or a provider (`quote`), or whose comment says the documents do not
+    state it (`comment`), goes to a person before any check. Patterns are the pack's, since
+    they are words in its language."""
+
+    answers: tuple[str, ...] = ()
+    quote: re.Pattern[str] | None = None
+    comment: re.Pattern[str] | None = None
+
+
+@dataclass(frozen=True)
 class JobConfig:
     answers: tuple[AnswerChoice, ...]
     layout: LayoutWords
@@ -78,6 +91,10 @@ class JobConfig:
     verify_answers: tuple[str, ...] = ()
     # Asked of an answer that fell back, once, before it goes to a person.
     second_look_prompt: str = ""
+    # What that second look may answer besides the fallback; empty for any answer.
+    second_look_answers: tuple[str, ...] = ()
+    # Answers such as No and N/A that need a statement, not a scope, a provider or silence.
+    statement_gate: StatementGate = field(default_factory=lambda: StatementGate())
 
     @property
     def fallback(self) -> AnswerChoice:
@@ -145,14 +162,36 @@ def load_config(config_file: Path) -> JobConfig:
             second_look_prompt=_prompt(folder, raw["second_look"]["prompt"])
             if "second_look" in raw
             else "",
+            second_look_answers=tuple(
+                str(a) for a in raw.get("second_look", {}).get("answers", ())
+            ),
+            statement_gate=_gate(raw.get("statement_gate", {})),
         )
-    except (OSError, ValueError, KeyError, TypeError, AttributeError) as broken:
+    except (
+        OSError,
+        ValueError,
+        KeyError,
+        TypeError,
+        AttributeError,
+        re.error,
+    ) as broken:
         raise PackRefusedError(
             "BAD_JOB_CONFIG", f"{config_file.name} is not a job config: {broken}"
         ) from broken
     if sum(1 for choice in answers if choice.fallback) != 1:
         raise PackRefusedError("BAD_JOB_CONFIG", "Exactly one answer is the fallback.")
     return config
+
+
+def _gate(raw: dict) -> StatementGate:
+    def pattern(key: str) -> re.Pattern[str] | None:
+        return re.compile(str(raw[key]), re.IGNORECASE) if raw.get(key) else None
+
+    return StatementGate(
+        answers=tuple(str(a) for a in raw.get("answers", ())),
+        quote=pattern("quote"),
+        comment=pattern("comment"),
+    )
 
 
 def _lowered(words: object) -> tuple[str, ...]:

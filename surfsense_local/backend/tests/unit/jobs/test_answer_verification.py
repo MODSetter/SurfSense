@@ -684,3 +684,136 @@ def test_a_call_that_fails_on_every_question_fails_the_run(workbook, config):
 
     with pytest.raises(RuntimeError, match="401"):
         fill_workbook(workbook, [PLAN, ISMS], config, model)
+
+
+GATE = {
+    "answers": ["No"],
+    "quote": r"\b(applies to|provided by)\b",
+    "comment": r"\bdocuments?\b[^.]{0,40}\bdo(es)?\s+not\s+state",
+}
+SCOPED = SourceText(
+    5,
+    "scope",
+    "## Scope\n\nThis standard applies to laptops issued by the firm.\n\n"
+    "## Rules\n\nStaff must not store client data on removable media.",
+)
+
+
+@pytest.fixture
+def gated_config(tmp_path: Path, config):
+    """The same job, with a statement gate on No and a second look that may only find a Yes."""
+    folder = tmp_path / "job"
+    (folder / "prompts" / "second_look.md").write_text(
+        "Look again, part by part, or answer $fallback.", encoding="utf-8"
+    )
+    raw = json.loads((folder / "job.json").read_text(encoding="utf-8"))
+    raw["statement_gate"] = GATE
+    raw["second_look"] = {"prompt": "prompts/second_look.md", "answers": ["Yes"]}
+    raw["verify"]["answers"] = ["Yes", "No"]
+    (folder / "job.json").write_text(json.dumps(raw), encoding="utf-8")
+    return load_config(folder / "job.json")
+
+
+def _no(quote: str, comment: str = "We do not.") -> ModelReply:
+    return ModelReply(
+        json.dumps(
+            {
+                "quotes": [{"passage": 1, "quote": quote}] if quote else [],
+                "answer": "No",
+                "comment": comment,
+                "confidence": "high",
+            }
+        )
+    )
+
+
+@pytest.mark.parametrize(
+    ("reply", "why"),
+    [
+        (
+            _no("This standard applies to laptops issued by the firm."),
+            "scope or a provider",
+        ),
+        (
+            _no(
+                "Staff must not store client data on removable media.",
+                comment="The documents do not state that virtualization is used.",
+            ),
+            "leave unsaid",
+        ),
+    ],
+)
+def test_a_no_resting_on_a_scope_or_on_silence_goes_to_a_person_unchecked(
+    workbook, gated_config, reply, why
+):
+    """A No whose quote only limits a rule's scope, or whose comment says the documents are
+    silent, is not a statement that the firm does not do it: no check can make it one."""
+    checks: list[str] = []
+
+    def ask(system, turns, schema, shared):
+        if system.startswith("verify"):
+            checks.append(turns[0][1])
+            return ModelReply(json.dumps({"supported": True, "missing": ""}))
+        return reply
+
+    model = Model()
+    model.ask = ask
+
+    result = fill_workbook(
+        workbook, [SCOPED], gated_config, model, only=lambda row: row.row == 2
+    ).results[0]
+
+    assert (result.answer, result.said) == ("Needs review", "No")
+    assert result.codes[0] == "NO_STATEMENT" and why in result.missing
+    assert checks == []
+
+
+def test_a_no_on_a_stated_prohibition_goes_on_to_the_check(workbook, gated_config):
+    """A quote that forbids the thing is a statement: the gate lets it through to the check."""
+
+    def ask(system, turns, schema, shared):
+        if system.startswith("verify"):
+            return ModelReply(json.dumps({"supported": True, "missing": ""}))
+        return _no("Staff must not store client data on removable media.")
+
+    model = Model()
+    model.ask = ask
+
+    result = fill_workbook(
+        workbook, [SCOPED], gated_config, model, only=lambda row: row.row == 2
+    ).results[0]
+
+    assert result.answer == "No" and "NO_STATEMENT" not in result.codes
+
+
+def test_a_second_look_that_turns_caution_into_a_no_keeps_the_caution(
+    workbook, gated_config
+):
+    """The second look is asked for evidence of what the question asks; a No it gives
+    instead falls back to the first answer, which goes to a person."""
+
+    def ask(system, turns, schema, shared):
+        if system.startswith("verify"):
+            return ModelReply(json.dumps({"supported": True, "missing": ""}))
+        if "Look again, part by part" in turns[-1][1]:
+            return _no("Staff must not store client data on removable media.")
+        return ModelReply(
+            json.dumps(
+                {
+                    "quotes": [],
+                    "answer": "Needs review",
+                    "comment": "",
+                    "confidence": "low",
+                }
+            )
+        )
+
+    model = Model()
+    model.ask = ask
+
+    result = fill_workbook(
+        workbook, [SCOPED], gated_config, model, only=lambda row: row.row == 2
+    ).results[0]
+
+    assert result.looked_again and result.answer == "Needs review"
+    assert [step["step"] for step in result.trace][:2] == ["answer", "second look"]
