@@ -9,7 +9,9 @@ import { TiktokLogo } from "@/components/site/logos/tiktok-logo";
 import { WalmartLogo } from "@/components/site/logos/walmart-logo";
 import { WebCrawlLogo } from "@/components/site/logos/web-crawl-logo";
 import { YoutubeLogo } from "@/components/site/logos/youtube-logo";
+import { BUSINESS_LAUNCHED } from "@/features/business-launch/business-launched.mts";
 import firstPartyList from "./first-party-plugins.json";
+import listBeforeBusiness from "./first-party-plugins-before-business.json";
 import { listingFromEntry, type PluginListing } from "./plugin-listing";
 
 /**
@@ -17,6 +19,9 @@ import { listingFromEntry, type PluginListing } from "./plugin-listing";
  * `surfsense_local/backend/modules/plugins/lists/first_party/plugins.json`; copy the
  * file over whenever it changes. Other publishers' are read from the registry, in
  * `registry-plugins.ts`.
+ *
+ * Until Business goes on sale the site shows the list as it stood before the scrapers
+ * retired, frozen in `first-party-plugins-before-business.json`, whatever the copy holds.
  */
 
 export type { PluginListing } from "./plugin-listing";
@@ -36,7 +41,9 @@ const LOGOS: Partial<Record<string, (props: React.SVGProps<SVGSVGElement>) => Re
 		indeed: IndeedLogo,
 	};
 
-export const SURFSENSE_PLUGINS: PluginListing[] = firstPartyList.plugins.flatMap((entry) => {
+const SHOWN_LIST: { plugins: unknown[] } = BUSINESS_LAUNCHED ? firstPartyList : listBeforeBusiness;
+
+export const SURFSENSE_PLUGINS: PluginListing[] = SHOWN_LIST.plugins.flatMap((entry) => {
 	const listing = listingFromEntry(entry, "surfsense");
 	if (!listing) return [];
 	const Logo = LOGOS[listing.id];

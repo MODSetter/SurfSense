@@ -101,6 +101,18 @@ export type Plan = {
 	features: string[];
 	action: { label: string; href: string; external?: boolean; primary?: boolean }[];
 	featured?: boolean;
+	/** The featured card's pill; "Most popular" when unset. */
+	badge?: string;
+};
+
+/** The hero's lede, with its one highlighted phrase. */
+export type PricingLede = { before: string; highlight: string; after: string };
+
+export const PRICING_LEDE: PricingLede = {
+	before: "The app and every update are ",
+	highlight: "free, forever",
+	after:
+		", with no account, no trial clock and no usage cap. A licence adds the scraper plugins and priority support, and a 30-day one comes with the app.",
 };
 
 export const PLANS: Plan[] = [
@@ -208,7 +220,7 @@ export const FAQ_NO_ACCOUNT: PricingQuestion = {
 		"No. There is no account anywhere in the purchase flow. Checkout collects an email address, the licence file is sent to it and also offered on the confirmation page, and you can have it resent to that same address at any time.",
 };
 
-const FAQ_NOTEBOOKLM_LOCALLY: PricingQuestion = {
+export const FAQ_NOTEBOOKLM_LOCALLY: PricingQuestion = {
 	question: "Can I run NotebookLM locally?",
 	answer:
 		"No. NotebookLM is a Google cloud service: it requires a Google account, uploads your sources to Google's servers, and cannot be installed on your own machine. Running the same workflow locally means using an alternative built for it, such as SurfSense, which keeps sources and answers on your computer.",

@@ -1,6 +1,16 @@
 import type { Metadata } from "next";
+import {
+	BUSINESS_META_DESCRIPTION,
+	BUSINESS_META_TITLE,
+	BUSINESS_PLANS,
+	BUSINESS_PRICING_FAQ,
+	BUSINESS_PRICING_LEDE,
+	BUSINESS_PRICING_SCHEMA,
+} from "@/app/(home)/pricing/business-pricing-content";
+import { PLANS, PRICING_FAQ, PRICING_LEDE } from "@/app/(home)/pricing/pricing-content";
 import { PricingHero, PricingPlans, PricingQuestions } from "@/app/(home)/pricing/pricing-sections";
 import { JsonLd } from "@/components/site/json-ld";
+import { BUSINESS_LAUNCHED } from "@/features/business-launch/business-launched.mts";
 
 /**
  * Pricing page.
@@ -11,7 +21,8 @@ import { JsonLd } from "@/components/site/json-ld";
  *
  * Copy is sourced from `plans/community-local/` — see `pricing-content.ts` for
  * what came from where, and for the two items the brief asks for that are
- * deliberately left out.
+ * deliberately left out. Once Business is on sale (`NEXT_PUBLIC_BUSINESS_LAUNCHED`)
+ * the copy is `business-pricing-content.ts`.
  *
  * A server component with no client JavaScript — the FAQ uses native
  * details/summary and the only interactive elements are links.
@@ -21,9 +32,12 @@ const canonicalUrl = "https://www.surfsense.com/pricing";
 
 /** Title, meta and the lead-with-free rule come from the `/pricing` brief in
  *  `plans/community-local/seo/02-page-briefs.md` (B5). */
-const metaTitle = "SurfSense Pricing: Free App, Paid Plugins";
-const metaDescription =
-	"The app and its updates are free forever, with a 14-day licence included and no account. Licences add scraper plugins and priority support, from $60 a year.";
+const metaTitle = BUSINESS_LAUNCHED
+	? BUSINESS_META_TITLE
+	: "SurfSense Pricing: Free App, Paid Plugins";
+const metaDescription = BUSINESS_LAUNCHED
+	? BUSINESS_META_DESCRIPTION
+	: "The app and its updates are free forever, with a 14-day licence included and no account. Licences add scraper plugins and priority support, from $60 a year.";
 
 export const metadata: Metadata = {
 	title: metaTitle,
@@ -101,10 +115,10 @@ const PRICING_SCHEMA = {
 export default function PricingPage() {
 	return (
 		<>
-			<JsonLd data={PRICING_SCHEMA} />
-			<PricingHero />
-			<PricingPlans />
-			<PricingQuestions />
+			<JsonLd data={BUSINESS_LAUNCHED ? BUSINESS_PRICING_SCHEMA : PRICING_SCHEMA} />
+			<PricingHero lede={BUSINESS_LAUNCHED ? BUSINESS_PRICING_LEDE : PRICING_LEDE} />
+			<PricingPlans plans={BUSINESS_LAUNCHED ? BUSINESS_PLANS : PLANS} />
+			<PricingQuestions questions={BUSINESS_LAUNCHED ? BUSINESS_PRICING_FAQ : PRICING_FAQ} />
 		</>
 	);
 }

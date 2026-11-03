@@ -4,6 +4,7 @@ import { sectionSpacing } from "@/components/site/home-section-spacing";
 import { REPO_URL } from "@/components/site/site-content";
 import { siteText } from "@/components/site/site-text";
 import { cn } from "@/components/ui/cn";
+import { BUSINESS_LAUNCHED } from "@/features/business-launch/business-launched.mts";
 import { PluginBrowser } from "./plugin-browser";
 import { SURFSENSE_PLUGINS } from "./plugin-list";
 import { registryPlugins } from "./registry-plugins";
@@ -21,9 +22,16 @@ const registryUrl = `${REPO_URL}/tree/main/backend/plugins/registry`;
 /** A form a bot checks and turns into the registry pull request; no git for the publisher. */
 const submitUrl = `${REPO_URL}/issues/new?template=plugin-submit.yml`;
 
-const metaTitle = "SurfSense Plugins: Google Search, Reddit, YouTube, Instagram and More";
-const metaDescription =
-	"Plugins give SurfSense's agent live data from Google Search, Reddit, YouTube, Instagram, TikTok, Google Maps, Amazon, Walmart, Indeed and any web page. Free for 14 days, plus any MCP server you add.";
+// From Business on, SurfSense's three are built into the app and free.
+const metaTitle = BUSINESS_LAUNCHED
+	? "SurfSense Plugins: Google Search, YouTube, Web Crawl and More"
+	: "SurfSense Plugins: Google Search, Reddit, YouTube, Instagram and More";
+const metaDescription = BUSINESS_LAUNCHED
+	? "Plugins give SurfSense's agent live data and tools. Google Search, YouTube and Web Crawl are built into the app and free, with no licence, plus any MCP server you add."
+	: "Plugins give SurfSense's agent live data from Google Search, Reddit, YouTube, Instagram, TikTok, Google Maps, Amazon, Walmart, Indeed and any web page. Free for 14 days, plus any MCP server you add.";
+const lede = BUSINESS_LAUNCHED
+	? "Plugins give SurfSense's agent live data and tools. Ours are built into the app and free, and read public pages without your own accounts; others come from their publishers through the registry."
+	: "Plugins give SurfSense's agent live data and tools. Ours read public pages without your own accounts; others come from their publishers through the registry.";
 
 export const metadata: Metadata = {
 	title: metaTitle,
@@ -58,10 +66,7 @@ export default async function PluginsPage() {
 						{pluginCount} plugins by {publisherCount} publishers
 					</span>
 				</h1>
-				<p className={cn(siteText.lede, "mt-6 max-w-2xl")}>
-					Plugins give SurfSense's agent live data and tools. Ours read public pages without your
-					own accounts; others come from their publishers through the registry.
-				</p>
+				<p className={cn(siteText.lede, "mt-6 max-w-2xl")}>{lede}</p>
 				<PluginBrowser registryPlugins={listed} submitUrl={submitUrl} docsUrl={registryUrl} />
 			</section>
 
