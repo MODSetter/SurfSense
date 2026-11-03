@@ -26,6 +26,7 @@ EXCEPTIONS = {
     "LOW_CONFIDENCE": "The model was not confident: check the source.",
     "ANSWER_SWITCHED": "The model answered {said}, a second check refused its quotes, and it then gave another answer, so no answer was given.",
     "UNREADABLE_REPLY": "The model's reply could not be read.",
+    "CALL_FAILED": "The model could not be asked about this question ({missing}), so it was left to a person.",
     "ROW_HIDDEN": "The row is hidden, so it was left as it was.",
     "ANSWER_LOCKED": "The answer cell is locked, so it was left as it was.",
     "ALREADY_ANSWERED": "The question already had an answer, so it was left as it was.",
@@ -63,6 +64,8 @@ class RowResult:
     looked_again: bool = False  # it fell back at first and was asked to look once more
     # Each answer and check on the way, quotes found or not; the answers sheet keeps the last.
     trace: list[dict] = field(default_factory=list)
+    # The passages the question was shown, by number from 1, pinned ones first.
+    shown: list[int] = field(default_factory=list)
 
     @property
     def quote(self) -> str:
@@ -416,6 +419,22 @@ def _decided(
     if result.confidence == "low" and not chosen.fallback:
         result.codes.append("LOW_CONFIDENCE")
     return result
+
+
+def failed_row(config: JobConfig, row: QuestionRow, error: Exception) -> RowResult:
+    """A row whose call failed outright, left to a person with the reason."""
+    fallback = config.fallback
+    reason = " ".join(str(error).split())[:200] or type(error).__name__
+    return RowResult(
+        row=row,
+        answer=fallback.answer,
+        said=None,
+        written=cell_value(fallback, row.allowed),
+        comment=EXCEPTIONS["CALL_FAILED"].format(missing=reason),
+        confidence="low",
+        codes=["CALL_FAILED"],
+        missing=reason,
+    )
 
 
 def template_fields(result: RowResult) -> dict[str, str]:

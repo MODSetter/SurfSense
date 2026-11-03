@@ -649,3 +649,38 @@ def test_a_pack_s_standing_passages_reach_the_prompt_under_its_label(
         < first.index("isms")
         < first.index("For this question:")
     )
+
+
+def test_one_question_whose_call_fails_goes_to_a_person_and_the_rest_are_answered(
+    workbook, config
+):
+    """A call that fails outright on one row leaves that row to a person with the reason; the
+    other rows are answered as usual."""
+
+    def ask(system, turns, schema, shared):
+        if "virtualization" in turns[0][1]:
+            raise RuntimeError("400 Bad Request: prompt too long")
+        return Model().ask(system, turns, schema, shared)
+
+    model = Model()
+    model.ask = ask
+
+    failed, answered = fill_workbook(workbook, [PLAN, ISMS], config, model).results
+
+    assert (failed.answer, failed.codes) == ("Needs review", ["CALL_FAILED"])
+    assert "prompt too long" in failed.missing
+    assert answered.answer == "Yes"
+
+
+def test_a_call_that_fails_on_every_question_fails_the_run(workbook, config):
+    """When no question can be asked, the connection is broken: the run fails rather than end
+    as a sheet of rows left to a person."""
+
+    def ask(system, turns, schema, shared):
+        raise RuntimeError("401 Unauthorized")
+
+    model = Model()
+    model.ask = ask
+
+    with pytest.raises(RuntimeError, match="401"):
+        fill_workbook(workbook, [PLAN, ISMS], config, model)

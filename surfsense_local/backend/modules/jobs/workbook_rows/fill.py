@@ -19,7 +19,7 @@ from modules.jobs.evidence.retrieval import Embed, Retriever
 from modules.jobs.provenance import quote_check
 from modules.jobs.workbook_rows.ask import AnswerModel, passages_block
 from modules.jobs.workbook_rows.config import JobConfig
-from modules.jobs.workbook_rows.decide import RowResult, answer_row
+from modules.jobs.workbook_rows.decide import RowResult, answer_row, failed_row
 from modules.jobs.workbook_rows.layout import Layout, QuestionRow, find_questions
 from modules.jobs.workbook_rows.operations import exception_lines, operations
 
@@ -27,6 +27,9 @@ from modules.jobs.workbook_rows.operations import exception_lines, operations
 CHARS_PER_TOKEN = 3
 # What a window of unknown size is taken to be: the floor every agent model meets.
 UNKNOWN_WINDOW = 32_768
+# Rows whose calls may fail outright before the run itself is taken to be failing, and
+# only while they stay under a tenth of the questions.
+MAX_FAILED_ROWS = 3
 
 
 class FillStoppedError(Exception):
@@ -106,10 +109,23 @@ def fill_workbook(
         block = passages_block(
             passages, shown, retriever.pinned, config.standing_labels
         )
-        return answer_row(model, config, row, block, passages, sources)
+        result = answer_row(model, config, row, block, passages, sources)
+        if not retriever.whole:
+            # What the question saw, as the model numbered it, for a person tracing a miss.
+            result.shown = [
+                index + 1 for index in dict.fromkeys([*retriever.pinned, *shown])
+            ]
+        return result
 
     try:
-        results = _answer_all(rows, one, max(model.concurrency, 1), on_row, stop)
+        results = _answer_all(
+            rows,
+            one,
+            lambda row, error: failed_row(config, row, error),
+            max(model.concurrency, 1),
+            on_row,
+            stop,
+        )
     finally:
         quote_check.forget()
     ops = operations(results, layout.skipped, config, [s.name for s in facts.sheets])
@@ -129,12 +145,14 @@ def fill_workbook(
 def _answer_all(
     rows: list[QuestionRow],
     one: Callable[[QuestionRow], RowResult],
+    failed: Callable[[QuestionRow, Exception], RowResult],
     workers: int,
     on_row: Callable[[int, int], None] | None,
     stop: Callable[[], bool] | None,
 ) -> list[RowResult]:
     """Rows in sheet order; a stop is checked between questions, never inside a call."""
     results: dict[int, RowResult] = {}
+    failures = 0
     with ThreadPoolExecutor(max_workers=workers) as pool:
         pending: dict[Future, int] = {}
         queue = list(enumerate(rows))
@@ -149,7 +167,21 @@ def _answer_all(
                 break
             done, _ = wait(pending, return_when=FIRST_COMPLETED)
             for future in done:
-                results[pending.pop(future)] = future.result()
+                index = pending.pop(future)
+                try:
+                    results[index] = future.result()
+                except FillStoppedError:
+                    raise
+                except Exception as error:
+                    # One question's call failing goes to a person; many failing is the
+                    # connection itself, which the run reports instead of a sheet of blanks.
+                    failures += 1
+                    every = failures == len(rows)
+                    if every or (
+                        failures >= MAX_FAILED_ROWS and failures * 10 > len(rows)
+                    ):
+                        raise
+                    results[index] = failed(rows[index], error)
                 if on_row is not None:
                     on_row(len(results), len(rows))
     if len(results) < len(rows):

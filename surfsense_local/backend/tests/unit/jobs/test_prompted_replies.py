@@ -140,3 +140,25 @@ def test_a_refused_key_still_fails_the_run(monkeypatch):
 
     with pytest.raises(httpx.HTTPStatusError):
         model.ask("s", [("user", "q")], {}, 0)
+
+
+def test_a_rate_limit_waits_as_long_as_the_provider_asks(monkeypatch):
+    """A 429's Retry-After is followed, within a minute, before the call is tried again."""
+    limited = httpx.HTTPStatusError(
+        "429 Too Many Requests",
+        request=httpx.Request("POST", "https://example.test"),
+        response=httpx.Response(429, headers={"Retry-After": "7"}),
+    )
+    model, _ = _model(monkeypatch, [limited, '{"answer": "Yes"}'])
+    pauses: list[float] = []
+    monkeypatch.setattr(pipeline.time, "sleep", pauses.append)
+
+    assert model.ask("s", [("user", "q")], {}, 0).text == '{"answer": "Yes"}'
+    assert pauses == [7.0]
+    assert pipeline._pause(limited, 0) == 7.0
+    too_long = httpx.HTTPStatusError(
+        "429",
+        request=httpx.Request("POST", "https://example.test"),
+        response=httpx.Response(429, headers={"Retry-After": "3600"}),
+    )
+    assert pipeline._pause(too_long, 0) == pipeline.MAX_RETRY_AFTER_SECONDS

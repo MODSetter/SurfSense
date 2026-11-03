@@ -35,6 +35,8 @@ class RowScore:
     comment: str = ""
     looked_again: bool = False
     trace: list[dict] = field(default_factory=list)
+    # The passages the question saw, by number; [] when it saw every passage.
+    shown: list[int] = field(default_factory=list)
 
 
 @dataclass
@@ -75,12 +77,19 @@ class CaseScore:
         )
 
 
-def score_case(case: Case, results: list[RowResult]) -> CaseScore:
+def score_case(
+    case: Case, results: list[RowResult], fallback: str = "Needs review"
+) -> CaseScore:
     by_cell = {(r.row.sheet.casefold(), r.row.answer_cell): r for r in results}
     scored = CaseScore(case.id)
     for gold in case.gold:
         result = by_cell.get((gold.sheet.casefold(), gold.cell))
         answer = result.answer if result else ""
+        said = result.said if result else None
+        if result and "NOT_ON_DROPDOWN" in result.codes:
+            # The cell could not hold the answer and was left blank: the requester's workbook
+            # says nothing, as for any row left to a person.
+            answer, said = fallback, result.answer
         scored.rows.append(
             RowScore(
                 sheet=gold.sheet,
@@ -88,7 +97,7 @@ def score_case(case: Case, results: list[RowResult]) -> CaseScore:
                 question=gold.question,
                 gold=gold.answer,
                 answer=answer,
-                said=result.said if result else None,
+                said=said,
                 correct=answer == gold.answer,
                 quote=result.quote if result else "",
                 source=result.source if result else "",
@@ -99,6 +108,7 @@ def score_case(case: Case, results: list[RowResult]) -> CaseScore:
                 comment=result.comment if result else "",
                 looked_again=result.looked_again if result else False,
                 trace=result.trace if result else [],
+                shown=result.shown if result else [],
             )
         )
     scored.dropdown_violations = sum(
