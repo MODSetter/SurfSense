@@ -206,7 +206,7 @@ export const LeftSidebar = memo(function LeftSidebar({
       <div
         {...reveal}
         className={cn(
-          "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-3 pt-5 pb-2",
+          "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-3 pt-5",
           reveal.className
         )}
       >

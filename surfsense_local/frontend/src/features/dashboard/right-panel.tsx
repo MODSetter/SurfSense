@@ -50,7 +50,7 @@ export function RightPanel({
       <div
         {...reveal}
         className={cn(
-          "min-h-0 min-w-0 flex-1 overflow-hidden px-3 pb-2",
+          "min-h-0 min-w-0 flex-1 overflow-hidden px-3",
           reveal.className
         )}
       >
