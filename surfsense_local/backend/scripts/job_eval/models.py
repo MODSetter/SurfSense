@@ -3,6 +3,10 @@
 Claude goes through Anthropic's Messages API with structured outputs; open models through
 OpenRouter's chat completions with a JSON schema. Neither falls back to another model on a
 refusal or an error: a row measures the model it names, and a failure counts against it.
+
+`openrouter:<model>@<provider>` pins an OpenRouter model to one provider, with no fallback to
+another, so every call of a run takes one route (Claude through OpenRouter, pinned to
+Anthropic); each run records which providers served its calls.
 """
 
 from __future__ import annotations
@@ -10,6 +14,7 @@ from __future__ import annotations
 import os
 import threading
 import time
+from collections import Counter
 from dataclasses import dataclass, field
 
 import httpx
@@ -40,15 +45,27 @@ class Spend:
     output_tokens: int = 0
     dollars: float = 0.0
     errors: list[str] = field(default_factory=list)
+    # Which provider served each call, as OpenRouter names it.
+    providers: Counter = field(default_factory=Counter)
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
-    def add(self, *, inputs: int, cached: int, outputs: int, dollars: float) -> None:
+    def add(
+        self,
+        *,
+        inputs: int,
+        cached: int,
+        outputs: int,
+        dollars: float,
+        provider: str | None = None,
+    ) -> None:
         with self._lock:
             self.calls += 1
             self.input_tokens += inputs
             self.cached_tokens += cached
             self.output_tokens += outputs
             self.dollars += dollars
+            if provider:
+                self.providers[provider] += 1
 
 
 def model_for(spec: str, *, concurrency: int, effort: str, reasoning: str):
@@ -61,8 +78,13 @@ def model_for(spec: str, *, concurrency: int, effort: str, reasoning: str):
             model_id, os.environ["ANTHROPIC_API_KEY"], concurrency, effort
         )
     if provider == "openrouter":
+        model_id, _, route = model_id.partition("@")
         return OpenRouterModel(
-            model_id, os.environ["OPENROUTER_API_KEY"], concurrency, reasoning
+            model_id,
+            os.environ["OPENROUTER_API_KEY"],
+            concurrency,
+            reasoning,
+            route=route or None,
         )
     raise SystemExit(f"{spec}: name the model as anthropic:<id> or openrouter:<id>.")
 
@@ -127,11 +149,17 @@ class OpenRouterModel:
     window = 131_072
 
     def __init__(
-        self, model_id: str, key: str, concurrency: int, reasoning: str
+        self,
+        model_id: str,
+        key: str,
+        concurrency: int,
+        reasoning: str,
+        route: str | None = None,
     ) -> None:
         self.name = model_id
         self.concurrency = concurrency
         self.reasoning = reasoning
+        self.route = route
         self.spend = Spend()
         self._client = httpx.Client(
             timeout=httpx.Timeout(CALL_SECONDS, connect=15.0),
@@ -159,7 +187,15 @@ class OpenRouterModel:
                 "json_schema": {"name": "answer", "strict": True, "schema": schema},
             },
             # Only providers that honour the schema; one that ignored it would score its parse.
-            "provider": {"require_parameters": True},
+            # A pinned route takes that one provider and never falls back to another.
+            "provider": {
+                "require_parameters": True,
+                **(
+                    {"only": [self.route], "allow_fallbacks": False}
+                    if self.route
+                    else {}
+                ),
+            },
             "usage": {"include": True},
         }
         # "default" sends nothing, as the app's connection does: the model thinks if it does.
@@ -173,6 +209,7 @@ class OpenRouterModel:
             cached=cached,
             outputs=usage.get("completion_tokens") or 0,
             dollars=float(usage.get("cost") or 0.0),
+            provider=reply.get("provider"),
         )
         choice = (reply.get("choices") or [{}])[0]
         text = (choice.get("message") or {}).get("content") or ""

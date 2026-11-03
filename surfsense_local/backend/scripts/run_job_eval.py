@@ -186,6 +186,7 @@ def _one_run(args, spec: str, case: Case, config, number: int, embed) -> None:
                 model.spend.dollars + (checker.spend.dollars if checker else 0.0), 4
             ),
             "errors": model.spend.errors[:20],
+            "providers": dict(model.spend.providers),
         },
         "checker_spend": {
             "calls": checker.spend.calls,
@@ -193,6 +194,7 @@ def _one_run(args, spec: str, case: Case, config, number: int, embed) -> None:
             "output_tokens": checker.spend.output_tokens,
             "dollars": round(checker.spend.dollars, 4),
             "errors": checker.spend.errors[:20],
+            "providers": dict(checker.spend.providers),
         }
         if checker
         else None,
