@@ -17,13 +17,20 @@ from modules.llm.profile import Tier
 from modules.llm.providers import audiocpp, get_provider, llamacpp
 from modules.llm.providers.audiocpp.speech import AudioCppSpeech, VoicedModel
 from modules.llm.providers.openai_compatible import (
-    NonRetryableImageError,
     OpenAICompatibleImageProvider,
 )
-from modules.llm.providers.openai_compatible.image import AllowUrlHost
+from modules.llm.providers.openai_compatible.image_edit import (
+    OpenAICompatibleImageEditor,
+)
 from modules.llm.providers.openai_compatible.speech import RemoteSpeech
-from modules.llm.providers.protocols import Generator, ImageGenerator, TextToSpeech
+from modules.llm.providers.protocols import (
+    Generator,
+    ImageEditor,
+    ImageGenerator,
+    TextToSpeech,
+)
 from modules.llm.providers.sdcpp import provider as sdcpp
+from modules.llm.providers.sdcpp.editor import LocalImageEditor
 from modules.llm.providers.sdcpp.generator import LocalImageGenerator
 from modules.llm.subscriptions.claude.account import CLAUDE_PLAN
 from modules.llm.subscriptions.claude.hosts import require_claude_hosts
@@ -53,6 +60,12 @@ class ResolvedGeneration:
 class ResolvedImageGeneration:
     selection: SelectedModel
     generator: ImageGenerator
+
+
+@dataclass(frozen=True)
+class ResolvedImageEdit:
+    selection: SelectedModel
+    editor: ImageEditor
 
 
 @dataclass(frozen=True)
@@ -102,12 +115,7 @@ def resolve_image_generation(session: Session) -> ResolvedImageGeneration:
         return ResolvedImageGeneration(
             selected,
             LocalImageGenerator(
-                OpenAICompatibleImageProvider(
-                    0,
-                    sdcpp.base_url(),
-                    None,
-                    allow_url_host=_allow_url_host(session),
-                ),
+                OpenAICompatibleImageProvider(0, sdcpp.base_url(), None),
                 sdcpp.root_url(),
                 image.served_file,
                 text_runtime_given_up,
@@ -118,27 +126,34 @@ def resolve_image_generation(session: Session) -> ResolvedImageGeneration:
     return ResolvedImageGeneration(
         selected,
         OpenAICompatibleImageProvider(
-            connection.id,
-            connection.base_url,
-            connection.api_key,
-            allow_url_host=_allow_url_host(session),
+            connection.id, connection.base_url, connection.api_key
         ),
     )
 
 
-def _allow_url_host(session: Session) -> AllowUrlHost:
-    """The egress check for an image's URL, run in the Studio worker's thread."""
-
-    async def allow(url: str) -> None:
-        refused = egress.refused_named_host(session, url)
-        session.commit()
-        if refused is not None:
-            # No dialog reaches the worker, so the job fails with the refusal as
-            # its reason. The image was already generated, and billed, before
-            # its URL was known: a retry would pay again for the same refusal.
-            raise NonRetryableImageError(str(refused)) from refused
-
-    return allow
+def resolve_image_edit(session: Session) -> ResolvedImageEdit:
+    selected = session.get(SelectedModel, ModelType.IMAGE_EDIT)
+    if selected is None:
+        raise ModelResolutionError("no image editing model selected")
+    if selected.provider == sdcpp.PROVIDER:
+        image = get_local_catalog().sdcpp.installed_image(selected.name)
+        if image is None:
+            raise ModelResolutionError("the local image editing model is not installed")
+        # Chosen while its entry named `edit`, which a later manifest may drop.
+        if ModelType.IMAGE_EDIT not in image.types:
+            raise ModelResolutionError("the chosen image model does not edit")
+        return ResolvedImageEdit(
+            selected,
+            LocalImageEditor(
+                sdcpp.root_url(), image.served_file, text_runtime_given_up
+            ),
+        )
+    connection = _connection(session, selected)
+    _require_serves(connection, ModelType.IMAGE_EDIT)
+    return ResolvedImageEdit(
+        selected,
+        OpenAICompatibleImageEditor(connection.base_url, connection.api_key),
+    )
 
 
 def speech_selected(session: Session) -> None:

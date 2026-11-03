@@ -53,14 +53,11 @@ SurfSense 是一款免费开源的桌面应用，专为那些不能上传的文�
 | **Windows** x64 | [SurfSense-Setup.exe](https://www.surfsense.com/downloads/windows?src=readme) |
 | **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
 | **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
+| **Docker** Linux, macOS | `curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh \| bash` |
+| **Docker** Windows (Docker Desktop) | `irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 \| iex` |
 
-**用 Docker 在服务器上自托管**，并在你网络中的任何设备上打开。再次运行同一条命令即可更新。
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
-```
-
-在装有 Docker Desktop 的 Windows 上：`irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 | iex`
+> [!NOTE]
+> 用 Docker 在服务器上自托管，并在你网络中的任何设备上打开。再次运行同一条命令即可更新。
 
 ## 快速开始
 
@@ -77,9 +74,10 @@ curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scr
 | **Excel** `.xlsx` | ✓ 智能体还会读取公式 | ✓ 带公式和原生图表 | ✓ 单元格的值和公式 | 用 pandas 分析，并把结果做成图表 |
 | **PowerPoint** `.pptx` | ✓ | ✓ 也可以用你自己的 `.pptx` 作模板 | 替换幻灯片和备注中的文字；删除或复制幻灯片 | 转为 PDF¹ |
 | **CSV** | ✓ | — | — | 用 pandas 分析，并把结果做成图表 |
-| **图像** PNG、JPEG、TIFF、BMP、WebP | ✓ 通过 OCR 识别其中的文字³ | 图像和信息图² | — | 放入新文档 |
+| **图像** PNG、JPEG、TIFF、BMP、WebP | ✓ 通过 OCR 识别其中的文字³ | 图像和信息图，可按指令编辑² | — | 放入新文档 |
 | **Markdown**、纯文本 | ✓ | ✓ Markdown | — | — |
 | **HTML** | ✓ | ✓ 网页 | — | — |
+| **电子书** EPUB、MOBI、AZW3 | ✓ 无 DRM | — | — | — |
 | **录音** WAV、MP3、FLAC、Ogg Vorbis | ✓ 在你的电脑上转写 | — | — | — |
 | **播客**（音频） | — | ✓ 附文字稿，默认在你的电脑上配音 | — | — |
 | **思维导图、记忆卡片、测验** | — | ✓ 在应用内 | — | — |

@@ -84,6 +84,14 @@ class ImageGenerator(Protocol):
     async def generate(self, model: str, prompt: str) -> GeneratedImage: ...
 
 
+class ImageEditor(Protocol):
+    """A model that changes a picture as an instruction says, given it as a reference."""
+
+    async def edit(
+        self, model: str, prompt: str, image: GeneratedImage
+    ) -> GeneratedImage: ...
+
+
 @dataclass(frozen=True)
 class Voice:
     id: str

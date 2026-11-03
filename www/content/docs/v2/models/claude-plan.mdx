@@ -1,0 +1,103 @@
+---
+title: Claude plan
+description: Use your Claude Pro, Max or Team plan, through Claude Code on your computer
+---
+
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+
+If you pay for Claude Pro, Max or Team, you can use Claude's models in SurfSense with no API key. SurfSense works through Claude Code, Anthropic's own program, installed and signed in on your computer. Your sign-in stays in Claude Code: SurfSense never sees it and holds no Claude credential.
+
+## What you get
+
+- **Chat**, in Basic and Agentic mode, chat titles, and everything Studio writes.
+- **The models Claude Code offers you**, read from Claude Code each time.
+- **Your plan's limits.** Use counts toward your plan, as it does in Claude Code.
+
+A Claude plan only provides text generation. For images, audio or video, use a [local model](/docs/v2/models/local) or an [API provider](/docs/v2/models/api-providers).
+
+## Before you start
+
+Install Claude Code, then sign in to it with your Claude account:
+
+1. Install Claude Code by following Anthropic's [setup guide](https://code.claude.com/docs/en/setup).
+2. Open a terminal, run `claude`, and sign in with your Claude account. Choose your Claude subscription, not an API (Console) account.
+
+SurfSense needs a recent version of Claude Code. It tells you if yours is too old.
+
+## Connect your plan
+
+<Steps>
+<Step>
+
+Open **Settings › Text gen** and click **Add model**. In onboarding, this is on the text generation step.
+
+</Step>
+<Step>
+
+Under **Use your Claude plan**, click **Set up**. SurfSense checks Claude Code on this computer and shows what it found:
+
+- Not installed: install it, sign in, then click **Check again**. **Open install guide** opens Anthropic's setup page.
+- Too old: update Claude Code, then click **Check again**.
+- Not signed in: open a terminal, run `claude`, sign in, then click **Check again**.
+- Ready: it shows **Connected as** your email and your plan.
+
+</Step>
+<Step>
+
+Click **Add Claude models**. SurfSense asks **Allow your Claude plan to reach Anthropic?**. It names two hosts: `api.anthropic.com`, which gets your prompts and document excerpts, and `platform.claude.com`, which only refreshes Claude Code's sign-in. Allow both.
+
+</Step>
+<Step>
+
+Pick a Claude model and click **Use**, then **Use this model**. **Test chat** sends one short prompt, which counts toward your plan's limits.
+
+</Step>
+</Steps>
+
+Once connected, **Use your Claude plan** reads **Connected through Claude Code on this computer**, and **Show models** opens the list again.
+
+## How it works
+
+SurfSense runs your own Claude Code for every reply.
+
+- **In Basic chat**, Claude Code answers with every one of its own tools turned off. It only writes the answer.
+- **In Agentic mode**, Claude Code does the work with SurfSense's tools, rules and approvals, the same ones as any other model. You never choose an engine, and you can switch a chat to another model and back.
+- **Network.** Claude Code reaches only the two hosts you allowed, through SurfSense. Each is its own row in **Settings › Network**, the sign-in host labelled **Claude Code sign-in**. Turn either off and Claude plan replies stop.
+
+When your plan's limit is reached and your account pays for extra usage, the composer says **Your plan’s limit is reached, so replies use extra usage**.
+
+## Sign out, or switch accounts
+
+SurfSense doesn't sign you in or out. To sign out or switch accounts, run `claude` in a terminal and do it there. SurfSense uses whichever account Claude Code is signed in to.
+
+**Disconnect** on the **Claude plan** group in Settings removes the connection from SurfSense. It doesn't sign Claude Code out.
+
+## In Docker
+
+When SurfSense runs in [Docker](/docs/v2/docker), Claude Code must be installed and signed in inside the SurfSense container. Instead of the install guide, the **Set up** dialog shows the command to run on the computer running Docker, in the folder with `docker-compose.yml`, with a button to copy it. To sign in, run the command it shows, then type `/login`.
+
+## Troubleshooting
+
+### Couldn't use the model: Claude Code is too old
+
+Update Claude Code, then send your message again.
+
+### Claude Code is installed but not signed in to a Claude plan
+
+Claude Code is signed out, or signed in with an API (Console) account, which isn't a plan. Run `claude` and sign in with your Claude subscription.
+
+### SurfSense can't find Claude Code
+
+SurfSense looks on your `PATH` and in the places Claude Code's installers use. If you installed it somewhere else, reinstall it with Anthropic's native installer from the setup guide.
+
+<Callout>
+  Claude plan support was tested on macOS. It is built to work the same on
+  Windows and Linux. If it doesn't, please
+  [report an issue](/docs/v2/troubleshooting).
+</Callout>
+
+<Callout type="warn">
+  Anthropic sets the terms for using a plan with other apps, and has changed
+  them before. If Anthropic stops allowing this, the option may have to
+  be removed.
+</Callout>

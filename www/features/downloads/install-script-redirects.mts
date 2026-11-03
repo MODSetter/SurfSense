@@ -7,7 +7,7 @@
  * reach the newest copy. Temporary, because Latest moves with every release.
  * The scripts' source is `surfsense_local/packaging/install/`.
  *
- * Kept out of `next.config.ts`, like `docs-redirects.ts`, so a test can import
+ * Kept out of `next.config.mts`, like `docs-redirects.mts`, so a test can import
  * them (`features/downloads/install-script-redirects.test.ts`).
  */
 

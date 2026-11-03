@@ -22,6 +22,8 @@ From the repo root, on `dev`. A release is `dev` merged into `main` by pull requ
 
 Before you start, check both signing credentials are current. Apple refuses notarization with a 403 until the account holder accepts a new developer agreement, as on 3 Oct 2026, and every release run checks for that before building, as does a weekly run of [`notarization-credentials.yml`](../.github/workflows/notarization-credentials.yml) ([#2224](https://github.com/MODSetter/SurfSense/issues/2224)). Windows signing needs the Azure client secret behind `AZURE_CLIENT_SECRET`, whose expiry Entra ID shows; only a tag's build uses it.
 
+`electron`, `electron-builder` and `electron-updater` are pinned exactly in `electron/package.json`, so nothing moves them for you. Before the bump, check for a newer Electron 44 patch release, which carries Chromium security fixes, and raise the pin in its own pull request if there is one. Never go below 44.7, whose Squirrel.Mac is the first to install a Mac update over 1 GiB ([updates](../docs/architecture/updates.md#macos-the-1-gib-limit)). An `electron-updater` bump has to carry `patches/electron-updater@6.8.9.patch` over to the new version.
+
 Merge the changelog entry into `dev` before the bump, as a `docs(changelog): vX.Y.Z` pull request adding `www/content/changelog/<date>.mdx` with `version: "X.Y.Z"`. The website builds from `main`, so an entry merged after the release pull request stays off surfsense.com/changelog until another reaches `main`.
 
 ### 1. Write the new number

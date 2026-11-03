@@ -9,8 +9,7 @@ const UPDATE_HOST = "updates.surfsense.com"
 const GITHUB_HOST = "github.com"
 
 /**
- * The one way to check: Settings › About, the sidebar's update row and the app
- * menu. Settings › Network promises a check is refused until allowed, so while
+ * The one way to check: Settings › About, the title bar and the app menu. Settings › Network promises a check is refused until allowed, so while
  * update checks are off it asks first, naming where the check goes. Resolves
  * to whether a check was started.
  */

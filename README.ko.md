@@ -53,14 +53,11 @@ SurfSense는 업로드할 수 없는 문서를 위한 무료 오픈소스 데스
 | **Windows** x64 | [SurfSense-Setup.exe](https://www.surfsense.com/downloads/windows?src=readme) |
 | **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
 | **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
+| **Docker** Linux, macOS | `curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh \| bash` |
+| **Docker** Windows (Docker Desktop) | `irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 \| iex` |
 
-**Docker로 서버에 직접 호스팅**하고, 네트워크의 어느 기기에서든 여세요. 업데이트하려면 같은 명령을 다시 실행하세요.
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
-```
-
-Docker Desktop이 설치된 Windows에서: `irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 | iex`
+> [!NOTE]
+> Docker로 서버에 직접 호스팅하고, 네트워크의 어느 기기에서든 열 수 있습니다. 업데이트하려면 같은 명령을 다시 실행하세요.
 
 ## 빠른 시작
 
@@ -77,9 +74,10 @@ Docker Desktop이 설치된 Windows에서: `irm https://raw.githubusercontent.co
 | **Excel** `.xlsx` | ✓ 에이전트가 수식도 읽음 | ✓ 수식과 네이티브 차트 포함 | ✓ 셀 값과 수식 | pandas로 분석하고 결과를 차트로 |
 | **PowerPoint** `.pptx` | ✓ | ✓ 또는 내 `.pptx`를 템플릿으로 | 슬라이드와 노트의 텍스트 바꾸기, 슬라이드 삭제·복제 | PDF로¹ |
 | **CSV** | ✓ | — | — | pandas로 분석하고 결과를 차트로 |
-| **이미지** PNG, JPEG, TIFF, BMP, WebP | ✓ OCR로 텍스트 인식³ | 이미지와 인포그래픽² | — | 새 문서에 넣기 |
+| **이미지** PNG, JPEG, TIFF, BMP, WebP | ✓ OCR로 텍스트 인식³ | 이미지와 인포그래픽, 지시로 편집² | — | 새 문서에 넣기 |
 | **Markdown**, 일반 텍스트 | ✓ | ✓ Markdown | — | — |
 | **HTML** | ✓ | ✓ 웹 페이지 | — | — |
+| **전자책** EPUB, MOBI, AZW3 | ✓ DRM 없는 책 | — | — | — |
 | **녹음 파일** WAV, MP3, FLAC, Ogg Vorbis | ✓ 내 컴퓨터에서 텍스트로 변환 | — | — | — |
 | **팟캐스트** (오디오) | — | ✓ 스크립트 포함, 기본적으로 내 컴퓨터에서 음성 생성 | — | — |
 | **마인드맵, 플래시카드, 퀴즈** | — | ✓ 앱 안에서 | — | — |

@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from modules.agent.data_analysis.chart_names import is_chart_name
 from modules.artifacts.models import Artifact
+from modules.artifacts.queued_job import queue_job
 from modules.artifacts.script_documents.script_images import script_image_file
 from modules.artifacts.script_documents.spec import (
     DOCUMENT_FORMATS,
@@ -25,7 +26,6 @@ from modules.artifacts.script_documents.version import (
     version_of,
 )
 from modules.artifacts.studio_documents.recipe import studio_made
-from modules.artifacts.tasks import studio_job
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.documents.source_figures import parse_figure_name
 from modules.embedding.active import EmbeddingNotChosenError, require_active_index
@@ -129,8 +129,7 @@ def create_script_document(
         "source_document_ids": source_ids,
         "prompt": None,
     }
-    session.commit()
-    studio_job(artifact.id)
+    queue_job(session, artifact)
     logger.info(
         "studio: enqueued script document %s format=%s root=%s v%s",
         artifact.id,

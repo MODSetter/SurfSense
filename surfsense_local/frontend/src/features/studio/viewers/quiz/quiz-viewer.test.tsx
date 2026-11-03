@@ -38,6 +38,7 @@ const artifact: ArtifactDetail = {
   version: null,
   spec_kind: null,
   refinable: false,
+  image_editable: false,
   content: null,
   files: [
     {

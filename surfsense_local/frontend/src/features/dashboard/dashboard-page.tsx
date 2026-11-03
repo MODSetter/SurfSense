@@ -105,6 +105,7 @@ function WorkspaceDashboard({
   onOpenLicense,
   onOpenAudioSettings,
   onOpenSpeechSettings,
+  onOpenModelSettings,
   onOpenOfficeSupport,
   onOpenPlugins,
   modelsVisited,
@@ -122,6 +123,7 @@ function WorkspaceDashboard({
   onOpenLicense: () => void
   onOpenAudioSettings: () => void
   onOpenSpeechSettings: () => void
+  onOpenModelSettings: (section: SettingsSectionId) => void
   onOpenOfficeSupport: () => void
   onOpenPlugins: (start?: PluginsStart) => void
   modelsVisited: number
@@ -530,6 +532,8 @@ function WorkspaceDashboard({
                       artifacts={studio.artifacts}
                       onOpenVersion={openArtifact}
                       onRefine={studio.refine}
+                      onImageEdit={studio.editImage}
+                      onOpenModelSettings={onOpenModelSettings}
                       onDecideAll={studio.decideAll}
                       onClose={closeInspect}
                     />
@@ -792,6 +796,7 @@ export function DashboardPage({
           onOpenLicense={() => openSettings("license")}
           onOpenAudioSettings={() => openSettings("audio-models")}
           onOpenSpeechSettings={() => openSettings("speech-models")}
+          onOpenModelSettings={openSettings}
           onOpenOfficeSupport={openOfficeSupport}
           onOpenPlugins={openPlugins}
           modelsVisited={modelsVisited}

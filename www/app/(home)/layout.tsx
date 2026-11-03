@@ -1,6 +1,8 @@
 import { Fraunces } from "next/font/google";
 import { getStarCount, STARS_HREF } from "@/components/site/github-stars";
-import { SiteShell } from "@/components/site/site-shell";
+import { SiteFooter } from "@/components/site/site-footer";
+import { SiteNav } from "@/components/site/site-nav";
+import { SiteSmoothScroll } from "@/components/site/site-smooth-scroll";
 import "./home.css";
 
 // Brand wordmark only; loaded here so only the marketing pages fetch it.
@@ -12,24 +14,32 @@ const fraunces = Fraunces({
 });
 
 /**
- * Layout for every marketing route.
+ * Layout for every marketing route: the `.ss-home` palette, the nav, the ruled
+ * column and the footer.
  *
- * A server component so it can await the star count, which is cached in Next's
- * Data Cache and therefore fetched at most once an hour rather than once per
- * visitor. The route branching that needs `usePathname` lives in `SiteShell`,
- * the client half.
+ * Nothing here branches on the path: a `usePathname` check once served the
+ * cached homepage without `.ss-home`, so it painted unstyled until hydration.
  *
- * The fetch is cached, so it does not opt these routes into dynamic rendering:
- * they stay static and are revalidated on the same hourly schedule.
+ * The star count is cached in Next's Data Cache, fetched at most once an hour,
+ * so these routes stay static.
  */
 export default async function HomePageLayout({ children }: { children: React.ReactNode }) {
 	const starCount = await getStarCount();
 
 	return (
 		<div className={`${fraunces.variable} contents`}>
-			<SiteShell starCount={starCount} starsHref={STARS_HREF}>
-				{children}
-			</SiteShell>
+			<main className="ss-home min-h-screen">
+				{/* Outside the page slot, so React keeps the nav mounted across navigations. */}
+				<SiteNav starCount={starCount} starsHref={STARS_HREF} />
+				<SiteSmoothScroll />
+
+				{/* Full width, so backgrounds can bleed; `.ss-home-page` (home.css) holds
+				    each section to the column instead, and the footer caps its own content. */}
+				<div className="ss-home-page">
+					{children}
+					<SiteFooter />
+				</div>
+			</main>
 		</div>
 	);
 }

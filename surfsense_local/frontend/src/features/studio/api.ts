@@ -38,6 +38,8 @@ export type Artifact = {
   /** A ready Word or PDF version Studio made, or a web page a model wrote
    *  there, which Refine may rewrite. */
   refinable: boolean
+  /** A ready image or infographic, whose picture the Edit box may change. */
+  image_editable: boolean
 }
 
 export type ArtifactFile = {
@@ -232,6 +234,21 @@ export function refineArtifact(
   signal?: AbortSignal
 ): Promise<Artifact> {
   return requestJson<Artifact>(`/artifacts/${artifactId}/refine`, {
+    method: "POST",
+    body: JSON.stringify({ instruction }),
+    headers: { "Content-Type": "application/json" },
+    signal,
+  })
+}
+
+/** Makes the next version of an image or infographic: its picture, edited
+ *  to the instruction; the answer is that version, still running. */
+export function editImageArtifact(
+  artifactId: number,
+  instruction: string,
+  signal?: AbortSignal
+): Promise<Artifact> {
+  return requestJson<Artifact>(`/artifacts/${artifactId}/image-edit`, {
     method: "POST",
     body: JSON.stringify({ instruction }),
     headers: { "Content-Type": "application/json" },

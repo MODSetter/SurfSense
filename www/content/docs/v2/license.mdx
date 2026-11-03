@@ -1,0 +1,73 @@
+---
+title: License
+description: What's free, what a license adds, and how to add, renew or recover one
+---
+
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+
+SurfSense is free and open source under the Apache License 2.0. The whole app, and every update, is free with no account and no expiry.
+
+A SurfSense license adds two things:
+
+- **SurfSense's paid plugins.** These read public sites for the agent, such as Google Search, YouTube and a web crawler. Adding sources from the web in [Sources](/docs/v2/sources) uses them too. The [plugins page](/plugins) lists them.
+- **Priority support.**
+
+Nothing else needs a license. Chat, the agent, Studio, voice, local and remote models, third-party plugins and updates all work without one. See [pricing](/pricing) for plans.
+
+## Free trial
+
+You can try the paid plugins free for 14 days, with no card. Enter your email on the [downloads page](/downloads) and the trial license arrives by email as a file. One trial per email address.
+
+In the app, **Start a free trial** in Settings › License opens [pricing](/pricing) in your browser.
+
+## Add your license
+
+Your license is a file called `surfsense.lic`, sent to the email you bought it with. You can also download it from the page you land on after paying.
+
+<Steps>
+  <Step>
+    Save `surfsense.lic` from the email.
+  </Step>
+  <Step>
+    In SurfSense, open Settings › License and choose **Add license**.
+  </Step>
+  <Step>
+    Choose **Choose license file**, or paste the file's text under **Or paste the file**, then **Add**.
+  </Step>
+</Steps>
+
+Settings › License then shows your plan, your email, and **Expires** with the date. The sidebar shows **License active**.
+
+To swap in a new file, use **Replace license**. To take the license off this computer, use **Remove license**.
+
+## Checked on your computer
+
+SurfSense checks the license file on your computer, with no network. Adding it sends nothing anywhere.
+
+When you use a paid plugin, your license key goes with each request to `plugins.surfsense.com`, so the plugin service can check it. That host has to be allowed in Settings › Network first. See [privacy](/docs/v2/privacy).
+
+## When it expires
+
+When a license runs out, the paid plugins stop. Everything else keeps working: the app, your data and your updates are never locked.
+
+- In the last 14 days, Settings › License shows **Expiring soon**.
+- After it ends, Settings › License shows **Expired** with **Renew license**, and the sidebar shows **License expired**.
+
+A renewal is a new license file. Add it with **Replace license**.
+
+## Lost your file?
+
+Go to [surfsense.com/license](/license) and enter the email the license was issued to. SurfSense emails every license registered to that address. For your security the page says the same thing whether or not it found one.
+
+If you can no longer reach that inbox, or mistyped it when buying, the same page says how to get help. A license bought for a team is sent only to the address that bought it, so ask that person to forward it.
+
+## Messages you may see
+
+| Message | What to do |
+|---|---|
+| This is not a SurfSense license file. | Check you chose `surfsense.lic`, or pasted all of it. |
+| This license file was not issued by SurfSense, or it was altered. | Get a fresh copy from [surfsense.com/license](/license). |
+| This license file has expired; request a fresh copy at surfsense.com/license. | Get a fresh copy from [surfsense.com/license](/license). |
+| This license file uses an algorithm this version cannot check. | [Update SurfSense](/docs/v2/updates). |
+| **Clock is off** | Your computer's clock is behind the last time SurfSense ran. Set the right time and the license works again. |
+| **License not recognized** or **License revoked** on a plugin | The plugin service refused the key. Check that Settings › License shows the license you expect. A refunded license is revoked. |

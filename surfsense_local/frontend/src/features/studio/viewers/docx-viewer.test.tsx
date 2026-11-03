@@ -44,6 +44,7 @@ function wordArtifact(
     version: { root_id: 12, number: id - 11, parent_id: null },
     spec_kind: "python",
     refinable: false,
+    image_editable: false,
     content: null,
     files: [
       {

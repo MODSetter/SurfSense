@@ -10,8 +10,7 @@ import { cn } from "@/components/ui/cn";
 /**
  * Rendered in the site design: the palette, column, navigation and footer all
  * come from `app/(home)/layout.tsx`; the page uses the homepage's centred heads,
- * laid out like `/pricing/individual`, which shares `GuideSteps`. Listed in
- * `SITE_DESIGN_ROUTES` in `components/site/site-shell.tsx`.
+ * laid out like `/pricing/individual`, which shares `GuideSteps`.
  *
  * The one place the activation steps live. All three license emails link here
  * (`app/license/email/message.py`), as do `/license` and `/license/success`,
