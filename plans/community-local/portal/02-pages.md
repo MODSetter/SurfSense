@@ -80,11 +80,66 @@ flowchart LR
 
 No login. Resend always answers 200 so nobody can probe which addresses bought.
 
+## Business and the retired scrapers
+
+**Decided 1 Nov 2026, not built**
+([ADR 0078](../../../docs/adr/0078-surfsense-sells-one-business-license-priced-per-person.md),
+[ADR 0079](../../../docs/adr/0079-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)).
+Business, priced per person, becomes the one paid license, and the Individual
+license stops being sold. Seven platform scrapers retire, while reading web
+pages, YouTube transcripts and web search move into the app, free for
+everyone. All of it happens in one
+release, the one that ships the first paid job; until then the live pages stay
+as they are.
+
+**The release that ships the first paid job, retires the scrapers and sells
+Business:**
+
+- `/pricing` loses the Individual card and every line that sells the scraper
+  plugins, and lists reading web pages and web search as free
+  ([brief](../seo/02-page-briefs.md#pricing--b5)).
+- `/pricing/individual`, the Individual checkout page, goes, and its address
+  needs a target.
+- The trial's wording changes: "a 14-day licence for the plugins" on
+  `/pricing`, and "for the scraper plugins" in the FAQ of the
+  `/free/[model_slug]` pages. The trial becomes the 14-day trial of the job.
+- The seven retired platform scrapers' `/plugins/<id>` pages go, and they and
+  the old scraper addresses that redirect to them need a new target; the Web
+  Crawl, YouTube and search pages say they are free and built into the app.
+- `/mcp-server` drops its scraper tools and its links to their plugin pages.
+- `/terms` changes section 5, "A licence adds the scraper plugins and priority
+  support and gates nothing else", and section 6, on the scraper plugins and
+  the service behind them.
+- Individual license holders get a short notice that the scrapers retire.
+
+**In the same release, for Business:**
+
+- `/pricing` gets the Business card, "Solo" for one person, and the checkout
+  states the yearly renewal before payment.
+- The new buyer's journey gains a renewal: each year Stripe charges again and
+  the same Keygen license is extended; the app fetches the renewed file when
+  online, a new outbound call the privacy page has to describe, and an offline
+  machine imports the emailed one. Cancellation and
+  seat changes go through Stripe's emailed customer-portal link, so no page
+  needs a login. The webhook handles only the first checkout and full refunds
+  today, so this is built first.
+- The purchase email's "works on every machine you install SurfSense on" and
+  `/license/activate`'s "on every computer" change, since Business counts
+  people, not devices, and so does the email's "The app never contacts a
+  license server", since the app fetches renewed files. The privacy page's "does not compute or transmit a
+  device fingerprint" stays true: there is no device identifier at launch.
+- The trial stays one per address, with two rules users do not see: Gmail
+  dots fold into one address, and a company domain gets at most two trials a
+  year.
+- Individual licenses already sold become Business Solo on the same key at the
+  price they were bought at, locked, with a notice email when converted and a
+  reminder before each renewal.
+
 ## Open items
 
 **Landing content (B6) is unspecified and unowned.** The seven pages above are the ones with content requirements; `/` landing has only "rewrite for the new positioning" in the pivot plan, because the content is deferred to the **founder's landing brief for B6 — which does not exist yet, and no launch gate names it**. The *SEO* skeleton it has to fit inside now exists in [`../seo/02-page-briefs.md`](../seo/02-page-briefs.md) (target keywords, title and meta, H2 order) for this and every other page below. Meanwhile the page is the entry point for search, email and social, and almost none of it survives: of the eight components in [`app/(home)/page.tsx`](../../../www/app/\(home\)/page.tsx), `AuthRedirect` (`router.replace("/dashboard")`) and the `HeroSection` primary CTA (`<Link href="/login">Get Started</Link>`) cannot exist without accounts at all; `ConnectorGrid` showcases what becomes a paid T+7 plugin while `/connectors` is being unpublished; `CompareTable`, `HomeFaq`, `LogoCloud` and `SocialProof` are all written for the hosted service. `CommunityStrip` is the only one that mostly survives, and it links to `/login`. Separately, `hero-section.tsx` is one of the two call sites of `desktop-download-utils` (the other is `SidebarUserProfile.tsx`), so the hero's download button currently serves legacy v0.0.40 — see the Dev B status row.
 
-**Six public routes have no disposition.** Everything under `app/(home)/` that the plan never places: `/external-mcp-connectors`; `/announcements`; `/changelog`; `/contact`; and `/privacy` and `/terms` (hosted-service legal text the EULA work does not cover). The `[slug]` catch-all was removed on 21 Oct 2026, its scraper pages redirected to `/plugins/<id>`. Each needs unpublish, redirect or keep. None of them ranks for anything in the site's top 200 keywords, so there is no SEO argument either way ([`../seo/02-page-briefs.md`](../seo/02-page-briefs.md), "Open, and deliberately not answered here"); `/privacy` and `/terms` need a content decision rather than an indexing one. Only `/connectors` is named for unpublishing today. Note that `NEXT_PUBLIC_SUNSET_MODE` is still unread in `surfsense_web` (B4), so none of these redirect anywhere yet and all of them stay live and indexed at T-0 by default.
+**Six public routes have no disposition.** Everything under `app/(home)/` that the plan never places: `/external-mcp-connectors`; `/announcements`; `/changelog`; `/contact`; and `/privacy` and `/terms` (hosted-service legal text the EULA work does not cover). The `[slug]` catch-all was removed on 21 Oct 2026, its scraper pages redirected to `/plugins/<id>`, which go when the scrapers retire (above). Each needs unpublish, redirect or keep. None of them ranks for anything in the site's top 200 keywords, so there is no SEO argument either way ([`../seo/02-page-briefs.md`](../seo/02-page-briefs.md), "Open, and deliberately not answered here"); `/privacy` and `/terms` need a content decision rather than an indexing one. Only `/connectors` is named for unpublishing today. Note that `NEXT_PUBLIC_SUNSET_MODE` is still unread in `surfsense_web` (B4), so none of these redirect anywhere yet and all of them stay live and indexed at T-0 by default.
 
 ## New page: confidential documents into deliverables
 

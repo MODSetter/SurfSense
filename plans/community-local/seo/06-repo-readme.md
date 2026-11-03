@@ -50,6 +50,19 @@ In order:
    on `/downloads`, and third-party ones, which need none. It replaced **Star
    history**, under the rule that anything added replaces something, and sits
    above the comparison, as the maintainer asked.
+   One release changes it (decided 1 Nov 2026): the one that ships the first
+   paid job, which also retires the platform scrapers
+   ([ADR 0079](../../../docs/adr/0079-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md))
+   and sells Business. It removes seven rows, Google Maps, Amazon, Walmart,
+   TikTok, Indeed, Reddit and Instagram, and the line saying SurfSense's
+   plugins need a license: Web Crawl, YouTube and search move into the app,
+   free for everyone. Search drops the Google scraper for SearXNG, so its row
+   stops promising ads and related questions. In the same release
+   ([ADR 0078](../../../docs/adr/0078-surfsense-sells-one-business-license-priced-per-person.md)),
+   anything the README says about a license names Business and the job
+   plugins, and it names no job before an eval row backs it
+   ([file agent strategy](../file-agent-strategy.md#the-headline), item 4).
+   Each change goes into every translation.
 6. **How it compares**, against NotebookLM (now Gemini Notebook) alone: offline
    use, whether documents leave the machine, editing files, licence and models.
    "Everything stays on your machine", the comparisons with local chat apps and
