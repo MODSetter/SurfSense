@@ -14,9 +14,17 @@ import { PluginMentions } from "@/features/plugins/in-thread/plugin-mentions"
 import { cn } from "@/lib/utils"
 import { intl } from "@/i18n/intl"
 import type { PluginsStart } from "@/features/plugins/plugins-settings"
+import { useStartupReveal } from "@/features/startup/use-startup-reveal"
 
 import { ComposerImage } from "./attached-image"
 import { ComposerAddMenu } from "./composer-add-menu"
+import {
+  COMPOSER_CLASS,
+  COMPOSER_CONTROLS_CLASS,
+  COMPOSER_FOOTER_CLASS,
+  composerBoxClass,
+  composerInputClass,
+} from "./composer-layout"
 import { ModePicker } from "./modes/mode-picker"
 import { useNewChatMode } from "./modes/new-chat-mode"
 import { ModelPicker, modelControlButtonClassName } from "./model-picker"
@@ -209,6 +217,7 @@ export function ChatComposer({
   const atLimit = useAuiState(
     ({ composer }) => composer.text.length >= QUESTION_MAX_CHARS
   )
+  const reveal = useStartupReveal()
   const dictationKeys = useDictationKeys(dictation)
   // While the microphone starts, the mic's spinner says so and nothing else moves.
   const recording = useDictationStarted(dictation)
@@ -253,10 +262,7 @@ export function ChatComposer({
     />
   )
   return (
-    <div
-      className="relative mx-auto w-full max-w-2xl"
-      data-composer-placement={placement}
-    >
+    <div className={COMPOSER_CLASS} data-composer-placement={placement}>
       {notice ? (
         // Tucked behind the composer, which paints over its lower edge: out of
         // flow, so the composer keeps its place and its own shape.
@@ -271,10 +277,9 @@ export function ChatComposer({
       ) : null}
       <ComposerPrimitive.Root
         className={cn(
-          // No top padding: the text scrolls up to the border, not to a strip
-          // above it, and holds that space in its own padding instead.
-          "relative rounded-2xl border bg-card px-1.5 pb-1.5 shadow-sm transition-colors focus-within:border-ring/40 hover:border-ring/40",
-          placement === "bottom" && "flex items-end gap-2"
+          composerBoxClass(placement),
+          "transition-colors focus-within:border-ring/40 hover:border-ring/40",
+          reveal
         )}
       >
         <ComposerPrimitive.Unstable_TriggerPopoverRoot>
@@ -292,12 +297,7 @@ export function ChatComposer({
             readOnly={dictationKeys.recording}
             cancelOnEscape={!dictationKeys.recording}
             onKeyDown={dictationKeys.onKeyDown}
-            className={cn(
-              "max-h-44 resize-none bg-transparent px-2 pt-4 pb-2.5 text-sm outline-none placeholder:text-muted-foreground",
-              placement === "center"
-                ? "block min-h-12 w-full"
-                : "min-h-10 flex-1"
-            )}
+            className={composerInputClass(placement)}
             placeholder={
               blockedPlaceholder !== undefined
                 ? blockedPlaceholder
@@ -328,7 +328,7 @@ export function ChatComposer({
           {placement === "center" ? (
             // Its own row under the text, never over it: long text scrolls
             // inside the box and stops above the controls.
-            <div className="flex items-center justify-between gap-2">
+            <div className={COMPOSER_CONTROLS_CLASS}>
               <div className="flex shrink-0 items-center gap-1">
                 {addMenu("")}
                 {model ? <ModePicker model={model} threadMode={null} /> : null}
@@ -381,7 +381,7 @@ export function ChatComposer({
         </p>
       ) : null}
       {placement === "bottom" ? (
-        <div className="mt-1 flex min-h-7 items-center justify-between gap-3 px-2">
+        <div className={cn(COMPOSER_FOOTER_CLASS, reveal)}>
           {/* Keeps its line and leaves the mode and the model name what is
           left, never less than 13rem, so a long translation truncates the
           name before wrapping. */}

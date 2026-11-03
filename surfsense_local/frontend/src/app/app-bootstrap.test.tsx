@@ -26,24 +26,6 @@ afterEach(() => {
 })
 
 describe("app bootstrap", () => {
-  it("shows the filling logo while startup is pending", () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(() => new Promise<Response>(() => {}))
-    )
-
-    render(
-      <TooltipProvider>
-        <AppBootstrap />
-      </TooltipProvider>
-    )
-
-    // Named for assistive tech; the logo itself is decoration and says nothing.
-    const loader = screen.getByRole("status", { name: "Starting SurfSense" })
-    expect(loader.textContent).toBe("")
-    expect(loader.querySelector(".ss-logo-fill-liquid")).toBeTruthy()
-  })
-
   it("shows onboarding only before it has been completed", async () => {
     vi.stubGlobal(
       "fetch",

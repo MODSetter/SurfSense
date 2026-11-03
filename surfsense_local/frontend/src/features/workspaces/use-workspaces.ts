@@ -9,28 +9,15 @@ import {
   renameWorkspace,
   type Workspace,
 } from "./api"
-
-const LAST_WORKSPACE_KEY = "surfsense:last-workspace:v1"
+import { readStoredWorkspaceId, rememberWorkspace } from "./last-workspace"
 
 function readLastWorkspaceId(workspaces: Workspace[]): number | null {
-  try {
-    const stored = Number(localStorage.getItem(LAST_WORKSPACE_KEY))
-    if (workspaces.some((workspace) => workspace.id === stored)) {
-      return stored
-    }
-  } catch {
-    // Storage can be disabled; the first workspace is a safe fallback.
+  const stored = readStoredWorkspaceId()
+  if (workspaces.some((workspace) => workspace.id === stored)) {
+    return stored
   }
   // Null when the list is empty, so nothing is active.
   return workspaces[0]?.id ?? null
-}
-
-function rememberWorkspace(id: number) {
-  try {
-    localStorage.setItem(LAST_WORKSPACE_KEY, String(id))
-  } catch {
-    // Selection still works for this session when storage is unavailable.
-  }
 }
 
 function messageFrom(error: unknown) {

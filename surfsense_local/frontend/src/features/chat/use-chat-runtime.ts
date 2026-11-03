@@ -58,6 +58,7 @@ import {
   type RunState,
 } from "./runs/run-store"
 import { storedUploads } from "./runs/stored-uploads"
+import { readLastThread, rememberThread } from "./last-thread"
 import { markRead, markUnread, readUnread } from "./runs/unread-replies"
 import type { ChatErrorKind, ChatStreamEvent } from "./sse"
 import { composedThread, isOptimistic, OPTIMISTIC_ID } from "./thread-messages"
@@ -129,12 +130,6 @@ function listedRunState(thread: ChatThread): RunState | null {
   return { state: "running" }
 }
 
-function lastThreadKey(workspaceId: number) {
-  return `surfsense:last-thread:${workspaceId}:v1`
-}
-
-const NEW_CHAT = "new"
-
 export type ConversationView =
   // `returned` is what a refused send hands back to the composer.
   | { status: "new"; returned?: ReturnedDraft }
@@ -143,29 +138,9 @@ export type ConversationView =
 
 export type ReturnedDraft = { text: string; images: ImageUpload[] }
 
-function rememberThread(workspaceId: number, threadId: number | null) {
-  try {
-    localStorage.setItem(
-      lastThreadKey(workspaceId),
-      threadId === null ? NEW_CHAT : String(threadId)
-    )
-  } catch {
-    // Selection remains valid for this session when storage is unavailable.
-  }
-}
-
 function readStoredView(workspaceId: number): ConversationView {
-  try {
-    const stored = localStorage.getItem(lastThreadKey(workspaceId))
-    if (stored === NEW_CHAT) return { status: "new" }
-    const id = Number(stored)
-    if (Number.isInteger(id) && id > 0) {
-      return { status: "active", threadId: id }
-    }
-  } catch {
-    // Private browsing: treat as a new chat.
-  }
-  return { status: "new" }
+  const threadId = readLastThread(workspaceId)
+  return threadId === null ? { status: "new" } : { status: "active", threadId }
 }
 
 function stoppedBeforeAWord(pair: LivePair) {

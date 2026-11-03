@@ -1,7 +1,9 @@
 import type { ReactNode } from "react"
 
 import { ColumnHeader } from "@/components/ui/column-header"
+import { useStartupReveal } from "@/features/startup/use-startup-reveal"
 import { intl } from "@/i18n/intl"
+import { cn } from "@/lib/utils"
 
 // The right column: Studio's generate control sits above the artifact
 // list, and an inspected citation or artifact swaps out for the whole panel.
@@ -19,6 +21,7 @@ export function RightPanel({
   /** Hides the panel; Studio's heading holds it, a preview's header never does. */
   toggle?: ReactNode
 }) {
+  const reveal = useStartupReveal()
   if (inspect) return inspect
 
   return (
@@ -40,9 +43,14 @@ export function RightPanel({
           </h2>
           {toggle}
         </ColumnHeader>
-        <div className="px-3 pt-2">{studio}</div>
+        <div className={cn("px-3 pt-2", reveal)}>{studio}</div>
       </header>
-      <div className="min-h-0 min-w-0 flex-1 overflow-hidden px-3 pb-2">
+      <div
+        className={cn(
+          "min-h-0 min-w-0 flex-1 overflow-hidden px-3 pb-2",
+          reveal
+        )}
+      >
         {artifacts}
       </div>
     </aside>

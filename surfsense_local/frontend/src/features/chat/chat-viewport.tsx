@@ -5,6 +5,14 @@ import { ArrowDownIcon } from "@/components/ui/icons"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
+import {
+  VIEWPORT_BOX_CLASS,
+  VIEWPORT_CLASS,
+  VIEWPORT_FOOTER_CLASS,
+  VIEWPORT_FOOTER_INNER_CLASS,
+  VIEWPORT_STYLE,
+} from "./chat-viewport-layout"
+
 // Raised clear of a notice tucked behind the composer's top edge, whose visible
 // part is about 28px tall.
 function ScrollToBottom({ raised }: { raised: boolean }) {
@@ -39,12 +47,11 @@ export function ChatViewport({
   footerHasNotice?: boolean
 }) {
   return (
-    <div className="relative flex min-h-0 w-full min-w-0 flex-1 flex-col">
+    <div className={VIEWPORT_BOX_CLASS}>
       <ThreadPrimitive.Viewport
         turnAnchor="top"
-        // Top edge only: a bottom mask would fade the sticky composer.
-        className="flex min-h-0 w-full min-w-0 flex-1 scroll-fade-t flex-col overflow-y-auto px-4 [--scroll-fade-reveal:24px] scroll-fade-6"
-        style={{ scrollbarGutter: "stable" }}
+        className={VIEWPORT_CLASS}
+        style={VIEWPORT_STYLE}
         autoScroll
         scrollToBottomOnRunStart
         scrollToBottomOnInitialize
@@ -53,8 +60,8 @@ export function ChatViewport({
       >
         {children}
         {footer ? (
-          <ThreadPrimitive.ViewportFooter className="sticky bottom-0 z-20 -mx-4 mt-auto shrink-0 bg-gradient-to-t from-background via-background to-transparent px-4 pb-1">
-            <div className="relative mx-auto w-full max-w-3xl">
+          <ThreadPrimitive.ViewportFooter className={VIEWPORT_FOOTER_CLASS}>
+            <div className={VIEWPORT_FOOTER_INNER_CLASS}>
               <ScrollToBottom raised={footerHasNotice} />
               {footer}
             </div>

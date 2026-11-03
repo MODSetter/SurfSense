@@ -58,8 +58,10 @@ import { useStudio } from "@/features/studio/use-studio"
 import { TitleBarUpdate } from "@/features/updates/title-bar-update"
 import type { Workspace } from "@/features/workspaces/api"
 import { useWorkspaces } from "@/features/workspaces/use-workspaces"
+import { useStartupReveal } from "@/features/startup/use-startup-reveal"
 import { useStableCallback } from "@/hooks/use-stable-callback"
 import { intl } from "@/i18n/intl"
+import { cn } from "@/lib/utils"
 import { WorkspaceRail } from "@/features/workspaces/workspace-rail"
 import type { PluginsStart } from "@/features/plugins/plugins-settings"
 import {
@@ -69,6 +71,7 @@ import {
   writeSourcePreview,
 } from "./chrome-prefs"
 import {
+  ChatColumn,
   ColumnEdge,
   DashboardColumns,
   RightPanelRail,
@@ -77,6 +80,7 @@ import {
 import { LeftSidebar, type SidebarNavAction } from "./left-sidebar"
 import { RightPanel } from "./right-panel"
 import { RightPanelToggle } from "./right-panel-toggle"
+import { DashboardShell } from "./dashboard-shell"
 import { SidebarFooter } from "./sidebar-footer"
 
 // Clicking "N sources" in the composer used to switch the right rail to its
@@ -128,6 +132,7 @@ function WorkspaceDashboard({
   onOpenPlugins: (start?: PluginsStart) => void
   modelsVisited: number
 }) {
+  const reveal = useStartupReveal()
   const [inspect, setInspect] = useState<Inspect>(null)
   const [rightPanelOpen, setRightPanelOpen] = useState(readRightPanelOpen)
   const [sourcePreviewId, setSourcePreviewId] = useState<number | null>(() =>
@@ -390,7 +395,7 @@ function WorkspaceDashboard({
     <OfficeOfferContext.Provider value={officeOffer}>
       <OpenArtifactContext.Provider value={openArtifact}>
         <div className="titlebar-controls">
-          <div className="titlebar-controls-end">
+          <div className={cn("titlebar-controls-end", reveal)}>
             <TitleBarUpdate />
             {/* Docker's browser has no title bar: there the toggle sits on a heading's line. */}
             {IN_CONTAINER
@@ -450,7 +455,7 @@ function WorkspaceDashboard({
             })}
             controls={LEFT_COLUMN_ID}
           />
-          <div className="flex min-h-0 min-w-130 flex-1 flex-col">
+          <ChatColumn>
             <AgentApprovalsProvider
               approvals={chat.approvals}
               answer={chat.answerApproval}
@@ -502,7 +507,7 @@ function WorkspaceDashboard({
                 }}
               />
             </AgentApprovalsProvider>
-          </div>
+          </ChatColumn>
           {/* Collapsed, the rail has no edge to drag. */}
           {rightPanelOpen ? (
             <ColumnEdge
@@ -764,7 +769,7 @@ export function DashboardPage({
   return (
     // Above the workspace, so a mode picked for the next chat holds across them.
     <NewChatModeProvider>
-      <main className="relative grid h-full min-w-292 grid-cols-[56px_minmax(0,1fr)] overflow-hidden bg-app-shell">
+      <DashboardShell>
         <WorkspaceRail
           workspaces={workspaces.workspaces}
           activeWorkspaceId={workspaces.activeWorkspace.id}
@@ -850,7 +855,7 @@ export function DashboardPage({
             </Button>
           </Alert>
         ) : null}
-      </main>
+      </DashboardShell>
     </NewChatModeProvider>
   )
 }

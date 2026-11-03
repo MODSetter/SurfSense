@@ -17,11 +17,28 @@ import { intl } from "@/i18n/intl"
 
 import { listWorkspaces, type Workspace } from "@/features/workspaces/api"
 
-import { loadDashboard, type DashboardComponent } from "./load-dashboard"
-import { LogoFillLoader } from "./logo-fill-loader"
+import {
+  expectsDashboard,
+  forgetDashboard,
+  rememberDashboard,
+} from "@/features/startup/dashboard-hint"
+import { StartupRevealProvider } from "@/features/startup/startup-reveal-provider"
+import { StartupScreen } from "@/features/startup/startup-screen"
 
-type BootstrapState =
-  | { status: "loading" }
+import { loadDashboard, type DashboardComponent } from "./load-dashboard"
+
+// A wait shorter than this ends before the frame is noticed: the dashboard is
+// drawn at once rather than faded in, which would only make it look slower.
+const REVEAL_AFTER_MS = 150
+
+type Loading = {
+  status: "loading"
+  // Whether the dashboard's frame is drawn, rather than the plain background.
+  frame: boolean
+  since: number
+}
+
+type Fetched =
   | { status: "onboarding-required" }
   | {
       status: "ready"
@@ -35,6 +52,25 @@ type BootstrapState =
     }
   | { status: "error"; message: string }
 
+type BootstrapState =
+  | Loading
+  | Exclude<Fetched, { status: "ready" }>
+  | (Extract<Fetched, { status: "ready" }> & { reveal: boolean })
+
+function startLoading(): Loading {
+  return { status: "loading", frame: expectsDashboard(), since: Date.now() }
+}
+
+// Fades the dashboard into a frame that was on screen long enough to see.
+function settle(current: BootstrapState, next: Fetched): BootstrapState {
+  if (next.status !== "ready") return next
+  const reveal =
+    current.status === "loading" &&
+    current.frame &&
+    Date.now() - current.since >= REVEAL_AFTER_MS
+  return { ...next, reveal }
+}
+
 function messageFrom(error: unknown) {
   return error instanceof Error
     ? error.message
@@ -44,7 +80,7 @@ function messageFrom(error: unknown) {
       })
 }
 
-async function fetchBootstrapState(): Promise<BootstrapState> {
+async function fetchBootstrapState(): Promise<Fetched> {
   // Fetched alongside the data rather than after it: one wait, one loader.
   const dashboard = loadDashboard()
   // Handled where it is awaited; this only keeps an early exit from leaving
@@ -53,8 +89,10 @@ async function fetchBootstrapState(): Promise<BootstrapState> {
   try {
     const onboarding = await getOnboardingStatus()
     if (!onboarding.completed) {
+      forgetDashboard()
       return { status: "onboarding-required" }
     }
+    rememberDashboard()
     const [selection, workspaces] = await Promise.all([
       getGenerationSelection(),
       listWorkspaces(),
@@ -76,28 +114,13 @@ async function fetchBootstrapState(): Promise<BootstrapState> {
   }
 }
 
-function GlobalLoader() {
-  return (
-    <main
-      className="flex h-full items-center justify-center bg-app-shell select-none"
-      role="status"
-      aria-label={intl.formatMessage({
-        id: "app_bootstrap_loader_aria",
-        defaultMessage: "Starting SurfSense",
-      })}
-    >
-      <LogoFillLoader />
-    </main>
-  )
-}
-
 export function AppBootstrap() {
-  const [state, setState] = useState<BootstrapState>({ status: "loading" })
+  const [state, setState] = useState<BootstrapState>(startLoading)
 
   useEffect(() => {
     let active = true
     void fetchBootstrapState().then((next) => {
-      if (active) setState(next)
+      if (active) setState((current) => settle(current, next))
     })
     return () => {
       active = false
@@ -105,23 +128,26 @@ export function AppBootstrap() {
   }, [])
 
   if (state.status === "loading") {
-    return <GlobalLoader />
+    return <StartupScreen frame={state.frame} />
   }
 
   if (state.status === "onboarding-required") {
     return (
       <OnboardingPage
         onComplete={(selection) => {
-          setState({ status: "loading" })
+          rememberDashboard()
+          setState(startLoading())
           void Promise.all([listWorkspaces(), loadDashboard()])
             .then(([workspaces, Dashboard]) =>
-              setState({
-                status: "ready",
-                Dashboard,
-                selection,
-                availability: { status: "available" },
-                workspaces,
-              })
+              setState((current) =>
+                settle(current, {
+                  status: "ready",
+                  Dashboard,
+                  selection,
+                  availability: { status: "available" },
+                  workspaces,
+                })
+              )
             )
             .catch((error: unknown) =>
               setState({ status: "error", message: messageFrom(error) })
@@ -148,8 +174,10 @@ export function AppBootstrap() {
               className="mt-3"
               variant="outline"
               onClick={() => {
-                setState({ status: "loading" })
-                void fetchBootstrapState().then(setState)
+                setState(startLoading())
+                void fetchBootstrapState().then((next) =>
+                  setState((current) => settle(current, next))
+                )
               }}
             >
               {intl.formatMessage({
@@ -167,20 +195,24 @@ export function AppBootstrap() {
   // loader to flash between startup and the first screen.
   const { Dashboard } = state
   return (
-    <Dashboard
-      selection={state.selection}
-      initialAvailability={state.availability}
-      initialWorkspaces={state.workspaces}
-      onModelUnavailable={() =>
-        setState((current) =>
-          current.status === "ready" ? { ...current, selection: null } : current
-        )
-      }
-      onModelSelected={(selection) =>
-        setState((current) =>
-          current.status === "ready" ? { ...current, selection } : current
-        )
-      }
-    />
+    <StartupRevealProvider reveal={state.reveal}>
+      <Dashboard
+        selection={state.selection}
+        initialAvailability={state.availability}
+        initialWorkspaces={state.workspaces}
+        onModelUnavailable={() =>
+          setState((current) =>
+            current.status === "ready"
+              ? { ...current, selection: null }
+              : current
+          )
+        }
+        onModelSelected={(selection) =>
+          setState((current) =>
+            current.status === "ready" ? { ...current, selection } : current
+          )
+        }
+      />
+    </StartupRevealProvider>
   )
 }
