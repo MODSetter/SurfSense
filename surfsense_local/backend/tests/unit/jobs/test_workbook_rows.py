@@ -244,3 +244,28 @@ def test_only_the_rows_asked_for_are_answered(workbook, config):
     )
 
     assert [r.row.row for r in filled.results] == [4]
+
+
+def test_a_context_cell_merged_down_its_rows_reaches_every_row(tmp_path, config):
+    """A control's topic, merged down all of its question rows, is in each row's context, as
+    CAIQ's control title and specification are, not only in the merge's first row."""
+    book = openpyxl.Workbook()
+    sheet = book.active
+    sheet.append(["#", "Topic", "Question", "Answer"])
+    sheet.append(
+        ["1", "Business continuity exercises", "Is the exercise run each year?", None]
+    )
+    sheet.append(["2", None, "Are the results of the exercise reported?", None])
+    sheet.append(["3", None, "Is the exercise scope approved by management?", None])
+    sheet.merge_cells("B2:B4")
+    rule = DataValidation(type="list", formula1='"Yes,No,N/A"', allow_blank=True)
+    rule.add("D2:D4")
+    sheet.add_data_validation(rule)
+    path = tmp_path / "Merged.xlsx"
+    book.save(path)
+
+    layout = find_questions(inspect_workbook(path), config.layout)
+
+    assert [row.context for row in layout.rows] == [
+        f"#: {n}; Topic: Business continuity exercises" for n in (1, 2, 3)
+    ]

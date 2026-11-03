@@ -278,11 +278,9 @@ def _rows(
             )
             continue
         context = [
-            f"{headers[col]}: {texts[(col, row)]}"
-            if headers[col]
-            else texts[(col, row)]
+            f"{headers[col]}: {text}" if headers[col] else text
             for col in table.context_columns
-            if texts.get((col, row))
+            if (text := _merged_text(sheet, texts, col, row))
         ]
         if section:
             context.insert(0, f"Section: {section}")
@@ -299,6 +297,18 @@ def _rows(
                 allowed=dropdown.values if dropdown is not None else None,
             )
         )
+
+
+def _merged_text(
+    sheet: SheetFacts, texts: dict[tuple[int, int], str], column: int, row: int
+) -> str:
+    """A cell's text, or its merge's: a control's title and specification are often one cell
+    merged down all of its question rows, and only the first row holds the text."""
+    text = texts.get((column, row))
+    if text:
+        return text
+    merge = sheet.merge_of((column, row))
+    return texts.get(merge[0], "") if merge is not None else ""
 
 
 def _writable(
