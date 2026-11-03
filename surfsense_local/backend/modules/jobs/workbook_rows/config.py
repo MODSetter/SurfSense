@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -53,12 +54,30 @@ class Templates:
 class StatementGate:
     """A No or N/A must rest on a statement that rules the thing out: one whose found quote
     speaks of a scope or a provider (`quote`), or whose comment says the documents do not
-    state it (`comment`), goes to a person before any check. Patterns are the pack's, since
-    they are words in its language."""
+    state it (`comment`), goes to a person. Patterns are the pack's, since they are words in
+    its language.
+
+    An answer in `suggest` is not dropped there: it goes on to the check, and an answer the
+    check supports is offered to the person, who confirms it in one step. One whose quote names
+    a provider that runs the thing for the firm (`provider`) is written instead when the firm
+    turns on `provider_setting`."""
 
     answers: tuple[str, ...] = ()
     quote: re.Pattern[str] | None = None
     comment: re.Pattern[str] | None = None
+    suggest: tuple[str, ...] = ()
+    provider: re.Pattern[str] | None = None
+    provider_setting: str = ""
+
+
+@dataclass(frozen=True)
+class JobSetting:
+    """A choice the firm makes once for every run of the job, off unless it says otherwise."""
+
+    key: str
+    label: str
+    description: str = ""
+    default: bool = False
 
 
 @dataclass(frozen=True)
@@ -95,6 +114,7 @@ class JobConfig:
     second_look_answers: tuple[str, ...] = ()
     # Answers such as No and N/A that need a statement, not a scope, a provider or silence.
     statement_gate: StatementGate = field(default_factory=lambda: StatementGate())
+    settings: tuple[JobSetting, ...] = ()
 
     @property
     def fallback(self) -> AnswerChoice:
@@ -102,6 +122,20 @@ class JobConfig:
 
     def choice(self, answer: str) -> AnswerChoice | None:
         return next((c for c in self.answers if c.answer == answer), None)
+
+    def setting_values(self, chosen: Mapping[str, object] | None) -> dict[str, bool]:
+        """Every setting the job declares, as the firm chose it or at its default."""
+        chosen = dict(chosen or {})
+        unknown = sorted(set(chosen) - {s.key for s in self.settings})
+        if unknown:
+            raise ValueError(f"The job has no setting {', '.join(unknown)}.")
+        values = {}
+        for setting in self.settings:
+            value = chosen.get(setting.key, setting.default)
+            if not isinstance(value, bool):
+                raise ValueError(f"{setting.key} is true or false.")
+            values[setting.key] = value
+        return values
 
 
 def load_config(config_file: Path) -> JobConfig:
@@ -166,6 +200,15 @@ def load_config(config_file: Path) -> JobConfig:
                 str(a) for a in raw.get("second_look", {}).get("answers", ())
             ),
             statement_gate=_gate(raw.get("statement_gate", {})),
+            settings=tuple(
+                JobSetting(
+                    key=str(item["key"]),
+                    label=str(item["label"]),
+                    description=str(item.get("description", "")),
+                    default=_flag(item.get("default", False)),
+                )
+                for item in raw.get("settings", ())
+            ),
         )
     except (
         OSError,
@@ -180,6 +223,20 @@ def load_config(config_file: Path) -> JobConfig:
         ) from broken
     if sum(1 for choice in answers if choice.fallback) != 1:
         raise PackRefusedError("BAD_JOB_CONFIG", "Exactly one answer is the fallback.")
+    keys = [s.key for s in config.settings]
+    if len(set(keys)) != len(keys):
+        raise PackRefusedError("BAD_JOB_CONFIG", "Two settings share a key.")
+    gate = config.statement_gate
+    if gate.provider_setting and gate.provider_setting not in keys:
+        raise PackRefusedError(
+            "BAD_JOB_CONFIG",
+            f"The statement gate's provider_setting {gate.provider_setting} is not a setting.",
+        )
+    if any(config.choice(a) is None for a in (*gate.answers, *gate.suggest)):
+        raise PackRefusedError(
+            "BAD_JOB_CONFIG",
+            "The statement gate names an answer the job does not give.",
+        )
     return config
 
 
@@ -191,7 +248,16 @@ def _gate(raw: dict) -> StatementGate:
         answers=tuple(str(a) for a in raw.get("answers", ())),
         quote=pattern("quote"),
         comment=pattern("comment"),
+        suggest=tuple(str(a) for a in raw.get("suggest", ())),
+        provider=pattern("provider"),
+        provider_setting=str(raw.get("provider_setting", "")),
     )
+
+
+def _flag(value: object) -> bool:
+    if not isinstance(value, bool):
+        raise ValueError("A setting's default is true or false.")
+    return value
 
 
 def _lowered(words: object) -> tuple[str, ...]:

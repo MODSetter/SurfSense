@@ -14,10 +14,10 @@ def report(out: Path) -> str:
     ]
     grouped: dict[tuple[str, str], list[dict]] = defaultdict(list)
     for record in runs:
-        grouped[(record["case"], record["model"])].append(record)
+        grouped[(record["case"], _model(record))].append(record)
     lines = [
-        "| case | model | runs | correct (per run) | accuracy | false Yes | other wrong answers | Yes without quote | dropdown or integrity problems | $ first run | $ per run | seconds per run |",
-        "|---|---|---|---|---|---|---|---|---|---|---|---|",
+        "| case | model | runs | correct (per run) | accuracy | with the provider setting flipped | false Yes | other wrong answers | Yes without quote | suggestions right, wrong | dropdown or integrity problems | $ first run | $ per run | seconds per run |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     for (case, model), records in sorted(grouped.items()):
         records.sort(key=lambda r: r["started"])
@@ -27,8 +27,11 @@ def report(out: Path) -> str:
         per_run = ", ".join(f"{r['correct']}/{r['scored_rows']}" for r in records)
         lines.append(
             f"| {case} | {model} | {len(records)} | {per_run} | {correct / scored:.1%} | "
+            f"{_flipped(records, scored)} | "
             f"{sum(r['false_yes'] for r in records)} | {sum(_other_wrong(r) for r in records)} | "
-            f"{sum(r['yes_without_quote'] for r in records)} | {problems} | "
+            f"{sum(r['yes_without_quote'] for r in records)} | "
+            f"{sum(r.get('suggested_right', 0) for r in records)}, "
+            f"{sum(r.get('suggested_wrong', 0) for r in records)} | {problems} | "
             # The first run pays to fill the provider's cache; later ones read it.
             f"{records[0]['spend']['dollars']:.4f} | "
             f"{sum(r['spend']['dollars'] for r in records) / len(records):.4f} | "
@@ -48,6 +51,20 @@ def report(out: Path) -> str:
             )
             lines.append(f"- {case} on {model}: {listed}")
     return "\n".join(lines) + "\n"
+
+
+def _model(record: dict) -> str:
+    checker = record.get("checker")
+    return record["model"] + (f", checked by {checker}" if checker else "")
+
+
+def _flipped(records: list[dict], scored: int) -> str:
+    """Accuracy had the provider setting been the other way round; runs before it say "—"."""
+    flips = [r.get("provider_setting_flipped") for r in records]
+    if not all(flips):
+        return "—"
+    turned = "on" if flips[0]["provider_on"] else "off"
+    return f"{sum(f['correct'] for f in flips) / scored:.1%} ({turned})"
 
 
 def _other_wrong(record: dict) -> int:

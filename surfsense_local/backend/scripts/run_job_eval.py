@@ -7,7 +7,9 @@ environment: ANTHROPIC_API_KEY for anthropic:<id>, OPENROUTER_API_KEY for openro
         --model anthropic:claude-haiku-5-5 --model openrouter:qwen/qwen3.8-27b --runs 3 --out <dir>
     python scripts/run_job_eval.py report <dir>
 
-Each run writes its filled workbook and a JSON record; `report` rolls them up per model.
+`--checker <model>` makes the second checks on another model; `--setting key=true` turns on one
+of the job's firm settings. Each run writes its filled workbook and a JSON record; `report`
+rolls them up per model.
 """
 
 import argparse
@@ -74,16 +76,40 @@ def _embedder(name: str) -> Embed | None:
     return remembered(embed, f"{BGE.id}@{BGE.weights.sha256}")
 
 
+def _settings(pairs: list[str] | None) -> dict[str, bool]:
+    chosen = {}
+    for pair in pairs or ():
+        key, _, value = pair.partition("=")
+        if value not in ("true", "false"):
+            raise SystemExit(f"--setting {pair}: give key=true or key=false.")
+        chosen[key] = value == "true"
+    return chosen
+
+
 def _one_run(args, spec: str, case: Case, config, number: int, embed) -> None:
     model = model_for(
         spec, concurrency=args.concurrency, effort=args.effort, reasoning=args.reasoning
     )
+    checker = (
+        model_for(
+            args.checker,
+            concurrency=args.concurrency,
+            effort=args.effort,
+            reasoning=args.reasoning,
+        )
+        if args.checker
+        else None
+    )
+    chosen = config.setting_values(_settings(args.setting))
+    gate = config.statement_gate
+    provider_on = bool(gate.provider_setting and chosen.get(gate.provider_setting))
     sources = [source_text(path, index + 1) for index, path in enumerate(case.sources)]
     gold_cells = {(g.sheet.casefold(), g.cell) for g in case.gold}
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    named = spec + (f"-checked-{args.checker}" if args.checker else "")
     folder = (
         args.out
-        / f"{stamp}-{case.id}-{spec.replace(':', '_').replace('/', '_')}-r{number}"
+        / f"{stamp}-{case.id}-{named.replace(':', '_').replace('/', '_')}-r{number}"
     )
     folder.mkdir(parents=True)
     print(f"{case.id} on {spec}, run {number}: {folder.name}", flush=True)
@@ -98,6 +124,8 @@ def _one_run(args, spec: str, case: Case, config, number: int, embed) -> None:
         else (lambda row: (row.sheet.casefold(), row.answer_cell) in gold_cells),
         on_row=lambda done, total: print(f"  {done}/{total}", flush=True),
         embed=embed,
+        checker=checker,
+        settings=chosen,
     )
     out = folder / f"filled{case.workbook.suffix}"
     applied = excel.apply(case.workbook, filled.operations, out)
@@ -107,7 +135,7 @@ def _one_run(args, spec: str, case: Case, config, number: int, embed) -> None:
         for cell in (r.row.answer_cell, r.row.comment_cell, r.row.evidence_cell)
         if cell
     }
-    scored = score_case(case, filled.results, config)
+    scored = score_case(case, filled.results, config, provider_on)
     scored.integrity = (
         integrity_problems(case.workbook, out, writable)
         if applied.saved
@@ -118,6 +146,7 @@ def _one_run(args, spec: str, case: Case, config, number: int, embed) -> None:
         "title": case.title,
         "gold_status": case.gold_status,
         "model": spec,
+        "checker": args.checker,
         "run": number,
         "started": stamp,
         "seconds": round(time.monotonic() - started, 1),
@@ -126,6 +155,7 @@ def _one_run(args, spec: str, case: Case, config, number: int, embed) -> None:
             "reasoning": args.reasoning,
             "all_rows": args.all_rows,
             "embedder": args.embedder,
+            "job": filled.settings,
         },
         "whole_sources": filled.whole_sources,
         "questions_found": len(filled.layout.rows),
@@ -136,6 +166,13 @@ def _one_run(args, spec: str, case: Case, config, number: int, embed) -> None:
         "accuracy": round(scored.accuracy, 4),
         "yes_without_quote": scored.yes_without_quote,
         "false_yes": scored.false_yes,
+        "suggested_right": scored.suggested_right,
+        "suggested_wrong": scored.suggested_wrong,
+        # Scored as if the provider setting had been the other way round: the same calls.
+        "provider_setting_flipped": {
+            "provider_on": not provider_on,
+            "correct": scored.correct_flipped,
+        },
         "unreached": scored.unreached,
         "dropdown_violations": scored.dropdown_violations,
         "integrity": scored.integrity,
@@ -145,18 +182,32 @@ def _one_run(args, spec: str, case: Case, config, number: int, embed) -> None:
             "input_tokens": model.spend.input_tokens,
             "cached_tokens": model.spend.cached_tokens,
             "output_tokens": model.spend.output_tokens,
-            "dollars": round(model.spend.dollars, 4),
+            "dollars": round(
+                model.spend.dollars + (checker.spend.dollars if checker else 0.0), 4
+            ),
             "errors": model.spend.errors[:20],
         },
+        "checker_spend": {
+            "calls": checker.spend.calls,
+            "input_tokens": checker.spend.input_tokens,
+            "output_tokens": checker.spend.output_tokens,
+            "dollars": round(checker.spend.dollars, 4),
+            "errors": checker.spend.errors[:20],
+        }
+        if checker
+        else None,
         "rows": [r.__dict__ for r in scored.rows],
     }
     (folder / "run.json").write_text(
         json.dumps(record, indent=2, default=str), encoding="utf-8"
     )
     print(
-        f"  {scored.correct}/{len(scored.rows)} correct, false Yes {scored.false_yes}, "
-        f"Yes without quote {scored.yes_without_quote}, integrity problems {len(scored.integrity)}, "
-        f"${model.spend.dollars:.4f}, {record['seconds']}s",
+        f"  {scored.correct}/{len(scored.rows)} correct "
+        f"({scored.correct_flipped} with the provider setting {'off' if provider_on else 'on'}), "
+        f"false Yes {scored.false_yes}, Yes without quote {scored.yes_without_quote}, "
+        f"suggestions right {scored.suggested_right} wrong {scored.suggested_wrong}, "
+        f"integrity problems {len(scored.integrity)}, "
+        f"${record['spend']['dollars']:.4f}, {record['seconds']}s",
         flush=True,
     )
 
@@ -169,6 +220,15 @@ def main() -> None:
     run_parser.add_argument("--eval", type=Path, required=True)
     run_parser.add_argument("--case", action="append")
     run_parser.add_argument("--model", action="append", required=True)
+    run_parser.add_argument(
+        "--checker",
+        help="the model that makes the second checks; the answering model if left out",
+    )
+    run_parser.add_argument(
+        "--setting",
+        action="append",
+        help="one of the job's firm settings, as key=true or key=false",
+    )
     run_parser.add_argument("--runs", type=int, default=1)
     run_parser.add_argument("--concurrency", type=int, default=4)
     run_parser.add_argument("--effort", default="low", help="Claude's effort level")

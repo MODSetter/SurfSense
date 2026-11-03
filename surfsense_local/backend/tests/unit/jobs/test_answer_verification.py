@@ -828,7 +828,7 @@ def test_a_refused_no_asked_again_onto_a_scope_keeps_its_refusal(
     assert [c.quote for c in result.cited] == [
         "Staff must not store client data on removable media."
     ]
-    assert "statement gate" in [step["step"] for step in result.trace]
+    assert "statement gate, after the check" in [step["step"] for step in result.trace]
 
 
 def test_the_gate_reads_a_quote_by_its_words(workbook, gated_config):

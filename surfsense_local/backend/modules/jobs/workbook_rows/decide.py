@@ -27,6 +27,7 @@ EXCEPTIONS = {
     "ANSWER_SWITCHED": "The model answered {said}, a second check refused its quotes, and it then gave another answer, so no answer was given.",
     "UNREADABLE_REPLY": "The model's reply could not be read.",
     "NO_STATEMENT": "The model answered {said}. {missing}",
+    "SUGGESTED": "The checks support {said}, but it rests on a provider or a scope, so a person confirms it. {missing}",
     "CALL_FAILED": "The model could not be asked about this question ({missing}), so it was left to a person.",
     "ROW_HIDDEN": "The row is hidden, so it was left as it was.",
     "ANSWER_LOCKED": "The answer cell is locked, so it was left as it was.",
@@ -61,12 +62,16 @@ class RowResult:
     calls: int = 0
     input_tokens: int = 0
     output_tokens: int = 0
-    missing: str = ""  # what the second check found the quotes leave out
+    # What the second check found the quotes leave out, or, for a suggestion, its evidence.
+    missing: str = ""
     looked_again: bool = False  # it fell back at first and was asked to look once more
     # Each answer and check on the way, quotes found or not; the answers sheet keeps the last.
     trace: list[dict] = field(default_factory=list)
     # The passages the question was shown, by number from 1, pinned ones first.
     shown: list[int] = field(default_factory=list)
+    # An answer the checks support that the job leaves to a person to confirm, such as N/A
+    # for a control a provider runs for the firm; its quotes are `cited`.
+    suggested: str | None = None
 
     @property
     def quote(self) -> str:
@@ -85,6 +90,15 @@ class RowResult:
         return self.cited[0].line if self.cited else None
 
 
+@dataclass(frozen=True)
+class Gated:
+    """Why the statement gate holds an answer: its quote names a provider that runs the thing
+    for the firm, or speaks of a scope, or its comment says the documents are silent."""
+
+    kind: str  # "provider", "scope" or "silence"
+    reason: str
+
+
 def answer_row(
     model: AnswerModel,
     config: JobConfig,
@@ -92,7 +106,16 @@ def answer_row(
     block: str,
     passages: list[Passage],
     sources: list[SourceText],
+    *,
+    checker: AnswerModel | None = None,
+    settings: dict[str, bool] | None = None,
 ) -> RowResult:
+    """`checker` makes the second checks, `model` when None; `settings` are the firm's, by key."""
+    checker = checker or model
+    gate = config.statement_gate
+    provider_on = bool(
+        gate.provider_setting and (settings or {}).get(gate.provider_setting)
+    )
     trace: list[dict] = []
 
     def quoted(step: str, ask: str | None, earlier: Asked | None) -> Asked:
@@ -123,17 +146,34 @@ def answer_row(
             # N/A: all 12 that the v0.2.0 dev sweeps wrote that way were wrong.
             asked.draft = cautious
     checks: list[Verdict] = []
-    unstated = _unstated(asked.draft, config, passages, sources)
-    if unstated:
-        # No check can turn a scope, a provider or silence into a statement: a person decides.
-        trace.append({"step": "statement gate", "missing": unstated})
+    gated = _gated(asked.draft, config, passages, sources)
+    if gated is not None:
+        # No check can turn a scope, a provider or silence into a statement that the firm
+        # does not do the thing: a person decides. An answer the pack lets the job suggest is
+        # still checked, so the person is offered only one its quotes support.
+        trace.append(
+            {"step": "statement gate", "kind": gated.kind, "missing": gated.reason}
+        )
+        verdict = None
+        if gated.kind != "silence" and asked.draft.answer in gate.suggest:
+            verdict = _verdict(
+                checker, config, row, asked, passages, sources, trace, checks
+            )
         result = _decided(
-            asked, config, row, passages, sources, checks=checks, unstated=unstated
+            asked,
+            config,
+            row,
+            passages,
+            sources,
+            verdict,
+            checks=checks,
+            gated=gated,
+            provider_on=provider_on,
         )
         result.looked_again = looked_again
         result.trace = trace
         return result
-    verdict = _verdict(model, config, row, asked, passages, sources, trace, checks)
+    verdict = _verdict(checker, config, row, asked, passages, sources, trace, checks)
     switched = None
     if verdict is not None and not verdict.supported:
         # Right answer, wrong evidence is common: say what the check found, ask once more.
@@ -169,14 +209,20 @@ def answer_row(
         )
         # Asked for evidence for a refused No or N/A, a model reaches for a scope sentence
         # or for silence: the gate holds on this turn too.
-        unstated = _unstated(again, config, passages, sources)
-        if unstated:
-            trace.append({"step": "statement gate", "missing": unstated})
+        regated = _gated(again, config, passages, sources)
+        if regated is not None:
+            trace.append(
+                {
+                    "step": "statement gate, after the check",
+                    "kind": regated.kind,
+                    "missing": regated.reason,
+                }
+            )
         if (
             again is None
             or switched
             or unfounded
-            or unstated
+            or regated is not None
             or again.answer == config.fallback.answer
         ):
             # The refusal stands, and the row keeps what was refused and why: for a person,
@@ -189,7 +235,7 @@ def answer_row(
             # enough that a second look rescued 14 of them in the v0.2.0 runs, and every wrong
             # answer that passed on a second look came with new quotes.
             verdict = _verdict(
-                model, config, row, asked, passages, sources, trace, checks
+                checker, config, row, asked, passages, sources, trace, checks
             )
     result = _decided(asked, config, row, passages, sources, verdict, switched, checks)
     result.looked_again = looked_again
@@ -304,35 +350,46 @@ def _verdict(
     return verdict
 
 
-def _unstated(
+def _gated(
     draft: Draft | None,
     config: JobConfig,
     passages: list[Passage],
     sources: list[SourceText],
-) -> str:
-    """Why an answer the gate covers rests on no statement, or "" when it may go on to the
+) -> Gated | None:
+    """Why an answer the gate covers rests on no statement, or None when it may go on to the
     check. In the v0.2.0 dev sweeps this held for all 5 wrong No and N/A writes and none of
     the 23 right ones; on Qwen3.8-27B's dev runs it cut wrong answers from 3.7 to 1.7 a pass."""
     gate = config.statement_gate
     if draft is None or draft.answer not in gate.answers:
-        return ""
+        return None
     cited, _ = _cited(draft, config, passages, sources)
     # A quote is read as the quote check reads it, by its words, so "out-of-scope" or a
     # line break inside a phrase is caught as surely as the phrase itself.
     read = [" ".join(words(c.quote)) for c in cited]
+    if (
+        gate.provider is not None
+        and draft.answer in gate.suggest
+        and any(gate.provider.search(quote) for quote in read)
+    ):
+        return Gated(
+            "provider",
+            f"The evidence for {draft.answer} is that a provider runs this for the firm.",
+        )
     if gate.quote is not None and any(gate.quote.search(quote) for quote in read):
-        return (
+        return Gated(
+            "scope",
             f"The only evidence for {draft.answer} speaks of a scope or a provider, which "
-            "does not say the firm does not do it."
+            "does not say the firm does not do it.",
         )
     if gate.comment is not None and gate.comment.search(
         " ".join(draft.comment.split())
     ):
-        return (
+        return Gated(
+            "silence",
             f"The only evidence for {draft.answer} is what the documents leave unsaid, which "
-            "does not say the firm does not do it."
+            "does not say the firm does not do it.",
         )
-    return ""
+    return None
 
 
 def _needs_quote(draft: Draft, config: JobConfig) -> bool:
@@ -426,7 +483,8 @@ def _decided(
     verdict: Verdict | None = None,
     switched: str | None = None,
     checks: list[Verdict] | None = None,
-    unstated: str = "",
+    gated: Gated | None = None,
+    provider_on: bool = False,
 ) -> RowResult:
     fallback = config.fallback
     checks = checks or []
@@ -455,10 +513,22 @@ def _decided(
         elif choice.needs_quote and not result.cited:
             result.said = choice.answer
             result.codes.append("QUOTE_NOT_FOUND")
-        elif unstated:
-            result.said = choice.answer
-            result.missing = unstated
-            result.codes.append("NO_STATEMENT")
+        elif gated is not None:
+            supported = verdict is not None and verdict.supported
+            if supported and gated.kind == "provider" and provider_on:
+                result.answer = choice.answer  # the firm's setting writes it
+            elif supported:
+                result.said = result.suggested = choice.answer
+                result.missing = _suggestion(choice.answer, result.cited)
+                result.codes.append("SUGGESTED")
+            elif verdict is not None:
+                result.said = choice.answer
+                result.missing = verdict.missing
+                result.codes.append("NOT_SUPPORTED")
+            else:
+                result.said = choice.answer
+                result.missing = gated.reason
+                result.codes.append("NO_STATEMENT")
         elif verdict is not None and not verdict.supported:
             result.said = choice.answer
             result.missing = verdict.missing
@@ -466,14 +536,7 @@ def _decided(
         else:
             result.answer = choice.answer
     chosen = config.choice(result.answer) or fallback
-    result.written = cell_value(chosen, row.allowed)
-    if row.allowed is None and not chosen.fallback:
-        # A free-text cell takes the answer in words, as a person filling it in would.
-        result.written = " ".join(
-            Template(config.templates.free_text)
-            .safe_substitute(template_fields(result))
-            .split()
-        )
+    result.written = written_value(result, config)
     if chosen.fallback:
         result.codes.append("NEEDS_REVIEW")
     elif result.written is None:
@@ -481,6 +544,20 @@ def _decided(
     if result.confidence == "low" and not chosen.fallback:
         result.codes.append("LOW_CONFIDENCE")
     return result
+
+
+def written_value(result: RowResult, config: JobConfig) -> str | None:
+    """What the answer cell gets for `result.answer`: the requester's dropdown spelling, the
+    answer in words in a free-text cell, or None to leave the cell blank."""
+    chosen = config.choice(result.answer) or config.fallback
+    if result.row.allowed is None and not chosen.fallback:
+        # A free-text cell takes the answer in words, as a person filling it in would.
+        return " ".join(
+            Template(config.templates.free_text)
+            .safe_substitute(template_fields(result))
+            .split()
+        )
+    return cell_value(chosen, result.row.allowed)
 
 
 def failed_row(config: JobConfig, row: QuestionRow, error: Exception) -> RowResult:
@@ -528,6 +605,12 @@ def template_fields(result: RowResult) -> dict[str, str]:
 
 def _where(cited: Cited) -> str:
     return cited.source + (f", {cited.section}" if cited.section else "")
+
+
+def _suggestion(answer: str, cited: list[Cited]) -> str:
+    """What a person confirms in one step: the answer, and where its checked quotes are."""
+    evidence = "; ".join(f'{_where(c)}: "{c.quote}"' for c in cited)
+    return f"Suggested: {answer}. Evidence: {evidence}"
 
 
 def _section(passages: list[Passage], source: int, line: int) -> str:

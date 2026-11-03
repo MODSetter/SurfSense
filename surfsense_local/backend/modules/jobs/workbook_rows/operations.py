@@ -4,10 +4,16 @@ line per quote) and a sheet of the exceptions, after the requester's own."""
 
 from __future__ import annotations
 
+from dataclasses import replace
 from string import Template
 
 from modules.jobs.workbook_rows.config import JobConfig
-from modules.jobs.workbook_rows.decide import EXCEPTIONS, RowResult, template_fields
+from modules.jobs.workbook_rows.decide import (
+    EXCEPTIONS,
+    RowResult,
+    template_fields,
+    written_value,
+)
 from modules.jobs.workbook_rows.layout import Skipped
 
 ANSWER_COLUMNS = (
@@ -107,6 +113,92 @@ def exception_lines(
     for skip in skipped:
         lines.append([skip.sheet, skip.cell, skip.question, "", EXCEPTIONS[skip.code]])
     return lines
+
+
+def confirmation(result: RowResult, config: JobConfig) -> dict | None:
+    """What confirming a row's suggested answer writes in the requester's cells, as if the job
+    had answered it: None without a suggestion, or when the cell cannot hold it."""
+    if result.suggested is None:
+        return None
+    confirmed = replace(
+        result, answer=result.suggested, said=None, suggested=None, missing="", codes=[]
+    )
+    written = written_value(confirmed, config)
+    if written is None:
+        return None
+    confirmed.written = written
+    row = result.row
+    return {
+        "answer": result.suggested,
+        "written": written,
+        "comment": comment_text(confirmed, config) if row.comment_cell else None,
+        "evidence": evidence_text(confirmed, config) if row.evidence_cell else None,
+    }
+
+
+def confirm_operations(
+    answers: list[dict], sheets: dict[str, str], confirmed_by: str = "a person"
+) -> list[dict]:
+    """The edits that confirm reported answers' suggestions: each one written as the job would
+    have written it, and its lines on the added sheets saying so. `answers` are a run report's,
+    each with its `confirm` and `lines`."""
+    answer_at = _column(ANSWER_COLUMNS, "Answer")
+    written_at = _column(ANSWER_COLUMNS, "Written in the cell")
+    listed_at = _column(EXCEPTION_COLUMNS, "Answer")
+    why_at = _column(EXCEPTION_COLUMNS, "Why a person should look")
+    ops: list[dict] = []
+    for answer in answers:
+        confirm, lines, sheet = answer["confirm"], answer["lines"], answer["sheet"]
+        ops.append(_set(sheet, answer["cell"], confirm["written"]))
+        for cell, text in (
+            (answer.get("comment_cell"), confirm.get("comment")),
+            (answer.get("evidence_cell"), confirm.get("evidence")),
+        ):
+            if cell and text:
+                ops.append(_set(sheet, cell, text))
+        first, last = lines["answers"]
+        for row in range(first, last + 1):
+            ops.append(_set(sheets["answers"], f"{answer_at}{row}", confirm["answer"]))
+            ops.append(
+                _set(sheets["answers"], f"{written_at}{row}", confirm["written"])
+            )
+        if lines.get("exceptions"):
+            first, last = lines["exceptions"]
+            for row in range(first, last + 1):
+                ops.append(
+                    _set(sheets["exceptions"], f"{listed_at}{row}", confirm["answer"])
+                )
+                ops.append(
+                    _set(
+                        sheets["exceptions"],
+                        f"{why_at}{row}",
+                        f"Confirmed by {confirmed_by}: {confirm['answer']}.",
+                    )
+                )
+    return ops
+
+
+def _column(columns: tuple[str, ...], title: str) -> str:
+    return "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[columns.index(title)]
+
+
+def sheet_lines(results: list[RowResult]) -> list[dict[str, list[int] | None]]:
+    """Where each result's lines sit on the answers and exceptions sheets: the first and last
+    row, counted from 1 with the header as row 1. Laid out as `operations` lays them."""
+    found = []
+    answers, exceptions = 2, 2
+    for result in results:
+        written = len(_answer_lines(result))
+        listed = len(result.codes)
+        found.append(
+            {
+                "answers": [answers, answers + written - 1],
+                "exceptions": [exceptions, exceptions + listed - 1] if listed else None,
+            }
+        )
+        answers += written
+        exceptions += listed
+    return found
 
 
 def _answer_lines(result: RowResult) -> list[list[object]]:
