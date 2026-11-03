@@ -12,7 +12,10 @@ from modules.artifacts.revised_copies.source_file import sha256_of, source_file
 from modules.documents.models import Document, DocumentStatus
 from modules.jobs.packs.access import pack_access
 from modules.jobs.packs.installed import find_job
+from modules.jobs.packs.manifest import PackRefusedError
 from modules.jobs.runs.record import pending_job_run
+from modules.jobs.settings.service import job_settings
+from modules.jobs.workbook_rows.config import load_config
 
 
 class JobRunRefusedError(Exception):
@@ -35,6 +38,12 @@ def start_job_run(
     access = pack_access(session, pack.manifest)
     if not access.allowed:
         raise JobRunRefusedError(access.reason)
+    try:
+        config = load_config(pack.path(pack_job.config))
+    except PackRefusedError as refused:
+        raise JobRunRefusedError(refused.message) from refused
+    # The run keeps the firm's choices as they are now: a change applies to the next run.
+    chosen = job_settings(session, pack_job.key, config)
     try:
         workbook = source_file(session, workspace_id, workbook_document_id)
     except RevisedCopyRefusedError as refused:
@@ -77,6 +86,8 @@ def start_job_run(
                 pack_version=pack.manifest.version,
                 job=pack_job.key,
                 source_document_ids=sources,
+                settings=chosen.values,
+                checker=chosen.checker.model_dump() if chosen.checker else None,
             ),
         )
     except RevisedCopyRefusedError as refused:

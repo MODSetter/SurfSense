@@ -10,6 +10,7 @@ from starlette.concurrency import run_in_threadpool
 from api.dependencies import transact
 from modules.agent.tool_endpoint import replies
 from modules.agent.tool_endpoint.analyze_data import ANALYZE_DATA
+from modules.agent.tool_endpoint.confirm_job import CONFIRM_JOB, confirm_listing
 from modules.agent.tool_endpoint.convert_document import CONVERT_DOCUMENT
 from modules.agent.tool_endpoint.create_artifact import CREATE_ARTIFACT
 from modules.agent.tool_endpoint.list_images import LIST_IMAGES
@@ -56,6 +57,7 @@ TOOLS: dict[str, Tool] = {
         PDF_STAMP,
         PDF_FORM,
         RUN_JOB,
+        CONFIRM_JOB,
     )
 }
 
@@ -64,13 +66,13 @@ def listings(scope: TurnScope) -> list[dict[str, Any]]:
     """What `tools/list` shows: each tool's name, description and input schema.
 
     A tool returning images is left out for a model that cannot see them, and the
-    job tool while no job pack is installed.
+    job tools while no job pack is installed.
     """
     reads = scope.reads_images()
     shown = []
     for tool in TOOLS.values():
-        if tool is RUN_JOB:
-            listing = job_listing()
+        if tool is RUN_JOB or tool is CONFIRM_JOB:
+            listing = job_listing() if tool is RUN_JOB else confirm_listing()
             if listing is not None:
                 shown.append(listing)
         elif reads or not tool.needs_image_input:

@@ -1,5 +1,6 @@
 """A job run's answers, worked out before its revised copy is made: the pack's runner over the
-workbook and the run's sources, on the model the user selected.
+workbook and the run's sources, on the model the user selected, checked on the firm's checker
+model when it chose one, with the firm's settings as they were when the run started.
 
 The write lock is let go while the model answers, which takes minutes; the revise
 engine then writes the answers as it writes any other revised copy.
@@ -34,13 +35,18 @@ from modules.jobs.evidence.vectors import remembered
 from modules.jobs.packs.installed import find_job
 from modules.jobs.runs.record import JOB_RUN_KEY, job_run_of
 from modules.jobs.workbook_rows.ask import ModelReply
-from modules.jobs.workbook_rows.config import load_config
+from modules.jobs.workbook_rows.config import JobConfig, load_config
 from modules.jobs.workbook_rows.fill import FillResult, fill_workbook
-from modules.llm.model_route.client import resolve_routed_generation
+from modules.jobs.workbook_rows.operations import confirmation, sheet_lines
+from modules.llm.model_route.api_address import ApiNotRunningError, api_url
+from modules.llm.model_route.client import RoutedGenerator, resolve_routed_generation
+from modules.llm.model_route.schemas import ModelRef
+from modules.llm.model_type import ModelType
+from modules.llm.models import SelectedModel as ModelChoice
 from modules.llm.providers import llamacpp
 from modules.llm.providers.stream_deadline import StreamTimeoutError
 from modules.llm.providers.types import Message
-from modules.llm.resolution import ResolvedGeneration
+from modules.llm.resolution import ModelResolutionError, ResolvedGeneration
 from worker.studio.shared.generate import complete
 
 logger = logging.getLogger(__name__)
@@ -190,15 +196,19 @@ def work_out(
             raise JobRunFailedError(f"Source {document_id} is gone or holds no text.")
         sources.append(SourceText(document.id, document.title, document.content))
     model = resolve_routed_generation(session)
+    checker = _checker(run.get("checker"))
+    declared = {s.key for s in config.settings}
+    settings = {k: v for k, v in (run.get("settings") or {}).items() if k in declared}
     _, window = asyncio.run(selected_model_window(session))
     embed = _embedder(session)
     # Minutes of model calls follow; no transaction may hold the write lock across them.
     session.commit()
     logger.info(
-        "job run %s: %s on %s, %d sources, window %s",
+        "job run %s: %s on %s, checked on %s, %d sources, window %s",
         artifact.id,
         job.key,
         model.selection.name,
+        checker.selection.name if checker else "the same model",
         len(sources),
         window,
     )
@@ -209,13 +219,55 @@ def work_out(
         SelectedModel(model, window),
         stop=cancelled,
         embed=embed,
+        checker=SelectedModel(checker, None) if checker else None,
+        settings=settings,
+        take_turns=_one_at_a_time(model, checker),
     )
     session.refresh(artifact)
     meta = dict(artifact.artifact_metadata or {})
     meta[REVISION_KEY] = {**revision, "operations": filled.operations}
-    meta[JOB_RUN_KEY] = {**run, "report": report_of(filled, model.selection.name)}
+    meta[JOB_RUN_KEY] = {
+        **run,
+        "report": report_of(
+            filled,
+            config,
+            model.selection.name,
+            checker.selection.name if checker else None,
+        ),
+    }
     artifact.artifact_metadata = meta
     session.commit()
+
+
+def _checker(named: dict[str, Any] | None) -> ResolvedGeneration | None:
+    """The model the firm chose to make the second checks, reached through the API's model route
+    as the selected one is; None checks on the answering model."""
+    if not named:
+        return None
+    ref = ModelRef.model_validate(named)
+    try:
+        url = api_url()
+    except ApiNotRunningError as error:
+        raise ModelResolutionError(str(error)) from error
+    choice = ModelChoice(
+        model_type=ModelType.TEXT_GEN,
+        provider=ref.provider,
+        name=ref.name,
+        connection_id=ref.connection_id,
+    )
+    return ResolvedGeneration(choice, RoutedGenerator(url, ref))
+
+
+def _one_at_a_time(
+    model: ResolvedGeneration, checker: ResolvedGeneration | None
+) -> bool:
+    """Two different models on the local runtime, which holds one at a time: they take turns."""
+    return (
+        checker is not None
+        and model.selection.provider == llamacpp.PROVIDER
+        and checker.selection.provider == llamacpp.PROVIDER
+        and model.selection.name != checker.selection.name
+    )
 
 
 def _embedder(session: Session) -> Embed | None:
@@ -234,14 +286,23 @@ def _embedder(session: Session) -> Embed | None:
     return remembered(embed, f"{spec.id}@{spec.weights.sha256}")
 
 
-def report_of(filled: FillResult, model: str) -> dict[str, Any]:
-    """What Studio and the agent say about a run: its counts, each answer's source, and its exceptions."""
+def report_of(
+    filled: FillResult, config: JobConfig, model: str, checker: str | None = None
+) -> dict[str, Any]:
+    """What Studio and the agent say about a run: its counts, each answer's source, its
+    exceptions, and for each suggested answer what confirming it writes and where."""
+    added = [op["sheet"] for op in filled.operations if op["op"] == "add_sheet"]
+    lines = sheet_lines(filled.results)
     return {
         "model": model,
+        "checker": checker,
+        "settings": filled.settings,
         "seconds": filled.seconds,
         "whole_sources": filled.whole_sources,
         "counts": filled.counts,
         "questions": len(filled.results),
+        "suggested": sum(1 for r in filled.results if r.suggested is not None),
+        "sheets": {"answers": added[0], "exceptions": added[1]},
         "tables": [
             {"sheet": t.sheet, "header_row": t.header_row, "found_by": t.found_by}
             for t in filled.layout.tables
@@ -250,10 +311,16 @@ def report_of(filled: FillResult, model: str) -> dict[str, Any]:
             {
                 "sheet": r.row.sheet,
                 "cell": r.row.answer_cell,
+                "comment_cell": r.row.comment_cell,
+                "evidence_cell": r.row.evidence_cell,
                 "question": r.row.question,
                 "answer": r.answer,
                 "said": r.said,
                 "written": r.written,
+                "suggested": r.suggested,
+                # What one step confirms: None when the row has no suggestion its cell can hold.
+                "confirm": confirmation(r, config),
+                "lines": line,
                 "source": r.source,
                 "section": r.section,
                 "quote": r.quote,
@@ -268,7 +335,7 @@ def report_of(filled: FillResult, model: str) -> dict[str, Any]:
                 ],
                 "codes": r.codes,
             }
-            for r in filled.results
+            for r, line in zip(filled.results, lines, strict=True)
         ],
         "exceptions": filled.exceptions,
     }

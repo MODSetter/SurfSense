@@ -129,6 +129,14 @@ def summary(artifact_id: int, report: dict[str, Any]) -> str:
         f"{counts.get('skipped', 0)} questions were skipped. Each answer's source and "
         'quote is on its "SurfSense answers" sheet; the exceptions are on "SurfSense exceptions".'
     ]
+    suggested = report.get("suggested") or 0
+    if suggested:
+        lines.append(
+            f"{suggested} of the questions left to a person carry a suggested answer with "
+            "its evidence, such as N/A for a control a provider runs for the firm. Tell the "
+            "user; once they have checked them, they may ask you to confirm them with "
+            f"confirm_job_suggestions and artifact_id {artifact_id}."
+        )
     exceptions = report.get("exceptions") or []
     for sheet, cell, question, _answer, why in exceptions[:NAMED_EXCEPTIONS]:
         lines.append(f"- {sheet}!{cell} ({question[:90]}): {why}")

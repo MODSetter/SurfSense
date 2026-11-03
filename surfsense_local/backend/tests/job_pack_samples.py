@@ -13,13 +13,38 @@ SKILL = "surfsense-job-test-questionnaire"
 QUESTIONS_SHEET = "Questions"
 
 
-def write_questionnaire_pack(folder: Path, *, access: str = "paid") -> Path:
+# With `checks`: the second check, a statement gate that suggests an N/A resting on a provider
+# or a scope, and the firm setting that writes a provider N/A instead.
+CHECKS = {
+    "verify": {"prompt": "prompts/verify.md", "answers": ["Yes", "No", "N/A"]},
+    "statement_gate": {
+        "answers": ["No", "N/A"],
+        "quote": r"\b(applies to|hosted by|run by)\b",
+        "suggest": ["N/A"],
+        "provider": r"\b(hosted by|run by)\b",
+        "provider_setting": "provider_na",
+    },
+    "settings": [
+        {
+            "key": "provider_na",
+            "label": "Treat provider-run controls as N/A",
+            "description": "Answer N/A when a provider runs the control.",
+            "default": False,
+        }
+    ],
+}
+
+
+def write_questionnaire_pack(
+    folder: Path, *, access: str = "paid", checks: bool = False
+) -> Path:
     """A sealed pack in `folder` with one workbook-rows job and its skill."""
     files = {
         "LICENSE.md": "Test pack.",
         f"jobs/{JOB}/prompts/system.md": "Answer with one of $answers.",
         f"jobs/{JOB}/prompts/question.md": "$passages\n\nQuestion: $question",
         f"jobs/{JOB}/prompts/repair.md": "$problem",
+        f"jobs/{JOB}/prompts/verify.md": "Check that the quotes are evidence for $answer.",
         f"jobs/{JOB}/job.json": json.dumps(
             {
                 "answers": [
@@ -53,6 +78,7 @@ def write_questionnaire_pack(folder: Path, *, access: str = "paid") -> Path:
                     "answers": "SurfSense answers",
                     "exceptions": "SurfSense exceptions",
                 },
+                **(CHECKS if checks else {}),
             }
         ),
         f"skills/{SKILL}/SKILL.md": f"---\nname: {SKILL}\ndescription: Test.\n---\nRun it.",
