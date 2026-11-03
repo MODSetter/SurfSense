@@ -43,7 +43,7 @@ export function DashboardColumns({
   return (
     <section
       ref={sectionRef}
-      className="my-2 mr-2 flex min-h-0 min-w-0 overflow-hidden rounded-[16px] border bg-background shadow-sm"
+      className="my-(--columns-gap) mr-2 flex min-h-0 min-w-0 overflow-hidden rounded-[16px] border bg-background shadow-sm"
     >
       <ColumnsContext.Provider value={columns}>
         {children}

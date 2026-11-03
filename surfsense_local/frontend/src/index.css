@@ -65,6 +65,9 @@
 :root {
   color-scheme: light;
   --titlebar-height: 0px;
+  /* Between the title bar and the dashboard's columns; the title-bar
+     controls centre across it too. */
+  --columns-gap: 0.5rem;
   --app-shell: #f3f2ee;
   --background: #f7f6f2;
   --foreground: #1e1e1e;
@@ -255,7 +258,9 @@
   align-items: center;
   gap: 0.375rem;
   margin-inline-start: auto;
-  transform: translateY(2px);
+  /* Centred in the strip the eye sees, title bar plus the gap above the
+     columns, on every OS: the bar centres them, this adds half the gap. */
+  transform: translateY(calc(var(--columns-gap) / 2));
   app-region: no-drag;
   -webkit-app-region: no-drag;
 }
