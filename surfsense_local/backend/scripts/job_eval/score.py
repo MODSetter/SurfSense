@@ -46,9 +46,10 @@ class RowScore:
     # The passages the question saw, by number; [] when it saw every passage.
     shown: list[int] = field(default_factory=list)
     suggested: str | None = None  # the answer left to a person to confirm
-    gate: str = (
-        ""  # why the statement gate held the first answer: provider, scope or silence
-    )
+    # Whether the answer cell can hold the suggestion, so one step confirms it.
+    confirmable: bool = False
+    # Why the statement gate held the first answer: provider, scope or silence.
+    gate: str = ""
     # The answer and its score with the firm's provider setting the other way round.
     answer_flipped: str = ""
     correct_flipped: bool = False
@@ -83,12 +84,14 @@ class CaseScore:
 
     @property
     def suggested_right(self) -> int:
-        """Rows a person confirms in one step: the suggestion is the gold answer."""
-        return sum(1 for r in self.rows if r.suggested and r.suggested == r.gold)
+        """Rows a person confirms in one step: the suggestion is the gold answer and the
+        cell can hold it."""
+        return sum(1 for r in self.rows if r.confirmable and r.suggested == r.gold)
 
     @property
     def suggested_wrong(self) -> int:
-        return sum(1 for r in self.rows if r.suggested and r.suggested != r.gold)
+        """Suggestions one step would confirm that are not the gold answer."""
+        return sum(1 for r in self.rows if r.confirmable and r.suggested != r.gold)
 
     @property
     def correct_flipped(self) -> int:
@@ -131,6 +134,12 @@ def score_case(
             expected = fallback
         gate = _gate_kind(result)
         flipped = _flipped(result, answer, gate, provider_on, config, fallback)
+        suggested = config.choice(result.suggested) if config and result else None
+        confirmable = bool(
+            result
+            and suggested is not None
+            and cell_value(suggested, result.row.allowed) is not None
+        )
         scored.rows.append(
             RowScore(
                 sheet=gold.sheet,
@@ -151,6 +160,7 @@ def score_case(
                 trace=result.trace if result else [],
                 shown=result.shown if result else [],
                 suggested=result.suggested if result else None,
+                confirmable=confirmable,
                 gate=gate,
                 answer_flipped=flipped,
                 correct_flipped=flipped == expected,
