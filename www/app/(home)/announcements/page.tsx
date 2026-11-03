@@ -9,9 +9,8 @@ import { AnnouncementCard } from "./announcement-card";
 import { FeaturedAnnouncement } from "./featured-announcement";
 
 /**
- * Rendered in the site design: listed in `SITE_DESIGN_ROUTES` in
- * `components/site/site-shell.tsx`, so the palette, column, navigation and
- * footer come from the site shell. Laid out like the blog index: the newest
+ * Rendered in the site design: the palette, column, navigation and footer come
+ * from `app/(home)/layout.tsx`. Laid out like the blog index: the newest
  * announcement as a wide feature, the rest as cards, each linking to its page.
  *
  * Every published announcement is listed, expired or not and whatever its

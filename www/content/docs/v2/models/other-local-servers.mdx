@@ -1,0 +1,105 @@
+---
+title: Other local servers
+description: Connect vLLM, llama.cpp, LocalAI or any other OpenAI-compatible server
+---
+
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+
+SurfSense works with any server that implements the OpenAI API: vLLM, SGLang, llama.cpp's `llama-server`, LocalAI, an organization's gateway, and many more. The server can run on your computer, on another computer in your network, or in your company's data center.
+
+## What the server must offer
+
+| Route | Needed for |
+|---|---|
+| `GET /v1/models` | Listing the server's models. Optional: without it, you type model IDs by hand |
+| `POST /v1/chat/completions` | Text generation: chat, titles and Studio |
+| `POST /v1/images/generations` or `POST /v1/images` | Image generation |
+| `POST /v1/images/edits` | Image editing |
+| `POST /v1/audio/speech` | Voicing podcasts |
+
+A server only needs the routes for what you use it for. If one server does chat and another does images, connect both.
+
+SurfSense sends no settings specific to one server, so a strict server accepts its requests. Embedding and speech recognition can't come from a server. See [Image, voice and search models](/docs/v2/models/other-models).
+
+## Connect it
+
+<Steps>
+<Step>
+
+Open **Settings** and the model section you want, such as **Text gen**. Click **Add model**, then **Use a server**. In onboarding, click **Connect** under **Use a server**.
+
+</Step>
+<Step>
+
+In **Connect a server**, enter a **Name**, such as `Engineering vLLM`.
+
+</Step>
+<Step>
+
+Under **Provider**, pick **Local or custom server**, unless your server is in the list. Some local servers are listed and fill their own URL.
+
+</Step>
+<Step>
+
+Enter the **Base URL**: the address the API lives under, usually ending in `/v1`. For example `http://localhost:8000/v1` for vLLM, or `http://localhost:8080/v1` for `llama-server`.
+
+</Step>
+<Step>
+
+If the server needs a key, enter it under **API key**. Otherwise leave it empty.
+
+</Step>
+<Step>
+
+Click **Save server**. SurfSense checks the server by asking for its model list, then opens it.
+
+</Step>
+<Step>
+
+Click **Use** on a model, test it, then click **Use this model** or **Use without testing**.
+
+</Step>
+</Steps>
+
+## A server without a model list
+
+Some servers don't answer `/v1/models`. Saving then fails with **The endpoint's model list could not be verified.** If you trust the server, click **Save anyway**. Then type the model's ID under **Exact model ID** and click **Use for chat** (or **Use for image**, and so on).
+
+SurfSense asks **Use an unlisted model?** before it uses an ID the server didn't list. Check the ID is exactly right.
+
+## Testing a model
+
+A server may not say what its models can do. Then the model shows **Capability unknown**, and SurfSense offers it in every section. Testing shows whether it really works before you rely on it:
+
+- **Test chat** sends one short prompt.
+- **Test image** makes one picture of a blue circle.
+- **Test voice** voices one short line.
+
+A test is a real request. On a paid server it may cost money.
+
+## Network permission
+
+A server on the same computer (`localhost` or `127.0.0.1`) needs no permission: nothing leaves your computer.
+
+Any other address counts as sending data out, including a computer on your own network. When you save, SurfSense asks **Allow sending data to** that host. Allow it to continue. The permission is per host, and you can turn it off in **Settings › Network**. Then chats that use the server stop until you allow it again.
+
+## Edit or remove a server
+
+Each server is a group in every model section it serves.
+
+- **Edit** changes its name, URL or key. Servers are shared by every model type, so a change applies everywhere.
+- **Disconnect** removes it. The dialog names the models in use that come from it, such as your Chat or Image model, and clears them.
+
+## Troubleshooting
+
+### Connection refused, or nothing answers
+
+Check the server is running and the port is right. From the computer running SurfSense, `curl <base URL>/models` should answer. If SurfSense runs in [Docker](/docs/v2/docker), `localhost` means the container itself: use the server computer's network address.
+
+### Endpoint returned 404
+
+Check the Base URL. It must be the address the API lives under, usually ending in `/v1`. SurfSense uses it exactly as entered.
+
+### Replies time out
+
+SurfSense waits up to five minutes for a model's first word, since a server may still be loading it, and then up to 30 seconds between words.

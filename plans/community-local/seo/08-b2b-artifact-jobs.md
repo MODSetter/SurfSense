@@ -30,10 +30,10 @@ questions.
 The maintainer decided that SurfSense sells one paid licence, Business, priced
 per person from one person; that a job plugin unlocks only with a Business
 licence or the 14-day trial; and that the Individual licence stops being sold
-([ADR 0078](../../../docs/adr/0078-surfsense-sells-one-business-license-priced-per-person.md)).
+([ADR 0079](../../../docs/adr/0079-surfsense-sells-one-business-license-priced-per-person.md)).
 Seven platform scrapers retire, and reading web pages, YouTube transcripts and
 web search move into the app, free for everyone
-([ADR 0079](../../../docs/adr/0079-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md),
+([ADR 0080](../../../docs/adr/0080-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md),
 revised 2 Nov 2026: PostHog shows those three are the ones people use). It all
 happens in one release, the one that ships the first paid job: Business
 goes on sale, the scrapers retire and Individual sales stop together, so the
@@ -83,7 +83,7 @@ forums and Upwork, and is cited inline. The product facts were checked against
    $24K a year for small teams. So each B2B job ships as a plugin that runs on
    the user's machine and unlocks with a Business licence, priced per person,
    or the 14-day trial (decided 1 Nov 2026,
-   [ADR 0078](../../../docs/adr/0078-surfsense-sells-one-business-license-priced-per-person.md)).
+   [ADR 0079](../../../docs/adr/0079-surfsense-sells-one-business-license-priced-per-person.md)).
    The app, the general agent, the engines and the shared job infrastructure
    stay free and open source. Firm controls and team features come later in
    Business, and Enterprise assurance is quoted.
@@ -431,7 +431,7 @@ question ID.
 
 Revised 1 Nov 2026: the DDQ comes first, with the security questionnaire, and
 RFP and RFI responses follow it
-([ADR 0078](../../../docs/adr/0078-surfsense-sells-one-business-license-priced-per-person.md)).
+([ADR 0079](../../../docs/adr/0079-surfsense-sells-one-business-license-priced-per-person.md)).
 
 **The job.** In: the issuer's RFP, RFI or DDQ response workbook, the answer
 library and past proposals. Out: a revised copy with each response filled, a
@@ -552,7 +552,7 @@ included), written outside the Apache-2.0 tree from the first commit
 Decided 22 Oct 2026
 ([ADR 0067](../../../docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md)): the free
 layer distributes and the paid jobs earn. Decided 1 Nov 2026
-([ADR 0078](../../../docs/adr/0078-surfsense-sells-one-business-license-priced-per-person.md)):
+([ADR 0079](../../../docs/adr/0079-surfsense-sells-one-business-license-priced-per-person.md)):
 the jobs are sold under one paid licence, Business, priced per person. None of
 it is built yet, and the pricing page still sells the Individual licence. The
 switch is one release, the one that ships the first paid job: Business goes on
@@ -620,7 +620,7 @@ new job runs stop after 30 days, and every file, library and output stays
 readable. When the scrapers retire, reading web pages, YouTube transcripts and
 web search move into the app, free for everyone, so Add from the web keeps
 working without a licence
-([ADR 0079](../../../docs/adr/0079-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)).
+([ADR 0080](../../../docs/adr/0080-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)).
 
 | free, in the app (Apache-2.0) | paid job plugins (Business licence or the 14-day trial) |
 |---|---|
@@ -830,7 +830,7 @@ Either way:
   otherwise the beta stays with design partners, and the scrapers stay on sale,
   until it does. In one release the job ships as a paid plugin under Business
   on frontier models with an n=3 row, the platform scrapers retire
-  ([ADR 0079](../../../docs/adr/0079-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)),
+  ([ADR 0080](../../../docs/adr/0080-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)),
   Individual sales stop, and Individual holders get a notice and become
   Business Solo ([above](#how-surfsense-earns)). The pricing FAQ's line that a
   licence is only needed for the scraper plugins and priority support, and
@@ -874,38 +874,38 @@ Settled on 1 Nov 2026:
 
 - **One paid licence, Business,** from one person ("Solo"); the Individual
   licence stops being sold at the switch
-  ([ADR 0078](../../../docs/adr/0078-surfsense-sells-one-business-license-priced-per-person.md)).
+  ([ADR 0079](../../../docs/adr/0079-surfsense-sells-one-business-license-priced-per-person.md)).
 - **One switch:** Business goes on sale, the scrapers retire and Individual
   sales stop in one release, the one that ships the first paid job; until then
   the scrapers and the Individual licence stay on sale
-  ([ADR 0078](../../../docs/adr/0078-surfsense-sells-one-business-license-priced-per-person.md),
-  [ADR 0079](../../../docs/adr/0079-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)).
+  ([ADR 0079](../../../docs/adr/0079-surfsense-sells-one-business-license-priced-per-person.md),
+  [ADR 0080](../../../docs/adr/0080-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)).
 - **A job plugin unlocks only with Business or the 14-day trial,** and anyone
   who uses one for work needs Business
-  ([ADR 0078](../../../docs/adr/0078-surfsense-sells-one-business-license-priced-per-person.md)).
+  ([ADR 0079](../../../docs/adr/0079-surfsense-sells-one-business-license-priced-per-person.md)).
 - **A founding price,** to test: $200 a year for the first person and $120 for
   each further person
-  ([ADR 0078](../../../docs/adr/0078-surfsense-sells-one-business-license-priced-per-person.md)).
+  ([ADR 0079](../../../docs/adr/0079-surfsense-sells-one-business-license-priced-per-person.md)).
 - **Yearly automatic renewal on the same key,** with cancellation and seat
   changes through Stripe's emailed customer-portal link, and no accounts
-  ([ADR 0078](../../../docs/adr/0078-surfsense-sells-one-business-license-priced-per-person.md)).
+  ([ADR 0079](../../../docs/adr/0079-surfsense-sells-one-business-license-priced-per-person.md)).
 - **One 14-day trial of the full job,** and no separate pilots
-  ([ADR 0078](../../../docs/adr/0078-surfsense-sells-one-business-license-priced-per-person.md)).
+  ([ADR 0079](../../../docs/adr/0079-surfsense-sells-one-business-license-priced-per-person.md)).
 - **People, not devices,** declared at checkout and confirmed at renewal, with
   no device binding or device identifier at launch, and the firm's name on job
   screens
-  ([ADR 0078](../../../docs/adr/0078-surfsense-sells-one-business-license-priced-per-person.md)).
+  ([ADR 0079](../../../docs/adr/0079-surfsense-sells-one-business-license-priced-per-person.md)).
 - **Individual licences already sold become Business Solo** on the same key at
   the switch, renewing at the price they were bought at, locked
-  ([ADR 0078](../../../docs/adr/0078-surfsense-sells-one-business-license-priced-per-person.md)).
+  ([ADR 0079](../../../docs/adr/0079-surfsense-sells-one-business-license-priced-per-person.md)).
 - **Seven platform scrapers retire,** and reading web pages, YouTube
   transcripts and web search move into the app, free for everyone, with search
   through SearXNG and the Google scraper dropped; settled 2 Nov 2026, which
   answers what was open question d
-  ([ADR 0079](../../../docs/adr/0079-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)).
+  ([ADR 0080](../../../docs/adr/0080-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)).
 - **Unchanged:** the app stays free and Apache-2.0, an edit is free and a job
   is paid, and a licence never disables the app
-  ([ADR 0078](../../../docs/adr/0078-surfsense-sells-one-business-license-priced-per-person.md)).
+  ([ADR 0079](../../../docs/adr/0079-surfsense-sells-one-business-license-priced-per-person.md)).
 
 The four questions open since 22 Oct 2026, which other documents cite by
 number: 1, a local job plugin's licence terms, is now e and g; 2, what a

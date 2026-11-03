@@ -54,14 +54,11 @@ O SurfSense é um aplicativo de desktop gratuito e open source para os documento
 | **Windows** x64 | [SurfSense-Setup.exe](https://www.surfsense.com/downloads/windows?src=readme) |
 | **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
 | **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
+| **Docker** Linux, macOS | `curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh \| bash` |
+| **Docker** Windows (Docker Desktop) | `irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 \| iex` |
 
-**Hospede no seu próprio servidor** com Docker e abra de qualquer dispositivo da sua rede. Execute o mesmo comando de novo para atualizar.
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
-```
-
-No Windows com Docker Desktop: `irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 | iex`
+> [!NOTE]
+> Com Docker, você hospeda no seu próprio servidor e abre de qualquer dispositivo da sua rede. Execute o mesmo comando de novo para atualizar.
 
 ## Início rápido
 
@@ -78,9 +75,10 @@ No Windows com Docker Desktop: `irm https://raw.githubusercontent.com/MODSetter/
 | **Excel** `.xlsx` | ✓ o agente também lê as fórmulas | ✓ com fórmulas e gráficos nativos | ✓ valores das células e fórmulas | Analisar com pandas e gerar gráficos dos resultados |
 | **PowerPoint** `.pptx` | ✓ | ✓ ou a partir do seu próprio `.pptx` como modelo | Substituir texto nos slides e nas anotações; excluir ou duplicar slides | Para PDF¹ |
 | **CSV** | ✓ | — | — | Analisar com pandas e gerar gráficos dos resultados |
-| **Imagens** PNG, JPEG, TIFF, BMP, WebP | ✓ texto lido por OCR³ | Imagens e infográficos² | — | Inserir em novos documentos |
+| **Imagens** PNG, JPEG, TIFF, BMP, WebP | ✓ texto lido por OCR³ | Imagens e infográficos, editáveis por instrução² | — | Inserir em novos documentos |
 | **Markdown**, texto simples | ✓ | ✓ Markdown | — | — |
 | **HTML** | ✓ | ✓ página web | — | — |
+| **Livros** EPUB, MOBI, AZW3 | ✓ sem DRM | — | — | — |
 | **Gravações** WAV, MP3, FLAC, Ogg Vorbis | ✓ transcritas na sua máquina | — | — | — |
 | **Podcast** (áudio) | — | ✓ com transcrição; por padrão, a voz é gerada na sua máquina | — | — |
 | **Mapas mentais, flashcards, quizzes** | — | ✓ no aplicativo | — | — |

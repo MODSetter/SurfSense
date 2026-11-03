@@ -1,0 +1,111 @@
+---
+title: Privacy
+description: What leaves your computer, when, and how to switch it off
+---
+
+SurfSense keeps your documents, chats and Studio outputs on your disk. Nothing goes over the network until you allow where it goes, and there is no account.
+
+## Off until you allow it
+
+Every place SurfSense can send data is a destination, and every destination starts off. A destination is one host, such as `huggingface.co` or the address of an API provider you connected.
+
+The first time you do something that needs a host, SurfSense asks you first. The question says what that host gets and what it doesn't. Choose **Allow** to go ahead, or **Cancel** to leave it off.
+
+- **One question per action.** If one thing you do needs more than one host, a single question names all of them, and **Allow** turns them all on together.
+- **Background work never asks.** Something that runs on its own, such as a Studio job, fails with the reason instead of opening a dialog. You'll be asked again the next time you do it yourself.
+- **Your own computer is not a destination.** A model server on the same computer, such as LM Studio or Ollama, needs no permission. A server elsewhere on your network is a destination like any other.
+
+## Settings › Network
+
+Settings › Network lists everywhere SurfSense can send data, each with its host and its last call. Untick a destination to block it outright: the next call to it is refused before it leaves your computer.
+
+You'll see some of these, depending on what you use:
+
+| Destination | What it's for | What it gets |
+|---|---|---|
+| Model search and downloads (`huggingface.co`) | Searching for local models and downloading them | What you type in model search, the name of the model you download, your IP address. Never your chats or documents. |
+| An API provider's host | Chat, Studio and tests through a remote model | Your prompts and excerpts of your documents |
+| A plugin's host | Listing a plugin's tools and calling them | What each tool you allow needs, the keys or sign-in you saved for the plugin, your IP address |
+| `plugins.surfsense.com` | The list of third-party plugins, and SurfSense's own plugins | Your IP address for the list; what each tool needs, and your license key for the paid ones |
+| Office support download | Downloading LibreOffice when you turn on Office support | Your IP address and the file's name |
+| App updates | Checking for a newer version | See [what an update check sends](#update-checks) |
+| Usage statistics | An anonymous daily report, if you opt in | See [usage statistics](#usage-statistics) |
+
+A ChatGPT or Claude plan connects to OpenAI or Anthropic. Its question names each host and what it gets, and each host gets its own row in Settings › Network.
+
+<Callout type="warn" title="Turning a host off again">
+  If you untick a host a model needs, chat says "A host this model needs was
+  turned off in Settings › Network. Allow it there, then try again." Studio jobs
+  that use that model fail until you tick it again.
+</Callout>
+
+## What does send data
+
+Only two kinds of thing send your content off your computer, and only after you allow them:
+
+- **Remote models.** An API provider, or a ChatGPT or Claude plan, gets your prompts and the parts of your documents that go with them. See [API providers](/docs/v2/models/api-providers).
+- **Plugins.** A plugin's server gets what the agent sends each tool. See [plugins](/docs/v2/plugins).
+
+With a [local model](/docs/v2/models/local) and no plugins, your documents and chats never leave your computer.
+
+## No telemetry
+
+SurfSense has no crash reporting and no analytics. When something breaks, you decide what to send: [Report issue](/docs/v2/troubleshooting#reporting-a-problem) opens a GitHub form you can read and edit before you submit it.
+
+## Privacy choices
+
+The first step after the welcome screen, **Privacy choices**, asks two questions: **Check for updates** and **Share usage statistics**. Neither answer is chosen for you, and nothing is sent until you choose. Each has **Show exactly what's sent**.
+
+You can change both later.
+
+### Update checks
+
+When you allow update checks, SurfSense asks `updates.surfsense.com` once a day whether a newer version exists. If that host can't answer, it asks `github.com` instead. A check sends:
+
+- your IP address, as every request does
+- the user agent `SurfSense`, with no version
+- the app's version, your system and its processor (such as `win32-x64`), and your OS version (such as `windows-11`)
+
+It sends no cookies and no ID. Settings › About › **Show exactly what's sent** shows the last request SurfSense made, with every header. Updates themselves download from GitHub. See [updates](/docs/v2/updates).
+
+### Usage statistics
+
+If you opt in, SurfSense sends `usage.surfsense.com` a short report once a day, plus one more each time setup reaches a new step during your first week. Every value is a range or a fixed word: the app's version, your system, the interface language, the week you installed, and counts in ranges of chats, agent turns, sources, Studio outputs and plugin calls. The first report also carries your memory and graphics card, in ranges.
+
+It never carries your documents, prompts, file names, model names, hosts, your license key or an ID.
+
+Turn it on or off with the **Usage statistics** switch in Settings › About. **Show exactly what's sent** there shows the next report as it would be sent now, and the last one that was. Turning it off stops the next report. Reports already sent can't be recalled, because nothing marks them as yours.
+
+Usage statistics are always off, and the switch is locked, when `DO_NOT_TRACK=1` or `SURFSENSE_NO_TELEMETRY=1` is set on your computer. The [Docker image](/docs/v2/docker) never sends them.
+
+### Organization policy
+
+An administrator can turn update checks or usage statistics off for everyone on a computer, or point update checks at the organization's own server, with a policy file:
+
+| OS | Policy file |
+|---|---|
+| Windows | `%ProgramData%\SurfSense\policy.json` |
+| macOS | `/Library/Application Support/SurfSense/policy.json` |
+| Linux | `/etc/surfsense/policy.json` |
+
+`"updates": "off"` and `"usageStatistics": "off"` turn each off. `"updateFeed"` names an `https` mirror, and SurfSense then asks nowhere else. A locked setting says why in Settings.
+
+## API keys
+
+The API keys you give SurfSense are stored encrypted. The encryption key is kept in your operating system's keychain: Windows' credential protection, the macOS Keychain, or the Linux keyring. SurfSense never shows a saved key again.
+
+On Linux without a keyring, SurfSense still starts, using a built-in key instead, which protects less. If the keychain entry is lost, after a reinstall or a keychain reset, your saved keys can't be read. Your connections stay; enter their keys again.
+
+## Web pages Studio makes
+
+A web page from [Studio](/docs/v2/studio) or the [agent](/docs/v2/agent) runs with no network access. It can't load anything from the internet, open pop-ups or navigate away, so it can't send out what it was built from. Links in chat replies and Studio documents open in your browser only after you confirm the address.
+
+## Other things SurfSense does not send
+
+- **Licenses** are checked on your computer, with no network. See [license](/docs/v2/license).
+- **Document reading** runs on your computer, including OCR for scans.
+- **Spellchecking.** Chromium would download its dictionaries from Google, so SurfSense switches its spellchecker off. Windows and Linux have no spellchecking; macOS uses the system's own, which downloads nothing.
+
+## Working offline
+
+With a local model downloaded, SurfSense works with the network off: adding sources, chat, the agent, Studio and voice. What needs the network: downloading models, remote models and plans, plugins, adding sources from the web, turning on Office support, and update checks.

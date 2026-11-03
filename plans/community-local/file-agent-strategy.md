@@ -27,8 +27,8 @@ pricing row, phases B3, B4, B4b and B7, the risks and open questions 1 to 5
 and 10.
 
 **Revised 1 Nov 2026: one paid license, Business, and the scrapers retire**
-([ADR 0078](../../docs/adr/0078-surfsense-sells-one-business-license-priced-per-person.md),
-[ADR 0079](../../docs/adr/0079-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)).
+([ADR 0079](../../docs/adr/0079-surfsense-sells-one-business-license-priced-per-person.md),
+[ADR 0080](../../docs/adr/0080-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)).
 A job plugin unlocks only with a Business license, priced per person, or the
 14-day trial, where ADR 0067 said "Individual, Team, or the 14-day trial".
 Seven platform scrapers retire, and reading web pages, YouTube transcripts and
@@ -78,7 +78,7 @@ measured on any model yet
    are paid plugins.** Revised 22 Oct 2026
    ([ADR 0067](../../docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md)) and
    1 Nov 2026
-   ([ADR 0078](../../docs/adr/0078-surfsense-sells-one-business-license-priced-per-person.md)):
+   ([ADR 0079](../../docs/adr/0079-surfsense-sells-one-business-license-priced-per-person.md)):
    the security questionnaire and DDQ, then RFP and RFI responses, then bank
    statements into a ledger, medical chronologies, and contract and lease
    registers, then the contract redline against a playbook, and later B2B jobs
@@ -94,7 +94,7 @@ measured on any model yet
    user's libraries, playbooks and outputs open and export without a license.
    The license also sells priority support. The platform scrapers retire, and
    reading web pages and web search stay, free for everyone
-   ([ADR 0079](../../docs/adr/0079-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)).
+   ([ADR 0080](../../docs/adr/0080-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)).
    No job plugin exists and Business is not sold yet: each job needs local
    paid bundles and the job-pack loader first. Firm controls and team features
    come later within Business, once the jobs sell, and Enterprise assurance
@@ -183,7 +183,7 @@ the first buyer target.**
   NDA-bound evidence and meet the same questions reworded by every customer
   ([r/sysadmin](https://www.reddit.com/r/sysadmin/comments/1rkwxpt/why_do_all_security_reviews_feel_the_same/)).
   Since 1 Nov 2026 Business prices the job per person
-  ([ADR 0078](../../docs/adr/0078-surfsense-sells-one-business-license-priced-per-person.md)),
+  ([ADR 0079](../../docs/adr/0079-surfsense-sells-one-business-license-priced-per-person.md)),
   and whether it is priced for CPA and law firms, the recommended default, or
   for these vendors, MSPs and vCISOs is
   [08's open question h](seo/08-b2b-artifact-jobs.md#open-questions-for-the-maintainer).
@@ -204,7 +204,7 @@ the first buyer target.**
 - **Then RFP and RFI responses from the same library**, once the questionnaire
   passes its gate and a proposal manager joins as a design partner. Its output
   shape (06's open question) is the issuer's own response workbook first.
-  Since 1 Nov 2026 the DDQ comes first, with the questionnaire (ADR 0078).
+  Since 1 Nov 2026 the DDQ comes first, with the questionnaire (ADR 0079).
 - **Then the extraction stack:** bank statements, medical chronologies, and
   contract and lease registers, on shared page citations, tie-out checks and a
   batch runner (about March 2027).
@@ -260,8 +260,8 @@ changes; the playbook, the review against it and the issues list, and a
 questionnaire's mappings and answer matching, are the job.
 
 Revised 1 Nov 2026
-([ADR 0078](../../docs/adr/0078-surfsense-sells-one-business-license-priced-per-person.md),
-[ADR 0079](../../docs/adr/0079-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)):
+([ADR 0079](../../docs/adr/0079-surfsense-sells-one-business-license-priced-per-person.md),
+[ADR 0080](../../docs/adr/0080-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)):
 the license column is Business, the one paid license; the Individual license
 stops being sold when the first job plugin ships. The scraper plugins leave the
 column as seven platform scrapers retire in that release, and reading web
@@ -300,7 +300,7 @@ The line between an edit and a job stands.
 
 | Free, on every model the capability allows | Business ($200 a year for the first person, $120 for each further one; a founding price to test) | Enterprise (custom, invoiced) |
 |---|---|---|
-| Q&A, every Studio format, folders and linked folders; reading web pages and web search for Add from the web ([ADR 0079](../../docs/adr/0079-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)) | The B2B job plugins, each with its skill, agent, workflow, mappings, playbooks and starter playbooks, templates and eval cases; the 14-day trial covers them; whether all are included, the recommended default, or each is an add-on is [08's open question a](seo/08-b2b-artifact-jobs.md#open-questions-for-the-maintainer) | Organization policy that can only lower capabilities ([06](../../docs/proposals/file-agent/06-product-shape.md#organization-policy-enterprise)) |
+| Q&A, every Studio format, folders and linked folders; reading web pages and web search for Add from the web ([ADR 0080](../../docs/adr/0080-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)) | The B2B job plugins, each with its skill, agent, workflow, mappings, playbooks and starter playbooks, templates and eval cases; the 14-day trial covers them; whether all are included, the recommended default, or each is an add-on is [08's open question a](seo/08-b2b-artifact-jobs.md#open-questions-for-the-maintainer) | Organization policy that can only lower capabilities ([06](../../docs/proposals/file-agent/06-product-shape.md#organization-policy-enterprise)) |
 | The agent harness, format skills, engines, versions, revised copies, review state | Priority support | Local-only by default for new workspaces |
 | The study pack and the capability jobs (conversion, comparison, transcription, redaction, organizing); the shared job infrastructure: catalogue and entry points, eval harness, row-by-row runner, provenance and its checks, per-row review, page citations, tie-out validator, the `library` and `playbook` folder roles and the answer library with import and export, assurance basics, the bundle runtime; export and import of a workspace, a playbook or a library folder (M6) | Later, once the jobs sell: firm controls (a firm-wide policy lock, a local audit log with exports for a WISP and HIPAA reviews, a people roster) and team features (a shared library, approval by a second person, sealed client workspaces) | Later: audit log of the document scripts the agent ran, sandbox, license and plugin mirror |
 | The user's own files: libraries, playbooks they wrote, outputs and revised copies open and export without a license; when a Business license lapses, new job runs stop after 30 days and every file, library and output stays readable | | Named support |
@@ -325,7 +325,7 @@ name on the job screens.
 the license server ([`backend/license/`](../../backend/license/),
 which already issues Keygen licenses) and the premium plugins, such as the
 scraper client, which
-[ADR 0079](../../docs/adr/0079-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)
+[ADR 0080](../../docs/adr/0080-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)
 retires, kept in
 [`app/proprietary/`](https://github.com/MODSetter/SurfSense/blob/legacy/surfsense_backend/app/proprietary/LICENSE) under
 the Business Source License 1.1, which the root
@@ -369,7 +369,7 @@ before the first job plugin ships
 ([08, item 11](seo/08-b2b-artifact-jobs.md#what-the-agent-needs-one-engine-for-many-jobs)).
 
 **Before Business is sold**
-([ADR 0078](../../docs/adr/0078-surfsense-sells-one-business-license-priced-per-person.md)).
+([ADR 0079](../../docs/adr/0079-surfsense-sells-one-business-license-priced-per-person.md)).
 Keygen CE v1.7.2, which production runs, has everything Business needs:
 policies with entitlements, machines whose cap is enforced at creation,
 machine files and licensed downloads. What is not built:
@@ -408,7 +408,7 @@ questionnaire's beta, beside 08's items 1 to 5
 ([08, item 11](seo/08-b2b-artifact-jobs.md#what-the-agent-needs-one-engine-for-many-jobs)).
 Team features also need in-app extension points (08, item 12). Since 1 Nov 2026
 the platform scrapers among those plugins retire
-([ADR 0079](../../docs/adr/0079-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)):
+([ADR 0080](../../docs/adr/0080-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)):
 PostHog shows people use only Web Crawl, YouTube and Google Search, and the
 scrapers cost upkeep, proxies and captcha solving. Those three move into the
 app, free for everyone, with search through SearXNG, so Add from the web keeps
@@ -432,7 +432,7 @@ plugins come first, and these sit beside or after them (open question 3):
    awards). Since 21 Oct 2026 the licence also carries one feature build request
    a year. Since 1 Nov 2026 the Individual licence stops being sold when the
    first job plugin ships
-   ([ADR 0078](../../docs/adr/0078-surfsense-sells-one-business-license-priced-per-person.md)).
+   ([ADR 0079](../../docs/adr/0079-surfsense-sells-one-business-license-priced-per-person.md)).
    Whether Business carries the feature build request is 08's open question n;
    the experiment has not been placed in Business.
 2. **Team features, later, once the jobs sell,** as a local bundle, selling
@@ -442,14 +442,14 @@ plugins come first, and these sit beside or after them (open question 3):
    per-row review stay free. Test prices of about $1,200 a year per team and
    $2,400 per MSP, set before the decision, are hypotheses, shown only to design
    partners until at least three commit in writing. Revised 1 Nov 2026
-   (ADR 0078): team features come later within Business, which is priced per
+   (ADR 0079): team features come later within Business, which is priced per
    person, so its price replaces these test prices.
 3. **Enterprise with assurance.** The basics are published free as proof (a
    no-script job profile, a per-workspace local-only lock, an SBOM, a data-flow
    statement; signed and notarized builds already ship). Enterprise adds a
    third-party code audit, an org-wide local-only policy users cannot
    override, a local audit-log export, named support and invoicing. Revised
-   1 Nov 2026 (ADR 0078): a firm-wide policy lock and a local audit log with
+   1 Nov 2026 (ADR 0079): a firm-wide policy lock and a local audit log with
    exports come later within Business, as firm controls, and Enterprise is the
    quoted deal above Business's self-serve size (08's open question k).
 4. **Paid setup through partners only**, billed by MSPs, vCISOs and proposal
@@ -520,7 +520,7 @@ What follows from the table:
 - **Against the incumbents** a year of 50 questionnaires on Sonnet is about
   $115 in API spend (estimated) plus the Business license the job plugin needs
   ($200 a year for one person at the founding price,
-  [ADR 0078](../../docs/adr/0078-surfsense-sells-one-business-license-priced-per-person.md)),
+  [ADR 0079](../../docs/adr/0079-surfsense-sells-one-business-license-priced-per-person.md)),
   against Loopio's average of about $24K a year for small teams or Vanta's
   questionnaire module at $3–8K.
   The comparison once used Conveyor's $9,600, which its pricing page no longer
@@ -584,7 +584,7 @@ Two rules make the wording hold:
 | [Privacy page](../../www/app/\(home\)/privacy/page.tsx) | its description says "your documents never leave your machine"; section 3.2 lists three kinds of destination: update checks to github.com, model downloads to registry.ollama.ai and huggingface.co, and a model provider the user configures | M0: the qualifier. Then each milestone that adds a destination names it: api.anthropic.com in M4, including `count_tokens` calls, which send the text being counted ([05](../../docs/proposals/file-agent/05-model-ladder-and-evals.md#1-the-native-anthropic-provider-chat-titles-studio)); release-assets.githubusercontent.com for packs in M8 ([04](../../docs/proposals/file-agent/04-runtime-and-packs.md) decisions 9 and 18) | the release that adds the destination |
 | [User docs](../../www/content/docs/v2/index.mdx) | one placeholder page: "Its documentation is being written now" | one how-to page per new feature in `content/docs/v2` at each milestone's exit: folders (M2); versions and Refine (M3); the Claude key and spending caps (M4); Answer and Work on files (M5); revised copies and playbooks (M6); the questionnaire (M7); linking a folder and Office support (M8); a troubleshooting page that grows with each | each milestone's release |
 | [Changelog](../../www/content/changelog/) and [announcements](../../www/features/announcements/announcements-data.ts) | the newest changelog entry is dated 16 Aug 2026; v2.0.0 was tagged on 18 Sep 2026 | a changelog entry and an announcement for every milestone release, starting with M0's 2.1.x point release | each release |
-| [Pricing](../../www/app/(home)/pricing/pricing-content.ts) | Individual sells scraper plugins; "No plugin ships in version 2.0" | correct the version; mark unbuilt Enterprise items as planned; keep the license to premium plugins, priority support and Enterprise. Revised 22 Oct 2026 ([ADR 0067](../../docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md)): the job plugins join the license, and the FAQ line "A paid licence is only needed for the scraper plugins and priority support" changes, with the README's plugin section and the Terms. Revised 1 Nov 2026 ([ADR 0078](../../docs/adr/0078-surfsense-sells-one-business-license-priced-per-person.md), [ADR 0079](../../docs/adr/0079-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)): the Individual card, its checkout page `/pricing/individual` and every scraper line go, and reading web pages and web search are listed as free; then a Business card, "Solo" for one person, states the price and the yearly renewal before payment | now (M0); the scraper and Individual changes in the release that retires the scrapers; Business in the release that sells it |
+| [Pricing](../../www/app/(home)/pricing/pricing-content.ts) | Individual sells scraper plugins; "No plugin ships in version 2.0" | correct the version; mark unbuilt Enterprise items as planned; keep the license to premium plugins, priority support and Enterprise. Revised 22 Oct 2026 ([ADR 0067](../../docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md)): the job plugins join the license, and the FAQ line "A paid licence is only needed for the scraper plugins and priority support" changes, with the README's plugin section and the Terms. Revised 1 Nov 2026 ([ADR 0079](../../docs/adr/0079-surfsense-sells-one-business-license-priced-per-person.md), [ADR 0080](../../docs/adr/0080-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)): the Individual card, its checkout page `/pricing/individual` and every scraper line go, and reading web pages and web search are listed as free; then a Business card, "Solo" for one person, states the price and the yearly renewal before payment | now (M0); the scraper and Individual changes in the release that retires the scrapers; Business in the release that sells it |
 | Job pages (new) | none | one page per named questionnaire first (HECVAT 4, CAIQ v4, SIG Lite read from the user's licensed copy) and a guide to answering a questionnaire in your own spreadsheet from your own policies; then "Answer an RFP from past proposals"; legal pages last. No HECVAT, CAIQ or SIG question text until CSA and EDUCAUSE confirm terms (08, [pages and reach](seo/08-b2b-artifact-jobs.md#pages-and-reach)) | a committed passing row on at least one model; for any legal page, also the lawyer's review of the starter playbooks |
 | Cowork alternative page (new) | none | a factual comparison with Claude Cowork after its 6 Oct move to the cloud, describing shipped features only: `claude cowork alternative` is about 1,005 searches a month in clickstream at $25.58, and SurfSense is absent from the results | none: it claims no job |
 | Model page (new) | none | "Which model can do which job", generated from the matrix | the first committed sweep (05 P3a, M4) |
@@ -626,12 +626,12 @@ says which release carries each.
 | B0 | Honest copy now | the privacy qualifier on every surface and on the privacy page; landing lines matched to what has shipped; pricing version fix; Enterprise items marked planned; a changelog entry and announcement for the 2.1.x point release | M0 | nothing | S |
 | B1 | Clean engines | the clean-room fix and no-regression gate (02 phase 0), with the provenance legal review (0L) in parallel; the baseline re-run at n=3 on Haiku 4.5 and on Sonnet 5.5 at low effort before 15 Oct 2026, the earliest date Haiku 4.5 may retire | M1 | a spec author and a separate implementer | L |
 | B2 | Frontier evidence | native Anthropic provider, spend ledger and caps, first paid sweep (05 P1, P2, P3a); the privacy page names api.anthropic.com; how-to pages for the Claude key and spending caps | M4 | B1 | M, about $150 |
-| B4 | Questionnaire (first, revised 21 Oct) | the job-gate harness and a synthetic corpus; workbook inspection and validation, `.xlsm` uploads and an `add_sheet` operation; per-answer source and confidence; the answer library with import; then per-row review, assurance basics and the row-by-row runner (08, [items 1–8](seo/08-b2b-artifact-jobs.md#what-the-agent-needs-one-engine-for-many-jobs)). Revised 22 Oct 2026 ([ADR 0067](../../docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md)): it ships as a paid job plugin, so local paid bundles and the job-pack loader (08 item 11) run beside items 1–5; its mappings, eval cases and corpus sit in the plugin, outside the Apache-2.0 tree, and the shared builds stay free in the app. Revised 1 Nov 2026 ([ADR 0078](../../docs/adr/0078-surfsense-sells-one-business-license-priced-per-person.md)): the DDQ ships with it, and it unlocks with Business or the 14-day trial | beta about mid-Jan 2027 (minimum) or mid-Feb (full), estimates, both now also waiting on 08 item 11; re-dated once the harness lands | the harness and 08 item 11; not B1, not the redline workflow; for paid sales, what "Before Business is sold" lists (above) | roughly 8–16 weeks, plus item 11 (M–L + M) in parallel |
-| B4b | Team features and firm controls (later) | revised 22 Oct 2026: a library shared across installs, roles, second-person approval, a signed change log and sealed per-client libraries, on in-app extension points (08 item 12); local paid bundles moved to B4. Revised 1 Nov 2026 ([ADR 0078](../../docs/adr/0078-surfsense-sells-one-business-license-priced-per-person.md)): within Business, with firm controls: a firm-wide policy lock, a local audit log with exports for a WISP and HIPAA reviews, and a people roster | later, once the jobs sell | the job plugins selling; a writable shared-library location, an exception to [01's decision 9](../../docs/proposals/file-agent/01-sources-and-folders.md#decisions) that stays a proposal until then | M–L + L |
-| B7 | RFP, then the extraction stack | RFP and RFI responses from the same library (the DDQ moved to B4 on 1 Nov 2026, ADR 0078); then page citations, table-preserving PDF reading, a tie-out validator and batch, carrying bank statements, medical chronologies, and contract and lease registers (08). Each job ships as a paid plugin; page citations, the tie-out validator and batch stay free in the app ([ADR 0067](../../docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md)). Insurance is dropped | RFP after B4 passes its gate; extraction about March 2027 | B4 | L each |
+| B4 | Questionnaire (first, revised 21 Oct) | the job-gate harness and a synthetic corpus; workbook inspection and validation, `.xlsm` uploads and an `add_sheet` operation; per-answer source and confidence; the answer library with import; then per-row review, assurance basics and the row-by-row runner (08, [items 1–8](seo/08-b2b-artifact-jobs.md#what-the-agent-needs-one-engine-for-many-jobs)). Revised 22 Oct 2026 ([ADR 0067](../../docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md)): it ships as a paid job plugin, so local paid bundles and the job-pack loader (08 item 11) run beside items 1–5; its mappings, eval cases and corpus sit in the plugin, outside the Apache-2.0 tree, and the shared builds stay free in the app. Revised 1 Nov 2026 ([ADR 0079](../../docs/adr/0079-surfsense-sells-one-business-license-priced-per-person.md)): the DDQ ships with it, and it unlocks with Business or the 14-day trial | beta about mid-Jan 2027 (minimum) or mid-Feb (full), estimates, both now also waiting on 08 item 11; re-dated once the harness lands | the harness and 08 item 11; not B1, not the redline workflow; for paid sales, what "Before Business is sold" lists (above) | roughly 8–16 weeks, plus item 11 (M–L + M) in parallel |
+| B4b | Team features and firm controls (later) | revised 22 Oct 2026: a library shared across installs, roles, second-person approval, a signed change log and sealed per-client libraries, on in-app extension points (08 item 12); local paid bundles moved to B4. Revised 1 Nov 2026 ([ADR 0079](../../docs/adr/0079-surfsense-sells-one-business-license-priced-per-person.md)): within Business, with firm controls: a firm-wide policy lock, a local audit log with exports for a WISP and HIPAA reviews, and a people roster | later, once the jobs sell | the job plugins selling; a writable shared-library location, an exception to [01's decision 9](../../docs/proposals/file-agent/01-sources-and-folders.md#decisions) that stays a proposal until then | M–L + L |
+| B7 | RFP, then the extraction stack | RFP and RFI responses from the same library (the DDQ moved to B4 on 1 Nov 2026, ADR 0079); then page citations, table-preserving PDF reading, a tie-out validator and batch, carrying bank statements, medical chronologies, and contract and lease registers (08). Each job ships as a paid plugin; page citations, the tie-out validator and batch stay free in the app ([ADR 0067](../../docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md)). Insurance is dropped | RFP after B4 passes its gate; extraction about March 2027 | B4 | L each |
 | B3 | Redline job (moved behind B7) | 02 phases 1, 1b, 3, 4 and 6; 03 phase 4; 06 J3; revised copies download without internal comments by default; the user's own playbook and "Make a playbook from this document"; workspace and playbook export. Revised 22 Oct 2026 ([ADR 0067](../../docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md)): the playbook review ships as a paid job plugin carrying `crlib`, `review.py`, `playbook.py` and the starter playbooks, labelled; the engines and the export stay free in the app. A user-directed redline already ships free on the revise tool | after the extraction stack | B1, B2; versions (M3); per-thread folders and `copy_original` (M5); local paid bundles and the job-pack loader (08 item 11) | L |
 | B5 | Pages | the Cowork alternative page now; model page; questionnaire pages; RFP page; legal pages after the lawyer's review of the starter playbooks | from now (Cowork page), M4 (model page) and the questionnaire beta | committed rows from B2–B4 | M |
-| B6 | Enterprise | organization policy (06 E1), an org-wide local-only policy, a local audit-log export and a third-party code audit; mirror when a customer's deployment needs it. Revised 1 Nov 2026 (ADR 0078): the policy lock and the audit log come with Business's firm controls (B4b), and Enterprise is quoted above Business's self-serve size (08's open question k) | M10, or earlier on an Enterprise conversation | an Enterprise conversation | M |
+| B6 | Enterprise | organization policy (06 E1), an org-wide local-only policy, a local audit-log export and a third-party code audit; mirror when a customer's deployment needs it. Revised 1 Nov 2026 (ADR 0079): the policy lock and the audit log come with Business's firm controls (B4b), and Enterprise is quoted above Business's self-serve size (08's open question k) | M10, or earlier on an Enterprise conversation | an Enterprise conversation | M |
 
 ## Risks, and what would change the plan
 
@@ -645,12 +645,12 @@ says which release carries each.
 | The privacy story contradicts the Claude default | a buyer or reviewer quotes "never leaves your laptop" against a Claude run | B0's qualifier; local-only workspaces; the privacy page names each destination as it arrives |
 | Liability for a legal output | a user ships an unreviewed redline | review state on job outputs (06 decision 10), with a reviewer name the user enters and the app calls self-attested; the starter-playbook label on the job card, the issues list and the exported issues file; legal pages wait for the lawyer's review |
 | Prompt injection from a counterparty's file | an exfiltration like the one PromptArmor showed on Cowork ([write-up](https://www.promptarmor.com/resources/claude-cowork-exfiltrates-files)) | engines cannot write untracked or send anything (02 decisions 7, section 10); job threads deny bash; ship 02 phase 6's injection fixtures and egress test before marketing the questionnaire to security buyers. Phase 6 sits in M6 today, so either it moves forward with the questionnaire or that marketing waits: a scheduling decision for the maintainer |
-| A competitor copies a job plugin's content, or a fork strips its license check | SurfSense's playbooks, mappings or templates ship in another product; a job plugin runs without a license | Revised 22 Oct 2026 ([ADR 0067](../../docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md)): job content is no longer Apache-2.0; it sits outside the open tree and the license server delivers it and its updates only to a valid license. Its license terms, still open ([08, open question 1](seo/08-b2b-artifact-jobs.md#open-questions-for-the-maintainer)), set what a copier may do. The engines and shared job infrastructure stay Apache-2.0, and the lead still rests on the app, the engines and the published eval rows. Revised 1 Nov 2026 ([ADR 0078](../../docs/adr/0078-surfsense-sells-one-business-license-priced-per-person.md)): content cannot be kept secret from a licensee, so what holds is delivery to a valid Business license, the terms, whose recommended default is a closed Job Plugin License (08's open question e), and the firm's name on job screens |
-| A firm runs job plugins for more people than it declared | download counts show sharing | device activation, added only then ([ADR 0078](../../docs/adr/0078-surfsense-sells-one-business-license-priced-per-person.md)): two computers per person, a random per-install code, never a hardware ID, with consent and an offline path |
+| A competitor copies a job plugin's content, or a fork strips its license check | SurfSense's playbooks, mappings or templates ship in another product; a job plugin runs without a license | Revised 22 Oct 2026 ([ADR 0067](../../docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md)): job content is no longer Apache-2.0; it sits outside the open tree and the license server delivers it and its updates only to a valid license. Its license terms, still open ([08, open question 1](seo/08-b2b-artifact-jobs.md#open-questions-for-the-maintainer)), set what a copier may do. The engines and shared job infrastructure stay Apache-2.0, and the lead still rests on the app, the engines and the published eval rows. Revised 1 Nov 2026 ([ADR 0079](../../docs/adr/0079-surfsense-sells-one-business-license-priced-per-person.md)): content cannot be kept secret from a licensee, so what holds is delivery to a valid Business license, the terms, whose recommended default is a closed Job Plugin License (08's open question e), and the firm's name on job screens |
+| A firm runs job plugins for more people than it declared | download counts show sharing | device activation, added only then ([ADR 0079](../../docs/adr/0079-surfsense-sells-one-business-license-priced-per-person.md)): two computers per person, a random per-install code, never a hardware ID, with consent and an offline path |
 | Frontier cost deters users | measured token medians well above these estimates | default to the workflow level where it passes; cheaper columns earn rows |
 | The 4B tier fails its own floors | 4B rows below 05 section 7 targets | the free promise narrows to Q&A and the formats that pass; the wording above already allows it |
 | macOS cannot ship | notarization stops when Apple's developer agreement lapses, as on 3 Oct 2026 until the account holder accepted it; the v2.1.0 and v2.2.0 builds were notarized, 2.2.0's carrying opencode ([04](../../docs/proposals/file-agent/04-runtime-and-packs.md#signing-and-notarization)) | the account holder accepts it, which needs no code; Windows and Linux ship meanwhile |
-| License holders get nothing | scraper license mode not live when hosted tokens are purged on 18 Oct 2026 (I8 gap 1) | priority support is the license's deliverable until the scraper plugin ships through the license server, so consider extending affected licenses. Revised 22 Oct 2026: what a license adds next is the B2B job plugins ([ADR 0067](../../docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md)), with their price open ([08, open question 2](seo/08-b2b-artifact-jobs.md#open-questions-for-the-maintainer)). Revised 1 Nov 2026 ([ADR 0078](../../docs/adr/0078-surfsense-sells-one-business-license-priced-per-person.md), [ADR 0079](../../docs/adr/0079-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)): the scrapers retire, so the 3 paying Individual buyers get a short notice. When the first job ships, each becomes Business Solo on the same key and keeps auto-renewing at $60 a year, locked, as an early customer, with a notice email when converted and a reminder before each renewal. Keygen's fourth Individual license predates launch and was not a sale |
+| License holders get nothing | scraper license mode not live when hosted tokens are purged on 18 Oct 2026 (I8 gap 1) | priority support is the license's deliverable until the scraper plugin ships through the license server, so consider extending affected licenses. Revised 22 Oct 2026: what a license adds next is the B2B job plugins ([ADR 0067](../../docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md)), with their price open ([08, open question 2](seo/08-b2b-artifact-jobs.md#open-questions-for-the-maintainer)). Revised 1 Nov 2026 ([ADR 0079](../../docs/adr/0079-surfsense-sells-one-business-license-priced-per-person.md), [ADR 0080](../../docs/adr/0080-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)): the scrapers retire, so the 3 paying Individual buyers get a short notice. When the first job ships, each becomes Business Solo on the same key and keeps auto-renewing at $60 a year, locked, as an early customer, with a notice email when converted and a reminder before each renewal. Keygen's fourth Individual license predates launch and was not a sale |
 
 **What would change the order of jobs:** a measured questionnaire engine in
 less time than the redline's remaining work, or a lawyer's review that cannot
@@ -680,7 +680,7 @@ Each with a recommended answer, except where a question now points to 08.
    and since 1 Nov 2026 a private repository, signed packs and a closed Job
    Plugin License are the recommended default (08's open questions e to g).
    That also settles expiry for job plugins: since 1 Nov 2026
-   ([ADR 0078](../../docs/adr/0078-surfsense-sells-one-business-license-priced-per-person.md))
+   ([ADR 0079](../../docs/adr/0079-surfsense-sells-one-business-license-priced-per-person.md))
    a lapsed Business license stops new job runs after 30 days, while the app
    and every file, library and output keep working, which keeps ADR 0019's rule
    that a license never disables the app.
@@ -688,18 +688,18 @@ Each with a recommended answer, except where a question now points to 08.
    Enterprise?** Revised 22 Oct 2026: the B2B job plugins
    ([ADR 0067](../../docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md)). Revised
    1 Nov 2026
-   ([ADR 0078](../../docs/adr/0078-surfsense-sells-one-business-license-priced-per-person.md)):
+   ([ADR 0079](../../docs/adr/0079-surfsense-sells-one-business-license-priced-per-person.md)):
    Business, the one paid license, sells them, and later firm controls and
    team features, once the jobs sell; Enterprise with assurance is quoted above
    it (What stays free and what is sold). The Individual license, where public
    data plugins were proposed on 21 Oct, stops being sold, and the scraper
    plugins retire, both in the release that ships the first job plugin
-   ([ADR 0079](../../docs/adr/0079-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)).
+   ([ADR 0080](../../docs/adr/0080-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)).
    Bundled model access stays rejected. The job plugins' terms are question 2;
    whether every job is included in Business is 08's open question a.
 4. **Is $120 a year the right Individual price for a business tool?** Answered
    1 Nov 2026
-   ([ADR 0078](../../docs/adr/0078-surfsense-sells-one-business-license-priced-per-person.md)):
+   ([ADR 0079](../../docs/adr/0079-surfsense-sells-one-business-license-priced-per-person.md)):
    the Individual license stops being sold when the first job plugin ships, and
    business jobs need Business,
    priced per person, at a founding price locked for early customers and a
@@ -757,7 +757,7 @@ Each with a recommended answer, except where a question now points to 08.
     features come later, once the jobs sell
     ([08's open question 4](seo/08-b2b-artifact-jobs.md#open-questions-for-the-maintainer)).
     Revised 1 Nov 2026
-    ([ADR 0078](../../docs/adr/0078-surfsense-sells-one-business-license-priced-per-person.md)):
+    ([ADR 0079](../../docs/adr/0079-surfsense-sells-one-business-license-priced-per-person.md)):
     no separate tier; team features come later within Business, which is
     priced per person.
     Colleagues keep sharing through files for free: a playbook, a library
@@ -780,8 +780,8 @@ Each with a recommended answer, except where a question now points to 08.
     to 955 (08). Write one factual comparison page about shipped features now.
 
 **Open since 1 Nov 2026**
-([ADR 0078](../../docs/adr/0078-surfsense-sells-one-business-license-priced-per-person.md),
-[ADR 0079](../../docs/adr/0079-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)):
+([ADR 0079](../../docs/adr/0079-surfsense-sells-one-business-license-priced-per-person.md),
+[ADR 0080](../../docs/adr/0080-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)):
 [08's open questions a to r](seo/08-b2b-artifact-jobs.md#open-questions-for-the-maintainer),
 each with its recommended default and none decided. They ask what Business
 includes and costs (a, k, m); who counts as a person, and how shared servers,

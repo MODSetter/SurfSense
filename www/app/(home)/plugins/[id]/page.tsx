@@ -19,7 +19,7 @@ import { PluginTools } from "./plugin-tools";
 /**
  * `/plugins/<id>`: a listed plugin's page, the one the app opens from Browse, built from
  * its list entry alone. Replaces the per-scraper marketing pages, which redirect here
- * from `next.config.ts`. A plugin the registry lists later is rendered on first visit.
+ * from `next.config.mts`. A plugin the registry lists later is rendered on first visit.
  */
 
 // The registry list is read at most hourly, as on `/plugins`.

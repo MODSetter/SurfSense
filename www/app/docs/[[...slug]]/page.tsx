@@ -1,6 +1,14 @@
-import { DocsBody, DocsDescription, DocsPage, DocsTitle } from "fumadocs-ui/page";
+import {
+	DocsBody,
+	DocsDescription,
+	DocsPage,
+	DocsTitle,
+	MarkdownCopyButton,
+	ViewOptionsPopover,
+} from "fumadocs-ui/layouts/spacious/page";
 import { notFound } from "next/navigation";
 import { cache } from "react";
+import { markdownUrlOf } from "@/features/docs/docs-llms";
 import { source } from "@/features/docs/source";
 import { getMDXComponents } from "@/mdx-components";
 
@@ -14,24 +22,34 @@ export default async function Page(props: { params: Promise<{ slug?: string[] }>
 	if (!page) notFound();
 
 	const MDX = page.data.body;
+	const markdownUrl = markdownUrlOf(page);
 
 	return (
-		<DocsPage
-			toc={page.data.toc}
-			full={page.data.full}
-			tableOfContent={{
-				style: "clerk",
-				single: false,
-			}}
-			tableOfContentPopover={{
-				style: "clerk",
-			}}
-		>
+		<DocsPage toc={page.data.toc} full={page.data.full}>
 			<DocsTitle>{page.data.title}</DocsTitle>
-			<DocsDescription>{page.data.description}</DocsDescription>
+			<DocsDescription className="mb-0">{page.data.description}</DocsDescription>
+			<div className="flex flex-row items-center gap-2 border-b pb-6">
+				<MarkdownCopyButton markdownUrl={markdownUrl} />
+				<ViewOptionsPopover
+					markdownUrl={markdownUrl}
+					githubUrl={`https://github.com/MODSetter/SurfSense/blob/main/www/content/docs/${page.path}`}
+					pageUrl={`https://www.surfsense.com${page.url}`}
+				/>
+			</div>
 			<DocsBody>
 				<MDX components={getMDXComponents()} />
 			</DocsBody>
+			{/* Not Fumadocs' PageLastUpdate: it leaves the date out of the server HTML and
+			    formats it only as an ambiguous numeric date, such as 11/2/2026. */}
+			{page.data.lastModified && (
+				<p className="text-sm text-fd-muted-foreground">
+					Last updated on{" "}
+					{page.data.lastModified.toLocaleDateString("en-US", {
+						dateStyle: "long",
+						timeZone: "UTC",
+					})}
+				</p>
+			)}
 		</DocsPage>
 	);
 }

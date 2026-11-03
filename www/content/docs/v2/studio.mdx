@@ -1,0 +1,112 @@
+---
+title: Studio
+description: Turn your sources into documents, slides, spreadsheets, study material, podcasts and images
+---
+
+Studio turns the sources you pick into something you can keep: a report, a deck, a quiz, a podcast, an image. It lives in the right panel. If the panel is hidden, click **Show right panel** in the title bar.
+
+Everything Studio makes is saved in the workspace, searchable and citable in chat like any source.
+
+## Make something
+
+1. Click a format.
+2. Click the sources button, such as "12 sources", to choose which sources to use. It's the same selection as the ticks in the **Sources** panel, so chat and Studio share it. Only ready sources can be used.
+3. Optionally, write a **Prompt (optional)** to steer it, such as "emphasise the risks".
+4. Click **Generate**.
+
+The result appears in the **Artifacts** list below, and a notice says when it's ready. You can keep working, and start several at once.
+
+## Formats
+
+| Format | You get | File |
+|---|---|---|
+| **Markdown** | A written summary or report | `.md` |
+| **Word** | A formatted Word document with headings, lists, tables, figures and charts | `.docx` |
+| **Slides** | A PowerPoint deck | `.pptx` |
+| **Spreadsheet** | An Excel workbook | `.xlsx` |
+| **Web page** | An interactive page that opens in Studio | `.html` |
+| **PDF** | A formatted PDF | `.pdf` |
+| **Mind map** | An outline drawn as a map you can expand and fit to the panel | none |
+| **Flashcards** | A deck you go through one card at a time, marking **Got it** or **Needs review**, with **Shuffle** | none |
+| **Quiz** | Questions with explanations, a score, and **Retake quiz** for all or only the missed questions | none |
+| **Podcast** | An audio episode with its transcript | `.mp3` |
+| **Image** | A picture drawn from your sources | the image |
+| **Infographic** | A picture that lays out your sources' key points | the image |
+
+Word, Slides and Spreadsheet files are real Office files: open and edit them in Word, PowerPoint, Excel or LibreOffice. Flashcard marks and quiz answers are saved as you go.
+
+### What each format needs
+
+Every format needs a chat model. A format that can't run says what it needs, such as "Needs an image model."
+
+- **Podcast** also needs an audio model. SurfSense ships one and picks it for you.
+- **Image** and **Infographic** also need an image model. See [Image models](#image-models).
+
+Studio uses the chat model selected in Settings at the time you click **Generate**. Strong models make Word documents and PDFs with richer layout; small local models make simpler ones from Markdown.
+
+### Podcasts
+
+Click **Podcast** to open its brief before you generate:
+
+- **Style**: Conversational, Debate, Interview, Monologue or Narrative.
+- **Length**: Short (about 3 min), Standard (about 8 min) or Long (about 15 min).
+- **Speakers**: their roles, such as Host, Co-host, Expert, Guest or Narrator, and a voice for each.
+- The language of the episode.
+
+See [Voice](/docs/v2/voice#podcast-voices) for voices and audio models.
+
+## Open, download and delete
+
+Click an artifact to open it in the right panel.
+
+- **Download** saves its file. Mind maps, flashcards and quizzes have no download.
+- Each row's menu has **Open**, **Regenerate**, **Cancel** (while it runs), **Retry** (after it failed) and **Delete**.
+- The filter at the top of the list shows one kind of artifact at a time.
+
+**Regenerate** makes it again from the same sources.
+
+## Versions
+
+A document that changes keeps its earlier versions. The list shows it once, with its newest version's number, such as "v3". In the viewer, the version switcher lists every version under **Versions**, and you can open any of them.
+
+Versions come from:
+
+- **Refine**, for Word documents, PDFs and web pages Studio made.
+- **Edit**, for images and infographics.
+- The agent, for the documents it made and the copies of your files it revised. See [Agent](/docs/v2/agent).
+
+Deleting a document deletes all its versions.
+
+## Refine a document
+
+Over a ready Word document, PDF or web page that Studio made, click the round **Refine** button at the bottom-right. Describe a change, such as "a shorter introduction", and press Enter. Studio rewrites the document into its next version. The earlier version stays as it was.
+
+Refine uses your chat model. A very long document may be too long for a small model to rewrite in one go: Studio says so and names the model.
+
+Documents the agent made are changed in its chat instead: "The agent made this document: ask for changes in its chat."
+
+## Edit an image
+
+Over a ready image or infographic, the same round button opens an edit box. Describe a change, such as "a darker background" or a new title, and click **Edit**. Studio sends the picture and your instruction to the image editing model, and what comes back is the next version.
+
+Each edit starts from the version you have open, so edits chain, and every earlier version stays. There's no way to select one region of the picture yet: an edit applies to the whole image.
+
+Without an image editing model, the box says "Needs an image editing model." with **Choose a model**.
+
+<Callout type="info">
+  Editing an image on a computer without a graphics card is slow. In testing,
+  one edit took over ten minutes, about twice as long as drawing a new image.
+</Callout>
+
+## Image models
+
+Choose them in Settings:
+
+- **Settings › Image gen** for drawing. Run a model on this computer, such as FLUX.2 klein 4B, Z-Image Turbo or Stable Diffusion XL, or use one from an API connection.
+- **Settings › Image edit** for editing. FLUX.2 klein 4B both draws and edits from one download. A remote model that takes a picture in and gives one back works too.
+
+A local image model runs only while Studio needs it, and works offline. It frees its memory a few minutes after the last image. See [Models](/docs/v2/models).
+
+## What Studio sends to the model
+
+Studio sends the model the sources you picked. When they're too long to send whole, it shares the room between them, taking the passages that best match your prompt from each, so no source is left out.

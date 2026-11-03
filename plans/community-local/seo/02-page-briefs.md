@@ -224,8 +224,8 @@ If that is more than the pricing page should carry, move the comparison to a
 blog post and link it; do not fake it.
 
 **Revised 1 Nov 2026**
-([ADR 0078](../../../docs/adr/0078-surfsense-sells-one-business-license-priced-per-person.md),
-[ADR 0079](../../../docs/adr/0079-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)).
+([ADR 0079](../../../docs/adr/0079-surfsense-sells-one-business-license-priced-per-person.md),
+[ADR 0080](../../../docs/adr/0080-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)).
 The page changes in one release, the one that ships the first paid job, which
 also retires the platform scrapers and stops Individual sales. That release
 takes off the Individual card, its checkout page `/pricing/individual` and
@@ -238,7 +238,7 @@ Until then the page stays as it is.
 - **Title:** `SurfSense Pricing — Free App, Business Licence` (46)
 - **Meta:** `The app and its updates are free forever. A Business licence adds the job plugins, priced per person. Compare with NotebookLM's tiers and source limits.` (152)
 - **H1:** `Pricing`
-- **Required content**, from ADR 0078: a Business card, "Solo" for one
+- **Required content**, from ADR 0079: a Business card, "Solo" for one
   person, at $200 a year for the first person and $120 for each further one, a
   founding price locked for early customers; who needs it, anyone who uses a
   SurfSense job plugin for work; the automatic yearly renewal, stated before
@@ -248,7 +248,7 @@ Until then the page stays as it is.
   the app never stops. The FAQ's "a single payment, not a subscription" goes.
   No line says a licence works on every computer, since Business counts
   people, not devices. The market prices behind the price, hypotheses in
-  [ADR 0078](../../../docs/adr/0078-surfsense-sells-one-business-license-priced-per-person.md),
+  [ADR 0079](../../../docs/adr/0079-surfsense-sells-one-business-license-priced-per-person.md),
   stay off the page.
 - **Lead with free.** The app and updates cost nothing, reading web pages and
   web search included; a Business licence buys the job plugins. Burying that
@@ -394,7 +394,7 @@ over your own library, no browser automation, no Google account.**
   the only blocker; a KD 1 term growing at +556% is worth an interim page.
 - **Revised 1 Nov 2026:** there is no licence mode to wait for. The live page
   still lists scraper tools, which retire with the platform scrapers
-  ([ADR 0079](../../../docs/adr/0079-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)),
+  ([ADR 0080](../../../docs/adr/0080-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)),
   so they and its links to the scraper plugin pages come off it in that
   release.
 
@@ -662,7 +662,7 @@ KD 15; `präsentation erstellen ki` 5,400 at KD 11).
   in [`01`](01-keyword-research.md) and in [`07`](07-what-users-do.md).
   (2 Nov 2026: from the release that ships the first paid job, the app reads
   YouTube transcripts for free
-  ([ADR 0079](../../../docs/adr/0079-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)),
+  ([ADR 0080](../../../docs/adr/0080-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)),
   so a YouTube H2 becomes reachable then.)
 - **Report (DOCX)**: a docs page, and the blog post *Literature review with
   AI, from your own papers* (`literature review ai` 720, KD 17, $8.46).
@@ -889,7 +889,7 @@ above, with the reasoning in `01-keyword-research.md`, "Our baseline".
 `[slug]` catch-all was removed on 21 Oct 2026: each listed scraper's page
 redirects to its plugin page, `/plugins/<id>`, and `/reddit` and `/instagram`
 to `/plugins`. When the platform scrapers retire
-([ADR 0079](../../../docs/adr/0079-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)),
+([ADR 0080](../../../docs/adr/0080-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)),
 the seven retired plugins' pages, and the old addresses that redirect to them,
 need a new target in that release, and the Web Crawl, YouTube and search pages
 say they are free and built into the app. None of them ranks for anything in our top 200, so there

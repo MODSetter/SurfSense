@@ -11,7 +11,8 @@ from modules.egress.service import BUILT_IN
 from modules.llm.catalog.local.dependencies import get_local_catalog
 from modules.llm.model_type import ModelType
 from modules.llm.models import ProviderConnection, SelectedModel
-from modules.llm.providers.openai_compatible import NonRetryableImageError
+from modules.llm.providers.openai_compatible import image_response
+from modules.llm.providers.protocols import GeneratedImage
 from modules.llm.resolution import resolve_image_generation
 from shared.config import get_llm_settings
 from shared.db import create_session_factory
@@ -243,6 +244,21 @@ async def test_deleting_a_connection_to_huggingface_keeps_the_built_in_grant(
     assert (await _destinations(client))["host:huggingface.co"]["enabled"]
 
 
+PNG = b"\x89PNG\r\n\x1a\npicture"
+
+
+def _fetch_any_link(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    """The provider's storage host, which a test cannot reach: records the fetch."""
+    fetched: list[str] = []
+
+    async def download(url: str, **_: object) -> GeneratedImage:
+        fetched.append(url)
+        return GeneratedImage(PNG, "image/png")
+
+    monkeypatch.setattr(image_response, "download_image", download)
+    return fetched
+
+
 async def _image_test(client: AsyncClient, base_url: str):
     created = await client.post(
         "/llm/connections", json={**REMOTE, "label": "Local", "base_url": base_url}
@@ -254,19 +270,19 @@ async def _image_test(client: AsyncClient, base_url: str):
     )
 
 
-async def test_an_image_url_on_a_host_nobody_allowed_is_refused_and_listed(
+async def test_an_image_link_on_another_host_is_fetched_with_its_connection(
     client: AsyncClient, openai_server: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The endpoint chose the host, so the user is asked about it by name."""
+    """The user allowed this provider; the link is where it put their picture,
+    on whatever host it chose (ADR 0078). Nobody is asked, nothing is listed."""
     monkeypatch.setattr(conftest, "IMAGE_URL", "https://cdn.provider.example/x.png")
+    fetched = _fetch_any_link(monkeypatch)
 
     reply = await _image_test(client, openai_server)
 
-    assert reply.status_code == 403
-    assert reply.json()["detail"]["code"] == "egress_disabled"
-    assert reply.json()["detail"]["host"] == "cdn.provider.example"
-    listed = await _destinations(client)
-    assert listed["host:cdn.provider.example"]["enabled"] is False
+    assert reply.status_code == 200, reply.text
+    assert fetched == ["https://cdn.provider.example/x.png"]
+    assert "host:cdn.provider.example" not in await _destinations(client)
 
 
 async def test_an_image_url_on_loopback_needs_no_decision(
@@ -282,11 +298,12 @@ async def test_an_image_url_on_loopback_needs_no_decision(
     assert "host:127.0.0.1" not in await _destinations(client)
 
 
-async def test_a_studio_image_on_an_unallowed_host_fails_without_retrying(
+async def test_a_studio_image_linked_on_another_host_is_made(
     engine: Engine, openai_server: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """No dialog reaches the worker, and a retry would pay for the image again."""
+    """Studio's job is not stopped by a host the provider picked for the picture."""
     monkeypatch.setattr(conftest, "IMAGE_URL", "https://cdn.provider.example/x.png")
+    fetched = _fetch_any_link(monkeypatch)
     _store(engine, {**REMOTE, "label": "Local", "base_url": openai_server})
     with create_session_factory(engine)() as session:
         session.add(
@@ -300,11 +317,12 @@ async def test_a_studio_image_on_an_unallowed_host_fails_without_retrying(
         session.commit()
         resolved = resolve_image_generation(session)
 
-        with pytest.raises(NonRetryableImageError, match=r"cdn\.provider\.example"):
-            await resolved.generator.generate("black-forest-labs/flux", "draw")
+        image = await resolved.generator.generate("black-forest-labs/flux", "draw")
 
+    assert image.content == PNG
+    assert fetched == ["https://cdn.provider.example/x.png"]
     with create_session_factory(engine)() as session:
         destinations = [
             row.destination for row in session.scalars(select(EgressDestination))
         ]
-    assert destinations == ["host:cdn.provider.example"]
+    assert "host:cdn.provider.example" not in destinations

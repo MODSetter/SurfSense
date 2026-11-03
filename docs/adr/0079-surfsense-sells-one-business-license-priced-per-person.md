@@ -1,4 +1,4 @@
-# ADR 0078: SurfSense sells one paid license, Business, priced per person
+# ADR 0079: SurfSense sells one paid license, Business, priced per person
 
 - **Status:** Accepted
 - **Date:** 2026-11-01
@@ -7,7 +7,7 @@
 
 ## Context
 
-ADR 0067 made SurfSense's B2B jobs paid plugins and left their price open: the Individual license ($60 the first year, then $120), or a business license at a higher price ([08, open question 2](../../plans/community-local/seo/08-b2b-artifact-jobs.md#open-questions-for-the-maintainer)). Individual sells the platform scrapers and priority support, and the scrapers retire ([ADR 0079](0079-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)).
+ADR 0067 made SurfSense's B2B jobs paid plugins and left their price open: the Individual license ($60 the first year, then $120), or a business license at a higher price ([08, open question 2](../../plans/community-local/seo/08-b2b-artifact-jobs.md#open-questions-for-the-maintainer)). Individual sells the platform scrapers and priority support, and the scrapers retire ([ADR 0080](0080-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)).
 
 The jobs' buyers are firms. AI tools for lawyers, accountants and clinicians run about $40–150 a month per user, and committed questionnaire-tool plans start around $3,000 a year; both figures are hypotheses.
 
@@ -16,7 +16,7 @@ A check in the open-source app can be stripped by a fork (ADR 0019), and a licen
 ## Decision
 
 - **One paid license, Business.** Business starts at one person, and a one-person Business license is shown as "Solo". Anyone who uses a SurfSense job plugin for work needs Business.
-- **One switch, in the release that ships the first paid job.** Business goes on sale, the platform scrapers retire ([ADR 0079](0079-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)) and Individual sales stop in that one release, so the paid offer is never empty. Until then the scrapers and the Individual license stay on sale.
+- **One switch, in the release that ships the first paid job.** Business goes on sale, the platform scrapers retire ([ADR 0080](0080-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)) and Individual sales stop in that one release, so the paid offer is never empty. Until then the scrapers and the Individual license stay on sale.
 - **Only Business or the 14-day trial unlocks SurfSense's B2B job plugins.** The jobs, in order: the security questionnaire and DDQ first; RFP and RFI responses; bank statements into a ledger, medical chronologies, and contract and lease registers; the contract redline against a playbook. Later come firm controls (a firm-wide policy lock, a local audit log with exports for a WISP and HIPAA reviews, a people roster) and team features (a shared library, approval by a second person, sealed client workspaces).
 - **A founding price per person:** $200 a year for the first person and $120 a year for each further person (1 person $200, 2 $320, 5 $680, 10 $1,280, 15 $1,880), locked for early customers and a hypothesis to test. It replaces the earlier plan of $1,200 a year per firm, and Individual's $60, then $120.
 - **Yearly renewal on the same key.** Business renews automatically every year, and a renewal extends the same Keygen license. The app fetches the renewed license file when online, and an offline machine imports the emailed file. The checkout states the yearly renewal before payment. Cancellation and seat changes go through Stripe's customer-portal link, sent by email, so SurfSense still has no accounts ([ADR 0024](0024-portal-without-accounts.md)).

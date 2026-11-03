@@ -1,0 +1,79 @@
+---
+title: Data folder
+description: Where SurfSense keeps your data, and how to back it up, reset it or remove it
+---
+
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+
+SurfSense keeps your workspaces, sources, chats, Studio outputs, downloaded models and settings in one folder in your home folder. It's separate from where the app is installed, so updating or reinstalling the app leaves your data alone.
+
+To open it, go to Settings › About › **Your data** and choose **Open folder**.
+
+## Where it is
+
+| Install | Folder |
+|---|---|
+| Windows | `C:\Users\<you>\.surfsense` |
+| macOS | `/Users/<you>/.surfsense` |
+| Linux | `~/.surfsense` |
+| Linux, Snap Store | `~/snap/surfsense-local/common/.surfsense` |
+| Docker | The volume your container mounts. See [Docker](/docs/v2/docker). |
+
+The folder name starts with a dot, so macOS and Linux hide it by default. On macOS, press Cmd+Shift+. in Finder to show hidden files; on Linux, press Ctrl+H in most file managers.
+
+## What's inside
+
+| In the folder | Holds |
+|---|---|
+| `surfsense.db` | Your workspaces, sources' text, chats, settings and the search index |
+| `data/workspaces/` | Your uploaded files, chat images and Studio outputs, one folder per workspace |
+| `models/` | Local models you downloaded |
+| `images/` | Image models you downloaded |
+| `electron/` | Window, theme, language, update and privacy settings, and the encrypted key for your API keys |
+
+Downloaded models are often the biggest part. To free space, remove models you don't use with **Delete model** in SurfSense rather than deleting files by hand. See [models](/docs/v2/models).
+
+## Moving it
+
+The desktop app always uses this folder. It can't be moved to another drive yet.
+
+## Back up and restore
+
+<Steps>
+  <Step>
+    Quit SurfSense, so nothing is writing to the folder.
+  </Step>
+  <Step>
+    Copy the whole `.surfsense` folder somewhere safe.
+  </Step>
+  <Step>
+    To restore, quit SurfSense, replace `.surfsense` with your copy, and start SurfSense again.
+  </Step>
+</Steps>
+
+Copying only part of the folder can leave sources or outputs that point at missing files, so back up the whole folder.
+
+<Callout title="API keys don't move to another computer">
+  Your API keys are encrypted with a key kept in this computer's keychain. If
+  you restore the folder on another computer, or after resetting your
+  keychain, your connections are still there but their keys can't be read.
+  Enter each key again.
+</Callout>
+
+## Start over
+
+To reset SurfSense to a fresh install, quit it and rename or delete the `.surfsense` folder. The next time SurfSense starts, it creates a new one and runs setup again. Renaming instead of deleting keeps your old data in case you want it back.
+
+## Remove everything
+
+Uninstalling SurfSense removes the app but keeps your data folder, so a reinstall picks up where you left off. To remove your data too, uninstall the app, then delete the `.surfsense` folder.
+
+The updater also keeps a copy of the last installer, to make the next update smaller. Uninstalling leaves it behind too:
+
+| OS | Updater cache |
+|---|---|
+| Windows | `%LOCALAPPDATA%\surfsense-local-electron-updater` |
+| macOS | `~/Library/Caches/surfsense-local-electron-updater` |
+| Linux | `~/.cache/surfsense-local-electron-updater` |
+
+Delete it to get that space back. An [organization policy file](/docs/v2/privacy#organization-policy), if your administrator added one, is not removed either.

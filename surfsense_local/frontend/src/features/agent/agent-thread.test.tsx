@@ -105,6 +105,7 @@ const PROPOSAL = {
   version: { root_id: 40, number: 1, parent_id: null },
   spec_kind: "python",
   refinable: false,
+  image_editable: false,
 }
 
 /**
