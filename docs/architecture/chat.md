@@ -252,6 +252,7 @@ Interface strings are `dictation_<surface>_<purpose>`, and a server code is `dic
 
 - A citation renders as a chip showing the chunk id, and the chip is a real button. Clicking it opens the citation panel in the right rail.
 - The panel loads `GET /workspaces/{id}/documents/by-chunk/{chunk_id}?chunk_window=5`: the cited chunk and up to five neighbours on each side in document order, scoped to the workspace, so another workspace's chunk is a `404`. It highlights the cited chunk, scrolls to it, says how many chunks lie outside the window, and for an uploaded file offers "Open file", which opens the original through the preload bridge.
+- A chunk renders as markdown ([`citation-chunk-text.tsx`](../../surfsense_local/frontend/src/features/chat/citation-chunk-text.tsx)), its text being a file's or a web page's own: only ordinary links stay links, and each asks first; a remote image is never loaded, since fetching one would pass egress consent, and reads as its description or goes; a long address breaks rather than leave the card. Each chunk parses alone, so one that begins inside a code fence or table its neighbour opened reads a little off.
 
 ## Accessibility
 

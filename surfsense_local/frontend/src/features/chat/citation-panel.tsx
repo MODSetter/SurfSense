@@ -8,6 +8,8 @@ import { motionIsReduced } from "@/features/motion-preference/motion-preference"
 import { getDocumentByChunk } from "@/features/sources/api"
 import { intl } from "@/i18n/intl"
 
+import { CitationChunkText } from "./citation-chunk-text"
+
 export function CitationPanel({
   workspaceId,
   chunkId,
@@ -166,7 +168,7 @@ export function CitationPanel({
                       </span>
                     ) : null}
                   </div>
-                  <p className="text-sm whitespace-pre-wrap">{chunk.content}</p>
+                  <CitationChunkText content={chunk.content} />
                 </div>
               )
             })}
