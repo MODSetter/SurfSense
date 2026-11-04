@@ -1,5 +1,5 @@
 """Whether a pack's job may run here: a free pack's always, a paid pack's on a licence that
-carries the job's entitlement, as every Business licence and the Business trial do (ADR 0079).
+carries the job's entitlement, as every Business licence and the Business trial do (ADR 0080).
 
 The licence's own expiry is the end of the period paid for plus 30 days, which is the grace
 already, so the app adds none. The developer switch runs paid jobs without a licence. Like
