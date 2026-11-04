@@ -1,6 +1,6 @@
 """`invoice.paid`: the period paid for extends the same license, and a renewal is mailed.
 
-The same key renews (ADR 0079), so nothing new is minted: the license's expiry
+The same key renews (ADR 0080), so nothing new is minted: the license's expiry
 moves to the end of the paid period plus the grace. The expiry is read from the
 live subscription, which makes a retried or late event set the same value.
 """

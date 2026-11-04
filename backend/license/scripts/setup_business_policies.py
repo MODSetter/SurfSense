@@ -113,7 +113,7 @@ def _policy_payload(
         # Never strict: the server creates no machines, and a strict policy
         # answers NO_MACHINE for every key, which the plugin host refuses.
         "strict": False,
-        # People, not devices (ADR 0079): no node-lock for a later activation
+        # People, not devices (ADR 0080): no node-lock for a later activation
         # scheme to inherit.
         "floating": True,
         "maxMachines": None,

@@ -3,7 +3,7 @@
 The one [backend](../backend.md) sells, delivers and re-delivers the desktop app's license file, and serves a license the job packs its jobs unlock, with no accounts and no license table. Stripe and Keygen are the system of record: every search is a filter over Keygen license metadata, and the one direct read is by a derived id, and the license routes take no session, read no user table and touch no Postgres. Control of an inbox replaces the login, because a license is only ever mailed to the address it is registered to. Where having no table would cost a guarantee, the code moves the guarantee into Keygen instead of adding a table. Stripe and Keygen hold everything but the job packs, which are a private repository's GitHub releases that the server reads, checks and keeps in memory ([job packs](#job-packs)).
 
 **Code:** [`backend/license/`](../../../backend/license/), [`backend/mailer/`](../../../backend/mailer/), [`www/app/(home)/license/`](../../../www/app/\(home\)/license/)
-**Decisions:** [ADR 0024](../../adr/0024-portal-without-accounts.md), [ADR 0019](../../adr/0019-offline-licenses.md), ADR 0079 (one Business license, priced per person; on the `docs/business-license` branch), [ADR 0081](../../adr/0081-the-license-server-delivers-job-packs-from-private-releases.md)
+**Decisions:** [ADR 0024](../../adr/0024-portal-without-accounts.md), [ADR 0019](../../adr/0019-offline-licenses.md), ADR 0080 (one Business license, priced per person; on the `docs/business-license` branch), [ADR 0082](../../adr/0082-the-license-server-delivers-job-packs-from-private-releases.md)
 
 What the routes produce is [contract 1](../../contracts/01-license-file.md), which the [desktop app](app.md) consumes, and for job packs [contract 6](../../contracts/06-job-pack-delivery.md), which no app on dev reads yet.
 
@@ -108,7 +108,7 @@ The purchase event comes from fulfilment rather than the webhook because the web
 
 ### Subscriptions
 
-Business renews every year on the same key (ADR 0079), and the Individual Payment Link has sold yearly subscriptions too, so a license sold on a subscription follows it. `subscription/` holds the rules:
+Business renews every year on the same key (ADR 0080), and the Individual Payment Link has sold yearly subscriptions too, so a license sold on a subscription follows it. `subscription/` holds the rules:
 
 - **Expiry.** The license ends 30 days after the period paid for: the grace before a lapsed Business license stops new job runs, which also covers Stripe's retries of a failed renewal. The period's end is read from the subscription's items, where API 2025-03-31 moved it, or from the subscription in an older payload.
 - **Renewal.** On `invoice.paid` the subscription is read live, and the license's `expiry` moves to its period's end plus 30 days, only ever later. A Business license's `maxUsers` takes the subscription's quantity too, since the firm confirms its people at renewal. Reading the live subscription makes a retried or late event set the same values. A renewal (`billing_reason` `subscription_cycle`) that moved the expiry mails the renewed file, so a computer that stays offline can import it; a suspended license is extended but gets no file. The first invoice (`subscription_create`) usually comes before the checkout's event and finds no license, which the checkout then mints with that period's expiry.
@@ -144,7 +144,7 @@ Each plan has its own policy, and `jobs.py` lists the job entitlement codes, `JO
 | business | `KEYGEN_POLICY_BUSINESS` | the setup script: 395 days, the fallback for a license made without an expiry |
 | business-trial | `KEYGEN_POLICY_BUSINESS_TRIAL` | the setup script: 14 days |
 
-The live trial, individual and team policies are never edited or made strict: the plugin host accepts only `VALID`, and a strict policy answers `NO_MACHINE` for every key on it, which would lock all of them out. The setup script makes both Business policies non-strict and floating with no machine cap, since Business counts people, not devices (ADR 0079), with the live policies' signing scheme, so their files carry the `alg` the app accepts.
+The live trial, individual and team policies are never edited or made strict: the plugin host accepts only `VALID`, and a strict policy answers `NO_MACHINE` for every key on it, which would lock all of them out. The setup script makes both Business policies non-strict and floating with no machine cap, since Business counts people, not devices (ADR 0080), with the live policies' signing scheme, so their files carry the `alg` the app accepts.
 
 ## Idempotency without a table
 
@@ -208,7 +208,7 @@ The account's public key is not exposed over the API; read it with `rails runner
 
 ## Job packs
 
-A job pack is a job's signed data, never code: `job-pack.json` lists every file's sha256 and is signed with SurfSense's Ed25519 pack key in `job-pack.sig`, zipped with the files it lists ([contract 6](../../contracts/06-job-pack-delivery.md)). No pack is in the image or this repository ([ADR 0081](../../adr/0081-the-license-server-delivers-job-packs-from-private-releases.md)): the server reads them from a store at run time, checks each as the app will and more strictly, and serves those that pass from memory. `job_packs/source.py` says what a store is, a list of assets and a read of one, so the cache reads either store the same way.
+A job pack is a job's signed data, never code: `job-pack.json` lists every file's sha256 and is signed with SurfSense's Ed25519 pack key in `job-pack.sig`, zipped with the files it lists ([contract 6](../../contracts/06-job-pack-delivery.md)). No pack is in the image or this repository ([ADR 0082](../../adr/0082-the-license-server-delivers-job-packs-from-private-releases.md)): the server reads them from a store at run time, checks each as the app will and more strictly, and serves those that pass from memory. `job_packs/source.py` says what a store is, a list of assets and a read of one, so the cache reads either store the same way.
 
 ### The store
 
@@ -402,10 +402,10 @@ The job pack tests build packs signed by a test key (`tests/job_pack_samples.py`
 - The GitHub store has not read the real releases repository, and no pack is published; its tests fake GitHub at the transport.
 - A computer that cannot reach the license server gets a pack file only from support, by hand.
 - `scripts/issue_enterprise_license.py` issues no Business license with `jobs`, so a license it issues gets no pack.
-- Individual licenses are not converted to Business Solo (ADR 0079): nothing moves one to a Business policy and writes its `jobs`, so the job pack route refuses it every job.
+- Individual licenses are not converted to Business Solo (ADR 0080): nothing moves one to a Business policy and writes its `jobs`, so the job pack route refuses it every job.
 - Nothing warns before `JOB_PACKS_GITHUB_TOKEN` expires; once it has, the refusal is only logged.
 - Each copy of the backend keeps its own pack cache, and without `REDIS_URL` its own rate-limit counts too, so every copy allows the full limits.
 - Without `REDIS_URL`, 100,000 new addresses within an hour push the least recently refilled memory buckets out, so those callers start again with full ones; and a caller that changes its IPv6 address on each request gets a fresh address bucket every time, though the key's bucket still holds.
 - Nothing detects a license key shared beyond its firm, such as one key asking from many networks.
-- The Business trial's two hidden rules in ADR 0079, Gmail dots folded into one address and at most two trials a year per company domain, are not built.
+- The Business trial's two hidden rules in ADR 0080, Gmail dots folded into one address and at most two trials a year per company domain, are not built.
 - Nothing checks the Payment Links' settings. Their after-payment redirect, the Business price's quantity limits and its `firm` field are set by hand in Stripe, and PostHog's 15 checkout clicks against 1 success page view in the 30 days to 21 Oct 2026 suggest the Individual link's redirect is not set.

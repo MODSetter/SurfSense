@@ -107,4 +107,4 @@ The Date is the day the decision was first written down. Source links are permal
 | 0076 | [The legacy self-hosted stack lives on its own branch, tagged `legacy-v*`, and its install paths on `main` pass to the new stack](0076-the-legacy-stack-lives-on-its-own-branch.md) | Accepted |
 | 0077 | [An image edit is the next version of the same document](0077-an-image-edit-is-the-next-version.md) | Accepted |
 | 0078 | [A picture a connected model returns is fetched with its connection](0078-a-picture-a-connected-model-returns-is-fetched-with-its-connection.md) | Accepted |
-| 0081 | [The license server delivers job packs itself, from a private repository's releases, to a license whose jobs list them](0081-the-license-server-delivers-job-packs-from-private-releases.md) | Accepted |
+| 0082 | [The license server delivers job packs itself, from a private repository's releases, to a license whose jobs list them](0082-the-license-server-delivers-job-packs-from-private-releases.md) | Accepted |
