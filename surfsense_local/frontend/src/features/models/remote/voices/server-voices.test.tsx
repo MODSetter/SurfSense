@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { cleanup, screen, waitFor, within } from "@testing-library/react"
+import { act, cleanup, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
 import { render } from "@/test-utils"
@@ -148,5 +148,164 @@ describe("a server audio model's voices", () => {
     expect(openExternal).toHaveBeenCalledWith(
       "https://openrouter.ai/seed-audio"
     )
+  })
+})
+
+/** The element the app plays through, which jsdom cannot: records and is driven. */
+class FakeAudio {
+  static made: FakeAudio[] = []
+  static refuse = false
+  src = ""
+  paused = true
+  onended: (() => void) | null = null
+  onerror: (() => void) | null = null
+  error: { message: string } | null = null
+  constructor() {
+    FakeAudio.made.push(this)
+  }
+  play() {
+    if (FakeAudio.refuse) return Promise.reject(new Error("playback blocked"))
+    this.paused = false
+    return Promise.resolve()
+  }
+  pause() {
+    this.paused = true
+  }
+  finish() {
+    this.paused = true
+    this.onended?.()
+  }
+}
+
+/** Two listed voices, with a speech test the test can refuse or hold open. */
+function hearing(refused: string[] = []) {
+  FakeAudio.made = []
+  FakeAudio.refuse = false
+  vi.stubGlobal("Audio", FakeAudio)
+  vi.stubGlobal(
+    "URL",
+    Object.assign(URL, {
+      createObjectURL: () => "blob:clip",
+      revokeObjectURL: () => {},
+    })
+  )
+  const voices = serving({ source: "published", voices: ["sarah", "george"] })
+  const tests: string[] = []
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (!String(input).endsWith("/speech-test")) return voices(input, init)
+      const { voice } = JSON.parse(String(init?.body)) as { voice: string }
+      tests.push(voice)
+      return refused.includes(voice)
+        ? Response.json({ detail: `refused ${voice}` }, { status: 502 })
+        : new Response(new Blob(["clip"], { type: "audio/wav" }))
+    })
+  )
+  return tests
+}
+
+describe("hearing a listed voice", () => {
+  it("plays with no player on the page, and offers Stop until told to", async () => {
+    hearing()
+    const user = userEvent.setup()
+    render(<ServerVoices />)
+
+    await user.click(await screen.findByRole("button", { name: "Play sarah" }))
+    const stop = await screen.findByRole("button", { name: "Stop sarah" })
+
+    expect(document.querySelector("audio")).toBeNull()
+    expect(FakeAudio.made[0].paused).toBe(false)
+
+    await user.click(stop)
+
+    expect(FakeAudio.made[0].paused).toBe(true)
+    expect(
+      await screen.findByRole("button", { name: "Play sarah" })
+    ).toBeTruthy()
+  })
+
+  it("goes back to Play when the clip ends", async () => {
+    hearing()
+    const user = userEvent.setup()
+    render(<ServerVoices />)
+
+    await user.click(await screen.findByRole("button", { name: "Play sarah" }))
+    await screen.findByRole("button", { name: "Stop sarah" })
+    act(() => FakeAudio.made[0].finish())
+
+    expect(
+      await screen.findByRole("button", { name: "Play sarah" })
+    ).toBeTruthy()
+  })
+
+  it("plays one voice at a time", async () => {
+    hearing()
+    const user = userEvent.setup()
+    render(<ServerVoices />)
+
+    await user.click(await screen.findByRole("button", { name: "Play sarah" }))
+    await screen.findByRole("button", { name: "Stop sarah" })
+    await user.click(screen.getByRole("button", { name: "Play george" }))
+    await screen.findByRole("button", { name: "Stop george" })
+
+    expect(FakeAudio.made[0].paused).toBe(true)
+    expect(screen.getByRole("button", { name: "Play sarah" })).toBeTruthy()
+  })
+
+  it("asks the server once per voice, since every request may be billed", async () => {
+    const tests = hearing()
+    const user = userEvent.setup()
+    render(<ServerVoices />)
+
+    await user.click(await screen.findByRole("button", { name: "Play sarah" }))
+    await user.click(await screen.findByRole("button", { name: "Stop sarah" }))
+    await user.click(await screen.findByRole("button", { name: "Play sarah" }))
+    await screen.findByRole("button", { name: "Stop sarah" })
+
+    expect(tests).toEqual(["sarah"])
+  })
+
+  it("says why under the voice the server refused, and offers it again", async () => {
+    hearing(["sarah"])
+    const user = userEvent.setup()
+    render(<ServerVoices />)
+
+    await user.click(await screen.findByRole("button", { name: "Play sarah" }))
+
+    const row = (await screen.findByText("refused sarah")).closest("li")
+    expect(
+      within(row!).getByRole("button", { name: "Play sarah" })
+    ).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Play george" })).toBeTruthy()
+  })
+
+  it("says so when playing fails once started, rather than stay on Stop", async () => {
+    hearing()
+    const user = userEvent.setup()
+    render(<ServerVoices />)
+
+    await user.click(await screen.findByRole("button", { name: "Play sarah" }))
+    await screen.findByRole("button", { name: "Stop sarah" })
+    act(() => {
+      const [element] = FakeAudio.made
+      element.error = { message: "no audio device" }
+      element.onerror?.()
+    })
+
+    expect(await screen.findByText("no audio device")).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Play sarah" })).toBeTruthy()
+  })
+
+  it("says so when the browser will not play it", async () => {
+    hearing()
+    FakeAudio.refuse = true
+    const user = userEvent.setup()
+    render(<ServerVoices />)
+
+    await user.click(await screen.findByRole("button", { name: "Play sarah" }))
+
+    expect(await screen.findByText("playback blocked")).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Play sarah" })).toBeTruthy()
   })
 })
