@@ -20,6 +20,8 @@ const SITE_PLUGIN = {
 export function SearchSiteLogo({ site }: { site: SearchSite }) {
   return (
     <PluginIcon
+      // A logo that failed says nothing about the next site's.
+      key={site}
       id={SITE_PLUGIN[site]}
       name={searchSiteName(site)}
       hasIcon

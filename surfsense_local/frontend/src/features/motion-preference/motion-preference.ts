@@ -6,7 +6,11 @@ export const MOTION_PREFERENCE_KEY = "surfsense:reduce-motion:v1"
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)"
 const ROOT_CLASS = "reduce-motion"
 
+// A choice storage refused: it holds until the page reloads.
+let unsaved: MotionPreference | null = null
+
 export function readMotionPreference(): MotionPreference {
+  if (unsaved) return unsaved
   try {
     const saved = localStorage.getItem(MOTION_PREFERENCE_KEY)
     return saved === "on" || saved === "off" ? saved : "system"
@@ -32,8 +36,9 @@ function applyToRoot(): void {
 export function setMotionPreference(preference: MotionPreference): void {
   try {
     localStorage.setItem(MOTION_PREFERENCE_KEY, preference)
+    unsaved = null
   } catch {
-    // Without storage, the choice cannot be kept.
+    unsaved = preference
   }
   applyToRoot()
 }

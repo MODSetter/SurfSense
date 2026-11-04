@@ -5,11 +5,13 @@ import { AssistantRuntimeProvider, useLocalRuntime } from "@assistant-ui/react"
 
 import type { ChatMode, ChatModes } from "@/features/models/capability/api"
 import type { ModelSelection } from "@/features/models/selection/api"
+import { readStartupLayout } from "@/features/startup/startup-layout"
 import { render } from "@/test-utils"
 
 import { ChatComposer } from "../chat-composer"
 import { useNewChatMode } from "./new-chat-mode"
 import { NewChatModeProvider } from "./new-chat-mode-provider"
+import { rememberNextNewChatMode } from "./next-new-chat-mode"
 
 const PASSED: ChatModes = {
   agentic_allowed: true,
@@ -163,6 +165,46 @@ describe("the composer's mode switch", () => {
       )
     )
     expect(nextChat()).toBe("basic")
+  })
+
+  it("tells the next launch's startup frame the mode a saved pick made the default", async () => {
+    rememberNextNewChatMode(KIMI)
+    const user = userEvent.setup()
+    renderComposer({ model: KIMI })
+    vi.mocked(fetch).mockImplementation(async () =>
+      Response.json({ ...PASSED, default_mode: "basic" })
+    )
+    expect(readStartupLayout().mentions).toBe(true)
+
+    await user.click(trigger())
+    await user.click(
+      await screen.findByRole("menuitemradio", { name: /^Basic \(Q&A\)/ })
+    )
+
+    await waitFor(() => expect(readStartupLayout().mentions).toBe(false))
+  })
+
+  it("leaves the startup frame's mode alone when a pick could not be saved", async () => {
+    rememberNextNewChatMode(KIMI)
+    const user = userEvent.setup()
+    renderComposer({ model: KIMI })
+    const fetchMock = vi.mocked(fetch)
+    fetchMock.mockImplementation(
+      async () => new Response("Internal Server Error", { status: 500 })
+    )
+
+    await user.click(trigger())
+    await user.click(
+      await screen.findByRole("menuitemradio", { name: /^Basic \(Q&A\)/ })
+    )
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining("/llm/selection/text_gen/mode"),
+        expect.anything()
+      )
+    )
+    expect(readStartupLayout().mentions).toBe(true)
   })
 
   it("starts an untested model in Basic, and warns only in the menu", async () => {

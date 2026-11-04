@@ -6,7 +6,15 @@ import {
   within,
 } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+  vi,
+} from "vitest"
 
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { writeNextNewChatMode } from "@/features/chat/modes/next-new-chat-mode-store"
@@ -415,6 +423,9 @@ describe("startup's reveal", () => {
   }, 15_000)
 
   it("draws them at once after a wait too short to see", async () => {
+    // The wait is measured on this clock, so a slow machine cannot stretch it.
+    const clock = vi.spyOn(Date, "now").mockReturnValue(Date.now())
+    onTestFinished(() => clock.mockRestore())
     onDatabase("a")
     rememberDashboard()
     completedInstall()

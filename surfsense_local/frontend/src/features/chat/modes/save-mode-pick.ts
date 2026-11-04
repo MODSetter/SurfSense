@@ -9,6 +9,7 @@ import { intl } from "@/i18n/intl"
 import { requestJson } from "@/lib/api"
 
 import { usePickNewChatMode } from "./new-chat-mode"
+import { writeNextNewChatMode } from "./next-new-chat-mode-store"
 
 function saveModePick(
   model: ModelSelection,
@@ -38,14 +39,18 @@ export function useSaveModePick() {
     (model: ModelSelection, mode: ChatMode) => {
       pick(model, mode)
       saveModePick(model, mode).then(
-        (modes) =>
+        (modes) => {
+          // For the startup frame: the dashboard writes this when the model
+          // changes, and a pick does not change it.
+          writeNextNewChatMode(modes.default_mode)
           client.setQueryData<ModelSelection | null>(
             selectionQueryKey("text_gen"),
             (current) =>
               current?.capability && modelKey(current) === modelKey(model)
                 ? { ...current, capability: { ...current.capability, modes } }
                 : current
-          ),
+          )
+        },
         () =>
           toast.error(
             intl.formatMessage({

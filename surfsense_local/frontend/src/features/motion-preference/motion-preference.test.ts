@@ -1,4 +1,12 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+  vi,
+} from "vitest"
 
 import indexHtml from "../../../index.html?raw"
 
@@ -6,6 +14,7 @@ import {
   followMotionPreference,
   MOTION_PREFERENCE_KEY,
   motionIsReduced,
+  readMotionPreference,
   setMotionPreference,
 } from "./motion-preference"
 
@@ -96,6 +105,25 @@ describe("motion preference", () => {
     setMotionPreference("off")
     expect(root.classList.contains(CLASS)).toBe(false)
     expect(localStorage.getItem(MOTION_PREFERENCE_KEY)).toBe("off")
+  })
+
+  it("still applies a choice storage refuses to keep", () => {
+    osAsksToReduce(false)
+    const write = vi
+      .spyOn(Storage.prototype, "setItem")
+      .mockImplementation(() => {
+        throw new DOMException("blocked", "SecurityError")
+      })
+    onTestFinished(() => {
+      write.mockRestore()
+      setMotionPreference("system")
+    })
+
+    setMotionPreference("on")
+
+    expect(root.classList.contains(CLASS)).toBe(true)
+    expect(motionIsReduced()).toBe(true)
+    expect(readMotionPreference()).toBe("on")
   })
 
   it("follows the OS while it matches the system, and ignores it otherwise", () => {
