@@ -191,14 +191,25 @@ export default function PrivacyPolicy() {
 							the service can check it, as section 3.3 describes.
 						</li>
 						<li>
-							<strong>Licence renewal, to api.surfsense.com.</strong> A Business licence renews
-							every year on the same key. When you choose Check for renewal in Settings, for a
-							Business licence or a trial that includes job plugins, the app asks our licence server
-							for that licence's latest file, sending your licence key, a user agent that says only
-							SurfSense, and your IP address, as any request does. Once you have allowed it, the app
-							also checks on its own, when it starts and once a day while it runs, but only for a
-							Business licence, from 30 days before it ends until 30 days after. Off until you allow
-							it, which the app asks about the first time you check.
+							<strong>Licence server, to api.surfsense.com.</strong> Our licence server renews a
+							Business licence and sends the job plugins a licence includes, and one switch covers
+							both. A Business licence renews every year on the same key. Whenever you choose Check
+							for renewal, in Settings or on the Jobs screen, the app asks for your licence's latest
+							file, whatever its plan, sending your licence key. A licence that includes job
+							plugins, a Business licence or its trial, also has the app ask for each job's latest
+							pack, sending your licence key, the job's code (such as JOB_QUESTIONNAIRE), the
+							version of that job's pack already on your computer, if any, and the job formats your
+							version of the app can run. It asks when you add or replace that licence, after you
+							check for its renewal, and when you choose Download or Check for updates. Every
+							request also sends a user agent that says only SurfSense, and your IP address, as any
+							request does. Once you have allowed it, the app also asks on its own, each time it
+							starts and once a day while it runs: for job plugins, for as long as a licence that
+							includes them is active; for a renewal, only for a Business licence, from 30 days
+							before it ends until 30 days after. A check for a job plugin that comes while a run of
+							that job is under way is made again, on its own, once the run ends. A job pack is data
+							the app reads, not a program, and importing one from a file sends nothing. Off until
+							you allow it, which the app asks about the first time you add a licence that includes
+							job plugins, check for a renewal, or download a job.
 						</li>
 						<li>
 							<strong>The Office pack, from downloadarchive.documentfoundation.org.</strong> Turning
@@ -248,10 +259,14 @@ export default function PrivacyPolicy() {
 						either off for a whole computer. SurfSense's own plugins are separate. That service sees
 						the requests you send them, as section 4.4 describes, and, once you have added a paid
 						one, the licence checks described below, which show it roughly when you open the plugin
-						list or ask the agent something. A Business licence's renewal check is separate too.
-						Once you allow api.surfsense.com, its automatic check, described below, tells our
-						licence server, by licence, each time the app starts and once a day while it runs, from
-						30 days before the licence ends until 30 days after.
+						list or ask the agent something. Our licence server's automatic checks are separate too.
+						Once you allow api.surfsense.com, they tell it, by licence, that the app is running, and
+						our licensing system notes when your licence was last checked. The check for job plugins
+						runs each time the app starts and once a day while it runs, for as long as a licence
+						that includes job plugins is active, a trial included. The renewal check runs at the
+						same times, but only from 30 days before a Business licence ends until 30 days after. A
+						check for a job plugin that comes while a run of that job is under way is made again
+						once the run ends.
 					</p>
 					<p>
 						If you buy a licence, the licence file is verified on your own machine. The app checks
@@ -260,16 +275,24 @@ export default function PrivacyPolicy() {
 						you add one and allow plugins.surfsense.com, every request to those plugins carries your
 						licence key. The app also asks that service to check the key: at once when you import or
 						replace a licence, and, at most about every five minutes, when you open the plugin list
-						or before the agent answers, whether or not that answer uses a plugin. The second is
-						renewal. A Business licence renews every year on the same key, and the app fetches the
-						renewed licence file from api.surfsense.com, sending your licence key, a user agent that
-						says only SurfSense, and your IP address, as any request does. It does so whenever you
-						choose Check for renewal in Settings, for a Business licence or a trial that includes
-						job plugins. It also does so on its own, when the app starts and once a day while it
-						runs, but only for a Business licence, from 30 days before its end until 30 days after.
-						It does neither until you allow api.surfsense.com under Network in Settings. Apart from
-						these two exceptions, your licence key never leaves your machine. The app does not
-						compute or transmit a device fingerprint.
+						or before the agent answers, whether or not that answer uses a plugin. The second is our
+						licence server, for renewal and job plugins. A Business licence renews every year on the
+						same key, and the app fetches your licence's latest file from api.surfsense.com, sending
+						your licence key, whenever you choose Check for renewal, in Settings or on the Jobs
+						screen, whatever your licence's plan. For a licence that includes job plugins, a
+						Business licence or its trial, the app also asks api.surfsense.com for each job's latest
+						pack, sending your licence key, the job's code, the version of that job's pack already
+						on your computer, if any, and the job formats your version of the app can run: when you
+						add or replace that licence, after you check for its renewal, and when you choose
+						Download or Check for updates. Each request also sends a user agent that says only
+						SurfSense, and your IP address, as any request does. The app also asks on its own, each
+						time it starts and once a day while it runs: for job plugins, for as long as a licence
+						that includes them is active; for a renewal, only for a Business licence, from 30 days
+						before its end until 30 days after. A check for a job plugin that comes while a run of
+						that job is under way is made again once the run ends. It does none of this until you
+						allow api.surfsense.com under Network in Settings. Apart from these two exceptions, your
+						licence key never leaves your machine. The app does not compute or transmit a device
+						fingerprint.
 					</p>
 					<p>
 						The retired 0.0.x desktop app, which wrapped our former hosted service, still sends
@@ -420,6 +443,20 @@ export default function PrivacyPolicy() {
 						requests for an hour, under your IP address and under a one-way hash of the key. The
 						request also appears in its server logs for the short time section 8 describes.
 					</p>
+					<p>
+						When the app asks for a job plugin, our licence server receives your licence key, the
+						job's code, the version of its pack you already have, if any, the job formats your app
+						can run, and your IP address. It checks the licence with our licensing system, which
+						notes when your licence was last checked, and answers with the newest pack of that job
+						your licence includes and your app can run, or with the fact that you already have it.
+						To limit how often one licence or one address can ask, it counts those requests under
+						your IP address and under a one-way hash of the key, apart from renewal checks, and
+						drops each count an hour after the last request. The request appears in its server logs
+						for the short time section 8 describes; your licence key does not. Running a job sends
+						us nothing: the app reads your documents on your computer and sends them only to the
+						models you chose for the job, the one that answers and, if you set one, the one that
+						checks.
+					</p>
 
 					<h3>4.5 Hosting and server logs</h3>
 					<p>
@@ -440,7 +477,8 @@ export default function PrivacyPolicy() {
 							<strong>Contract.</strong> Sending you a licence you asked for, taking payment,
 							providing the plugin service and supporting it, answering the desktop app's update
 							checks, which is the update service you enabled when you turned them on, and sending a
-							Business licence's renewed file when the app asks for it.
+							licence's latest file, such as a Business licence's renewal, and the job plugins a
+							Business licence or trial includes, when the app asks for them.
 						</li>
 						<li>
 							<strong>Legitimate interests.</strong> Keeping the site available and secure,
@@ -513,11 +551,11 @@ export default function PrivacyPolicy() {
 						it and honour support. Payment and invoice records are kept by Stripe and by us for the
 						period tax law requires, commonly six to seven years. Server and edge logs are
 						short-lived, typically days to a few weeks. The licence server's counts of renewal
-						checks expire after an hour. The plugin service's per-licence daily counts are kept in
-						our own database for 13 months and then deleted; the day a licence first used a plugin
-						is deleted once that licence has made no call for 13 months. Daily totals with no
-						licence in them may be kept longer. Aggregated figures that can no longer identify
-						anyone may be kept indefinitely.
+						checks and job plugin requests are dropped an hour after the last request. The plugin
+						service's per-licence daily counts are kept in our own database for 13 months and then
+						deleted; the day a licence first used a plugin is deleted once that licence has made no
+						call for 13 months. Daily totals with no licence in them may be kept longer. Aggregated
+						figures that can no longer identify anyone may be kept indefinitely.
 					</p>
 					<p>
 						Anything inside the desktop app is kept for exactly as long as you keep it, because we
