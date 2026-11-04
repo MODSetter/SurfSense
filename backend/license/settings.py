@@ -63,7 +63,7 @@ class LicenseSettings:
             "STRIPE_PRICE_LICENSE_INDIVIDUAL", ""
         )
         self.STRIPE_PRICE_LICENSE_TEAM = env.get("STRIPE_PRICE_LICENSE_TEAM", "")
-        # The graduated yearly price; its quantity is the number of people.
+        # The yearly price per person; its quantity is the number of people.
         self.STRIPE_PRICE_LICENSE_BUSINESS = env.get(
             "STRIPE_PRICE_LICENSE_BUSINESS", ""
         )

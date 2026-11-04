@@ -58,7 +58,7 @@ def business_checkout(
         "customer_details": {"email": "Partner@Acme.example"},
         "custom_fields": custom_fields,
         "subscription": "sub_firm",
-        "amount_total": 20000 + 12000 * (people - 1),
+        "amount_total": 6000 * people,
         "currency": "usd",
         "client_reference_id": "direct",
     }
