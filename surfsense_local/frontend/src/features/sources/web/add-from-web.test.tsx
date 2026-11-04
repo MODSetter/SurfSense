@@ -165,6 +165,8 @@ function serving({
           email: null,
           expiry: null,
           max_users: null,
+          firm: null,
+          jobs: [],
         })
       }
       if (method === "GET") return Response.json([])

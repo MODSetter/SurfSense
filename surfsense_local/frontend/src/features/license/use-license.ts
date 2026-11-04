@@ -1,6 +1,8 @@
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 
-import { readLicense } from "./api"
+import { refreshLicenseVerdict } from "@/features/plugins/license-verdict"
+
+import { readLicense, type LicenseStatus } from "./api"
 
 export const licenseQueryKey = ["license"] as const
 
@@ -14,4 +16,17 @@ export function useLicense() {
     queryKey: licenseQueryKey,
     queryFn: ({ signal }) => readLicense(signal),
   })
+}
+
+/**
+ * Straight into the cache rather than a refetch, so the sidebar's license row
+ * reacts without fetching; the paid plugins then show what the new license
+ * unlocks, before anyone opens Plugins.
+ */
+export function usePublishLicense() {
+  const queryClient = useQueryClient()
+  return (status: LicenseStatus) => {
+    queryClient.setQueryData(licenseQueryKey, status)
+    void refreshLicenseVerdict(queryClient, { ifStale: false })
+  }
 }
