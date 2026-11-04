@@ -192,7 +192,7 @@ describe("voice input in the composer", () => {
     await waitFor(() => expect(boxText(box())).toBe("Before Never mind."))
     await user.type(box(), "{Escape}")
 
-    expect(boxText(box())).toBe("Before")
+    await waitFor(() => expect(boxText(box())).toBe("Before"))
     expect(mic.state.open).toBe(false)
     expect(await startButton()).toBeTruthy()
   })
@@ -389,7 +389,7 @@ describe("voice input in the composer", () => {
       await screen.findByText("Couldn’t turn part of your speech into text.")
     ).toBeTruthy()
     disclaimerStays()
-    expect(boxText(box())).toBe("Got this.")
+    await waitFor(() => expect(boxText(box())).toBe("Got this."))
     api.answer(said("And this."))
     await user.click(screen.getByRole("button", { name: "Retry" }))
 
@@ -463,8 +463,10 @@ describe("voice input in the composer", () => {
       )
     ).toBeTruthy()
     disclaimerStays()
-    expect(boxText(box())).toBe(
-      `${"x".repeat(QUESTION_MAX_CHARS - 10)} one two`
+    await waitFor(() =>
+      expect(boxText(box())).toBe(
+        `${"x".repeat(QUESTION_MAX_CHARS - 10)} one two`
+      )
     )
   })
 })

@@ -375,7 +375,7 @@ describe("naming a source with @", () => {
     await waitFor(() =>
       expect(rowNames(list)).toEqual(["Sources3", "Artifacts1"])
     )
-    expect(boxText(box())).toBe("compare @")
+    await waitFor(() => expect(boxText(box())).toBe("compare @"))
   })
 
   it("searches both groups as soon as a name is typed", async () => {
@@ -489,7 +489,7 @@ describe("naming a source with @", () => {
     await waitFor(() =>
       expect(boxText(box()).length + "@".length).toBe(QUESTION_MAX_CHARS)
     )
-    expect(boxText(box())).toContain("Plan Q3.pdf")
+    await waitFor(() => expect(boxText(box())).toContain("Plan Q3.pdf"))
   })
 
   it("searches on past a space while the words match a name", async () => {
@@ -636,7 +636,7 @@ describe("chat composer", () => {
     await user.click(input)
     await user.paste("x".repeat(QUESTION_MAX_CHARS + 1))
 
-    expect(boxText(input)).toHaveLength(QUESTION_MAX_CHARS)
+    await waitFor(() => expect(boxText(input)).toHaveLength(QUESTION_MAX_CHARS))
     expect(screen.getByRole("status").textContent).toContain("4,096")
   })
 
