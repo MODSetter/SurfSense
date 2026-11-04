@@ -74,7 +74,7 @@ class NewThreadMode:
 async def new_thread_mode(
     session: Session, requested: ChatMode | None
 ) -> NewThreadMode:
-    """The mode a new thread opens in, and the model it was decided on.
+    """The mode a new thread opens in.
 
     Asked for Agentic and refused, it raises; with nothing asked, as older
     clients send, the default falls back to Basic where Agentic cannot run.

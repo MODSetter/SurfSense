@@ -13,7 +13,6 @@
 @custom-variant dark (&:is(.dark *));
 /* Settings › General decides, not only the OS (`features/motion-preference`). */
 @custom-variant motion-reduce (&:is(.reduce-motion *));
-@custom-variant motion-safe (&:not(.reduce-motion *));
 
 @theme inline {
   --font-heading: var(--font-sans);
@@ -422,7 +421,7 @@
 }
 
 /* Startup: the dashboard's contents fade in where the loading frame already
- * drew their containers (`features/startup/startup-reveal.tsx`). The
+ * drew their containers (`features/startup/use-startup-reveal.ts`). The
  * children fade, never the container, so a drawn box such as the composer's
  * stays put. Opacity only: nothing moves out of the frame's place. */
 @keyframes ss-reveal-in {
