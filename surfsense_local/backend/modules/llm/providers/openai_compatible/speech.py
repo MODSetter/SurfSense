@@ -7,6 +7,7 @@ import httpx
 
 from modules.llm.connections.key_headers import key_headers
 from modules.llm.providers.openai_compatible.joined_replies import joined_replies
+from modules.llm.providers.openai_compatible.pcm_reply import wav_from_pcm_reply
 from modules.llm.providers.protocols import SpokenTurn, SynthesizedAudio
 from shared import cancellation
 
@@ -47,23 +48,32 @@ class RemoteSpeech:
             transport=self._transport,
         ) as client:
             voiced = []
-            # WAV first, because only WAV takes a pause between speakers.
-            # OpenRouter takes only mp3 or pcm, and pcm states no sample rate.
+            # WAV first, because only WAV takes a pause between speakers; pcm
+            # becomes one where its header states the rate. OpenRouter takes
+            # only mp3 or pcm, and refuses wav before it reads the key or voice.
             chosen = "wav"
             for index, turn in enumerate(turns, start=1):
                 reply = await self._voice(client, index, len(turns), turn, chosen)
                 if reply.is_error and index == 1:
                     # Asked once, on the first line: a refusal after it is
                     # that line's own, not the format's.
-                    retry = await self._voice(client, index, len(turns), turn, "mp3")
-                    if not retry.is_error:
-                        chosen, reply = "mp3", retry
+                    chosen = "pcm"
+                    reply = await self._voice(client, index, len(turns), turn, chosen)
+                    if reply.is_error or wav_from_pcm_reply(reply) is None:
+                        chosen = "mp3"
+                        reply = await self._voice(
+                            client, index, len(turns), turn, chosen
+                        )
                 if reply.is_error:
                     raise NonRetryableSpeechError(
                         f"the server could not voice turn {index} of {len(turns)}: "
                         f"{_server_message(reply)}"
                     )
-                voiced.append(reply.content)
+                voiced.append(
+                    _line_as_wav(reply, index, len(turns))
+                    if chosen == "pcm"
+                    else reply.content
+                )
         try:
             joined = joined_replies(voiced)
         except (wave.Error, EOFError, ValueError) as error:
@@ -104,6 +114,16 @@ class RemoteSpeech:
             raise NonRetryableSpeechError(
                 f"the server could not voice turn {index} of {total}: {error}"
             ) from error
+
+
+def _line_as_wav(reply: httpx.Response, index: int, total: int) -> bytes:
+    wav = wav_from_pcm_reply(reply)
+    if wav is None:
+        raise NonRetryableSpeechError(
+            f"the server could not voice turn {index} of {total}: "
+            "its audio did not state a sample rate"
+        )
+    return wav
 
 
 def _server_message(reply: httpx.Response) -> str:
