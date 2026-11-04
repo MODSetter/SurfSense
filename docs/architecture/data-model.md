@@ -134,7 +134,7 @@ An artifact's searchable body is a `Document` with `document_type = ARTIFACT`; `
 | `format` | text, not an enum |
 | `generation` | integer, `CHECK (generation > 0)`, bumped by each regenerate |
 | `created_by_tool_call_id`, `updated_by_tool_call_id` | provenance; a REST job passes none |
-| `artifact_metadata` | JSON: the source ids, prompt and options the job was created with, the `source_scope` it was resolved from and the `grounded_document_ids` that reached the model, quiz or flashcard progress, and for a Word document or PDF its `spec`, `version` and `recipe` ([`studio.md`](studio.md#word-and-pdf)); for a revised copy of the user's file its `revision`, which also records the `clean` and `external` Word files kept beside the primary in the artifact's folder, since `artifact_files.role` allows only `primary` and `preview` ([`studio.md`](studio.md#revised-copies)) |
+| `artifact_metadata` | JSON: the source ids, prompt and options the job was created with, the `source_scope` it was resolved from and the `grounded_document_ids` that reached the model, quiz or flashcard progress, and for a Word document or PDF its `spec`, `version` and `recipe` ([`studio.md`](studio.md#word-and-pdf)); for a revised copy of the user's file its `revision`, which also records the `clean` and `external` Word files kept beside the primary in the artifact's folder, since `artifact_files.role` allows only `primary` and `preview` ([`studio.md`](studio.md#revised-copies)); and for a job run, on its copy's v1, its `job_run`: the pack, its version and the job, the sources, the firm's settings and checker as they were when it started, `progress`, `{done, total}` and null until the questions are found, the `report`, null until the worker has run it, and which versions `confirmed` which suggestions ([`jobs.md`](jobs.md#runs)) |
 
 `artifacts` has no status column; its status is its document's. `artifact_files` keeps one immutable blob per role: `role` (`primary` or `preview`), `storage_key` (the path relative to the data directory), `original_filename`, `mime_type`, `size_bytes` (`CHECK > 0`) and `checksum_sha256`, unique on `(artifact_id, role)` and on `storage_key`. There is no `storage_backend` column, since there is one backend. See [`studio.md`](studio.md).
 
@@ -176,6 +176,17 @@ One row per run of a plugin's action. What the run produced is not here: the plu
 | `log_tail` | the last 16 KiB the plugin printed, stdout and stderr together |
 | `created_at`, `started_at`, `finished_at` | |
 
+### `job_settings`
+
+From `0033`. A firm's choices for one job, kept for every run of it ([`jobs.md`](jobs.md#runs)); a run copies them into its `job_run` when it starts, so a change applies from the next run.
+
+| Column | Notes |
+|---|---|
+| `job` | primary key: the job's key, as its pack names it |
+| `settings` | JSON: the settings the job's pack declares, by key, each true or false; one a newer pack no longer declares is left out when they are read |
+| `checker` | JSON, nullable: the text model that makes the second checks, by provider, name and `connection_id`; null checks on the answering model |
+| `updated_at` | |
+
 ## On-disk layout
 
 ```text
@@ -184,6 +195,9 @@ One row per run of a plugin's action. What the run produced is not here: the plu
 ├── backups/<from>-<to>.db       the database as it was before a migration; the newest two are kept
 ├── huey.db                       three queues, ingest, studio and plugins, in one file
 ├── usage-counts.json             hourly counts for usage statistics, pruned after 40 days, no content
+├── job-packs/
+│   ├── <id>/<version>/           an installed job pack, as its manifest lists it
+│   └── .installing-*, .replaced-*, .download-*, .upload-*   scratch, skipped by every read
 └── data/
     └── workspaces/<workspace_id>/
         ├── documents/<document_id>/
@@ -203,7 +217,7 @@ One row per run of a plugin's action. What the run produced is not here: the plu
             └── threads/<thread_id>/            an agent thread's sources/ and outputs/
 ```
 
-Directories are keyed by row id. An upload keeps its sanitized filename inside its document's directory, and no row stores that name: the directory holds the one file ([`documents.md`](documents.md#the-original-file)). Directories written earlier hold `original.<ext>` and an unread `extracted.md`, and are left as they are. An artifact's files are named by role, with an extension when the MIME type is one the Studio worker knows. A chat image is named by its content hash, so one picture attached twice in a thread is one file ([`chat.md`](chat.md#images)). Deleting a workspace removes its whole directory after the commit, and deleting a document, an artifact or a thread removes its own directory, an agent thread's folder under `agent/threads/` included. `agent/text/` holds no row's file: each thread's `sources/` hard-links into it, and a file no thread links is swept ([`agent.md`](agent.md#folders)). The rest of the data directory is described in [`overview.md`](overview.md#data-directory).
+Directories are keyed by row id. An upload keeps its sanitized filename inside its document's directory, and no row stores that name: the directory holds the one file ([`documents.md`](documents.md#the-original-file)). Directories written earlier hold `original.<ext>` and an unread `extracted.md`, and are left as they are. An artifact's files are named by role, with an extension when the MIME type is one the Studio worker knows. A chat image is named by its content hash, so one picture attached twice in a thread is one file ([`chat.md`](chat.md#images)). Deleting a workspace removes its whole directory after the commit, and deleting a document, an artifact or a thread removes its own directory, an agent thread's folder under `agent/threads/` included. `agent/text/` holds no row's file: each thread's `sources/` hard-links into it, and a file no thread links is swept ([`agent.md`](agent.md#folders)). `job-packs/` holds no row's file either: a pack is its folder, checked against its signature and sha256s on every read, and the newest version of each id that passes is the one listed. Names starting `.installing-`, `.replaced-`, `.download-` and `.upload-` are an install's, a download's and an import's scratch; every read skips them, and the next install deletes those an hour old ([`jobs.md`](jobs.md#packs)). The rest of the data directory is described in [`overview.md`](overview.md#data-directory).
 
 ## Entity graph
 
@@ -358,6 +372,12 @@ erDiagram
     datetime started_at
     datetime finished_at
   }
+  job_settings {
+    text job PK
+    json settings
+    json checker
+    datetime updated_at
+  }
 ```
 
 ## Revisions
@@ -391,12 +411,13 @@ erDiagram
 | `0027` | `0027_retire_pre_host_egress_grants.py` | egress rows under `model_download`, `model_search` and `image_model_pull` removed; `host:huggingface.co` allowed only where search and a download were both allowed and the host had no row; downgrading changes nothing |
 | `0029` | `0029_chat_thread_cloud_id.py` | `chat_threads.cloud_id`, nullable and unique; `workspaces.has_unkeyed_imported_threads`, marking workspaces with older unkeyed imported threads |
 | `0030` | `0030_speech_to_text_slot.py` | `selected_models` rebuilt so `speech_to_text` is a type and `audiocpp` may hold it beside `audio_gen`, carrying every column, `0019`'s `settings` included, which `0018`'s rebuild predates; downgrading drops a `speech_to_text` selection |
+| `0033` | `0033_job_settings.py` | `job_settings`, one row per job: the firm's settings and the checker model; downgrading drops it |
 
 - Before the API applies a pending revision to an existing database, `upgrade_to_head` writes a `VACUUM INTO` copy to `<data>/backups/<from>-<to>.db` (via `.partial`, renamed once complete) and keeps the newest two ([`migration_snapshot.py`](../../surfsense_local/backend/shared/migration_snapshot.py)). A new database or one at head writes none. If the copy fails, nothing migrates and the API start fails with the reason. To restore: quit SurfSense, replace `surfsense.db` with the snapshot, and start the app.
 - Migrations run on every API start and are idempotent. Autogenerate is off: it renders a rename as a drop plus an add, which deletes a column's data silently, and `env.py` carries no `target_metadata`, so it cannot be used by accident.
 - SQLite cannot alter a CHECK constraint in place, so `0004`, `0009`, `0012`, `0013`, `0016`, `0018` and `0030` copy `selected_models` into a new table. A copy names every column the table has by then: one written from an older rebuild drops what later revisions added.
 - A revision that touches a table already holding rows should read the live schema first (`op.get_bind()`, `sa.inspect`) rather than assume its shape.
-- [`tests/integration/test_migrations.py`](../../surfsense_local/backend/tests/integration/test_migrations.py) fails when the models and the migration history disagree, when a second upgrade is not a no-op, and when a failed migration leaves anything behind. `test_migration_0012.py`, `test_migration_0013.py`, `test_migration_0014.py`, `test_migration_0027.py`, `test_migration_0029.py` and `test_migration_0030.py` beside it test what those revisions change.
+- [`tests/integration/test_migrations.py`](../../surfsense_local/backend/tests/integration/test_migrations.py) fails when the models and the migration history disagree, when a second upgrade is not a no-op, and when a failed migration leaves anything behind. `test_migration_0012.py`, `test_migration_0013.py`, `test_migration_0014.py`, `test_migration_0027.py`, `test_migration_0029.py`, `test_migration_0030.py` and `test_migration_0033.py` beside it test what those revisions change.
 
 ## Known gaps
 

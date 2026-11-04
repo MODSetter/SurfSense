@@ -10,7 +10,7 @@ SurfSense is a desktop app for research over your own documents: add files, ask 
 A file is uploaded, parsed to markdown, cut into passages and embedded. A chat turn retrieves the passages nearest the question, and a model answers from them, citing each one. A Studio job hands the selected documents' text to a model and stores the result as a document, with a file for ten of its twelve formats. Every design choice follows from who this is for:
 
 - **One user.** There are no accounts, no auth and no users table. The API binds to `127.0.0.1` and accepts any origin, because the packaged renderer loads from `file://`.
-- **Offline.** Docling parses, bge-small embeds on onnxruntime, llama-server generates text, sd-server generates images and audio.cpp's server voices podcasts, all on this machine. Remote destinations (Hugging Face for model search and downloads, TDF's archive for the optional [Office pack](office-pack.md), and each remote host a connection points at) stay off until the user allows them ([`egress.md`](egress.md)). The app carries no analytics SDK and no crash reporting. With the user's yes, it checks for updates once a day through `updates.surfsense.com` and sends a daily usage report in ranges to `usage.surfsense.com` (with the week's counts once a week, and in the install's first week on every report and at each new setup step), neither with an ID ([`updates.md`](updates.md), [`usage-statistics.md`](usage-statistics.md)).
+- **Offline.** Docling parses, bge-small embeds on onnxruntime, llama-server generates text, sd-server generates images and audio.cpp's server voices podcasts, all on this machine. Remote destinations (Hugging Face for model search and downloads, TDF's archive for the optional [Office pack](office-pack.md), SurfSense's [plugin host](plugin-host.md), SurfSense's license server for a renewed license file and the [job packs](jobs.md#delivery) a license includes, and each remote host a connection points at) stay off until the user allows them ([`egress.md`](egress.md)). The app carries no analytics SDK and no crash reporting. With the user's yes, it checks for updates once a day through `updates.surfsense.com` and sends a daily usage report in ranges to `usage.surfsense.com` (with the week's counts once a week, and in the install's first week on every report and at each new setup step), neither with an ID ([`updates.md`](updates.md), [`usage-statistics.md`](usage-statistics.md)).
 - **SQLite.** `surfsense.db` holds every table, the search index included: FTS5 for keywords, sqlite-vec for vectors. `huey.db` holds the job queues. Next to the hosted stack there is no Postgres or Zero, no Celery or Redis, no LangGraph and no Docker.
 
 ## Processes
@@ -28,6 +28,7 @@ Electron main ─┬─ api            FastAPI on 127.0.0.1, free port    ─┐
 
 BrowserWindow (Vite SPA) ── HTTP ──> api
 api ── admission ── HTTP ──> llama-server, remote OpenAI-compatible endpoints
+api ── HTTP ──> api.surfsense.com: a renewed license file, job packs
 worker-studio, opencode ── POST /internal/models/text/generate, /agent/model/v1 ──> api
 worker-studio ── HTTP ──> sd-server, audiocpp, remote image and speech endpoints
 worker-plugins ── HTTP ──> plugins.surfsense.com, the links added from the web
@@ -84,6 +85,7 @@ The rules that keep the processes out of each other's way:
 ├── surfsense.db              every table and the search index
 ├── huey.db                   the ingest, studio and plugins queues
 ├── usage-counts.json         hourly counts for usage statistics, pruned after 40 days, no content
+├── job-packs/                the installed job packs, <id>/<version>/, checked on every read
 ├── models/                   GGUF weights and llama-server's models.ini
 ├── images/                   sd-server weights (hosts with sd-server staged)
 ├── electron/                 Electron's userData: secret.bin, updates.json, privacy.json, window and theme prefs
@@ -115,11 +117,11 @@ The rules that keep the processes out of each other's way:
 ## Codemap
 
 - [`backend/api/`](../../surfsense_local/backend/api/): `create_app()` and its lifespan (migrations, the default workspace, a background catalog warm-up), the per-request session and `transact()`.
-- [`backend/modules/`](../../surfsense_local/backend/modules/): one folder per feature, holding whichever of its models, schemas, router and service it needs: `workspaces`, `documents`, `chunks`, `chat`, `artifacts` (Studio), `events`, `llm` (runtimes, catalog, connections, selection), `egress`, `agent`, `plugins`, `license`, `migration` (import) and `health`. `shared.db.import_models()` imports every model at startup, because relationships name their targets as strings.
+- [`backend/modules/`](../../surfsense_local/backend/modules/): one folder per feature, holding whichever of its models, schemas, router and service it needs: `workspaces`, `documents`, `chunks`, `chat`, `artifacts` (Studio), `events`, `llm` (runtimes, catalog, connections, selection), `egress`, `agent`, `plugins`, `license`, `jobs` (job packs, their delivery and runs), `migration` (import) and `health`. `shared.db.import_models()` imports every model at startup, because relationships name their targets as strings.
 - [`backend/worker/`](../../surfsense_local/backend/worker/): `consumer.py` drains one queue per process, `jobs.py` holds status transitions and cancellation, `notify.py` the change notice, and `ingestion/` and `studio/` the two pipelines.
 - [`backend/shared/`](../../surfsense_local/backend/shared/): configuration, the engine and its pragmas, `upgrade_to_head()`, the three Huey queues, `retrieve()`, and the secret that encrypts stored keys.
-- [`backend/alembic/`](../../surfsense_local/backend/alembic/): revisions `0001` to `0032`, all hand-written. `env.py` has no `target_metadata`, so autogenerate cannot run by accident.
-- [`frontend/src/features/`](../../surfsense_local/frontend/src/features/): `chat`, `agent`, `sources`, `studio`, `workspaces`, `dashboard`, `models`, `onboarding`, `settings`, `egress`, `plugins`, `license`, `migration`, `updates` and `feedback`.
+- [`backend/alembic/`](../../surfsense_local/backend/alembic/): revisions `0001` to `0033`, all hand-written. `env.py` has no `target_metadata`, so autogenerate cannot run by accident.
+- [`frontend/src/features/`](../../surfsense_local/frontend/src/features/): `chat`, `agent`, `sources`, `studio`, `workspaces`, `dashboard`, `models`, `onboarding`, `settings`, `egress`, `plugins`, `license`, `jobs`, `migration`, `updates` and `feedback`.
 - [`electron/src/main/`](../../surfsense_local/electron/src/main/): `index.ts` (the window, IPC and the paths it hands to boot), `sidecars/` (boot, the supervisor, one spec per sidecar, and the image-model, preset, audio and agent watchers), `session-log/` (this run's output, for issue reports), `permissions/` (who may use the microphone), `microphone/` (the operating system's switch), `secret.ts`, `updater.ts` and `document-files.ts`.
 
 ## Where to read next
@@ -135,7 +137,7 @@ The rules that keep the processes out of each other's way:
 - [Backend](backend.md): the one process on SurfSense's servers: the plugin host and the [license portal](license/portal.md).
 - [Model capabilities](model-capabilities.md): the measured level each chat model gets, and what follows from it.
 - [Studio](studio.md): artifact formats, jobs, viewers.
-- [Jobs](jobs.md): job packs and their runs, starting with a security questionnaire filled in from the firm's own policies, and the eval harness that measures them.
+- [Jobs](jobs.md): job packs, their delivery from the license server and their runs, starting with a security questionnaire filled in from the firm's own policies; the Jobs screen; and the eval harness that measures them.
 - [Connections](connections.md): OpenAI-compatible endpoints and where keys live.
 - [ChatGPT subscription](chatgpt-subscription.md): a connection signed in with a ChatGPT account, answered through the Responses API.
 - [Claude plan](claude-plan.md): a connection to the user's own Claude Code, answering chat and running Agentic threads as a second engine.
