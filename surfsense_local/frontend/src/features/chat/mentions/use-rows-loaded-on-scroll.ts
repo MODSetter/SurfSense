@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 
+import { useStableCallback } from "@/hooks/use-stable-callback"
+
 import { useMentionPopoverScope } from "./mention-popover-scope"
 
 // About four screens of the list, whose rows are not virtualized.
@@ -12,7 +14,10 @@ const NEAR_END_PX = 96
 export function useRowsLoadedOnScroll(total: number) {
   const { highlightedIndex, highlightIndex } = useMentionPopoverScope()
   const [loaded, setLoaded] = useState(ROWS_PER_LOAD)
-  const loadMore = useCallback(() => setLoaded((n) => n + ROWS_PER_LOAD), [])
+  // Stable, as `rows` is a ref callback; bails out once all are drawn, with no render.
+  const loadMore = useStableCallback(() =>
+    setLoaded((n) => (n < total ? n + ROWS_PER_LOAD : n))
+  )
   const previous = useRef(highlightedIndex)
 
   useEffect(() => {

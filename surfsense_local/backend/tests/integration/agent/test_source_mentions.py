@@ -397,3 +397,100 @@ async def test_a_message_naming_nothing_reads_back_no_mentions(
     stored = (await agent_api.http.get(f"/chat/threads/{thread['id']}/messages")).json()
     assert stored[0]["content"]["text"] == typed
     assert "mentions" not in stored[0]["content"]
+
+
+def test_a_named_folder_with_nothing_ready_is_said(engine: Engine) -> None:
+    """Told only "start from them", the agent would answer from what else is ticked."""
+    with create_session_factory(engine)() as session:
+        workspace_id, library = _workspace_with_library(session)
+        ticked = _ready(session, workspace_id, "Plan", library)
+        empty = Folder(
+            workspace_id=workspace_id,
+            root_id=session.get(Folder, library).root_id,
+            parent_id=library,
+            name="Empty",
+            name_key="empty",
+        )
+        session.add(empty)
+        session.flush()
+        thread = _agent_thread(session, workspace_id)
+
+        sources = turn_sources(
+            session,
+            thread,
+            MessageCreate(
+                text="@Empty",
+                source_scope=SourceScope(document_ids=[ticked]),
+                mentioned_sources={"folder_ids": [empty.id]},
+            ),
+        )
+
+        assert sources.mention_note is not None
+        assert "Start from them" not in sources.mention_note
+        assert "1 of what they named has nothing ready" in sources.mention_note
+
+
+def test_a_named_folder_that_gave_nothing_is_said_beside_what_did(
+    engine: Engine,
+) -> None:
+    """One empty folder must not pass unnoticed behind a file that was found."""
+    with create_session_factory(engine)() as session:
+        workspace_id, library = _workspace_with_library(session)
+        named = _ready(session, workspace_id, "Memo", library)
+        empty = Folder(
+            workspace_id=workspace_id,
+            root_id=session.get(Folder, library).root_id,
+            parent_id=library,
+            name="Empty",
+            name_key="empty",
+        )
+        session.add(empty)
+        session.flush()
+        thread = _agent_thread(session, workspace_id)
+
+        sources = turn_sources(
+            session,
+            thread,
+            MessageCreate(
+                text="@Memo @Empty",
+                source_scope=SourceScope(),
+                mentioned_sources={
+                    "document_ids": [named],
+                    "folder_ids": [empty.id],
+                },
+            ),
+        )
+
+        assert sources.mention_note is not None
+        assert f"Memo [{named}].md" in sources.mention_note
+        assert "1 of what they named has nothing ready" in sources.mention_note
+
+
+def test_readable_sources_are_listed_ahead_of_those_with_no_text(
+    engine: Engine,
+) -> None:
+    """Sources with no text must not use up the note's paths."""
+    with create_session_factory(engine)() as session:
+        workspace_id, library = _workspace_with_library(session)
+        no_text = [
+            _ready(session, workspace_id, f"n{n}", library) for n in range(NAMED_PATHS)
+        ]
+        for document in no_text:
+            session.get(Document, document).content = None
+        readable = _ready(session, workspace_id, "Memo", library)
+        session.flush()
+        thread = _agent_thread(session, workspace_id)
+
+        sources = turn_sources(
+            session,
+            thread,
+            MessageCreate(
+                text="all of these",
+                source_scope=SourceScope(),
+                mentioned_sources={"document_ids": [*no_text, readable]},
+            ),
+        )
+
+        assert sources.mention_note is not None
+        assert f"Memo [{readable}].md" in sources.mention_note
+        assert f"{NAMED_PATHS} more they named cannot be read" in sources.mention_note

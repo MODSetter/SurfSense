@@ -65,7 +65,8 @@ export function boxTextOf(text: string, mentions: readonly ShownMention[]) {
 
 export type MentionedTextPiece = string | ShownMention
 
-// Past the name, a letter or digit means another word that starts the same.
+// A letter or digit either side means another word: me@Memo.com, or @Memos.
+const WORD_CHAR = /[\p{L}\p{N}_-]/u
 const WORD_GOES_ON = /^[\p{L}\p{N}_-]/u
 
 /** A sent message's text, with each named source apart for its chip. */
@@ -82,6 +83,7 @@ export function piecesOf(
   for (let at = 0; at < text.length;) {
     const found = longestFirst.find(
       ({ label }) =>
+        !WORD_CHAR.test(text.charAt(at - 1)) &&
         text.startsWith(written(label), at) &&
         !WORD_GOES_ON.test(text.slice(at + written(label).length))
     )

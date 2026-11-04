@@ -75,6 +75,10 @@ describe("a sent message's pieces", () => {
     ])
   })
 
+  it("leaves an address that holds the name", () => {
+    expect(piecesOf("mail me@Memo.com", [MEMO])).toEqual(["mail me@Memo.com"])
+  })
+
   it("leaves another word that starts the same", () => {
     expect(piecesOf("see @Memos", [MEMO])).toEqual(["see @Memos"])
   })

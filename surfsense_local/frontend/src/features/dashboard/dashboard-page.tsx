@@ -164,9 +164,15 @@ function WorkspaceDashboard({
       documents: sources.documents,
       index: sources.index,
       artifacts: studio.artifacts,
-      isLoading: sources.isLoading,
+      isLoading: sources.isLoading || studio.isLoading,
     }),
-    [sources.documents, sources.index, sources.isLoading, studio.artifacts]
+    [
+      sources.documents,
+      sources.index,
+      sources.isLoading,
+      studio.artifacts,
+      studio.isLoading,
+    ]
   )
   const blockAgentic = useBlockAgentic()
   // Bound to the model the chat was asked on: the picker stays open meanwhile.

@@ -35,19 +35,23 @@ class NamedFile:
 
 
 def mention_note(
-    named: MentionedSources, files: Sequence[NamedFile], more: int, unreadable: int
+    named: MentionedSources,
+    files: Sequence[NamedFile],
+    more: int,
+    unreadable: int,
+    nothing_ready: int,
 ) -> str | None:
-    """`more` are named but past the listed; `unreadable` have no text to read."""
+    """`more` are readable but past the listed; `unreadable` have no text to read;
+    `nothing_ready` are named sources or folders that gave the turn nothing."""
     tagged = [
         *(f"document:{i}" for i in named.document_ids),
         *(f"folder:{i}" for i in named.folder_ids),
     ]
     if not tagged:
         return None
-    lines = [
-        f"[surfsense-mentions: {','.join(tagged)}]",
-        "The user named these sources in their message. Start from them.",
-    ]
+    lines = [f"[surfsense-mentions: {','.join(tagged)}]"]
+    if files or more:
+        lines.append("The user named these sources in their message. Start from them.")
     lines += [
         f'- "{SOURCES}/{file.path}"'
         + (f" (artifact {file.artifact_id})" if file.artifact_id is not None else "")
@@ -59,6 +63,11 @@ def mention_note(
         lines.append(
             f"{unreadable} more they named cannot be read as text; say so if the "
             "request needs it."
+        )
+    if nothing_ready:
+        lines.append(
+            f"{nothing_ready} of what they named has nothing ready to read; say so "
+            "rather than answering from other sources."
         )
     lines.append(UNSAID)
     return "\n".join(lines)

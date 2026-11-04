@@ -108,21 +108,39 @@ def _told_of_mentions(
         return None
     in_turn = set(resolved.ids)
     ready = [i for i in named if i in in_turn]
-    listed = ready[:NAMED_PATHS]
-    paths = _mirrored_paths(session, thread, listed)
+    # Readable first: sources with no text must not use up the note's paths.
+    paths = _paths_with_text(session, thread, ready)
+    readable = [i for i in ready if i in paths]
+    listed = readable[:NAMED_PATHS]
     artifacts = dict(
         session.execute(
             select(Artifact.document_id, Artifact.id).where(
-                Artifact.document_id.in_(paths.keys())
+                Artifact.document_id.in_(listed)
             )
         ).all()
     )
     return mention_note(
         mentioned,
-        [NamedFile(paths[i], artifacts.get(i)) for i in listed if i in paths],
-        len(ready) - len(listed),
-        len(listed) - sum(i in paths for i in listed),
+        [NamedFile(paths[i], artifacts.get(i)) for i in listed],
+        len(readable) - len(listed),
+        len(ready) - len(readable),
+        _gave_nothing(session, thread.workspace_id, mentioned, in_turn),
     )
+
+
+def _gave_nothing(
+    session: Session,
+    workspace_id: int,
+    mentioned: MentionedSources,
+    in_turn: set[int],
+) -> int:
+    """How many named sources and folders added nothing ready to the turn."""
+    sources = sum(i not in in_turn for i in mentioned.document_ids)
+    folders = sum(
+        not resolve_scope(session, workspace_id, SourceScope(folder_ids=[folder])).ids
+        for folder in mentioned.folder_ids
+    )
+    return sources + folders
 
 
 def _noted(
@@ -149,6 +167,13 @@ def _mirrored_paths(
     """
     if not ids or len(ids) > NAMED_PATHS:
         return {}
+    return _paths_with_text(session, thread, ids)
+
+
+def _paths_with_text(
+    session: Session, thread: ChatThread, ids: Sequence[int]
+) -> dict[int, PurePosixPath]:
+    """The mirrored path of each of `ids` that has text; the rest are never mirrored."""
     workspace_id = thread.workspace_id
     sources = (
         get_storage_settings().thread_working_dir(workspace_id, thread.id) / SOURCES
