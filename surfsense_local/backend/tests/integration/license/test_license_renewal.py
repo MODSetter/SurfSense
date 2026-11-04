@@ -2,12 +2,14 @@
 
 import asyncio
 import logging
+import threading
 from datetime import timedelta
 
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session, sessionmaker
+from starlette.concurrency import run_in_threadpool
 
 from api.main import create_app, lifespan
 from modules.license.renewal import renewal_schedule
@@ -231,3 +233,55 @@ async def test_it_asks_again_each_day_until_the_api_stops(
     await asyncio.sleep(0.3)
 
     assert len(license_server.asked) == stopped_at
+
+
+async def test_a_check_under_way_finishes_its_session_work_before_the_api_stops(
+    sessions: sessionmaker[Session], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Stopping waits for the check's worker thread instead of cancelling under it."""
+    in_thread = threading.Event()
+    finished: list[str] = []
+
+    def session_work() -> None:
+        in_thread.set()
+        threading.Event().wait(0.3)
+        finished.append("session work")
+
+    async def check(_sessions: sessionmaker[Session]) -> None:
+        await run_in_threadpool(session_work)
+        finished.append("check")
+
+    monkeypatch.setattr(renewal_schedule, "renew_if_due", check)
+
+    async with renewing_daily(sessions):
+        await asyncio.to_thread(in_thread.wait, 5)
+
+    assert finished == ["session work", "check"]
+
+
+async def test_the_api_stops_even_when_a_cancelled_check_raises_something_else(
+    sessions: sessionmaker[Session], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A check cancelled mid-transaction can raise in place of the cancel.
+
+    SQLAlchemy raises IllegalStateChangeError when the session closes while a worker
+    thread still uses it. Caught as any failure, it once sent the schedule back to
+    sleep out the day, and the API's shutdown waited on it.
+    """
+    started = asyncio.Event()
+
+    async def check(_sessions: sessionmaker[Session]) -> None:
+        started.set()
+        try:
+            await asyncio.sleep(30)
+        except asyncio.CancelledError:
+            raise RuntimeError("closed while a worker thread used it") from None
+
+    monkeypatch.setattr(renewal_schedule, "renew_if_due", check)
+    monkeypatch.setattr(renewal_schedule, "STOP_WITHIN", timedelta(seconds=0.1))
+
+    async def stop_during_the_check() -> None:
+        async with renewing_daily(sessions):
+            await started.wait()
+
+    await asyncio.wait_for(stop_during_the_check(), timeout=3)
