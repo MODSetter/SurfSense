@@ -5,11 +5,11 @@ import test from "node:test";
 
 import { BUSINESS_PRICE_EXAMPLES, businessYearlyPrice, yearlyPriceLabel } from "./business-price";
 
-test("Business is $200 a year for the first person and $120 for each further person", () => {
+test("Business is $60 a year for each person, the first included", () => {
 	// The figures ADR 0080 states.
 	assert.deepEqual(
 		[1, 2, 5, 10, 15].map((people) => yearlyPriceLabel(businessYearlyPrice(people))),
-		["$200", "$320", "$680", "$1,280", "$1,880"]
+		["$60", "$120", "$300", "$600", "$900"]
 	);
 });
 
@@ -23,11 +23,11 @@ test("the examples the pages show are the ADR's, one person first", () => {
 	assert.deepEqual(
 		BUSINESS_PRICE_EXAMPLES.map((example) => [example.people, example.price]),
 		[
-			[1, "$200"],
-			[2, "$320"],
-			[5, "$680"],
-			[10, "$1,280"],
-			[15, "$1,880"],
+			[1, "$60"],
+			[2, "$120"],
+			[5, "$300"],
+			[10, "$600"],
+			[15, "$900"],
 		]
 	);
 });

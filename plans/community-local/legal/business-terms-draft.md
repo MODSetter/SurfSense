@@ -24,8 +24,8 @@ default is written in.
 - The only paid licence is **Business**. It unlocks SurfSense's job plugins, the security
   questionnaire first. The Individual licence is no longer sold, and the scraper plugins
   retire.
-- Business is **priced per person**: $200 a year for the first person and $120 for each
-  further person, a founding price. One person is shown as "Solo".
+- Business is **priced per person**: $60 a year for each person, the first included, a
+  founding price. One person is shown as "Solo".
 - It is a **yearly subscription** that renews automatically on the same licence key, where
   today's licences are single payments.
 - **Cancellation and seat changes** go through Stripe's customer portal, from a link sent by
@@ -88,8 +88,8 @@ addresses that differ only by dots are one address, and a company domain gets at
 trials a year. Counsel: is the general sentence enough?] A design partner's trial may be
 extended by agreement.
 
-**5.5 Price and payment.** Business is sold through Stripe at $200 a year for the first
-person and $120 a year for each further person. This is a founding price: a licence bought
+**5.5 Price and payment.** Business is sold through Stripe at $60 a year for each
+person, the first included. This is a founding price: a licence bought
 at it keeps it at renewal for as long as it renews without a break [and for the same number
 of people or more?]. Prices include or exclude tax as shown at checkout. More than 15 people
 (k), or a deployment inside your own network, is Enterprise, quoted and invoiced on a

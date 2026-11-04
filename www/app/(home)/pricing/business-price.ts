@@ -1,10 +1,11 @@
 /**
- * Business's founding price, per person a year, from ADR 0080: the first person is $200 and
- * each further person $120. Both pages read their figures from here, so they cannot disagree.
+ * Business's founding price, per person a year, from ADR 0080: $60 for the first person and
+ * $60 for each further one, until sales justify more. Both pages read their figures from here,
+ * so they cannot disagree.
  */
 
-export const FIRST_PERSON_PRICE = 200;
-export const FURTHER_PERSON_PRICE = 120;
+export const FIRST_PERSON_PRICE = 60;
+export const FURTHER_PERSON_PRICE = 60;
 
 /** The most people the self-serve checkout covers; more is an Enterprise deal. */
 export const SELF_SERVE_PEOPLE = 15;
