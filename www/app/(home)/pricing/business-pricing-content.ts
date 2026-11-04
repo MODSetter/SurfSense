@@ -15,11 +15,11 @@ import {
 } from "./business-price";
 
 /**
- * `/pricing` once Business is on sale (`NEXT_PUBLIC_BUSINESS_LAUNCHED`), from ADR 0079 and the
+ * `/pricing` once Business is on sale (`NEXT_PUBLIC_BUSINESS_LAUNCHED`), from ADR 0080 and the
  * `/pricing` brief in `plans/community-local/seo/02-page-briefs.md` as revised on 1 Nov 2026.
  * When the switch goes, this replaces `pricing-content.ts`.
  *
- * Three claims follow the recommended defaults of ADR 0079's open questions, not decisions:
+ * Three claims follow the recommended defaults of ADR 0080's open questions, not decisions:
  * priority support and the feature build request carried over from Individual (n), every job
  * included in Business (a), and 15 people as the most a self-serve licence covers (k).
  *

@@ -6,7 +6,7 @@ import test from "node:test";
 import { BUSINESS_PRICE_EXAMPLES, businessYearlyPrice, yearlyPriceLabel } from "./business-price";
 
 test("Business is $200 a year for the first person and $120 for each further person", () => {
-	// The figures ADR 0079 states.
+	// The figures ADR 0080 states.
 	assert.deepEqual(
 		[1, 2, 5, 10, 15].map((people) => yearlyPriceLabel(businessYearlyPrice(people))),
 		["$200", "$320", "$680", "$1,280", "$1,880"]

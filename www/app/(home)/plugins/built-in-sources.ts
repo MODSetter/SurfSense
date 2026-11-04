@@ -1,6 +1,6 @@
 /**
  * Reading web pages, YouTube transcripts and web search: built into the app, free and with no
- * licence, from the release that retires the scrapers (ADR 0080). The agent has them as tools and
+ * licence, from the release that retires the scrapers (ADR 0081). The agent has them as tools and
  * Add from the web uses them; each site they reach follows egress consent. The app's plugin list no
  * longer holds them, so the site keeps what it says about them here. Each keeps the page and the
  * id its plugin had.

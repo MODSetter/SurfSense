@@ -6,7 +6,7 @@ and the Job Plugin License. Nothing here is on the site: the live
 signs off, and the new text goes live in the release that ships the first paid job, when the
 site's `NEXT_PUBLIC_BUSINESS_LAUNCHED` switch goes on.
 
-**Sources.** The decisions are ADR 0079 (one Business licence, priced per person) and ADR 0080
+**Sources.** The decisions are ADR 0080 (one Business licence, priced per person) and ADR 0081
 (the scrapers retire; reading web pages, YouTube and web search move into the app), both in
 [PR #2391](https://github.com/MODSetter/SurfSense/pull/2391). They amend
 [ADR 0019](../../../docs/adr/0019-offline-licenses.md) (offline licences) and
@@ -16,7 +16,7 @@ Business copy, behind the switch, is in `www/app/(home)/pricing/`.
 
 **How to read it.** For sections 5 and 6, today's text comes first, quoted from the live page,
 then the proposed text. Brackets mark a choice for the maintainer or a question for counsel.
-Where a line rests on one of ADR 0079's open questions, its letter is given; the recommended
+Where a line rests on one of ADR 0080's open questions, its letter is given; the recommended
 default is written in.
 
 ## What changes, in short
@@ -187,7 +187,7 @@ serious enough that waiting would cause harm.
 
 ## The Business terms: points to draft
 
-ADR 0079 asks for Business terms beside the Terms of Service. The points they need, each with
+ADR 0080 asks for Business terms beside the Terms of Service. The points they need, each with
 its recommended default:
 
 - **Who needs Business:** anyone who uses a SurfSense job plugin for work for an

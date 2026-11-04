@@ -22,7 +22,7 @@ const registryUrl = `${REPO_URL}/tree/main/backend/plugins/registry`;
 /** A form a bot checks and turns into the registry pull request; no git for the publisher. */
 const submitUrl = `${REPO_URL}/issues/new?template=plugin-submit.yml`;
 
-// From Business on, web search, YouTube and Web Crawl are built into the app and free (ADR 0080).
+// From Business on, web search, YouTube and Web Crawl are built into the app and free (ADR 0081).
 const metaTitle = BUSINESS_LAUNCHED
 	? "SurfSense Plugins: Web Search, YouTube and Web Crawl Built In"
 	: "SurfSense Plugins: Google Search, Reddit, YouTube, Instagram and More";
