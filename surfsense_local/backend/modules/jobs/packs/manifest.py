@@ -73,7 +73,7 @@ def read_raw_manifest(folder: Path) -> object:
         raise PackRefusedError(
             "NOT_A_PACK", f"No {MANIFEST} in {folder.name}."
         ) from missing
-    except (OSError, ValueError) as broken:
+    except (OSError, ValueError, RecursionError) as broken:
         raise PackRefusedError(
             "BAD_MANIFEST", f"{MANIFEST} is not readable JSON."
         ) from broken

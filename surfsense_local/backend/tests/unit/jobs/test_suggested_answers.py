@@ -375,3 +375,36 @@ def test_a_suggestion_is_checked_by_the_gate_s_own_prompt(workbook, config_file)
 
     assert (suggested.suggested, written.answer) == ("N/A", "Yes")
     assert systems == ["provider check: N/A", "verify: Yes"]
+
+
+def test_the_gate_s_own_check_judges_a_suggestion_the_main_check_skips(
+    workbook, config_file
+):
+    """Where the main check covers Yes alone, the gate's own check still judges an N/A it may
+    suggest; without a check of its own, such an N/A goes to a person unchecked."""
+    folder = config_file.parent
+    (folder / "prompts" / "provider_check.md").write_text(
+        "provider check: $answer", encoding="utf-8"
+    )
+    raw = json.loads(config_file.read_text(encoding="utf-8"))
+    raw["verify"]["answers"] = ["Yes"]
+    config_file.write_text(json.dumps(raw), encoding="utf-8")
+    unchecked = load_config(config_file)
+    raw["statement_gate"]["check"] = "prompts/provider_check.md"
+    config_file.write_text(json.dumps(raw), encoding="utf-8")
+    checked = load_config(config_file)
+    systems: list[str] = []
+
+    def ask(system, turns, schema, shared):
+        if system.startswith(("verify", "provider check")):
+            systems.append(system)
+            return ModelReply(json.dumps({"supported": True, "missing": ""}))
+        return _reply("N/A", PROVIDER)
+
+    model = Scripted()
+    model.ask = ask
+
+    assert _one(workbook, checked, model).suggested == "N/A"
+    assert systems == ["provider check: N/A"]
+    assert _one(workbook, unchecked, model).codes[0] == "NO_STATEMENT"
+    assert systems == ["provider check: N/A"]

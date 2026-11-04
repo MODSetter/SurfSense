@@ -83,14 +83,16 @@ def models(monkeypatch: pytest.MonkeyPatch) -> list[str]:
     return calls
 
 
-def _questionnaire(dropdown: str = "Yes,No,N/A") -> bytes:
+def _questionnaire(dropdown: str = "Yes,No,N/A", questions: int = 1) -> bytes:
     book = openpyxl.Workbook()
     sheet = book.active
     sheet.title = "Questions"
     sheet.append(["Question", "Answer", "Comments"])
     sheet.append(["Is physical access to the data centre controlled?", None, None])
+    if questions > 1:
+        sheet.append(["Is the data centre's power redundant?", None, None])
     rule = DataValidation(type="list", formula1=f'"{dropdown}"', allow_blank=True)
-    rule.add("B2")
+    rule.add(f"B2:B{1 + questions}")
     sheet.add_data_validation(rule)
     data = BytesIO()
     book.save(data)
@@ -98,10 +100,13 @@ def _questionnaire(dropdown: str = "Yes,No,N/A") -> bytes:
 
 
 def _sources(
-    session: Session, workspace_id: int, dropdown: str = "Yes,No,N/A"
+    session: Session,
+    workspace_id: int,
+    dropdown: str = "Yes,No,N/A",
+    questions: int = 1,
 ) -> tuple[int, int]:
     workbook_id = add_source(
-        session, workspace_id, "Questionnaire.xlsx", _questionnaire(dropdown)
+        session, workspace_id, "Questionnaire.xlsx", _questionnaire(dropdown, questions)
     )
     policy = Document(
         workspace_id=workspace_id,
@@ -120,8 +125,9 @@ async def _ran(
     session: Session,
     workspace_id: int,
     dropdown: str = "Yes,No,N/A",
+    questions: int = 1,
 ) -> tuple[int, dict]:
-    workbook_id, policy_id = _sources(session, workspace_id, dropdown)
+    workbook_id, policy_id = _sources(session, workspace_id, dropdown, questions)
     started = await client.post(
         f"/workspaces/{workspace_id}/job-runs",
         json={"job": JOB, "document_id": workbook_id, "source_ids": [policy_id]},
@@ -329,3 +335,98 @@ async def test_a_suggestion_the_dropdown_cannot_hold_is_not_offered(
         f"/workspaces/{workspace_id}/job-runs/{artifact_id}/confirm", json={}
     )
     assert refused.status_code == 409
+
+
+async def _confirm(client: AsyncClient, workspace_id: int, artifact_id: int, *cells):
+    body = (
+        {"cells": [{"sheet": "Questions", "cell": c} for c in cells]} if cells else {}
+    )
+    return await client.post(
+        f"/workspaces/{workspace_id}/job-runs/{artifact_id}/confirm", json=body
+    )
+
+
+async def test_a_deleted_confirmation_is_offered_again_though_its_id_comes_back(
+    session: Session,
+    workspace: Workspace,
+    client: AsyncClient,
+    pack: None,
+    models: list[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The database hands a deleted version's id to the next version; what is offered is read
+    from the versions that stand, so the deleted one's suggestion is open again."""
+    monkeypatch.setenv(DEV_SWITCH, "1")
+    workspace_id = workspace.id
+    artifact_id, _ = await _ran(client, session, workspace_id, questions=2)
+
+    first = await _confirm(client, workspace_id, artifact_id, "B2")
+    assert first.status_code == 202, first.text
+    version_id = first.json()["artifact_id"]
+    await asyncio.to_thread(run, version_id)
+    deleted = await client.delete(f"/artifacts/{version_id}")
+    assert deleted.status_code == 204, deleted.text
+
+    second = await _confirm(client, workspace_id, artifact_id, "B3")
+    assert second.status_code == 202, second.text
+    assert second.json()["artifact_id"] == version_id  # the id came back
+    await asyncio.to_thread(run, version_id)
+
+    again = await _confirm(client, workspace_id, artifact_id, "B2")
+    assert again.status_code == 202, again.text
+    taken = await _confirm(client, workspace_id, artifact_id, "B3")
+    assert taken.status_code == 409
+
+
+async def test_a_cancelled_confirmation_is_offered_again(
+    session: Session,
+    workspace: Workspace,
+    client: AsyncClient,
+    pack: None,
+    models: list[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A version cancelled in Studio wrote nothing, so its suggestion is still open."""
+    monkeypatch.setenv(DEV_SWITCH, "1")
+    workspace_id = workspace.id
+    artifact_id, _ = await _ran(client, session, workspace_id)
+    first = await _confirm(client, workspace_id, artifact_id)
+    cancelled = session.get(Artifact, first.json()["artifact_id"])
+    cancelled.document.status = DocumentStatus.CANCELLED
+    session.commit()
+
+    again = await _confirm(client, workspace_id, artifact_id, "B2")
+
+    assert again.status_code == 202, again.text
+
+
+async def test_the_agent_says_when_its_confirmed_version_was_cancelled(
+    session: Session,
+    workspace: Workspace,
+    client: AsyncClient,
+    pack: None,
+    models: list[str],
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """The tool commits the run's record of what it confirmed, and says so plainly when the
+    version it made was cancelled in Studio."""
+    monkeypatch.setenv(DEV_SWITCH, "1")
+    workspace_id = workspace.id
+    artifact_id, _ = await _ran(client, session, workspace_id)
+    monkeypatch.setattr(
+        "modules.agent.tool_endpoint.confirm_job.wait_for_outcome",
+        lambda _session, _id, _seconds: SimpleNamespace(
+            status=DocumentStatus.CANCELLED, error_message=None
+        ),
+    )
+    scope = TurnScope(workspace_id, 1, tmp_path, frozenset(), known=False)
+
+    said = await asyncio.to_thread(
+        confirm_job.run, session, scope, {"artifact_id": artifact_id}
+    )
+
+    assert "was cancelled in Studio" in said
+    session.expire_all()
+    record = job_run_of(session.get(Artifact, artifact_id).artifact_metadata)
+    assert [c["cell"] for c in record["confirmed"]] == ["B2"]

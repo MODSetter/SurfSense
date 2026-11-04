@@ -51,3 +51,13 @@ def test_runs_with_another_setting_or_checker_get_their_own_line(tmp_path):
     assert len(rows) == 3
     assert any("with provider_na on" in row and "60.0% (off)" in row for row in rows)
     assert any("checked by openrouter:google/gemma-4-31b-it" in row for row in rows)
+
+
+def test_runs_at_another_reasoning_get_their_own_line(tmp_path):
+    """A run at low effort answers differently from one with reasoning off: never one line."""
+    _record(tmp_path, "a", settings={"reasoning": "off", "job": {}})
+    _record(tmp_path, "b", settings={"reasoning": "low", "job": {}})
+
+    rows = [line for line in report(tmp_path).splitlines() if "ncsc-wisp |" in line]
+
+    assert len(rows) == 2 and any("reasoning low" in row for row in rows)

@@ -54,15 +54,29 @@ def report(out: Path) -> str:
 
 
 def _model(record: dict) -> str:
-    """The model, and what else sets a run apart: its checker and the firm settings it ran with."""
+    """The model, and whatever else sets a run apart: its checker, the firm settings it ran with,
+    and the run's options where they differ from the defaults, so no line pools two kinds."""
     checker = record.get("checker")
-    on = sorted(
-        k for k, v in ((record.get("settings") or {}).get("job") or {}).items() if v
-    )
+    settings = record.get("settings") or {}
+    on = sorted(k for k, v in (settings.get("job") or {}).items() if v)
+    options = [
+        f"reasoning {settings['reasoning']}"
+        if settings.get("reasoning") not in (None, "default")
+        else "",
+        f"effort {settings['effort']}"
+        if record["model"].startswith("anthropic:")
+        and settings.get("effort") not in (None, "low")
+        else "",
+        f"embedder {settings['embedder']}"
+        if settings.get("embedder") not in (None, "bge")
+        else "",
+        "all rows" if settings.get("all_rows") else "",
+    ]
     return (
         record["model"]
         + (f", checked by {checker}" if checker else "")
         + (f", with {', '.join(on)} on" if on else "")
+        + "".join(f", {option}" for option in options if option)
     )
 
 

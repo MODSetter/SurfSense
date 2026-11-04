@@ -48,7 +48,7 @@ def check_signature(folder: Path, manifest: object) -> None:
         # A manifest that cannot be put in signed form, such as one holding a lone surrogate,
         # is one no key signed.
         payload = signed_payload(manifest)
-    except (OSError, ValueError, TypeError, binascii.Error) as broken:
+    except (OSError, ValueError, TypeError, RecursionError, binascii.Error) as broken:
         raise PackRefusedError(
             "PACK_BAD_SIGNATURE", "The pack's signature cannot be read."
         ) from broken
