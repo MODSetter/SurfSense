@@ -83,13 +83,13 @@ def models(monkeypatch: pytest.MonkeyPatch) -> list[str]:
     return calls
 
 
-def _questionnaire() -> bytes:
+def _questionnaire(dropdown: str = "Yes,No,N/A") -> bytes:
     book = openpyxl.Workbook()
     sheet = book.active
     sheet.title = "Questions"
     sheet.append(["Question", "Answer", "Comments"])
     sheet.append(["Is physical access to the data centre controlled?", None, None])
-    rule = DataValidation(type="list", formula1='"Yes,No,N/A"', allow_blank=True)
+    rule = DataValidation(type="list", formula1=f'"{dropdown}"', allow_blank=True)
     rule.add("B2")
     sheet.add_data_validation(rule)
     data = BytesIO()
@@ -97,9 +97,11 @@ def _questionnaire() -> bytes:
     return data.getvalue()
 
 
-def _sources(session: Session, workspace_id: int) -> tuple[int, int]:
+def _sources(
+    session: Session, workspace_id: int, dropdown: str = "Yes,No,N/A"
+) -> tuple[int, int]:
     workbook_id = add_source(
-        session, workspace_id, "Questionnaire.xlsx", _questionnaire()
+        session, workspace_id, "Questionnaire.xlsx", _questionnaire(dropdown)
     )
     policy = Document(
         workspace_id=workspace_id,
@@ -114,9 +116,12 @@ def _sources(session: Session, workspace_id: int) -> tuple[int, int]:
 
 
 async def _ran(
-    client: AsyncClient, session: Session, workspace_id: int
+    client: AsyncClient,
+    session: Session,
+    workspace_id: int,
+    dropdown: str = "Yes,No,N/A",
 ) -> tuple[int, dict]:
-    workbook_id, policy_id = _sources(session, workspace_id)
+    workbook_id, policy_id = _sources(session, workspace_id, dropdown)
     started = await client.post(
         f"/workspaces/{workspace_id}/job-runs",
         json={"job": JOB, "document_id": workbook_id, "source_ids": [policy_id]},
@@ -272,3 +277,55 @@ async def test_the_firm_s_setting_and_checker_reach_the_run(
     assert record["report"]["checker"] == "gemma-4-31b"
     assert models == ["qwen3.8-27b", "gemma-4-31b"]
     assert _filled(session, artifact_id)["Questions"]["B2"].value == "N/A"
+
+
+async def test_a_confirmation_whose_version_failed_can_be_made_again(
+    session: Session,
+    workspace: Workspace,
+    client: AsyncClient,
+    pack: None,
+    models: list[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A version that failed confirmed nothing: its suggestion is offered again, and the next
+    confirmation makes another version."""
+    monkeypatch.setenv(DEV_SWITCH, "1")
+    workspace_id = workspace.id
+    artifact_id, _ = await _ran(client, session, workspace_id)
+    path = f"/workspaces/{workspace_id}/job-runs/{artifact_id}/confirm"
+
+    first = await client.post(path, json={})
+    assert first.status_code == 202, first.text
+    failed = session.get(Artifact, first.json()["artifact_id"])
+    failed.document.status = DocumentStatus.FAILED
+    session.commit()
+
+    again = await client.post(
+        path, json={"cells": [{"sheet": "Questions", "cell": "B2"}]}
+    )
+
+    assert again.status_code == 202, again.text
+    assert again.json()["artifact_id"] != first.json()["artifact_id"]
+
+
+async def test_a_suggestion_the_dropdown_cannot_hold_is_not_offered(
+    session: Session,
+    workspace: Workspace,
+    client: AsyncClient,
+    pack: None,
+    models: list[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """With no N/A on the cell's dropdown, the suggestion stays in the comment, and the run
+    offers nothing to confirm."""
+    monkeypatch.setenv(DEV_SWITCH, "1")
+    workspace_id = workspace.id
+    artifact_id, record = await _ran(client, session, workspace_id, dropdown="Yes,No")
+
+    (answer,) = record["report"]["answers"]
+    assert (answer["suggested"], answer["confirm"]) == ("N/A", None)
+    assert record["report"]["suggested"] == 0
+    refused = await client.post(
+        f"/workspaces/{workspace_id}/job-runs/{artifact_id}/confirm", json={}
+    )
+    assert refused.status_code == 409

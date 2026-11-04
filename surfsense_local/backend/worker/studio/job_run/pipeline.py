@@ -293,6 +293,8 @@ def report_of(
     exceptions, and for each suggested answer what confirming it writes and where."""
     added = [op["sheet"] for op in filled.operations if op["op"] == "add_sheet"]
     lines = sheet_lines(filled.results)
+    # What one step would confirm: none where the cell's dropdown cannot hold the suggestion.
+    confirms = [confirmation(r, config) for r in filled.results]
     return {
         "model": model,
         "checker": checker,
@@ -301,7 +303,8 @@ def report_of(
         "whole_sources": filled.whole_sources,
         "counts": filled.counts,
         "questions": len(filled.results),
-        "suggested": sum(1 for r in filled.results if r.suggested is not None),
+        # The suggestions one step confirms: the others are in their comments only.
+        "suggested": sum(1 for confirm in confirms if confirm is not None),
         "sheets": {"answers": added[0], "exceptions": added[1]},
         "tables": [
             {"sheet": t.sheet, "header_row": t.header_row, "found_by": t.found_by}
@@ -319,7 +322,7 @@ def report_of(
                 "written": r.written,
                 "suggested": r.suggested,
                 # What one step confirms: None when the row has no suggestion its cell can hold.
-                "confirm": confirmation(r, config),
+                "confirm": confirm,
                 "lines": line,
                 "source": r.source,
                 "section": r.section,
@@ -335,7 +338,7 @@ def report_of(
                 ],
                 "codes": r.codes,
             }
-            for r, line in zip(filled.results, lines, strict=True)
+            for r, line, confirm in zip(filled.results, lines, confirms, strict=True)
         ],
         "exceptions": filled.exceptions,
     }

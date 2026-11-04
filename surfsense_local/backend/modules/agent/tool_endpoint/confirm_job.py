@@ -66,8 +66,9 @@ def run(session: Session, scope: TurnScope, arguments: dict[str, Any]) -> str:
     except JobRunRefusedError as refused:
         session.rollback()
         raise ToolCallError(str(refused)) from refused
-    # Making the version committed it, with the run's record of what it confirms.
     made_id = made.id
+    # Making the version committed it; the run's record of what it confirms commits here.
+    session.commit()
     outcome = wait_for_outcome(
         session, made_id, min(WAIT_SECONDS, deadline - time.monotonic())
     )
@@ -77,6 +78,11 @@ def run(session: Session, scope: TurnScope, arguments: dict[str, Any]) -> str:
     if outcome.status is DocumentStatus.FAILED:
         raise ToolCallError(
             f"{named} failed: {outcome.error_message or 'no reason given'}"
+        )
+    if outcome.status is DocumentStatus.CANCELLED:
+        return (
+            f"{named} was cancelled in Studio, so its suggestions are still waiting to be "
+            "confirmed. Ask the user before confirming them again."
         )
     if outcome.status is not DocumentStatus.READY:
         return f"{named} is still being made. It appears in Studio when it is done."

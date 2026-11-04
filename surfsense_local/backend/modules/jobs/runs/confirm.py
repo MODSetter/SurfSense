@@ -11,7 +11,7 @@ from modules.artifacts.models import Artifact
 from modules.artifacts.revised_copies.refusals import RevisedCopyRefusedError
 from modules.artifacts.revised_copies.service import create_next_version
 from modules.artifacts.revised_copies.versions import revision_base
-from modules.artifacts.script_documents.version import next_version_number
+from modules.documents.models import DocumentStatus
 from modules.jobs.runs.record import JOB_RUN_KEY, job_run_of
 from modules.jobs.runs.start import JobRunRefusedError
 from modules.jobs.workbook_rows.operations import confirm_operations
@@ -24,7 +24,8 @@ def confirm_suggestions(
     cells: list[tuple[str, str]] | None = None,
 ) -> Artifact:
     """The version that confirms the suggestions at `cells` (sheet, answer cell), or every one
-    not yet confirmed. The run keeps which it confirmed, so none is confirmed twice."""
+    not yet confirmed. The run keeps which version confirmed which, so none is confirmed twice
+    while that version stands; the caller commits that record."""
     artifact = session.get(Artifact, artifact_id)
     run = job_run_of(artifact.artifact_metadata) if artifact is not None else None
     if artifact is None or artifact.workspace_id != workspace_id or run is None:
@@ -34,7 +35,7 @@ def confirm_suggestions(
     report = run.get("report")
     if report is None:
         raise JobRunRefusedError("The run is still answering: confirm once it is done.")
-    done = {(c["sheet"], c["cell"]) for c in run.get("confirmed") or []}
+    done = _confirmed(session, run)
     open_ = {
         (a["sheet"], a["cell"]): a
         for a in report["answers"]
@@ -52,10 +53,7 @@ def confirm_suggestions(
         raise JobRunRefusedError("The run has no suggested answers left to confirm.")
     try:
         base = revision_base(session, workspace_id, artifact_id)
-        # Kept before the version is made: making it commits, and both must land together.
-        number = next_version_number(session, workspace_id, base.version.root)
-        _record(artifact, run, chosen, number)
-        return create_next_version(
+        made = create_next_version(
             session,
             workspace_id,
             base,
@@ -65,18 +63,40 @@ def confirm_suggestions(
         )
     except RevisedCopyRefusedError as refused:
         raise JobRunRefusedError(str(refused)) from refused
+    # Making the version committed it. Were the record below lost, its suggestions would only
+    # be offered again, and confirming one twice writes the same cells twice.
+    _record(artifact, run, chosen, made.id)
+    return made
+
+
+def _confirmed(session: Session, run: dict[str, Any]) -> set[tuple[str, str]]:
+    """The cells a version confirms that is made or still being made. A version that failed,
+    was cancelled or was deleted confirmed nothing, so its suggestions are offered again."""
+    held = set()
+    for confirmed in run.get("confirmed") or []:
+        version = session.get(Artifact, confirmed.get("artifact_id") or 0)
+        if version is None or version.document.status in (
+            DocumentStatus.FAILED,
+            DocumentStatus.CANCELLED,
+        ):
+            continue
+        held.add((confirmed["sheet"], confirmed["cell"]))
+    return held
 
 
 def _record(
-    artifact: Artifact, run: dict[str, Any], chosen: list[dict], after: int
+    artifact: Artifact, run: dict[str, Any], chosen: list[dict], version: int
 ) -> None:
-    """Which suggestions were confirmed, and the version number from which they stand."""
+    """Which suggestions which version confirms."""
     meta = dict(artifact.artifact_metadata or {})
     meta[JOB_RUN_KEY] = {
         **run,
         "confirmed": [
             *(run.get("confirmed") or []),
-            *({"sheet": a["sheet"], "cell": a["cell"], "after": after} for a in chosen),
+            *(
+                {"sheet": a["sheet"], "cell": a["cell"], "artifact_id": version}
+                for a in chosen
+            ),
         ],
     }
     artifact.artifact_metadata = meta

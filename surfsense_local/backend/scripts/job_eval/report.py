@@ -54,8 +54,16 @@ def report(out: Path) -> str:
 
 
 def _model(record: dict) -> str:
+    """The model, and what else sets a run apart: its checker and the firm settings it ran with."""
     checker = record.get("checker")
-    return record["model"] + (f", checked by {checker}" if checker else "")
+    on = sorted(
+        k for k, v in ((record.get("settings") or {}).get("job") or {}).items() if v
+    )
+    return (
+        record["model"]
+        + (f", checked by {checker}" if checker else "")
+        + (f", with {', '.join(on)} on" if on else "")
+    )
 
 
 def _flipped(records: list[dict], scored: int) -> str:
