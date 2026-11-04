@@ -135,6 +135,7 @@ The rules that keep the processes out of each other's way:
 - [Backend](backend.md): the one process on SurfSense's servers: the plugin host and the [license portal](license/portal.md).
 - [Model capabilities](model-capabilities.md): the measured level each chat model gets, and what follows from it.
 - [Studio](studio.md): artifact formats, jobs, viewers.
+- [Jobs](jobs.md): job packs and their runs, starting with a security questionnaire filled in from the firm's own policies, and the eval harness that measures them.
 - [Connections](connections.md): OpenAI-compatible endpoints and where keys live.
 - [ChatGPT subscription](chatgpt-subscription.md): a connection signed in with a ChatGPT account, answered through the Responses API.
 - [Claude plan](claude-plan.md): a connection to the user's own Claude Code, answering chat and running Agentic threads as a second engine.
