@@ -537,6 +537,7 @@
   "models_connection_form_provider_needs_account_body": "계정 정보가 필요합니다",
   "models_connection_form_provider_needs_url_body": "URL을 입력하세요",
   "models_connection_form_provider_placeholder": "제공업체 검색",
+  "models_connection_form_provider_search_clear_aria": "검색어 지우기",
   "models_connection_form_providers_label": "제공업체",
   "models_connection_form_save_anyway_body": "이 엔드포인트를 신뢰하는 경우에만 그대로 저장하세요. 모델 ID는 직접 입력해야 합니다.",
   "models_connection_form_save_anyway_button": "그대로 저장",

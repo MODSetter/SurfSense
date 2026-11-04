@@ -537,6 +537,7 @@
   "models_connection_form_provider_needs_account_body": "Нужны данные вашего аккаунта",
   "models_connection_form_provider_needs_url_body": "Введите его URL",
   "models_connection_form_provider_placeholder": "Поиск провайдеров",
+  "models_connection_form_provider_search_clear_aria": "Очистить поиск",
   "models_connection_form_providers_label": "Провайдеры",
   "models_connection_form_save_anyway_body": "Сохраняйте всё равно, только если доверяете этой конечной точке. Идентификаторы моделей придётся вводить вручную.",
   "models_connection_form_save_anyway_button": "Всё равно сохранить",

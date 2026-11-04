@@ -537,6 +537,7 @@
   "models_connection_form_provider_needs_account_body": "アカウント情報が必要です",
   "models_connection_form_provider_needs_url_body": "URLを入力してください",
   "models_connection_form_provider_placeholder": "プロバイダーを検索",
+  "models_connection_form_provider_search_clear_aria": "検索をクリア",
   "models_connection_form_providers_label": "プロバイダー",
   "models_connection_form_save_anyway_body": "このエンドポイントを信頼できる場合のみ、そのまま保存してください。モデルIDは手動で入力することになります。",
   "models_connection_form_save_anyway_button": "そのまま保存",

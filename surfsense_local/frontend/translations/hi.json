@@ -537,6 +537,7 @@
   "models_connection_form_provider_needs_account_body": "आपके खाते का विवरण चाहिए",
   "models_connection_form_provider_needs_url_body": "इसका URL डालें",
   "models_connection_form_provider_placeholder": "प्रोवाइडर खोजें",
+  "models_connection_form_provider_search_clear_aria": "खोज साफ़ करें",
   "models_connection_form_providers_label": "प्रोवाइडर",
   "models_connection_form_save_anyway_body": "फिर भी तभी सहेजें जब आप इस एंडपॉइंट पर भरोसा करते हों। मॉडल ID आपको खुद डालनी होंगी।",
   "models_connection_form_save_anyway_button": "फिर भी सहेजें",

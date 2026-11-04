@@ -537,6 +537,7 @@
   "models_connection_form_provider_needs_account_body": "需要你的账户信息",
   "models_connection_form_provider_needs_url_body": "请输入它的 URL",
   "models_connection_form_provider_placeholder": "搜索提供商",
+  "models_connection_form_provider_search_clear_aria": "清除搜索",
   "models_connection_form_providers_label": "提供商",
   "models_connection_form_save_anyway_body": "只有在你信任这个端点时，才选择“仍然保存”。你需要手动输入模型 ID。",
   "models_connection_form_save_anyway_button": "仍然保存",

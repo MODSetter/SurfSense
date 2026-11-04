@@ -537,6 +537,7 @@
   "models_connection_form_provider_needs_account_body": "Necesita los datos de tu cuenta",
   "models_connection_form_provider_needs_url_body": "Introduce su URL",
   "models_connection_form_provider_placeholder": "Buscar proveedores",
+  "models_connection_form_provider_search_clear_aria": "Borrar la búsqueda",
   "models_connection_form_providers_label": "Proveedores",
   "models_connection_form_save_anyway_body": "Guarda de todos modos solo si confías en este endpoint. Tendrás que introducir los ID de modelo a mano.",
   "models_connection_form_save_anyway_button": "Guardar de todos modos",

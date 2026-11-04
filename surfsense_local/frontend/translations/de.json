@@ -537,6 +537,7 @@
   "models_connection_form_provider_needs_account_body": "Braucht deine Kontodaten",
   "models_connection_form_provider_needs_url_body": "Gib die URL ein",
   "models_connection_form_provider_placeholder": "Anbieter suchen",
+  "models_connection_form_provider_search_clear_aria": "Suche löschen",
   "models_connection_form_providers_label": "Anbieter",
   "models_connection_form_save_anyway_body": "Speichere nur trotzdem, wenn du diesem Endpunkt vertraust. Du gibst die Modell-IDs dann selbst ein.",
   "models_connection_form_save_anyway_button": "Trotzdem speichern",

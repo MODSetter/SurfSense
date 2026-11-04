@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query"
-import { useId, useState } from "react"
+import { useId, useRef, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -18,7 +18,9 @@ import {
 } from "@/components/ui/combobox"
 import { DialogFooter } from "@/components/ui/dialog"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
+import { SearchIcon, XIcon } from "@/components/ui/icons"
 import { Input } from "@/components/ui/input"
+import { InputGroupAddon, InputGroupButton } from "@/components/ui/input-group"
 import { Spinner } from "@/components/ui/spinner"
 import { ApiError } from "@/lib/api"
 import { intl } from "@/i18n/intl"
@@ -119,6 +121,8 @@ export function ConnectionForm({
         : (connection?.catalog_provider ?? CUSTOM_PROVIDER)
   )
   const [accountValues, setAccountValues] = useState<Record<string, string>>({})
+  const [providerSearch, setProviderSearch] = useState("")
+  const providerSearchRef = useRef<HTMLInputElement>(null)
   const providers = useQuery({
     queryKey: ["remote-providers"],
     queryFn: ({ signal }) => getRemoteProviders(signal),
@@ -295,6 +299,8 @@ export function ConnectionForm({
         <Combobox
           items={providerGroups}
           value={selectedOption}
+          inputValue={providerSearch}
+          onInputValueChange={setProviderSearch}
           onValueChange={choose}
           isItemEqualToValue={(item, value) => item.value === value.value}
           filter={matchesProvider}
@@ -317,12 +323,34 @@ export function ConnectionForm({
           {/* In the popup, so the search starts empty and no render resets it. */}
           <ComboboxContent className="min-w-(--anchor-width)">
             <ComboboxInput
+              ref={providerSearchRef}
               showTrigger={false}
               placeholder={intl.formatMessage({
                 id: "models_connection_form_provider_placeholder",
                 defaultMessage: "Search providers",
               })}
-            />
+            >
+              <InputGroupAddon className="pl-1.5">
+                <SearchIcon />
+              </InputGroupAddon>
+              {providerSearch ? (
+                <InputGroupAddon align="inline-end">
+                  <InputGroupButton
+                    size="icon-xs"
+                    aria-label={intl.formatMessage({
+                      id: "models_connection_form_provider_search_clear_aria",
+                      defaultMessage: "Clear search",
+                    })}
+                    onClick={() => {
+                      setProviderSearch("")
+                      providerSearchRef.current?.focus()
+                    }}
+                  >
+                    <XIcon />
+                  </InputGroupButton>
+                </InputGroupAddon>
+              ) : null}
+            </ComboboxInput>
             <ComboboxEmpty>
               {intl.formatMessage({
                 id: "models_connection_form_provider_empty",

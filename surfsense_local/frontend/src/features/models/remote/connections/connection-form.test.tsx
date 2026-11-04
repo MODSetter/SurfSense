@@ -207,6 +207,25 @@ describe("connection form", () => {
     expect((search as HTMLInputElement).value).toBe("lm")
   })
 
+  it("clears the search with a button that appears once something is typed", async () => {
+    serve()
+    const user = userEvent.setup()
+    render(<ConnectionForm onCancel={vi.fn()} onSaved={vi.fn()} />)
+
+    await user.click(screen.getByLabelText("Provider"))
+    const search = await screen.findByPlaceholderText("Search providers")
+    expect(screen.queryByRole("button", { name: "Clear search" })).toBeNull()
+
+    await user.type(search, "lm")
+    expect(screen.queryByRole("option", { name: /^OpenAI/ })).toBeNull()
+    await user.click(screen.getByRole("button", { name: "Clear search" }))
+
+    expect((search as HTMLInputElement).value).toBe("")
+    expect(document.activeElement).toBe(search)
+    expect(await screen.findByRole("option", { name: /^OpenAI/ })).toBeTruthy()
+    expect(screen.queryByRole("button", { name: "Clear search" })).toBeNull()
+  })
+
   it("leaves a new ChatGPT sign-in to its own option beside Use a server", async () => {
     serve()
     const user = userEvent.setup()

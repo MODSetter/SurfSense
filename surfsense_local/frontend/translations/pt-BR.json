@@ -537,6 +537,7 @@
   "models_connection_form_provider_needs_account_body": "Precisa dos dados da sua conta",
   "models_connection_form_provider_needs_url_body": "Informe a URL dele",
   "models_connection_form_provider_placeholder": "Buscar provedores",
+  "models_connection_form_provider_search_clear_aria": "Limpar busca",
   "models_connection_form_providers_label": "Provedores",
   "models_connection_form_save_anyway_body": "Salve mesmo assim apenas se você confiar neste endpoint. Você vai informar os IDs dos modelos manualmente.",
   "models_connection_form_save_anyway_button": "Salvar mesmo assim",

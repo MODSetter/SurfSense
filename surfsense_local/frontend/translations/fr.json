@@ -537,6 +537,7 @@
   "models_connection_form_provider_needs_account_body": "Nécessite vos informations de compte",
   "models_connection_form_provider_needs_url_body": "Saisissez son URL",
   "models_connection_form_provider_placeholder": "Rechercher un fournisseur",
+  "models_connection_form_provider_search_clear_aria": "Effacer la recherche",
   "models_connection_form_providers_label": "Fournisseurs",
   "models_connection_form_save_anyway_body": "Enregistrez quand même uniquement si vous faites confiance à cet endpoint. Vous saisirez les ID de modèle manuellement.",
   "models_connection_form_save_anyway_button": "Enregistrer quand même",

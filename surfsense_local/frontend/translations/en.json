@@ -537,6 +537,7 @@
   "models_connection_form_provider_needs_account_body": "Needs your account details",
   "models_connection_form_provider_needs_url_body": "Enter its URL",
   "models_connection_form_provider_placeholder": "Search providers",
+  "models_connection_form_provider_search_clear_aria": "Clear search",
   "models_connection_form_providers_label": "Providers",
   "models_connection_form_save_anyway_body": "Save anyway only if you trust this endpoint. You will enter model IDs manually.",
   "models_connection_form_save_anyway_button": "Save anyway",
