@@ -4,6 +4,8 @@ import type {
   UnavailablePlugin,
 } from "@/features/agent/api"
 import type { SourceScope } from "@/features/sources/tree/scope-state"
+
+import type { MentionedSources } from "./mentions/named-sources"
 import { request, requestJson, requestVoid } from "@/lib/api"
 
 import type { NewChatChoice } from "./modes/new-chat-mode"
@@ -159,6 +161,7 @@ export async function* streamMessage(
   sourceScope: SourceScope | null,
   thinking: boolean,
   retryOf: number | null,
+  mentionedSources: MentionedSources | null,
   signal: AbortSignal
 ): AsyncGenerator<NumberedEvent> {
   const response = await request(`/chat/threads/${threadId}/messages`, {
@@ -179,6 +182,7 @@ export async function* streamMessage(
       // Only when off, for the same reason: on is the API's default.
       ...(thinking ? {} : { thinking: false }),
       ...(retryOf !== null ? { retry_of: retryOf } : {}),
+      ...(mentionedSources ? { mentioned_sources: mentionedSources } : {}),
     }),
     signal,
   })

@@ -159,6 +159,15 @@ function WorkspaceDashboard({
     )
     return sources.includedDocumentIds.map((id) => titles.get(id) ?? "")
   }, [sources.documents, sources.includedDocumentIds])
+  const mentionables = useMemo(
+    () => ({
+      documents: sources.documents,
+      index: sources.index,
+      artifacts: studio.artifacts,
+      isLoading: sources.isLoading,
+    }),
+    [sources.documents, sources.index, sources.isLoading, studio.artifacts]
+  )
   const blockAgentic = useBlockAgentic()
   // Bound to the model the chat was asked on: the picker stays open meanwhile.
   const onAgenticGate = useCallback(
@@ -497,6 +506,7 @@ function WorkspaceDashboard({
                 onRetry={chat.retry}
                 onNewChat={startNewChat}
                 sourceCount={sources.includedDocumentIds.length}
+                mentionables={mentionables}
                 onUploadSources={(files) => void sources.upload(files)}
                 isUploadingSources={sources.isUploading}
                 onOpenPlugins={onOpenPlugins}
@@ -710,7 +720,7 @@ export function DashboardPage({
     Boolean(workspaces.activeWorkspace)
   )
 
-  // For the startup frame, which offers plugin mentions before this loads.
+  // For the startup frame, which offers mentions before this loads.
   useEffect(() => rememberNextNewChatMode(selection), [selection])
 
   // Checked when the model changes, when settings close (a key entered again,

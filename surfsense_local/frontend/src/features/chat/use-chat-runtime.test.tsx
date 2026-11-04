@@ -19,6 +19,7 @@ import type { ChatMessage, ChatThread } from "./api"
 import type { NewChatChoice } from "./modes/new-chat-mode"
 import { chatKeys } from "./query-keys"
 import { LiveThreadRuntime } from "./live-thread-runtime"
+import { withPick } from "./mentions/named-sources"
 import {
   liveRun,
   liveRuns,
@@ -300,6 +301,42 @@ function sendIn(
 }
 
 describe("useChatRuntime", () => {
+  it("sends the ids of what a message still names, and sends them again on retry", async () => {
+    const { result } = renderRuntime()
+    await waitFor(() => expect(result.current.isLoadingThreads).toBe(false))
+
+    act(() => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "compare @Memo" }],
+        runConfig: withPick(withPick({}, { id: "document:3", label: "Memo" }), {
+          id: "folder:7",
+          label: "Plan Q3",
+        }),
+      })
+    })
+
+    await waitFor(() => expect(api.sends).toHaveLength(1))
+    expect(api.sends[0].body.mentioned_sources).toEqual({
+      document_ids: [3],
+      folder_ids: [],
+    })
+    expect(liveRun(api.sends[0].threadId)?.retry?.mentionedSources).toEqual({
+      document_ids: [3],
+      folder_ids: [],
+    })
+  })
+
+  it("adds nothing to a message that names nothing", async () => {
+    const { result } = renderRuntime()
+    await waitFor(() => expect(result.current.isLoadingThreads).toBe(false))
+
+    sendIn(result, "mail me@example.com")
+
+    await waitFor(() => expect(api.sends).toHaveLength(1))
+    expect(api.sends[0].body).not.toHaveProperty("mentioned_sources")
+  })
+
   it.each([false, true])(
     "offers voice input whether the model reads images or not (reads images: %s)",
     async (readsImages) => {

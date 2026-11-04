@@ -10,7 +10,6 @@ import { useDictationKeys } from "@/features/dictation/use-dictation-keys"
 import { useDictationStarted } from "@/features/dictation/use-dictation-view"
 import type { ChatMode } from "@/features/models/capability/api"
 import type { ModelSelection } from "@/features/models/selection/api"
-import { PluginMentions } from "@/features/plugins/in-thread/plugin-mentions"
 import { cn } from "@/lib/utils"
 import { intl } from "@/i18n/intl"
 import type { PluginsStart } from "@/features/plugins/plugins-settings"
@@ -27,6 +26,8 @@ import {
   ComposerControls,
   ComposerText,
 } from "./composer-surface"
+import type { Mentionables } from "./mentions/mention-items"
+import { SourceMentions } from "./mentions/source-mentions"
 import { ModePicker } from "./modes/mode-picker"
 import { useNewChatMode } from "./modes/new-chat-mode"
 import { ModelPicker, modelControlButtonClassName } from "./model-picker"
@@ -180,6 +181,7 @@ export function ChatComposer({
   onOpenPlugins,
   dictation,
   onOpenSpeechSettings,
+  mentionables,
 }: {
   placement: "center" | "bottom"
   model: ModelSelection | null
@@ -209,6 +211,8 @@ export function ChatComposer({
   dictation?: Dictation
   // Opens Settings › Speech recognition, from the mic's set-up.
   onOpenSpeechSettings?: () => void
+  // What `@` can name in an Agentic chat.
+  mentionables?: Mentionables
 }) {
   const newChatMode = useNewChatMode(model)
   // The agent reads no attached images yet: an Agentic chat takes none. Images
@@ -289,8 +293,8 @@ export function ChatComposer({
         )}
       >
         <ComposerPrimitive.Unstable_TriggerPopoverRoot>
-          {/* Plugins reach Agentic threads only, so only their composer names tools. */}
-          {agentic ? <PluginMentions /> : null}
+          {/* A Basic chat only filters by source, so naming one would change nothing there. */}
+          {agentic ? <SourceMentions mentionables={mentionables} /> : null}
           {startupDraft ? (
             <StartupDraftHandover draft={startupDraft} inputRef={inputRef} />
           ) : null}

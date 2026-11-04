@@ -261,22 +261,22 @@ describe("typing while the app loads", () => {
     )
   }, 15_000)
 
-  it("shows the plugin list loading on `@` when new chats open in Agentic", async () => {
+  it("shows the `@` list loading when new chats open in Agentic", async () => {
     onNewChat()
     writeNextNewChatMode("agentic")
     pendingStartup()
     renderApp()
 
     await userEvent.type(frameBox(), "find jobs with @ind")
-    // A busy group: nothing to pick until the plugins arrive.
+    // A busy group: nothing to pick until the sources arrive.
     const list = within(startupScreen()).getByRole("group", {
-      name: "Plugins",
+      name: "Sources and artifacts",
     })
     expect(list.getAttribute("aria-busy")).toBe("true")
     expect(list.querySelector("[data-slot=skeleton]")).toBeTruthy()
   })
 
-  it("shows no plugin list on `@` when new chats open in Q&A", async () => {
+  it("shows no `@` list when new chats open in Q&A", async () => {
     onNewChat()
     writeNextNewChatMode("basic")
     pendingStartup()
@@ -284,11 +284,13 @@ describe("typing while the app loads", () => {
 
     await userEvent.type(frameBox(), "find jobs with @ind")
     expect(
-      within(startupScreen()).queryByRole("group", { name: "Plugins" })
+      within(startupScreen()).queryByRole("group", {
+        name: "Sources and artifacts",
+      })
     ).toBeNull()
   })
 
-  it("closes the plugin list once the caret leaves the mention", async () => {
+  it("closes the `@` list once the caret leaves the mention", async () => {
     onNewChat()
     writeNextNewChatMode("agentic")
     pendingStartup()
@@ -296,7 +298,9 @@ describe("typing while the app loads", () => {
 
     await userEvent.type(frameBox(), "ask @goo about it")
     expect(
-      within(startupScreen()).queryByRole("group", { name: "Plugins" })
+      within(startupScreen()).queryByRole("group", {
+        name: "Sources and artifacts",
+      })
     ).toBeNull()
   })
 
@@ -312,21 +316,6 @@ describe("typing while the app loads", () => {
     expect(startupScreen().getAttribute("aria-busy")).toBe("true")
     fireEvent.compositionEnd(frameBox())
     await dashboardRail()
-  }, 15_000)
-
-  it("starts loading the plugins before the dashboard asks for them", async () => {
-    onNewChat()
-    const requested = completedInstall()
-    renderApp()
-
-    await dashboardRail()
-    await waitFor(() =>
-      expect(requested).toContain("/workspaces/1/chat/threads")
-    )
-    expect(requested.indexOf("/plugins")).toBeGreaterThan(-1)
-    expect(requested.indexOf("/plugins")).toBeLessThan(
-      requested.indexOf("/workspaces/1/chat/threads")
-    )
   }, 15_000)
 
   it("keeps the dashboard composer's text solid while its controls fade in", async () => {

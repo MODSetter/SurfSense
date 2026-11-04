@@ -10,7 +10,7 @@ function isSpace(char: string) {
 }
 
 /**
- * The plugin mention the caret is in: a word that starts with the trigger, up
+ * The mention the caret is in: a word that starts with the trigger, up
  * to the caret. The composer's `@` list and the startup frame both use it,
  * so a word opens the list in one exactly when it does in the other.
  */

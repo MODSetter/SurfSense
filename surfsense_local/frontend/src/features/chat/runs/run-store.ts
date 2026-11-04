@@ -1,4 +1,5 @@
 import type { ImageUpload } from "../api"
+import type { MentionedSources } from "../mentions/named-sources"
 import type { ChatStreamEvent, NumberedEvent } from "../sse"
 import { applyFrame, type LivePair } from "./apply-frame"
 
@@ -21,7 +22,11 @@ export type LiveRun = {
   readonly lastSeq: number
   readonly ended: boolean
   // What a Retry of this reply would send again, while the window holds it.
-  readonly retry: { text: string; images: ImageUpload[] } | null
+  readonly retry: {
+    text: string
+    images: ImageUpload[]
+    mentionedSources: MentionedSources | null
+  } | null
 }
 
 /** A run as the page outside its thread reads it: everything but the reply. */

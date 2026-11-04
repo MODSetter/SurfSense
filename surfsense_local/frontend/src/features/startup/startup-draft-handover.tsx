@@ -5,7 +5,7 @@ import {
 } from "@assistant-ui/react"
 import { useEffect, useRef, type RefObject } from "react"
 
-import { MENTION_TRIGGER } from "@/features/plugins/in-thread/mention-matcher"
+import { MENTION_TRIGGER } from "@/features/chat/mentions/mention-matcher"
 
 import type { StartupDraft } from "./startup-input"
 import { useStartupInput } from "./startup-input-context"

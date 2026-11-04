@@ -31,6 +31,7 @@ import type { PluginsStart } from "@/features/plugins/plugins-settings"
 import { useStartupReveal } from "@/features/startup/use-startup-reveal"
 import type { ChatThread } from "./api"
 import { ChatComposer } from "./chat-composer"
+import type { Mentionables } from "./mentions/mention-items"
 import { ChatViewport } from "./chat-viewport"
 import { ConversationColumn } from "./conversation-column"
 import { ConversationBody } from "./conversation-scroll"
@@ -175,6 +176,7 @@ export function ThreadPanel({
   dictation,
   onOpenSpeechSettings,
   headerEnd,
+  mentionables,
 }: {
   live: LiveThreadSource
   thread: ChatThread | null
@@ -206,6 +208,8 @@ export function ThreadPanel({
   onOpenSpeechSettings?: () => void
   // At the header's end: the right panel's toggle while the panel is hidden.
   headerEnd?: ReactNode
+  // What the composer's `@` can name.
+  mentionables?: Mentionables
 }) {
   const reveal = useStartupReveal()
   const titleInputRef = useRef<HTMLInputElement>(null)
@@ -247,6 +251,7 @@ export function ThreadPanel({
       onOpenPlugins={onOpenPlugins}
       dictation={dictation}
       onOpenSpeechSettings={onOpenSpeechSettings}
+      mentionables={mentionables}
     />
   )
   const bottomFooter = bottomComposer ? composer("bottom") : undefined

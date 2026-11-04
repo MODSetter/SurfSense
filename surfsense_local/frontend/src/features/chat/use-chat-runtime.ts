@@ -41,6 +41,11 @@ import { ChatImageAdapter, previewOf, uploadsOf } from "./image-attachments"
 import { AGENTIC_REFUSALS, agenticRefusedText } from "./modes/mode-text"
 import { AGENTIC_GATES, type NewChatChoice } from "./modes/new-chat-mode"
 import type { LiveThreadSource } from "./live-thread-runtime"
+import {
+  namedSources,
+  picksOf,
+  type MentionedSources,
+} from "./mentions/named-sources"
 import { isClaudeCodeRefusal } from "./claude-code-refusal"
 import { chatKeys } from "./query-keys"
 import type { LivePair } from "./runs/apply-frame"
@@ -566,7 +571,8 @@ export function useChatRuntime({
       typed: string,
       images: ImageUpload[] = [],
       retryOf: number | null = null,
-      replaces: ReadonlyArray<number | string> = []
+      replaces: ReadonlyArray<number | string> = [],
+      mentionedSources: MentionedSources | null = null
     ) => {
       // The backend needs a question for retrieval and the title; an image sent
       // alone asks the obvious one.
@@ -679,7 +685,7 @@ export function useChatRuntime({
             : null
         ),
         replaces,
-        retry: { text, images },
+        retry: { text, images, mentionedSources },
       })
       try {
         await pump(
@@ -692,6 +698,7 @@ export function useChatRuntime({
             sourceScope,
             !canSkipThinking || readThinkingOn(),
             retryOf,
+            mentionedSources,
             signal
           )
         )
@@ -790,7 +797,16 @@ export function useChatRuntime({
 
   const onNew = useCallback(
     (appendMessage: AppendMessage) =>
-      send(submittedText(appendMessage), uploadsOf(appendMessage)),
+      send(
+        submittedText(appendMessage),
+        uploadsOf(appendMessage),
+        null,
+        [],
+        namedSources(
+          picksOf(appendMessage.runConfig),
+          submittedText(appendMessage)
+        )
+      ),
     [send]
   )
 
@@ -827,10 +843,19 @@ export function useChatRuntime({
           activeThread?.uses_agent || typeof failed.id !== "number"
             ? null
             : failed.id
-        await send(question.content.text ?? "", images, retryOf, [
-          question.id,
-          failed.id,
-        ])
+        // Past a reload the ids are gone, but the thread's scope still holds what
+        // was named; only the note saying which file is not sent again.
+        const mentionedSources =
+          held?.retry && held.pair && String(held.pair[1].id) === assistantId
+            ? held.retry.mentionedSources
+            : null
+        await send(
+          question.content.text ?? "",
+          images,
+          retryOf,
+          [question.id, failed.id],
+          mentionedSources
+        )
       })()
     },
     [activeThread, activeThreadId, queryClient, send]
