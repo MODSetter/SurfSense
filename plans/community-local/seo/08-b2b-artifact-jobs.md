@@ -573,20 +573,20 @@ and HIPAA reviews, a people roster) and team features (a shared library,
 approval by a second person, sealed client workspaces).
 
 **Price.** A founding price, locked for early customers, and a hypothesis to
-test: $200 a year for the first person and $120 a year for each further
-person. It replaces the earlier plan of $1,200 a year per firm and the
+test: $60 a year for each person, the first included, to rise once sales
+justify it. It replaces the earlier plan of $1,200 a year per firm and the
 Individual licence's $60, then $120.
 
 | people | a year |
 |---|---|
-| 1 ("Solo") | $200 |
-| 2 | $320 |
-| 5 | $680 |
-| 10 | $1,280 |
-| 15 | $1,880 |
+| 1 ("Solo") | $60 |
+| 2 | $120 |
+| 5 | $300 |
+| 10 | $600 |
+| 15 | $900 |
 
-Whether $200 is the first person's price, as written, or a base fee before $120
-for each person is open question m; how many people self-serve covers before a
+Each person costs the same, the first included (open question m, decided
+4 Nov 2026); how many people self-serve covers before a
 quoted Enterprise deal is open question k. Two anchors from the 1 Nov 2026
 research, both hypotheses: per-user AI tools for lawyers, accountants and
 clinicians run about $40 to $150 a month per user, and committed
@@ -705,8 +705,9 @@ a connector would route client files through SurfSense; and a standalone
 assurance-pack product, for which no buyer evidence was found. Once item 11
 exists, connectors can ship as local paid plugins like the jobs.
 
-**What $100K a year would take.** At the founding price, 500 Solo licences,
-about 150 five-person firms ($680 each) or about 80 ten-person firms ($1,280).
+**What $100K a year would take.** At the founding price, about 1,670 Solo
+licences, about 330 five-person firms ($300 each) or about 170 ten-person firms
+($600).
 It is a target for the checks below, not a forecast.
 
 ## Pages and reach
@@ -883,8 +884,8 @@ Settled on 1 Nov 2026:
 - **A job plugin unlocks only with Business or the 14-day trial,** and anyone
   who uses one for work needs Business
   ([ADR 0080](../../../docs/adr/0080-surfsense-sells-one-business-license-priced-per-person.md)).
-- **A founding price,** to test: $200 a year for the first person and $120 for
-  each further person
+- **A founding price,** to test: $60 a year for each person, the first
+  included
   ([ADR 0080](../../../docs/adr/0080-surfsense-sells-one-business-license-priced-per-person.md)).
 - **Yearly automatic renewal on the same key,** with cancellation and seat
   changes through Stripe's emailed customer-portal link, and no accounts
@@ -954,8 +955,8 @@ Still open, each with its recommended default:
   Default: 15.
 - **l. Do any hand-issued Team licences exist, and what do they become?**
   Default: they keep working to expiry and are offered Business at renewal.
-- **m. Is $200 the first person's price, as written, or a base fee before
-  $120 for each person?** Default: the first person's price.
+- **m. Is the first person priced apart from each further one?** Decided
+  4 Nov 2026: no, each person is $60 a year, the first included.
 - **n. Does Business include the priority support and the yearly feature build
   request that Individual carries?** Default: yes.
 - **o. Where does the app fetch a renewed licence file from?** Default:

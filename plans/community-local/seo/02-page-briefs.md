@@ -239,7 +239,7 @@ Until then the page stays as it is.
 - **Meta:** `The app and its updates are free forever. A Business licence adds the job plugins, priced per person. Compare with NotebookLM's tiers and source limits.` (152)
 - **H1:** `Pricing`
 - **Required content**, from ADR 0080: a Business card, "Solo" for one
-  person, at $200 a year for the first person and $120 for each further one, a
+  person, at $60 a year for each person, the first included, a
   founding price locked for early customers; who needs it, anyone who uses a
   SurfSense job plugin for work; the automatic yearly renewal, stated before
   payment; the 14-day trial of the full job; cancellation and seat changes

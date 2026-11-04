@@ -274,8 +274,8 @@ The line between an edit and a job stands.
 - **Who needs it.** Anyone who uses a SurfSense job plugin for work. It starts
   at one person, shown as "Solo".
 - **Price.** A founding price, locked for early customers and a hypothesis to
-  test: $200 a year for the first person and $120 for each further person
-  (1 person $200, 2 $320, 5 $680, 10 $1,280, 15 $1,880). It replaces the
+  test: $60 a year for each person, the first included (1 person $60,
+  2 $120, 5 $300, 10 $600, 15 $900), to rise once sales justify it. It replaces the
   earlier plan of $1,200 a year per firm and the Individual license's $60,
   then $120.
 - **Billing.** Business renews automatically every year on the same license
@@ -298,7 +298,7 @@ The line between an edit and a job stands.
   every file, library and output stays readable; a license never disables the
   app.
 
-| Free, on every model the capability allows | Business ($200 a year for the first person, $120 for each further one; a founding price to test) | Enterprise (custom, invoiced) |
+| Free, on every model the capability allows | Business ($60 a year for each person, the first included; a founding price to test) | Enterprise (custom, invoiced) |
 |---|---|---|
 | Q&A, every Studio format, folders and linked folders; reading web pages and web search for Add from the web ([ADR 0081](../../docs/adr/0081-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)) | The B2B job plugins, each with its skill, agent, workflow, mappings, playbooks and starter playbooks, templates and eval cases; the 14-day trial covers them; whether all are included, the recommended default, or each is an add-on is [08's open question a](seo/08-b2b-artifact-jobs.md#open-questions-for-the-maintainer) | Organization policy that can only lower capabilities ([06](../../docs/proposals/file-agent/06-product-shape.md#organization-policy-enterprise)) |
 | The agent harness, format skills, engines, versions, revised copies, review state | Priority support | Local-only by default for new workspaces |
@@ -519,7 +519,7 @@ What follows from the table:
   setting.
 - **Against the incumbents** a year of 50 questionnaires on Sonnet is about
   $115 in API spend (estimated) plus the Business license the job plugin needs
-  ($200 a year for one person at the founding price,
+  ($60 a year for one person at the founding price,
   [ADR 0080](../../docs/adr/0080-surfsense-sells-one-business-license-priced-per-person.md)),
   against Loopio's average of about $24K a year for small teams or Vanta's
   questionnaire module at $3–8K.
@@ -703,9 +703,9 @@ Each with a recommended answer, except where a question now points to 08.
    the Individual license stops being sold when the first job plugin ships, and
    business jobs need Business,
    priced per person, at a founding price locked for early customers and a
-   hypothesis to test: $200 a year for the first person and $120 for each
-   further person. It replaces the Individual license's $60, then $120, and
-   the earlier plan of $1,200 a year per firm.
+   hypothesis to test: $60 a year for each person, the first included, to
+   rise once sales justify it. It replaces the Individual license's $60,
+   then $120, and the earlier plan of $1,200 a year per firm.
    Self-serve questionnaire tools charge $50 to $249 a month. Two anchors from
    the 1 Nov research are hypotheses, never stated on public pages as fact:
    per-user AI tools for lawyers, accountants and clinicians run about $40 to
