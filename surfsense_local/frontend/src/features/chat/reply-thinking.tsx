@@ -8,7 +8,7 @@ import {
   useRef,
   useState,
 } from "react"
-import { Streamdown, defaultRehypePlugins } from "streamdown"
+import { Streamdown } from "streamdown"
 
 import { Button } from "@/components/ui/button"
 import { ChevronRightIcon } from "@/components/ui/icons"
@@ -17,6 +17,7 @@ import {
   STREAMDOWN_LINK_SAFETY,
   streamdownPlugins,
   streamingStreamdownPlugins,
+  UNTRUSTED_REHYPE_PLUGINS,
 } from "@/features/studio/viewers/streamdown-config"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
@@ -31,29 +32,6 @@ export type ReplyProgress = { processed: number; total: number }
 // How coarsely the live region follows the figure: a polite region fed every
 // update is noise.
 const ANNOUNCED_STEP = 0.25
-
-// Streamdown's default rehype pass is raw, sanitize, then harden with every
-// link and image allowed. The trace is model output from the same stream as
-// the answer, so it takes the answer's harden limits instead (message.tsx),
-// the way the assistant-ui primitive builds them.
-type RehypePluggable = (typeof defaultRehypePlugins)[string]
-const [harden] = defaultRehypePlugins.harden as Extract<
-  RehypePluggable,
-  readonly unknown[]
->
-const traceRehypePlugins: RehypePluggable[] = [
-  defaultRehypePlugins.raw,
-  defaultRehypePlugins.sanitize,
-  [
-    harden,
-    {
-      allowedLinkPrefixes: ["*"],
-      allowedImagePrefixes: [],
-      allowedProtocols: ["http", "https", "mailto"],
-      allowDataImages: false,
-    },
-  ] as RehypePluggable,
-]
 
 // How close to the bottom still counts as reading the newest line.
 const FOLLOW_SLACK_PX = 16
@@ -296,7 +274,7 @@ function ReplyHeader({
         >
           <div className="min-h-0 overflow-hidden">
             <ScrollFade
-              className="mt-2 rounded-lg border border-border/60 bg-muted/20 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring/50"
+              className="mt-2 rounded-lg border border-border/60 bg-muted/20 has-focus-visible:ring-2 has-focus-visible:ring-ring/50"
               viewportClassName="max-h-52 rounded-lg px-3 py-2 text-sm leading-6 wrap-break-word text-muted-foreground outline-none"
               id={traceId}
               ref={traceRef}
@@ -330,7 +308,7 @@ function ReplyHeader({
                 plugins={
                   traceGrowing ? streamingStreamdownPlugins : streamdownPlugins
                 }
-                rehypePlugins={traceRehypePlugins}
+                rehypePlugins={UNTRUSTED_REHYPE_PLUGINS}
                 linkSafety={STREAMDOWN_LINK_SAFETY}
               >
                 {repaired}

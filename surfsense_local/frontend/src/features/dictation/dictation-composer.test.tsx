@@ -15,7 +15,7 @@ import {
   SPEECH_IN_USE,
 } from "@/features/models/local/transcription/fake-speech-rows"
 import type { ModelSelection } from "@/features/models/selection/api"
-import { render } from "@/test-utils"
+import { boxText, render } from "@/test-utils"
 
 import { fakeMicrophone } from "./capture/fake-microphone"
 import { createDictation, type Dictation } from "./dictation-adapter"
@@ -81,8 +81,7 @@ function setUp(
   const mic = fakeMicrophone()
   const dictation = createDictation({ openMicrophone: mic.open })
   const user = userEvent.setup()
-  const box = () =>
-    screen.getByRole<HTMLTextAreaElement>("textbox", { name: "Message" })
+  const box = () => screen.getByRole("textbox", { name: "Message" })
   const listening = () => waitFor(() => expect(mic.state.open).toBe(true))
   return { api, mic, dictation, user, box, listening }
 }
@@ -125,8 +124,7 @@ describe("voice input in the composer", () => {
     await listening()
     act(() => mic.say())
 
-    await waitFor(() => expect(box().value).toBe("Hello there."))
-    expect(box().readOnly).toBe(true)
+    await waitFor(() => expect(boxText(box())).toBe("Hello there."))
     expect(screen.getByRole("status").textContent).toBe("Listening")
     expect(screen.getByText("0:00")).toBeTruthy()
     // The recording takes the mic's and Send's places, never the line below.
@@ -137,7 +135,9 @@ describe("voice input in the composer", () => {
     expect(screen.getByRole("button", { name: "Stop and insert" })).toBeTruthy()
     disclaimerStays()
     act(() => mic.say())
-    await waitFor(() => expect(box().value).toBe("Hello there. How are you?"))
+    await waitFor(() =>
+      expect(boxText(box())).toBe("Hello there. How are you?")
+    )
   })
 
   it("on Enter, stops, waits for the last phrase and inserts it, sending nothing", async () => {
@@ -150,15 +150,14 @@ describe("voice input in the composer", () => {
     await user.click(await startButton())
     await listening()
     act(() => mic.say())
-    await waitFor(() => expect(box().value).toBe("First."))
+    await waitFor(() => expect(boxText(box())).toBe("First."))
     act(() => mic.speak(0.8))
     await user.type(box(), "{Enter}")
 
     expect(mic.state.open).toBe(false)
     expect(await screen.findByText("Transcribing…")).toBeTruthy()
     last.release()
-    await waitFor(() => expect(box().value).toBe("First. Second."))
-    await waitFor(() => expect(box().readOnly).toBe(false))
+    await waitFor(() => expect(boxText(box())).toBe("First. Second."))
     expect(onNew).not.toHaveBeenCalled()
   })
 
@@ -171,12 +170,11 @@ describe("voice input in the composer", () => {
     await user.click(await startButton())
     await listening()
     act(() => mic.say())
-    await waitFor(() => expect(box().value).toBe("Draft question."))
+    await waitFor(() => expect(boxText(box())).toBe("Draft question."))
     act(() => mic.speak(0.8))
     await user.click(screen.getByRole("button", { name: "Stop and insert" }))
 
-    await waitFor(() => expect(box().value).toBe("Draft question. More."))
-    await waitFor(() => expect(box().readOnly).toBe(false))
+    await waitFor(() => expect(boxText(box())).toBe("Draft question. More."))
     expect(onNew).not.toHaveBeenCalled()
     // Send comes back, ready to send what was said.
     expect(screen.getByRole("button", { name: "Send message" })).toBeTruthy()
@@ -191,13 +189,28 @@ describe("voice input in the composer", () => {
     await user.click(await startButton())
     await listening()
     act(() => mic.say())
-    await waitFor(() => expect(box().value).toBe("Before Never mind."))
+    await waitFor(() => expect(boxText(box())).toBe("Before Never mind."))
     await user.type(box(), "{Escape}")
 
-    expect(box().value).toBe("Before")
+    await waitFor(() => expect(boxText(box())).toBe("Before"))
     expect(mic.state.open).toBe(false)
-    expect(box().readOnly).toBe(false)
     expect(await startButton()).toBeTruthy()
+  })
+
+  it("adds to what the box already holds, and what is typed meanwhile is refused", async () => {
+    const { api, dictation, user, mic, box, listening } = setUp()
+    api.answer(said("with the memo"))
+    render(<Harness dictation={dictation} />)
+
+    await user.type(box(), "compare this")
+    await user.click(await startButton())
+    await listening()
+    await user.keyboard("nope")
+    act(() => mic.say())
+
+    await waitFor(() =>
+      expect(boxText(box())).toBe("compare this with the memo")
+    )
   })
 
   it("keeps listening after a long press: there is no push to talk", async () => {
@@ -231,7 +244,7 @@ describe("voice input in the composer", () => {
     act(() => mic.speak(1.2))
     await user.keyboard("{Enter}")
 
-    await waitFor(() => expect(box().value).toBe("By keyboard."))
+    await waitFor(() => expect(boxText(box())).toBe("By keyboard."))
     expect(mic.state.open).toBe(false)
   })
 
@@ -282,7 +295,7 @@ describe("voice input in the composer", () => {
     await listening()
     act(() => mic.say())
 
-    await waitFor(() => expect(box().value).toBe("Set up and talking."))
+    await waitFor(() => expect(boxText(box())).toBe("Set up and talking."))
     expect(screen.getByRole("button", { name: "Stop and insert" })).toBeTruthy()
   })
 
@@ -376,11 +389,11 @@ describe("voice input in the composer", () => {
       await screen.findByText("Couldn’t turn part of your speech into text.")
     ).toBeTruthy()
     disclaimerStays()
-    expect(box().value).toBe("Got this.")
+    await waitFor(() => expect(boxText(box())).toBe("Got this."))
     api.answer(said("And this."))
     await user.click(screen.getByRole("button", { name: "Retry" }))
 
-    await waitFor(() => expect(box().value).toBe("Got this. And this."))
+    await waitFor(() => expect(boxText(box())).toBe("Got this. And this."))
     await waitFor(() =>
       expect(
         screen.queryByText("Couldn’t turn part of your speech into text.")
@@ -430,7 +443,7 @@ describe("voice input in the composer", () => {
     api.answer(said("Freed up."))
     await user.click(screen.getByRole("button", { name: "Retry" }))
 
-    await waitFor(() => expect(box().value).toBe("Freed up."))
+    await waitFor(() => expect(boxText(box())).toBe("Freed up."))
   })
 
   it("says why it stopped at the message limit", async () => {
@@ -450,6 +463,10 @@ describe("voice input in the composer", () => {
       )
     ).toBeTruthy()
     disclaimerStays()
-    expect(box().value).toBe(`${"x".repeat(QUESTION_MAX_CHARS - 10)} one two`)
+    await waitFor(() =>
+      expect(boxText(box())).toBe(
+        `${"x".repeat(QUESTION_MAX_CHARS - 10)} one two`
+      )
+    )
   })
 })
