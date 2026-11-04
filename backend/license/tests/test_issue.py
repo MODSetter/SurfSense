@@ -310,7 +310,7 @@ async def test_a_business_plan_comes_from_session_metadata_with_its_people():
 
 
 async def test_a_business_payment_link_is_known_by_its_price(monkeypatch):
-    """The graduated price's quantity is the number of people."""
+    """The price's quantity is the number of people."""
     monkeypatch.setattr(config, "STRIPE_PRICE_LICENSE_BUSINESS", "price_business")
 
     session = _session(

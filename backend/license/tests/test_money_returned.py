@@ -38,8 +38,8 @@ def charge(payment_intent: str, *, refunded: bool = True, customer=None) -> dict
     return {
         "id": f"ch_{payment_intent}",
         "object": "charge",
-        "amount": 20000,
-        "amount_refunded": 20000 if refunded else 5000,
+        "amount": 6000,
+        "amount_refunded": 6000 if refunded else 1500,
         "refunded": refunded,
         "customer": customer,
         "payment_intent": payment_intent,
@@ -101,7 +101,7 @@ async def test_a_dispute_suspends_the_license_the_payment_bought(env: Billing) -
     dispute = {
         "id": "dp_1",
         "object": "dispute",
-        "amount": 20000,
+        "amount": 6000,
         "charge": "ch_pi_year",
         "payment_intent": "pi_year",
         "status": "needs_response",
