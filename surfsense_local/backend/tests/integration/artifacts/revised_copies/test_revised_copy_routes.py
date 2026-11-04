@@ -204,7 +204,12 @@ async def test_a_second_decision_while_one_is_being_made_is_a_conflict(
     reply = await client.post(f"/artifacts/{artifact_id}/revisions/reject-all")
 
     assert reply.status_code == 409
-    assert "still being made" in reply.json()["detail"]
+    assert reply.json()["detail"] == {
+        "message": "Version 2 of this revised copy is still being made. "
+        "Wait for it to finish, then revise again.",
+        "code": "version_being_made",
+        "version": 2,
+    }
 
 
 async def test_deciding_all_of_a_workbook_is_a_conflict(
@@ -216,6 +221,44 @@ async def test_deciding_all_of_a_workbook_is_a_conflict(
     reply = await client.post(f"/artifacts/{artifact_id}/revisions/accept-all")
 
     assert reply.status_code == 409
+    assert reply.json()["detail"] == {
+        "message": "Only a Word revised copy has tracked changes to accept or reject.",
+        "code": "not_word_copy",
+    }
+
+
+async def test_deciding_all_of_a_version_with_no_changes_left_is_a_conflict(
+    client: AsyncClient, session: Session, workspace: Workspace
+) -> None:
+    """Once every change is accepted, the next decision has nothing to decide."""
+    artifact_id = _word(session, workspace)
+    accepted = await client.post(f"/artifacts/{artifact_id}/revisions/accept-all")
+    run(accepted.json()["id"])
+
+    reply = await client.post(f"/artifacts/{artifact_id}/revisions/reject-all")
+
+    assert reply.status_code == 409
+    assert reply.json()["detail"] == {
+        "message": "Version 2 has no tracked changes to decide.",
+        "code": "no_tracked_changes",
+        "version": 2,
+    }
+
+
+async def test_retrying_a_version_still_being_made_is_a_conflict(
+    client: AsyncClient, session: Session, workspace: Workspace
+) -> None:
+    """The same code as a Studio job's, so the panel says it the same way."""
+    artifact_id = _word(session, workspace)
+    accepted = await client.post(f"/artifacts/{artifact_id}/revisions/accept-all")
+
+    reply = await client.post(f"/artifacts/{accepted.json()['id']}/regenerate")
+
+    assert reply.status_code == 409
+    assert reply.json()["detail"] == {
+        "message": "already generating",
+        "code": "already_generating",
+    }
 
 
 async def test_retrying_a_failed_version_makes_the_same_edits_again(
