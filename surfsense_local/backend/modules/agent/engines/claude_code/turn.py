@@ -123,6 +123,8 @@ class _Sending:
     thinking: bool
     # What opencode did in this thread while Claude Code was away.
     handover: str | None = None
+    # The sources the message named with `@`.
+    mention_note: str | None = None
 
 
 @dataclass
@@ -175,6 +177,7 @@ async def claude_turn(
         model,
         payload.thinking,
         handover,
+        sources.mention_note,
     )
     thread_id, workspace_id = thread.id, thread.workspace_id
     session_id = thread.claude_session_id
@@ -484,7 +487,7 @@ def _blocks(sending: _Sending) -> list[dict[str, Any]]:
     """SurfSense's notes first, each a block of its own, then the user's words."""
     notes = [
         note
-        for note in (sending.handover, sending.note)
+        for note in (sending.handover, sending.note, sending.mention_note)
         if note is not None
     ]
     return [

@@ -289,6 +289,7 @@ async def _stream(
                                     for note in (
                                         sending.handover,
                                         sending.sources.note,
+                                        sending.sources.mention_note,
                                     )
                                     if note is not None
                                 ],

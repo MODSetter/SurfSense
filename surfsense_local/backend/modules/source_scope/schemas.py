@@ -28,6 +28,18 @@ class SourceScope(BaseModel):
 
 ALL_SOURCES = SourceScope(all=True)
 
+# Far past what a message names by hand; bounds the request.
+MAX_MENTIONS = 100
+
+
+class MentionedSources(BaseModel):
+    """What a message named with `@`. An artifact is named by its document."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    document_ids: Annotated[list[PositiveInt], Field(max_length=MAX_MENTIONS)] = []
+    folder_ids: Annotated[list[PositiveInt], Field(max_length=MAX_MENTIONS)] = []
+
 
 class ScopeCounts(BaseModel):
     """What a scope holds now. Only `ready` sources are searched."""
