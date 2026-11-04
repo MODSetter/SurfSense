@@ -6,7 +6,7 @@ import test from "node:test";
 // The matcher Next's server resolves `redirects()` with, called with its options, so these
 // assertions cannot drift from runtime behaviour.
 import { getPathMatch } from "next/dist/shared/lib/router/utils/path-match";
-import firstPartyList from "@/app/(home)/plugins/first-party-plugins.json";
+import { BUILT_IN_SOURCES } from "@/app/(home)/plugins/built-in-sources";
 import listBeforeBusiness from "@/app/(home)/plugins/first-party-plugins-before-business.json";
 import { launchRedirects, RETIRED_PLUGIN_IDS } from "./launch-redirects.mts";
 
@@ -21,7 +21,8 @@ function redirect(launched: boolean, pathname: string) {
 }
 
 const idsBefore = listBeforeBusiness.plugins.map((plugin) => plugin.id);
-const idsAfter = firstPartyList.plugins.map((plugin) => plugin.id);
+// What stays is built into the app, on the pages its plugins had.
+const idsAfter = BUILT_IN_SOURCES.map((source) => source.id);
 
 test("switched off, the redirects are the ones the site had before Business", () => {
 	assert.deepEqual(
@@ -62,7 +63,7 @@ test("switched on, a retired scraper's page and its old address both land on /pl
 	}
 });
 
-test("switched on, the plugins that stay keep their pages and their old addresses", () => {
+test("switched on, the three built into the app keep their pages and their old addresses", () => {
 	for (const id of idsAfter) {
 		assert.equal(redirect(true, `/plugins/${id}`), null);
 		assert.deepEqual(redirect(true, `/${id}`), {
@@ -72,7 +73,7 @@ test("switched on, the plugins that stay keep their pages and their old addresse
 	}
 });
 
-test("the retired plugins are exactly the ones the list loses at the switch", () => {
+test("the retired plugins are exactly the ones not built into the app", () => {
 	assert.deepEqual(
 		[...RETIRED_PLUGIN_IDS].sort(),
 		idsBefore.filter((id) => !idsAfter.includes(id)).sort()
@@ -80,6 +81,6 @@ test("the retired plugins are exactly the ones the list loses at the switch", ()
 	assert.deepEqual(
 		idsAfter.filter((id) => !idsBefore.includes(id)),
 		[],
-		"a plugin new at the switch has no old address to redirect"
+		"each built-in feature had a plugin page, so its old address still means it"
 	);
 });

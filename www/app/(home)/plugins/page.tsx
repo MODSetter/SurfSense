@@ -22,15 +22,15 @@ const registryUrl = `${REPO_URL}/tree/main/backend/plugins/registry`;
 /** A form a bot checks and turns into the registry pull request; no git for the publisher. */
 const submitUrl = `${REPO_URL}/issues/new?template=plugin-submit.yml`;
 
-// From Business on, SurfSense's three are built into the app and free.
+// From Business on, web search, YouTube and Web Crawl are built into the app and free (ADR 0080).
 const metaTitle = BUSINESS_LAUNCHED
-	? "SurfSense Plugins: Google Search, YouTube, Web Crawl and More"
+	? "SurfSense Plugins: Web Search, YouTube and Web Crawl Built In"
 	: "SurfSense Plugins: Google Search, Reddit, YouTube, Instagram and More";
 const metaDescription = BUSINESS_LAUNCHED
-	? "Plugins give SurfSense's agent live data and tools. Google Search, YouTube and Web Crawl are built into the app and free, with no licence, plus any MCP server you add."
+	? "Web search, YouTube and Web Crawl are built into SurfSense and free, with no licence. Plugins from other publishers, and any MCP server you add, give its agent more."
 	: "Plugins give SurfSense's agent live data from Google Search, Reddit, YouTube, Instagram, TikTok, Google Maps, Amazon, Walmart, Indeed and any web page. Free for 14 days, plus any MCP server you add.";
 const lede = BUSINESS_LAUNCHED
-	? "Plugins give SurfSense's agent live data and tools. Ours are built into the app and free, and read public pages without your own accounts; others come from their publishers through the registry."
+	? "Plugins give SurfSense's agent live data and tools. Web search, YouTube and Web Crawl are built into the app and free; other plugins come from their publishers through the registry."
 	: "Plugins give SurfSense's agent live data and tools. Ours read public pages without your own accounts; others come from their publishers through the registry.";
 
 export const metadata: Metadata = {

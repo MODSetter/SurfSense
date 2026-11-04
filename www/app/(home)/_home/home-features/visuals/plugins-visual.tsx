@@ -12,6 +12,7 @@ import { RedditLogo } from "@/components/site/logos/reddit-logo";
 import { TiktokLogo } from "@/components/site/logos/tiktok-logo";
 import { WalmartLogo } from "@/components/site/logos/walmart-logo";
 import { WebCrawlLogo } from "@/components/site/logos/web-crawl-logo";
+import { WebSearchLogo } from "@/components/site/logos/web-search-logo";
 import { YoutubeLogo } from "@/components/site/logos/youtube-logo";
 import { BUSINESS_LAUNCHED } from "@/features/business-launch/business-launched.mts";
 
@@ -28,7 +29,7 @@ function chip(name: string, Logo: Chip["Logo"], key = name): Chip {
 // From Business on, the three built into the app; each row names them twice to fill the panel.
 const BUILT_IN = [
 	chip("YouTube", YoutubeLogo),
-	chip("Google Search", GoogleSearchLogo),
+	chip("Web Search", WebSearchLogo),
 	chip("Web Crawl", WebCrawlLogo),
 ];
 const BUILT_IN_ROWS = [BUILT_IN, [...BUILT_IN].reverse()].map((row) => [

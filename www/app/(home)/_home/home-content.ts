@@ -199,7 +199,7 @@ export const FEATURES: {
 			BUSINESS_LAUNCHED
 				? {
 						title: "Built in, free",
-						body: "Google Search, YouTube and Web Crawl, with no licence and nothing to connect.",
+						body: "Web search, YouTube and Web Crawl, with no licence and nothing to connect.",
 					}
 				: {
 						title: "More places to search",

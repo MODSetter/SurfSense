@@ -37,7 +37,9 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
 	const plugin = await findPlugin((await params).id);
 	if (!plugin) return { title: "Plugin not found | SurfSense" };
-	const title = `${plugin.name} plugin for SurfSense`;
+	const title = isBuiltIn(plugin)
+		? `${plugin.name}, built into SurfSense`
+		: `${plugin.name} plugin for SurfSense`;
 	const canonicalUrl = `https://www.surfsense.com${plugin.href}`;
 	return {
 		title,
@@ -117,7 +119,7 @@ export default async function PluginPage({ params }: PageProps) {
 				{thirdParty
 					? "Connect it in the SurfSense desktop app: turn on Allow third-party plugins in Settings › Plugins, then find it in Browse."
 					: builtIn
-						? "Built into the SurfSense desktop app: free, with no licence and nothing to connect."
+						? "Built into the SurfSense desktop app: free, with no licence and nothing to connect. The agent uses it in chats, and Add from the web in Sources uses it to add sources."
 						: "Connect it in the SurfSense desktop app, in Settings › Plugins."}
 			</p>
 
@@ -128,9 +130,12 @@ export default async function PluginPage({ params }: PageProps) {
 						<p className={siteText.body}>{plugin.about}</p>
 					</Section>
 				) : null}
-				<Section title="Tools">
-					<PluginTools tools={plugin.tools} />
-				</Section>
+				{/* A built-in feature is not a server with tools to list; its About says what it does. */}
+				{builtIn ? null : (
+					<Section title="Tools">
+						<PluginTools tools={plugin.tools} />
+					</Section>
+				)}
 				<Section title="Details">
 					<PluginDetails plugin={plugin} />
 				</Section>

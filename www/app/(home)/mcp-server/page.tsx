@@ -449,7 +449,9 @@ export default function McpServerPage() {
 									</>
 								)}
 								<HomeButton asChild variant="ghost" size="sm">
-									<Link href="/plugins/google-search">Google Search</Link>
+									<Link href="/plugins/google-search">
+										{SCRAPERS_RETIRED ? "Web Search" : "Google Search"}
+									</Link>
 								</HomeButton>
 								<HomeButton asChild variant="ghost" size="sm">
 									<Link href="/plugins/web-crawl">Web Crawl</Link>
