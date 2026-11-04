@@ -17,9 +17,12 @@ HUGGINGFACE = f"{HOST_PREFIX}huggingface.co"
 # SurfSense's plugin host (`modules/plugins/lists/plugin_host.py`): the
 # third-party registry and SurfSense's own plugins, under one consent.
 PLUGIN_HOST = f"{HOST_PREFIX}plugins.surfsense.com"
+# SurfSense's license server (`modules/license/renewal/license_server.py`): a
+# renewed license file, for which the app sends the license key alone.
+LICENSE_SERVER = f"{HOST_PREFIX}api.surfsense.com"
 # Contacted whether or not a connection points at them, so they are listed with
 # no connection to discover them from.
-BUILT_IN = (HUGGINGFACE, PLUGIN_HOST)
+BUILT_IN = (HUGGINGFACE, PLUGIN_HOST, LICENSE_SERVER)
 
 
 class EgressDeniedError(Exception):

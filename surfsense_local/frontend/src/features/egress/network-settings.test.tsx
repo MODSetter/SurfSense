@@ -70,6 +70,29 @@ describe("network settings", () => {
     expect(bridge.calls).toEqual(["usage:true"])
   })
 
+  it("names SurfSense’s license server by what it is for, and a mirror by its host", async () => {
+    const row = (host: string) => ({
+      destination: `host:${host}`,
+      host,
+      enabled: false,
+      last_call_at: null,
+    })
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json([row("api.surfsense.com"), row("licenses.example.test")])
+      )
+    )
+    render(<NetworkSettings />)
+
+    expect(
+      await screen.findByRole("checkbox", { name: "Allow License renewal" })
+    ).toBeTruthy()
+    expect(
+      screen.getByRole("checkbox", { name: "Allow licenses.example.test" })
+    ).toBeTruthy()
+  })
+
   it("holds a row a policy locked, and says why", async () => {
     vi.stubGlobal(
       "fetch",
