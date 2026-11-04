@@ -157,7 +157,15 @@ def answer_row(
         verdict = None
         if gated.kind != "silence" and asked.draft.answer in gate.suggest:
             verdict = _verdict(
-                checker, config, row, asked, passages, sources, trace, checks
+                checker,
+                config,
+                row,
+                asked,
+                passages,
+                sources,
+                trace,
+                checks,
+                prompt=gate.check_prompt,
             )
         result = _decided(
             asked,
@@ -327,21 +335,26 @@ def _verdict(
     sources: list[SourceText],
     trace: list[dict],
     checks: list[Verdict],
+    prompt: str = "",
 ) -> Verdict | None:
     """The second check, for a quoted answer the job checks; None when there is nothing to
-    check. Every check made is kept in `checks`, which the row's cost counts."""
+    check. Every check made is kept in `checks`, which the row's cost counts. `prompt` is the
+    statement gate's own check, for an answer it may suggest."""
     draft = asked.draft
-    if (
-        draft is None
-        or not config.verify_prompt
-        or draft.answer not in config.verify_answers
+    if draft is None or not (
+        prompt or (config.verify_prompt and draft.answer in config.verify_answers)
     ):
         return None
     cited, _ = _cited(draft, config, passages, sources)
     if not cited:
         return None
     verdict = verify_answer(
-        model, config, row, draft.answer, [(c.source, c.quote, c.joined) for c in cited]
+        model,
+        config,
+        row,
+        draft.answer,
+        [(c.source, c.quote, c.joined) for c in cited],
+        prompt=prompt or config.verify_prompt,
     )
     checks.append(verdict)
     trace.append(

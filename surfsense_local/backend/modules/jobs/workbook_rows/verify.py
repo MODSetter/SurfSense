@@ -43,18 +43,20 @@ def verify_answer(
     row: QuestionRow,
     answer: str,
     quotes: list[tuple[str, str, str]],
+    prompt: str = "",
 ) -> Verdict:
     """Supported only on a reply that says so: an unreadable one leaves the answer to a person.
 
     `quotes` are (source title, quote, the source's text the quote's parts span, or "") triples,
-    each quote already found in its source.
+    each quote already found in its source. `prompt` is the check's system prompt, the job's
+    main one unless another is given.
     """
     fields = {
         "question": row.question,
         "context": row.context or "none",
         "answer": answer,
     }
-    prompt = Template(config.verify_prompt).safe_substitute(fields)
+    prompt = Template(prompt or config.verify_prompt).safe_substitute(fields)
     reply = model.ask(prompt, [("user", _claim(fields, quotes))], VERIFY_SCHEMA, 0)
     supported, missing = _read(reply.text)
     return Verdict(

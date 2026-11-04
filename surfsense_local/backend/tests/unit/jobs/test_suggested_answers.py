@@ -346,3 +346,32 @@ def test_each_row_s_lines_are_found_where_the_sheets_put_them(config):
             assert line["exceptions"] is None
     assert lines[-1]["answers"][1] == len(answers)
     assert lines[-1]["exceptions"][1] == len(exceptions)
+
+
+def test_a_suggestion_is_checked_by_the_gate_s_own_prompt(workbook, config_file):
+    """With its own check, the gate leaves the main check's wording to every other answer:
+    rewording that check cost right answers on rows nothing to do with N/A."""
+    folder = config_file.parent
+    (folder / "prompts" / "provider_check.md").write_text(
+        "provider check: $answer", encoding="utf-8"
+    )
+    raw = json.loads(config_file.read_text(encoding="utf-8"))
+    raw["statement_gate"]["check"] = "prompts/provider_check.md"
+    config_file.write_text(json.dumps(raw), encoding="utf-8")
+    config = load_config(config_file)
+    systems: list[str] = []
+
+    def ask(system, turns, schema, shared):
+        if system.startswith(("verify", "provider check")):
+            systems.append(system)
+            return ModelReply(json.dumps({"supported": True, "missing": ""}))
+        answer = "N/A" if len(systems) == 0 else "Yes"
+        return _reply(answer, PROVIDER)
+
+    model = Scripted()
+    model.ask = ask
+    suggested = _one(workbook, config, model)
+    written = _one(workbook, config, model)
+
+    assert (suggested.suggested, written.answer) == ("N/A", "Yes")
+    assert systems == ["provider check: N/A", "verify: Yes"]

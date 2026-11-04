@@ -57,10 +57,12 @@ class StatementGate:
     state it (`comment`), goes to a person. Patterns are the pack's, since they are words in
     its language.
 
-    An answer in `suggest` is not dropped there: it goes on to the check, and an answer the
+    An answer in `suggest` is not dropped there: it goes on to a check, and an answer the
     check supports is offered to the person, who confirms it in one step. One whose quote names
     a provider that runs the thing for the firm (`provider`) is written instead when the firm
-    turns on `provider_setting`."""
+    turns on `provider_setting`. `check_prompt` is that check's own prompt, so the job's main
+    check keeps its wording, which every other answer rests on; without one, the main check
+    makes it."""
 
     answers: tuple[str, ...] = ()
     quote: re.Pattern[str] | None = None
@@ -68,6 +70,7 @@ class StatementGate:
     suggest: tuple[str, ...] = ()
     provider: re.Pattern[str] | None = None
     provider_setting: str = ""
+    check_prompt: str = ""
 
 
 @dataclass(frozen=True)
@@ -199,7 +202,7 @@ def load_config(config_file: Path) -> JobConfig:
             second_look_answers=tuple(
                 str(a) for a in raw.get("second_look", {}).get("answers", ())
             ),
-            statement_gate=_gate(raw.get("statement_gate", {})),
+            statement_gate=_gate(folder, raw.get("statement_gate", {})),
             settings=tuple(
                 JobSetting(
                     key=str(item["key"]),
@@ -240,7 +243,7 @@ def load_config(config_file: Path) -> JobConfig:
     return config
 
 
-def _gate(raw: dict) -> StatementGate:
+def _gate(folder: Path, raw: dict) -> StatementGate:
     def pattern(key: str) -> re.Pattern[str] | None:
         return re.compile(str(raw[key]), re.IGNORECASE) if raw.get(key) else None
 
@@ -251,6 +254,7 @@ def _gate(raw: dict) -> StatementGate:
         suggest=tuple(str(a) for a in raw.get("suggest", ())),
         provider=pattern("provider"),
         provider_setting=str(raw.get("provider_setting", "")),
+        check_prompt=_prompt(folder, raw["check"]) if raw.get("check") else "",
     )
 
 
