@@ -1,5 +1,6 @@
 """A paid pack's job runs on a licence that carries its entitlement, as a Business licence and
-the Business trial do; a free pack's always; and every paid one under the developer switch."""
+the Business trial do; a free pack's always; and every paid one under the developer switch.
+A locked job says why in a sentence and in a code a screen picks its offer by."""
 
 from types import SimpleNamespace
 
@@ -67,32 +68,50 @@ def test_a_licence_carrying_the_job_s_entitlement_unlocks_it(licence, plan, jobs
     the same jobs. Codes come comma-separated in the file, or already split."""
     licence("active", jobs, plan)
 
-    assert job_access(None, *_pack()).allowed
+    access = job_access(None, *_pack())
+
+    assert access.allowed and access.code is None
 
 
 @pytest.mark.parametrize(
-    ("state", "jobs", "said"),
+    ("state", "jobs", "said", "code"),
     [
-        ("none", None, "needs a SurfSense Business licence"),
-        ("active", None, "does not include Security questionnaire"),
-        ("active", [], "does not include Security questionnaire"),
-        ("active", "JOB_OTHER", "does not include Security questionnaire"),
-        ("license_expired", CODE, "licence has expired"),
-        ("license_expired", None, "does not include Security questionnaire"),
-        ("clock_untrusted", CODE, "clock"),
-        ("clock_untrusted", "JOB_OTHER", "does not include Security questionnaire"),
+        ("none", None, "needs a SurfSense Business licence", "none"),
+        ("active", None, "does not include Security questionnaire", "not_included"),
+        ("active", [], "does not include Security questionnaire", "not_included"),
+        (
+            "active",
+            "JOB_OTHER",
+            "does not include Security questionnaire",
+            "not_included",
+        ),
+        ("license_expired", CODE, "licence has expired", "expired"),
+        (
+            "license_expired",
+            None,
+            "does not include Security questionnaire",
+            "not_included",
+        ),
+        ("clock_untrusted", CODE, "clock", "clock"),
+        (
+            "clock_untrusted",
+            "JOB_OTHER",
+            "does not include Security questionnaire",
+            "not_included",
+        ),
     ],
 )
 def test_without_an_active_licence_carrying_it_the_job_is_refused(
-    licence, state, jobs, said
+    licence, state, jobs, said, code
 ):
     """An expired licence is refused even with the entitlement: its expiry already holds the
-    30 days' grace, so the app adds none."""
+    30 days' grace, so the app adds none. A licence without the job is never told to renew."""
     licence(state, jobs)
 
     access = job_access(None, *_pack())
 
     assert not access.allowed and said in access.reason
+    assert access.code == code
 
 
 def test_a_paid_job_that_names_no_entitlement_never_unlocks(licence):
@@ -102,12 +121,15 @@ def test_a_paid_job_that_names_no_entitlement_never_unlocks(licence):
     access = job_access(None, *_pack(entitlement=None))
 
     assert not access.allowed and "names no licence entitlement" in access.reason
+    assert access.code == "no_entitlement"
 
 
 def test_a_free_pack_and_the_developer_switch_need_no_licence(licence, monkeypatch):
     """A free pack runs without a licence, and the developer switch runs a paid one."""
     licence("none")
-    assert job_access(None, *_pack(access="free", entitlement=None)).allowed
+    free = job_access(None, *_pack(access="free", entitlement=None))
+    assert free.allowed and free.code is None
 
     monkeypatch.setenv(DEV_SWITCH, "1")
-    assert job_access(None, *_pack()).allowed
+    unlocked = job_access(None, *_pack())
+    assert unlocked.allowed and unlocked.code is None

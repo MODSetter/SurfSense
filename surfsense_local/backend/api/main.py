@@ -46,6 +46,8 @@ from modules.events.router import router as events_router
 from modules.folders.finish_deletes import finish_interrupted_deletes
 from modules.folders.router import router as folders_router
 from modules.health.router import router as health_router
+from modules.jobs.packs.delivery.delivery_schedule import delivering_daily
+from modules.jobs.packs.delivery.router import router as job_pack_delivery_router
 from modules.jobs.packs.dev_packs import install_dev_packs
 from modules.jobs.router import router as jobs_router
 from modules.license.renewal.renewal_schedule import renewing_daily
@@ -153,10 +155,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             name="catalog-warm",
             daemon=True,
         ).start()
+        # Last in, so it stops first; it runs after the developer's packs are installed.
         async with (
             _opencode_proxy(session_factory),
             serving_claude_proxy(session_factory, get_settings().host),
             renewing_daily(session_factory),
+            delivering_daily(session_factory),
         ):
             yield
     finally:
@@ -265,6 +269,7 @@ def create_app() -> FastAPI:
     app.include_router(migration_router)
     app.include_router(license_router)
     app.include_router(jobs_router)
+    app.include_router(job_pack_delivery_router)
     app.include_router(egress_router)
     app.include_router(embedding_router)
     app.include_router(embedding_huggingface_router)

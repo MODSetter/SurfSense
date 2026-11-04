@@ -1,6 +1,6 @@
 """Packs a developer names in SURFSENSE_LOCAL_JOB_PACKS, installed when the API starts.
 
-Until the licence server delivers packs, this is how a dev build gets one: folders or
+This is how a dev build gets a developer's packs, beside the licence server's: folders or
 .zip files, separated as PATH is. A pack that is refused is logged and the API starts.
 """
 
@@ -23,7 +23,8 @@ def install_dev_packs() -> None:
     for entry in filter(None, os.environ.get(DEV_PACKS, "").split(os.pathsep)):
         source = Path(entry.strip())
         try:
-            manifest = install_pack(source, packs_dir())
+            # A developer edits a pack without raising its version, so the edit replaces it.
+            manifest = install_pack(source, packs_dir(), replace_same_version=True)
         except (PackRefusedError, OSError) as refused:
             logger.warning("job pack %s not installed: %s", source, refused)
             continue

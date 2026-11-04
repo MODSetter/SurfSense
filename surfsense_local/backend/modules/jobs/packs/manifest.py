@@ -18,11 +18,30 @@ SIGNATURE = "job-pack.sig"
 SCHEMA = "surfsense-job-pack/1"
 # The runners this app ships; a pack naming another needs a newer app.
 RUNNERS = ("workbook-rows/1",)
+# Contract 6's runner, a name and a version, as the licence server holds a pack to it: one
+# named otherwise is no runner a newer app could have.
+_RUNNER = re.compile(r"^[a-z][a-z0-9-]{0,63}/[1-9][0-9]{0,5}$")
 _ID = re.compile(r"^[a-z][a-z0-9-]{0,63}$")
-_VERSION = re.compile(r"^\d+\.\d+\.\d+$")
+# Contract 6: an installed pack's version goes back in every request as installed_version,
+# which the licence server takes at 1 to 9 ASCII digits a part: \d takes any script's digits.
+_VERSION = re.compile(r"^[0-9]{1,9}\.[0-9]{1,9}\.[0-9]{1,9}$")
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
-# A licence entitlement code, as the licence server names one: JOB_QUESTIONNAIRE.
-_ENTITLEMENT = re.compile(r"^[A-Z][A-Z0-9_]{0,63}$")
+# Names Windows keeps for devices, with or without an extension: no file there can have one.
+_RESERVED = frozenset(
+    {"con", "prn", "aux", "nul"}
+    | {f"{device}{n}" for device in ("com", "lpt") for n in range(1, 10)}
+)
+# Characters no Windows file name holds, beside the `\` and `:` every path refuses. Contract 6
+# refuses them on every system, so a pack installs everywhere or nowhere.
+_UNWRITABLE = frozenset('<>"|?*') | frozenset(map(chr, range(32)))
+# No disk holds a name part past 255 bytes, and a longer name costs its checks more.
+_MAX_NAME_BYTES = 255
+# How a Windows short name ends before its extension, as REPORT~1.MD does: Windows opens the
+# file it is short for by that name, so it would be written over that file.
+_SHORT_NAME = re.compile(r"~[0-9]+$")
+# A licence entitlement code, as the licence server names one: JOB_QUESTIONNAIRE. Contract 6
+# takes no other code in a request.
+ENTITLEMENT = re.compile(r"^[A-Z][A-Z0-9_]{0,63}$")
 
 Access = Literal["free", "paid"]
 
@@ -91,7 +110,9 @@ def parse_manifest(raw: object) -> PackManifest:
         )
     version = _text(raw, "version")
     if not _VERSION.fullmatch(version):
-        raise PackRefusedError("BAD_MANIFEST", "version is three numbers, like 1.0.0.")
+        raise PackRefusedError(
+            "BAD_MANIFEST", "version is three numbers of 1 to 9 digits, like 1.0.0."
+        )
     access = raw.get("access")
     if access not in ("free", "paid"):
         raise PackRefusedError("BAD_MANIFEST", 'access is "free" or "paid".')
@@ -131,13 +152,45 @@ def parse_manifest(raw: object) -> PackManifest:
 
 
 def safe_path(path: object) -> PurePosixPath:
-    """A relative path that stays inside the pack, in forward slashes."""
+    """A relative path that stays inside the pack, in forward slashes, that every system the
+    app runs on can write. Checked in the licence server's order, each refusal in its words,
+    so both sides refuse a name alike (contract 6)."""
     if not isinstance(path, str) or not path or "\\" in path or ":" in path:
         raise PackRefusedError("BAD_PATH", f"{path!r} is not a path inside the pack.")
-    pure = PurePosixPath(path)
-    if pure.is_absolute() or any(part in ("", ".", "..") for part in pure.parts):
+    # First, so no check walks a longer name. A lone surrogate counts as its 3 bytes.
+    if len(path.encode("utf-8", "surrogatepass")) > _MAX_NAME_BYTES:
+        raise PackRefusedError(
+            "BAD_PATH",
+            f"{path[:60]!r}... is longer than {_MAX_NAME_BYTES} bytes in UTF-8.",
+        )
+    # Split as written: a path drops its empty and dot parts, so a lone `.` would have none
+    # left, and `a//b` or `./a` would pass for the name the manifest lists.
+    parts = path.split("/")
+    if any(part in ("", ".", "..") for part in parts):
         raise PackRefusedError("BAD_PATH", f"{path!r} is not a path inside the pack.")
-    return pure
+    if not _UNWRITABLE.isdisjoint(path):
+        raise PackRefusedError(
+            "BAD_PATH", f"{path!r} holds a character Windows cannot write."
+        )
+    for part in parts:
+        # Windows drops a part's closing dot or space and keeps device names, so the file
+        # written would not be the one listed.
+        if part.endswith((".", " ")) or part.split(".", 1)[0].casefold() in _RESERVED:
+            raise PackRefusedError(
+                "BAD_PATH", f"{path!r} names a file Windows cannot write."
+            )
+        stem = part.rpartition(".")[0] if "." in part else part
+        if _SHORT_NAME.search(stem):
+            raise PackRefusedError(
+                "BAD_PATH", f"{path!r} could be the Windows short name of another file."
+            )
+    return PurePosixPath(path)
+
+
+def version_key(version: str) -> tuple[int, int, int]:
+    """A version as three numbers, so 0.10.0 comes after 0.9.0."""
+    major, minor, patch = (int(part) for part in version.split("."))
+    return major, minor, patch
 
 
 def _job(raw: object, files: dict[str, str]) -> PackJob:
@@ -149,6 +202,11 @@ def _job(raw: object, files: dict[str, str]) -> PackJob:
             "BAD_MANIFEST", "A job's key is lower-case letters, digits and dashes."
         )
     runner = _text(raw, "runner")
+    if not _RUNNER.fullmatch(runner):
+        raise PackRefusedError(
+            "BAD_MANIFEST",
+            f"Job {key}'s runner is a name and a version, like workbook-rows/1.",
+        )
     if runner not in RUNNERS:
         raise PackRefusedError(
             "NEEDS_NEWER_APP",
@@ -172,7 +230,7 @@ def _job(raw: object, files: dict[str, str]) -> PackJob:
             )
     entitlement = raw.get("entitlement")
     if entitlement is not None and (
-        not isinstance(entitlement, str) or not _ENTITLEMENT.fullmatch(entitlement)
+        not isinstance(entitlement, str) or not ENTITLEMENT.fullmatch(entitlement)
     ):
         raise PackRefusedError(
             "BAD_MANIFEST",

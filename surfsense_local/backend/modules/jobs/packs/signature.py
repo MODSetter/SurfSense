@@ -23,6 +23,9 @@ PACK_PUBLIC_KEYS_HEX = (
 
 # Signed before the manifest, so a signature made for anything else never passes for a pack's.
 DOMAIN = b"surfsense-job-pack/1\n"
+# One line per key that signed the pack, so a rotation can sign with the old key and the new.
+MAX_SIGNATURE_LINES = 8
+_SIGNATURE_BYTES = 64
 
 
 def signed_payload(manifest: object) -> bytes:
@@ -35,8 +38,9 @@ def signed_payload(manifest: object) -> bytes:
 
 
 def check_signature(folder: Path, manifest: object) -> None:
-    """Refuse a pack that SurfSense did not sign, or that changed after it did. `manifest` is
-    the manifest as the caller read it, once, so the copy checked is the copy used."""
+    """Refuse a pack that SurfSense did not sign, or that changed after it did: one line of its
+    signature made by a key this app trusts is enough. `manifest` is the manifest as the caller
+    read it, once, so the copy checked is the copy used."""
     path = folder / SIGNATURE
     if not path.is_file():
         raise PackRefusedError(
@@ -44,7 +48,7 @@ def check_signature(folder: Path, manifest: object) -> None:
             "The pack is not signed by SurfSense, so the app does not run it.",
         )
     try:
-        signature = base64.b64decode(path.read_bytes().strip(), validate=True)
+        signatures = _signature_lines(path.read_bytes())
         # A manifest that cannot be put in signed form, such as one holding a lone surrogate,
         # is one no key signed.
         payload = signed_payload(manifest)
@@ -52,7 +56,7 @@ def check_signature(folder: Path, manifest: object) -> None:
         raise PackRefusedError(
             "PACK_BAD_SIGNATURE", "The pack's signature cannot be read."
         ) from broken
-    if not signed_by_pack_key(payload, signature):
+    if not any(signed_by_pack_key(payload, signature) for signature in signatures):
         raise PackRefusedError(
             "PACK_BAD_SIGNATURE",
             "The pack's signature does not match it: it changed after SurfSense signed it, "
@@ -70,3 +74,15 @@ def signed_by_pack_key(payload: bytes, signature: bytes) -> bool:
         except (InvalidSignature, ValueError):
             continue
     return False
+
+
+def _signature_lines(raw: bytes) -> list[bytes]:
+    """Each line's signature, the line its standard base64 alone, as the licence server reads
+    it; blank lines and the last newline count for nothing."""
+    lines = [line for line in raw.splitlines() if line.strip()]
+    if not 1 <= len(lines) <= MAX_SIGNATURE_LINES:
+        raise ValueError(f"{len(lines)} signature lines")
+    signatures = [base64.b64decode(line, validate=True) for line in lines]
+    if any(len(signature) != _SIGNATURE_BYTES for signature in signatures):
+        raise ValueError("a signature line is not one Ed25519 signature")
+    return signatures

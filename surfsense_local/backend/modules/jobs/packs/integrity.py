@@ -44,11 +44,13 @@ def check_files(folder: Path, manifest: PackManifest) -> None:
         )
     total = 0
     for relative, expected in manifest.files.items():
-        path = folder / relative
-        if not path.is_file():
+        # Read from the pack's own names: a disk that ignores case would find the file
+        # under another case, which the pack does not hold, as the license server says.
+        if relative not in present:
             raise PackRefusedError(
                 "PACK_FILE_MISSING", f"{relative} is missing from the pack."
             )
+        path = folder / relative
         total += path.stat().st_size
         if total > MAX_PACK_BYTES:
             raise PackRefusedError("PACK_TOO_LARGE", "The pack is larger than 50 MB.")

@@ -110,6 +110,17 @@ def data_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
 
 
 @pytest.fixture(autouse=True)
+def no_codes_held_back() -> Iterator[None]:
+    """The job codes a run held back are recorded process-wide too: each test starts and
+    ends with none, so no test's deferral is checked again in another's schedule."""
+    from modules.jobs.packs.delivery.held_back import HELD_BACK
+
+    HELD_BACK.release(HELD_BACK.held())
+    yield
+    HELD_BACK.release(HELD_BACK.held())
+
+
+@pytest.fixture(autouse=True)
 def test_pack_key(monkeypatch: pytest.MonkeyPatch) -> None:
     """While tests run, the app trusts the test key for job packs besides the shipped keys, so
     a live test still installs a pack SurfSense signed."""
