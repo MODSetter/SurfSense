@@ -86,7 +86,7 @@ describe("network settings", () => {
     render(<NetworkSettings />)
 
     expect(
-      await screen.findByRole("checkbox", { name: "Allow License renewal" })
+      await screen.findByRole("checkbox", { name: "Allow License server" })
     ).toBeTruthy()
     expect(
       screen.getByRole("checkbox", { name: "Allow licenses.example.test" })

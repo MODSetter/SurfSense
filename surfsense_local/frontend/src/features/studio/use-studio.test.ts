@@ -8,6 +8,8 @@ import {
 } from "@testing-library/react"
 import { toast } from "sonner"
 
+import { useJobRun } from "@/features/jobs/run/use-job-run"
+import { runRead } from "@/features/jobs/stub-jobs-api"
 import { createQueryClient } from "@/lib/query-client"
 
 import { messageFrom, useStudio } from "./use-studio"
@@ -544,5 +546,35 @@ describe("useStudio decide all", () => {
     await waitFor(() =>
       expect(result.current.artifacts.map((each) => each.id)).toEqual([51, 50])
     )
+  })
+})
+
+describe("useStudio job runs", () => {
+  it("reads the workspace’s job runs again when its artifacts change, since each run’s copy is one", async () => {
+    const stream = eventStream()
+    let runReads = 0
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = String(input)
+        if (path.endsWith("/events")) return stream.response
+        if (path === "/workspaces/1/job-runs/41") {
+          runReads += 1
+          return Response.json(runRead())
+        }
+        return Response.json([])
+      })
+    )
+
+    // Studio and a run of one copy, read side by side as the panel reads them.
+    const { result } = renderHook(() => ({
+      studio: useStudio(1),
+      run: useJobRun(1, 41),
+    }))
+    await waitFor(() => expect(result.current.run.data).toBeTruthy())
+    stream.connected()
+    stream.artifactsChanged([42])
+
+    await waitFor(() => expect(runReads).toBe(2))
   })
 })

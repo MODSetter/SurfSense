@@ -6,6 +6,10 @@ import userEvent from "@testing-library/user-event"
 import { ThemeProvider } from "@/components/theme-provider"
 import { AppDialogs } from "@/components/ui/app-dialog-slot"
 import { EgressPrompt } from "@/features/egress/egress-prompt"
+import type { PackDownload, PackInfo } from "@/features/jobs/api"
+import { JobList } from "@/features/jobs/job-list"
+import { TEST_PACK } from "@/features/jobs/stub-jobs-api"
+import { useJobPacks } from "@/features/jobs/use-job-packs"
 import {
   SettingsDialog,
   type SettingsSectionId,
@@ -51,13 +55,31 @@ const CERTIFICATE =
 /** Each time the paid plugins' license verdict was asked for, by its URL. */
 let licenseChecks: string[] = []
 
+/** Each read of the jobs on this computer, and each download of them, in order. */
+let packRequests: string[] = []
+
+const downloads = () =>
+  packRequests.filter((request) => request === "POST /job-packs/download")
+    .length
+
 function stubApi(
   initial: LicenseStatus,
   onPut: () => Response,
-  onRefresh?: () => Response | Promise<Response>
+  onRefresh?: () => Response | Promise<Response>,
+  // The jobs on this computer, and the download's answer, which by default
+  // installs nothing.
+  {
+    packs = [],
+    onDownload,
+  }: {
+    packs?: PackInfo[]
+    onDownload?: () => Response | Promise<Response>
+  } = {}
 ) {
   let current = initial
+  let installed = packs
   licenseChecks = []
+  packRequests = []
   const calls: { method: string; body: unknown }[] = []
   vi.stubGlobal(
     "fetch",
@@ -68,6 +90,19 @@ function stubApi(
       if (path.startsWith("/plugins/license/check") && method === "POST") {
         licenseChecks.push(path)
         return new Response(null, { status: 204 })
+      }
+      if (path === "/job-packs" && method === "GET") {
+        packRequests.push("GET /job-packs")
+        return Response.json(installed)
+      }
+      if (path === "/job-packs/download" && method === "POST") {
+        packRequests.push("POST /job-packs/download")
+        const response =
+          (await onDownload?.()) ??
+          Response.json({ outcomes: [], packs: installed })
+        if (response.ok)
+          installed = ((await response.clone().json()) as PackDownload).packs
+        return response
       }
       if (path === "/license/refresh" && method === "POST" && onRefresh) {
         calls.push({ method, body: init?.body ?? null })
@@ -656,5 +691,441 @@ describe("Checking for a renewal with the license server off", () => {
     )
     expect(switched).toEqual([])
     expect(calls).toEqual([{ method: "POST", body: null }])
+  })
+})
+
+const INSTALLED: PackDownload = {
+  outcomes: [
+    {
+      entitlement: "JOB_QUESTIONNAIRE",
+      outcome: "installed",
+      message: "Test pack 0.4.3 is installed.",
+      version: "0.4.3",
+      detail: null,
+    },
+  ],
+  packs: [TEST_PACK],
+}
+
+/** What Settings › License and a Jobs row say for a download a run held back. */
+const HELD_BACK = {
+  license:
+    "A run of Security questionnaire was under way, so any newer version waits until the run ends.",
+  row: "A run of Security questionnaire was under way, so any newer version waits. SurfSense checks again once the run ends.",
+}
+
+/** The same, for a job whose pack waits on a run of another of its jobs. */
+const HELD_BACK_WITH_ITS_PACK = {
+  license:
+    "Security questionnaire comes in the same pack as a job whose run was under way, so it waits until the run ends.",
+  row: "Security questionnaire comes in the same pack as a job whose run was under way, so it waits. SurfSense tries again once the run ends.",
+}
+
+/** The download's answer while the license server is off in Settings › Network. */
+const JOBS_SERVER_OFF = {
+  detail: {
+    code: "egress_disabled",
+    message: "The backend’s own words",
+    destination: "host:api.surfsense.com",
+    host: "api.surfsense.com",
+    hosts: ["api.surfsense.com"],
+    purpose: "job_packs",
+  },
+}
+
+describe("Jobs on this computer", () => {
+  it("lists each job of the license with the version this computer has", async () => {
+    stubApi(
+      { ...BUSINESS, jobs: ["JOB_QUESTIONNAIRE", "JOB_RFP"] },
+      () => Response.json(BUSINESS),
+      undefined,
+      { packs: [TEST_PACK] }
+    )
+    render(<Harness />)
+
+    expect(
+      await screen.findByRole("heading", { name: "Jobs on this computer" })
+    ).toBeTruthy()
+    expect(await screen.findByText("Version 0.4.3")).toBeTruthy()
+    expect(screen.getByText("Security questionnaire")).toBeTruthy()
+    expect(screen.getByText("JOB_RFP")).toBeTruthy()
+    expect(screen.getByText("Not downloaded yet")).toBeTruthy()
+    // A job is missing, so the one button downloads.
+    expect(screen.getByRole("button", { name: "Download" })).toBeTruthy()
+    expect(
+      screen.getByRole("button", { name: "Import pack file" })
+    ).toBeTruthy()
+    expect(screen.getByRole("link", { name: "Contact support" })).toBeTruthy()
+  })
+
+  it("checks for updates once every job of the license is on this computer", async () => {
+    stubApi(BUSINESS, () => Response.json(BUSINESS), undefined, {
+      packs: [TEST_PACK],
+    })
+    render(<Harness />)
+
+    expect(
+      await screen.findByRole("button", { name: "Check for updates" })
+    ).toBeTruthy()
+    expect(screen.queryByRole("button", { name: "Download" })).toBeNull()
+  })
+
+  it("downloads the jobs of a license once it is added, asking about the license server first", async () => {
+    let switched: string[][] = []
+    stubApi(NONE, () => Response.json(BUSINESS), undefined, {
+      onDownload: () =>
+        switched.length
+          ? Response.json(INSTALLED)
+          : Response.json(JOBS_SERVER_OFF, { status: 403 }),
+    })
+    switched = stubEgressSwitch()
+    const user = userEvent.setup()
+    render(<WithConsent />)
+
+    const dialog = await openAddDialog(user)
+    await user.upload(
+      within(dialog).getByLabelText("Choose license file"),
+      new File([CERTIFICATE], "business.lic", { type: "text/plain" })
+    )
+    const question = await screen.findByRole("alertdialog", {
+      name: "Allow downloading your jobs?",
+    })
+    await user.click(within(question).getByRole("button", { name: "Allow" }))
+
+    expect(await screen.findByText("Version 0.4.3")).toBeTruthy()
+    expect(switched).toEqual([["host:api.surfsense.com"]])
+    expect(downloads()).toBe(2)
+  })
+
+  it("downloads the license’s jobs again after a renewal check", async () => {
+    stubApi(
+      BUSINESS,
+      () => Response.json(BUSINESS),
+      () => Response.json(BUSINESS),
+      {
+        packs: [TEST_PACK],
+        onDownload: () =>
+          Response.json({
+            outcomes: [{ ...INSTALLED.outcomes[0], version: "0.5.0" }],
+            packs: [{ ...TEST_PACK, version: "0.5.0" }],
+          }),
+      }
+    )
+    const user = userEvent.setup()
+    render(<Harness />)
+
+    expect(await screen.findByText("Version 0.4.3")).toBeTruthy()
+    await user.click(screen.getByRole("button", { name: "Check for renewal" }))
+
+    expect(await screen.findByText("Version 0.5.0")).toBeTruthy()
+    expect(downloads()).toBe(1)
+  })
+
+  it("holds Replace, Remove and Import while the license’s jobs download", async () => {
+    let answer: (response: Response) => void = () => undefined
+    stubApi(BUSINESS, () => Response.json(BUSINESS), undefined, {
+      onDownload: () => new Promise<Response>((resolve) => (answer = resolve)),
+    })
+    const user = userEvent.setup()
+    render(<Harness />)
+    const held = (name: string) =>
+      (screen.getByRole("button", { name }) as HTMLButtonElement).disabled
+
+    await user.click(await screen.findByRole("button", { name: "Download" }))
+
+    // A license put in this one's place now would get no download of its own.
+    await waitFor(() => expect(held("Replace license")).toBe(true))
+    expect(held("Remove license")).toBe(true)
+    expect(held("Import pack file")).toBe(true)
+    answer(Response.json(INSTALLED))
+    expect(await screen.findByText("Version 0.4.3")).toBeTruthy()
+    expect(held("Replace license")).toBe(false)
+    expect(held("Remove license")).toBe(false)
+    expect(held("Import pack file")).toBe(false)
+  })
+
+  it("keeps a download’s line and holds when a renewal check answers during it", async () => {
+    let answer: (response: Response) => void = () => undefined
+    stubApi(
+      BUSINESS,
+      () => Response.json(BUSINESS),
+      () => Response.json(BUSINESS),
+      {
+        onDownload: () =>
+          new Promise<Response>((resolve) => (answer = resolve)),
+      }
+    )
+    const user = userEvent.setup()
+    render(<Harness />)
+    const held = (name: string) =>
+      (screen.getByRole("button", { name }) as HTMLButtonElement).disabled
+
+    await user.click(await screen.findByRole("button", { name: "Download" }))
+    expect(await screen.findByText("Downloading…")).toBeTruthy()
+    // The check keeps the same key, so it stays open during a download.
+    await user.click(screen.getByRole("button", { name: "Check for renewal" }))
+
+    expect(await screen.findByText("No renewal yet")).toBeTruthy()
+    // Publishing the file it fetched forgets finished downloads, not this one,
+    // and sends no second download while it is out.
+    expect(screen.getByText("Downloading…")).toBeTruthy()
+    expect(held("Replace license")).toBe(true)
+    expect(held("Remove license")).toBe(true)
+    expect(held("Import pack file")).toBe(true)
+    expect(downloads()).toBe(1)
+    answer(Response.json(INSTALLED))
+
+    expect(await screen.findByText("Version 0.4.3")).toBeTruthy()
+    expect(screen.queryByText("Downloading…")).toBeNull()
+    expect(held("Replace license")).toBe(false)
+    expect(held("Remove license")).toBe(false)
+    expect(held("Import pack file")).toBe(false)
+    expect(downloads()).toBe(1)
+  })
+
+  it("forgets the last download once a renewal check leaves the license ended", async () => {
+    const ended: LicenseStatus = {
+      ...BUSINESS,
+      state: "license_expired",
+      expiry: "2026-09-01T00:00:00Z",
+    }
+    stubApi(
+      BUSINESS,
+      () => Response.json(BUSINESS),
+      () => Response.json(ended),
+      {
+        onDownload: () =>
+          Response.json({
+            outcomes: [
+              {
+                ...INSTALLED.outcomes[0],
+                outcome: "license_not_valid",
+                message: "The backend’s own words",
+                version: null,
+                detail: "license_not_valid",
+              },
+            ],
+            packs: [],
+          }),
+      }
+    )
+    const user = userEvent.setup()
+    render(<Harness />)
+
+    await user.click(await screen.findByRole("button", { name: "Download" }))
+    expect((await screen.findByRole("alert")).textContent).toBe(
+      "SurfSense’s license server didn’t accept this license, so it sent nothing. Check for renewal in Settings › License, or contact SurfSense support."
+    )
+    await user.click(screen.getByRole("button", { name: "Check for renewal" }))
+
+    expect(await screen.findByText("No renewal yet")).toBeTruthy()
+    // The download's answer was about the license as it stood before the check.
+    expect(screen.getByText("Not downloaded yet")).toBeTruthy()
+    expect(screen.queryByRole("alert")).toBeNull()
+    expect(downloads()).toBe(1)
+  })
+
+  it("forgets the last download once the license is removed", async () => {
+    stubApi(BUSINESS, () => Response.json(BUSINESS), undefined, {
+      onDownload: () =>
+        Response.json({
+          outcomes: [
+            {
+              ...INSTALLED.outcomes[0],
+              outcome: "unavailable",
+              message: "The backend’s own words",
+              version: null,
+            },
+          ],
+          packs: [],
+        }),
+    })
+    const user = userEvent.setup()
+    // The Jobs screen's rows, which say what the same downloads came to.
+    render(
+      <>
+        <Harness />
+        <JobList
+          workspaceId={1}
+          onRun={() => undefined}
+          onSettings={() => undefined}
+          onOpenRun={() => undefined}
+          onOpenLicense={() => undefined}
+        />
+      </>
+    )
+    const said =
+      "SurfSense’s license server couldn’t send Security questionnaire. Try again later."
+
+    await user.click(await screen.findByRole("button", { name: "Download" }))
+    await waitFor(() => expect(screen.getAllByText(said)).toHaveLength(2))
+    await user.click(screen.getByRole("button", { name: "Remove license" }))
+
+    expect(await screen.findByText("No license on this device")).toBeTruthy()
+    expect(
+      await screen.findByText(
+        "Comes with a SurfSense Business license. Try it free for 14 days."
+      )
+    ).toBeTruthy()
+    expect(screen.queryByText(said)).toBeNull()
+  })
+
+  it.each([
+    // No version: no pack here has the job. The backend sends this only when
+    // the pack that adds the job waits on a run of another of its jobs.
+    ["no pack here has the job", null, [], HELD_BACK_WITH_ITS_PACK, HELD_BACK],
+    [
+      "the version it kept is here",
+      "0.4.3",
+      [TEST_PACK],
+      HELD_BACK,
+      HELD_BACK_WITH_ITS_PACK,
+    ],
+  ])(
+    "says why a download waits on a run, here and on the row, when %s",
+    async (_, version, packs, said, unsaid) => {
+      stubApi(BUSINESS, () => Response.json(BUSINESS), undefined, {
+        onDownload: () =>
+          Response.json({
+            outcomes: [
+              { ...INSTALLED.outcomes[0], outcome: "deferred", version },
+            ],
+            packs,
+          }),
+      })
+      const user = userEvent.setup()
+      // The Jobs screen's rows, which say what the same download came to.
+      render(
+        <>
+          <Harness />
+          <JobList
+            workspaceId={1}
+            onRun={() => undefined}
+            onSettings={() => undefined}
+            onOpenRun={() => undefined}
+            onOpenLicense={() => undefined}
+          />
+        </>
+      )
+
+      await user.click(await screen.findByRole("button", { name: "Download" }))
+
+      expect(await screen.findByText(said.license)).toBeTruthy()
+      expect(screen.getByText(said.row)).toBeTruthy()
+      expect(screen.queryByText(unsaid.license)).toBeNull()
+      expect(screen.queryByText(unsaid.row)).toBeNull()
+    }
+  )
+
+  it("downloads nothing once the license is removed", async () => {
+    stubApi(BUSINESS, () => Response.json(BUSINESS), undefined, {
+      packs: [TEST_PACK],
+    })
+    const user = userEvent.setup()
+    render(<Harness />)
+
+    await screen.findByText("Version 0.4.3")
+    await user.click(screen.getByRole("button", { name: "Remove license" }))
+
+    expect(await screen.findByText("No license on this device")).toBeTruthy()
+    expect(
+      screen.queryByRole("heading", { name: "Jobs on this computer" })
+    ).toBeNull()
+    expect(downloads()).toBe(0)
+  })
+
+  it("downloads nothing for a license without jobs, and lists none", async () => {
+    stubApi(NONE, () => Response.json(ACTIVE))
+    const user = userEvent.setup()
+    render(<Harness />)
+
+    const dialog = await openAddDialog(user)
+    await user.upload(
+      within(dialog).getByLabelText("Choose license file"),
+      new File([CERTIFICATE], "individual.lic", { type: "text/plain" })
+    )
+
+    expect(await screen.findByText("Individual plan")).toBeTruthy()
+    expect(
+      screen.queryByRole("heading", { name: "Jobs on this computer" })
+    ).toBeNull()
+    expect(packRequests).toEqual([])
+  })
+
+  it.each([
+    ["has ended", "license_expired"],
+    ["waits for the clock to be set right", "clock_untrusted"],
+  ] as const)(
+    "offers only the pack file import once the license %s",
+    async (_, state) => {
+      stubApi({ ...BUSINESS, state }, () => Response.json(BUSINESS))
+      render(<Harness />)
+
+      expect(await screen.findByText("Not downloaded yet")).toBeTruthy()
+      expect(screen.queryByRole("button", { name: "Download" })).toBeNull()
+      expect(
+        screen.queryByRole("button", { name: "Check for updates" })
+      ).toBeNull()
+      expect(
+        screen.getByRole("button", { name: "Import pack file" })
+      ).toBeTruthy()
+    }
+  )
+
+  it("holds the jobs’ buttons while the license is being changed", async () => {
+    let answer: (response: Response) => void = () => undefined
+    stubApi(
+      BUSINESS,
+      () => Response.json(BUSINESS),
+      () => new Promise<Response>((resolve) => (answer = resolve)),
+      { packs: [TEST_PACK] }
+    )
+    const user = userEvent.setup()
+    render(<Harness />)
+    const held = (name: string) =>
+      (screen.getByRole("button", { name }) as HTMLButtonElement).disabled
+
+    await screen.findByRole("button", { name: "Check for updates" })
+    await user.click(screen.getByRole("button", { name: "Check for renewal" }))
+
+    await waitFor(() => expect(held("Check for updates")).toBe(true))
+    expect(held("Import pack file")).toBe(true)
+    answer(Response.json(BUSINESS))
+    expect(await screen.findByText("No renewal yet")).toBeTruthy()
+    await waitFor(() => expect(held("Import pack file")).toBe(false))
+  })
+
+  it("reads again which jobs may run once the license changes", async () => {
+    // Whatever shows the jobs on this computer, whose locks follow the license.
+    function JobsShown() {
+      useJobPacks()
+      return null
+    }
+    stubApi(ACTIVE, () =>
+      Response.json({ ...ACTIVE, plan: "team", max_users: 3 })
+    )
+    const user = userEvent.setup()
+    render(
+      <>
+        <Harness />
+        <JobsShown />
+      </>
+    )
+
+    await waitFor(() => expect(packRequests).toEqual(["GET /job-packs"]))
+    await user.click(
+      await screen.findByRole("button", { name: "Replace license" })
+    )
+    await user.upload(
+      within(
+        screen.getByRole("dialog", { name: /Replace license/ })
+      ).getByLabelText("Choose license file"),
+      new File([CERTIFICATE], "team.lic", { type: "text/plain" })
+    )
+
+    expect(await screen.findByText("Team plan")).toBeTruthy()
+    await waitFor(() =>
+      expect(packRequests).toEqual(["GET /job-packs", "GET /job-packs"])
+    )
   })
 })

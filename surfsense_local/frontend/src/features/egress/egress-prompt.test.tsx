@@ -310,6 +310,98 @@ describe("egress prompt", () => {
     }
   )
 
+  it("asks about downloading the license’s jobs, names both of the license server’s errands, and downloads on Allow", async () => {
+    const calls: string[] = []
+    let allowed = false
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = String(input)
+        calls.push(`${init?.method ?? "GET"} ${path}`)
+        if (path === "/egress" && init?.method === "PUT") {
+          calls[calls.length - 1] +=
+            ` ${JSON.parse(String(init.body)).destinations.join(",")}`
+          allowed = true
+          return Response.json([])
+        }
+        return allowed
+          ? Response.json({ outcomes: [], packs: [] })
+          : Response.json(
+              {
+                detail: {
+                  code: "egress_disabled",
+                  message: "off",
+                  destination: "host:api.surfsense.com",
+                  host: "api.surfsense.com",
+                  hosts: ["api.surfsense.com"],
+                  purpose: "job_packs",
+                },
+              },
+              { status: 403 }
+            )
+      })
+    )
+    const user = userEvent.setup()
+    render(<EgressPrompt />)
+
+    const pending = requestVoid("/job-packs/download", { method: "POST" })
+    const prompt = await screen.findByRole("alertdialog", {
+      name: "Allow downloading your jobs?",
+    })
+    // One server, two errands: the license's file and its jobs, and what each sends.
+    expect(prompt.textContent).toContain(
+      "api.surfsense.com, its license server, for your license’s latest file and for the jobs your license includes, sending your license key and your IP address"
+    )
+    expect(prompt.textContent).toContain(
+      "A job download also sends the job’s code, the version you already have and the kinds of job this version of SurfSense can run."
+    )
+    expect(prompt.textContent).toContain(
+      "for newer versions of your jobs, while a license with jobs is active"
+    )
+    // A job's check that a run held back is made again once the run ends.
+    expect(prompt.textContent).toContain(
+      "A check for a job that comes during a run of it is made again once the run ends."
+    )
+    await user.click(screen.getByRole("button", { name: "Allow" }))
+
+    await expect(pending).resolves.toBeUndefined()
+    expect(calls).toEqual([
+      "POST /job-packs/download",
+      "PUT /egress host:api.surfsense.com",
+      "POST /job-packs/download",
+    ])
+  })
+
+  it("asks about reaching the license server when a refusal names no errand", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json(
+          {
+            detail: {
+              code: "egress_disabled",
+              message: "off",
+              destination: "host:api.surfsense.com",
+              host: "api.surfsense.com",
+            },
+          },
+          { status: 403 }
+        )
+      )
+    )
+    render(<EgressPrompt />)
+
+    // Its purpose left out, the question cannot say which errand it is for.
+    void requestVoid("/job-packs/download", { method: "POST" }).catch(() => {})
+
+    const dialog = await screen.findByRole("alertdialog", {
+      name: "Allow reaching SurfSense’s license server?",
+    })
+    expect(dialog.textContent).toContain(
+      "api.surfsense.com, its license server"
+    )
+  })
+
   it("never mentions a license key to a third-party plugin's host", async () => {
     vi.stubGlobal(
       "fetch",

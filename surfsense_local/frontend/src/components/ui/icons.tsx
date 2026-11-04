@@ -29,6 +29,7 @@ import {
   CheckmarkCircle02Icon,
   ChevronDownIcon as ChevronDownIconData,
   ChevronRightIcon as ChevronRightIconData,
+  ClipboardCheckIcon as ClipboardCheckIconData,
   Clock01Icon as Clock01IconData,
   CircleArrowUp02Icon as CircleArrowUp02IconData,
   ComputerEthernetIcon as ComputerEthernetIconData,
@@ -159,6 +160,8 @@ export const CheckIcon = createIcon(CheckIconData)
 export const CheckmarkBadgeIcon = createIcon(CheckmarkBadge02IconData)
 export const ChevronDownIcon = createIcon(ChevronDownIconData)
 export const ChevronRightIcon = createIcon(ChevronRightIconData)
+// Jobs: the same icon the docs show beside Jobs.
+export const ClipboardCheckIcon = createIcon(ClipboardCheckIconData)
 export const ClockIcon = createIcon(Clock01IconData)
 export const CircleArrowUp02Icon = createIcon(CircleArrowUp02IconData)
 export const ComputerEthernetIcon = createIcon(ComputerEthernetIconData)
