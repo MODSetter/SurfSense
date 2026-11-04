@@ -27,7 +27,15 @@ from uuid import uuid4
 import pytest
 
 from license import keygen
-from license.models import META_CUSTOMER, META_EMAIL, META_SESSION, META_SUBSCRIPTION
+from license.job_packs.verdict import LicenseVerdict, license_verdict
+from license.jobs import JOBS, jobs_metadata
+from license.models import (
+    META_CUSTOMER,
+    META_EMAIL,
+    META_JOBS,
+    META_SESSION,
+    META_SUBSCRIPTION,
+)
 
 pytestmark = pytest.mark.integration
 
@@ -128,3 +136,20 @@ async def test_a_renewal_moves_the_expiry_on_the_same_key(license_on_keygen) -> 
     assert by_key.record is not None
     assert by_key.record["id"] == license_id
     assert datetime.fromisoformat(by_key.record["attributes"]["expiry"]) == renewed_to
+
+
+async def test_validate_key_answers_the_license_jobs() -> None:
+    """The job pack route reads the jobs from validate-key, as the app reads them from its file."""
+    license_id = await keygen.create_license(
+        "individual",
+        f"contract-{uuid4().hex[:12]}@example.com",
+        extra_metadata={META_JOBS: jobs_metadata()},
+    )
+    try:
+        record = await keygen.get_license(license_id)
+        assert record is not None
+        verdict = await license_verdict(record["attributes"]["key"])
+    finally:
+        await keygen.suspend_license(license_id)
+
+    assert verdict == LicenseVerdict("VALID", tuple(JOBS))
