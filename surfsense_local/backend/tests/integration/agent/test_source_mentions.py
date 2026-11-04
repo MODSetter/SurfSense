@@ -284,6 +284,10 @@ def test_a_named_folder_and_artifact_keep_their_kind_in_the_tag(engine: Engine) 
                 mentioned_sources={
                     "document_ids": [document],
                     "folder_ids": [folder.id],
+                    "chips": [
+                        {"id": f"folder:{folder.id}", "at": 0, "length": 10},
+                        {"id": f"document:{document}", "at": 11, "length": 5},
+                    ],
                 },
             ),
         )
@@ -297,8 +301,20 @@ def test_a_named_folder_and_artifact_keep_their_kind_in_the_tag(engine: Engine) 
         name_mentions(session, workspace_id, [turn])
 
         assert turn["content"]["mentions"] == [
-            {"id": f"document:{document}", "type": "artifact-pptx", "label": "Deck"},
-            {"id": f"folder:{folder.id}", "type": "source", "label": "Contracts"},
+            {
+                "id": f"folder:{folder.id}",
+                "type": "source",
+                "label": "Contracts",
+                "at": 0,
+                "length": 10,
+            },
+            {
+                "id": f"document:{document}",
+                "type": "artifact-pptx",
+                "label": "Deck",
+                "at": 11,
+                "length": 5,
+            },
         ]
 
 
@@ -370,7 +386,13 @@ async def test_a_thread_reads_back_what_each_message_named(
         thread["id"],
         "When per @Memo and @Old?",
         source_scope={"all": True},
-        mentioned_sources={"document_ids": [kept, deleted]},
+        mentioned_sources={
+            "document_ids": [kept, deleted],
+            "chips": [
+                {"id": f"document:{kept}", "at": 9, "length": 5},
+                {"id": f"document:{deleted}", "at": 19, "length": 4},
+            ],
+        },
     )
     with create_session_factory(engine)() as session:
         session.delete(session.get(Document, deleted))
@@ -380,7 +402,13 @@ async def test_a_thread_reads_back_what_each_message_named(
 
     assert stored[0]["content"]["text"] == "When per @Memo and @Old?"
     assert stored[0]["content"]["mentions"] == [
-        {"id": f"document:{kept}", "type": "source", "label": "Memo"}
+        {
+            "id": f"document:{kept}",
+            "type": "source",
+            "label": "Memo",
+            "at": 9,
+            "length": 5,
+        }
     ]
 
 
@@ -390,7 +418,7 @@ async def test_a_message_naming_nothing_reads_back_no_mentions(
     """A typed `[surfsense-mentions: ...]` is the user's words, not a note."""
     agent_api.model.replies = [("text", "Hi.")]
     thread = await open_thread(agent_api)
-    typed = "[surfsense-mentions: document:1]"
+    typed = "[surfsense-mentions: document:1@0+5]"
 
     await send(agent_api, thread["id"], typed, source_scope={"all": True})
 

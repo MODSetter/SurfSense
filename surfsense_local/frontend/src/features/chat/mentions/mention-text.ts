@@ -1,39 +1,54 @@
 import { defaultDirectiveFormatter } from "@assistant-ui/react"
 
-/** A named source as the box's chip and the sent bubble's show it. */
-export type ShownMention = { id: string; type: string; label: string }
+/** A chip in a sent message: what it names, and where it stands in the text. Its
+ *  place is all that tells it from the same name typed by hand. */
+export type ShownMention = {
+  id: string
+  type: string
+  label: string
+  at: number
+  length: number
+}
 
 /** The API's `mentioned_sources`. An artifact is named by its document. */
 export type MentionedSources = {
   document_ids: number[]
   folder_ids: number[]
+  chips: { id: string; at: number; length: number }[]
 }
 
 const isMentionType = (type: string) =>
   type === "source" || type.startsWith("artifact-")
 
-const written = (label: string) => `@${label}`
+const TRIGGER = "@"
 
 /** The box's text, which holds each chip's id so a rewrite of the text can rebuild
- *  it, as it is sent: what the user reads, and what it named beside that. */
+ *  it, as it is sent: what the user reads, and each chip's place in that. */
 export function sentMessage(raw: string): {
   text: string
   mentions: ShownMention[]
 } {
-  const mentions = new Map<string, ShownMention>()
-  const text = defaultDirectiveFormatter
-    .parse(raw)
-    .map((segment) => {
-      if (segment.kind === "text") return segment.text
-      if (!isMentionType(segment.type)) {
-        return defaultDirectiveFormatter.serialize(segment)
-      }
+  const mentions: ShownMention[] = []
+  let text = ""
+  for (const segment of defaultDirectiveFormatter.parse(raw)) {
+    if (segment.kind === "text") {
+      text += segment.text
+    } else if (!isMentionType(segment.type)) {
+      text += defaultDirectiveFormatter.serialize(segment)
+    } else {
       const { id, type, label } = segment
-      mentions.set(id, { id, type, label })
-      return written(label)
-    })
-    .join("")
-  return { text, mentions: [...mentions.values()] }
+      const written = `${TRIGGER}${label}`
+      mentions.push({
+        id,
+        type,
+        label,
+        at: text.length,
+        length: written.length,
+      })
+      text += written
+    }
+  }
+  return { text, mentions }
 }
 
 /** What counts against the message limit: never a chip's hidden id. */
@@ -45,11 +60,18 @@ export function mentionedSourcesOf(
   mentions: readonly ShownMention[]
 ): MentionedSources | null {
   if (mentions.length === 0) return null
-  const idsOf = (kind: string) =>
-    mentions.flatMap(({ id }) =>
-      id.startsWith(`${kind}:`) ? [Number(id.slice(kind.length + 1))] : []
-    )
-  return { document_ids: idsOf("document"), folder_ids: idsOf("folder") }
+  const idsOf = (kind: string) => [
+    ...new Set(
+      mentions.flatMap(({ id }) =>
+        id.startsWith(`${kind}:`) ? [Number(id.slice(kind.length + 1))] : []
+      )
+    ),
+  ]
+  return {
+    document_ids: idsOf("document"),
+    folder_ids: idsOf("folder"),
+    chips: mentions.map(({ id, at, length }) => ({ id, at, length })),
+  }
 }
 
 /** A refused message's text, back as the box holds it, so its chips return too. */
@@ -65,38 +87,24 @@ export function boxTextOf(text: string, mentions: readonly ShownMention[]) {
 
 export type MentionedTextPiece = string | ShownMention
 
-// A letter or digit either side means another word: me@Memo.com, or @Memos.
-const WORD_CHAR = /[\p{L}\p{N}_-]/u
-const WORD_GOES_ON = /^[\p{L}\p{N}_-]/u
-
-/** A sent message's text, with each named source apart for its chip. */
+/** A sent message's text, with each chip apart. A place that no longer fits the text
+ *  stays text: better a plain `@name` than a chip on the wrong words. */
 export function piecesOf(
   text: string,
   mentions: readonly ShownMention[]
 ): MentionedTextPiece[] {
-  // The longest first, so "@Plan" never takes the start of "@Plan Q3".
-  const longestFirst = [...mentions].sort(
-    (a, b) => b.label.length - a.label.length
-  )
   const pieces: MentionedTextPiece[] = []
-  let plain = ""
-  for (let at = 0; at < text.length;) {
-    const found = longestFirst.find(
-      ({ label }) =>
-        !WORD_CHAR.test(text.charAt(at - 1)) &&
-        text.startsWith(written(label), at) &&
-        !WORD_GOES_ON.test(text.slice(at + written(label).length))
-    )
-    if (found) {
-      if (plain) pieces.push(plain)
-      plain = ""
-      pieces.push(found)
-      at += written(found.label).length
-    } else {
-      plain += text[at]
-      at += 1
-    }
+  let from = 0
+  for (const mention of [...mentions].sort((a, b) => a.at - b.at)) {
+    const fits =
+      mention.at >= from &&
+      mention.at + mention.length <= text.length &&
+      text.startsWith(TRIGGER, mention.at)
+    if (!fits) continue
+    if (mention.at > from) pieces.push(text.slice(from, mention.at))
+    pieces.push(mention)
+    from = mention.at + mention.length
   }
-  if (plain) pieces.push(plain)
+  if (from < text.length) pieces.push(text.slice(from))
   return pieces
 }

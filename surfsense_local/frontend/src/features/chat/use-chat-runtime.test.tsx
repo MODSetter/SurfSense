@@ -314,6 +314,10 @@ describe("useChatRuntime", () => {
     expect(api.sends[0].body.mentioned_sources).toEqual({
       document_ids: [3],
       folder_ids: [7],
+      chips: [
+        { id: "document:3", at: 8, length: 5 },
+        { id: "folder:7", at: 18, length: 3 },
+      ],
     })
   })
 

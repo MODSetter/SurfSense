@@ -21,10 +21,8 @@ from modules.documents.models import Document
 from modules.folders.models import Folder
 from modules.source_scope.schemas import MentionedSources
 
-_TAG = re.compile(
-    r"^\[surfsense-mentions: ((?:document|folder):\d+(?:,(?:document|folder):\d+)*)\]",
-    re.MULTILINE,
-)
+_CHIP = r"(?:document|folder):\d+@\d+\+\d+"
+_TAG = re.compile(rf"^\[surfsense-mentions: ({_CHIP}(?:,{_CHIP})*)\]", re.MULTILINE)
 
 
 @dataclass(frozen=True)
@@ -43,13 +41,12 @@ def mention_note(
 ) -> str | None:
     """`more` are readable but past the listed; `unreadable` have no text to read;
     `nothing_ready` are named sources or folders that gave the turn nothing."""
-    tagged = [
-        *(f"document:{i}" for i in named.document_ids),
-        *(f"folder:{i}" for i in named.folder_ids),
-    ]
-    if not tagged:
+    if not named.document_ids and not named.folder_ids:
         return None
-    lines = [f"[surfsense-mentions: {','.join(tagged)}]"]
+    lines = []
+    if named.chips:
+        chips = (f"{chip.id}@{chip.at}+{chip.length}" for chip in named.chips)
+        lines.append(f"[surfsense-mentions: {','.join(chips)}]")
     if files or more:
         lines.append("The user named these sources in their message. Start from them.")
     lines += [
@@ -73,20 +70,26 @@ def mention_note(
     return "\n".join(lines)
 
 
-def noted_mentions(notes: list[dict[str, Any]]) -> list[dict[str, str]] | None:
-    """What a turn's notes say it named, by id; its reader names them."""
+def noted_mentions(notes: list[dict[str, Any]]) -> list[dict[str, Any]] | None:
+    """Each chip a turn's notes record, by id and place; its reader names them."""
     for note in notes:
         if note.get("type") != "synthetic":
             continue
         if (tagged := _TAG.search(note.get("text") or "")) is not None:
-            return [{"id": named} for named in tagged.group(1).split(",")]
+            return [_chip_of(chip) for chip in tagged.group(1).split(",")]
     return None
+
+
+def _chip_of(tagged: str) -> dict[str, Any]:
+    named, place = tagged.split("@")
+    at, length = place.split("+")
+    return {"id": named, "at": int(at), "length": int(length)}
 
 
 def name_mentions(
     session: Session, workspace_id: int, turns: list[dict[str, Any]]
 ) -> None:
-    """Give each turn's mentions what a chip shows; one deleted since drops out."""
+    """Give each chip what it shows, as its source is called now; one deleted drops out."""
     with_mentions = [t["content"] for t in turns if "mentions" in t["content"]]
     if not with_mentions:
         return
@@ -95,7 +98,9 @@ def name_mentions(
         session, workspace_id, ids
     )
     for content in with_mentions:
-        kept = [shown[m["id"]] for m in content["mentions"] if m["id"] in shown]
+        kept = [
+            {**m, **shown[m["id"]]} for m in content["mentions"] if m["id"] in shown
+        ]
         if kept:
             content["mentions"] = kept
         else:

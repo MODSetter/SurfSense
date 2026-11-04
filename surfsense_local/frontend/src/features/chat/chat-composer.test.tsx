@@ -431,7 +431,15 @@ describe("naming a source with @", () => {
     await waitFor(() => expect(onRun).toHaveBeenCalled())
     expect(sentMessage(onRun.mock.calls[0][0])).toEqual({
       text: "compare @Plan Q3.pdf ",
-      mentions: [{ id: "document:3", type: "source", label: "Plan Q3.pdf" }],
+      mentions: [
+        {
+          id: "document:3",
+          type: "source",
+          label: "Plan Q3.pdf",
+          at: 8,
+          length: 12,
+        },
+      ],
     })
   })
 

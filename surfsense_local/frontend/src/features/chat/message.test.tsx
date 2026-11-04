@@ -193,8 +193,20 @@ describe("a sent message", () => {
         custom: {
           steps: [],
           mentions: [
-            { id: "document:3", type: "source", label: "Plan Q3.pdf" },
-            { id: "document:9", type: "artifact-pptx", label: "Board deck" },
+            {
+              id: "document:3",
+              type: "source",
+              label: "Plan Q3.pdf",
+              at: 8,
+              length: 12,
+            },
+            {
+              id: "document:9",
+              type: "artifact-pptx",
+              label: "Board deck",
+              at: 26,
+              length: 11,
+            },
           ],
         },
       },
