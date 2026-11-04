@@ -25,6 +25,20 @@ describe("a refused Studio job", () => {
       "version_unfinished",
       "This version did not finish: retry it, or refine another version.",
     ],
+    // And from an image edit, modules/artifacts/image_edits/service.py.
+    [
+      "not_editable",
+      "Only an image or infographic made in Studio can be edited.",
+    ],
+    [
+      "image_version_unfinished",
+      "This version did not finish: retry it, or edit another version.",
+    ],
+    ["needs_image_edit", "Needs an image editing model."],
+    [
+      "edited_from",
+      "A later version is edited from this one: delete the whole document.",
+    ],
     // And from a revised copy's Accept all or Reject all, revised_copies/.
     [
       "not_word_copy",

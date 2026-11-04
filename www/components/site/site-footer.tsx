@@ -8,8 +8,7 @@ import { cn } from "@/components/ui/cn";
 /**
  * Site footer: the site's links set straight on the page's ground, which fades
  * into an engraved Golden Gate Bridge that fills the open band below.
- * Rendered by `app/(home)/layout.tsx` for every route under `(home)` except the
- * auth pages.
+ * Rendered by `app/(home)/layout.tsx` for every route under `(home)`.
  */
 
 const LINK_CLASS =
@@ -20,21 +19,23 @@ const WORDMARK_CLASS =
 
 export function SiteFooter() {
 	return (
-		<footer className="relative isolate overflow-hidden">
+		// `content-visibility` skips the footer's layout and paint until it nears the screen.
+		<footer className="relative isolate overflow-hidden [contain-intrinsic-size:auto_900px] [content-visibility:auto]">
 			{/* Sized by width and anchored to the bottom, so the bridge stays in the open band
 			    however tall the links make the footer. Covering the footer instead would
-			    blow the 3:1 scene up well past its 4344px source and blur the linework.
+			    blow the 3:1 scene up well past its source and blur the linework.
 			    From lg the whole panorama shows; below it the scene is wider than the screen
-			    and the left offsets keep the main tower, a third of the way in, on screen. */}
+			    and the left offsets keep the main tower, a third of the way in, on screen.
+			    The source is 2172px, not 4344px: a quarter of the pixels to decode, and its
+			    darker lines hold up when stretched on retina screens. */}
 			<div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
-				<div className="absolute bottom-0 -left-[60%] aspect-[4344/1448] w-[360%] sm:-left-[15%] sm:w-[220%] lg:left-0 lg:w-full">
+				<div className="absolute bottom-0 -left-[60%] aspect-[2172/724] w-[360%] sm:-left-[15%] sm:w-[220%] lg:left-0 lg:w-full">
 					<Image
 						src={footerScene}
 						alt=""
 						fill
 						sizes="(max-width: 639px) 360vw, (max-width: 1023px) 220vw, 100vw"
 						quality={85}
-						placeholder="blur"
 						className="object-cover object-bottom select-none"
 					/>
 					<div className="absolute inset-x-0 top-0 h-[45%] bg-linear-to-b from-background via-background/80 to-transparent" />

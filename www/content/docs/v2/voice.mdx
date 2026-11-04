@@ -1,0 +1,80 @@
+---
+title: Voice
+description: Dictate in the composer, transcribe recordings as sources, and choose podcast voices
+---
+
+SurfSense turns speech into text on your computer, with a speech recognition model you download once. One model serves both voice input in the composer and recordings you add as sources. Your voice never leaves your computer. Text you send after dictating is an ordinary message, so it goes wherever your chat model runs.
+
+Podcast voices are a separate model, chosen in **Settings › Audio**. See [Podcast voices](#podcast-voices).
+
+## Set up speech recognition
+
+1. Open **Settings › Speech recognition**.
+2. Pick a model and download it. Downloading a model also chooses it.
+3. Under the model in use, set **Spoken language** to the language you speak, or **Detect automatically** when the model can detect it.
+
+You can also start from the microphone in the composer, or from **Set up** on a recording waiting for a model. Both open a small **Set up speech recognition** box whose **Set up…** button takes you to the same settings page. While the model downloads, the box shows its progress, with **Cancel download** to stop it.
+
+### Speech recognition models
+
+| Model | Best for |
+|---|---|
+| Nemotron 3.5 ASR Streaming 0.6B | Many languages, and detects the language on its own |
+| Canary 180M Flash | A lighter model for English, German and French. It can't detect the language, so set **Spoken language** |
+
+Each model's row in Settings lists its languages. Speech recognition runs on this computer only: it can't use a model from an API connection.
+
+## Voice input in the composer
+
+The microphone sits beside **Send**. Its tooltip reads "Voice input stays on this computer". Voice input works in Basic (Q&A) and Agentic chats alike.
+
+1. Click the microphone. The first time, your system may ask to allow SurfSense to use the microphone.
+2. Speak. A recording strip appears inside the composer, with a level meter and a timer. Your words appear in the message box a phrase at a time.
+3. Click **Stop and insert** (✓, in Send's place) or press Enter. SurfSense finishes the last phrase and leaves the text in the box. Nothing is sent until you send it.
+
+To throw the recording away, press Escape or click ✕. The box goes back to the text it had before.
+
+- Voice input stops after 5 minutes, and at the message length limit. A notice says which.
+- It uses your system's default microphone.
+- Text arrives a phrase at a time, after each pause, not word by word.
+
+### When it doesn't start
+
+A problem shows as a short notice with one action:
+
+| Notice | What to do |
+|---|---|
+| Microphone access is off for SurfSense. | Allow the microphone for SurfSense in your system's privacy settings. On Windows and macOS, **Open settings** takes you there. |
+| No microphone found. | Connect a microphone, then click the microphone again. |
+| The microphone is in use by another app. | Close the other app, then **Try again**. |
+| Set up speech recognition to use voice input. | **Set up** opens Settings › Speech recognition. |
+| Transcribing needs about 2.9 GB free; this computer has 1.2 GB. | Close other apps to free memory. The numbers depend on the model. |
+| Couldn’t turn part of your speech into text. | **Retry** sends that part again. |
+
+<Callout title="Using the Docker image from another device?">
+  Browsers allow the microphone only over HTTPS, or on the computer running
+  SurfSense. Over plain HTTP from another device, the microphone says "Your
+  browser allows the microphone only over HTTPS, or on the computer running
+  SurfSense." See [Docker](/docs/v2/docker) to set up HTTPS.
+</Callout>
+
+## Recordings as sources
+
+Add a `.wav`, `.mp3`, `.flac` or Ogg Vorbis (`.ogg`, `.oga`) file to **Sources** like any other file. The speech recognition model turns it into a transcript, which is searched and cited like any source. Each passage starts with the time it was said, such as `[00:12:40]`.
+
+- The row shows progress, such as "Transcribing · 23 of 58 min · about 7 min left".
+- Your other files don't wait behind a long recording: it pauses to let them through, then carries on.
+- Voice input goes ahead of a recording, which pauses while you dictate.
+- Without a model, the recording waits with **Waiting for speech recognition** and **Set up**. Once you choose a model, it's transcribed without uploading it again.
+- If the model detects a language it isn't listed for, the row says "the transcript may be less accurate".
+
+Opus, M4A, AAC and WebM recordings aren't supported yet, and a recording can't be played back in SurfSense yet. See [Sources](/docs/v2/sources#recordings).
+
+## Podcast voices
+
+[Studio](/docs/v2/studio#podcasts) voices podcasts with the audio model chosen in **Settings › Audio**.
+
+- **On this computer.** SurfSense ships Kokoro 82M and chooses it for you, so podcasts work offline from the start. Supertonic 3 and KittenTTS Mini 0.8 are other voice models you can download there. Each lists its voices and languages.
+- **From a server.** Use a voice model from an API connection that offers OpenAI-style speech. If the server doesn't list its voices, add the ones you want: the podcast brief shows **Set up voices** until you do. The brief notes that each line is billed by the provider.
+
+In the podcast brief, you choose a voice for each speaker and the episode's language. A local voice model checks for free memory before it starts, and says how much it needs if there isn't enough.

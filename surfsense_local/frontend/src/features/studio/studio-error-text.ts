@@ -6,8 +6,9 @@ import { ApiError } from "@/lib/api"
 // regenerate (a refine's `needs_chat` comes from studio_documents/fits.py),
 // and the sentences `refused()` sends for a job that cannot start, be run
 // again or be stopped, and for a document that cannot be refined
-// (studio_documents/service.py) or is too long to rewrite (fits.py), and for
-// a revised copy's Retry, Accept all and Reject all (revised_copies/);
+// (studio_documents/service.py) or is too long to rewrite (fits.py), for a
+// picture that cannot be edited or has no model to edit it (image_edits/), and
+// for a revised copy's Retry, Accept all and Reject all (revised_copies/);
 // the backend's own text stays the fallback for a code that has no line here,
 // and for one whose values did not come with it.
 type Detail = Record<string, unknown>
@@ -44,6 +45,12 @@ const studioErrorText: Record<string, (detail: Detail) => string | null> = {
       defaultMessage:
         "Only a Word document, PDF or web page made in Studio can be refined.",
     }),
+  not_editable: () =>
+    intl.formatMessage({
+      id: "studio_error_not_editable",
+      defaultMessage:
+        "Only an image or infographic made in Studio can be edited.",
+    }),
   agent_made: () =>
     intl.formatMessage({
       id: "studio_error_agent_made",
@@ -55,6 +62,18 @@ const studioErrorText: Record<string, (detail: Detail) => string | null> = {
       id: "studio_error_version_unfinished",
       defaultMessage:
         "This version did not finish: retry it, or refine another version.",
+    }),
+  image_version_unfinished: () =>
+    intl.formatMessage({
+      id: "studio_error_image_version_unfinished",
+      defaultMessage:
+        "This version did not finish: retry it, or edit another version.",
+    }),
+  edited_from: () =>
+    intl.formatMessage({
+      id: "studio_error_edited_from",
+      defaultMessage:
+        "A later version is edited from this one: delete the whole document.",
     }),
   // The sentence's name and numbers arrive raw beside the code.
   rewrite_too_long: ({ model, spec_tokens, needed_tokens, window_tokens }) =>
@@ -114,6 +133,11 @@ const studioErrorText: Record<string, (detail: Detail) => string | null> = {
       id: "studio_error_needs_image",
       defaultMessage: "Needs an image model.",
     }),
+  needs_image_edit: () =>
+    intl.formatMessage({
+      id: "studio_error_needs_image_edit",
+      defaultMessage: "Needs an image editing model.",
+    }),
   needs_audio: () =>
     intl.formatMessage({
       id: "studio_error_needs_audio",
@@ -129,6 +153,11 @@ const studioErrorText: Record<string, (detail: Detail) => string | null> = {
       id: "studio_error_needs_chat_audio",
       defaultMessage: "Needs a chat model and an audio model.",
     }),
+}
+
+/** The interface's line for a refusal's code, before anything was sent. */
+export function studioCodeText(code: string) {
+  return Object.hasOwn(studioErrorText, code) ? studioErrorText[code]({}) : null
 }
 
 /** The interface's own line for a refused Studio action, or null for an error it has none for. */

@@ -586,7 +586,8 @@ export const ArtifactList = memo(function ArtifactList({
   onOpen: (id: number) => void
   onRegenerate: (id: number) => void
   onCancel: (id: number) => void
-  onDelete: (id: number) => void
+  /** Settles once that version is deleted, or refused. */
+  onDelete: (id: number) => Promise<void> | void
 }) {
   // The backend's format catalog is the single source of truth for labels;
   // fall back to the raw key only for a format the catalog doesn't know yet.
@@ -806,9 +807,12 @@ export const ArtifactList = memo(function ArtifactList({
               variant="destructive"
               disabled={!deleteNow || !canDeleteLine(deleteNow)}
               onClick={() => {
-                for (const version of deleteNow?.versions ?? []) {
-                  onDelete(version.id)
-                }
+                // Newest first, each after the last: an edit's base is older
+                // than the edit, and the API keeps a base while an edit names it.
+                const versions = (deleteNow?.versions ?? []).toReversed()
+                void (async () => {
+                  for (const version of versions) await onDelete(version.id)
+                })()
               }}
             >
               {intl.formatMessage({

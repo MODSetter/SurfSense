@@ -15,6 +15,7 @@ from modules.artifacts.flashcard_progress import (
     read_flashcard_count,
     reset_flashcard_progress,
 )
+from modules.artifacts.image_edits.edited_from import refuse_deleting_a_base
 from modules.artifacts.models import Artifact, ArtifactFileRole
 from modules.artifacts.quiz_progress import (
     apply_quiz_answer,
@@ -401,6 +402,7 @@ def reorder_flashcards(
     summary="Delete an artifact",
 )
 def delete_artifact(artifact: ArtifactDep, session: SessionDep) -> Response:
+    refuse_deleting_a_base(session, artifact.id)
     # The ARTIFACT document is the root: deleting it cascades the sidecar, its
     # files and its chunks. Only the blobs live beyond the database.
     directory = get_storage_settings().artifact_dir(artifact.workspace_id, artifact.id)

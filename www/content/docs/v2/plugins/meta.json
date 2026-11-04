@@ -1,0 +1,20 @@
+{
+	"title": "Plugins",
+	"icon": "Plug",
+	"defaultOpen": false,
+	"pages": [
+		"third-party",
+		"---SurfSense plugins---",
+		"surfsense-plugins",
+		"google-search",
+		"web-crawl",
+		"youtube",
+		"reddit",
+		"instagram",
+		"tiktok",
+		"google-maps",
+		"amazon",
+		"walmart",
+		"indeed"
+	]
+}

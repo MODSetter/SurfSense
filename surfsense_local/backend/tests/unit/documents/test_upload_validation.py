@@ -159,6 +159,22 @@ def test_a_kindle_book_is_accepted_by_its_header(
     assert validate_upload(book, suffix) == mime
 
 
+def test_a_kf8_only_azw3_is_accepted_on_upload(tmp_path: Path) -> None:
+    """calibre's AZW3 holds only the KF8 part, whose header is version 8."""
+    book = tmp_path / "novel.azw3"
+    book.write_bytes(kindle_samples.azw3([["<p>Call me Ishmael.</p>"]]))
+
+    assert validate_upload(book, ".azw3") == "application/vnd.amazon.mobi8-ebook"
+
+
+def test_a_kindle_book_whose_name_starts_like_kfx_is_accepted(tmp_path: Path) -> None:
+    """A Palm database opens with the book's name; "CONTACT" is not KFX's CONT."""
+    book = tmp_path / "contact.mobi"
+    book.write_bytes(b"CONTACT\0" + kindle_samples.mobi("<p>Ellie.</p>")[8:])
+
+    assert validate_upload(book, ".mobi") == "application/x-mobipocket-ebook"
+
+
 def test_a_kindle_book_with_drm_is_refused_on_upload(tmp_path: Path) -> None:
     """Most Kindle Store books are locked; say so at once, not after a failed ingest."""
     book = tmp_path / "bought.azw3"

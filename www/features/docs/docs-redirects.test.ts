@@ -9,7 +9,7 @@ import test from "node:test";
 // assertions cannot drift from runtime behaviour.
 import { getPathMatch } from "next/dist/shared/lib/router/utils/path-match";
 import { prepareDestination } from "next/dist/shared/lib/router/utils/prepare-destination";
-import { CURRENT_DOCS_PATH, docsRedirects, LEGACY_DOCS_PATH } from "./docs-redirects";
+import { CURRENT_DOCS_PATH, docsRedirects, LEGACY_DOCS_PATH } from "./docs-redirects.mts";
 
 const matchers = docsRedirects.map((rule) => ({
 	match: getPathMatch(rule.source, { strict: true, removeUnnamedParams: true }),
@@ -123,6 +123,15 @@ test("the docs split into exactly the two sections", () => {
 		.map((file) => path.dirname(file).replaceAll(path.sep, "/"));
 
 	assert.deepEqual(roots.toSorted(), [CURRENT_DOCS_PATH, LEGACY_DOCS_PATH].toSorted());
+});
+
+test("a SurfSense plugin's page keeps its address from before it moved up a folder", () => {
+	assert.equal(
+		redirect(`/docs/${CURRENT_DOCS_PATH}/plugins/surfsense-plugins/youtube`),
+		`/docs/${CURRENT_DOCS_PATH}/plugins/youtube`
+	);
+	// The overview kept its own address, so it must not redirect.
+	assert.equal(redirect(`/docs/${CURRENT_DOCS_PATH}/plugins/surfsense-plugins`), null);
 });
 
 test("unknown docs paths still land in the legacy version", () => {

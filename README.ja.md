@@ -53,14 +53,11 @@ SurfSense は、アップロードできない文書のための、無料のオ�
 | **Windows** x64 | [SurfSense-Setup.exe](https://www.surfsense.com/downloads/windows?src=readme) |
 | **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
 | **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
+| **Docker** Linux, macOS | `curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh \| bash` |
+| **Docker** Windows (Docker Desktop) | `irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 \| iex` |
 
-**Docker でサーバーにセルフホスト**し、ネットワーク上のどのデバイスからでも開けます。更新するには、同じコマンドをもう一度実行してください。
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
-```
-
-Windows（Docker Desktop）の場合：`irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 | iex`
+> [!NOTE]
+> Docker でサーバーにセルフホストし、ネットワーク上のどのデバイスからでも開けます。更新するには、同じコマンドをもう一度実行してください。
 
 ## クイックスタート
 
@@ -77,9 +74,10 @@ Windows（Docker Desktop）の場合：`irm https://raw.githubusercontent.com/MO
 | **Excel** `.xlsx` | ✓ エージェントは数式も読み取る | ✓ 数式とネイティブのグラフ付き | ✓ セルの値と数式 | pandas で分析し、結果をグラフにする |
 | **PowerPoint** `.pptx` | ✓ | ✓ 自分の `.pptx` をテンプレートにすることも可能 | スライドとノートのテキストを置換。スライドの削除や複製 | PDF へ¹ |
 | **CSV** | ✓ | — | — | pandas で分析し、結果をグラフにする |
-| **画像** PNG、JPEG、TIFF、BMP、WebP | ✓ 文字は OCR で読み取る³ | 画像とインフォグラフィック² | — | 新しい文書に配置する |
+| **画像** PNG、JPEG、TIFF、BMP、WebP | ✓ 文字は OCR で読み取る³ | 画像とインフォグラフィック、指示で編集² | — | 新しい文書に配置する |
 | **Markdown**、プレーンテキスト | ✓ | ✓ Markdown | — | — |
 | **HTML** | ✓ | ✓ Webページ | — | — |
+| **電子書籍** EPUB、MOBI、AZW3 | ✓ DRM なし | — | — | — |
 | **録音** WAV、MP3、FLAC、Ogg Vorbis | ✓ 自分のマシン上で文字起こし | — | — | — |
 | **ポッドキャスト**（音声） | — | ✓ 文字起こし付き。初期状態では自分のマシン上で読み上げる | — | — |
 | **マインドマップ、フラッシュカード、クイズ** | — | ✓ アプリ内で | — | — |

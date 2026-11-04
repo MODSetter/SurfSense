@@ -127,6 +127,16 @@ def test_a_dictionary_that_doubles_at_every_level_is_refused() -> None:
         book_html(book)
 
 
+def test_a_dictionary_claiming_a_huge_code_size_is_refused() -> None:
+    """Codes are at most 32 bits; 2**32 bits would build a 512 MB number first."""
+    book = bytearray(kindle_samples.mobi(CHAPTER, compression=17480))
+    cdic = book.index(b"CDIC")
+    book[cdic + 12 : cdic + 16] = (0xFFFFFFFF).to_bytes(4)
+
+    with pytest.raises(KindleBookError):
+        book_html(bytes(book))
+
+
 def test_a_palmdoc_record_that_unpacks_far_past_its_size_is_refused() -> None:
     """A record unpacks to 4 KB; one that keeps copying could reach gigabytes."""
     copy_ten_bytes_from_one_back = b"\x80\x0f"

@@ -4,6 +4,8 @@ import { z } from "zod";
 
 export const docs = defineDocs({
 	dir: "content/docs",
+	// Each page's Markdown, for Copy Markdown, `/llms.txt` and agents that ask for it.
+	docs: { postprocess: { includeProcessedMarkdown: true } },
 });
 
 export const changelog = defineDocs({

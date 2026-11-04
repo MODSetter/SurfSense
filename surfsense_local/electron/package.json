@@ -3,7 +3,7 @@
   "productName": "SurfSense",
   "private": true,
   "packageManager": "pnpm@11.27.1",
-  "version": "2.2.5",
+  "version": "2.3.1",
   "description": "Air gapped, privacy focused open source NotebookLM alternative.",
   "author": {
     "name": "SurfSense",
@@ -35,14 +35,14 @@
   "devDependencies": {
     "@types/node": "^24",
     "concurrently": "^10",
-    "electron": "^44",
-    "electron-builder": "^26.16.1",
+    "electron": "44.10.1",
+    "electron-builder": "26.16.1",
     "electron-vite": "^5",
     "typescript": "~6",
     "vite": "^7",
     "wait-on": "^9"
   },
   "dependencies": {
-    "electron-updater": "^6.8.9"
+    "electron-updater": "6.8.9"
   }
 }

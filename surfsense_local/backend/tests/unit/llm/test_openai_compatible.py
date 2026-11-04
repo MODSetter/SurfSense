@@ -4,13 +4,15 @@ import pytest
 
 from modules.llm.connections.service import normalize_base_url, parse_models
 from modules.llm.model_type import ModelType
-from modules.llm.providers.openai_compatible import image as image_module
+from modules.llm.providers.openai_compatible import image_response
 from modules.llm.providers.openai_compatible.chat import _delta
 from modules.llm.providers.openai_compatible.image import (
     NonRetryableImageError,
     OpenAICompatibleImageProvider,
+    _asks_for_picture,
     _route_cache,
 )
+from modules.llm.providers.protocols import GeneratedImage
 from modules.llm.providers.types import Delta
 
 pytestmark = pytest.mark.unit
@@ -135,8 +137,8 @@ def test_delta_reads_openai_sse_and_ignores_done() -> None:
     assert _delta("data: [DONE]") is None
 
 
-async def allow_any(_url: str) -> None:
-    """A caller that has allowed every host."""
+def _provider(connection_id: int) -> OpenAICompatibleImageProvider:
+    return OpenAICompatibleImageProvider(connection_id, "https://example.test/v1")
 
 
 async def test_image_route_falls_back_only_after_missing_standard_route(
@@ -144,12 +146,10 @@ async def test_image_route_falls_back_only_after_missing_standard_route(
 ) -> None:
     """OpenRouter's /images extension is negotiated once and then cached."""
     _route_cache.clear()
-    provider = OpenAICompatibleImageProvider(
-        1, "https://example.test/v1", allow_url_host=allow_any
-    )
+    provider = _provider(1)
     calls: list[str] = []
 
-    async def post(route: str, _model: str, _prompt: str):
+    async def post(route: str, _model: str, _prompt: str, _picture: bool):
         calls.append(route)
         return (404, {}) if route.endswith("generations") else (200, PAYLOAD)
 
@@ -166,12 +166,10 @@ async def test_image_route_does_not_fallback_after_ambiguous_failure(
 ) -> None:
     """A 5xx may follow billed work, so another image request is forbidden."""
     _route_cache.clear()
-    provider = OpenAICompatibleImageProvider(
-        2, "https://example.test/v1", allow_url_host=allow_any
-    )
+    provider = _provider(2)
     calls: list[str] = []
 
-    async def post(route: str, _model: str, _prompt: str):
+    async def post(route: str, _model: str, _prompt: str, _picture: bool):
         calls.append(route)
         return 500, {}
 
@@ -181,31 +179,71 @@ async def test_image_route_does_not_fallback_after_ambiguous_failure(
     assert calls == ["/images/generations"]
 
 
-async def test_an_image_url_is_not_fetched_until_its_host_is_allowed(
+async def test_the_picture_itself_is_asked_for_rather_than_a_link(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The endpoint names the host, so the caller's egress check runs first."""
+    """A link would mean a second request, to a host the provider picks."""
     _route_cache.clear()
-    checked: list[str] = []
+    _asks_for_picture.clear()
+    provider = _provider(4)
+    asked: list[bool] = []
+
+    async def post(_route: str, _model: str, _prompt: str, picture: bool):
+        asked.append(picture)
+        return 200, PAYLOAD
+
+    monkeypatch.setattr(provider, "_post", post)
+    await provider.generate("dall-e-3", "draw")
+
+    assert asked == [True]
+
+
+async def test_a_model_that_refuses_the_setting_is_asked_again_without_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """GPT image models always answer with the picture and refuse the setting;
+    a 400 is a refusal before any work, so asking again bills nothing twice."""
+    _route_cache.clear()
+    _asks_for_picture.clear()
+    provider = _provider(5)
+    asked: list[bool] = []
+
+    async def post(_route: str, _model: str, _prompt: str, picture: bool):
+        asked.append(picture)
+        return (400, {}) if picture else (200, PAYLOAD)
+
+    monkeypatch.setattr(provider, "_post", post)
+    first = await provider.generate("gpt-image-1", "draw")
+    await provider.generate("gpt-image-1", "draw again")
+
+    assert first.content == PNG
+    # Remembered: the next image does not ask with the setting first.
+    assert asked == [True, False, False]
+
+
+async def test_a_link_the_model_returns_is_downloaded_without_asking_egress(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The user allowed this provider; the link is where it put their picture,
+    often on another site, as DALL-E's on Azure storage."""
+    _route_cache.clear()
     fetched: list[str] = []
 
-    async def refuse(url: str) -> None:
-        checked.append(url)
-        raise PermissionError("cdn.example.test is off")
+    async def post(_route: str, _model: str, _prompt: str, _picture: bool):
+        link = "https://oaidalleapiprodscus.blob.core.windows.net/private/x.png"
+        return 200, {"data": [{"url": link}]}
 
-    async def post(_route: str, _model: str, _prompt: str):
-        return 200, {"data": [{"url": "https://cdn.example.test/x.png"}]}
-
-    async def download(url: str) -> None:
+    async def download(url: str) -> GeneratedImage:
         fetched.append(url)
+        return GeneratedImage(PNG, "image/png")
 
-    provider = OpenAICompatibleImageProvider(
-        3, "https://example.test/v1", allow_url_host=refuse
-    )
+    provider = _provider(3)
     monkeypatch.setattr(provider, "_post", post)
-    monkeypatch.setattr(image_module, "_download_image", download)
+    monkeypatch.setattr(image_response, "download_image", download)
 
-    with pytest.raises(PermissionError, match=r"cdn\.example\.test"):
-        await provider.generate("image", "draw")
-    assert checked == ["https://cdn.example.test/x.png"]
-    assert fetched == []
+    image = await provider.generate("dall-e-3", "draw")
+
+    assert image.content == PNG
+    assert fetched == [
+        "https://oaidalleapiprodscus.blob.core.windows.net/private/x.png"
+    ]

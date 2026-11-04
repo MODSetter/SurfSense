@@ -15,6 +15,7 @@ import {
   cancelArtifact,
   createJob,
   deleteArtifact,
+  editImageArtifact,
   listArtifacts,
   listFormats,
   refineArtifact,
@@ -210,6 +211,17 @@ export function useStudio(workspaceId: number, selectionToken = "") {
     }
   )
 
+  // Rejects with the API's reason, for the Edit box to show where it was typed.
+  const editImage = useStableCallback(
+    async (artifactId: number, instruction: string) => {
+      const next = await editImageArtifact(artifactId, instruction)
+      await setList((current) => [
+        next,
+        ...current.filter((artifact) => artifact.id !== next.id),
+      ])
+    }
+  )
+
   // Rejects with the API's reason, for the revised copy's bar to show.
   const decideAll = useStableCallback(
     async (artifactId: number, decision: RevisionDecision) => {
@@ -256,6 +268,7 @@ export function useStudio(workspaceId: number, selectionToken = "") {
     create,
     regenerate,
     refine,
+    editImage,
     decideAll,
     cancel,
     remove,

@@ -10,6 +10,8 @@ from modules.documents.kindle_books.container import (
 # A dictionary entry may be compressed with the same codes; real books nest a
 # few levels, so deeper than this is a loop in a damaged file.
 _MAX_NESTING = 32
+# Codes run 1 to 32 bits; a larger size would build a number of that many bits.
+_MAX_CODE_BITS = 32
 
 
 def huffcdic_decompressor(tables: list[bytes]) -> Callable[[bytes], bytes]:
@@ -29,6 +31,8 @@ def huffcdic_decompressor(tables: list[bytes]) -> Callable[[bytes], bytes]:
         if cdic[:4] != b"CDIC":
             raise KindleBookError("the book's CDIC record is missing")
         header_length, total, code_bits = u32(cdic, 4), u32(cdic, 8), u32(cdic, 12)
+        if code_bits > _MAX_CODE_BITS:
+            raise KindleBookError("the book's CDIC record is damaged")
         body = cdic[header_length:]
         for index in range(min(1 << code_bits, total - len(dictionary))):
             at = u16(body, 2 * index)
