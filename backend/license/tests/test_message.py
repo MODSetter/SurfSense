@@ -111,7 +111,10 @@ def test_idempotency_key_is_carried_through():
 
 # Business ---------------------------------------------------------------------
 
-INDIVIDUAL_PROMISES = ("works on every machine", "never contacts a license server")
+INDIVIDUAL_PROMISES = (
+    "works on every machine",
+    "only when you choose Check for renewal",
+)
 
 
 def business(**fields):
@@ -122,7 +125,8 @@ def business(**fields):
 
 @pytest.mark.parametrize("kind", ["purchase", "resend", "trial", "renewal"])
 def test_no_business_mail_makes_the_individual_promises(kind):
-    """The app fetches a renewed Business file, and Business counts people, not machines."""
+    """The app reaches the license server by itself for a Business license's jobs and its
+    renewed file, and Business counts people, not machines."""
     message = build_license_email(
         kind, to="a@b.test", certificates=("CERT",), business=business(people=4)
     )
@@ -187,12 +191,62 @@ def test_the_business_trial_says_what_stops_and_names_no_portal(monkeypatch):
     assert "https://portal.test/p" not in message.text_body
 
 
-def test_the_individual_purchase_mail_is_unchanged():
-    """Business copy is for Business licenses only; Individual buyers keep what they read."""
+@pytest.mark.parametrize("kind", ["purchase", "trial"])
+def test_a_business_purchase_or_trial_ends_with_the_first_job(kind):
+    """The license is for jobs, so its first mail goes on to one, in the app's own labels."""
+    body = build_license_email(
+        kind, to="a@b.test", certificates=("CERT",), business=business(people=4)
+    ).text_body
+
+    for words in (
+        "5. Run your first job.",
+        "choose Allow",
+        "click Jobs in the left sidebar",
+        "press Run beside Security questionnaire",
+    ):
+        assert words in body
+    assert (
+        body.index("4. Drop the file in")
+        < body.index("5. Run your first job")
+        < body.index(ACTIVATION_GUIDE_URL)
+    )
+
+
+@pytest.mark.parametrize(
+    ("kind", "plan"),
+    [
+        ("purchase", None),
+        ("trial", None),
+        ("resend", None),
+        ("renewal", None),
+        ("resend", business(people=4)),
+        ("renewal", business(people=4)),
+    ],
+)
+def test_no_other_mail_has_a_first_job_step(kind, plan):
+    """A resend or a renewal reaches someone already set up; Individual has no jobs."""
+    message = build_license_email(
+        kind, to="a@b.test", certificates=("CERT",), business=plan
+    )
+
+    assert "Run your first job" not in message.text_body
+    assert "4. Drop the file in" in message.text_body
+
+
+def test_the_individual_purchase_mail_says_when_the_key_leaves():
+    """The Jobs screen offers an Individual license Check for renewal, which sends its key
+    to the license server, so the mail says the key leaves only then."""
     message = build_license_email("purchase", to="a@b.test", certificates=("CERT",))
 
+    assert message.text_body.startswith(
+        "Thanks for buying SurfSense. Your license file is attached.\n\n"
+        "The file is verified offline and works on every machine you install "
+        "SurfSense on. The app sends your license key to SurfSense's license server "
+        "only when you choose Check for renewal.\n\n"
+    )
     for promise in INDIVIDUAL_PROMISES:
         assert promise in message.text_body
+    assert "never contacts a license server" not in message.text_body
 
 
 def test_an_individual_renewal_asks_for_the_file_to_be_imported():

@@ -29,6 +29,16 @@ LICENSE_FILENAME = "surfsense.lic"
 # wants no detour, and the page for one who is stuck on a step.
 ACTIVATION_GUIDE_URL = "https://www.surfsense.com/license/activate"
 
+# Business purchase and trial only: the license is for jobs, so the steps go on to one. It names
+# the app's labels as they read: Allow, Sources, Jobs, Run, Security questionnaire.
+_FIRST_JOB_STEP = (
+    "5. Run your first job. When SurfSense asks to reach its license server, choose Allow, "
+    "and it downloads the job.\n"
+    "   Then upload a questionnaire (.xlsx) and your policies to Sources, click Jobs in the "
+    "left sidebar, and press Run beside Security questionnaire.\n"
+)
+_FIRST_JOB_KINDS: frozenset[LicenseEmailKind] = frozenset({"purchase", "trial"})
+
 
 @dataclass(frozen=True, slots=True)
 class BusinessCopy:
@@ -50,8 +60,10 @@ class BusinessCopy:
         return cls(firm=issued.firm, people=people)
 
 
-def _install_steps(installers: tuple[InstallerLink, ...]) -> str:
-    """Steps from nothing to a working license.
+def _install_steps(
+    installers: tuple[InstallerLink, ...], *, first_job: bool = False
+) -> str:
+    """Steps from nothing to a working license, and with `first_job` to a job run.
 
     The download comes first because the recipient may not have the app yet:
     a trial is handed out to an address, not to an installation. The links go
@@ -64,6 +76,7 @@ def _install_steps(installers: tuple[InstallerLink, ...]) -> str:
         + "2. Save the attached surfsense.lic somewhere you can find it.\n"
         + "3. Open SurfSense and go to Settings -> License.\n"
         + "4. Drop the file in, or paste its contents.\n"
+        + (_FIRST_JOB_STEP if first_job else "")
         + f"\nStuck on a step? The same guide with screenshots: {ACTIVATION_GUIDE_URL}\n"
     )
 
@@ -78,8 +91,9 @@ _SUBJECTS: dict[LicenseEmailKind, str] = {
 _INTROS: dict[LicenseEmailKind, str] = {
     "purchase": (
         "Thanks for buying SurfSense. Your license file is attached.\n\n"
-        "The app never contacts a license server: the file is verified offline "
-        "and works on every machine you install SurfSense on."
+        "The file is verified offline and works on every machine you install "
+        "SurfSense on. The app sends your license key to SurfSense's license "
+        "server only when you choose Check for renewal."
     ),
     "resend": (
         "Here is the SurfSense license file registered to this address.\n\n"
@@ -197,7 +211,10 @@ def build_license_email(
     else:
         subject = _BUSINESS_SUBJECTS[kind].format(days=days)
         intro = _business_intro(kind, business, days)
-    steps = _install_steps(installer_links())
+    steps = _install_steps(
+        installer_links(),
+        first_job=business is not None and kind in _FIRST_JOB_KINDS,
+    )
 
     plural = "" if len(certificates) == 1 else f" ({len(certificates)} files)"
     body = f"{intro}\n\n{steps}\n"
