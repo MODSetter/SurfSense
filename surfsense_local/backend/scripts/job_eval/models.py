@@ -199,7 +199,11 @@ class OpenRouterModel:
             "usage": {"include": True},
         }
         # "default" sends nothing, as the app's connection does: the model thinks if it does.
-        if self.reasoning != "default":
+        # "low" for a model whose reasoning cannot be turned off, as OpenRouter refuses for
+        # Claude Sonnet 5.5: the effort the Messages API runs Claude at.
+        if self.reasoning == "low":
+            body["reasoning"] = {"effort": "low"}
+        elif self.reasoning != "default":
             body["reasoning"] = {"enabled": self.reasoning == "on"}
         reply = self._post(body)
         usage = reply.get("usage") or {}

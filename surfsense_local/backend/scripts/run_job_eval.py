@@ -236,9 +236,12 @@ def main() -> None:
     run_parser.add_argument("--effort", default="low", help="Claude's effort level")
     run_parser.add_argument(
         "--reasoning",
-        choices=("default", "off", "on"),
+        choices=("default", "off", "on", "low"),
         default="default",
-        help="an open model's thinking: as the app leaves it, or forced off or on",
+        help=(
+            "an OpenRouter model's thinking: as the app leaves it, forced off or on, or at "
+            "low effort for a model that must think"
+        ),
     )
     run_parser.add_argument(
         "--embedder",
