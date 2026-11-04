@@ -275,7 +275,8 @@ The line between an edit and a job stands.
   at one person, shown as "Solo".
 - **Price.** A founding price, locked for early customers and a hypothesis to
   test: $60 a year for each person, the first included (1 person $60,
-  2 $120, 5 $300, 10 $600, 15 $900), to rise once sales justify it. It replaces the
+  2 $120, 5 $300, 10 $600, 15 $900), to rise once sales justify it (revised
+  4 Nov 2026). It replaces the
   earlier plan of $1,200 a year per firm and the Individual license's $60,
   then $120.
 - **Billing.** Business renews automatically every year on the same license
@@ -704,14 +705,16 @@ Each with a recommended answer, except where a question now points to 08.
    business jobs need Business,
    priced per person, at a founding price locked for early customers and a
    hypothesis to test: $60 a year for each person, the first included, to
-   rise once sales justify it. It replaces the Individual license's $60,
+   rise once sales justify it (revised 4 Nov 2026). It replaces the
+   Individual license's $60,
    then $120, and the earlier plan of $1,200 a year per firm.
    Self-serve questionnaire tools charge $50 to $249 a month. Two anchors from
    the 1 Nov research are hypotheses, never stated on public pages as fact:
    per-user AI tools for lawyers, accountants and clinicians run about $40 to
    $150 a month per user, and committed questionnaire-tool plans start around
    $3,000 a year. A price rises on evidence, never by gating free features.
-   What is still open about it is 08's open questions a, k and m.
+   What is still open about it is 08's open questions a and k; m was
+   decided on 4 Nov 2026.
 5. **Which job first?** Revised 21 Oct 2026: the questionnaire ships first,
    as a beta about mid-January or mid-February 2027; then RFPs from the same
    library; then the extraction stack; the redline playbook job comes after
@@ -783,7 +786,8 @@ Each with a recommended answer, except where a question now points to 08.
 ([ADR 0080](../../docs/adr/0080-surfsense-sells-one-business-license-priced-per-person.md),
 [ADR 0081](../../docs/adr/0081-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)):
 [08's open questions a to r](seo/08-b2b-artifact-jobs.md#open-questions-for-the-maintainer),
-each with its recommended default and none decided. They ask what Business
+each with its recommended default; d was settled on 2 Nov and m on 4 Nov
+2026. They ask what Business
 includes and costs (a, k, m); who counts as a person, and how shared servers,
 offline firms and hand-issued Team licenses count (b, c, l); where the kept
 crawler and search run (d); where job content lives, under which terms, with

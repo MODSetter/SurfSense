@@ -885,7 +885,7 @@ Settled on 1 Nov 2026:
   who uses one for work needs Business
   ([ADR 0080](../../../docs/adr/0080-surfsense-sells-one-business-license-priced-per-person.md)).
 - **A founding price,** to test: $60 a year for each person, the first
-  included
+  included (revised 4 Nov 2026)
   ([ADR 0080](../../../docs/adr/0080-surfsense-sells-one-business-license-priced-per-person.md)).
 - **Yearly automatic renewal on the same key,** with cancellation and seat
   changes through Stripe's emailed customer-portal link, and no accounts
