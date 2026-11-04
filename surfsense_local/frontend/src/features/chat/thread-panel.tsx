@@ -348,7 +348,7 @@ export function ThreadPanel({
                   className="h-auto max-w-full min-w-0 px-1.5 py-0 font-heading text-base font-medium"
                   onClick={startEditing}
                 >
-                  <span className="sidebar-row-title-fade min-w-0 overflow-hidden whitespace-nowrap">
+                  <span className="min-w-0 truncate">
                     <TypewriterText
                       text={title}
                       animate={animateTitle}
