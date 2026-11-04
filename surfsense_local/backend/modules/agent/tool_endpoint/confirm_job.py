@@ -12,8 +12,14 @@ from sqlalchemy.orm import Session
 
 from modules.agent.tool_endpoint.job_outcome import wait_for_outcome
 from modules.agent.tool_endpoint.render_document import CALL_SECONDS, WAIT_SECONDS
+from modules.agent.tool_endpoint.rendered_label import (
+    RenderedArtifact,
+    first_line,
+    queued_line,
+)
 from modules.agent.tool_endpoint.tool import Tool, ToolCallError
 from modules.agent.tool_endpoint.turn_scope import TurnScope
+from modules.artifacts.script_documents.version import version_of
 from modules.documents.models import DocumentStatus
 from modules.jobs.packs.installed import installed_packs
 from modules.jobs.runs.confirm import confirm_suggestions
@@ -67,6 +73,11 @@ def run(session: Session, scope: TurnScope, arguments: dict[str, Any]) -> str:
         session.rollback()
         raise ToolCallError(str(refused)) from refused
     made_id = made.id
+    # Read before the commit: the first line names the version, so the thread links it.
+    numbered = version_of(made.artifact_metadata)
+    rendered = RenderedArtifact(
+        made_id, made.document.title, numbered.number if numbered is not None else 1
+    )
     # Making the version committed it; the run's record of what it confirms commits here.
     session.commit()
     outcome = wait_for_outcome(
@@ -85,10 +96,13 @@ def run(session: Session, scope: TurnScope, arguments: dict[str, Any]) -> str:
             "confirmed. Ask the user before confirming them again."
         )
     if outcome.status is not DocumentStatus.READY:
-        return f"{named} is still being made. It appears in Studio when it is done."
+        return (
+            f"{queued_line(rendered)}\n{named} is still being made. It appears in Studio "
+            "when it is done."
+        )
     return (
-        f"Done: {named} is in Studio, with the suggested answers written in their cells "
-        "and marked confirmed on the exceptions sheet."
+        f"{first_line(rendered)}\nDone: {named} is in Studio, with the suggested answers "
+        "written in their cells and marked confirmed on the exceptions sheet."
     )
 
 

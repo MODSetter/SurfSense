@@ -173,6 +173,54 @@ def test_a_ready_revise_links_the_revised_copy_it_made() -> None:
     assert step["artifact"] == {"id": 51, "title": "MSA_Acme (revised)", "version": 2}
 
 
+@pytest.mark.parametrize(
+    ("tool", "output", "linked"),
+    [
+        (
+            "surfsense_run_job",
+            "Rendered artifact 61, version 1: Client questionnaire (revised)\n"
+            "Done: version 1 of a revised copy (artifact 61) in Studio, with 40 questions",
+            {"id": 61, "title": "Client questionnaire (revised)", "version": 1},
+        ),
+        (
+            "surfsense_confirm_job_suggestions",
+            "Rendered artifact 64, version 2: Client questionnaire (revised)\n"
+            "Done: The confirmed version (artifact 64) is in Studio",
+            {"id": 64, "title": "Client questionnaire (revised)", "version": 2},
+        ),
+    ],
+    ids=["run", "confirm"],
+)
+def test_a_job_s_steps_link_the_copy_they_made(
+    tool: str, output: str, linked: dict[str, Any]
+) -> None:
+    """A job run opens the revised copy it filled in, and a confirmation the version it made,
+    from the stream and from the stored reply alike."""
+    part = _tool_part(tool, "completed", output=output)
+
+    (streamed,) = _steps(part)
+    (stored,) = turn_reply(_messages(part), "msg_u", [])["content"]["steps"]
+
+    assert streamed["artifact"] == linked
+    assert stored["artifact"] == linked
+
+
+def test_a_job_run_still_answering_links_nothing_yet() -> None:
+    """Its first line names the copy as queued; the thread links it once Studio made it."""
+    (waiting,) = _steps(
+        _tool_part(
+            "surfsense_run_job",
+            "completed",
+            output=(
+                "Queued artifact 61, version 1: Client questionnaire (revised)\n"
+                "The test-questionnaire run (artifact 61) is still answering."
+            ),
+        )
+    )
+
+    assert waiting["artifact"] is None
+
+
 def test_a_saved_page_links_the_version_it_made() -> None:
     """A page the agent saved opens in Studio from its step, as a render does."""
     (done,) = _steps(

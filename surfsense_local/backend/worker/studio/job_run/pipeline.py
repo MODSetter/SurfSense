@@ -34,10 +34,10 @@ from modules.jobs.evidence.retrieval import Embed
 from modules.jobs.evidence.vectors import remembered
 from modules.jobs.packs.access import job_access
 from modules.jobs.packs.installed import find_job
-from modules.jobs.runs.record import JOB_RUN_KEY, job_run_of
+from modules.jobs.runs.record import JOB_RUN_KEY, PROGRESS_KEY, job_run_of
 from modules.jobs.workbook_rows.ask import ModelReply
 from modules.jobs.workbook_rows.config import JobConfig, load_config
-from modules.jobs.workbook_rows.fill import FillResult, fill_workbook
+from modules.jobs.workbook_rows.fill import FillResult, NoQuestionsError, fill_workbook
 from modules.jobs.workbook_rows.operations import confirmation, sheet_lines
 from modules.llm.model_route.api_address import ApiNotRunningError, api_url
 from modules.llm.model_route.client import RoutedGenerator, resolve_routed_generation
@@ -48,6 +48,7 @@ from modules.llm.providers import llamacpp
 from modules.llm.providers.stream_deadline import StreamTimeoutError
 from modules.llm.providers.types import Message
 from modules.llm.resolution import ModelResolutionError, ResolvedGeneration
+from worker.studio.job_run.progress import RunProgress, write_progress
 from worker.studio.shared.generate import complete
 
 logger = logging.getLogger(__name__)
@@ -207,6 +208,10 @@ def work_out(
     settings = {k: v for k, v in (run.get("settings") or {}).items() if k in declared}
     _, window = asyncio.run(selected_model_window(session))
     embed = _embedder(session)
+    engine, artifact_id = session.get_bind(), artifact.id
+    progress = RunProgress(
+        lambda done, total: write_progress(engine, artifact_id, done, total)
+    )
     # Minutes of model calls follow; no transaction may hold the write lock across them.
     session.commit()
     logger.info(
@@ -218,22 +223,27 @@ def work_out(
         len(sources),
         window,
     )
-    filled = fill_workbook(
-        path,
-        sources,
-        config,
-        SelectedModel(model, window),
-        stop=cancelled,
-        embed=embed,
-        checker=SelectedModel(checker, None) if checker else None,
-        settings=settings,
-        take_turns=_one_at_a_time(model, checker),
-    )
+    try:
+        filled = fill_workbook(
+            path,
+            sources,
+            config,
+            SelectedModel(model, window),
+            on_row=progress.on_row,
+            stop=cancelled,
+            embed=embed,
+            checker=SelectedModel(checker, None) if checker else None,
+            settings=settings,
+            take_turns=_one_at_a_time(model, checker),
+        )
+    except NoQuestionsError as none:
+        raise JobRunFailedError(str(none)) from none
     session.refresh(artifact)
     meta = dict(artifact.artifact_metadata or {})
     meta[REVISION_KEY] = {**revision, "operations": filled.operations}
     meta[JOB_RUN_KEY] = {
         **run,
+        PROGRESS_KEY: progress.last,
         "report": report_of(
             filled,
             config,

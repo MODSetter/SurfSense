@@ -13,7 +13,7 @@ from modules.artifacts.revised_copies.engines.excel_inspection import inspect_wo
 from modules.jobs.evidence.passages import SourceText
 from modules.jobs.workbook_rows.ask import ModelReply
 from modules.jobs.workbook_rows.config import load_config
-from modules.jobs.workbook_rows.fill import fill_workbook
+from modules.jobs.workbook_rows.fill import NoQuestionsError, fill_workbook
 from modules.jobs.workbook_rows.layout import find_questions
 
 pytestmark = pytest.mark.unit
@@ -233,6 +233,56 @@ def test_a_reply_that_is_not_json_is_asked_again_then_left_for_review(workbook, 
 
     assert filled.results[0].codes == ["UNREADABLE_REPLY", "NEEDS_REVIEW"]
     assert filled.results[0].calls == 2
+
+
+def test_the_total_is_reported_before_the_first_question(workbook, config):
+    """The screen can say how many questions there are while the sources are still being
+    read, and the last count is every one."""
+    model = ScriptedModel(
+        {
+            "minimum access": [
+                draft(
+                    "Yes",
+                    "Access to client data is granted on a least-privilege basis.",
+                )
+            ],
+            "wiped": [draft("Needs review")],
+            "breach": [draft("Needs review")],
+        }
+    )
+    counted: list[tuple[int, int, int]] = []
+
+    fill_workbook(
+        workbook,
+        [POLICY],
+        config,
+        model,
+        on_row=lambda done, total: counted.append((done, total, len(model.asked))),
+    )
+
+    assert counted[0] == (0, 3, 0)
+    assert counted[-1] == (3, 3, 3)
+
+
+def test_a_workbook_without_questions_is_refused_before_any_embedding(tmp_path, config):
+    """A sheet of figures has nothing to answer: the run says what a questionnaire needs
+    instead of embedding the sources for nothing."""
+    book = openpyxl.Workbook()
+    sheet = book.active
+    sheet.append(["Item", "Cost"])
+    sheet.append(["Pilot", 12000])
+    path = tmp_path / "Pricing.xlsx"
+    book.save(path)
+    embedded: list[list[str]] = []
+
+    def embed(texts: list[str], query: bool) -> list[list[float]]:
+        embedded.append(texts)
+        return [[1.0] for _ in texts]
+
+    with pytest.raises(NoQuestionsError, match="found no questions in this workbook"):
+        fill_workbook(path, [POLICY], config, ScriptedModel({}), embed=embed)
+
+    assert embedded == []
 
 
 def test_only_the_rows_asked_for_are_answered(workbook, config):

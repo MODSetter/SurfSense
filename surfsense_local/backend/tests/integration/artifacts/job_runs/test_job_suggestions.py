@@ -14,6 +14,7 @@ from openpyxl.worksheet.datavalidation import DataValidation
 from sqlalchemy.orm import Session
 
 from modules.agent.tool_endpoint import confirm_job
+from modules.agent.tool_endpoint.rendered_label import rendered_artifact
 from modules.agent.tool_endpoint.tool import ToolCallError
 from modules.agent.tool_endpoint.turn_scope import TurnScope
 from modules.artifacts.models import Artifact
@@ -252,7 +253,11 @@ async def test_the_agent_confirms_a_suggestion_by_its_cell(
 
     said = await asyncio.to_thread(confirm_job.run, session, scope, arguments)
 
-    assert said.startswith("Done: The confirmed version")
+    # The first line names the version, so the thread links it in Studio.
+    first, rest = said.split("\n", 1)
+    confirmed = rendered_artifact(first)
+    assert (confirmed.version, confirmed.title) == (2, "Questionnaire (revised)")
+    assert rest.startswith("Done: The confirmed version")
     with pytest.raises(ToolCallError, match="No suggestion is left to confirm"):
         await asyncio.to_thread(confirm_job.run, session, scope, arguments)
 

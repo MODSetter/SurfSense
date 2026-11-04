@@ -1,6 +1,6 @@
 """What a job run keeps in its revised copy's metadata: which pack and job, which sources, the
-firm's settings and checker model as they were when it started, and once the worker has run it,
-the answers' report.
+firm's settings and checker model as they were when it started, how far it has got, and once
+the worker has run it, the answers' report.
 
 A run is a revised copy whose operations the worker works out first, so Studio shows,
 versions and downloads it like any other.
@@ -9,6 +9,8 @@ versions and downloads it like any other.
 from typing import Any
 
 JOB_RUN_KEY = "job_run"
+# {"done", "total"} once the worker has found the questions; the screens poll it.
+PROGRESS_KEY = "progress"
 
 
 def job_run_of(metadata: dict[str, Any] | None) -> dict[str, Any] | None:
@@ -33,5 +35,6 @@ def pending_job_run(
         "settings": settings or {},
         # A text model by provider, name and connection_id; None checks on the answering one.
         "checker": checker,
+        PROGRESS_KEY: None,
         "report": None,
     }
