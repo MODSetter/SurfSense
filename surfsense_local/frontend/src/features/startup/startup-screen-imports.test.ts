@@ -104,9 +104,9 @@ describe("startup screen's imports", () => {
 
   it("skip what only names types, which loads nothing", () => {
     // It names assistant-ui's matcher type only.
-    expect(
-      loadedBy("/src/features/plugins/in-thread/mention-matcher.ts")
-    ).toEqual([])
+    expect(loadedBy("/src/features/chat/mentions/mention-matcher.ts")).toEqual(
+      []
+    )
   })
 
   it("reach neither the chat runtime nor any feature's API client", () => {

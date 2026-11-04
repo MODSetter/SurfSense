@@ -1,31 +1,41 @@
-import {
-  unstable_useTriggerPopoverRootContextOptional,
-  useAui,
-  useAuiState,
-} from "@assistant-ui/react"
-import { useEffect, useRef, type RefObject } from "react"
-
-import { MENTION_TRIGGER } from "@/features/plugins/in-thread/mention-matcher"
+import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext"
+import { useAui, useAuiState } from "@assistant-ui/react"
+import { $getRoot, $isElementNode, $isTextNode } from "lexical"
+import { useEffect, useRef } from "react"
 
 import type { StartupDraft } from "./startup-input"
 import { useStartupInput } from "./startup-input-context"
 
+function $selectOffset(offset: number) {
+  let left = offset
+  for (const line of $getRoot().getChildren()) {
+    if (!$isElementNode(line)) continue
+    for (const child of line.getChildren()) {
+      const size = child.getTextContentSize()
+      if ($isTextNode(child) && left <= size) {
+        child.select(left, left)
+        return
+      }
+      left -= size
+    }
+    if (left === 0) {
+      line.selectEnd()
+      return
+    }
+    left -= 1
+  }
+  $getRoot().selectEnd()
+}
+
 /**
- * Puts what was typed into the startup frame's box into the composer, caret
- * and all. Rendered inside the composer's trigger root, whose `@` trigger
- * keeps its own cursor: it is told where the caret is, so a mention the
- * caret was left in opens the plugin list as typing it would have.
+ * Puts what was typed into the startup frame's box into the composer, caret and
+ * all. A plugin of the composer's editor, which reports the caret to its `@`
+ * trigger, so a mention the caret was left in opens the list as typing it would.
  */
-export function StartupDraftHandover({
-  draft,
-  inputRef,
-}: {
-  draft: StartupDraft
-  inputRef: RefObject<HTMLTextAreaElement | null>
-}) {
+export function StartupDraftHandover({ draft }: { draft: StartupDraft }) {
+  const [editor] = useLexicalComposerContext()
   const aui = useAui()
   const startup = useStartupInput()
-  const triggers = unstable_useTriggerPopoverRootContextOptional()
   const placed = useRef(false)
   const shown = useAuiState(({ composer }) => composer.text === draft.text)
 
@@ -37,17 +47,12 @@ export function StartupDraftHandover({
 
   // Once the text shows: a caret placed before then would land in nothing.
   useEffect(() => {
-    const box = inputRef.current
-    if (!shown || placed.current || !box) return
+    if (!shown || placed.current) return
     placed.current = true
-    box.focus({ preventScroll: true })
-    box.setSelectionRange(draft.caret, draft.caret)
-    // Absent in Basic chats, which have no `@` list.
-    triggers
-      ?.getTriggers()
-      .get(MENTION_TRIGGER)
-      ?.resource.setCursorPosition(draft.caret)
-  }, [draft, inputRef, shown, triggers])
+    // Focus first: focusing puts a browser's caret at the start of the text.
+    editor.getRootElement()?.focus({ preventScroll: true })
+    editor.update(() => $selectOffset(draft.caret))
+  }, [draft, editor, shown])
 
   return null
 }

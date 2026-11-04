@@ -300,6 +300,37 @@ function sendIn(
 }
 
 describe("useChatRuntime", () => {
+  it("sends a chip as readable text, and its id beside it", async () => {
+    const { result } = renderRuntime()
+    await waitFor(() => expect(result.current.isLoadingThreads).toBe(false))
+
+    sendIn(
+      result,
+      "compare :source[Memo]{name=document:3} and :source[Q3]{name=folder:7}"
+    )
+
+    await waitFor(() => expect(api.sends).toHaveLength(1))
+    expect(api.sends[0].body.text).toBe("compare @Memo and @Q3")
+    expect(api.sends[0].body.mentioned_sources).toEqual({
+      document_ids: [3],
+      folder_ids: [7],
+      chips: [
+        { id: "document:3", at: 8, length: 5 },
+        { id: "folder:7", at: 18, length: 3 },
+      ],
+    })
+  })
+
+  it("adds nothing to a message that names nothing", async () => {
+    const { result } = renderRuntime()
+    await waitFor(() => expect(result.current.isLoadingThreads).toBe(false))
+
+    sendIn(result, "mail me@example.com")
+
+    await waitFor(() => expect(api.sends).toHaveLength(1))
+    expect(api.sends[0].body).not.toHaveProperty("mentioned_sources")
+  })
+
   it.each([false, true])(
     "offers voice input whether the model reads images or not (reads images: %s)",
     async (readsImages) => {

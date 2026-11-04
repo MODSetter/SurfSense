@@ -5,11 +5,13 @@ import TextareaAutosize from "react-textarea-autosize"
 
 import { cn } from "@/lib/utils"
 
+import { composerTextClassName } from "./composer-text-class"
+
 // The composer's shape, drawn by ChatComposer around assistant-ui's parts and
 // by the startup frame on its own: the box it shows first is the box that
 // stays. A new chat's composer is "center", a thread's "bottom".
 
-type Placement = "center" | "bottom"
+export type ComposerPlacement = "center" | "bottom"
 
 /** The column the composer sits in, with what goes above and below its box. */
 export function ComposerColumn({ className, ...props }: ComponentProps<"div">) {
@@ -27,7 +29,7 @@ export function ComposerBox({
   className,
   render,
   ...props
-}: useRender.ComponentProps<"div"> & { placement: Placement }) {
+}: useRender.ComponentProps<"div"> & { placement: ComposerPlacement }) {
   return useRender({
     defaultTagName: "div",
     render,
@@ -47,21 +49,17 @@ export function ComposerBox({
 }
 
 /**
- * The text box: one line at rest, growing with its text. ChatComposer renders
- * it as assistant-ui's input; on its own it is the autosizing textarea that
- * input is built on, so the startup frame's box grows exactly as the
- * composer's does, in every browser. It stays solid while the controls
- * around it fade in at startup.
+ * The startup frame's box: one line at rest, growing with its text, and solid
+ * while the controls around it fade in.
  */
 export function ComposerText({
   placement,
   className,
-  render,
   ...props
-}: useRender.ComponentProps<"textarea"> & { placement: Placement }) {
+}: useRender.ComponentProps<"textarea"> & { placement: ComposerPlacement }) {
   return useRender({
     defaultTagName: "textarea",
-    render: render ?? <TextareaAutosize />,
+    render: <TextareaAutosize />,
     // Marked for the startup fade, which leaves it alone.
     state: { revealSteady: true },
     stateAttributesMapping: {
@@ -70,11 +68,7 @@ export function ComposerText({
     props: mergeProps<"textarea">(
       {
         rows: 1,
-        className: cn(
-          "max-h-44 resize-none bg-transparent px-2 pt-4 pb-2.5 text-sm outline-none placeholder:text-muted-foreground",
-          placement === "center" ? "block min-h-12 w-full" : "min-h-10 flex-1",
-          className
-        ),
+        className: cn(composerTextClassName(placement), className),
       },
       props
     ),

@@ -6,7 +6,7 @@ import { readStoredWorkspaceId } from "@/features/workspaces/last-workspace"
 export type StartupLayout = {
   composer: "center" | "bottom"
   rightPanelOpen: boolean
-  // Whether `@` in a new chat's box names plugins: only in Agentic chats.
+  // Whether `@` in a new chat's box names sources: only in Agentic chats.
   mentions: boolean
 }
 

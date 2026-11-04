@@ -1,4 +1,4 @@
-import { useRef, type MouseEvent, type ReactNode } from "react"
+import { type MouseEvent, type ReactNode } from "react"
 import { ComposerPrimitive, useAuiState } from "@assistant-ui/react"
 
 import { Button } from "@/components/ui/button"
@@ -6,11 +6,11 @@ import { ArrowUp02Icon, CheckIcon, CircleStopIcon } from "@/components/ui/icons"
 import type { Dictation } from "@/features/dictation/dictation-adapter"
 import { MicButton } from "@/features/dictation/mic/mic-button"
 import { DictationStrip } from "@/features/dictation/strip/dictation-strip"
+import { DictationKeysPlugin } from "@/features/dictation/dictation-keys-plugin"
 import { useDictationKeys } from "@/features/dictation/use-dictation-keys"
 import { useDictationStarted } from "@/features/dictation/use-dictation-view"
 import type { ChatMode } from "@/features/models/capability/api"
 import type { ModelSelection } from "@/features/models/selection/api"
-import { PluginMentions } from "@/features/plugins/in-thread/plugin-mentions"
 import { cn } from "@/lib/utils"
 import { intl } from "@/i18n/intl"
 import type { PluginsStart } from "@/features/plugins/plugins-settings"
@@ -19,14 +19,17 @@ import { useStartupDraft } from "@/features/startup/use-startup-draft"
 import { useStartupReveal } from "@/features/startup/use-startup-reveal"
 
 import { ComposerImage } from "./attached-image"
+import { ComposerInput } from "./composer-input/composer-input"
 import { ComposerAddMenu } from "./composer-add-menu"
 import { messageLabel, startPlaceholder } from "./composer-wording"
 import {
   ComposerBox,
   ComposerColumn,
   ComposerControls,
-  ComposerText,
 } from "./composer-surface"
+import type { Mentionables } from "./mentions/mention-items"
+import { messageLength } from "./mentions/mention-text"
+import { SourceMentions } from "./mentions/source-mentions"
 import { ModePicker } from "./modes/mode-picker"
 import { useNewChatMode } from "./modes/new-chat-mode"
 import { ModelPicker, modelControlButtonClassName } from "./model-picker"
@@ -180,6 +183,7 @@ export function ChatComposer({
   onOpenPlugins,
   dictation,
   onOpenSpeechSettings,
+  mentionables,
 }: {
   placement: "center" | "bottom"
   model: ModelSelection | null
@@ -209,6 +213,8 @@ export function ChatComposer({
   dictation?: Dictation
   // Opens Settings › Speech recognition, from the mic's set-up.
   onOpenSpeechSettings?: () => void
+  // What `@` can name in an Agentic chat.
+  mentionables?: Mentionables
 }) {
   const newChatMode = useNewChatMode(model)
   // The agent reads no attached images yet: an Agentic chat takes none. Images
@@ -217,10 +223,9 @@ export function ChatComposer({
   // Said only once the cap is reached: that is the moment typing, or the tail
   // of a paste, stops landing, and the one moment it needs explaining.
   const atLimit = useAuiState(
-    ({ composer }) => composer.text.length >= QUESTION_MAX_CHARS
+    ({ composer }) => messageLength(composer.text) >= QUESTION_MAX_CHARS
   )
   const reveal = useStartupReveal()
-  const inputRef = useRef<HTMLTextAreaElement>(null)
   const startupDraft = useStartupDraft()
   const dictationKeys = useDictationKeys(dictation)
   // While the microphone starts, the mic's spinner says so and nothing else moves.
@@ -288,54 +293,39 @@ export function ChatComposer({
           reveal.className
         )}
       >
-        <ComposerPrimitive.Unstable_TriggerPopoverRoot>
-          {/* Plugins reach Agentic threads only, so only their composer names tools. */}
-          {agentic ? <PluginMentions /> : null}
-          {startupDraft ? (
-            <StartupDraftHandover draft={startupDraft} inputRef={inputRef} />
-          ) : null}
+        <ComposerPrimitive.TriggerPopoverRoot>
+          {/* A Basic chat only filters by source, so naming one would change nothing there. */}
+          {agentic ? <SourceMentions mentionables={mentionables} /> : null}
           {placement === "bottom" ? addMenu("-mr-1.5 mb-0.5") : null}
-          {/* assistant-ui's own input, autosizing, in the composer's shape. */}
-          <ComposerText
+          <ComposerInput
             placement={placement}
-            render={
-              <ComposerPrimitive.Input
-                ref={inputRef}
-                // The handover focuses it with the caret where the user left it.
-                autoFocus={startupDraft === null}
-                unstable_focusOnThreadSwitched
-                aria-describedby={describedBy}
-                // Held whenever a send could not go anywhere: no model, a model that
-                // can't be used, or egress to it still off.
-                disabled={inputDisabled}
-                // Voice input writes the text meanwhile; the box keeps its focus and keys.
-                readOnly={dictationKeys.recording}
-                cancelOnEscape={!dictationKeys.recording}
-                onKeyDown={dictationKeys.onKeyDown}
-                placeholder={
-                  blockedPlaceholder !== undefined
-                    ? blockedPlaceholder
-                    : !model || providerAvailable
-                      ? placement === "center"
-                        ? startPlaceholder()
-                        : intl.formatMessage({
-                            id: "chat_composer_follow_up_placeholder",
-                            defaultMessage: "Follow up on this answer",
-                          })
-                      : intl.formatMessage({
-                          id: "chat_composer_provider_offline_placeholder",
-                          defaultMessage:
-                            "Reconnect your model provider to send",
-                        })
-                }
-                submitMode="enter"
-                addAttachmentOnPaste={readsImages && !agentic}
-                rows={1}
-                maxLength={QUESTION_MAX_CHARS}
-                aria-label={messageLabel()}
-              />
+            blocked={inputDisabled}
+            // The handover focuses it with the caret where the user left it.
+            autoFocus={startupDraft === null}
+            describedBy={describedBy}
+            placeholder={
+              blockedPlaceholder !== undefined
+                ? blockedPlaceholder
+                : !model || providerAvailable
+                  ? placement === "center"
+                    ? startPlaceholder()
+                    : intl.formatMessage({
+                        id: "chat_composer_follow_up_placeholder",
+                        defaultMessage: "Follow up on this answer",
+                      })
+                  : intl.formatMessage({
+                      id: "chat_composer_provider_offline_placeholder",
+                      defaultMessage: "Reconnect your model provider to send",
+                    })
             }
-          />
+            ariaLabel={messageLabel()}
+            takesImages={readsImages && !agentic}
+          >
+            <DictationKeysPlugin dictation={dictation} />
+            {startupDraft ? (
+              <StartupDraftHandover draft={startupDraft} />
+            ) : null}
+          </ComposerInput>
           {placement === "center" ? (
             // Its own row under the text, never over it: long text scrolls
             // inside the box and stops above the controls.
@@ -381,7 +371,7 @@ export function ChatComposer({
               />
             </>
           )}
-        </ComposerPrimitive.Unstable_TriggerPopoverRoot>
+        </ComposerPrimitive.TriggerPopoverRoot>
       </ComposerBox>
       {placement === "center" && limitNotice ? (
         <p

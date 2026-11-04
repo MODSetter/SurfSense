@@ -25,7 +25,7 @@ A chat thread belongs to a workspace. Each user message retrieves its own contex
 | `POST` | `/workspaces/{workspace_id}/source-scope/resolve` | count a draft scope, for a new chat or a Studio job |
 | `POST` | `/chat/threads/{thread_id}/permissions/{request_id}` | answer an agent thread's request to run something, `{"reply": "once" \| "reject"}`; `204` ([Agent threads](#agent-threads)) |
 
-A message body is `{"text": "...", "source_scope": {...}, "document_ids": [...], "images": [...], "thinking": true, "retry_of": null}`; `images` is covered in [Images](#images), `thinking` in [The thinking switch](#the-thinking-switch) and `retry_of` in [Retry](#retry). A sent `source_scope` is validated, stored on the thread and used, in one transaction, so ticking a box and pressing Enter cannot race. With none, `document_ids` keeps its older meaning for plugins and older clients: an explicit list, at most 1,000 ids, each in the thread's workspace (`422`) and `ready` (`409`), an empty list retrieving nothing. With neither, the thread's stored scope is used. An agent thread resolves its turn's sources the same way, with no cap on the resolved ids ([agent](agent.md#the-ticked-sources)).
+A message body is `{"text": "...", "source_scope": {...}, "document_ids": [...], "mentioned_sources": {...}, "images": [...], "thinking": true, "retry_of": null}`; `mentioned_sources` is an agent thread's alone ([agent](agent.md#sources-named-with-)), `images` is covered in [Images](#images), `thinking` in [The thinking switch](#the-thinking-switch) and `retry_of` in [Retry](#retry). A sent `source_scope` is validated, stored on the thread and used, in one transaction, so ticking a box and pressing Enter cannot race. With none, `document_ids` keeps its older meaning for plugins and older clients: an explicit list, at most 1,000 ids, each in the thread's workspace (`422`) and `ready` (`409`), an empty list retrieving nothing. With neither, the thread's stored scope is used. An agent thread resolves its turn's sources the same way, with no cap on the resolved ids ([agent](agent.md#the-ticked-sources)).
 
 ## Source scope
 
@@ -252,6 +252,7 @@ Interface strings are `dictation_<surface>_<purpose>`, and a server code is `dic
 
 - A citation renders as a chip showing the chunk id, and the chip is a real button. Clicking it opens the citation panel in the right rail.
 - The panel loads `GET /workspaces/{id}/documents/by-chunk/{chunk_id}?chunk_window=5`: the cited chunk and up to five neighbours on each side in document order, scoped to the workspace, so another workspace's chunk is a `404`. It highlights the cited chunk, scrolls to it, says how many chunks lie outside the window, and for an uploaded file offers "Open file", which opens the original through the preload bridge.
+- A chunk renders as markdown ([`citation-chunk-text.tsx`](../../surfsense_local/frontend/src/features/chat/citation-chunk-text.tsx)), its text being a file's or a web page's own: only ordinary links stay links, and each asks first; a remote image is never loaded, since fetching one would pass egress consent, and reads as its description or goes; a long address breaks rather than leave the card. Each chunk parses alone, so one that begins inside a code fence or table its neighbour opened reads a little off.
 
 ## Accessibility
 

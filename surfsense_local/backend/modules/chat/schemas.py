@@ -1,12 +1,13 @@
 from datetime import datetime
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
 
 from modules.chat.budget import QUESTION_CHARS
 from modules.chat.models import MessageRole
 from modules.llm.capability.modes import ChatMode
-from modules.source_scope.schemas import SourceScope
+from modules.source_scope.mentioned import ticks_of
+from modules.source_scope.schemas import MentionedSources, SourceScope
 
 ThreadTitle = Annotated[
     str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)
@@ -76,6 +77,11 @@ class ThreadRead(BaseModel):
     # Where that reply stands; None when nothing is being generated.
     run_state: RunStateRead | None = None
 
+    @field_validator("source_scope", mode="before")
+    @classmethod
+    def _ticks_alone(cls, stored: Any) -> Any:
+        return ticks_of(stored) if isinstance(stored, dict) else stored
+
 
 class MessageCreate(BaseModel):
     """The user's turn; the assistant's is streamed, not posted.
@@ -84,7 +90,8 @@ class MessageCreate(BaseModel):
     this turn; omitted, the thread's stored scope is used. `document_ids` is the
     older explicit list, kept for plugins and older clients: used only when no
     `source_scope` is sent, it must name ready sources, and an empty list
-    retrieves nothing. `images` reach only a model that reads them; any other
+    retrieves nothing. `mentioned_sources` are what an agent turn's message named
+    with `@`, added to the thread's scope; a chat ignores them. `images` reach only a model that reads them; any other
     gets a 409. `thinking` off asks for the answer with no trace, which only the
     local runtime can be told. `retry_of` names the thread's latest reply when
     it failed or was cut off, which this turn replaces.
@@ -93,6 +100,7 @@ class MessageCreate(BaseModel):
     text: MessageText
     source_scope: SourceScope | None = None
     document_ids: Annotated[list[DocumentId], Field(max_length=1000)] | None = None
+    mentioned_sources: MentionedSources | None = None
     images: Annotated[list[ImageUpload], Field(max_length=MAX_IMAGES)] = []
     thinking: bool = True
     retry_of: Annotated[int, Field(gt=0)] | None = None
