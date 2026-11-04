@@ -1,4 +1,4 @@
-# ADR 0080: SurfSense's platform scrapers retire, and reading web pages, YouTube and search move into the app for free
+# ADR 0081: SurfSense's platform scrapers retire, and reading web pages, YouTube and search move into the app for free
 
 - **Status:** Accepted
 - **Date:** 2026-11-01, revised 2026-11-02
@@ -10,7 +10,7 @@
 
 The plugin host runs ten scraper plugins, each needing a SurfSense license ([plugin host](../architecture/plugin-host.md)): Google Search, Web Crawl, Reddit, YouTube, Instagram, TikTok, Google Maps, Amazon, Walmart and Indeed. The pricing page already leaves out Reddit and Instagram, which close their public pages to readers who are not signed in. PostHog shows that people use three of them to add sources from the web: Web Crawl, YouTube, and Google Search, whose SearXNG fallback answers when Google walls the host. The others go almost unused. They cost upkeep, residential proxies and captcha solving: Google walls most residential IPs, and a paid solver passes its reCAPTCHA page.
 
-SurfSense's paid offer moves to the B2B job plugins, which run on the user's machine ([ADR 0067](0067-b2b-jobs-ship-as-paid-plugins.md)) and unlock with a Business license ([ADR 0079](0079-surfsense-sells-one-business-license-priced-per-person.md)). Add from the web ([ADR 0068](0068-surfsense-calls-its-own-plugins-to-pull-a-link-into-sources.md)) routes a link to its site's own puller, and any other link to Web Crawl ([`links.py`](../../surfsense_local/backend/modules/documents/web_sources/links.py)), and it searches through the Google Search plugin.
+SurfSense's paid offer moves to the B2B job plugins, which run on the user's machine ([ADR 0067](0067-b2b-jobs-ship-as-paid-plugins.md)) and unlock with a Business license ([ADR 0080](0080-surfsense-sells-one-business-license-priced-per-person.md)). Add from the web ([ADR 0068](0068-surfsense-calls-its-own-plugins-to-pull-a-link-into-sources.md)) routes a link to its site's own puller, and any other link to Web Crawl ([`links.py`](../../surfsense_local/backend/modules/documents/web_sources/links.py)), and it searches through the Google Search plugin.
 
 ## Decision
 
@@ -20,7 +20,7 @@ SurfSense's paid offer moves to the B2B job plugins, which run on the user's mac
   - YouTube transcripts, fetched over the user's own connection;
   - web search through SearXNG, by default SurfSense's hosted instance, with a setting for the firm's own.
 - **The Google scraper is dropped.** SearXNG can include Google among its engines, and the scraper needed residential proxies and a captcha solver.
-- **All of it happens in the release that ships the first paid job,** the same release in which Business goes on sale and Individual sales stop ([ADR 0079](0079-surfsense-sells-one-business-license-priced-per-person.md)), so the paid offer is never empty. Until then the scrapers stay on sale.
+- **All of it happens in the release that ships the first paid job,** the same release in which Business goes on sale and Individual sales stop ([ADR 0080](0080-surfsense-sells-one-business-license-priced-per-person.md)), so the paid offer is never empty. Until then the scrapers stay on sale.
 - **No paid plugin is left on the plugin host.** SurfSense's paid plugins are now the job plugins, which run on the user's machine (ADR 0067).
 
 ## Consequences

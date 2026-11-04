@@ -1,6 +1,6 @@
 # ADR 0068: SurfSense calls its own plugins to pull a link into Sources, with no agent
 
-- **Status:** Accepted; amended by [ADR 0080](0080-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md): seven platform pullers retire, and their links fall back to page reading; reading web pages, YouTube and web search move into the app, free for everyone, so "The license is the gate" no longer applies to them
+- **Status:** Accepted; amended by [ADR 0081](0081-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md): seven platform pullers retire, and their links fall back to page reading; reading web pages, YouTube and web search move into the app, free for everyone, so "The license is the gate" no longer applies to them
 - **Date:** 2026-10-22
 - **Source:** [sources-from-the-web.md](https://github.com/MODSetter/SurfSense/blob/8c0ad2ab6ca8fefa324e28362b669e876e81917d/docs/proposals/sources-from-the-web.md)
 

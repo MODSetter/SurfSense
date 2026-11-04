@@ -1,6 +1,6 @@
 # ADR 0054: SurfSense's own plugins, free and paid, run on one plugin host, with the registry served beside it
 
-- **Status:** Accepted; amended by [ADR 0080](0080-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md): SurfSense's platform scrapers on the host retire, and Web Crawl and web search stay, free for everyone
+- **Status:** Accepted; amended by [ADR 0081](0081-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md): SurfSense's platform scrapers on the host retire, and Web Crawl and web search stay, free for everyone
 - **Date:** 2026-10-10
 - **Supersedes:** [ADR 0047](0047-premium-plugins-are-source-available.md) in part: paid plugins living in `plugins/proprietary/`, each a container of its own
 - **Source:** design discussion, 10 Oct 2026 (no permalink)

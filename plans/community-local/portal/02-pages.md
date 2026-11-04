@@ -83,8 +83,8 @@ No login. Resend always answers 200 so nobody can probe which addresses bought.
 ## Business and the retired scrapers
 
 **Decided 1 Nov 2026, not built**
-([ADR 0079](../../../docs/adr/0079-surfsense-sells-one-business-license-priced-per-person.md),
-[ADR 0080](../../../docs/adr/0080-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)).
+([ADR 0080](../../../docs/adr/0080-surfsense-sells-one-business-license-priced-per-person.md),
+[ADR 0081](../../../docs/adr/0081-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)).
 Business, priced per person, becomes the one paid license, and the Individual
 license stops being sold. Seven platform scrapers retire, while reading web
 pages, YouTube transcripts and web search move into the app, free for
