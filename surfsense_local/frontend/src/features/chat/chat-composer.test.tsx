@@ -17,7 +17,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import type { ModelSelection } from "@/features/models/selection/api"
-import type { Plugin } from "@/features/plugins/api"
+import type { Plugin, PluginTool } from "@/features/plugins/api"
 import {
   createStartupInput,
   type StartupInput,
@@ -805,6 +805,40 @@ describe("chat composer", () => {
     screen.getByRole("menuitem", { name: "Manage plugins" }).focus()
     await user.keyboard("{Enter}")
     expect(onOpenPlugins).toHaveBeenCalledOnce()
+  })
+
+  it("scrolls the plugin rows alone, under what stays in reach", async () => {
+    const tool = { name: "search", enabled: true } as PluginTool
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) =>
+        String(input) === "/plugins/third-party"
+          ? Response.json({ allowed: true })
+          : String(input) === "/plugins"
+            ? Response.json([plugin({ tools: [tool] })])
+            : Response.json([])
+      )
+    )
+    const user = userEvent.setup()
+    render(
+      <TooltipProvider>
+        <Harness threadMode="agentic" onOpenPlugins={vi.fn()} />
+      </TooltipProvider>
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "Add images, sources, and more" })
+    )
+    // By keyboard: jsdom has no pointer path, so a pointer would leave the submenu.
+    ;(await screen.findByRole("menuitem", { name: "Plugins" })).focus()
+    await user.keyboard("{ArrowRight}")
+    const row = await screen.findByRole("menuitemcheckbox", { name: /Notes/ })
+
+    const rows = row.closest("[data-slot=scroll-fade-viewport]")
+    expect(rows).toBeTruthy()
+    expect(rows?.textContent).not.toContain("Manage plugins")
+    expect(screen.getByText("Manage plugins")).toBeTruthy()
+    expect(screen.getByText("Applies to all Agentic chats")).toBeTruthy()
   })
 
   it("opens Settings › Plugins on Browse or Add custom plugin from the add menu", async () => {

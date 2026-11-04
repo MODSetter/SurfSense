@@ -9,6 +9,7 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu"
+import { ScrollFade } from "@/components/ui/scroll-fade"
 import {
   EllipsisIcon,
   GridViewIcon,
@@ -174,16 +175,19 @@ export function PluginsMenu({
               })}
             </DropdownMenuItem>
           ) : (
-            connected.map((plugin) => (
-              <PluginSwitchItem
-                key={plugin.id}
-                plugin={plugin}
-                usable={plugin.source === "first_party" || thirdPartyOn}
-                onEnabled={(enabled) =>
-                  changes.plugin.mutate({ plugin: plugin.id, enabled })
-                }
-              />
-            ))
+            // Six rows and half of a seventh at 28 px each: the cut row says there is more.
+            <ScrollFade viewportClassName="h-auto max-h-[182px]">
+              {connected.map((plugin) => (
+                <PluginSwitchItem
+                  key={plugin.id}
+                  plugin={plugin}
+                  usable={plugin.source === "first_party" || thirdPartyOn}
+                  onEnabled={(enabled) =>
+                    changes.plugin.mutate({ plugin: plugin.id, enabled })
+                  }
+                />
+              ))}
+            </ScrollFade>
           )}
         </DropdownMenuGroup>
       </DropdownMenuSubContent>
