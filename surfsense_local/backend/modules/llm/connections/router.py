@@ -291,6 +291,7 @@ async def list_connection_models(
             capability_level=capability_of(model.name, connection).level
             if ModelType.TEXT_GEN in slots
             else None,
+            voices=list(model.voices),
         )
         for model in models
         for slots in [

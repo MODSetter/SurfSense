@@ -24,6 +24,8 @@ export type ConnectionModel = {
   unusable_reason?: string | null
   /** Its measured level, for a model that can fill the chat slot. */
   capability_level?: CapabilityLevel | null
+  /** The voices the endpoint publishes for it; a typed model has none. */
+  voices?: string[]
 }
 
 export function getConnectionModels(

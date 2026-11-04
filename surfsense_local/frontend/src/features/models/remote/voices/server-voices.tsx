@@ -3,6 +3,7 @@ import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { ExternalLinkIcon, PlayIcon, Trash2Icon } from "@/components/ui/icons"
 import { Input } from "@/components/ui/input"
+import { ScrollFade } from "@/components/ui/scroll-fade"
 import { Spinner } from "@/components/ui/spinner"
 import { intl } from "@/i18n/intl"
 
@@ -63,11 +64,17 @@ export function ServerVoices() {
               id: "models_server_voices_listed_body",
               defaultMessage: "Listed by the server",
             })
-          : intl.formatMessage({
-              id: "models_server_voices_saved_body",
-              defaultMessage:
-                "This server doesn’t list its voices. Add the IDs you want; each is played once before it’s kept. A podcast needs one per speaker.",
-            })}
+          : source === "published"
+            ? intl.formatMessage({
+                id: "models_server_voices_published_body",
+                defaultMessage:
+                  "Published for this model. You can also add a voice by its ID; it’s played once before it’s kept.",
+              })
+            : intl.formatMessage({
+                id: "models_server_voices_saved_body",
+                defaultMessage:
+                  "This server doesn’t list its voices. Add the IDs you want; each is played once before it’s kept. A podcast needs one per speaker.",
+              })}
         {page ? (
           <>
             {" "}
@@ -95,23 +102,30 @@ export function ServerVoices() {
       </p>
 
       {voices.data.voices.length ? (
-        <ul className="divide-y rounded-lg border">
-          {voices.data.voices.map((voice) => (
-            <VoiceRow
-              key={voice}
-              voice={voice}
-              read={voices.data}
-              onRemove={
-                listed
-                  ? undefined
-                  : () =>
-                      void remove
-                        .mutateAsync(voice)
-                        .catch((cause: unknown) => setError(messageFrom(cause)))
-              }
-            />
-          ))}
-        </ul>
+        <ScrollFade
+          className="overflow-hidden rounded-lg border"
+          viewportClassName="max-h-56"
+        >
+          <ul className="divide-y">
+            {voices.data.voices.map((voice) => (
+              <VoiceRow
+                key={voice}
+                voice={voice}
+                read={voices.data}
+                onRemove={
+                  voices.data.added.includes(voice)
+                    ? () =>
+                        void remove
+                          .mutateAsync(voice)
+                          .catch((cause: unknown) =>
+                            setError(messageFrom(cause))
+                          )
+                    : undefined
+                }
+              />
+            ))}
+          </ul>
+        </ScrollFade>
       ) : null}
 
       {listed ? null : (

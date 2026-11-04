@@ -68,6 +68,8 @@ These are the rules that compile fine and still break. Check
   `ComboboxContent`, with `ComboboxTrigger` showing the value (shadcn's Popup
   pattern). With the input outside, the chosen label sits in the search, and a
   render with new `items` resets what was typed.
+- A field taking any text with suggestions is `Autocomplete`, which shares the
+  combobox's parts and keeps what is typed as its value (see `voice-field.tsx`).
 
 ## Tooltips and tabs
 
