@@ -32,6 +32,7 @@ from modules.embedding.active import active_index
 from modules.jobs.evidence.passages import SourceText
 from modules.jobs.evidence.retrieval import Embed
 from modules.jobs.evidence.vectors import remembered
+from modules.jobs.packs.access import job_access
 from modules.jobs.packs.installed import find_job
 from modules.jobs.runs.record import JOB_RUN_KEY, job_run_of
 from modules.jobs.workbook_rows.ask import ModelReply
@@ -184,6 +185,11 @@ def work_out(
             f'The job pack for "{run["job"]}" is no longer installed, so the run cannot finish.'
         )
     pack, job = found
+    # Checked again here, not only when the run started: Studio's Retry runs a failed or
+    # cancelled one afresh, perhaps after its licence has lapsed.
+    access = job_access(session, pack.manifest, job)
+    if not access.allowed:
+        raise JobRunFailedError(access.reason)
     config = load_config(pack.path(job.config))
     workbook = session.get(Document, revision["derived_from_document_id"])
     path = original_path(workbook) if workbook is not None else None

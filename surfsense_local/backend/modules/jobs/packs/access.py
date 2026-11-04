@@ -28,7 +28,8 @@ class Access:
 
 
 def job_access(session: Session, manifest: PackManifest, job: PackJob) -> Access:
-    """The one check every run and every listing of a job goes through."""
+    """The one check a run passes when it starts and again when the worker works it out, so
+    a retried run is checked too; the pack listing says what it would answer."""
     if manifest.access == "free" or os.environ.get(DEV_SWITCH) == "1":
         return Access(True, "")
     if job.entitlement is None:
@@ -36,9 +37,10 @@ def job_access(session: Session, manifest: PackManifest, job: PackJob) -> Access
             False, f"{job.name} names no licence entitlement, so no licence unlocks it."
         )
     held = status(session)
-    if held.state == "active" and job.entitlement in entitlements(held):
+    carried = job.entitlement in entitlements(held)
+    if held.state == "active" and carried:
         return Access(True, "")
-    return Access(False, _refusal(held, job.name))
+    return Access(False, _refusal(held, job.name, carried))
 
 
 def entitlements(held: LicenseStatus) -> frozenset[str]:
@@ -50,20 +52,22 @@ def entitlements(held: LicenseStatus) -> frozenset[str]:
     return frozenset(code.strip() for code in jobs or () if code and code.strip())
 
 
-def _refusal(held: LicenseStatus, name: str) -> str:
+def _refusal(held: LicenseStatus, name: str, carried: bool) -> str:
+    """Why the job cannot run, with the step that would let it: a licence that never carries the
+    job is not told to renew, since renewing it would not unlock the job."""
+    if held.state == "none":
+        return f"{name} needs a SurfSense Business licence, or its 14-day trial."
+    if not carried:
+        return (
+            f"Your SurfSense licence does not include {name}: it comes with a Business "
+            "licence, or its 14-day trial."
+        )
     if held.state == "license_expired":
         return (
             f"Your SurfSense licence has expired, so {name} cannot run. Renew it, or import "
             "its newer file in Settings."
         )
-    if held.state == "clock_untrusted":
-        return (
-            f"This computer's clock is behind a time your licence was already seen at, so "
-            f"{name} cannot run until the clock is right."
-        )
-    if held.state == "active":
-        return (
-            f"Your SurfSense licence does not include {name}: it comes with a Business "
-            "licence, or its 14-day trial."
-        )
-    return f"{name} needs a SurfSense Business licence, or its 14-day trial."
+    return (
+        f"This computer's clock is behind a time your licence was already seen at, so "
+        f"{name} cannot run until the clock is right."
+    )

@@ -12,7 +12,8 @@ from modules.jobs.packs.manifest import (
     PackJob,
     PackManifest,
     PackRefusedError,
-    read_manifest,
+    parse_manifest,
+    read_raw_manifest,
 )
 from modules.jobs.packs.signature import check_signature
 from shared.config import get_storage_settings
@@ -46,8 +47,9 @@ def installed_packs(root: Path | None = None) -> list[InstalledPack]:
         if folder.parent.name.startswith("."):
             continue
         try:
-            manifest = read_manifest(folder)
-            check_signature(folder)
+            raw = read_raw_manifest(folder)
+            manifest = parse_manifest(raw)
+            check_signature(folder, raw)
             check_files(folder, manifest)
         except PackRefusedError as refused:
             logger.warning("job pack %s left out: %s", folder, refused.message)

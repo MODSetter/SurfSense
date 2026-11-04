@@ -16,7 +16,8 @@ from modules.jobs.packs.manifest import (
     MANIFEST,
     PackManifest,
     PackRefusedError,
-    read_manifest,
+    parse_manifest,
+    read_raw_manifest,
     safe_path,
 )
 from modules.jobs.packs.signature import check_signature
@@ -36,8 +37,9 @@ def install_pack(source: Path, root: Path) -> PackManifest:
             raise PackRefusedError(
                 "NOT_A_PACK", f"{source.name} is neither a pack folder nor a .zip."
             )
-        manifest = read_manifest(staged)
-        check_signature(staged)
+        raw = read_raw_manifest(staged)
+        manifest = parse_manifest(raw)
+        check_signature(staged, raw)
         check_files(staged, manifest)
         target = root / manifest.id / manifest.version
         old_versions = [p for p in (root / manifest.id).glob("*") if p.is_dir()]

@@ -75,7 +75,9 @@ def test_a_licence_carrying_the_job_s_entitlement_unlocks_it(licence, plan, jobs
         ("active", None, "does not include Security questionnaire"),
         ("active", "JOB_OTHER", "does not include Security questionnaire"),
         ("license_expired", CODE, "licence has expired"),
+        ("license_expired", None, "does not include Security questionnaire"),
         ("clock_untrusted", CODE, "clock"),
+        ("clock_untrusted", "JOB_OTHER", "does not include Security questionnaire"),
     ],
 )
 def test_without_an_active_licence_carrying_it_the_job_is_refused(

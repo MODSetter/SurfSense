@@ -208,3 +208,37 @@ async def test_installed_packs_are_listed_with_whether_they_may_run(
 
     assert [(p["id"], p["unlocked"]) for p in locked] == [("test-jobs", False)]
     assert unlocked[0]["unlocked"] and unlocked[0]["jobs"][0]["key"] == JOB
+    (job,) = locked[0]["jobs"]
+    assert (job["entitlement"], job["unlocked"]) == ("JOB_TEST_QUESTIONNAIRE", False)
+    assert "Business licence" in job["locked_reason"]
+    assert job["locked_reason"] == locked[0]["locked_reason"]
+
+
+async def test_a_run_retried_without_access_fails_with_the_reason(
+    session: Session,
+    workspace: Workspace,
+    client: AsyncClient,
+    pack: None,
+    model: list[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The worker checks access as well, so a run worked out after access is lost, as Studio's
+    Retry does, fails with the licence's reason and asks the model nothing."""
+    monkeypatch.setenv(DEV_SWITCH, "1")
+    workspace_id = workspace.id
+    workbook_id = add_source(session, workspace_id, "Q.xlsx", _questionnaire())
+    plan_id = _plan(session, workspace_id)
+    started = await client.post(
+        f"/workspaces/{workspace_id}/job-runs",
+        json={"job": JOB, "document_id": workbook_id, "source_ids": [plan_id]},
+    )
+    assert started.status_code == 201, started.text
+    monkeypatch.delenv(DEV_SWITCH)
+
+    await asyncio.to_thread(run, started.json()["artifact_id"])
+
+    session.expire_all()
+    artifact = session.get(Artifact, started.json()["artifact_id"])
+    assert artifact.document.status is DocumentStatus.FAILED
+    assert "Business licence" in (artifact.document.error_message or "")
+    assert model == []

@@ -62,8 +62,13 @@ class PackManifest:
 
 
 def read_manifest(folder: Path) -> PackManifest:
+    return parse_manifest(read_raw_manifest(folder))
+
+
+def read_raw_manifest(folder: Path) -> object:
+    """The manifest as read, once: what the signature is checked against is what is used."""
     try:
-        raw = json.loads((folder / MANIFEST).read_text(encoding="utf-8"))
+        return json.loads((folder / MANIFEST).read_text(encoding="utf-8"))
     except FileNotFoundError as missing:
         raise PackRefusedError(
             "NOT_A_PACK", f"No {MANIFEST} in {folder.name}."
@@ -72,7 +77,6 @@ def read_manifest(folder: Path) -> PackManifest:
         raise PackRefusedError(
             "BAD_MANIFEST", f"{MANIFEST} is not readable JSON."
         ) from broken
-    return parse_manifest(raw)
 
 
 def parse_manifest(raw: object) -> PackManifest:

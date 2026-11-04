@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
 from modules.jobs.packs.install import install_pack, remove_pack
 from modules.jobs.packs.installed import installed_packs
@@ -178,8 +179,9 @@ def test_a_pack_signed_with_another_key_is_refused(tmp_path):
 
 
 def test_a_signature_holds_across_line_endings_and_indents(tmp_path):
-    """What is signed is the manifest's content, so a checkout that turns its line endings
-    into CRLF or a reindent leaves the pack installable."""
+    """What is signed is the manifest's content, so the manifest rewritten with CRLF line
+    endings or another indent stays installable. The other files are checked byte for byte,
+    so a pack's repository converts no line endings."""
     pack = write_pack(tmp_path / "pack")
     manifest = json.loads((pack / "job-pack.json").read_text())
     (pack / "job-pack.json").write_bytes(
@@ -216,3 +218,54 @@ def test_a_job_s_entitlement_is_a_licence_code(tmp_path, entitlement):
     (pack / "job-pack.json").write_text(json.dumps(manifest))
 
     assert _refused(pack, tmp_path / "installed") == "BAD_MANIFEST"
+
+
+def test_a_manifest_edited_after_install_is_left_out(tmp_path):
+    """Read again later, a manifest changed on disk breaks its signature though every file
+    still matches it."""
+    root = tmp_path / "installed"
+    install_pack(write_pack(tmp_path / "pack"), root)
+    installed = root / "acme-jobs" / "1.0.0" / "job-pack.json"
+    manifest = json.loads(installed.read_text())
+    manifest["access"] = "free"
+    installed.write_text(json.dumps(manifest))
+
+    assert installed_packs(root) == []
+
+
+def test_a_manifest_that_cannot_be_signed_is_refused_not_a_crash(tmp_path):
+    """A lone surrogate in the manifest cannot be put in signed form: the pack is refused, and
+    a listing that meets it on disk leaves it out instead of failing."""
+    pack = write_pack(tmp_path / "pack")
+    text = (pack / "job-pack.json").read_text()
+    (pack / "job-pack.json").write_text(text.replace("Fills things.", "\\ud800"))
+
+    assert _refused(pack, tmp_path / "installed") == "PACK_BAD_SIGNATURE"
+
+    root = tmp_path / "listed"
+    install_pack(write_pack(tmp_path / "good"), root)
+    (root / "acme-jobs" / "1.0.0" / "job-pack.json").write_text(
+        text.replace("Fills things.", "\\ud800")
+    )
+    assert installed_packs(root) == []
+
+
+def test_a_pack_signed_by_any_listed_key_installs(tmp_path, monkeypatch):
+    """While a key is rotated, a release trusts the new key and the old one."""
+    old, new = Ed25519PrivateKey.generate(), Ed25519PrivateKey.generate()
+    monkeypatch.setattr(
+        "modules.jobs.packs.signature.PACK_PUBLIC_KEYS_HEX",
+        (_public_hex(new), _public_hex(old)),
+    )
+    for key in (old, new):
+        pack = write_pack(tmp_path / f"pack-{id(key)}")
+        sign_pack(pack, key)
+        assert install_pack(pack, tmp_path / f"installed-{id(key)}").id == "acme-jobs"
+
+    stranger = write_pack(tmp_path / "stranger")
+    sign_pack(stranger, Ed25519PrivateKey.generate())
+    assert _refused(stranger, tmp_path / "installed-stranger") == "PACK_BAD_SIGNATURE"
+
+
+def _public_hex(key: Ed25519PrivateKey) -> str:
+    return key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw).hex()

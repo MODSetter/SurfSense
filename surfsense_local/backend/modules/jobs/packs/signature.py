@@ -13,7 +13,7 @@ from pathlib import Path
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
-from modules.jobs.packs.manifest import MANIFEST, SIGNATURE, PackRefusedError
+from modules.jobs.packs.manifest import SIGNATURE, PackRefusedError
 
 # Raw 32-byte keys in hex, never read from config or disk. A tuple so a release can trust an
 # old and a new key while the signing key is rotated. Newest first.
@@ -34,8 +34,9 @@ def signed_payload(manifest: object) -> bytes:
     return DOMAIN + canonical.encode("utf-8")
 
 
-def check_signature(folder: Path) -> None:
-    """Refuse a pack that SurfSense did not sign, or that changed after it did."""
+def check_signature(folder: Path, manifest: object) -> None:
+    """Refuse a pack that SurfSense did not sign, or that changed after it did. `manifest` is
+    the manifest as the caller read it, once, so the copy checked is the copy used."""
     path = folder / SIGNATURE
     if not path.is_file():
         raise PackRefusedError(
@@ -43,13 +44,15 @@ def check_signature(folder: Path) -> None:
             "The pack is not signed by SurfSense, so the app does not run it.",
         )
     try:
-        manifest = json.loads((folder / MANIFEST).read_text(encoding="utf-8"))
         signature = base64.b64decode(path.read_bytes().strip(), validate=True)
-    except (OSError, ValueError, binascii.Error) as broken:
+        # A manifest that cannot be put in signed form, such as one holding a lone surrogate,
+        # is one no key signed.
+        payload = signed_payload(manifest)
+    except (OSError, ValueError, TypeError, binascii.Error) as broken:
         raise PackRefusedError(
             "PACK_BAD_SIGNATURE", "The pack's signature cannot be read."
         ) from broken
-    if not signed_by_pack_key(signed_payload(manifest), signature):
+    if not signed_by_pack_key(payload, signature):
         raise PackRefusedError(
             "PACK_BAD_SIGNATURE",
             "The pack's signature does not match it: it changed after SurfSense signed it, "
