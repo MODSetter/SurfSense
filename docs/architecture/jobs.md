@@ -64,6 +64,7 @@ While a pack is installed the job tool is listed, naming the pack's jobs ([`run_
 ## Known gaps
 
 - The licence server does not deliver packs yet: a pack installs from a path on this computer.
+- A pack is checked, signature and files, each time the installed packs are read, but the runner reads the job's config and prompts, and opencode the job's skill, by path afterwards, so a process that can write to `<data>/job-packs` could swap a file between the check and the read. Like the licence check, this is honesty, not enforcement.
 - The licence module does not yet read a licence's `metadata.jobs`, so until it does, no licence unlocks a paid job, and paid jobs run only under the developer switch.
 - No screen starts a run or lists packs: a run starts from the agent's tool or the route. Nor does one show a run's suggestions with a button to confirm them, or a job's settings: the routes and the agent's tools serve them.
 - Scoping questions (HECVAT's REQU rows, which decide which tabs apply) are answered like any other question; nothing marks the tabs they rule out N/A.
