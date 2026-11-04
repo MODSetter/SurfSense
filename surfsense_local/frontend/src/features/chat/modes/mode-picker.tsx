@@ -26,11 +26,8 @@ import {
   modeLabel,
   modeShortDescription,
 } from "./mode-text"
-import {
-  useChatModes,
-  useNewChatMode,
-  usePickNewChatMode,
-} from "./new-chat-mode"
+import { useChatModes, useNewChatMode } from "./new-chat-mode"
+import { useSaveModePick } from "./save-mode-pick"
 
 const MODE_ICON = { basic: Chat01Icon, agentic: BotIcon } as const
 
@@ -52,7 +49,7 @@ export function ModePicker({
   className?: string
 }) {
   const newChatMode = useNewChatMode(model)
-  const pick = usePickNewChatMode()
+  const savePick = useSaveModePick()
   const modes = useChatModes(model)
   if (!modes || !newChatMode) return null
 
@@ -81,7 +78,7 @@ export function ModePicker({
             <ModeList
               modes={modes}
               value={newChatMode}
-              onPick={(mode) => pick(model, mode)}
+              onPick={(mode) => savePick(model, mode)}
             />
           </DropdownMenuGroup>
         </DropdownMenuContent>
@@ -117,7 +114,7 @@ export function ModePicker({
             // A chat keeps its mode, so the other one opens a new chat.
             onPick={(mode) => {
               if (mode === threadMode) return
-              pick(model, mode)
+              savePick(model, mode)
               onNewChat?.()
             }}
             otherOpensNewChat

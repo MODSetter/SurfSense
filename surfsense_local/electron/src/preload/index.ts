@@ -37,6 +37,9 @@ function isSidecarCrash(value: unknown): value is SidecarCrash {
 contextBridge.exposeInMainWorld("surfsense", {
   apiUrl: arg ? arg.slice(FLAG.length) : "http://127.0.0.1:8000",
   platform: process.platform,
+  // Asked when needed: on a first launch the database appears after the page loads.
+  databaseIdentity: (): string | null =>
+    ipcRenderer.sendSync("startup:database-identity") as string | null,
   openDocument: (workspaceId: number, documentId: number): Promise<string> =>
     ipcRenderer.invoke("documents:open", workspaceId, documentId),
   revealDocument: (workspaceId: number, documentId: number): Promise<string> =>
