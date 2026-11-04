@@ -8,7 +8,7 @@ from typing import Any
 
 import anyio
 
-# A lapsed license stops new job runs 30 days after it lapses (ADR 0079), and
+# A lapsed license stops new job runs 30 days after it lapses (ADR 0080), and
 # the same days cover Stripe's retries of a failed renewal.
 GRACE = timedelta(days=30)
 

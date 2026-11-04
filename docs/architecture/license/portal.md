@@ -3,7 +3,7 @@
 The one [backend](../backend.md) sells, delivers and re-delivers the desktop app's license file with no accounts and no license table. Stripe and Keygen are the system of record: every search is a filter over Keygen license metadata, and the one direct read is by a derived id, and the license routes take no session, read no user table and touch no Postgres. Control of an inbox replaces the login, because a license is only ever mailed to the address it is registered to. Where having no table would cost a guarantee, the code moves the guarantee into Keygen instead of adding a table.
 
 **Code:** [`backend/license/`](../../../backend/license/), [`backend/mailer/`](../../../backend/mailer/), [`www/app/(home)/license/`](../../../www/app/\(home\)/license/)
-**Decisions:** [ADR 0024](../../adr/0024-portal-without-accounts.md), [ADR 0019](../../adr/0019-offline-licenses.md), ADR 0079 (one Business license, priced per person; on the `docs/business-license` branch)
+**Decisions:** [ADR 0024](../../adr/0024-portal-without-accounts.md), [ADR 0019](../../adr/0019-offline-licenses.md), ADR 0080 (one Business license, priced per person; on the `docs/business-license` branch)
 
 What the routes produce is [contract 1](../../contracts/01-license-file.md); the [desktop app](app.md) consumes it.
 
@@ -88,7 +88,7 @@ The purchase event comes from fulfilment rather than the webhook because the web
 
 ### Subscriptions
 
-Business renews every year on the same key (ADR 0079), and the Individual Payment Link has sold yearly subscriptions too, so a license sold on a subscription follows it. `subscription/` holds the rules:
+Business renews every year on the same key (ADR 0080), and the Individual Payment Link has sold yearly subscriptions too, so a license sold on a subscription follows it. `subscription/` holds the rules:
 
 - **Expiry.** The license ends 30 days after the period paid for: the grace before a lapsed Business license stops new job runs, which also covers Stripe's retries of a failed renewal. The period's end is read from the subscription's items, where API 2025-03-31 moved it, or from the subscription in an older payload.
 - **Renewal.** On `invoice.paid` the subscription is read live, and the license's `expiry` moves to its period's end plus 30 days, only ever later. A Business license's `maxUsers` takes the subscription's quantity too, since the firm confirms its people at renewal. Reading the live subscription makes a retried or late event set the same values. A renewal (`billing_reason` `subscription_cycle`) that moved the expiry mails the renewed file, so a computer that stays offline can import it; a suspended license is extended but gets no file. The first invoice (`subscription_create`) usually comes before the checkout's event and finds no license, which the checkout then mints with that period's expiry.
@@ -122,7 +122,7 @@ Each plan has its own policy, and `jobs.py` lists the job entitlement codes, `JO
 | business | `KEYGEN_POLICY_BUSINESS` | the setup script: 395 days, the fallback for a license made without an expiry |
 | business-trial | `KEYGEN_POLICY_BUSINESS_TRIAL` | the setup script: 14 days |
 
-The live trial, individual and team policies are never edited or made strict: the plugin host accepts only `VALID`, and a strict policy answers `NO_MACHINE` for every key on it, which would lock all of them out. The setup script makes both Business policies non-strict and floating with no machine cap, since Business counts people, not devices (ADR 0079), with the live policies' signing scheme, so their files carry the `alg` the app accepts.
+The live trial, individual and team policies are never edited or made strict: the plugin host accepts only `VALID`, and a strict policy answers `NO_MACHINE` for every key on it, which would lock all of them out. The setup script makes both Business policies non-strict and floating with no machine cap, since Business counts people, not devices (ADR 0080), with the live policies' signing scheme, so their files carry the `alg` the app accepts.
 
 ## Idempotency without a table
 
@@ -293,5 +293,5 @@ Under `backend/license/tests/` and `backend/mailer/tests/`, run from `backend/` 
 - The app does not call `POST /license/refresh` yet, so a renewal reaches an Individual or Business user only by the renewal mail until it does.
 - A dispute won later leaves its license suspended until support reinstates it.
 - A job added to `jobs.py` reaches new licenses and the policies' entitlements, but the `jobs` already written on existing licenses keep the old list.
-- The Business trial's two hidden rules in ADR 0079, Gmail dots folded into one address and at most two trials a year per company domain, are not built.
+- The Business trial's two hidden rules in ADR 0080, Gmail dots folded into one address and at most two trials a year per company domain, are not built.
 - Nothing checks the Payment Links' settings. Their after-payment redirect, the Business price's quantity limits and its `firm` field are set by hand in Stripe, and PostHog's 15 checkout clicks against 1 success page view in the 30 days to 21 Oct 2026 suggest the Individual link's redirect is not set.

@@ -11,7 +11,7 @@ from collections.abc import Mapping
 
 from license.models import META_JOBS
 
-# Every job is in Business (ADR 0079, open question a); a new one is added here
+# Every job is in Business (ADR 0080, open question a); a new one is added here
 # and the setup script is run again.
 JOBS: dict[str, str] = {
     "JOB_QUESTIONNAIRE": "Security questionnaire",
