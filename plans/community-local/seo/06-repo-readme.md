@@ -43,16 +43,17 @@ In order:
    from with citations, creates, edits as a copy and transforms, with three
    footnotes. It replaced "What SurfSense makes", the table of Studio outputs,
    because what the agent does to the user's own files is now the pitch.
-5. **Plugins**, added on 15 Oct 2026 once SurfSense's plugins shipped (2.2.1):
-   where to connect them, a table of the three first-party ones left (Google
-   Search, Web Crawl and YouTube; the other seven were retired from the app in
-   November 2026) with the app's
-   one-line descriptions, which need a license, with the free 14-day one claimed
-   on `/downloads`, and third-party ones, which need none. The section ends with
-   a line saying that **Add from the web**, in Sources, needs no plugin and no
-   license. It replaced **Star
-   history**, under the rule that anything added replaces something, and sits
-   above the comparison, as the maintainer asked.
+5. **Plugins**, added on 15 Oct 2026 once SurfSense's plugins shipped (2.2.1),
+   is two paragraphs. The first says where to connect plugins: MCP servers from
+   the plugin registry, or any added by URL, which stay off until allowed. The
+   second, **Built in, free**, says the agent and **Add from the web**, in
+   Sources, search the web through SearXNG and read pages and YouTube
+   transcripts on the user's own connection, with no plugin and no license.
+   They replaced the table of SurfSense's own plugins, and the line on their
+   license and free 14-day trial, in November 2026, when SurfSense's web
+   plugins became built-in tools. The section replaced **Star history**, under
+   the rule that anything added replaces something, and sits above the
+   comparison, as the maintainer asked.
 6. **How it compares**, against NotebookLM (now Gemini Notebook) alone: offline
    use, whether documents leave the machine, editing files, licence and models.
    "Everything stays on your machine", the comparisons with local chat apps and

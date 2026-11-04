@@ -54,24 +54,10 @@ def test_the_list_is_read_as_utf_8_whatever_the_system_code_page(
     assert checked_entries(path)[0].about == about
 
 
-def test_the_packaged_list_passes_its_check() -> None:
-    """A bad entry fails CI here, not on a user's machine."""
-    assert [entry.id for entry in checked_entries(FIRST_PARTY_LIST)] == [
-        "google-search",
-        "web-crawl",
-        "youtube",
-    ]
-
-
-def test_each_scraper_plugin_is_its_own_server_on_the_plugin_host() -> None:
-    """One host, so one consent; a path each, so a server each."""
-    entries = checked_entries(FIRST_PARTY_LIST)
-
-    assert {entry.url for entry in entries} == {
-        f"https://plugins.surfsense.com/{entry.id}/mcp" for entry in entries
-    }
-    assert {tuple(entry.hosts) for entry in entries} == {("plugins.surfsense.com",)}
-    assert {entry.access for entry in entries} == {"license"}
+def test_the_packaged_list_holds_no_hosted_plugin() -> None:
+    """SurfSense's web search, page reading and YouTube transcripts are the agent's
+    own tools since its scrapers left the app, so none is a plugin to connect."""
+    assert checked_entries(FIRST_PARTY_LIST) == []
 
 
 def test_a_newer_field_is_ignored(tmp_path: Path) -> None:

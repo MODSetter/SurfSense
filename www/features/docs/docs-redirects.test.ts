@@ -10,6 +10,7 @@ import test from "node:test";
 import { getPathMatch } from "next/dist/shared/lib/router/utils/path-match";
 import { prepareDestination } from "next/dist/shared/lib/router/utils/prepare-destination";
 import {
+	BUILT_IN_PLUGIN_PAGES,
 	CURRENT_DOCS_PATH,
 	docsRedirects,
 	LEGACY_DOCS_PATH,
@@ -130,30 +131,33 @@ test("the docs split into exactly the two sections", () => {
 	assert.deepEqual(roots.toSorted(), [CURRENT_DOCS_PATH, LEGACY_DOCS_PATH].toSorted());
 });
 
-test("a SurfSense plugin's page keeps its address from before it moved up a folder", () => {
+test("a SurfSense plugin's page from before it moved up a folder still finds its way", () => {
 	assert.equal(
 		redirect(`/docs/${CURRENT_DOCS_PATH}/plugins/surfsense-plugins/youtube`),
 		`/docs/${CURRENT_DOCS_PATH}/plugins/youtube`
 	);
-	// The overview kept its own address, so it must not redirect.
-	assert.equal(redirect(`/docs/${CURRENT_DOCS_PATH}/plugins/surfsense-plugins`), null);
 });
 
-test("a retired plugin's page lands on SurfSense's plugins, and no page left is caught", () => {
+test("a retired plugin's page lands on the plugins page, a built-in one's on the agent's", () => {
+	const plugins = readdirSync(path.join(DOCS_CONTENT, CURRENT_DOCS_PATH, "plugins"));
 	for (const plugin of RETIRED_PLUGINS) {
 		assert.equal(
 			redirect(`/docs/${CURRENT_DOCS_PATH}/plugins/${plugin}`),
-			`/docs/${CURRENT_DOCS_PATH}/plugins/surfsense-plugins`,
+			`/docs/${CURRENT_DOCS_PATH}/plugins`,
 			plugin
 		);
-		assert.ok(
-			!readdirSync(path.join(DOCS_CONTENT, CURRENT_DOCS_PATH, "plugins")).includes(`${plugin}.mdx`),
-			`${plugin}.mdx is still a page`
+		assert.ok(!plugins.includes(`${plugin}.mdx`), `${plugin}.mdx is still a page`);
+	}
+	for (const page of BUILT_IN_PLUGIN_PAGES) {
+		assert.equal(
+			redirect(`/docs/${CURRENT_DOCS_PATH}/plugins/${page}`),
+			`/docs/${CURRENT_DOCS_PATH}/agent`,
+			page
 		);
+		assert.ok(!plugins.includes(`${page}.mdx`), `${page}.mdx is still a page`);
 	}
-	for (const plugin of ["google-search", "web-crawl", "youtube", "third-party"]) {
-		assert.equal(redirect(`/docs/${CURRENT_DOCS_PATH}/plugins/${plugin}`), null, plugin);
-	}
+	assert.equal(redirect(`/docs/${CURRENT_DOCS_PATH}/plugins/third-party`), null);
+	assert.equal(redirect(`/docs/${CURRENT_DOCS_PATH}/plugins`), null);
 });
 
 test("unknown docs paths still land in the legacy version", () => {

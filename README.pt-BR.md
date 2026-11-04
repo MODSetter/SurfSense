@@ -89,19 +89,9 @@ Edições, conversões e ferramentas de PDF sempre geram um arquivo novo; o seu 
 
 ## Plugins
 
-Conecte-os em **Configurações › Plugins**.
+Conecte-os em **Configurações › Plugins**: servidores MCP do [registro de plugins](backend/plugins/registry), como DeepWiki e Notion, ou qualquer servidor que você adicione por URL. Eles ficam desativados até você permitir.
 
-**Da SurfSense.** Eles leem páginas públicas sem usar suas próprias contas e precisam de uma licença do SurfSense: [baixe o aplicativo](https://www.surfsense.com/downloads) e informe seu e-mail nele para receber uma licença gratuita de 14 dias.
-
-| Plugin | O que faz |
-|---|---|
-| **Google Search** | Pesquisar no Google e ler os resultados, os anúncios e as perguntas relacionadas |
-| **Web Crawl** | Ler uma página web ou rastrear um site inteiro e transformá-lo em texto limpo |
-| **YouTube** | Ler vídeos, canais e comentários do YouTube |
-
-**De terceiros.** Servidores MCP do [registro de plugins](backend/plugins/registry), como DeepWiki e Notion, ou qualquer servidor que você adicione por URL. Não precisam de licença e ficam desativados até você permitir.
-
-**Adicionar da web**, nas Fontes, não precisa de plugin nem de licença: lê páginas e transcrições do YouTube pela sua própria conexão e pesquisa via SearXNG.
+**Integrado e gratuito:** o agente e **Adicionar da web**, nas Fontes, pesquisam na web por meio do SearXNG e leem páginas e transcrições do YouTube pela sua própria conexão, sem plugin nem licença.
 
 ## Como ele se compara
 

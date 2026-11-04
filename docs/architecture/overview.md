@@ -31,7 +31,7 @@ api ── admission ── HTTP ──> llama-server, remote OpenAI-compatible 
 worker-studio, opencode ── POST /internal/models/text/generate, /agent/model/v1 ──> api
 worker-studio ── HTTP ──> sd-server, audiocpp, remote image and speech endpoints
 worker-plugins ── HTTP ──> each site and www.youtube.com, the links added from the web
-api ── HTTP ──> searxng.surfsense.com or the user's SearXNG, a search in Add from the web
+api ── HTTP ──> searxng.surfsense.com or the user's SearXNG, each site and www.youtube.com: a search in Add from the web, the agent's web tools
 worker-ingest, worker-studio, worker-plugins ── POST /internal/events ──> api ── SSE /workspaces/{id}/events
 ```
 

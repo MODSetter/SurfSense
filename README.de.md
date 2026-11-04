@@ -88,19 +88,9 @@ Bearbeitungen, Umwandlungen und PDF-Werkzeuge erzeugen immer eine neue Datei; de
 
 ## Plugins
 
-Verbinde sie unter **Einstellungen › Plugins**.
+Verbinde sie unter **Einstellungen › Plugins**: MCP-Server aus der [Plugin-Registry](backend/plugins/registry), etwa DeepWiki und Notion, oder jeden, den du per URL hinzufügst. Sie bleiben aus, bis du sie erlaubst.
 
-**Von SurfSense.** Diese Plugins lesen öffentliche Seiten ohne deine eigenen Konten und brauchen eine SurfSense-Lizenz: [Lade die App herunter](https://www.surfsense.com/downloads) und gib dort deine E-Mail-Adresse ein, dann bekommst du eine kostenlose Lizenz für 14 Tage.
-
-| Plugin | Was es macht |
-|---|---|
-| **Google Search** | Google durchsuchen und die Ergebnisse, Anzeigen und verwandten Fragen lesen |
-| **Web Crawl** | Eine Webseite lesen oder eine ganze Website crawlen und in sauberen Text umwandeln |
-| **YouTube** | YouTube-Videos, -Kanäle und ihre Kommentare lesen |
-
-**Drittanbieter.** MCP-Server aus der [Plugin-Registry](backend/plugins/registry), etwa DeepWiki und Notion, oder jeder, den du per URL hinzufügst. Keine Lizenz nötig; sie bleiben aus, bis du sie erlaubst.
-
-**Aus dem Web hinzufügen** in den Quellen braucht kein Plugin und keine Lizenz: Es liest Seiten und YouTube-Transkripte über deine eigene Verbindung und sucht per SearXNG.
+**Eingebaut und kostenlos:** Der Agent und **Aus dem Web hinzufügen** in den Quellen durchsuchen das Web über SearXNG und lesen Seiten und YouTube-Transkripte über deine eigene Verbindung, ohne Plugin und ohne Lizenz.
 
 ## SurfSense im Vergleich
 

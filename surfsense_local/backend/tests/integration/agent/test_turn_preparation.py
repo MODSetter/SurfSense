@@ -31,7 +31,8 @@ from tests.mcp_test_server import (
     serving,
 )
 
-pytestmark = pytest.mark.integration
+# The packaged list is empty: these connect a sample of SurfSense's own plugins.
+pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("first_party_sample")]
 
 
 def offered(api: AgentAPI, request: int = 0) -> set[str]:
@@ -246,15 +247,15 @@ async def _tools_once_checked(api: AgentAPI) -> dict[str, bool]:
     return tools
 
 
-def slow_youtube_server(seconds: float) -> MCPServer:
-    """SurfSense's YouTube plugin, its search taking `seconds` with no progress."""
-    server = MCPServer("youtube")
+def slow_news_server(seconds: float) -> MCPServer:
+    """SurfSense's sample plugin, its search taking `seconds` with no progress."""
+    server = MCPServer("news")
 
     @server.tool(annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=True))
-    async def search_videos(query: str) -> str:
-        """Search YouTube's videos."""
+    async def search_articles(query: str) -> str:
+        """Search the news."""
         await asyncio.sleep(seconds)
-        return f"videos about {query}"
+        return f"articles about {query}"
 
     return server
 
@@ -275,13 +276,13 @@ async def test_a_call_opencode_gives_up_on_is_ended_on_surfsense_s_plugin_host(
         texts.append(RecordingHeaders(guarded[0], "x-surfsense-text-only"))
         return texts[0]
 
-    host = plugin_host("youtube", slow_youtube_server(30), around, cancels)
+    host = plugin_host("news", slow_news_server(30), around, cancels)
     with serving(host) as base:
         monkeypatch.setattr(get_plugin_host_settings(), "plugin_host_url", base)
-        connected = await agent_api.http.post("/plugins/first-party/youtube")
+        connected = await agent_api.http.post("/plugins/first-party/news")
         assert connected.status_code == 201, connected.text
         agent_api.model.replies = [
-            call("youtube_search_videos", query="ship"),
+            call("news_search_articles", query="ship"),
             ("text", "It took too long."),
         ]
         thread = await open_thread(agent_api)
@@ -294,7 +295,7 @@ async def test_a_call_opencode_gives_up_on_is_ended_on_surfsense_s_plugin_host(
             await asyncio.sleep(0.1)
 
     step = of_type(frames, "agent-step")[-1]
-    assert (step["tool"], step["status"]) == ("youtube_search_videos", "error")
+    assert (step["tool"], step["status"]) == ("news_search_articles", "error")
     assert time.monotonic() - began < 30
     (token,) = {token for token in guarded[0].calls_tokens if token}
     assert [c["x-surfsense-calls"] for c in cancels] == [token]

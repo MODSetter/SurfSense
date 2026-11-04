@@ -31,6 +31,9 @@ export const RETIRED_PLUGINS = [
 	"indeed",
 ];
 
+/** Pages of SurfSense's plugins that became the agent's own web tools. */
+export const BUILT_IN_PLUGIN_PAGES = ["surfsense-plugins", "google-search", "web-crawl", "youtube"];
+
 /** Segments that are version folders rather than pages, so never re-prefixed. */
 const versionSegments = [LEGACY_DOCS_PATH, CURRENT_DOCS_PATH];
 
@@ -57,10 +60,16 @@ export const docsRedirects = [
 		destination: `/docs/${CURRENT_DOCS_PATH}/plugins/:plugin`,
 		permanent: true,
 	},
-	// Seven scraper plugins left the app in November 2026, and their pages with them.
+	// SurfSense's scraper plugins left the app in November 2026, and their pages with
+	// them: seven retired, and three became the agent's own web tools.
 	{
 		source: `/docs/${CURRENT_DOCS_PATH}/plugins/:plugin(${RETIRED_PLUGINS.join("|")})`,
-		destination: `/docs/${CURRENT_DOCS_PATH}/plugins/surfsense-plugins`,
+		destination: `/docs/${CURRENT_DOCS_PATH}/plugins`,
+		permanent: true,
+	},
+	{
+		source: `/docs/${CURRENT_DOCS_PATH}/plugins/:page(${BUILT_IN_PLUGIN_PAGES.join("|")})`,
+		destination: `/docs/${CURRENT_DOCS_PATH}/agent`,
 		permanent: true,
 	},
 ];

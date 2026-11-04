@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { cleanup, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
+import { EgressPrompt } from "@/features/egress/egress-prompt"
+import { render as renderInApp } from "@/test-utils"
 import { OpenArtifactContext } from "@/features/studio/open-artifact"
 
 import { AgentSteps } from "./agent-steps"
@@ -518,5 +520,84 @@ describe("agent steps", () => {
       "Filled in a PDF form",
       "Worked on PDF pages",
     ])
+  })
+
+  it("names each web step by the search or the link it read", () => {
+    const step = (
+      id: string,
+      tool: string,
+      input: Record<string, unknown>
+    ): AgentStep => ({ id, tool, status: "completed", input })
+    render(
+      <AgentSteps
+        steps={[
+          step("prt_16", "surfsense_search_web", { query: "spring tides" }),
+          step("prt_17", "surfsense_read_web_page", {
+            url: "https://tides.example/explained",
+          }),
+          step("prt_18", "surfsense_read_youtube_transcript", {
+            url: "https://youtu.be/dQw4w9WgXcQ",
+          }),
+        ]}
+      />
+    )
+
+    expect(
+      screen.getAllByRole("listitem").map((item) => item.textContent)
+    ).toEqual([
+      "Searched the web for spring tides",
+      "Read the web page https://tides.example/explained",
+      "Read the transcript of https://youtu.be/dQw4w9WgXcQ",
+    ])
+  })
+
+  it("asks to allow a site a web step was refused, on a click", async () => {
+    const calls: string[] = []
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        calls.push(
+          `${init?.method ?? "GET"} ${String(input)} ${init?.body ?? ""}`.trim()
+        )
+        return Response.json([])
+      })
+    )
+    const user = userEvent.setup()
+    renderInApp(
+      <>
+        <EgressPrompt />
+        <AgentSteps
+          steps={[
+            {
+              id: "prt_19",
+              tool: "surfsense_read_web_page",
+              status: "error",
+              input: { url: "https://tides.example/explained" },
+              error: "Not allowed in Settings > Network yet: tides.example.",
+              refused: { hosts: ["tides.example"], purpose: "web_page" },
+            },
+          ]}
+        />
+      </>
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "Allow tides.example" })
+    )
+    const prompt = await screen.findByRole("alertdialog", {
+      name: "Allow reading pages from tides.example?",
+    })
+    expect(prompt.textContent).toContain(
+      "when you add one from the web or the agent reads one"
+    )
+    await user.click(screen.getByRole("button", { name: "Allow" }))
+
+    expect(
+      await screen.findByText("Allowed. Ask the agent to try again.")
+    ).toBeTruthy()
+    expect(calls).toContain(
+      'PUT /egress {"destinations":["host:tides.example"],"enabled":true}'
+    )
+    vi.unstubAllGlobals()
   })
 })

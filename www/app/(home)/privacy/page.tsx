@@ -184,18 +184,18 @@ export default function PrivacyPolicy() {
 							prompts are involved.
 						</li>
 						<li>
-							<strong>Pages and videos you add from the web, to each site.</strong> Adding a link in
-							Sources reads that page from its own site on your own connection, as your browser
-							would: the site receives the page's address and your IP address, and nothing from your
-							documents or chats. A YouTube video's transcript is read the same way, from
-							www.youtube.com. The app asks before it first reads from a site, including one a page
-							sends it on to.
+							<strong>Pages and videos you or the agent read, to each site.</strong> Adding a link
+							in Sources, or the agent reading one, reads that page from its own site on your own
+							connection, as your browser would: the site receives the page's address and your IP
+							address, and nothing from your documents or chats. A YouTube video's transcript is
+							read the same way, from www.youtube.com. The app asks before it first reads from a
+							site, including one a page sends it on to.
 						</li>
 						<li>
-							<strong>Web search, to searxng.surfsense.com.</strong> A search in Add from the web
-							sends what you search for and your IP address to a SearXNG server, which asks search
-							engines for you and returns their links. By default that is our server, as section 4.4
-							describes; you can name your own in Settings, and then we receive nothing.
+							<strong>Web search, to searxng.surfsense.com.</strong> A search in Add from the web or
+							by the agent sends what you search for and your IP address to a SearXNG server, which
+							asks search engines for you and returns their links. By default that is our server, as
+							section 4.4 describes; you can name your own in Settings, and then we receive nothing.
 						</li>
 						<li>
 							<strong>Plugins, to plugins.surfsense.com.</strong> Fetching the list of third-party

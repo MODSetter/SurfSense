@@ -240,7 +240,8 @@ function describeOne(destination: string, host: string, purpose?: string) {
       ),
     }
   }
-  // Add from the web reads each page from its own site, on the user's connection.
+  // Add from the web and the agent read each page from its own site, on the
+  // user's connection.
   if (purpose === "web_page") {
     return {
       label: host,
@@ -255,7 +256,7 @@ function describeOne(destination: string, host: string, purpose?: string) {
         {
           id: "egress_web_page_prompt_body",
           defaultMessage:
-            "SurfSense reads what you add from {host} on your own connection, as your browser would. The site gets the page’s address and your IP address, and nothing from your files or chats. You can turn this off any time in Settings › Network.",
+            "SurfSense reads pages and videos from {host} on your own connection, as your browser would, when you add one from the web or the agent reads one. The site gets the page’s address and your IP address, and nothing from your files or chats. You can turn this off any time in Settings › Network.",
         },
         { host }
       ),

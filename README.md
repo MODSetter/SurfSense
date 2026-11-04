@@ -96,19 +96,9 @@ Edits, conversions and PDF tools always make a new file; your original is never 
 
 ## Plugins
 
-Connect them in **Settings › Plugins**.
+Connect them in **Settings › Plugins**: MCP servers from the [plugin registry](backend/plugins/registry), such as DeepWiki and Notion, or any you add by URL. They stay off until you allow them.
 
-**By SurfSense.** They read public pages without your own accounts and need a SurfSense license: [download the app](https://www.surfsense.com/downloads) and enter your email there for a free 14-day one.
-
-| Plugin | What it does |
-|---|---|
-| **Google Search** | Search Google and read its results, ads and related questions |
-| **Web Crawl** | Read a web page, or crawl a whole site into clean text |
-| **YouTube** | Read YouTube videos, channels and their comments |
-
-**Third-party.** MCP servers from the [plugin registry](backend/plugins/registry), such as DeepWiki and Notion, or any you add by URL. No license needed; they stay off until you allow them.
-
-**Add from the web**, in Sources, needs no plugin and no license: it reads pages and YouTube transcripts on your own connection and searches through SearXNG.
+**Built in, free:** the agent and **Add from the web**, in Sources, search the web through SearXNG and read pages and YouTube transcripts on your own connection, with no plugin and no license.
 
 ## How it compares
 

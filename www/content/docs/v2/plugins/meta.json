@@ -2,12 +2,5 @@
 	"title": "Plugins",
 	"icon": "Plug",
 	"defaultOpen": false,
-	"pages": [
-		"third-party",
-		"---SurfSense plugins---",
-		"surfsense-plugins",
-		"google-search",
-		"web-crawl",
-		"youtube"
-	]
+	"pages": ["third-party"]
 }
