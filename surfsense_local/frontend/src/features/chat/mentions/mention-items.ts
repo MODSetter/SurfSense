@@ -1,4 +1,4 @@
-import type { Unstable_TriggerItem } from "@assistant-ui/react"
+import type { TriggerItem } from "@assistant-ui/react"
 
 import { intl } from "@/i18n/intl"
 import type { WorkspaceDocument } from "@/features/sources/api"
@@ -22,7 +22,7 @@ export const MENTION_GROUPS = ["source", "artifact"] as const
 
 const isReady = (document: WorkspaceDocument) => document.status === "ready"
 
-function folderItems({ index }: Mentionables): Unstable_TriggerItem[] {
+function folderItems({ index }: Mentionables): TriggerItem[] {
   return [...index.folders.values()].flatMap((folder) => {
     const count = documentsUnder(index, folder.id).filter(isReady).length
     if (count === 0) return []
@@ -41,7 +41,7 @@ function folderItems({ index }: Mentionables): Unstable_TriggerItem[] {
   })
 }
 
-function fileItems({ documents, index }: Mentionables): Unstable_TriggerItem[] {
+function fileItems({ documents, index }: Mentionables): TriggerItem[] {
   return documents.filter(isReady).map((document) => {
     const folder = index.folders.get(document.folder_id ?? -1)?.name
     return {
@@ -53,7 +53,7 @@ function fileItems({ documents, index }: Mentionables): Unstable_TriggerItem[] {
   })
 }
 
-function artifactItems({ artifacts }: Mentionables): Unstable_TriggerItem[] {
+function artifactItems({ artifacts }: Mentionables): TriggerItem[] {
   return artifactLines(artifacts).flatMap(({ versions }) => {
     const ready = newestReady(versions)
     if (!ready) return []
@@ -68,28 +68,24 @@ function artifactItems({ artifacts }: Mentionables): Unstable_TriggerItem[] {
 }
 
 /** Everything `@` can name: only what a turn could read now. */
-export function mentionItems(from: Mentionables): Unstable_TriggerItem[] {
+export function mentionItems(from: Mentionables): TriggerItem[] {
   return [...folderItems(from), ...fileItems(from), ...artifactItems(from)]
 }
 
-export const isFolderItem = (item: Unstable_TriggerItem) =>
-  item.id.startsWith("folder:")
+export const isFolderItem = (item: TriggerItem) => item.id.startsWith("folder:")
 
 /** One group's rows, whole: the list keeps its highlight only while this stays
  *  the same list, so it loads more as it renders rather than by asking again. */
-export function mentionsOfGroup(
-  items: readonly Unstable_TriggerItem[],
-  group: string
-) {
+export function mentionsOfGroup(items: readonly TriggerItem[], group: string) {
   return items.filter((item) => item.type === group)
 }
 
 /** Every match, sources before artifacts, those starting with the words first in
  *  each. Names only: the detail is a folder or a format, which would match too much. */
 export function searchMentions(
-  items: readonly Unstable_TriggerItem[],
+  items: readonly TriggerItem[],
   query: string
-): Unstable_TriggerItem[] {
+): TriggerItem[] {
   const words = query.trim().toLowerCase()
   const matches = items.filter((item) =>
     item.label.toLowerCase().includes(words)

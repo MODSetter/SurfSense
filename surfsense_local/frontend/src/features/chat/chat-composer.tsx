@@ -292,7 +292,7 @@ export function ChatComposer({
           reveal.className
         )}
       >
-        <ComposerPrimitive.Unstable_TriggerPopoverRoot>
+        <ComposerPrimitive.TriggerPopoverRoot>
           {/* A Basic chat only filters by source, so naming one would change nothing there. */}
           {agentic ? <SourceMentions mentionables={mentionables} /> : null}
           {startupDraft ? (
@@ -307,7 +307,6 @@ export function ChatComposer({
                 ref={inputRef}
                 // The handover focuses it with the caret where the user left it.
                 autoFocus={startupDraft === null}
-                unstable_focusOnThreadSwitched
                 aria-describedby={describedBy}
                 // Held whenever a send could not go anywhere: no model, a model that
                 // can't be used, or egress to it still off.
@@ -385,7 +384,7 @@ export function ChatComposer({
               />
             </>
           )}
-        </ComposerPrimitive.Unstable_TriggerPopoverRoot>
+        </ComposerPrimitive.TriggerPopoverRoot>
       </ComposerBox>
       {placement === "center" && limitNotice ? (
         <p

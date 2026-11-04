@@ -1,8 +1,4 @@
-import {
-  ComposerPrimitive,
-  unstable_useTriggerPopoverScopeContext,
-  type Unstable_TriggerItem,
-} from "@assistant-ui/react"
+import { ComposerPrimitive, type TriggerItem } from "@assistant-ui/react"
 import { useEffect } from "react"
 
 import { Button } from "@/components/ui/button"
@@ -16,6 +12,7 @@ import { intl } from "@/i18n/intl"
 
 import { mentionGroupLabel } from "./mention-group-label"
 import { mentionsOfGroup } from "./mention-items"
+import { useMentionPopoverScope } from "./mention-popover-scope"
 import { MentionItem, MentionItemDescription } from "./mention-list"
 
 /** What `@` shows first: the groups, each with how many it holds. */
@@ -23,11 +20,11 @@ export function MentionGroups({
   items,
   isLoading,
 }: {
-  items: readonly Unstable_TriggerItem[]
+  items: readonly TriggerItem[]
   isLoading: boolean
 }) {
   return (
-    <ComposerPrimitive.Unstable_TriggerPopoverCategories>
+    <ComposerPrimitive.TriggerPopoverCategories>
       {(groups) =>
         groups.map(({ id, label }) => {
           const Icon = id === "artifact" ? AiSparklesIcon : Folder01Icon
@@ -35,11 +32,9 @@ export function MentionGroups({
             <MentionItem
               key={id}
               render={
-                <ComposerPrimitive.Unstable_TriggerPopoverCategoryItem
-                  categoryId={id}
-                />
+                <ComposerPrimitive.TriggerPopoverCategoryItem categoryId={id} />
               }
-              className="hover:bg-accent data-[highlighted]:bg-accent"
+              className="data-highlighted:bg-accent"
             >
               <Icon className="size-4 shrink-0 text-muted-foreground" />
               <span className="min-w-0 truncate">{label}</span>
@@ -53,18 +48,17 @@ export function MentionGroups({
           )
         })
       }
-    </ComposerPrimitive.Unstable_TriggerPopoverCategories>
+    </ComposerPrimitive.TriggerPopoverCategories>
   )
 }
 
 /** Above an opened group: its name, and the way back to the groups. */
 export function MentionGroupHeader() {
-  const { activeCategoryId, isSearchMode, open } =
-    unstable_useTriggerPopoverScopeContext()
+  const { activeCategoryId, isSearchMode, open } = useMentionPopoverScope()
   if (!open || !activeCategoryId || isSearchMode) return null
   return (
     <div className="sticky -top-1 z-10 -mx-1 -mt-1 mb-0.5 flex items-center gap-1 bg-popover px-1 pt-1 text-xs text-muted-foreground select-none">
-      <ComposerPrimitive.Unstable_TriggerPopoverBack asChild>
+      <ComposerPrimitive.TriggerPopoverBack asChild>
         <Button
           variant="ghost"
           size="icon-xs"
@@ -76,7 +70,7 @@ export function MentionGroupHeader() {
         >
           <ArrowLeftIcon />
         </Button>
-      </ComposerPrimitive.Unstable_TriggerPopoverBack>
+      </ComposerPrimitive.TriggerPopoverBack>
       <span>{mentionGroupLabel(activeCategoryId)}</span>
     </div>
   )
@@ -85,8 +79,7 @@ export function MentionGroupHeader() {
 /** Typing inside a group searches both: the popover's own filter inside one would
  *  match ids and details as well as names. */
 export function SearchLeavesTheGroup() {
-  const { activeCategoryId, query, goBack } =
-    unstable_useTriggerPopoverScopeContext()
+  const { activeCategoryId, query, goBack } = useMentionPopoverScope()
   useEffect(() => {
     if (activeCategoryId && query) goBack()
   }, [activeCategoryId, goBack, query])

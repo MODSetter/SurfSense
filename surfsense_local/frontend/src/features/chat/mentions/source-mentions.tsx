@@ -1,9 +1,10 @@
 import {
   ComposerPrimitive,
   useAui,
-  type Unstable_DirectiveFormatter,
+  type DirectiveFormatter,
+  type TriggerAdapter,
 } from "@assistant-ui/react"
-import { useMemo, type ComponentProps } from "react"
+import { useMemo } from "react"
 
 import { keepHighlightedRowInView } from "./keep-highlighted-row-in-view"
 import { mentionGroupLabel } from "./mention-group-label"
@@ -24,13 +25,9 @@ import {
 import { MentionRows } from "./mention-rows"
 import { withPick } from "./named-sources"
 
-type TriggerAdapter = NonNullable<
-  ComponentProps<typeof ComposerPrimitive.Unstable_TriggerPopover>["adapter"]
->
-
 // The name as the user knows it: the composer is a textarea, so anything else
 // would show as written. The id goes beside the text, in the run's config.
-const formatter: Unstable_DirectiveFormatter = {
+const formatter: DirectiveFormatter = {
   serialize: (item) => `${MENTION_TRIGGER}${item.label}`,
   parse: (text) => [{ kind: "text", text }],
 }
@@ -48,7 +45,6 @@ export function SourceMentions({
     () => (mentionables ? mentionItems(mentionables) : []),
     [mentionables]
   )
-  // Experimental in assistant-ui, with no stable names as of 0.15.27: on upgrading, use the stable TriggerPopover names.
   const adapter = useMemo<TriggerAdapter>(
     () => ({
       categories: () =>
@@ -62,7 +58,7 @@ export function SourceMentions({
   return (
     <MentionList
       render={
-        <ComposerPrimitive.Unstable_TriggerPopover
+        <ComposerPrimitive.TriggerPopover
           char={MENTION_TRIGGER}
           adapter={adapter}
           // The rule the startup frame's box uses too.
@@ -70,7 +66,7 @@ export function SourceMentions({
         />
       }
     >
-      <ComposerPrimitive.Unstable_TriggerPopover.Directive
+      <ComposerPrimitive.TriggerPopover.Directive
         formatter={formatter}
         onInserted={({ id, label }) => {
           const composer = aui.composer()
@@ -82,11 +78,9 @@ export function SourceMentions({
       <SearchLeavesTheGroup />
       <MentionGroups items={items} isLoading={isLoading} />
       <MentionGroupHeader />
-      <ComposerPrimitive.Unstable_TriggerPopoverItems
-        ref={keepHighlightedRowInView}
-      >
+      <ComposerPrimitive.TriggerPopoverItems ref={keepHighlightedRowInView}>
         {(found) => <MentionRows found={found} isLoading={isLoading} />}
-      </ComposerPrimitive.Unstable_TriggerPopoverItems>
+      </ComposerPrimitive.TriggerPopoverItems>
     </MentionList>
   )
 }

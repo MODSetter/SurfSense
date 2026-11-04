@@ -14,7 +14,7 @@ import { useStartupInput } from "./startup-input-context"
  * Puts what was typed into the startup frame's box into the composer, caret
  * and all. Rendered inside the composer's trigger root, whose `@` trigger
  * keeps its own cursor: it is told where the caret is, so a mention the
- * caret was left in opens the plugin list as typing it would have.
+ * caret was left in opens the list as typing it would have.
  */
 export function StartupDraftHandover({
   draft,

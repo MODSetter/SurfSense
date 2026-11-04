@@ -1,5 +1,6 @@
-import { unstable_useTriggerPopoverScopeContext } from "@assistant-ui/react"
 import { useCallback, useEffect, useRef, useState } from "react"
+
+import { useMentionPopoverScope } from "./mention-popover-scope"
 
 // About four screens of the list, whose rows are not virtualized.
 const ROWS_PER_LOAD = 30
@@ -9,8 +10,7 @@ const NEAR_END_PX = 96
 /** How many of a list's rows to draw, more as scrolling or the arrow keys near the
  *  end. Everything is in memory, so this bounds rendering rather than fetching. */
 export function useRowsLoadedOnScroll(total: number) {
-  const { highlightedIndex, highlightIndex } =
-    unstable_useTriggerPopoverScopeContext()
+  const { highlightedIndex, highlightIndex } = useMentionPopoverScope()
   const [loaded, setLoaded] = useState(ROWS_PER_LOAD)
   const loadMore = useCallback(() => setLoaded((n) => n + ROWS_PER_LOAD), [])
   const previous = useRef(highlightedIndex)

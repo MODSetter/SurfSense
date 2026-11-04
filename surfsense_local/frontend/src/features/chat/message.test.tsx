@@ -283,11 +283,18 @@ describe("code in a reply", () => {
       )
     const linesOf = (text: string) => text.trimEnd().split("\n")
 
+    // Until the block closes, a chunk ending in a newline draws the line it opened.
+    const writtenSoFar = () => {
+      const lines = shown()
+      return lines.at(-1)?.trim() === "" ? lines.slice(0, -1) : lines
+    }
+
     for (let at = 0; at < code.length; at += 12) {
       await act(async () => push(code.slice(at, at + 12)))
-      expect(shown()).toEqual(linesOf(code.slice(0, at + 12)))
+      expect(writtenSoFar()).toEqual(linesOf(code.slice(0, at + 12)))
     }
     await act(async () => push("\n```\n\nDone."))
+    expect(shown()).toEqual(linesOf(code))
     expect(highlight).not.toHaveBeenCalled()
 
     await act(async () => finish())

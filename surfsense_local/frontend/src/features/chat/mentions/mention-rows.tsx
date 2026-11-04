@@ -1,8 +1,4 @@
-import {
-  ComposerPrimitive,
-  unstable_useTriggerPopoverScopeContext,
-  type Unstable_TriggerItem,
-} from "@assistant-ui/react"
+import { ComposerPrimitive, type TriggerItem } from "@assistant-ui/react"
 
 import { FileIcon, Folder01Icon } from "@/components/ui/icons"
 import { intl } from "@/i18n/intl"
@@ -12,9 +8,10 @@ import { mentionGroupLabel } from "./mention-group-label"
 import { isFolderItem } from "./mention-items"
 import { MentionItem, MentionItemDescription } from "./mention-list"
 import { MentionRowsSkeleton } from "./mention-list-skeleton"
+import { useMentionPopoverScope } from "./mention-popover-scope"
 import { useRowsLoadedOnScroll } from "./use-rows-loaded-on-scroll"
 
-function RowIcon({ item }: { item: Unstable_TriggerItem }) {
+function RowIcon({ item }: { item: TriggerItem }) {
   const Icon = isFolderItem(item)
     ? Folder01Icon
     : (FORMAT_ICONS[String(item.metadata?.format)] ?? FileIcon)
@@ -25,7 +22,7 @@ function LoadedRows({
   found,
   grouped,
 }: {
-  found: readonly Unstable_TriggerItem[]
+  found: readonly TriggerItem[]
   // A search mixes the groups, so it names them; one opened group already is.
   grouped: boolean
 }) {
@@ -44,12 +41,9 @@ function LoadedRows({
           ) : null}
           <MentionItem
             render={
-              <ComposerPrimitive.Unstable_TriggerPopoverItem
-                item={item}
-                index={index}
-              />
+              <ComposerPrimitive.TriggerPopoverItem item={item} index={index} />
             }
-            className="hover:bg-accent data-[highlighted]:bg-accent"
+            className="data-highlighted:bg-accent"
           >
             <RowIcon item={item} />
             <span className="min-w-0 truncate">{item.label}</span>
@@ -88,10 +82,10 @@ export function MentionRows({
   found,
   isLoading,
 }: {
-  found: readonly Unstable_TriggerItem[]
+  found: readonly TriggerItem[]
   isLoading: boolean
 }) {
-  const { activeCategoryId, query } = unstable_useTriggerPopoverScopeContext()
+  const { activeCategoryId, query } = useMentionPopoverScope()
   if (found.length === 0) {
     return isLoading ? (
       <MentionRowsSkeleton />
