@@ -57,6 +57,8 @@ def licence(monkeypatch: pytest.MonkeyPatch):
         ("business", "JOB_QUESTIONNAIRE"),
         ("trial", "JOB_OTHER,JOB_QUESTIONNAIRE"),
         ("business", ("JOB_QUESTIONNAIRE",)),
+        # As the licence module gives them: the trimmed codes, a list.
+        ("business", ["JOB_OTHER", "JOB_QUESTIONNAIRE"]),
         ("business", " JOB_QUESTIONNAIRE , JOB_OTHER "),
     ],
 )
@@ -73,6 +75,7 @@ def test_a_licence_carrying_the_job_s_entitlement_unlocks_it(licence, plan, jobs
     [
         ("none", None, "needs a SurfSense Business licence"),
         ("active", None, "does not include Security questionnaire"),
+        ("active", [], "does not include Security questionnaire"),
         ("active", "JOB_OTHER", "does not include Security questionnaire"),
         ("license_expired", CODE, "licence has expired"),
         ("license_expired", None, "does not include Security questionnaire"),
