@@ -11,6 +11,9 @@
 @source "../node_modules/@streamdown/math/dist/*.js";
 
 @custom-variant dark (&:is(.dark *));
+/* Settings › General decides, not only the OS (`features/motion-preference`). */
+@custom-variant motion-reduce (&:is(.reduce-motion *));
+@custom-variant motion-safe (&:not(.reduce-motion *));
 
 @theme inline {
   --font-heading: var(--font-sans);
@@ -433,12 +436,6 @@
   animation: ss-reveal-in 200ms cubic-bezier(0.215, 0.61, 0.355, 1);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .ss-reveal > :not([data-reveal-steady]) {
-    animation: none;
-  }
-}
-
 /* The thinking indicator (`features/chat/thinking-indicator.tsx`), ported
  * from surfsense_web. Dark keeps the web's light-on-screen glow; light draws
  * the same dots in ink, since screen blending on a pale ground erases them. */
@@ -701,16 +698,30 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .ss-thinking-dot,
-  .ss-thinking-orbit,
-  .ss-thinking-pulse,
-  .ss-thinking-breathe-primary,
-  .ss-thinking-breathe-secondary,
-  .ss-thinking-light,
-  .ss-thinking-goo {
-    animation: none;
-  }
+/* Reduced motion, for everything not written with it in mind. Spinners and
+ * skeletons stay, since they say work is under way; scroll-fade is a mask
+ * driven by the scroll position, not motion. */
+.reduce-motion *,
+.reduce-motion *::before,
+.reduce-motion *::after {
+  transition: none !important;
+}
+
+.reduce-motion
+  *:not(
+    [class*="animate-spin"],
+    [class*="animate-pulse"],
+    [class*="scroll-fade"]
+  ),
+.reduce-motion *::before,
+.reduce-motion *::after {
+  animation: none !important;
+}
+
+/* shadcn's own reduced-motion rule for it reads only the OS. */
+.reduce-motion .shimmer {
+  background-image: none;
+  -webkit-text-fill-color: currentColor;
 }
 
 /* Firefox before 159 has no scroll-driven animations, so shadcn's scroll-fade

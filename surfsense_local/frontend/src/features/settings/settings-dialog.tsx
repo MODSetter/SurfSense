@@ -52,6 +52,7 @@ import { cn } from "@/lib/utils"
 
 import { AppearanceToggle } from "./appearance-toggle"
 import { LanguageSelect } from "./language-select"
+import { ReduceMotionSelect } from "./reduce-motion-select"
 import { AudioModelsSettings } from "./models/audio-models-settings"
 import { ChatModelsSettings } from "./models/chat-models-settings"
 import { ImageEditModelsSettings } from "./models/image-edit-models-settings"
@@ -136,6 +137,29 @@ function GeneralSettings({
         </div>
         <LanguageSelect
           aria-labelledby="settings-general-language"
+          className="w-40"
+        />
+      </div>
+      <div className="mt-8 flex items-center justify-between gap-8">
+        <div className="flex flex-col gap-1">
+          <h3
+            id="settings-general-reduce-motion"
+            className="text-sm font-medium"
+          >
+            {intl.formatMessage({
+              id: "settings_general_reduce_motion_title",
+              defaultMessage: "Reduce motion",
+            })}
+          </h3>
+          <p className="text-sm text-pretty text-muted-foreground">
+            {intl.formatMessage({
+              id: "settings_general_reduce_motion_body",
+              defaultMessage: "Keep animations to a minimum on this device.",
+            })}
+          </p>
+        </div>
+        <ReduceMotionSelect
+          aria-labelledby="settings-general-reduce-motion"
           className="w-40"
         />
       </div>
