@@ -91,19 +91,14 @@ function ComboboxContent({
   align = "start",
   alignOffset = 0,
   anchor,
-  container,
   ...props
 }: ComboboxPrimitive.Popup.Props &
   Pick<
     ComboboxPrimitive.Positioner.Props,
     "side" | "align" | "sideOffset" | "alignOffset" | "anchor"
-  > & {
-    // Inside a modal dialog, pass a host within it: the dialog hides
-    // everything outside itself from assistive technology.
-    container?: ComboboxPrimitive.Portal.Props["container"]
-  }) {
+  >) {
   return (
-    <ComboboxPrimitive.Portal container={container}>
+    <ComboboxPrimitive.Portal>
       <ComboboxPrimitive.Positioner
         side={side}
         sideOffset={sideOffset}

@@ -13,6 +13,8 @@ import {
   ComboboxItem,
   ComboboxLabel,
   ComboboxList,
+  ComboboxTrigger,
+  ComboboxValue,
 } from "@/components/ui/combobox"
 import { DialogFooter } from "@/components/ui/dialog"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
@@ -234,10 +236,6 @@ export function ConnectionForm({
     null
   )
   const [canSaveAnyway, setCanSaveAnyway] = useState(false)
-  // Hosts the combobox popup inside the settings dialog, which hides
-  // everything outside itself from assistive technology. Absolute, so it adds
-  // no height and the centred dialog does not shift when the popup opens.
-  const [popupHost, setPopupHost] = useState<HTMLDivElement | null>(null)
 
   const save = async (allowUnverified: boolean) => {
     setBusy(true)
@@ -269,7 +267,6 @@ export function ConnectionForm({
 
   const fields = (
     <>
-      <div ref={setPopupHost} className="absolute" />
       <Field>
         <FieldLabel htmlFor={`${fieldId}-name`}>
           {intl.formatMessage({
@@ -303,15 +300,29 @@ export function ConnectionForm({
           filter={matchesProvider}
           disabled={busy || offerChatGPT || isClaudePlan}
         >
-          <ComboboxInput
+          <ComboboxTrigger
             id={`${fieldId}-provider`}
-            disabled={busy || offerChatGPT || isClaudePlan}
-            placeholder={intl.formatMessage({
-              id: "models_connection_form_provider_placeholder",
-              defaultMessage: "Search providers",
-            })}
-          />
-          <ComboboxContent container={popupHost}>
+            render={
+              <Button
+                variant="outline"
+                static
+                className="w-full justify-between font-normal"
+              />
+            }
+          >
+            <span className="min-w-0 truncate">
+              <ComboboxValue />
+            </span>
+          </ComboboxTrigger>
+          {/* In the popup, so the search starts empty and no render resets it. */}
+          <ComboboxContent className="min-w-(--anchor-width)">
+            <ComboboxInput
+              showTrigger={false}
+              placeholder={intl.formatMessage({
+                id: "models_connection_form_provider_placeholder",
+                defaultMessage: "Search providers",
+              })}
+            />
             <ComboboxEmpty>
               {intl.formatMessage({
                 id: "models_connection_form_provider_empty",
