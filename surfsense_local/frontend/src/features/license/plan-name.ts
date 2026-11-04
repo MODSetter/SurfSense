@@ -1,7 +1,7 @@
 import type { LicenseStatus } from "./api"
 
 // Plan names are product names and stay English. A one-person Business license
-// is sold, and shown, as Solo (ADR 0079).
+// is sold, and shown, as Solo (ADR 0080).
 export function planName({
   plan,
   max_users,

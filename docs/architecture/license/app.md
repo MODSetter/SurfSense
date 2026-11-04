@@ -3,7 +3,7 @@
 The desktop app imports a Keygen license file and verifies it offline, against Ed25519 public keys compiled into the binary, and never contacts Keygen. A license unlocks SurfSense's paid plugins and priority support, and a trial the same for its term; a Business license, sold per person, and the Business trial also name the job plugins they unlock. In the app a license changes only what Settings and the sidebar show, and its key is sent to SurfSense's plugins and, to fetch a renewed file, to SurfSense's license server. No state of the license ever disables the app. The check on the machine is honesty for the interface, not enforcement: the app is public and can be rebuilt without it, so enforcement belongs to the servers a paid plugin calls.
 
 **Code:** [`surfsense_local/backend/modules/license/`](../../../surfsense_local/backend/modules/license/), [`surfsense_local/frontend/src/features/license/`](../../../surfsense_local/frontend/src/features/license/)
-**Decisions:** [ADR 0019](../../adr/0019-offline-licenses.md), ADR 0079 for Business; [ADR 0017](../../adr/0017-egress-off-by-default.md) and [ADR 0060](../../adr/0060-one-consent-question-per-user-action.md) for the renewal's consent
+**Decisions:** [ADR 0019](../../adr/0019-offline-licenses.md), ADR 0080 for Business; [ADR 0017](../../adr/0017-egress-off-by-default.md) and [ADR 0060](../../adr/0060-one-consent-question-per-user-action.md) for the renewal's consent
 
 The file format is [contract 1](../../contracts/01-license-file.md); the hosted side that issues files, and answers a renewal, is the [portal](portal.md).
 
