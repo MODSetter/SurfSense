@@ -7,10 +7,10 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from httpx import AsyncClient, Response
 
 from modules.license import service, verify
+from tests.license_samples import business_license, signed
 
 pytestmark = pytest.mark.integration
 
@@ -51,7 +51,49 @@ async def test_a_valid_file_is_active_and_shows_its_plan(client: AsyncClient) ->
         "email": "ada@example.com",
         "expiry": "2027-09-10T00:00:00Z",
         "max_users": None,
+        "firm": None,
+        "jobs": [],
     }
+
+
+async def test_a_business_license_shows_its_firm_people_and_jobs(
+    client: AsyncClient,
+) -> None:
+    """Job screens show whose firm it is; the people are shown, never enforced."""
+    response = await put_license(client, business_license())
+
+    assert response.status_code == 200
+    assert (await client.get("/license/status")).json() == {
+        "state": "active",
+        "plan": "business",
+        "email": "partner@example.com",
+        "expiry": "2027-10-10T00:00:00Z",
+        "max_users": 5,
+        "firm": "Example Accounting LLP",
+        "jobs": ["JOB_QUESTIONNAIRE"],
+    }
+
+
+@pytest.mark.parametrize(
+    ("metadata", "firm", "jobs"),
+    [
+        (
+            {"jobs": " JOB_QUESTIONNAIRE , JOB_RFP,,"},
+            "Example Accounting LLP",
+            ["JOB_QUESTIONNAIRE", "JOB_RFP"],
+        ),
+        ({"firm": None, "jobs": None}, None, []),
+        ({"firm": "  "}, None, ["JOB_QUESTIONNAIRE"]),
+        ({"plan": "trial", "firm": None}, None, ["JOB_QUESTIONNAIRE"]),
+    ],
+)
+async def test_firm_and_jobs_read_as_the_checkout_wrote_them(
+    client: AsyncClient, metadata: dict, firm: str | None, jobs: list[str]
+) -> None:
+    """Codes trimmed, an empty list when none; the Business trial is a trial with jobs."""
+    response = await put_license(client, business_license(**metadata))
+
+    assert (response.json()["firm"], response.json()["jobs"]) == (firm, jobs)
 
 
 @pytest.mark.parametrize(
@@ -108,21 +150,6 @@ async def test_a_changed_payload_is_refused_and_nothing_is_kept(
     assert response.status_code == 422
     assert response.json()["detail"]["code"] == "bad_signature"
     assert (await client.get("/license/status")).json()["state"] == "none"
-
-
-# generate.mjs's fixed seed, so a test can sign a payload the fixtures lack.
-TEST_SEED = b"surfsense-contract-1-test-seed!!"
-
-
-def signed(payload: dict, alg: str = "base64+ed25519") -> str:
-    """A certificate over `payload`, signed the way Keygen signs."""
-    enc = base64.b64encode(json.dumps(payload).encode()).decode()
-    sig = Ed25519PrivateKey.from_private_bytes(TEST_SEED).sign(
-        f"license/{enc}".encode()
-    )
-    outer = {"enc": enc, "sig": base64.b64encode(sig).decode(), "alg": alg}
-    wrapped = base64.b64encode(json.dumps(outer).encode()).decode()
-    return f"-----BEGIN LICENSE FILE-----\n{wrapped}\n-----END LICENSE FILE-----\n"
 
 
 def payload(issued: str, file_expiry: str | None = None) -> dict:
@@ -226,6 +253,8 @@ async def test_a_fresh_install_has_no_license(client: AsyncClient) -> None:
         "email": None,
         "expiry": None,
         "max_users": None,
+        "firm": None,
+        "jobs": [],
     }
 
 
