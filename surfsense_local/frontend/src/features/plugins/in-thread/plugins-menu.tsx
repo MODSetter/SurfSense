@@ -161,10 +161,10 @@ export function PluginsMenu({
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuLabel>
+          <DropdownMenuLabel className="select-none">
             {intl.formatMessage({
-              id: "plugins_menu_scope_label",
-              defaultMessage: "Applies to all Agentic chats",
+              id: "plugins_menu_yours_label",
+              defaultMessage: "Your plugins",
             })}
           </DropdownMenuLabel>
           {connected.length === 0 ? (

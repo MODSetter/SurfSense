@@ -792,7 +792,7 @@ describe("chat composer", () => {
     await user.keyboard("{ArrowRight}")
     const notes = await screen.findByRole("menuitemcheckbox", { name: "Notes" })
 
-    expect(screen.getByText("Applies to all Agentic chats")).toBeTruthy()
+    expect(screen.getByText("Your plugins")).toBeTruthy()
     expect(notes.getAttribute("aria-checked")).toBe("true")
     const wiki = screen.getByRole("menuitemcheckbox", { name: /^Wiki/ })
     expect(wiki.getAttribute("aria-disabled")).toBe("true")
@@ -840,7 +840,7 @@ describe("chat composer", () => {
     expect(rows).toBeTruthy()
     expect(rows?.textContent).not.toContain("Manage plugins")
     expect(screen.getByText("Manage plugins")).toBeTruthy()
-    expect(screen.getByText("Applies to all Agentic chats")).toBeTruthy()
+    expect(screen.getByText("Your plugins")).toBeTruthy()
   })
 
   it("opens Settings › Plugins on Browse or Add custom plugin from the add menu", async () => {
