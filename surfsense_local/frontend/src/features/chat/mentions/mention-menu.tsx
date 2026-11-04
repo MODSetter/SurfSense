@@ -3,17 +3,17 @@ import { useEffect } from "react"
 
 import { Button } from "@/components/ui/button"
 import {
-  AiSparklesIcon,
   ArrowLeftIcon,
   ChevronRightIcon,
-  Folder01Icon,
+  LibraryBigIcon,
+  Shapes01Icon,
 } from "@/components/ui/icons"
 import { intl } from "@/i18n/intl"
 
 import { mentionGroupLabel } from "./mention-group-label"
 import { mentionsOfGroup } from "./mention-items"
 import { useMentionPopoverScope } from "./mention-popover-scope"
-import { MentionItem, MentionItemDescription } from "./mention-list"
+import { MentionItemDescription, MentionRowButton } from "./mention-list"
 
 /** What `@` shows first: the groups, each with how many it holds. */
 export function MentionGroups({
@@ -27,24 +27,24 @@ export function MentionGroups({
     <ComposerPrimitive.TriggerPopoverCategories>
       {(groups) =>
         groups.map(({ id, label }) => {
-          const Icon = id === "artifact" ? AiSparklesIcon : Folder01Icon
+          const Icon = id === "artifact" ? Shapes01Icon : LibraryBigIcon
           return (
-            <MentionItem
+            <ComposerPrimitive.TriggerPopoverCategoryItem
               key={id}
-              render={
-                <ComposerPrimitive.TriggerPopoverCategoryItem categoryId={id} />
-              }
-              className="data-highlighted:bg-accent"
+              categoryId={id}
+              asChild
             >
-              <Icon className="size-4 shrink-0 text-muted-foreground" />
-              <span className="min-w-0 truncate">{label}</span>
-              {isLoading ? null : (
-                <MentionItemDescription className="tabular-nums">
-                  {intl.formatNumber(mentionsOfGroup(items, id).length)}
-                </MentionItemDescription>
-              )}
-              <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground" />
-            </MentionItem>
+              <MentionRowButton>
+                <Icon className="size-4 shrink-0 text-muted-foreground" />
+                <span className="min-w-0 truncate">{label}</span>
+                {isLoading ? null : (
+                  <MentionItemDescription className="tabular-nums">
+                    {intl.formatNumber(mentionsOfGroup(items, id).length)}
+                  </MentionItemDescription>
+                )}
+                <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground" />
+              </MentionRowButton>
+            </ComposerPrimitive.TriggerPopoverCategoryItem>
           )
         })
       }
@@ -56,22 +56,29 @@ export function MentionGroups({
 export function MentionGroupHeader() {
   const { activeCategoryId, isSearchMode, open } = useMentionPopoverScope()
   if (!open || !activeCategoryId || isSearchMode) return null
+  const group = mentionGroupLabel(activeCategoryId)
   return (
-    <div className="sticky -top-1 z-10 -mx-1 -mt-1 mb-0.5 flex items-center gap-1 bg-popover px-1 pt-1 text-xs text-muted-foreground select-none">
+    <div className="mb-0.5 shrink-0">
       <ComposerPrimitive.TriggerPopoverBack asChild>
         <Button
+          static
           variant="ghost"
-          size="icon-xs"
-          aria-label={intl.formatMessage({
-            id: "chat_mentions_back_aria",
-            defaultMessage: "Back",
-          })}
+          size="sm"
+          // Names what it shows, for a screen reader and for speech control.
+          aria-label={intl.formatMessage(
+            {
+              id: "chat_mentions_back_aria",
+              defaultMessage: "Back from {group}",
+            },
+            { group }
+          )}
           onMouseDown={(event) => event.preventDefault()}
+          className="w-full justify-start px-1.5 text-xs font-normal text-muted-foreground"
         >
           <ArrowLeftIcon />
+          {group}
         </Button>
       </ComposerPrimitive.TriggerPopoverBack>
-      <span>{mentionGroupLabel(activeCategoryId)}</span>
     </div>
   )
 }

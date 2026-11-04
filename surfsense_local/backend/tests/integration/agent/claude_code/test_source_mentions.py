@@ -44,3 +44,6 @@ async def test_claude_code_is_told_of_a_named_source_before_the_users_words(
     assert blocks[-1]["text"] == "When per @Memo?"
     stored = (await agent_api.http.get(f"/chat/threads/{thread['id']}/messages")).json()
     assert stored[0]["content"]["text"] == "When per @Memo?"
+    assert stored[0]["content"]["mentions"] == [
+        {"id": f"document:{named}", "type": "source", "label": "Memo"}
+    ]

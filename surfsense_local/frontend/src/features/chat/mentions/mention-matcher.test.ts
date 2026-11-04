@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest"
 
-import { MENTION_TRIGGER, mentionAt } from "./mention-matcher"
+import {
+  MENTION_TRIGGER,
+  mentionAmongNames,
+  mentionAt,
+} from "./mention-matcher"
 
 describe("the mention at the caret", () => {
   it.each([
@@ -22,5 +26,38 @@ describe("the mention at the caret", () => {
     ["", 0],
   ])("is not found in %j at %i", (text, caret) => {
     expect(mentionAt(text, MENTION_TRIGGER, caret)).toBeNull()
+  })
+})
+
+describe("the mention at the caret, among real names", () => {
+  const match = mentionAmongNames(["Plan Q3.pdf", "Memo"])
+  const at = (text: string) => match(text, MENTION_TRIGGER, text.length)
+
+  it("searches on past a space while the words match a name", () => {
+    expect(at("see @plan q")).toEqual({
+      query: "plan q",
+      offset: 4,
+      endOffset: 11,
+    })
+  })
+
+  it("lets go once the words match none", () => {
+    expect(at("see @plan quickly")).toBeNull()
+  })
+
+  it("ignores an `@` inside a word", () => {
+    expect(at("mail me@plan q")).toBeNull()
+  })
+
+  it("stays on the caret's line", () => {
+    expect(at("@plan\nq")).toBeNull()
+  })
+
+  it("opens straight after a chip", () => {
+    expect(at(":source[Memo]{name=document:3}@")).toEqual({
+      query: "",
+      offset: 30,
+      endOffset: 31,
+    })
   })
 })

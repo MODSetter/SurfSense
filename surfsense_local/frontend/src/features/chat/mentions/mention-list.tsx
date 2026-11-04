@@ -2,6 +2,7 @@ import { mergeProps } from "@base-ui/react/merge-props"
 import { useRender } from "@base-ui/react/use-render"
 import type { ComponentProps } from "react"
 
+import { Button } from "@/components/ui/button"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
@@ -9,7 +10,7 @@ import { cn } from "@/lib/utils"
 // and by the startup frame as a skeleton, so the list opens where the
 // skeleton stood.
 
-/** Above the composer's text, the width of its box. */
+/** Above the composer's text; the real list then places itself at the `@`. */
 export function MentionList({
   className,
   render,
@@ -25,7 +26,7 @@ export function MentionList({
           defaultMessage: "Sources and artifacts",
         }),
         className: cn(
-          "absolute inset-x-1.5 bottom-full z-50 mb-2 max-h-64 overflow-y-auto rounded-xl border bg-popover p-1 text-popover-foreground shadow-md",
+          "absolute bottom-full left-1.5 z-50 mb-2 flex max-h-64 w-72 max-w-[calc(100%-0.75rem)] flex-col overflow-hidden rounded-xl border bg-popover p-1 text-popover-foreground shadow-md",
           className
         ),
       },
@@ -34,27 +35,34 @@ export function MentionList({
   })
 }
 
-/** One row, on one line: an icon, a name that gives way, and a detail at its end. */
-export function MentionItem({
+// One line: an icon, a name that gives way, and a detail at its end.
+const ROW =
+  "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm"
+
+/** A row to pick. The popover's part renders through this with `asChild`, giving it
+ *  its role, its highlight and its click. */
+export function MentionRowButton({
   className,
-  render,
   ...props
-}: useRender.ComponentProps<"div">) {
-  return useRender({
-    defaultTagName: "div",
-    render,
-    props: mergeProps<"div">(
-      {
-        // The message box keeps the focus, so typing goes on after a click.
-        onMouseDown: (event) => event.preventDefault(),
-        className: cn(
-          "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm outline-none",
-          className
-        ),
-      },
-      props
-    ),
-  })
+}: ComponentProps<typeof Button>) {
+  return (
+    <Button
+      variant="bare"
+      static
+      // The message box keeps the focus, so typing goes on after a click.
+      onMouseDown={(event) => event.preventDefault()}
+      className={cn(ROW, "data-highlighted:bg-accent", className)}
+      {...props}
+    />
+  )
+}
+
+/** A row's shape with nothing to pick yet, for the skeleton. */
+export function MentionRowShape({
+  className,
+  ...props
+}: ComponentProps<"div">) {
+  return <div className={cn(ROW, className)} {...props} />
 }
 
 export function MentionItemDescription({

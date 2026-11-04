@@ -33,9 +33,11 @@ export function useRowsLoadedOnScroll(total: number) {
 
   const rows = useCallback(
     (element: HTMLElement | null) => {
-      const list = element?.closest<HTMLElement>("[role=listbox]")
+      const list = element?.closest<HTMLElement>(
+        "[data-slot=scroll-fade-viewport]"
+      )
       if (!list) return
-      // The popover outlives each list, and a new one starts at its top.
+      // The scrolling area outlives each list, and a new one starts at its top.
       list.scrollTop = 0
       const onScroll = () => {
         const left = list.scrollHeight - list.scrollTop - list.clientHeight

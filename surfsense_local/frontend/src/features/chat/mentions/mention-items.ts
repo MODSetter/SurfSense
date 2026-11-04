@@ -20,6 +20,10 @@ export type Mentionables = {
 
 export const MENTION_GROUPS = ["source", "artifact"] as const
 
+/** "artifact-pptx" is in the artifact group: the type also carries the format, so
+ *  a chip rebuilt from text alone still knows its icon. */
+export const mentionGroupOf = (type: string) => type.split("-")[0]
+
 const isReady = (document: WorkspaceDocument) => document.status === "ready"
 
 function folderItems({ index }: Mentionables): TriggerItem[] {
@@ -59,10 +63,9 @@ function artifactItems({ artifacts }: Mentionables): TriggerItem[] {
     if (!ready) return []
     return {
       id: `document:${ready.document_id}`,
-      type: "artifact",
+      type: `artifact-${ready.format}`,
       label: ready.title,
       description: formatLabel({ key: ready.format, label: ready.format }),
-      metadata: { format: ready.format },
     }
   })
 }
@@ -77,7 +80,7 @@ export const isFolderItem = (item: TriggerItem) => item.id.startsWith("folder:")
 /** One group's rows, whole: the list keeps its highlight only while this stays
  *  the same list, so it loads more as it renders rather than by asking again. */
 export function mentionsOfGroup(items: readonly TriggerItem[], group: string) {
-  return items.filter((item) => item.type === group)
+  return items.filter((item) => mentionGroupOf(item.type) === group)
 }
 
 /** Every match, sources before artifacts, those starting with the words first in

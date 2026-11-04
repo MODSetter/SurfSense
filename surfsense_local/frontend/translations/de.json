@@ -201,7 +201,7 @@
   "chat_inline_citation_aria": "Zitierten Abschnitt {id} anzeigen",
   "chat_inline_citation_tooltip": "Quellabschnitt #{id} anzeigen",
   "chat_mentions_artifacts_label": "Artefakte",
-  "chat_mentions_back_aria": "Zurück",
+  "chat_mentions_back_aria": "Zurück von {group}",
   "chat_mentions_folder_files_label": "{count, plural, one {# Datei} other {# Dateien}}",
   "chat_mentions_list_aria": "Quellen und Artefakte",
   "chat_mentions_no_artifacts_empty": "Noch keine Artefakte.",

@@ -183,6 +183,40 @@ beforeEach(() => {
 
 afterEach(cleanup)
 
+describe("a sent message", () => {
+  it("shows each source it named as a chip with its icon", async () => {
+    const { container } = renderThread([
+      {
+        id: "u",
+        role: "user",
+        text: "compare @Plan Q3.pdf with @Board deck",
+        custom: {
+          steps: [],
+          mentions: [
+            { id: "document:3", type: "source", label: "Plan Q3.pdf" },
+            { id: "document:9", type: "artifact-pptx", label: "Board deck" },
+          ],
+        },
+      },
+    ])
+
+    const said = await screen.findByText("Plan Q3.pdf")
+    expect(said.parentElement?.querySelector("svg")).toBeTruthy()
+    expect(container.textContent).not.toContain("@Plan")
+    expect(container.textContent).toContain("compare")
+    expect(container.textContent).toContain("Board deck")
+  })
+
+  it("is plain text when it named nothing", async () => {
+    const { container } = renderThread([
+      { id: "u", role: "user", text: "mail me@example.com" },
+    ])
+
+    await screen.findByText("mail me@example.com")
+    expect(container.querySelector("span svg")).toBeNull()
+  })
+})
+
 describe("a reply's markdown", () => {
   it("keeps its options across tokens, so they never force a reparse", async () => {
     renderThread(

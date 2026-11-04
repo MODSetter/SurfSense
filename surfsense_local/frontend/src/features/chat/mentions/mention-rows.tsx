@@ -1,22 +1,16 @@
 import { ComposerPrimitive, type TriggerItem } from "@assistant-ui/react"
 
-import { FileIcon, Folder01Icon } from "@/components/ui/icons"
 import { intl } from "@/i18n/intl"
-import { FORMAT_ICONS } from "@/features/studio/studio-formats"
+
+import { MenuItemHint } from "../menu-item-hint"
 
 import { mentionGroupLabel } from "./mention-group-label"
-import { isFolderItem } from "./mention-items"
-import { MentionItem, MentionItemDescription } from "./mention-list"
+import { MentionIcon } from "./mention-icon"
+import { mentionGroupOf } from "./mention-items"
+import { MentionItemDescription, MentionRowButton } from "./mention-list"
 import { MentionRowsSkeleton } from "./mention-list-skeleton"
 import { useMentionPopoverScope } from "./mention-popover-scope"
 import { useRowsLoadedOnScroll } from "./use-rows-loaded-on-scroll"
-
-function RowIcon({ item }: { item: TriggerItem }) {
-  const Icon = isFolderItem(item)
-    ? Folder01Icon
-    : (FORMAT_ICONS[String(item.metadata?.format)] ?? FileIcon)
-  return <Icon className="size-4 shrink-0 text-muted-foreground" />
-}
 
 function LoadedRows({
   found,
@@ -31,28 +25,37 @@ function LoadedRows({
     <div ref={rows} className="contents">
       {found.slice(0, shown).map((item, index) => (
         <div key={item.id} className="contents">
-          {grouped && found[index - 1]?.type !== item.type ? (
+          {grouped &&
+          mentionGroupOf(found[index - 1]?.type ?? "") !==
+            mentionGroupOf(item.type) ? (
             <p
               role="presentation"
               className="px-2 pt-1.5 pb-1 text-xs text-muted-foreground select-none"
             >
-              {mentionGroupLabel(item.type)}
+              {mentionGroupLabel(mentionGroupOf(item.type))}
             </p>
           ) : null}
-          <MentionItem
-            render={
-              <ComposerPrimitive.TriggerPopoverItem item={item} index={index} />
-            }
-            className="data-highlighted:bg-accent"
-          >
-            <RowIcon item={item} />
-            <span className="min-w-0 truncate">{item.label}</span>
-            {item.description ? (
-              <MentionItemDescription>
-                {item.description}
-              </MentionItemDescription>
-            ) : null}
-          </MentionItem>
+          <MenuItemHint hint={item.label}>
+            <ComposerPrimitive.TriggerPopoverItem
+              item={item}
+              index={index}
+              asChild
+            >
+              <MentionRowButton>
+                <MentionIcon
+                  id={item.id}
+                  type={item.type}
+                  className="size-4 shrink-0 text-muted-foreground"
+                />
+                <span className="min-w-0 truncate">{item.label}</span>
+                {item.description ? (
+                  <MentionItemDescription>
+                    {item.description}
+                  </MentionItemDescription>
+                ) : null}
+              </MentionRowButton>
+            </ComposerPrimitive.TriggerPopoverItem>
+          </MenuItemHint>
         </div>
       ))}
     </div>

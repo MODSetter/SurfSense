@@ -5,6 +5,7 @@ import json
 import pytest
 from sqlalchemy import Engine
 
+from modules.agent.agent_threads.mention_note import name_mentions, noted_mentions
 from modules.agent.agent_threads.scope_note import NAMED_PATHS
 from modules.agent.agent_threads.turn_sources import turn_sources
 from modules.agent.tool_endpoint.turn_scope import thread_turn_scope
@@ -252,6 +253,55 @@ def test_a_named_source_deleted_since_drops_out(engine: Engine) -> None:
         assert mentioned_of(thread.source_scope) == []
 
 
+def test_a_named_folder_and_artifact_keep_their_kind_in_the_tag(engine: Engine) -> None:
+    """A chip needs what was named, not the files a folder gave."""
+    with create_session_factory(engine)() as session:
+        workspace_id, library = _workspace_with_library(session)
+        root = session.get(Folder, library).root_id
+        folder = Folder(
+            workspace_id=workspace_id,
+            root_id=root,
+            parent_id=library,
+            name="Contracts",
+            name_key="contracts",
+        )
+        session.add(folder)
+        session.flush()
+        _ready(session, workspace_id, "Plan", folder.id)
+        document = _ready(session, workspace_id, "Deck", None, DocumentType.ARTIFACT)
+        session.add(
+            Artifact(document_id=document, workspace_id=workspace_id, format="pptx")
+        )
+        session.flush()
+        thread = _agent_thread(session, workspace_id)
+
+        sources = turn_sources(
+            session,
+            thread,
+            MessageCreate(
+                text="@Contracts @Deck",
+                source_scope=SourceScope(),
+                mentioned_sources={
+                    "document_ids": [document],
+                    "folder_ids": [folder.id],
+                },
+            ),
+        )
+        turn = {
+            "content": {
+                "mentions": noted_mentions(
+                    [{"type": "synthetic", "text": sources.mention_note}]
+                )
+            }
+        }
+        name_mentions(session, workspace_id, [turn])
+
+        assert turn["content"]["mentions"] == [
+            {"id": f"document:{document}", "type": "artifact-pptx", "label": "Deck"},
+            {"id": f"folder:{folder.id}", "type": "source", "label": "Contracts"},
+        ]
+
+
 def test_a_thread_read_shows_its_ticks_alone(engine: Engine) -> None:
     """The API's scope refuses any other key, and the panel owns only the ticks."""
     with create_session_factory(engine)() as session:
@@ -305,3 +355,45 @@ async def test_opencode_can_read_and_search_a_named_source_that_is_not_ticked(
     stored = (await agent_api.http.get(f"/chat/threads/{thread['id']}/messages")).json()
     assert stored[0]["content"]["text"] == "When per @Memo?"
     assert stored[0]["content"]["scope"]["document_ids"] == [ticked, named]
+
+
+async def test_a_thread_reads_back_what_each_message_named(
+    agent_api: AgentAPI, engine: Engine, real_model: object
+) -> None:
+    """The bubble's chips: named by what the source is called now, and a deleted one goes."""
+    kept, _ = ingest_note(engine, agent_api.workspace_id, "Memo", "Ship on Monday.")
+    deleted, _ = ingest_note(engine, agent_api.workspace_id, "Old", "Ship on Friday.")
+    agent_api.model.replies = [("text", "Monday.")]
+    thread = await open_thread(agent_api)
+    await send(
+        agent_api,
+        thread["id"],
+        "When per @Memo and @Old?",
+        source_scope={"all": True},
+        mentioned_sources={"document_ids": [kept, deleted]},
+    )
+    with create_session_factory(engine)() as session:
+        session.delete(session.get(Document, deleted))
+        session.commit()
+
+    stored = (await agent_api.http.get(f"/chat/threads/{thread['id']}/messages")).json()
+
+    assert stored[0]["content"]["text"] == "When per @Memo and @Old?"
+    assert stored[0]["content"]["mentions"] == [
+        {"id": f"document:{kept}", "type": "source", "label": "Memo"}
+    ]
+
+
+async def test_a_message_naming_nothing_reads_back_no_mentions(
+    agent_api: AgentAPI, engine: Engine, real_model: object
+) -> None:
+    """A typed `[surfsense-mentions: ...]` is the user's words, not a note."""
+    agent_api.model.replies = [("text", "Hi.")]
+    thread = await open_thread(agent_api)
+    typed = "[surfsense-mentions: document:1]"
+
+    await send(agent_api, thread["id"], typed, source_scope={"all": True})
+
+    stored = (await agent_api.http.get(f"/chat/threads/{thread['id']}/messages")).json()
+    assert stored[0]["content"]["text"] == typed
+    assert "mentions" not in stored[0]["content"]

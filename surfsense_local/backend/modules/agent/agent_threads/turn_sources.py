@@ -72,7 +72,9 @@ def turn_sources(
     else:
         scope = thread_scope(thread)
         resolved = resolve_scope(session, thread.workspace_id, scope)
-    told = _told_of_mentions(session, thread, named, resolved)
+    told = _told_of_mentions(
+        session, thread, payload.mentioned_sources, named, resolved
+    )
     if _every_source(scope):
         return TurnSources(resolved.ids, None, None, told)
     return _noted(session, thread, resolved, told)
@@ -96,8 +98,14 @@ def _named_documents(
 
 
 def _told_of_mentions(
-    session: Session, thread: ChatThread, named: list[int], resolved: ResolvedScope
+    session: Session,
+    thread: ChatThread,
+    mentioned: MentionedSources | None,
+    named: list[int],
+    resolved: ResolvedScope,
 ) -> str | None:
+    if mentioned is None:
+        return None
     in_turn = set(resolved.ids)
     ready = [i for i in named if i in in_turn]
     listed = ready[:NAMED_PATHS]
@@ -110,6 +118,7 @@ def _told_of_mentions(
         ).all()
     )
     return mention_note(
+        mentioned,
         [NamedFile(paths[i], artifacts.get(i)) for i in listed if i in paths],
         len(ready) - len(listed),
         len(listed) - sum(i in paths for i in listed),

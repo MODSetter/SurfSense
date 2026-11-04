@@ -201,7 +201,7 @@
   "chat_inline_citation_aria": "引用されたチャンク{id}を表示",
   "chat_inline_citation_tooltip": "ソースのチャンク #{id}を表示",
   "chat_mentions_artifacts_label": "生成物",
-  "chat_mentions_back_aria": "戻る",
+  "chat_mentions_back_aria": "{group}から戻る",
   "chat_mentions_folder_files_label": "{count, plural, other {#件のファイル}}",
   "chat_mentions_list_aria": "ソースと生成物",
   "chat_mentions_no_artifacts_empty": "生成物はまだありません。",

@@ -267,6 +267,29 @@
   -webkit-app-region: no-drag;
 }
 
+/* The rich message box's parts, which its wrapper's padding and height shape. */
+.composer-input {
+  position: relative;
+}
+
+.composer-input .aui-lexical-input {
+  min-height: 1lh;
+  outline: none;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.composer-input .aui-lexical-placeholder {
+  position: absolute;
+  inset: 1rem 0.5rem auto;
+  overflow: hidden;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  user-select: none;
+}
+
 .sidebar-row-title-fade {
   -webkit-mask-image: linear-gradient(
     to right,

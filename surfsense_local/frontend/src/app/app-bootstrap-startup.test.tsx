@@ -23,7 +23,7 @@ import {
   rememberDashboard,
 } from "@/features/startup/dashboard-hint"
 import { readStartupLayout } from "@/features/startup/startup-layout"
-import { render } from "@/test-utils"
+import { boxText, render } from "@/test-utils"
 import { AppBootstrap } from "./app-bootstrap"
 
 const STARTING = { name: "Starting SurfSense" }
@@ -254,10 +254,9 @@ describe("typing while the app loads", () => {
     release()
     await dashboardRail()
     await waitFor(() =>
-      expect(
-        screen.getByRole<HTMLTextAreaElement>("textbox", { name: "Message" })
-          .value
-      ).toBe("find jobs")
+      expect(boxText(screen.getByRole("textbox", { name: "Message" }))).toBe(
+        "find jobs"
+      )
     )
   }, 15_000)
 
@@ -327,8 +326,8 @@ describe("typing while the app loads", () => {
     expect(
       screen
         .getByRole("textbox", { name: "Message" })
-        .hasAttribute("data-reveal-steady")
-    ).toBe(true)
+        .closest("[data-reveal-steady]")
+    ).toBeTruthy()
   }, 15_000)
 })
 

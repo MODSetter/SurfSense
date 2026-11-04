@@ -201,7 +201,7 @@
   "chat_inline_citation_aria": "Показать цитируемый фрагмент {id}",
   "chat_inline_citation_tooltip": "Показать фрагмент источника №{id}",
   "chat_mentions_artifacts_label": "Артефакты",
-  "chat_mentions_back_aria": "Назад",
+  "chat_mentions_back_aria": "Назад из раздела «{group}»",
   "chat_mentions_folder_files_label": "{count, plural, one {# файл} few {# файла} many {# файлов} other {# файла}}",
   "chat_mentions_list_aria": "Источники и артефакты",
   "chat_mentions_no_artifacts_empty": "Пока нет артефактов.",

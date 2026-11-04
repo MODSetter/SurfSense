@@ -201,7 +201,7 @@
   "chat_inline_citation_aria": "Ver el fragmento citado {id}",
   "chat_inline_citation_tooltip": "Ver el fragmento #{id} de la fuente",
   "chat_mentions_artifacts_label": "Artefactos",
-  "chat_mentions_back_aria": "Atrás",
+  "chat_mentions_back_aria": "Volver desde {group}",
   "chat_mentions_folder_files_label": "{count, plural, one {# archivo} many {# archivos} other {# archivos}}",
   "chat_mentions_list_aria": "Fuentes y artefactos",
   "chat_mentions_no_artifacts_empty": "Aún no hay artefactos.",

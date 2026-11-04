@@ -1,10 +1,11 @@
 import {
   ComposerPrimitive,
-  useAui,
-  type DirectiveFormatter,
+  defaultDirectiveFormatter,
   type TriggerAdapter,
 } from "@assistant-ui/react"
 import { useMemo } from "react"
+
+import { ScrollFade } from "@/components/ui/scroll-fade"
 
 import { keepHighlightedRowInView } from "./keep-highlighted-row-in-view"
 import { mentionGroupLabel } from "./mention-group-label"
@@ -16,21 +17,14 @@ import {
   type Mentionables,
 } from "./mention-items"
 import { MentionList } from "./mention-list"
-import { MENTION_TRIGGER, mentionAt } from "./mention-matcher"
+import { MentionListAtCaret } from "./mention-list-at-caret"
+import { MENTION_TRIGGER, mentionAmongNames } from "./mention-matcher"
 import {
   MentionGroupHeader,
   MentionGroups,
   SearchLeavesTheGroup,
 } from "./mention-menu"
 import { MentionRows } from "./mention-rows"
-import { withPick } from "./named-sources"
-
-// The name as the user knows it: the composer is a textarea, so anything else
-// would show as written. The id goes beside the text, in the run's config.
-const formatter: DirectiveFormatter = {
-  serialize: (item) => `${MENTION_TRIGGER}${item.label}`,
-  parse: (text) => [{ kind: "text", text }],
-}
 
 /** Typing `@` in an Agentic composer offers Sources and Artifacts to name for the
  *  agent, which may read them whatever is ticked; typing a name searches both. */
@@ -39,7 +33,6 @@ export function SourceMentions({
 }: {
   mentionables?: Mentionables
 }) {
-  const aui = useAui()
   const isLoading = mentionables?.isLoading ?? false
   const items = useMemo(
     () => (mentionables ? mentionItems(mentionables) : []),
@@ -55,32 +48,41 @@ export function SourceMentions({
     [items]
   )
 
+  const matcher = useMemo(
+    () => mentionAmongNames(items.map((item) => item.label)),
+    [items]
+  )
+
   return (
-    <MentionList
-      render={
-        <ComposerPrimitive.TriggerPopover
-          char={MENTION_TRIGGER}
-          adapter={adapter}
-          // The rule the startup frame's box uses too.
-          matcher={mentionAt}
-        />
-      }
+    // The popover puts its parts in the composer's layout while closed, and a thread's
+    // composer is a row with a gap. Out of flow, none of them can move what is in it.
+    <div
+      data-mention-layer
+      className="pointer-events-none absolute inset-0 *:pointer-events-auto"
     >
-      <ComposerPrimitive.TriggerPopover.Directive
-        formatter={formatter}
-        onInserted={({ id, label }) => {
-          const composer = aui.composer()
-          composer.setRunConfig(
-            withPick(composer.getState().runConfig, { id, label })
-          )
-        }}
-      />
-      <SearchLeavesTheGroup />
-      <MentionGroups items={items} isLoading={isLoading} />
-      <MentionGroupHeader />
-      <ComposerPrimitive.TriggerPopoverItems ref={keepHighlightedRowInView}>
-        {(found) => <MentionRows found={found} isLoading={isLoading} />}
-      </ComposerPrimitive.TriggerPopoverItems>
-    </MentionList>
+      <MentionList
+        render={
+          <ComposerPrimitive.TriggerPopover
+            char={MENTION_TRIGGER}
+            adapter={adapter}
+            matcher={matcher}
+          />
+        }
+      >
+        <ComposerPrimitive.TriggerPopover.Directive
+          formatter={defaultDirectiveFormatter}
+        />
+        <MentionListAtCaret />
+        <SearchLeavesTheGroup />
+        <MentionGroups items={items} isLoading={isLoading} />
+        <MentionGroupHeader />
+        {/* The rows alone scroll and fade, under a header that stays clear. */}
+        <ScrollFade className="flex flex-col" viewportClassName="h-auto">
+          <ComposerPrimitive.TriggerPopoverItems ref={keepHighlightedRowInView}>
+            {(found) => <MentionRows found={found} isLoading={isLoading} />}
+          </ComposerPrimitive.TriggerPopoverItems>
+        </ScrollFade>
+      </MentionList>
+    </div>
   )
 }

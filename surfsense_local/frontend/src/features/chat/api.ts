@@ -5,7 +5,7 @@ import type {
 } from "@/features/agent/api"
 import type { SourceScope } from "@/features/sources/tree/scope-state"
 
-import type { MentionedSources } from "./mentions/named-sources"
+import { mentionedSourcesOf, type ShownMention } from "./mentions/mention-text"
 import { request, requestJson, requestVoid } from "@/lib/api"
 
 import type { NewChatChoice } from "./modes/new-chat-mode"
@@ -70,6 +70,8 @@ export type MessageContent = {
   steps?: AgentStep[]
   // An agent turn's sources, on the user's message.
   scope?: TurnSources
+  // What the message named with `@`, for its chips; a deleted source drops out.
+  mentions?: ShownMention[]
   // Client only: what a turn not yet stored shows in place of `images`.
   previews?: string[]
   // Client only: how far the model has read the prompt, while it waits.
@@ -161,9 +163,10 @@ export async function* streamMessage(
   sourceScope: SourceScope | null,
   thinking: boolean,
   retryOf: number | null,
-  mentionedSources: MentionedSources | null,
+  mentions: readonly ShownMention[],
   signal: AbortSignal
 ): AsyncGenerator<NumberedEvent> {
+  const mentionedSources = mentionedSourcesOf(mentions)
   const response = await request(`/chat/threads/${threadId}/messages`, {
     method: "POST",
     headers: {

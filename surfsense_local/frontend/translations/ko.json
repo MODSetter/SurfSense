@@ -201,7 +201,7 @@
   "chat_inline_citation_aria": "인용된 청크 {id} 보기",
   "chat_inline_citation_tooltip": "소스 청크 #{id} 보기",
   "chat_mentions_artifacts_label": "생성물",
-  "chat_mentions_back_aria": "뒤로",
+  "chat_mentions_back_aria": "{group}에서 뒤로",
   "chat_mentions_folder_files_label": "{count, plural, other {파일 #개}}",
   "chat_mentions_list_aria": "소스 및 생성물",
   "chat_mentions_no_artifacts_empty": "아직 생성물이 없습니다.",

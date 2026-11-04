@@ -201,7 +201,7 @@
   "chat_inline_citation_aria": "Voir l’extrait cité {id}",
   "chat_inline_citation_tooltip": "Voir l’extrait source n° {id}",
   "chat_mentions_artifacts_label": "Artefacts",
-  "chat_mentions_back_aria": "Retour",
+  "chat_mentions_back_aria": "Retour depuis {group}",
   "chat_mentions_folder_files_label": "{count, plural, one {# fichier} many {# fichiers} other {# fichiers}}",
   "chat_mentions_list_aria": "Sources et artefacts",
   "chat_mentions_no_artifacts_empty": "Aucun artefact pour l’instant.",

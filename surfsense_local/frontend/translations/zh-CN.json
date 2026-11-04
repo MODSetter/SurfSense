@@ -201,7 +201,7 @@
   "chat_inline_citation_aria": "查看引用的片段 {id}",
   "chat_inline_citation_tooltip": "查看来源片段 #{id}",
   "chat_mentions_artifacts_label": "产物",
-  "chat_mentions_back_aria": "返回",
+  "chat_mentions_back_aria": "从 {group} 返回",
   "chat_mentions_folder_files_label": "{count, plural, other {# 个文件}}",
   "chat_mentions_list_aria": "来源和产物",
   "chat_mentions_no_artifacts_empty": "还没有产物。",

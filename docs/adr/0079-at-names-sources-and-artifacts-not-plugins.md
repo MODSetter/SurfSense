@@ -12,7 +12,7 @@ Since ADR 0069 every ready plugin is in reach without a mention. A plugin mentio
 ## Decision
 
 - The `@` list holds sources, folders and artifacts. Plugins leave it, and the mention path through tool holding goes with them.
-- A message sends what it named as ids, `mentioned_sources`, beside its text. The text is what the user reads; parsing it cannot tell two sources of one title apart, and it matched `me@notes.com` as a plugin.
+- A message sends what it named as ids, `mentioned_sources`, beside its text. The text is what the user reads; parsing it cannot tell two sources of one title apart, and it matched `me@notes.com` as a plugin. The box holds each chip with its id inside its text, so a rewrite of the text, as dictation makes, rebuilds it.
 - A named source joins the thread's scope for the rest of the thread, whatever is ticked, because a follow-up about it must not be refused. It is kept beside the ticks in `source_scope`'s JSON, so no migration, and each send's ticks replace only the ticks.
 - A named folder is stored as its ready files at that moment: a folder in the scope would be taken back out by an excluded parent.
 - `@` first offers Sources and Artifacts, and typing a name searches both. `/` stays free for commands, and one trigger means "point at something". A long list draws more as it scrolls; it is paged on the client, as the dashboard already holds every source and artifact.
@@ -24,4 +24,4 @@ Since ADR 0069 every ready plugin is in reach without a mention. A plugin mentio
 - Nothing yet removes a named source from a thread but a new chat. The line under the message shows it.
 - A file added to a named folder later is not in scope unless ticked.
 - Naming something takes one more step unless a name is typed. Rows are not virtualized, so scrolling through thousands keeps them all on the page.
-- The textarea shows a mention as plain text, not a chip.
+- The message box is a rich input rather than a textarea, for its chips. It is `@assistant-ui/react-lexical`, written to assistant-ui's composer and popover, rather than an input of our own or a port of the legacy stack's Plate editor. What the textarea gave for free, the limit, image paste and read-only during dictation, are plugins of ours.

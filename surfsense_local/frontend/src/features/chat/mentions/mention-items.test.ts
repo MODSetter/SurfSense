@@ -102,7 +102,7 @@ describe("what `@` can name", () => {
 
     expect(
       listed.map((item) => [item.id, item.type, item.description])
-    ).toEqual([["document:102", "artifact", "Slides"]])
+    ).toEqual([["document:102", "artifact-pptx", "Slides"]])
   })
 
   it("leaves out an artifact with no ready version", () => {
@@ -128,7 +128,7 @@ describe("searching what `@` can name", () => {
       "plan"
     )
 
-    expect(found.map((item) => item.type)).toEqual(["source", "artifact"])
+    expect(found.map((item) => item.type)).toEqual(["source", "artifact-pptx"])
   })
 
   it("finds every match, however many, for the list to load as it scrolls", () => {

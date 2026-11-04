@@ -2,7 +2,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 
 import {
-  MentionItem,
+  MentionRowShape,
   MentionItemDescription,
   MentionList,
 } from "./mention-list"
@@ -18,7 +18,7 @@ export function MentionRowsSkeleton() {
   return (
     <>
       {ROWS.map(([name, detail]) => (
-        <MentionItem key={name} aria-hidden="true">
+        <MentionRowShape key={name} aria-hidden="true">
           <Skeleton className="size-4 shrink-0" />
           {/* One line of the row's own text tall, whatever its size. */}
           <span className="flex h-lh items-center">
@@ -27,7 +27,7 @@ export function MentionRowsSkeleton() {
           <MentionItemDescription className="flex h-lh items-center">
             <Skeleton className={cn("h-[0.7lh]", detail)} />
           </MentionItemDescription>
-        </MentionItem>
+        </MentionRowShape>
       ))}
     </>
   )

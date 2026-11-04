@@ -201,7 +201,7 @@
   "chat_inline_citation_aria": "View cited chunk {id}",
   "chat_inline_citation_tooltip": "View source chunk #{id}",
   "chat_mentions_artifacts_label": "Artifacts",
-  "chat_mentions_back_aria": "Back",
+  "chat_mentions_back_aria": "Back from {group}",
   "chat_mentions_folder_files_label": "{count, plural, one {# file} other {# files}}",
   "chat_mentions_list_aria": "Sources and artifacts",
   "chat_mentions_no_artifacts_empty": "No artifacts yet.",
