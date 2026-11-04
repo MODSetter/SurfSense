@@ -15,7 +15,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 # replacing the account key is a release that trusts both rather than a recall
 # that invalidates every license already issued. Newest first.
 KEYGEN_PUBLIC_KEYS_HEX = (
-    "cef8ffb796122d0126d29e6db03df39305417d4fe271bc234a9bc62f0521c41e",
+    "cef8ffb796122d0126d29e6db03df39305417d4fe271bc234a9bc62f0521c41e",  # pragma: allowlist secret
 )
 
 # A laptop clock a few minutes fast is not tampering; keygen-go uses the same.
