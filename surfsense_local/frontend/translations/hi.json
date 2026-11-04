@@ -214,6 +214,7 @@
   "chat_mode_basic_short_body": "आपके स्रोतों से जवाब देता है",
   "chat_mode_picker_change_tooltip": "बेसिक (सवाल-जवाब) या एजेंटिक",
   "chat_mode_picker_new_chat_label": "इस चैट का मोड",
+  "chat_mode_picker_not_saved_toast": "यह मोड सहेजा नहीं जा सका। रीस्टार्ट करने तक नई चैट इसी मोड में खुलेंगी।",
   "chat_mode_picker_open_chat_label": "इस चैट का मोड",
   "chat_mode_picker_opens_new_chat_label": "नई चैट",
   "chat_mode_picker_thread_aria": "चैट मोड {mode}. चैट अपना मोड बनाए रखती है; दूसरे मोड के लिए नई चैट शुरू करें।",

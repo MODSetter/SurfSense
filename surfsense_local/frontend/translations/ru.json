@@ -214,6 +214,7 @@
   "chat_mode_basic_short_body": "Отвечает по вашим источникам",
   "chat_mode_picker_change_tooltip": "Базовый (вопрос-ответ) или агентный",
   "chat_mode_picker_new_chat_label": "Режим этого чата",
+  "chat_mode_picker_not_saved_toast": "Не удалось сохранить этот режим. Новые чаты будут открываться в нём до перезапуска.",
   "chat_mode_picker_open_chat_label": "Режим этого чата",
   "chat_mode_picker_opens_new_chat_label": "Новый чат",
   "chat_mode_picker_thread_aria": "Режим чата: {mode}. Чат сохраняет свой режим; для другого начните новый чат.",

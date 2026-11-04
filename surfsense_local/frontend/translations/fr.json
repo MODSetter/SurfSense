@@ -214,6 +214,7 @@
   "chat_mode_basic_short_body": "Répond à partir de vos sources",
   "chat_mode_picker_change_tooltip": "Basique (Q&R) ou Agentique",
   "chat_mode_picker_new_chat_label": "Mode de ce chat",
+  "chat_mode_picker_not_saved_toast": "Impossible d’enregistrer ce mode. Les nouveaux chats l’utilisent jusqu’au redémarrage.",
   "chat_mode_picker_open_chat_label": "Mode de ce chat",
   "chat_mode_picker_opens_new_chat_label": "Nouveau chat",
   "chat_mode_picker_thread_aria": "Mode de chat {mode}. Un chat garde son mode ; démarrez un nouveau chat pour en changer.",

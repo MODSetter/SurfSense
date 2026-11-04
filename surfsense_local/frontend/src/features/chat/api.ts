@@ -111,8 +111,6 @@ export function createThread(
     body: JSON.stringify({
       title,
       ...(choice ? { mode: choice.mode } : {}),
-      // Only the user's own choice becomes the model's default.
-      ...(choice?.chosen ? { remember: true } : {}),
     }),
     signal,
   })

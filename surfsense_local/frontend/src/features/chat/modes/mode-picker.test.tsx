@@ -131,6 +131,35 @@ describe("the composer's mode switch", () => {
     expect(composerNote()).toEqual([])
   })
 
+  it("saves a pick as the model's default, so a refresh keeps it", async () => {
+    const user = userEvent.setup()
+    renderComposer({ model: KIMI })
+    const fetchMock = vi.mocked(fetch)
+    fetchMock.mockImplementation(async () =>
+      Response.json({
+        ...PASSED,
+        default_mode: "basic",
+        remembered_mode: "basic",
+      })
+    )
+
+    await user.click(trigger())
+    await user.click(
+      await screen.findByRole("menuitemradio", { name: /^Basic \(Q&A\)/ })
+    )
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining("/llm/selection/text_gen/mode"),
+        expect.objectContaining({
+          method: "PUT",
+          body: JSON.stringify({ mode: "basic" }),
+        })
+      )
+    )
+    expect(nextChat()).toBe("basic")
+  })
+
   it("starts an untested model in Basic, and warns only in the menu", async () => {
     const user = userEvent.setup()
     renderComposer({ model: SONNET_99 })

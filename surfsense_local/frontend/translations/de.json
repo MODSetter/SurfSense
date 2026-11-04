@@ -214,6 +214,7 @@
   "chat_mode_basic_short_body": "Antwortet aus deinen Quellen",
   "chat_mode_picker_change_tooltip": "Basis (Q&A) oder Agentisch",
   "chat_mode_picker_new_chat_label": "Modus für diesen Chat",
+  "chat_mode_picker_not_saved_toast": "Der Modus konnte nicht gespeichert werden. Neue Chats nutzen ihn bis zum Neustart.",
   "chat_mode_picker_open_chat_label": "Modus dieses Chats",
   "chat_mode_picker_opens_new_chat_label": "Neuer Chat",
   "chat_mode_picker_thread_aria": "Chatmodus {mode}. Ein Chat behält seinen Modus; starte für einen anderen einen neuen Chat.",

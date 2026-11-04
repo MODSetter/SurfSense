@@ -35,15 +35,13 @@ class ThreadCreate(BaseModel):
 
     `source_scope` is the new chat's drafted ticks; omitted, the thread uses
     every source. `mode` is Basic (Q&A) or Agentic, kept for the thread's life;
-    omitted, the thread takes the selected model's default. `remember` makes
-    `mode` that default, and is sent only when the user chose it: a default
-    sent back as a choice would outlast the score it came from.
+    omitted, the thread takes the selected model's default. Sending a mode
+    never changes that default; the composer's switch saves a pick itself.
     """
 
     title: ThreadTitle = "New chat"
     source_scope: SourceScope | None = None
     mode: ChatMode | None = None
-    remember: bool = False
 
 
 class ThreadUpdate(BaseModel):

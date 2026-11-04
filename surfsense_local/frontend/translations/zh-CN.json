@@ -214,6 +214,7 @@
   "chat_mode_basic_short_body": "根据你的来源回答",
   "chat_mode_picker_change_tooltip": "基础（问答）或智能体",
   "chat_mode_picker_new_chat_label": "此对话的模式",
+  "chat_mode_picker_not_saved_toast": "无法保存此模式。重启前，新对话仍会使用它。",
   "chat_mode_picker_open_chat_label": "此对话的模式",
   "chat_mode_picker_opens_new_chat_label": "新对话",
   "chat_mode_picker_thread_aria": "对话模式 {mode}。对话会保持其模式；要换模式，请开始新对话。",

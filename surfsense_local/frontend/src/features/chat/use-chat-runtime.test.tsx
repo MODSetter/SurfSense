@@ -986,23 +986,9 @@ describe("while a reply streams", () => {
 })
 
 describe("a new chat's mode", () => {
-  it("opens the chat in the mode picked for the model, and has it remembered", async () => {
+  it("opens the chat in the mode the switch shows", async () => {
     const { result } = renderRuntime({
-      newChatMode: { mode: "agentic", chosen: true },
-    })
-    await waitFor(() => expect(result.current.threads.length).toBe(2))
-
-    sendIn(result, "Draft the board pack")
-
-    await waitFor(() => expect(api.sendStreams).toHaveLength(1))
-    expect(api.creates).toEqual([
-      { title: "New chat", mode: "agentic", remember: true },
-    ])
-  })
-
-  it("opens the chat in the model's default without remembering it", async () => {
-    const { result } = renderRuntime({
-      newChatMode: { mode: "basic", chosen: false },
+      newChatMode: { mode: "basic" },
     })
     await waitFor(() => expect(result.current.threads.length).toBe(2))
 
@@ -1027,7 +1013,7 @@ describe("a new chat's mode", () => {
     onTestFinished(() => shown.mockRestore())
     api.refuseCreate = { status: 409, code: "tool_calls_unsupported" }
     const { result } = renderRuntime({
-      newChatMode: { mode: "agentic", chosen: true },
+      newChatMode: { mode: "agentic" },
     })
     await waitFor(() => expect(result.current.threads.length).toBe(2))
 
