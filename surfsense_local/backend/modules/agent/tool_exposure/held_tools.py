@@ -1,7 +1,6 @@
 """The plugin tools a turn's agent holds: all of them when they fit, else what the request needs.
 
-Past the model's share, it holds its mentioned plugins whole, its best tools of each
-plugin the message names, the tools the thread used, then what retrieval ranks
+Past the model's share, it holds its best tools of each plugin the message names, the tools the thread used, then what retrieval ranks
 highest until the share is spent; never more than the provider takes. The rest
 stay in reach through the catalogue and `surfsense_open_plugin`.
 """
@@ -22,11 +21,10 @@ NAMED_TOOLS = 5
 
 @dataclass(frozen=True)
 class Asked:
-    """What the turn asks: the user's words, the turn before, and what the thread chose."""
+    """What the turn asks: the user's words, the turn before, and what the thread used."""
 
     message: str
     previous: str = ""
-    mentioned: frozenset[str] = frozenset()
     # Tools the thread called since it last compacted, as opencode names them.
     used: frozenset[str] = frozenset()
 
@@ -68,9 +66,6 @@ def held_tools(
         spent += cost[id(tool)]
         return True
 
-    for tool in tools:
-        if tool.ready.plugin_id in asked.mentioned:
-            hold(tool, within_share=False)
     for plugin in _named(tools, asked.message):
         own = [t for t in tools if t.ready.plugin_id == plugin]
         for tool in ranked(own, asked.query, embed)[:NAMED_TOOLS]:
