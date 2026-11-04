@@ -1110,10 +1110,8 @@ describe("dashboard chat", () => {
     )
 
     expect(await within(conversation).findByText("Revenue rose.")).toBeTruthy()
-    // Picked in the switch, so it becomes the model's default.
-    expect(created).toEqual([
-      { title: "New chat", mode: "basic", remember: true },
-    ])
+    // The switch saved the pick itself; the new chat only says its mode.
+    expect(created).toEqual([{ title: "New chat", mode: "basic" }])
     await user.click(
       within(conversation).getByRole("button", { name: /^Chat mode Basic/ })
     )

@@ -10,9 +10,8 @@ import { completeOnboarding } from "./api"
 
 /**
  * Marks onboarding done and hands the app its chat model. Only this may call
- * the route, and only once a chat model is chosen: the image model is optional,
- * so Skip and Finish end the same way. The search model passed in is fixed
- * here, for good; null means the one SurfSense ships.
+ * the route, and only once a chat model is chosen. The search model passed in
+ * is fixed here, for good; null means the one SurfSense ships.
  */
 export function useFinishOnboarding(
   onComplete: (selection: ModelSelection) => void

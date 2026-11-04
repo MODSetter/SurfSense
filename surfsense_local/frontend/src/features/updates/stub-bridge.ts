@@ -18,6 +18,7 @@ export function stubUpdateBridge(initial: {
   window.surfsense = {
     apiUrl: "",
     platform: "darwin",
+    databaseIdentity: () => null,
     openDocument: vi.fn(),
     revealDocument: vi.fn(),
     updates: {

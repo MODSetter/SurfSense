@@ -5,7 +5,12 @@ import { AssistantRuntimeProvider, useLocalRuntime } from "@assistant-ui/react"
 
 import { TooltipProvider } from "@/components/ui/tooltip"
 import type { ModelSelection } from "@/features/models/selection/api"
-import type { Plugin } from "@/features/plugins/api"
+import type { Plugin, PluginTool } from "@/features/plugins/api"
+import {
+  createStartupInput,
+  type StartupInput,
+} from "@/features/startup/startup-input"
+import { StartupInputContext } from "@/features/startup/startup-input-context"
 import { render } from "@/test-utils"
 
 import { ChatComposer } from "./chat-composer"
@@ -50,30 +55,41 @@ function Harness({
   onUploadSources,
   threadMode,
   onOpenPlugins,
+  startup = null,
 }: {
   model?: ModelSelection
   onUploadSources?: (files: File[]) => void
   threadMode?: "agentic" | "basic"
   onOpenPlugins?: () => void
+  startup?: StartupInput | null
 }) {
   const runtime = useLocalRuntime({ run: async () => ({ content: [] }) })
   return (
-    <AssistantRuntimeProvider runtime={runtime}>
-      <ChatComposer
-        placement="center"
-        model={model}
-        sourceCount={0}
-        isRunning={false}
-        providerAvailable
-        onModelSetup={() => undefined}
-        onModelSelected={() => undefined}
-        readsImages={false}
-        onUploadSources={onUploadSources}
-        threadMode={threadMode}
-        onOpenPlugins={onOpenPlugins}
-      />
-    </AssistantRuntimeProvider>
+    <StartupInputContext.Provider value={startup}>
+      <AssistantRuntimeProvider runtime={runtime}>
+        <ChatComposer
+          placement="center"
+          model={model}
+          sourceCount={0}
+          isRunning={false}
+          providerAvailable
+          onModelSetup={() => undefined}
+          onModelSelected={() => undefined}
+          readsImages={false}
+          onUploadSources={onUploadSources}
+          threadMode={threadMode}
+          onOpenPlugins={onOpenPlugins}
+        />
+      </AssistantRuntimeProvider>
+    </StartupInputContext.Provider>
   )
+}
+
+// What the startup frame's box held when the dashboard took over.
+function typedDuringStartup(text: string, caret: number) {
+  const startup = createStartupInput()
+  startup.keep(text, caret)
+  return startup
 }
 
 async function openThinking(user: ReturnType<typeof userEvent.setup>) {
@@ -87,6 +103,110 @@ afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
   localStorage.clear()
+})
+
+describe("chat composer after startup", () => {
+  it("takes what was typed while the app loaded, with its caret, and keeps focus", async () => {
+    render(
+      <TooltipProvider>
+        <Harness startup={typedDuringStartup("find jobs today", 9)} />
+      </TooltipProvider>
+    )
+
+    const box = screen.getByRole<HTMLTextAreaElement>("textbox", {
+      name: "Message",
+    })
+    await waitFor(() => expect(box.value).toBe("find jobs today"))
+    expect(box.selectionStart).toBe(9)
+    expect(document.activeElement).toBe(box)
+  })
+
+  it("opens the plugin list on a mention typed while the app loaded", async () => {
+    const tool = { name: "search", enabled: true } as PluginTool
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) =>
+        String(input) === "/plugins/third-party"
+          ? Response.json({ allowed: true })
+          : String(input) === "/plugins"
+            ? Response.json([
+                plugin({ id: "notes", name: "Notes", tools: [tool] }),
+                plugin({ id: "indeed", name: "Indeed", tools: [tool] }),
+              ])
+            : Response.json([])
+      )
+    )
+    render(
+      <TooltipProvider>
+        <Harness
+          threadMode="agentic"
+          startup={typedDuringStartup("find jobs with @ind", 19)}
+        />
+      </TooltipProvider>
+    )
+
+    const list = await screen.findByRole("listbox", { name: "Plugins" })
+    await waitFor(() => expect(list.textContent).toContain("Indeed"))
+    expect(list.textContent).not.toContain("Notes")
+  })
+
+  it("opens the plugin list on a mention the caret was left inside", async () => {
+    const tool = { name: "search", enabled: true } as PluginTool
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) =>
+        String(input) === "/plugins/third-party"
+          ? Response.json({ allowed: true })
+          : String(input) === "/plugins"
+            ? Response.json([
+                plugin({ id: "notes", name: "Notes", tools: [tool] }),
+                plugin({ id: "indeed", name: "Indeed", tools: [tool] }),
+              ])
+            : Response.json([])
+      )
+    )
+    render(
+      <TooltipProvider>
+        <Harness
+          threadMode="agentic"
+          startup={typedDuringStartup("ask @ind about jobs", 8)}
+        />
+      </TooltipProvider>
+    )
+
+    const list = await screen.findByRole("listbox", { name: "Plugins" })
+    await waitFor(() => expect(list.textContent).toContain("Indeed"))
+    expect(
+      screen.getByRole<HTMLTextAreaElement>("textbox", { name: "Message" })
+        .selectionStart
+    ).toBe(8)
+  })
+
+  it("starts empty when another composer took the text already", async () => {
+    const startup = typedDuringStartup("find jobs", 9)
+    const first = render(
+      <TooltipProvider>
+        <Harness startup={startup} />
+      </TooltipProvider>
+    )
+    await waitFor(() =>
+      expect(
+        screen.getByRole<HTMLTextAreaElement>("textbox", { name: "Message" })
+          .value
+      ).toBe("find jobs")
+    )
+    first.unmount()
+    render(
+      <TooltipProvider>
+        <Harness startup={startup} />
+      </TooltipProvider>
+    )
+
+    expect(
+      screen.getByRole<HTMLTextAreaElement>("textbox", { name: "Message" })
+        .value
+    ).toBe("")
+  })
 })
 
 describe("chat composer", () => {

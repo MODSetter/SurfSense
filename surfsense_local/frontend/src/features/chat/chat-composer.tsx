@@ -1,4 +1,4 @@
-import { type MouseEvent, type ReactNode } from "react"
+import { useRef, type MouseEvent, type ReactNode } from "react"
 import { ComposerPrimitive, useAuiState } from "@assistant-ui/react"
 
 import { Button } from "@/components/ui/button"
@@ -14,9 +14,19 @@ import { PluginMentions } from "@/features/plugins/in-thread/plugin-mentions"
 import { cn } from "@/lib/utils"
 import { intl } from "@/i18n/intl"
 import type { PluginsStart } from "@/features/plugins/plugins-settings"
+import { StartupDraftHandover } from "@/features/startup/startup-draft-handover"
+import { useStartupDraft } from "@/features/startup/use-startup-draft"
+import { useStartupReveal } from "@/features/startup/use-startup-reveal"
 
 import { ComposerImage } from "./attached-image"
 import { ComposerAddMenu } from "./composer-add-menu"
+import { messageLabel, startPlaceholder } from "./composer-wording"
+import {
+  ComposerBox,
+  ComposerColumn,
+  ComposerControls,
+  ComposerText,
+} from "./composer-surface"
 import { ModePicker } from "./modes/mode-picker"
 import { useNewChatMode } from "./modes/new-chat-mode"
 import { ModelPicker, modelControlButtonClassName } from "./model-picker"
@@ -209,6 +219,9 @@ export function ChatComposer({
   const atLimit = useAuiState(
     ({ composer }) => composer.text.length >= QUESTION_MAX_CHARS
   )
+  const reveal = useStartupReveal()
+  const inputRef = useRef<HTMLTextAreaElement>(null)
+  const startupDraft = useStartupDraft()
   const dictationKeys = useDictationKeys(dictation)
   // While the microphone starts, the mic's spinner says so and nothing else moves.
   const recording = useDictationStarted(dictation)
@@ -253,10 +266,7 @@ export function ChatComposer({
     />
   )
   return (
-    <div
-      className="relative mx-auto w-full max-w-2xl"
-      data-composer-placement={placement}
-    >
+    <ComposerColumn data-composer-placement={placement}>
       {notice ? (
         // Tucked behind the composer, which paints over its lower edge: out of
         // flow, so the composer keeps its place and its own shape.
@@ -269,66 +279,67 @@ export function ChatComposer({
           />
         </div>
       ) : null}
-      <ComposerPrimitive.Root
+      <ComposerBox
+        placement={placement}
+        render={<ComposerPrimitive.Root />}
+        {...reveal}
         className={cn(
-          // No top padding: the text scrolls up to the border, not to a strip
-          // above it, and holds that space in its own padding instead.
-          "relative rounded-2xl border bg-card px-1.5 pb-1.5 shadow-sm transition-colors focus-within:border-ring/40 hover:border-ring/40",
-          placement === "bottom" && "flex items-end gap-2"
+          "transition-colors focus-within:border-ring/40 hover:border-ring/40",
+          reveal.className
         )}
       >
         <ComposerPrimitive.Unstable_TriggerPopoverRoot>
           {/* Plugins reach Agentic threads only, so only their composer names tools. */}
           {agentic ? <PluginMentions /> : null}
+          {startupDraft ? (
+            <StartupDraftHandover draft={startupDraft} inputRef={inputRef} />
+          ) : null}
           {placement === "bottom" ? addMenu("-mr-1.5 mb-0.5") : null}
-          <ComposerPrimitive.Input
-            autoFocus
-            unstable_focusOnThreadSwitched
-            aria-describedby={describedBy}
-            // Held whenever a send could not go anywhere: no model, a model that
-            // can't be used, or egress to it still off.
-            disabled={inputDisabled}
-            // Voice input writes the text meanwhile; the box keeps its focus and keys.
-            readOnly={dictationKeys.recording}
-            cancelOnEscape={!dictationKeys.recording}
-            onKeyDown={dictationKeys.onKeyDown}
-            className={cn(
-              "max-h-44 resize-none bg-transparent px-2 pt-4 pb-2.5 text-sm outline-none placeholder:text-muted-foreground",
-              placement === "center"
-                ? "block min-h-12 w-full"
-                : "min-h-10 flex-1"
-            )}
-            placeholder={
-              blockedPlaceholder !== undefined
-                ? blockedPlaceholder
-                : !model || providerAvailable
-                  ? placement === "center"
-                    ? intl.formatMessage({
-                        id: "chat_composer_start_placeholder",
-                        defaultMessage: "Turn your sources into answers",
-                      })
-                    : intl.formatMessage({
-                        id: "chat_composer_follow_up_placeholder",
-                        defaultMessage: "Follow up on this answer",
-                      })
-                  : intl.formatMessage({
-                      id: "chat_composer_provider_offline_placeholder",
-                      defaultMessage: "Reconnect your model provider to send",
-                    })
+          {/* assistant-ui's own input, autosizing, in the composer's shape. */}
+          <ComposerText
+            placement={placement}
+            render={
+              <ComposerPrimitive.Input
+                ref={inputRef}
+                // The handover focuses it with the caret where the user left it.
+                autoFocus={startupDraft === null}
+                unstable_focusOnThreadSwitched
+                aria-describedby={describedBy}
+                // Held whenever a send could not go anywhere: no model, a model that
+                // can't be used, or egress to it still off.
+                disabled={inputDisabled}
+                // Voice input writes the text meanwhile; the box keeps its focus and keys.
+                readOnly={dictationKeys.recording}
+                cancelOnEscape={!dictationKeys.recording}
+                onKeyDown={dictationKeys.onKeyDown}
+                placeholder={
+                  blockedPlaceholder !== undefined
+                    ? blockedPlaceholder
+                    : !model || providerAvailable
+                      ? placement === "center"
+                        ? startPlaceholder()
+                        : intl.formatMessage({
+                            id: "chat_composer_follow_up_placeholder",
+                            defaultMessage: "Follow up on this answer",
+                          })
+                      : intl.formatMessage({
+                          id: "chat_composer_provider_offline_placeholder",
+                          defaultMessage:
+                            "Reconnect your model provider to send",
+                        })
+                }
+                submitMode="enter"
+                addAttachmentOnPaste={readsImages && !agentic}
+                rows={1}
+                maxLength={QUESTION_MAX_CHARS}
+                aria-label={messageLabel()}
+              />
             }
-            submitMode="enter"
-            addAttachmentOnPaste={readsImages && !agentic}
-            rows={1}
-            maxLength={QUESTION_MAX_CHARS}
-            aria-label={intl.formatMessage({
-              id: "chat_composer_message_aria",
-              defaultMessage: "Message",
-            })}
           />
           {placement === "center" ? (
             // Its own row under the text, never over it: long text scrolls
             // inside the box and stops above the controls.
-            <div className="flex items-center justify-between gap-2">
+            <ComposerControls>
               <div className="flex shrink-0 items-center gap-1">
                 {addMenu("")}
                 {model ? <ModePicker model={model} threadMode={null} /> : null}
@@ -353,7 +364,7 @@ export function ChatComposer({
                   onStopRecording={stopRecording}
                 />
               </div>
-            </div>
+            </ComposerControls>
           ) : (
             <>
               {recording ? (
@@ -371,7 +382,7 @@ export function ChatComposer({
             </>
           )}
         </ComposerPrimitive.Unstable_TriggerPopoverRoot>
-      </ComposerPrimitive.Root>
+      </ComposerBox>
       {placement === "center" && limitNotice ? (
         <p
           role="status"
@@ -381,7 +392,13 @@ export function ChatComposer({
         </p>
       ) : null}
       {placement === "bottom" ? (
-        <div className="mt-1 flex min-h-7 items-center justify-between gap-3 px-2">
+        <div
+          {...reveal}
+          className={cn(
+            "mt-1 flex min-h-7 items-center justify-between gap-3 px-2",
+            reveal.className
+          )}
+        >
           {/* Keeps its line and leaves the mode and the model name what is
           left, never less than 13rem, so a long translation truncates the
           name before wrapping. */}
@@ -418,6 +435,6 @@ export function ChatComposer({
           </div>
         </div>
       ) : null}
-    </div>
+    </ComposerColumn>
   )
 }
