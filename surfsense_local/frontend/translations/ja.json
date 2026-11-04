@@ -214,7 +214,7 @@
   "chat_mode_basic_short_body": "ソースをもとに回答",
   "chat_mode_picker_change_tooltip": "ベーシック（Q&A）またはエージェント",
   "chat_mode_picker_new_chat_label": "このチャットのモード",
-  "chat_mode_picker_not_saved_toast": "このモードを保存できませんでした。再起動するまで、新しいチャットはこのモードで開きます。",
+  "chat_mode_picker_not_saved_toast": "このモードを保存できなかったため、選択が維持されない場合があります。",
   "chat_mode_picker_open_chat_label": "このチャットのモード",
   "chat_mode_picker_opens_new_chat_label": "新しいチャット",
   "chat_mode_picker_thread_aria": "チャットモード: {mode}。チャットのモードは変わりません。別のモードにするには新しいチャットを始めてください。",

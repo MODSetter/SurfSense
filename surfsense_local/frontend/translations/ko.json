@@ -214,7 +214,7 @@
   "chat_mode_basic_short_body": "소스를 바탕으로 답변",
   "chat_mode_picker_change_tooltip": "기본(Q&A) 또는 에이전트",
   "chat_mode_picker_new_chat_label": "이 채팅의 모드",
-  "chat_mode_picker_not_saved_toast": "이 모드를 저장하지 못했습니다. 다시 시작할 때까지 새 채팅은 이 모드로 열립니다.",
+  "chat_mode_picker_not_saved_toast": "이 모드를 저장하지 못해 선택이 유지되지 않을 수 있습니다.",
   "chat_mode_picker_open_chat_label": "이 채팅의 모드",
   "chat_mode_picker_opens_new_chat_label": "새 채팅",
   "chat_mode_picker_thread_aria": "채팅 모드 {mode}. 채팅은 모드를 유지합니다. 다른 모드를 쓰려면 새 채팅을 시작하세요.",

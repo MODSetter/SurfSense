@@ -214,7 +214,7 @@
   "chat_mode_basic_short_body": "Answers from your sources",
   "chat_mode_picker_change_tooltip": "Basic (Q&A) or Agentic",
   "chat_mode_picker_new_chat_label": "Mode for this chat",
-  "chat_mode_picker_not_saved_toast": "Couldn’t save this mode. New chats use it until you restart.",
+  "chat_mode_picker_not_saved_toast": "Couldn’t save this mode, so it may not stay selected.",
   "chat_mode_picker_open_chat_label": "This chat’s mode",
   "chat_mode_picker_opens_new_chat_label": "New chat",
   "chat_mode_picker_thread_aria": "Chat mode {mode}. A chat keeps its mode; start a new chat for another.",

@@ -227,7 +227,15 @@ async def test_a_model_s_remembered_mode_waits_while_the_slot_holds_another(
         return chosen.json()["capability"]["modes"]
 
     await select("Qwen3-4B-Q4_K_M")
-    picked = await client.put("/llm/selection/text_gen/mode", json={"mode": "basic"})
+    picked = await client.put(
+        "/llm/selection/text_gen/mode",
+        json={
+            "mode": "basic",
+            "provider": "llamacpp",
+            "connection_id": None,
+            "name": "Qwen3-4B-Q4_K_M",
+        },
+    )
     assert picked.status_code == 200, picked.text
 
     other = await select("Qwen3-1.7B-Q4_K_M")

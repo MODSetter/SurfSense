@@ -214,7 +214,7 @@
   "chat_mode_basic_short_body": "Responde com base nas suas fontes",
   "chat_mode_picker_change_tooltip": "Básico (P&R) ou Agêntico",
   "chat_mode_picker_new_chat_label": "Modo deste chat",
-  "chat_mode_picker_not_saved_toast": "Não foi possível salvar este modo. Novos chats vão usá-lo até você reiniciar.",
+  "chat_mode_picker_not_saved_toast": "Não foi possível salvar este modo, então ele pode não continuar selecionado.",
   "chat_mode_picker_open_chat_label": "Modo deste chat",
   "chat_mode_picker_opens_new_chat_label": "Novo chat",
   "chat_mode_picker_thread_aria": "Modo do chat {mode}. Um chat mantém o modo; inicie um novo chat para usar outro.",

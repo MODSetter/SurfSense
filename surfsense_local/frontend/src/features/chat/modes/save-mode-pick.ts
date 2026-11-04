@@ -10,11 +10,20 @@ import { requestJson } from "@/lib/api"
 
 import { usePickNewChatMode } from "./new-chat-mode"
 
-function saveModePick(mode: ChatMode): Promise<ChatModes> {
+function saveModePick(
+  model: ModelSelection,
+  mode: ChatMode
+): Promise<ChatModes> {
   return requestJson<ChatModes>("/llm/selection/text_gen/mode", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ mode }),
+    // Names the model, so a pick that lands after a switch is refused, not put on the next one.
+    body: JSON.stringify({
+      mode,
+      provider: model.provider,
+      connection_id: model.connection_id,
+      name: model.name,
+    }),
   })
 }
 
@@ -28,7 +37,7 @@ export function useSaveModePick() {
   return useCallback(
     (model: ModelSelection, mode: ChatMode) => {
       pick(model, mode)
-      saveModePick(mode).then(
+      saveModePick(model, mode).then(
         (modes) =>
           client.setQueryData<ModelSelection | null>(
             selectionQueryKey("text_gen"),
@@ -42,7 +51,7 @@ export function useSaveModePick() {
             intl.formatMessage({
               id: "chat_mode_picker_not_saved_toast",
               defaultMessage:
-                "Couldn’t save this mode. New chats use it until you restart.",
+                "Couldn’t save this mode, so it may not stay selected.",
             })
           )
       )

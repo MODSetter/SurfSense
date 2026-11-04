@@ -119,8 +119,15 @@ async def test_agentic_asked_for_opens_an_agent_thread_on_an_untested_model(
     """No score blocks Agentic; the user's pick is the model's default from then on."""
     monkeypatch.setattr(get_agent_settings(), "agent_untested_models", False)
 
+    selected = (await agent_api.http.get("/llm/selection/text_gen")).json()
     picked = await agent_api.http.put(
-        "/llm/selection/text_gen/mode", json={"mode": "agentic"}
+        "/llm/selection/text_gen/mode",
+        json={
+            "mode": "agentic",
+            "provider": selected["provider"],
+            "connection_id": selected["connection_id"],
+            "name": selected["name"],
+        },
     )
     picked.raise_for_status()
     chosen = await open_thread(agent_api, mode="agentic")

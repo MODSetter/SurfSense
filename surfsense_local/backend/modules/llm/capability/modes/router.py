@@ -22,6 +22,10 @@ router = APIRouter()
 
 class ModePick(BaseModel):
     mode: ChatMode
+    # The model it was picked on: the slot may hold another by the time this arrives.
+    provider: str
+    connection_id: int | None
+    name: str
 
 
 @router.put(
@@ -30,20 +34,33 @@ class ModePick(BaseModel):
     summary="Pick the mode new chats on the chosen chat model start in",
 )
 async def pick_mode(payload: ModePick, session: SessionDep) -> ModesRead:
-    return await transact(session, _pick, payload.mode)
+    return await transact(session, _pick, payload)
 
 
-def _pick(session: Session, mode: ChatMode) -> ModesRead:
+def _pick(session: Session, pick: ModePick) -> ModesRead:
     selected = session.get(SelectedModel, ModelType.TEXT_GEN)
     if selected is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no chat model chosen")
+    if (selected.provider, selected.connection_id, selected.name) != (
+        pick.provider,
+        pick.connection_id,
+        pick.name,
+    ):
+        # Never saved: under the selected model it would be a mode nobody chose for it.
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail={
+                "code": "model_changed",
+                "message": "The chat model changed before this pick was saved.",
+            },
+        )
     facts = catalog_facts(selected, connection_catalog_provider(session, selected))
     blocked = new_chat_modes(selected, facts).blocked
-    if mode is ChatMode.AGENTIC and blocked is not None:
+    if pick.mode is ChatMode.AGENTIC and blocked is not None:
         # Never saved: the model's default stays a mode it can run.
         raise HTTPException(
             status.HTTP_409_CONFLICT,
             detail={"code": blocked, "message": "This model can't run Agentic."},
         )
-    remember_mode(selected, mode)
+    remember_mode(selected, pick.mode)
     return modes_read(new_chat_modes(selected, facts))

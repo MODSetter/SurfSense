@@ -153,7 +153,12 @@ describe("the composer's mode switch", () => {
         expect.stringContaining("/llm/selection/text_gen/mode"),
         expect.objectContaining({
           method: "PUT",
-          body: JSON.stringify({ mode: "basic" }),
+          body: JSON.stringify({
+            mode: "basic",
+            provider: KIMI.provider,
+            connection_id: KIMI.connection_id,
+            name: KIMI.name,
+          }),
         })
       )
     )

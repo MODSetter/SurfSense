@@ -6,6 +6,7 @@ from sqlalchemy import Engine
 
 from modules.llm.model_type import ModelType
 from modules.llm.models import ProviderConnection, SelectedModel
+from modules.llm.providers import llamacpp
 from shared.config import get_agent_settings
 from shared.db import create_session_factory
 
@@ -24,8 +25,11 @@ def opencode_staged(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "agent_untested_models", False)
 
 
-def _select(engine: Engine, name: str, catalog_provider: str, base_url: str) -> None:
-    """A remote selection written as the selection route leaves it; nothing is sent to the host."""
+def _select(engine: Engine, name: str, catalog_provider: str, base_url: str) -> dict:
+    """A remote selection written as the selection route leaves it; nothing is sent to the host.
+
+    Returns the model as a pick names it.
+    """
     with create_session_factory(engine)() as session:
         connection = ProviderConnection(
             label=f"Remote {name}",
@@ -44,6 +48,11 @@ def _select(engine: Engine, name: str, catalog_provider: str, base_url: str) -> 
             )
         )
         session.commit()
+        return {
+            "provider": "openai_compatible",
+            "connection_id": connection.id,
+            "name": name,
+        }
 
 
 async def _modes(client: AsyncClient) -> dict:
@@ -56,9 +65,11 @@ async def test_basic_picked_on_an_agentic_model_is_its_default_without_a_chat(
     client: AsyncClient, engine: Engine
 ) -> None:
     """A refresh before the first message keeps the pick."""
-    _select(engine, "anthropic/claude-haiku-4.5", "openrouter", OPENROUTER)
+    model = _select(engine, "anthropic/claude-haiku-4.5", "openrouter", OPENROUTER)
 
-    picked = await client.put("/llm/selection/text_gen/mode", json={"mode": "basic"})
+    picked = await client.put(
+        "/llm/selection/text_gen/mode", json={"mode": "basic", **model}
+    )
 
     assert picked.status_code == 200, picked.text
     modes = await _modes(client)
@@ -69,11 +80,57 @@ async def test_agentic_picked_on_a_model_that_cannot_run_it_is_refused_and_not_k
     client: AsyncClient, engine: Engine
 ) -> None:
     """The catalog says gpt-3.5-turbo makes no tool calls."""
-    _select(engine, "gpt-3.5-turbo", "openai", OPENAI)
+    model = _select(engine, "gpt-3.5-turbo", "openai", OPENAI)
 
-    picked = await client.put("/llm/selection/text_gen/mode", json={"mode": "agentic"})
+    picked = await client.put(
+        "/llm/selection/text_gen/mode", json={"mode": "agentic", **model}
+    )
 
     assert picked.status_code == 409, picked.text
     assert picked.json()["detail"]["code"] == "tool_calls_unsupported"
     modes = await _modes(client)
     assert (modes["default_mode"], modes["remembered_mode"]) == ("basic", None)
+
+
+async def test_pick_made_on_a_model_no_longer_selected_is_refused_and_not_kept(
+    client: AsyncClient, engine: Engine
+) -> None:
+    """The slot took another model, from this device or another, while the pick was on its way."""
+    first = _select(engine, "anthropic/claude-haiku-4.5", "openrouter", OPENROUTER)
+    _select(engine, "anthropic/claude-sonnet-4.5", "openrouter", OPENROUTER)
+
+    picked = await client.put(
+        "/llm/selection/text_gen/mode", json={"mode": "basic", **first}
+    )
+
+    assert picked.status_code == 409, picked.text
+    assert picked.json()["detail"]["code"] == "model_changed"
+    assert (await _modes(client))["remembered_mode"] is None
+
+
+async def test_pick_on_a_local_model_with_no_connection_is_kept(
+    client: AsyncClient, engine: Engine
+) -> None:
+    """A local model has no connection, and the selection read says so with a null."""
+    with create_session_factory(engine)() as session:
+        session.merge(
+            SelectedModel(
+                model_type=ModelType.TEXT_GEN,
+                provider=llamacpp.PROVIDER,
+                name="Qwen3-0.6B",
+            )
+        )
+        session.commit()
+
+    picked = await client.put(
+        "/llm/selection/text_gen/mode",
+        json={
+            "mode": "basic",
+            "provider": llamacpp.PROVIDER,
+            "connection_id": None,
+            "name": "Qwen3-0.6B",
+        },
+    )
+
+    assert picked.status_code == 200, picked.text
+    assert picked.json()["remembered_mode"] == "basic"
