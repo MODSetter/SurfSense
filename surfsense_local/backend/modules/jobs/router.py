@@ -12,7 +12,7 @@ from pydantic import BaseModel, StrictBool
 from api.dependencies import SessionDep
 from modules.artifacts.models import Artifact
 from modules.embedding.dependencies import EMBEDDER_CHOSEN
-from modules.jobs.packs.access import pack_access
+from modules.jobs.packs.access import job_access
 from modules.jobs.packs.install import install_pack, remove_pack
 from modules.jobs.packs.installed import find_job, installed_packs, packs_dir
 from modules.jobs.packs.manifest import PackRefusedError
@@ -39,6 +39,10 @@ class JobInfo(BaseModel):
     key: str
     name: str
     description: str
+    # The licence entitlement that unlocks it, for a paid pack's job.
+    entitlement: str | None
+    unlocked: bool
+    locked_reason: str
 
 
 class PackInfo(BaseModel):
@@ -47,6 +51,7 @@ class PackInfo(BaseModel):
     name: str
     publisher: str
     access: str
+    # Whether any of its jobs may run, and else why its first may not.
     unlocked: bool
     locked_reason: str
     jobs: list[JobInfo]
@@ -102,7 +107,10 @@ class SuggestionsConfirm(BaseModel):
 def list_packs(session: SessionDep) -> list[PackInfo]:
     found = []
     for pack in installed_packs():
-        access = pack_access(session, pack.manifest)
+        jobs = [
+            (job, job_access(session, pack.manifest, job)) for job in pack.manifest.jobs
+        ]
+        unlocked = any(access.allowed for _, access in jobs)
         found.append(
             PackInfo(
                 id=pack.manifest.id,
@@ -110,11 +118,18 @@ def list_packs(session: SessionDep) -> list[PackInfo]:
                 name=pack.manifest.name,
                 publisher=pack.manifest.publisher,
                 access=pack.manifest.access,
-                unlocked=access.allowed,
-                locked_reason=access.reason,
+                unlocked=unlocked,
+                locked_reason="" if unlocked else jobs[0][1].reason,
                 jobs=[
-                    JobInfo(key=j.key, name=j.name, description=j.description)
-                    for j in pack.manifest.jobs
+                    JobInfo(
+                        key=job.key,
+                        name=job.name,
+                        description=job.description,
+                        entitlement=job.entitlement,
+                        unlocked=access.allowed,
+                        locked_reason=access.reason,
+                    )
+                    for job, access in jobs
                 ],
             )
         )

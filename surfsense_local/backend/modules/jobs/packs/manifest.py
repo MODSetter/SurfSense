@@ -13,12 +13,16 @@ from pathlib import Path, PurePosixPath
 from typing import Literal
 
 MANIFEST = "job-pack.json"
+# SurfSense's signature over the manifest, beside it and, like it, not one of its files.
+SIGNATURE = "job-pack.sig"
 SCHEMA = "surfsense-job-pack/1"
 # The runners this app ships; a pack naming another needs a newer app.
 RUNNERS = ("workbook-rows/1",)
 _ID = re.compile(r"^[a-z][a-z0-9-]{0,63}$")
 _VERSION = re.compile(r"^\d+\.\d+\.\d+$")
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
+# A licence entitlement code, as the licence server names one: JOB_QUESTIONNAIRE.
+_ENTITLEMENT = re.compile(r"^[A-Z][A-Z0-9_]{0,63}$")
 
 Access = Literal["free", "paid"]
 
@@ -40,6 +44,8 @@ class PackJob:
     runner: str
     config: str  # the runner's settings, a file in the pack
     skill: str | None  # a folder holding the job skill's SKILL.md, named as the skill
+    # The licence entitlement that unlocks a paid pack's job, carried in a licence's jobs.
+    entitlement: str | None = None
 
 
 @dataclass(frozen=True)
@@ -160,6 +166,14 @@ def _job(raw: object, files: dict[str, str]) -> PackJob:
             raise PackRefusedError(
                 "BAD_MANIFEST", "A job skill's folder is named surfsense-job-<key>."
             )
+    entitlement = raw.get("entitlement")
+    if entitlement is not None and (
+        not isinstance(entitlement, str) or not _ENTITLEMENT.fullmatch(entitlement)
+    ):
+        raise PackRefusedError(
+            "BAD_MANIFEST",
+            f"Job {key}'s entitlement is a licence code in capitals, like JOB_QUESTIONNAIRE.",
+        )
     return PackJob(
         key=key,
         name=_text(raw, "name"),
@@ -167,6 +181,7 @@ def _job(raw: object, files: dict[str, str]) -> PackJob:
         runner=runner,
         config=config,
         skill=skill,
+        entitlement=entitlement,
     )
 
 

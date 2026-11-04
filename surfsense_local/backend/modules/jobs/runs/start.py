@@ -10,7 +10,7 @@ from modules.artifacts.revised_copies.refusals import RevisedCopyRefusedError
 from modules.artifacts.revised_copies.service import create_revised_copy
 from modules.artifacts.revised_copies.source_file import sha256_of, source_file
 from modules.documents.models import Document, DocumentStatus
-from modules.jobs.packs.access import pack_access
+from modules.jobs.packs.access import job_access
 from modules.jobs.packs.installed import find_job
 from modules.jobs.packs.manifest import PackRefusedError
 from modules.jobs.runs.record import pending_job_run
@@ -35,7 +35,7 @@ def start_job_run(
     if found is None:
         raise JobRunRefusedError(f'No installed job pack has a job named "{job}".')
     pack, pack_job = found
-    access = pack_access(session, pack.manifest)
+    access = job_access(session, pack.manifest, pack_job)
     if not access.allowed:
         raise JobRunRefusedError(access.reason)
     try:

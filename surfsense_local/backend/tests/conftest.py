@@ -110,6 +110,16 @@ def data_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
 
 
 @pytest.fixture(autouse=True)
+def test_pack_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The app trusts the test key for job packs while tests run, and only then."""
+    from tests.job_pack_samples import TEST_PACK_PUBLIC_KEY_HEX
+
+    monkeypatch.setattr(
+        "modules.jobs.packs.signature.PACK_PUBLIC_KEYS_HEX", (TEST_PACK_PUBLIC_KEY_HEX,)
+    )
+
+
+@pytest.fixture(autouse=True)
 def no_office_support(monkeypatch: pytest.MonkeyPatch) -> None:
     """Office support starts off in every test, whatever LibreOffice this machine has;
     a test of the Office path turns it on (tests/office_stand_in.py)."""

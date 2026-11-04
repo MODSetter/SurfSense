@@ -1,12 +1,25 @@
 """A small sealed job pack for tests: the questionnaire runner's shape with stand-in content.
 
-The real job's prompts and mappings live in its private pack, never in this tree.
+The real job's prompts and mappings live in its private pack, never in this tree. Test packs
+are signed with a key made for tests, which the app trusts only while tests run.
 """
 
+import base64
 import json
 from pathlib import Path
 
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
+
+from modules.jobs.packs.manifest import MANIFEST, SIGNATURE
 from modules.jobs.packs.seal import seal_pack
+from modules.jobs.packs.signature import signed_payload
+
+# Not a secret: a fixed key so a test pack's signature is the same every run.
+TEST_PACK_KEY = Ed25519PrivateKey.from_private_bytes(bytes(range(32)))
+TEST_PACK_PUBLIC_KEY_HEX = (
+    TEST_PACK_KEY.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw).hex()
+)
 
 JOB = "test-questionnaire"
 SKILL = "surfsense-job-test-questionnaire"
@@ -102,6 +115,7 @@ def write_questionnaire_pack(
                 "name": "Test questionnaire",
                 "description": "Fill in a test questionnaire.",
                 "runner": "workbook-rows/1",
+                "entitlement": "JOB_TEST_QUESTIONNAIRE",
                 "config": f"jobs/{JOB}/job.json",
                 "skill": f"skills/{SKILL}",
             }
@@ -110,4 +124,12 @@ def write_questionnaire_pack(
     }
     (folder / "job-pack.json").write_text(json.dumps(manifest), encoding="utf-8")
     seal_pack(folder)
+    sign_pack(folder)
     return folder
+
+
+def sign_pack(folder: Path, key: Ed25519PrivateKey = TEST_PACK_KEY) -> None:
+    """Sign a sealed pack as SurfSense's script signs a real one, here with `key`."""
+    manifest = json.loads((folder / MANIFEST).read_text(encoding="utf-8"))
+    signature = key.sign(signed_payload(manifest))
+    (folder / SIGNATURE).write_bytes(base64.b64encode(signature) + b"\n")

@@ -1,14 +1,17 @@
-"""A job pack installs from a folder or a .zip only when every file matches its manifest."""
+"""A job pack installs from a folder or a .zip only when SurfSense signed it and every file
+matches its manifest."""
 
 import json
 from pathlib import Path
 
 import pytest
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from modules.jobs.packs.install import install_pack, remove_pack
 from modules.jobs.packs.installed import installed_packs
 from modules.jobs.packs.manifest import PackRefusedError
 from modules.jobs.packs.seal import seal_pack, zip_pack
+from tests.job_pack_samples import sign_pack
 
 pytestmark = pytest.mark.unit
 
@@ -47,6 +50,7 @@ def write_pack(folder: Path, *, version: str = "1.0.0", access: str = "paid") ->
     }
     (folder / "job-pack.json").write_text(json.dumps(manifest), encoding="utf-8")
     seal_pack(folder)
+    sign_pack(folder)
     return folder
 
 
@@ -138,3 +142,77 @@ def test_a_job_for_a_runner_this_app_lacks_needs_a_newer_app(tmp_path):
         install_pack(pack, tmp_path / "installed")
 
     assert refused.value.code == "NEEDS_NEWER_APP"
+
+
+def _refused(pack: Path, root: Path) -> str:
+    with pytest.raises(PackRefusedError) as refused:
+        install_pack(pack, root)
+    assert installed_packs(root) == []
+    return refused.value.code
+
+
+def test_an_unsigned_pack_is_refused(tmp_path):
+    """A pack SurfSense did not sign does not install, sealed or not."""
+    pack = write_pack(tmp_path / "pack")
+    (pack / "job-pack.sig").unlink()
+
+    assert _refused(pack, tmp_path / "installed") == "PACK_NOT_SIGNED"
+
+
+def test_a_manifest_changed_after_signing_is_refused(tmp_path):
+    """A manifest edited after signing, here only its description, breaks the signature."""
+    pack = write_pack(tmp_path / "pack")
+    manifest = json.loads((pack / "job-pack.json").read_text())
+    manifest["description"] = "Fills things, and more."
+    (pack / "job-pack.json").write_text(json.dumps(manifest))
+
+    assert _refused(pack, tmp_path / "installed") == "PACK_BAD_SIGNATURE"
+
+
+def test_a_pack_signed_with_another_key_is_refused(tmp_path):
+    """Only a key the app compiles in signs a pack it installs."""
+    pack = write_pack(tmp_path / "pack")
+    sign_pack(pack, Ed25519PrivateKey.generate())
+
+    assert _refused(pack, tmp_path / "installed") == "PACK_BAD_SIGNATURE"
+
+
+def test_a_signature_holds_across_line_endings_and_indents(tmp_path):
+    """What is signed is the manifest's content, so a checkout that turns its line endings
+    into CRLF or a reindent leaves the pack installable."""
+    pack = write_pack(tmp_path / "pack")
+    manifest = json.loads((pack / "job-pack.json").read_text())
+    (pack / "job-pack.json").write_bytes(
+        json.dumps(manifest, indent=4).replace("\n", "\r\n").encode()
+    )
+
+    assert install_pack(pack, tmp_path / "installed").id == "acme-jobs"
+
+
+def test_an_installed_pack_that_loses_its_signature_is_left_out(tmp_path):
+    """The signature is checked on every read, not only on install."""
+    root = tmp_path / "installed"
+    install_pack(write_pack(tmp_path / "pack"), root)
+    (root / "acme-jobs" / "1.0.0" / "job-pack.sig").unlink()
+
+    assert installed_packs(root) == []
+
+
+def test_sealing_a_signed_pack_does_not_list_its_signature(tmp_path):
+    """Sealed again, the manifest never lists its own signature as one of the pack's files."""
+    pack = write_pack(tmp_path / "pack")
+
+    manifest = seal_pack(pack)
+
+    assert "job-pack.sig" not in manifest["files"]
+
+
+@pytest.mark.parametrize("entitlement", ["job_fill", "JOB-FILL", "", 7])
+def test_a_job_s_entitlement_is_a_licence_code(tmp_path, entitlement):
+    """An entitlement is written as the licence server names it, in capitals."""
+    pack = write_pack(tmp_path / "pack")
+    manifest = json.loads((pack / "job-pack.json").read_text())
+    manifest["jobs"][0]["entitlement"] = entitlement
+    (pack / "job-pack.json").write_text(json.dumps(manifest))
+
+    assert _refused(pack, tmp_path / "installed") == "BAD_MANIFEST"

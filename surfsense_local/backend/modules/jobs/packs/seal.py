@@ -1,4 +1,8 @@
-"""The pack author's side: list every file of a pack folder with its sha256, and zip it."""
+"""The pack author's side: list every file of a pack folder with its sha256, and zip it.
+
+Sealing changes the manifest, so a pack is signed after it is sealed, with the script that
+holds SurfSense's pack key outside this repository; `zip` carries the signature along.
+"""
 
 from __future__ import annotations
 
@@ -7,7 +11,7 @@ import zipfile
 from pathlib import Path
 
 from modules.jobs.packs.integrity import sha256_of
-from modules.jobs.packs.manifest import MANIFEST, parse_manifest
+from modules.jobs.packs.manifest import MANIFEST, SIGNATURE, parse_manifest
 
 
 def seal_pack(folder: Path) -> dict:
@@ -17,7 +21,8 @@ def seal_pack(folder: Path) -> dict:
     manifest["files"] = {
         file.relative_to(folder).as_posix(): sha256_of(file)
         for file in sorted(folder.rglob("*"))
-        if file.is_file() and file.name != MANIFEST
+        if file.is_file()
+        and file.relative_to(folder).as_posix() not in (MANIFEST, SIGNATURE)
     }
     parse_manifest(manifest)
     path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
@@ -31,6 +36,8 @@ def zip_pack(folder: Path, out: Path) -> Path:
     )
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as archive:
         archive.write(folder / MANIFEST, MANIFEST)
+        if (folder / SIGNATURE).is_file():
+            archive.write(folder / SIGNATURE, SIGNATURE)
         for relative in sorted(manifest.files):
             archive.write(folder / relative, relative)
     return out

@@ -4,7 +4,9 @@
     python scripts/job_pack.py zip <pack dir> <out .zip>
 
 The app installs a pack from either the folder or the zip, and refuses one whose files
-differ from what `seal` wrote.
+differ from what `seal` wrote, or that SurfSense has not signed. Sealing changes the manifest,
+so sign after sealing, with the script that sits beside the packs' own content and holds the
+pack key's place; then zip.
 """
 
 import argparse

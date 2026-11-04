@@ -1,4 +1,5 @@
-"""The packs installed on this computer, each re-checked against its manifest when read."""
+"""The packs installed on this computer, each re-checked against its signature and its
+manifest when read."""
 
 from __future__ import annotations
 
@@ -13,6 +14,7 @@ from modules.jobs.packs.manifest import (
     PackRefusedError,
     read_manifest,
 )
+from modules.jobs.packs.signature import check_signature
 from shared.config import get_storage_settings
 
 logger = logging.getLogger(__name__)
@@ -35,7 +37,7 @@ def packs_dir() -> Path:
 
 
 def installed_packs(root: Path | None = None) -> list[InstalledPack]:
-    """Every pack that still matches its manifest; a changed one is left out and logged."""
+    """Every pack still signed and matching its manifest; any other is left out and logged."""
     found: list[InstalledPack] = []
     root = root or packs_dir()
     if not root.is_dir():
@@ -45,6 +47,7 @@ def installed_packs(root: Path | None = None) -> list[InstalledPack]:
             continue
         try:
             manifest = read_manifest(folder)
+            check_signature(folder)
             check_files(folder, manifest)
         except PackRefusedError as refused:
             logger.warning("job pack %s left out: %s", folder, refused.message)

@@ -1,7 +1,7 @@
 """Install a job pack from a folder or a .zip into the app's data folder, one version per pack.
 
-The copy is checked before it replaces what was installed, so a refused pack
-leaves the installed one working.
+The copy is checked, its signature and then its files, before it replaces what was
+installed, so a refused pack leaves the installed one working.
 """
 
 from __future__ import annotations
@@ -19,6 +19,7 @@ from modules.jobs.packs.manifest import (
     read_manifest,
     safe_path,
 )
+from modules.jobs.packs.signature import check_signature
 
 
 def install_pack(source: Path, root: Path) -> PackManifest:
@@ -36,6 +37,7 @@ def install_pack(source: Path, root: Path) -> PackManifest:
                 "NOT_A_PACK", f"{source.name} is neither a pack folder nor a .zip."
             )
         manifest = read_manifest(staged)
+        check_signature(staged)
         check_files(staged, manifest)
         target = root / manifest.id / manifest.version
         old_versions = [p for p in (root / manifest.id).glob("*") if p.is_dir()]

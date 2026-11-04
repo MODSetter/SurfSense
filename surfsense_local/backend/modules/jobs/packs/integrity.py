@@ -1,7 +1,7 @@
 """A pack holds exactly the files its manifest lists, each with the sha256 listed.
 
-The manifest's own signature is checked once packs are signed; until then the
-sha256s hold a pack together but do not say who made it.
+The sha256s hold a pack together; the manifest's signature, which `signature.py` checks,
+says who made it.
 """
 
 from __future__ import annotations
@@ -9,7 +9,12 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
-from modules.jobs.packs.manifest import MANIFEST, PackManifest, PackRefusedError
+from modules.jobs.packs.manifest import (
+    MANIFEST,
+    SIGNATURE,
+    PackManifest,
+    PackRefusedError,
+)
 
 # Room for prompts, mappings and a skill; a pack this large is not one.
 MAX_PACK_BYTES = 50 * 1024 * 1024
@@ -30,7 +35,7 @@ def check_files(folder: Path, manifest: PackManifest) -> None:
         for path in folder.rglob("*")
         if path.is_file()
     }
-    present.discard(MANIFEST)
+    present.difference_update((MANIFEST, SIGNATURE))
     unlisted = sorted(present - set(manifest.files))
     if unlisted:
         raise PackRefusedError(
