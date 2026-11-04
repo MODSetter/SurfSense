@@ -203,6 +203,7 @@
   "chat_mentions_artifacts_label": "आर्टिफ़ैक्ट",
   "chat_mentions_back_aria": "{group} से वापस",
   "chat_mentions_folder_files_label": "{count, plural, one {# फ़ाइल} other {# फ़ाइलें}}",
+  "chat_mentions_heading_label": "इस चैट में जोड़ें",
   "chat_mentions_list_aria": "स्रोत और आर्टिफ़ैक्ट",
   "chat_mentions_no_artifacts_empty": "अभी कोई आर्टिफ़ैक्ट नहीं है।",
   "chat_mentions_no_match_empty": "कोई मिलान नहीं",

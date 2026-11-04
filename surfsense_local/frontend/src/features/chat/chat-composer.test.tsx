@@ -285,6 +285,7 @@ describe("naming a source with @", () => {
     const list = await openList(user)
 
     expect(rowNames(list)).toEqual(["Sources3", "Artifacts1"])
+    expect(within(list).getByText("Add to this chat")).toBeTruthy()
     expect(list.querySelectorAll("[role=option] svg").length).toBeGreaterThan(1)
     for (const row of within(list).getAllByRole("option")) {
       expect(row.getAttribute("data-variant")).toBe("bare")
@@ -314,6 +315,7 @@ describe("naming a source with @", () => {
     const back = within(list).getByRole("button", { name: "Back from Sources" })
     // The whole row is the button: the group's name goes back too.
     expect(back.textContent).toBe("Sources")
+    expect(within(list).queryByText("Add to this chat")).toBeNull()
     await user.click(back)
 
     await waitFor(() =>

@@ -13,7 +13,11 @@ import { intl } from "@/i18n/intl"
 import { mentionGroupLabel } from "./mention-group-label"
 import { mentionsOfGroup } from "./mention-items"
 import { useMentionPopoverScope } from "./mention-popover-scope"
-import { MentionItemDescription, MentionRowButton } from "./mention-list"
+import {
+  MentionItemDescription,
+  MentionListHeading,
+  MentionRowButton,
+} from "./mention-list"
 
 /** What `@` shows first: the groups, each with how many it holds. */
 export function MentionGroups({
@@ -25,29 +29,32 @@ export function MentionGroups({
 }) {
   return (
     <ComposerPrimitive.TriggerPopoverCategories>
-      {(groups) =>
-        groups.map(({ id, label }) => {
-          const Icon = id === "artifact" ? Shapes01Icon : LibraryBigIcon
-          return (
-            <ComposerPrimitive.TriggerPopoverCategoryItem
-              key={id}
-              categoryId={id}
-              asChild
-            >
-              <MentionRowButton>
-                <Icon className="size-4 shrink-0 text-muted-foreground" />
-                <span className="min-w-0 truncate">{label}</span>
-                {isLoading ? null : (
-                  <MentionItemDescription className="tabular-nums">
-                    {intl.formatNumber(mentionsOfGroup(items, id).length)}
-                  </MentionItemDescription>
-                )}
-                <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground" />
-              </MentionRowButton>
-            </ComposerPrimitive.TriggerPopoverCategoryItem>
-          )
-        })
-      }
+      {(groups) => (
+        <>
+          <MentionListHeading />
+          {groups.map(({ id, label }) => {
+            const Icon = id === "artifact" ? Shapes01Icon : LibraryBigIcon
+            return (
+              <ComposerPrimitive.TriggerPopoverCategoryItem
+                key={id}
+                categoryId={id}
+                asChild
+              >
+                <MentionRowButton>
+                  <Icon className="size-4 shrink-0 text-muted-foreground" />
+                  <span className="min-w-0 truncate">{label}</span>
+                  {isLoading ? null : (
+                    <MentionItemDescription className="tabular-nums">
+                      {intl.formatNumber(mentionsOfGroup(items, id).length)}
+                    </MentionItemDescription>
+                  )}
+                  <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground" />
+                </MentionRowButton>
+              </ComposerPrimitive.TriggerPopoverCategoryItem>
+            )
+          })}
+        </>
+      )}
     </ComposerPrimitive.TriggerPopoverCategories>
   )
 }

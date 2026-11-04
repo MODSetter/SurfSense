@@ -203,6 +203,7 @@
   "chat_mentions_artifacts_label": "생성물",
   "chat_mentions_back_aria": "{group}에서 뒤로",
   "chat_mentions_folder_files_label": "{count, plural, other {파일 #개}}",
+  "chat_mentions_heading_label": "이 채팅에 추가",
   "chat_mentions_list_aria": "소스 및 생성물",
   "chat_mentions_no_artifacts_empty": "아직 생성물이 없습니다.",
   "chat_mentions_no_match_empty": "일치 항목 없음",

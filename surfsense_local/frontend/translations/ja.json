@@ -203,6 +203,7 @@
   "chat_mentions_artifacts_label": "生成物",
   "chat_mentions_back_aria": "{group}から戻る",
   "chat_mentions_folder_files_label": "{count, plural, other {#件のファイル}}",
+  "chat_mentions_heading_label": "このチャットに追加",
   "chat_mentions_list_aria": "ソースと生成物",
   "chat_mentions_no_artifacts_empty": "生成物はまだありません。",
   "chat_mentions_no_match_empty": "一致なし",

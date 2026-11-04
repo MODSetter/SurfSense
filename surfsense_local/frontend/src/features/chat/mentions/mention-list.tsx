@@ -65,6 +65,21 @@ export function MentionRowShape({
   return <div className={cn(ROW, className)} {...props} />
 }
 
+/** Over the first level, saying what picking something does. */
+export function MentionListHeading() {
+  return (
+    <p
+      role="presentation"
+      className="px-2 pt-1.5 pb-1 text-xs text-muted-foreground select-none"
+    >
+      {intl.formatMessage({
+        id: "chat_mentions_heading_label",
+        defaultMessage: "Add to this chat",
+      })}
+    </p>
+  )
+}
+
 export function MentionItemDescription({
   className,
   ...props

@@ -203,6 +203,7 @@
   "chat_mentions_artifacts_label": "Artefactos",
   "chat_mentions_back_aria": "Volver desde {group}",
   "chat_mentions_folder_files_label": "{count, plural, one {# archivo} many {# archivos} other {# archivos}}",
+  "chat_mentions_heading_label": "Añadir a este chat",
   "chat_mentions_list_aria": "Fuentes y artefactos",
   "chat_mentions_no_artifacts_empty": "Aún no hay artefactos.",
   "chat_mentions_no_match_empty": "Sin resultados",

@@ -5,6 +5,7 @@ import {
   MentionRowShape,
   MentionItemDescription,
   MentionList,
+  MentionListHeading,
 } from "./mention-list"
 
 // A name and a count per row, as the first thing `@` shows has.
@@ -38,6 +39,7 @@ export function MentionListSkeleton() {
   return (
     // Busy, with nothing to pick yet: a group, not a listbox of no options.
     <MentionList role="group" aria-busy="true">
+      <MentionListHeading />
       <MentionRowsSkeleton />
     </MentionList>
   )
