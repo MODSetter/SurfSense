@@ -174,6 +174,8 @@ def test_payload_no_code_path_opens_stays_out(binary: Path) -> None:
     torch_bin = internal / "torch" / "bin"
     if torch_bin.exists():
         assert {p.name for p in torch_bin.iterdir()} <= {"torch_shm_manager"}
+    # Babel's locale data: courlan filters links by language only when asked to.
+    assert list((internal / "babel" / "locale-data").glob("*.dat")) == []
     for package in ("faker", "polyfactory", "_pytest", "hf_xet"):
         assert not (internal / package).exists(), package
     if sys.platform == "win32":

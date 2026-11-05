@@ -140,11 +140,7 @@ function WorkspaceDashboard({
     readSourcePreview(workspace.id)
   )
   const sources = useSources(workspace.id)
-  const webSources = useWebSources(
-    workspace.id,
-    sources.addCreated,
-    onOpenLicense
-  )
+  const webSources = useWebSources(workspace.id, sources.addCreated)
   // Which formats Studio offers is the server's answer to what is selected,
   // so it has to be asked again when that changes. The chat model is named
   // here directly; the image model is chosen inside the settings dialog and

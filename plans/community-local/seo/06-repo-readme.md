@@ -43,21 +43,19 @@ In order:
    from with citations, creates, edits as a copy and transforms, with three
    footnotes. It replaced "What SurfSense makes", the table of Studio outputs,
    because what the agent does to the user's own files is now the pitch.
-5. **Plugins**, added on 15 Oct 2026 once SurfSense's plugins shipped (2.2.1):
-   where to connect them, a table of the ten first-party ones (Reddit and
-   Instagram joined in 2.2.5) with the app's
-   one-line descriptions, which need a license, with the free 14-day one claimed
-   on `/downloads`, and third-party ones, which need none. It replaced **Star
-   history**, under the rule that anything added replaces something, and sits
-   above the comparison, as the maintainer asked.
-   One release changes it (decided 1 Nov 2026): the one that ships the first
-   paid job, which also retires the platform scrapers
-   ([ADR 0081](../../../docs/adr/0081-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md))
-   and sells Business. It removes seven rows, Google Maps, Amazon, Walmart,
-   TikTok, Indeed, Reddit and Instagram, and the line saying SurfSense's
-   plugins need a license: Web Crawl, YouTube and search move into the app,
-   free for everyone. Search drops the Google scraper for SearXNG, so its row
-   stops promising ads and related questions. In the same release
+5. **Plugins**, added on 15 Oct 2026 once SurfSense's plugins shipped (2.2.1),
+   is two paragraphs. The first says where to connect plugins: MCP servers from
+   the plugin registry, or any added by URL, which stay off until allowed. The
+   second, **Built in, free**, says the agent and **Add from the web**, in
+   Sources, search the web through SearXNG and read pages and YouTube
+   transcripts on the user's own connection, with no plugin and no license.
+   They replaced the table of SurfSense's own plugins, and the line on their
+   license and free 14-day trial, in November 2026, when SurfSense's web
+   plugins became built-in tools
+   ([ADR 0081](../../../docs/adr/0081-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)).
+   The section replaced **Star history**, under the rule that anything added
+   replaces something, and sits above the comparison, as the maintainer asked.
+   In the release that sells Business
    ([ADR 0080](../../../docs/adr/0080-surfsense-sells-one-business-license-priced-per-person.md)),
    anything the README says about a license names Business and the job
    plugins, and it names no job before an eval row backs it

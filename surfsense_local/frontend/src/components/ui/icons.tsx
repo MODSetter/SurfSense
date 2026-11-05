@@ -100,6 +100,7 @@ import {
   WebDesign01Icon as WebDesign01IconData,
   XIcon as XIconData,
   Xls01Icon as Xls01IconData,
+  YoutubeIcon as YoutubeIconData,
   ZoomInIcon as ZoomInIconData,
   ZoomOutIcon as ZoomOutIconData,
 } from "@hugeicons/core-free-icons"
@@ -241,5 +242,6 @@ export const ViewOffIcon = createIcon(ViewOffSlashIconData)
 export const WebDesign01Icon = createIcon(WebDesign01IconData)
 export const XIcon = createIcon(XIconData)
 export const Xls01Icon = createIcon(Xls01IconData)
+export const YoutubeIcon = createIcon(YoutubeIconData)
 export const ZoomInIcon = createIcon(ZoomInIconData)
 export const ZoomOutIcon = createIcon(ZoomOutIconData)

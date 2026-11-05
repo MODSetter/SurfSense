@@ -27,6 +27,9 @@ You'll see some of these, depending on what you use:
 | An API provider's host | Chat, Studio and tests through a remote model | Your prompts and excerpts of your documents |
 | A plugin's host | Listing a plugin's tools and calling them | What each tool you allow needs, the keys or sign-in you saved for the plugin, your IP address |
 | `plugins.surfsense.com` | The list of third-party plugins, and SurfSense's own plugins | Your IP address for the list; what each tool needs, and your license key for the paid ones |
+| A site you or the agent read a page from | Reading that page when you [add it from the web](/docs/v2/sources#add-from-the-web) or the [agent reads it](/docs/v2/agent#search-and-read-the-web) | The page's address, which can carry words from your chats or documents when the agent chooses it, and your IP address |
+| `www.youtube.com` | Reading a video's transcript, when you add a YouTube link or the agent reads one | The video's ID and your IP address |
+| Web search (`searxng.surfsense.com`, or your own SearXNG server) | Searching in Add from the web, or by the agent | What you or the agent search for, which can carry words from your chats or documents, and your IP address |
 | License renewal (`api.surfsense.com`) | Fetching a Business license's renewed file: when you choose **Check for renewal**, and once you allow it, on its own each day around the license's end | Your license key and your IP address |
 | Office support download | Downloading LibreOffice when you turn on Office support | Your IP address and the file's name |
 | App updates | Checking for a newer version | See [what an update check sends](#update-checks) |
@@ -42,12 +45,13 @@ A ChatGPT or Claude plan connects to OpenAI or Anthropic. Its question names eac
 
 ## What does send data
 
-Only two kinds of thing send your content off your computer, and only after you allow them:
+Only three kinds of thing send your content off your computer, and only after you allow them:
 
 - **Remote models.** An API provider, or a ChatGPT or Claude plan, gets your prompts and the parts of your documents that go with them. See [API providers](/docs/v2/models/api-providers).
 - **Plugins.** A plugin's server gets what the agent sends each tool. See [plugins](/docs/v2/plugins).
+- **The agent's web search and page reading.** The search server gets the searches the agent writes, and each site the addresses it reads. Both can carry words from your chats. See [the agent](/docs/v2/agent#search-and-read-the-web).
 
-With a [local model](/docs/v2/models/local) and no plugins, your documents and chats never leave your computer.
+With a [local model](/docs/v2/models/local), no plugins and no web search or page reading by the agent, your documents and chats never leave your computer.
 
 ## No telemetry
 

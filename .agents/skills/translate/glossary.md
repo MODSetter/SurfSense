@@ -91,6 +91,8 @@ SurfSense, Studio, Markdown, llama.cpp, GGUF, Hugging Face, API, MCP, MCP's tran
 | client secret (of an OAuth app) | クライアントシークレット | 클라이언트 시크릿 | 客户端密钥 | क्लाइंट सीक्रेट | Client-Secret | secreto de cliente | secret client | segredo do cliente | секрет клиента |
 | scope (an OAuth permission) | スコープ | 범위 | 权限范围 | स्कोप | Scope | ámbito | portée | escopo | область доступа |
 | callback address (where a provider sends the browser back) | コールバックアドレス | 콜백 주소 | 回调地址 | कॉलबैक पता | Callback-Adresse | dirección de callback | adresse de rappel | endereço de callback | адрес обратного вызова |
+| search server (the SearXNG server Add from the web searches through) | 検索サーバー | 검색 서버 | 搜索服务器 | खोज सर्वर | Suchserver | servidor de búsqueda | serveur de recherche | servidor de pesquisa | поисковый сервер |
+| web search (Add from the web’s search, as Settings › Network names it) | ウェブ検索 | 웹 검색 | 网页搜索 | वेब खोज | Websuche | búsqueda web | recherche web | pesquisa na web | поиск в интернете |
 
 ## What the English means
 
