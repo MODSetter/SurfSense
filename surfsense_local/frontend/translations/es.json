@@ -199,6 +199,7 @@
   "chat_error_provider_auth": "Tu conexión de modelo necesita una nueva clave de API.",
   "chat_error_provider_not_found": "No se encontró el modelo seleccionado: elige otro en Ajustes del modelo.",
   "chat_error_provider_rate_limited": "El proveedor de modelos está limitando las solicitudes en este momento. Inténtalo de nuevo en un momento.",
+  "chat_error_provider_refused": "El proveedor de modelos rechazó esta solicitud: {detail}",
   "chat_error_provider_unavailable": "El proveedor de modelos no está disponible temporalmente. Inténtalo de nuevo en breve.",
   "chat_error_runtime_busy": "Las respuestas que se generaban a la vez se quedaron sin espacio en la memoria del modelo local. Inténtalo de nuevo.",
   "chat_error_subscription_limit": "Has alcanzado el límite de uso de tu plan de ChatGPT. Se restablece solo; consulta tu uso en los ajustes de ChatGPT.",

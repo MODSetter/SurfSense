@@ -199,6 +199,7 @@
   "chat_error_provider_auth": "Deine Modellverbindung braucht einen neuen API-Schlüssel.",
   "chat_error_provider_not_found": "Das ausgewählte Modell wurde nicht gefunden – wähle unter „Modell-Einrichtung“ ein anderes.",
   "chat_error_provider_rate_limited": "Der Modellanbieter begrenzt gerade die Anfragen. Versuch es gleich noch einmal.",
+  "chat_error_provider_refused": "Der Modellanbieter hat diese Anfrage abgelehnt: {detail}",
   "chat_error_provider_unavailable": "Der Modellanbieter ist vorübergehend nicht verfügbar. Versuch es in Kürze noch einmal.",
   "chat_error_runtime_busy": "Den gleichzeitig laufenden Antworten ist der Speicher des lokalen Modells ausgegangen. Versuch es noch einmal.",
   "chat_error_subscription_limit": "Das Nutzungslimit deines ChatGPT-Plans ist erreicht. Es setzt sich von selbst zurück; deine Nutzung siehst du in den Einstellungen von ChatGPT.",

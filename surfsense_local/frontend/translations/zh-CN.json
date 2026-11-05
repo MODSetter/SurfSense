@@ -199,6 +199,7 @@
   "chat_error_provider_auth": "你的模型连接需要新的 API 密钥。",
   "chat_error_provider_not_found": "找不到所选的模型，请在“模型设置”中另选一个。",
   "chat_error_provider_rate_limited": "模型提供商正在限制请求频率。请稍后重试。",
+  "chat_error_provider_refused": "模型提供商拒绝了此请求：{detail}",
   "chat_error_provider_unavailable": "模型提供商暂时无法使用。请稍后重试。",
   "chat_error_runtime_busy": "同时生成的回复用尽了本地模型的内存空间。请重试。",
   "chat_error_subscription_limit": "你的 ChatGPT 套餐已达到使用上限。上限会自动重置，可在 ChatGPT 的设置中查看用量。",

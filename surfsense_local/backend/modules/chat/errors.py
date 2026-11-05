@@ -3,6 +3,7 @@ import enum
 import httpx
 
 from modules.egress.service import EgressDeniedError
+from modules.llm.connections.console_refusals import PROVIDER_REFUSED, refusal_words
 from modules.llm.connections.opencode_free_models import is_free_model_refusal
 from modules.llm.providers.openai_compatible.chat import StreamedError
 from modules.llm.providers.openai_responses import PlanLimitError, SignInRequiredError
@@ -24,6 +25,7 @@ class ChatErrorKind(enum.StrEnum):
     PROVIDER_NOT_FOUND = "provider_not_found"
     PROVIDER_RATE_LIMITED = "provider_rate_limited"
     PROVIDER_UNAVAILABLE = "provider_unavailable"
+    PROVIDER_REFUSED = PROVIDER_REFUSED
     MODEL_CANNOT_RUN = "model_cannot_run"
     CONTEXT_TOO_LONG = "context_too_long"
     SUBSCRIPTION_SIGN_IN = "subscription_sign_in"
@@ -147,6 +149,10 @@ def classify_chat_error(exc: Exception, provider: str) -> tuple[ChatErrorKind, s
         return kind, _MESSAGES[kind]
     if isinstance(exc, httpx.HTTPStatusError):
         status_code = exc.response.status_code
+        words = refusal_words(exc)
+        if words is not None and not _is_context_too_long(exc.response):
+            # Only the provider's words name the fix, so they are the message.
+            return ChatErrorKind.PROVIDER_REFUSED, words
         if is_free_model_refusal(str(exc.request.url), status_code):
             # The key is fine, so asking for a new one would change nothing.
             kind = ChatErrorKind.MODEL_CANNOT_RUN

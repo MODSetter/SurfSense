@@ -199,6 +199,7 @@
   "chat_error_provider_auth": "モデルの接続に新しいAPIキーが必要です。",
   "chat_error_provider_not_found": "選択したモデルが見つかりませんでした。モデル設定で別のモデルを選んでください。",
   "chat_error_provider_rate_limited": "モデルプロバイダーが現在リクエストを制限しています。しばらくしてからもう一度お試しください。",
+  "chat_error_provider_refused": "モデルプロバイダーがこのリクエストを拒否しました：{detail}",
   "chat_error_provider_unavailable": "モデルプロバイダーは一時的に利用できません。しばらくしてからもう一度お試しください。",
   "chat_error_runtime_busy": "同時に生成中の返信で、ローカルモデルのメモリが足りなくなりました。もう一度お試しください。",
   "chat_error_subscription_limit": "ChatGPTプランの利用上限に達しました。上限は自動的にリセットされます。利用状況はChatGPTの設定で確認してください。",

@@ -199,6 +199,7 @@
   "chat_error_provider_auth": "Your model connection needs a new API key.",
   "chat_error_provider_not_found": "The selected model couldn’t be found — pick another in Model setup.",
   "chat_error_provider_rate_limited": "The model provider is rate-limiting requests right now. Try again in a moment.",
+  "chat_error_provider_refused": "The model provider refused this request: {detail}",
   "chat_error_provider_unavailable": "The model provider is temporarily unavailable. Try again shortly.",
   "chat_error_runtime_busy": "The replies running together ran out of room in the local model’s memory. Try again.",
   "chat_error_subscription_limit": "Your ChatGPT plan’s usage limit is reached. It resets on its own; check your usage in ChatGPT’s settings.",

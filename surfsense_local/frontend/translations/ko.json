@@ -199,6 +199,7 @@
   "chat_error_provider_auth": "모델 연결에 새 API 키가 필요합니다.",
   "chat_error_provider_not_found": "선택한 모델을 찾을 수 없습니다 — 모델 설정에서 다른 모델을 선택하세요.",
   "chat_error_provider_rate_limited": "모델 제공업체가 현재 요청을 제한하고 있습니다. 잠시 후 다시 시도하세요.",
+  "chat_error_provider_refused": "모델 제공업체가 이 요청을 거부했습니다: {detail}",
   "chat_error_provider_unavailable": "모델 제공업체를 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도하세요.",
   "chat_error_runtime_busy": "함께 생성 중인 답변들로 로컬 모델의 메모리 공간이 부족해졌습니다. 다시 시도하세요.",
   "chat_error_subscription_limit": "ChatGPT 플랜의 사용 한도에 도달했습니다. 한도는 자동으로 초기화되며, 사용량은 ChatGPT 설정에서 확인하세요.",
