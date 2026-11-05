@@ -13,7 +13,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { DETAIL_RAIL_WIDTH, MAIN_RAIL_WIDTH } from "@/components/ui/slide-rail"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { IssueReportDialog } from "@/features/feedback/issue-report-dialog"
-import { render } from "@/test-utils"
+import { boxHeld, boxText, render } from "@/test-utils"
 
 import {
   COLUMN_WIDTH_KEYS,
@@ -655,7 +655,7 @@ describe("dashboard chat", () => {
       expect(
         resetInput.closest('[data-composer-placement="center"]')
       ).toBeTruthy()
-      expect((resetInput as HTMLTextAreaElement).value).toBe("")
+      expect(boxText(resetInput)).toBe("")
     })
   })
 
@@ -1110,10 +1110,8 @@ describe("dashboard chat", () => {
     )
 
     expect(await within(conversation).findByText("Revenue rose.")).toBeTruthy()
-    // Picked in the switch, so it becomes the model's default.
-    expect(created).toEqual([
-      { title: "New chat", mode: "basic", remember: true },
-    ])
+    // The switch saved the pick itself; the new chat only says its mode.
+    expect(created).toEqual([{ title: "New chat", mode: "basic" }])
     await user.click(
       within(conversation).getByRole("button", { name: /^Chat mode Basic/ })
     )
@@ -1206,9 +1204,9 @@ describe("dashboard chat", () => {
     )
 
     await waitFor(() =>
-      expect((message as HTMLTextAreaElement).value).toBe(
-        "Draft the board pack from the Q3 PDFs"
-      )
+      expect(
+        boxText(within(conversation).getByRole("textbox", { name: "Message" }))
+      ).toBe("Draft the board pack from the Q3 PDFs")
     )
     expect(
       within(conversation).getByRole("button", {
@@ -2578,10 +2576,9 @@ describe("dashboard chat", () => {
 
     rerender(page(onOpenAI))
     await waitFor(() => expect(screen.queryByText(refused)).toBeNull())
-    expect(
-      screen.getByRole<HTMLTextAreaElement>("textbox", { name: "Message" })
-        .disabled
-    ).toBe(false)
+    expect(boxHeld(screen.getByRole("textbox", { name: "Message" }))).toBe(
+      false
+    )
 
     rerender(page(onOpenRouter))
     expect(await screen.findByText(refused)).toBeTruthy()

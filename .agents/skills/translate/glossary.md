@@ -4,7 +4,7 @@ One term per concept, so the app says the same thing everywhere. Terms marked wi
 
 ## Stays in English
 
-SurfSense, Studio, Markdown, llama.cpp, GGUF, Hugging Face, API, MCP, MCP's transports SSE and Streamable HTTP, the HTTP sign-in schemes Bearer and Basic, the package managers Scoop, AUR, Snap Store, Flatpak, Nix and apt, Docker and its file names (`docker-compose.yml`), and every model and provider name.
+SurfSense, Studio, Markdown, llama.cpp, GGUF, Hugging Face, API, MCP, MCP's transports SSE and Streamable HTTP, the HTTP sign-in schemes Bearer and Basic, the package managers Scoop, AUR, Snap Store, Flatpak, Nix and apt, Docker and its file names (`docker-compose.yml`), the license plans (Business, Solo, Individual, Team, Trial), and every model and provider name.
 
 `workspace` is the one product word languages disagree on, and each keeps its own habit: German and Brazilian Portuguese write Workspace, because both say it routinely and the translation is three times as wide in the sidebar; Japanese writes ワークスペース, since `マイWorkspace` reads as a mistake; the rest translate it.
 
@@ -63,6 +63,10 @@ SurfSense, Studio, Markdown, llama.cpp, GGUF, Hugging Face, API, MCP, MCP's tran
 | provider | プロバイダー | 제공업체 | 提供商 | प्रोवाइडर | Anbieter | proveedor | fournisseur | provedor | провайдер |
 | this computer | このコンピューター | 이 컴퓨터 | 这台电脑 | यह कंप्यूटर | dieser Computer | este equipo | cet ordinateur | este computador | этот компьютер |
 | license key (the user’s key, which the app sends to SurfSense’s plugin service to be checked) | ライセンスキー | 라이선스 키 | 许可证密钥 | लाइसेंस कुंजी | Lizenzschlüssel | clave de licencia | clé de licence | chave de licença | лицензионный ключ |
+| license server (SurfSense’s, which a renewal check asks for the license’s latest file) | ライセンスサーバー | 라이선스 서버 | 许可证服务器 | लाइसेंस सर्वर | Lizenzserver | servidor de licencias | serveur de licences | servidor de licenças | сервер лицензий |
+| renewal (a Business license’s next paid year, on the same key) | 更新 | 갱신 | 续期 | रिन्यूअल | Verlängerung | renovación | renouvellement | renovação | продление |
+| job (paid work a Business license unlocks, such as the security questionnaire) | ジョブ | 작업 | 任务 | जॉब | Job | tarea | tâche | tarefa | задача |
+| security questionnaire (the first job) | セキュリティ質問票 | 보안 설문지 | 安全问卷 | सुरक्षा प्रश्नावली | Sicherheitsfragebogen | cuestionario de seguridad | questionnaire de sécurité | questionário de segurança | анкета по безопасности |
 | usage statistics (the opt-in daily and weekly report of counts in ranges) | 利用統計 | 사용 통계 | 使用统计 | उपयोग आंकड़े | Nutzungsstatistiken | estadísticas de uso | statistiques d’utilisation | estatísticas de uso | статистика использования |
 | retry | 再試行 | 다시 시도 | 重试 | फिर से कोशिश करें | Erneut versuchen | Reintentar | Réessayer | Tentar novamente | Повторить |
 | plugin (an MCP server whose tools the agent can use) | プラグイン | 플러그인 | 插件 | प्लगइन | Plugin | plugin | plugin | plugin | плагин |
@@ -103,4 +107,5 @@ Strings whose English is ambiguous enough that every translator so far had to op
 | "Selecting" (`models_install_selecting_status`) | the install phase that makes the new model the active one, not the user picking anything. |
 | "Needs review" / "Got it" (`studio_flashcards_viewer_again_button`, `_good_button`) | the two grades on a card. Reuse the exact words in the reset dialog, which quotes them. |
 | "seats" (`license_status_seats_label`) | licensed users. |
+| "people" (`license_status_people_label`) | the people a Business license is bought for, each one who uses job plugins: not seats, not devices. |
 | “Logs”, “What happened?” (`feedback_form_note_body`, `feedback_log_copied_toast`, `feedback_report_copied_toast`) | field labels on the GitHub bug form, which is in English. Keep them in English, in the language's own quotation marks, so the reporter can find them on the page. |

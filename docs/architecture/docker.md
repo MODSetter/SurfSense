@@ -49,7 +49,7 @@ One container, because the stack assumes one machine: SQLite and the Huey queue 
 | The container's loopback | the API, the workers, the model servers, opencode and the access service, each on a free port | processes in the container only |
 | Compose's default bridge | the container's interface, with only Caddy listening, on `:80` and `:443` | the host, through the published ports |
 | The published ports | `${SURFSENSE_BIND:-0.0.0.0}:${SURFSENSE_PORT:-4929}` → `80`, and `${SURFSENSE_HTTPS_PORT:-4943}` → `443` | every network the server is on, behind the password; the host alone with `SURFSENSE_BIND=127.0.0.1` |
-| Outbound | NAT through the bridge | remote providers, model downloads and the plugin host, under the backend's egress rules |
+| Outbound | NAT through the bridge | remote providers, model downloads, the plugin host and, for a Business license, the license server's renewal, daily check included ([license](license/app.md#renewal)), under the backend's egress rules |
 
 - **No container talks to another,** and every call stays on loopback.
 - **Docker's published ports pass the host's firewall,** `ufw` included, so a server reachable from the internet presets `SURFSENSE_PASSWORD` before its first start ([Docker access](docker-access.md#the-first-password)).
