@@ -162,9 +162,23 @@ class PluginHostSettings(BaseSettings):
     plugin_host_url: str | None = None
 
 
+class LicenseServerSettings(BaseSettings):
+    """SURFSENSE_LOCAL_LICENSE_SERVER_URL points the license renewal, and the key it
+    sends, at another license server: a developer's, or a firm's mirror."""
+
+    model_config = SettingsConfigDict(env_prefix="SURFSENSE_LOCAL_")
+
+    license_server_url: str | None = None
+
+
 @lru_cache
 def get_plugin_host_settings() -> PluginHostSettings:
     return PluginHostSettings()
+
+
+@lru_cache
+def get_license_server_settings() -> LicenseServerSettings:
+    return LicenseServerSettings()
 
 
 @lru_cache
