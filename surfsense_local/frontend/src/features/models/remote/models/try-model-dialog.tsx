@@ -306,7 +306,13 @@ export function TryModelDialog({
             {reply}
           </p>
         ) : null}
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        {error ? (
+          // A provider's reason can hold a long address to copy, in a grid an
+          // unbroken one would widen past the dialog.
+          <p className="text-sm wrap-anywhere text-destructive select-text">
+            {error}
+          </p>
+        ) : null}
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             {intl.formatMessage({
