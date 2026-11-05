@@ -239,13 +239,13 @@ jobs:
       # spec leaves out shows only when a script runs in the shipped binary;
       # the same holds for the decode child's miniaudio, and for any native
       # extension a strip step broke.
-      - name: Run document scripts and decode a recording in the frozen worker
+      - name: Run document scripts, decode a recording and read a page in the frozen worker
         working-directory: surfsense_local/backend
         # addopts pins -m 'not packaging'; the later -m on the command line wins.
         run: |
           BIN="dist/backend/surfsense-backend"
           if [ "$RUNNER_OS" = "Windows" ]; then BIN="${BIN}.exe"; fi
-          SURFSENSE_TEST_FROZEN_BACKEND="$BIN" uv run pytest tests/packaging/test_frozen_document_scripts.py tests/packaging/test_frozen_native_extensions.py -m packaging
+          SURFSENSE_TEST_FROZEN_BACKEND="$BIN" uv run pytest tests/packaging/test_frozen_document_scripts.py tests/packaging/test_frozen_native_extensions.py tests/packaging/test_frozen_page_reading.py -m packaging
 
       - name: Build frontend SPA
         working-directory: surfsense_local/frontend

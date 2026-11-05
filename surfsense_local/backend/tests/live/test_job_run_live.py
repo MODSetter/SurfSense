@@ -141,10 +141,12 @@ async def test_the_job_fills_a_real_questionnaire_in_the_app(app: LiveAgent) -> 
     by_cell = {(a["sheet"].casefold(), a["cell"]): a for a in report["answers"]}
     rows = []
     for row in gold:
-        answer = by_cell.get((row["sheet"].casefold(), row["cell"]), {})
+        # As the job names its cells, and as the eval reads the gold.
+        cell = str(row["cell"]).strip().upper()
+        answer = by_cell.get((row["sheet"].casefold(), cell), {})
         rows.append(
             {
-                "cell": row["cell"],
+                "cell": cell,
                 "gold": row["answer"],
                 "answer": answer.get("answer"),
                 "quote": answer.get("quote"),
@@ -161,6 +163,13 @@ async def test_the_job_fills_a_real_questionnaire_in_the_app(app: LiveAgent) -> 
         for cell in row
         if cell.value is not None
     }
+    uploaded = openpyxl.load_workbook(io.BytesIO(original))
+    before = {
+        (sheet.title.casefold(), cell.coordinate): cell.value
+        for sheet in uploaded.worksheets
+        for row in sheet.iter_rows()
+        for cell in row
+    }
     app.run.metrics.update(
         {
             "seconds": seconds,
@@ -175,8 +184,9 @@ async def test_the_job_fills_a_real_questionnaire_in_the_app(app: LiveAgent) -> 
     # The score is the run folder's to report: a live run measures, it does not gate on accuracy.
     assert false_yes == 0, f"{false_yes} Yes answers the gold does not support"
     for answer in report["answers"]:
+        key = (answer["sheet"].casefold(), answer["cell"])
         if answer["written"] is not None:
-            assert (
-                written[(answer["sheet"].casefold(), answer["cell"])]
-                == answer["written"]
-            )
+            assert written.get(key) == answer["written"]
+        else:
+            # A blank answer leaves the cell as the requester sent it, placeholder and all.
+            assert written.get(key) == before.get(key)

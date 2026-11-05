@@ -43,6 +43,10 @@ class FakeKeygen:
         self.licenses: dict[str, dict] = {}
         self.requests: list[httpx2.Request] = []
         self.down = False
+        # Validations answer 200 without meta.code, which Keygen never should.
+        self.codeless = False
+        # Suspensions answer 503 while every other call works.
+        self.refuse_suspend = False
 
     def add(
         self,
@@ -108,6 +112,13 @@ class FakeKeygen:
         if action == "actions/validate":
             return self._validation(record)
         if action == "actions/suspend":
+            if self.refuse_suspend:
+                return httpx2.Response(503)
+            if record["attributes"]["status"] == "SUSPENDED":
+                # Keygen 1.7.2 refuses to suspend a suspended license.
+                return httpx2.Response(
+                    422, json={"errors": [{"detail": "is already suspended"}]}
+                )
             record["attributes"]["status"] = "SUSPENDED"
         if request.method == "PATCH":
             # Keygen replaces metadata whole, like every other attribute.
@@ -116,8 +127,7 @@ class FakeKeygen:
             )
         return httpx2.Response(200, json={"data": record})
 
-    @staticmethod
-    def _validation(record: dict | None) -> httpx2.Response:
+    def _validation(self, record: dict | None) -> httpx2.Response:
         if record is None:
             code = "NOT_FOUND"
         elif record["attributes"]["status"] in {"BANNED", "SUSPENDED"}:
@@ -128,9 +138,10 @@ class FakeKeygen:
             code = "EXPIRED"
         else:
             code = "VALID"
-        return httpx2.Response(
-            200, json={"data": record, "meta": {"valid": code == "VALID", "code": code}}
-        )
+        meta = {"valid": code == "VALID", "code": code}
+        if self.codeless:
+            del meta["code"]
+        return httpx2.Response(200, json={"data": record, "meta": meta})
 
     def _list(self, request: httpx2.Request) -> httpx2.Response:
         params = request.url.params

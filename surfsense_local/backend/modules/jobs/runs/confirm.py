@@ -9,11 +9,9 @@ from sqlalchemy.orm import Session
 
 from modules.artifacts.models import Artifact
 from modules.artifacts.revised_copies.refusals import RevisedCopyRefusedError
-from modules.artifacts.revised_copies.revision import revision_of
 from modules.artifacts.revised_copies.service import create_next_version
-from modules.artifacts.revised_copies.versions import revision_base, versions_of
-from modules.artifacts.script_documents.version import version_of
-from modules.documents.models import DocumentStatus
+from modules.artifacts.revised_copies.versions import revision_base
+from modules.jobs.runs.open_suggestions import cells_taken, open_suggestions
 from modules.jobs.runs.record import JOB_RUN_KEY, job_run_of
 from modules.jobs.runs.start import JobRunRefusedError
 from modules.jobs.workbook_rows.operations import confirm_operations
@@ -38,12 +36,8 @@ def confirm_suggestions(
     report = run.get("report")
     if report is None:
         raise JobRunRefusedError("The run is still answering: confirm once it is done.")
-    done = _taken(session, workspace_id, artifact)
-    open_ = {
-        (a["sheet"], a["cell"]): a
-        for a in report["answers"]
-        if a.get("confirm") and (a["sheet"], a["cell"]) not in done
-    }
+    taken = cells_taken(session, workspace_id, artifact)
+    open_ = {(a["sheet"], a["cell"]): a for a in open_suggestions(report, taken)}
     if cells is None:
         chosen = list(open_.values())
     else:
@@ -70,30 +64,6 @@ def confirm_suggestions(
     # nothing would be offered twice.
     _record(artifact, run, chosen, made.id)
     return made
-
-
-def _taken(
-    session: Session, workspace_id: int, artifact: Artifact
-) -> set[tuple[str, str]]:
-    """The cells a later version of the run's copy writes, made or still being made. One that
-    failed or was cancelled wrote nothing, and a deleted one is gone, so their suggestions are
-    offered again. Read from the versions themselves, never from a record of their ids, which
-    the database hands out again once a row is deleted. A cell a person answered in a version
-    of their own is taken too."""
-    version = version_of(artifact.artifact_metadata)
-    if version is None:
-        return set()
-    taken: set[tuple[str, str]] = set()
-    for later in versions_of(session, workspace_id, version.root):
-        if later.id == artifact.id or later.document.status in (
-            DocumentStatus.FAILED,
-            DocumentStatus.CANCELLED,
-        ):
-            continue
-        for op in (revision_of(later.artifact_metadata) or {}).get("operations") or []:
-            if op.get("op") == "set_cell":
-                taken.add((op.get("sheet"), op.get("cell")))
-    return taken
 
 
 def _record(

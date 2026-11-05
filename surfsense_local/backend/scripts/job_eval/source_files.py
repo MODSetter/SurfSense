@@ -14,10 +14,7 @@ def source_text(path: Path, document_id: int) -> SourceText:
     if suffix in TEXT_SUFFIXES:
         text = path.read_text(encoding="utf-8")
     elif suffix == ".docx":
-        # The app's own Word reader, the one ingest uses unless switched to Docling.
-        from worker.ingestion.word_markdown.document import markdown_of
-
-        text = markdown_of(path)
+        text = _word_text(path)
     elif suffix == ".pdf":
         text = _pdf_text(path)
     else:
@@ -27,16 +24,28 @@ def source_text(path: Path, document_id: int) -> SourceText:
     return SourceText(document_id, path.stem, text)
 
 
-def _pdf_text(path: Path) -> str:
-    """A born-digital PDF's text layer, page by page, as ingest reads it first (ADR 0059)."""
-    import pypdfium2
+def _word_text(path: Path) -> str:
+    """The app's own Word reader, as ingest chooses it; a file ingest gives Docling is refused."""
+    from worker.ingestion.word_markdown import markdown_without_docling
 
-    pdf = pypdfium2.PdfDocument(str(path))
-    try:
-        pages = []
-        for page in pdf:
-            text = page.get_textpage().get_text_range()
-            pages.append(text.replace("\r\n", "\n").strip())
-        return "\n\n".join(pages)
-    finally:
-        pdf.close()
+    text = markdown_without_docling(path)
+    if text is None:
+        raise ValueError(
+            f"{path.name}: ingest reads this Word file with Docling (charts, no text, "
+            "a reader failure or SURFSENSE_LOCAL_DOCX_READER), which the eval does not run"
+        )
+    return text
+
+
+def _pdf_text(path: Path) -> str:
+    """The text layer ingest stores for a born-digital PDF (ADR 0059); a PDF ingest gives
+    OCR or Docling is refused, since its pages would read differently or not at all."""
+    from worker.ingestion.pdf_text_layer import read_text_layer
+
+    layer = read_text_layer(path)
+    if layer.text is None:
+        raise ValueError(
+            f"{path.name}: ingest reads this PDF with OCR or Docling "
+            f"({layer.refused_because}), which the eval does not run"
+        )
+    return layer.text

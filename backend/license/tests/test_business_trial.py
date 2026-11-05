@@ -10,7 +10,7 @@ import pytest
 
 from license.email import deliver
 from license.settings import config
-from license.tests.billing_harness import SentMail
+from license.tests.billing_harness import PORTAL, SentMail
 from license.tests.test_license_routes import FakeKeygen, keygen_store, mailer, post
 
 pytestmark = pytest.mark.unit
@@ -101,3 +101,41 @@ async def test_the_switch_without_its_policy_refuses_before_keygen(
 
     assert reply.status_code == 503
     assert keygen_store.requests == []
+
+
+async def test_a_resent_business_trial_names_no_billing_portal(
+    keygen_store: FakeKeygen, sent: SentMail, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A trial has no subscription to change or cancel."""
+    monkeypatch.setattr(config, "LICENSE_TRIAL_BUSINESS", True)
+    monkeypatch.setattr(config, "STRIPE_CUSTOMER_PORTAL_URL", PORTAL)
+    await post("/license/trial", "new@example.com")
+
+    await post("/license/resend", "new@example.com")
+
+    _, resent = sent
+    assert PORTAL not in resent.text_body
+    assert "to cancel" not in resent.text_body
+
+
+async def test_a_resend_with_a_paid_license_beside_the_trial_names_the_portal(
+    keygen_store: FakeKeygen, sent: SentMail, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A firm that tried Business and bought it at the same address: the paid copy wins."""
+    monkeypatch.setattr(config, "LICENSE_TRIAL_BUSINESS", True)
+    monkeypatch.setattr(config, "STRIPE_CUSTOMER_PORTAL_URL", PORTAL)
+    await post("/license/trial", "new@example.com")
+    keygen_store.add(
+        "lic-paid",
+        policy="policy-business",
+        max_users=3,
+        plan="business",
+        email="new@example.com",
+        jobs="JOB_QUESTIONNAIRE",
+    )
+
+    await post("/license/resend", "new@example.com")
+
+    _, resent = sent
+    assert len(resent.attachments) == 2
+    assert PORTAL in resent.text_body

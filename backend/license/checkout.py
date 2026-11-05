@@ -114,6 +114,38 @@ def _price_id(line_item: Any) -> str:
     return str(getattr(price, "id", "") or "")
 
 
+def _plans_by_price() -> dict[str, LicensePlan]:
+    """The plan each configured license price sells."""
+    priced: tuple[tuple[str, str, LicensePlan], ...] = (
+        (
+            "STRIPE_PRICE_LICENSE_INDIVIDUAL",
+            config.STRIPE_PRICE_LICENSE_INDIVIDUAL,
+            "individual",
+        ),
+        ("STRIPE_PRICE_LICENSE_TEAM", config.STRIPE_PRICE_LICENSE_TEAM, "team"),
+        (
+            "STRIPE_PRICE_LICENSE_BUSINESS",
+            config.STRIPE_PRICE_LICENSE_BUSINESS,
+            "business",
+        ),
+    )
+    plans: dict[str, LicensePlan] = {}
+    named_in: dict[str, str] = {}
+    for setting, price, plan in priced:
+        if not price:
+            continue
+        if price in plans:
+            # One plan would be sold as another. Not a LicenseIssueError, which
+            # drops the purchase: the webhook answers 500, and a Stripe retry
+            # after the settings are fixed issues it.
+            raise RuntimeError(
+                f"{named_in[price]} and {setting} name the same Stripe price"
+            )
+        plans[price] = plan
+        named_in[price] = setting
+    return plans
+
+
 async def resolve_license_plan(
     checkout_session: Any,
     *,
@@ -147,15 +179,7 @@ async def resolve_license_plan(
             ) from exc
         return plan, _at_least_one(plan, quantity)
 
-    prices: dict[str, LicensePlan] = {
-        price: plan
-        for price, plan in (
-            (config.STRIPE_PRICE_LICENSE_INDIVIDUAL, "individual"),
-            (config.STRIPE_PRICE_LICENSE_TEAM, "team"),
-            (config.STRIPE_PRICE_LICENSE_BUSINESS, "business"),
-        )
-        if price
-    }
+    prices = _plans_by_price()
     if not prices:
         return None
 

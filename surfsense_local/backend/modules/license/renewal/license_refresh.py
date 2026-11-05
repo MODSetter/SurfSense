@@ -48,7 +48,8 @@ def _replaced(session: Session, key: str, certificate: str) -> LicenseStatus:
     # Read again, not from this session's last look: the fetch took seconds.
     session.expire_all()
     if license_key(session) != key:
-        # Removed or replaced while the file was on its way: the user's choice stands.
+        # Removed, or another license put in its place, while the file was on its way:
+        # the user's choice stands.
         return status(session)
     if verify_signature(certificate).key != key:
         raise RefreshFailedError("refresh_unavailable")

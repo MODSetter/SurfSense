@@ -1,1 +1,1 @@
-"""A pulled source's text: its layout, a transcript from subtitles, HTML read as text."""
+"""A pulled source's text: its title, facts and sections as one markdown document."""

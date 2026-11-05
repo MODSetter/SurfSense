@@ -171,7 +171,7 @@ async def test_the_purchase_mail_is_the_business_one(env: Billing) -> None:
     assert PORTAL in mail.text_body
     # The Individual promises do not hold for a license the app refreshes.
     assert "works on every machine" not in mail.text_body
-    assert "never contacts a license server" not in mail.text_body
+    assert "only when you choose Check for renewal" not in mail.text_body
 
 
 async def test_the_success_page_before_the_webhook_mints_the_same_one_license(

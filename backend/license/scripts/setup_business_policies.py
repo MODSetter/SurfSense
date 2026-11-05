@@ -5,8 +5,10 @@
     python -m license.scripts.setup_business_policies --product-token
 
 Run it once with the admin token in KEYGEN_API_TOKEN: entitlements and product
-tokens are the two things a product token cannot create. A second run creates
-only what is missing, such as a job added to ``license/jobs.py``.
+tokens are the two things a product token cannot create. A second run without
+``--product-token`` creates only what is missing, such as a job added to
+``license/jobs.py``. Each run with it makes another product token, valid until
+it is revoked in Keygen, so pass it once and revoke any token it replaces.
 
 The live trial, individual and team policies are read, never written: the
 plugin host accepts only VALID, so editing one, or making it strict, would lock
@@ -135,22 +137,20 @@ def _policy_payload(
 async def _live_product() -> tuple[str, str | None]:
     """The one product the live policies share, and the scheme to mirror."""
     live = {
-        name: policy_id
-        for name, policy_id in (
-            ("individual", config.KEYGEN_POLICY_INDIVIDUAL),
-            ("trial", config.KEYGEN_POLICY_TRIAL),
-            ("team", config.KEYGEN_POLICY_TEAM),
-        )
-        if policy_id
+        "KEYGEN_POLICY_INDIVIDUAL": config.KEYGEN_POLICY_INDIVIDUAL,
+        "KEYGEN_POLICY_TRIAL": config.KEYGEN_POLICY_TRIAL,
+        "KEYGEN_POLICY_TEAM": config.KEYGEN_POLICY_TEAM,
     }
-    if not live:
+    # Every one: a live policy left unread could be on another product.
+    unset = [setting for setting, policy_id in live.items() if not policy_id]
+    if unset:
         raise SetupError(
-            "Set KEYGEN_POLICY_INDIVIDUAL, KEYGEN_POLICY_TRIAL and KEYGEN_POLICY_TEAM: "
-            "the Business policies join their product"
+            f"Set {', '.join(unset)}: the Business policies join the product all "
+            "three live policies share"
         )
     policies = {
-        name: (await _call("GET", f"policies/{policy_id}"))["data"]
-        for name, policy_id in live.items()
+        setting: (await _call("GET", f"policies/{policy_id}"))["data"]
+        for setting, policy_id in live.items()
     }
     products = {_product_of(policy) for policy in policies.values()}
     if len(products) != 1 or None in products:
@@ -264,7 +264,11 @@ async def main() -> int:
     parser.add_argument(
         "--product-token",
         action="store_true",
-        help="Also create the license server's product token; it is shown once",
+        help=(
+            "Also create the license server's product token, shown once. Each run "
+            "with this makes another, valid until it is revoked in Keygen: pass it "
+            "once and revoke any token it replaces"
+        ),
     )
     args = parser.parse_args()
     try:

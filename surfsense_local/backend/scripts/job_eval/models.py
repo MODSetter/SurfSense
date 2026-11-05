@@ -11,6 +11,7 @@ Anthropic); each run records which providers served its calls.
 
 from __future__ import annotations
 
+import math
 import os
 import threading
 import time
@@ -25,6 +26,8 @@ from modules.jobs.workbook_rows.ask import ModelReply
 MAX_TOKENS = 8192
 CALL_SECONDS = 180.0
 RETRIES = 3
+# The longest pause a rate limit's Retry-After is followed for, as the app's job run allows.
+MAX_RETRY_AFTER_SECONDS = 60.0
 OPENROUTER = "https://openrouter.ai/api/v1/chat/completions"
 # Anthropic list prices, $ per million tokens (cached 2026-10-06): input, output.
 ANTHROPIC_PRICES = {
@@ -78,7 +81,9 @@ def model_for(spec: str, *, concurrency: int, effort: str, reasoning: str):
             model_id, os.environ["ANTHROPIC_API_KEY"], concurrency, effort
         )
     if provider == "openrouter":
-        model_id, _, route = model_id.partition("@")
+        model_id, pinned, route = model_id.partition("@")
+        if pinned and not route:
+            raise SystemExit(f"{spec}: name the provider after @, or drop the @.")
         return OpenRouterModel(
             model_id,
             os.environ["OPENROUTER_API_KEY"],
@@ -93,6 +98,12 @@ class AnthropicModel:
     window = 1_000_000
 
     def __init__(self, model_id: str, key: str, concurrency: int, effort: str) -> None:
+        # Before any call: an unpriced model would be billed and recorded as $0.
+        if model_id not in ANTHROPIC_PRICES:
+            raise SystemExit(
+                f"{model_id}: add its list price to ANTHROPIC_PRICES "
+                f"(priced: {', '.join(ANTHROPIC_PRICES)})"
+            )
         import anthropic
 
         self.name = model_id
@@ -123,7 +134,7 @@ class AnthropicModel:
         usage = response.usage
         written = usage.cache_creation_input_tokens or 0
         read = usage.cache_read_input_tokens or 0
-        price_in, price_out = ANTHROPIC_PRICES.get(self.name, (0.0, 0.0))
+        price_in, price_out = ANTHROPIC_PRICES[self.name]
         self.spend.add(
             inputs=usage.input_tokens + written + read,
             cached=read,
@@ -223,6 +234,7 @@ class OpenRouterModel:
 
     def _post(self, body: dict) -> dict:
         for attempt in range(RETRIES + 1):
+            pause = 2.0 * (attempt + 1)
             try:
                 response = self._client.post(OPENROUTER, json=body)
                 if response.status_code == 200:
@@ -232,13 +244,26 @@ class OpenRouterModel:
                     problem = str(reply["error"])[:300]
                 elif response.status_code in (408, 429) or response.status_code >= 500:
                     problem = f"HTTP {response.status_code}: {response.text[:300]}"
+                    pause = _retry_after(response.headers.get("retry-after"), pause)
                 else:
                     response.raise_for_status()
             except (httpx.TimeoutException, httpx.TransportError) as failure:
                 problem = f"{type(failure).__name__}: {failure}"
             self.spend.errors.append(problem)
-            time.sleep(2 * (attempt + 1))
+            time.sleep(pause)
         return {"choices": [{"message": {"content": ""}}]}
+
+
+def _retry_after(value: str | None, otherwise: float) -> float:
+    """The provider's Retry-After in seconds, cut to the longest the app's job run waits;
+    `otherwise` when it is missing, a date, or not a finite, non-negative number."""
+    try:
+        seconds = float(value or "")
+    except ValueError:
+        return otherwise
+    if not math.isfinite(seconds) or seconds < 0:
+        return otherwise
+    return min(seconds, MAX_RETRY_AFTER_SECONDS)
 
 
 def _blocks(text: str, shared: int) -> list[dict]:

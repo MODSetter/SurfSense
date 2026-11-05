@@ -540,6 +540,51 @@ def test_a_malformed_standing_block_refuses_the_pack(tmp_path, config):
         load_config(job)
 
 
+@pytest.mark.parametrize(
+    ("change", "message"),
+    [
+        ({"passages_per_question": 0}, "passages_per_question is at least 1."),
+        ({"passages_per_question": -1}, "passages_per_question is at least 1."),
+        ({"standing": {"per_query": -1}}, "standing.per_query is at least 0."),
+    ],
+)
+def test_a_count_of_passages_below_its_least_refuses_the_pack(
+    tmp_path, config, change, message
+):
+    """A question shown none of its own passages, or a count that slices from the end and
+    shows nearly all of them, is refused when the pack loads, before any run."""
+    from modules.jobs.packs.manifest import PackRefusedError
+
+    job = tmp_path / "job" / "job.json"
+    raw = json.loads(job.read_text(encoding="utf-8"))
+    job.write_text(json.dumps({**raw, **change}), encoding="utf-8")
+
+    with pytest.raises(PackRefusedError) as refused:
+        load_config(job)
+
+    assert (refused.value.code, refused.value.message) == ("BAD_JOB_CONFIG", message)
+
+
+@pytest.mark.parametrize("name", ["S" * 32, "Answers/2026", "History", 7])
+def test_a_sheet_name_excel_refuses_refuses_the_pack(tmp_path, config, name):
+    """The added sheets' names are held to Excel's rules when the pack loads: the engine
+    would refuse one only after every question was answered, and save none of them."""
+    from modules.jobs.packs.manifest import PackRefusedError
+
+    job = tmp_path / "job" / "job.json"
+    raw = json.loads(job.read_text(encoding="utf-8"))
+    raw["sheets"]["answers"] = name
+    job.write_text(json.dumps(raw), encoding="utf-8")
+
+    with pytest.raises(PackRefusedError) as refused:
+        load_config(job)
+
+    assert (refused.value.code, refused.value.message) == (
+        "BAD_JOB_CONFIG",
+        f'Excel refuses "{name}" as a sheet name.',
+    )
+
+
 def test_the_check_reads_what_a_quote_s_ellipsis_leaves_out(workbook, config):
     """For a quote whose parts "..." joins, the second check is shown the source in full."""
     plan = SourceText(

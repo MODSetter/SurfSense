@@ -137,6 +137,21 @@ async def test_a_renewal_also_takes_the_people_the_firm_confirmed(
     assert env.keygen.licenses["lic-firm"]["attributes"]["maxUsers"] == 5
 
 
+async def test_a_paid_proration_moves_the_people_but_never_the_expiry(
+    env: Billing,
+) -> None:
+    """Stripe may have advanced the period to a year not yet paid; a proration pays none."""
+    firm_license(env, people=3)
+    renewed(env, "sub_firm", people=4, price=BUSINESS_PRICE)
+
+    await post_event(paid("in_people", "sub_firm", "subscription_update"))
+
+    assert expiry_of(env, "lic-firm") == YEAR_ONE_END + GRACE
+    (patch,) = env.keygen.writes("lic-firm")
+    assert json.loads(patch.content)["data"]["attributes"] == {"maxUsers": 4}
+    assert env.mail == []
+
+
 async def test_a_suspended_license_is_extended_but_never_mailed(env: Billing) -> None:
     """A refunded firm whose subscription went on charging gets no fresh file."""
     firm_license(env, status="SUSPENDED")
@@ -227,11 +242,35 @@ async def test_a_seat_change_moves_the_people_count_and_nothing_else(
         quantity=5,
         price=BUSINESS_PRICE,
     )
+    env.stripe.subscriptions["sub_firm"] = moved
 
     await post_event(event("customer.subscription.updated", moved))
 
     (patch,) = env.keygen.writes("lic-firm")
     assert json.loads(patch.content)["data"]["attributes"] == {"maxUsers": 5}
+
+
+async def test_a_late_seat_change_sets_the_live_count_not_its_own(
+    env: Billing,
+) -> None:
+    """Stripe promises no order, so an older change can arrive after a newer one."""
+    firm_license(env, people=3)
+    env.stripe.subscriptions["sub_firm"] = subscription(
+        "sub_firm",
+        period_end=int(YEAR_ONE_END.timestamp()),
+        quantity=4,
+        price=BUSINESS_PRICE,
+    )
+    older = subscription(
+        "sub_firm",
+        period_end=int(YEAR_ONE_END.timestamp()),
+        quantity=5,
+        price=BUSINESS_PRICE,
+    )
+
+    await post_event(event("customer.subscription.updated", older))
+
+    assert env.keygen.licenses["lic-firm"]["attributes"]["maxUsers"] == 4
 
 
 async def test_a_new_period_before_its_payment_does_not_extend_the_license(
@@ -245,6 +284,7 @@ async def test_a_new_period_before_its_payment_does_not_extend_the_license(
         quantity=3,
         price=BUSINESS_PRICE,
     )
+    env.stripe.subscriptions["sub_firm"] = advanced
 
     await post_event(event("customer.subscription.updated", advanced))
 

@@ -237,11 +237,14 @@ class Validation:
 
 def _validation(response: httpx2.Response) -> Validation:
     body = response.json()
+    meta = body.get("meta") if isinstance(body, dict) else None
+    code = meta.get("code") if isinstance(meta, dict) else None
+    if not isinstance(code, str) or not code:
+        # A failure, as the plugin host's check treats it: an empty code would
+        # read as no license and answer 404 for one that exists.
+        raise RuntimeError("Keygen answered a validation without meta.code")
     record = body.get("data")
-    return Validation(
-        code=str((body.get("meta") or {}).get("code") or ""),
-        record=record if isinstance(record, dict) else None,
-    )
+    return Validation(code=code, record=record if isinstance(record, dict) else None)
 
 
 async def validate_license(
@@ -448,7 +451,7 @@ async def suspend_license(
     *,
     client: httpx2.AsyncClient | None = None,
 ) -> None:
-    """Suspend a license, e.g. after a refund.
+    """Suspend a license, e.g. after a refund; one already suspended stays as it is.
 
     Suspend rather than revoke: it is reversible, it keeps the record listable
     for support, and ``validate-key`` then returns ``SUSPENDED``, which maps
@@ -460,4 +463,10 @@ async def suspend_license(
             _account_url(f"licenses/{license_id}/actions/suspend"),
             headers=_headers(),
         )
+        if response.status_code == 422:
+            # Keygen's answer to suspending a suspended license, which a
+            # redelivered refund or a dispute after a full refund meets.
+            record = await get_license(license_id, client=client) or {}
+            if (record.get("attributes") or {}).get("status") == "SUSPENDED":
+                return
         response.raise_for_status()

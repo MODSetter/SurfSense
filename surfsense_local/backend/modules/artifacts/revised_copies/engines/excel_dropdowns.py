@@ -16,7 +16,8 @@ Area = tuple[Coord, Coord]
 
 _X14 = "http://schemas.microsoft.com/office/spreadsheetml/2009/9/main"
 _XM = "http://schemas.microsoft.com/office/excel/2006/main"
-# Only "stop", the default, refuses an entry off the list; "warning" and
+# Excel refuses an entry off the list only when the rule's error alert is on
+# (showErrorMessage, off by default) in "stop" style, the default; "warning" and
 # "information" let the user keep it.
 _LETS_OTHERS_THROUGH = ("warning", "information")
 
@@ -78,7 +79,8 @@ def _rule(
             values=values,
             source=formula,
             allow_blank=rule.get("allowBlank") in ("1", "true"),
-            refuses_others=rule.get("errorStyle", "stop") not in _LETS_OTHERS_THROUGH,
+            refuses_others=rule.get("showErrorMessage") in ("1", "true")
+            and rule.get("errorStyle", "stop") not in _LETS_OTHERS_THROUGH,
         )
     ]
 

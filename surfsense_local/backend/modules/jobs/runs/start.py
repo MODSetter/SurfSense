@@ -9,12 +9,18 @@ from modules.artifacts.models import Artifact
 from modules.artifacts.revised_copies.refusals import RevisedCopyRefusedError
 from modules.artifacts.revised_copies.service import create_revised_copy
 from modules.artifacts.revised_copies.source_file import sha256_of, source_file
+from modules.chat.models import ChatThread
 from modules.documents.models import Document, DocumentStatus
 from modules.jobs.packs.access import job_access
 from modules.jobs.packs.installed import find_job
 from modules.jobs.packs.manifest import PackRefusedError
 from modules.jobs.runs.record import pending_job_run
-from modules.jobs.settings.service import job_settings
+from modules.jobs.settings.service import (
+    CHECKER_GONE,
+    JobSettingsRefusedError,
+    check_checker,
+    job_settings,
+)
 from modules.jobs.workbook_rows.config import load_config
 
 
@@ -44,6 +50,11 @@ def start_job_run(
         raise JobRunRefusedError(refused.message) from refused
     # The run keeps the firm's choices as they are now: a change applies to the next run.
     chosen = job_settings(session, pack_job.key, config)
+    if chosen.checker is not None:
+        try:
+            check_checker(session, chosen.checker)
+        except JobSettingsRefusedError as gone:
+            raise JobRunRefusedError(CHECKER_GONE) from gone
     try:
         workbook = source_file(session, workspace_id, workbook_document_id)
     except RevisedCopyRefusedError as refused:
@@ -72,6 +83,12 @@ def start_job_run(
         ):
             raise JobRunRefusedError(
                 f'"{document.title}" is not read yet; start the job once it is ready.'
+            )
+    if chat_thread_id is not None:
+        thread = session.get(ChatThread, chat_thread_id)
+        if thread is None or thread.workspace_id != workspace_id:
+            raise JobRunRefusedError(
+                f"There is no chat {chat_thread_id} in this workspace."
             )
     try:
         return create_revised_copy(

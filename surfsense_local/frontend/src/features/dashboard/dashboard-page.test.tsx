@@ -13,6 +13,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { DETAIL_RAIL_WIDTH, MAIN_RAIL_WIDTH } from "@/components/ui/slide-rail"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { IssueReportDialog } from "@/features/feedback/issue-report-dialog"
+import { NO_LICENSE, runRead } from "@/features/jobs/stub-jobs-api"
 import { boxHeld, boxText, render } from "@/test-utils"
 
 import {
@@ -1475,6 +1476,146 @@ describe("dashboard chat", () => {
 
     expect(
       await screen.findByRole("heading", { level: 2, name: "Plugins" })
+    ).toBeTruthy()
+  })
+
+  it("opens Jobs from the sidebar, right after Plugins", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) =>
+        String(input) === "/license/status"
+          ? Response.json(NO_LICENSE)
+          : Response.json([])
+      )
+    )
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <DashboardPage
+          initialProviderAvailable={true}
+          selection={null}
+          initialWorkspaces={[workspace]}
+          onModelSelected={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    const jobs = screen.getByRole("button", { name: /^Jobs/ })
+    expect(
+      screen.getByRole("button", { name: /^Plugins/ }).nextElementSibling
+    ).toBe(jobs)
+    await user.click(jobs)
+
+    const dialog = await screen.findByRole("dialog", { name: "Jobs" })
+    expect(
+      await within(dialog).findByText(
+        "Comes with a SurfSense Business license. Try it free for 14 days."
+      )
+    ).toBeTruthy()
+  })
+
+  it("closes Jobs and opens Settings › License for a job’s Add license", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) =>
+        String(input) === "/license/status"
+          ? Response.json(NO_LICENSE)
+          : Response.json([])
+      )
+    )
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <DashboardPage
+          initialProviderAvailable={true}
+          selection={null}
+          initialWorkspaces={[workspace]}
+          onModelSelected={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    await user.click(screen.getByRole("button", { name: /^Jobs/ }))
+    const dialog = await screen.findByRole("dialog", { name: "Jobs" })
+    await user.click(
+      await within(dialog).findByRole("button", { name: "Add license" })
+    )
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "License" })
+    ).toBeTruthy()
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Jobs" })).toBeNull()
+    )
+  })
+
+  it("offers to confirm a job run’s suggested answers in the copy Studio opens", async () => {
+    const copy = {
+      id: 41,
+      document_id: 141,
+      format: "summary",
+      generation: 1,
+      title: "Vendor questionnaire (revised)",
+      status: "ready",
+      error_message: null,
+      created_at: "2026-11-03T09:00:00Z",
+      updated_at: "2026-11-03T09:00:00Z",
+      version: { root_id: 41, number: 1, parent_id: null },
+      spec_kind: null,
+      refinable: false,
+      image_editable: false,
+    }
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = String(input)
+        if (path === "/license/status") return Response.json(NO_LICENSE)
+        if (path === "/workspaces/1/artifacts") return Response.json([copy])
+        // Served as a summary, so no spreadsheet renderer is needed.
+        if (path === "/artifacts/41")
+          return Response.json({
+            ...copy,
+            content: "Do you encrypt backups? Yes",
+            files: [],
+            quiz_state: null,
+            flashcard_state: null,
+            revision: {
+              derived_from_document_id: 7,
+              source_name: "Vendor questionnaire.xlsx",
+              counts: null,
+              applied: null,
+            },
+          })
+        if (path === "/workspaces/1/job-runs/41")
+          return Response.json(runRead())
+        return Response.json([])
+      })
+    )
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <DashboardPage
+          initialProviderAvailable={true}
+          selection={null}
+          initialWorkspaces={[workspace]}
+          onModelSelected={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Vendor questionnaire (revised)",
+      })
+    )
+
+    expect(
+      await screen.findByRole("button", {
+        name: "Confirm 2 suggested answers",
+      })
     ).toBeTruthy()
   })
 

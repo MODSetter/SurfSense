@@ -61,3 +61,29 @@ def test_runs_at_another_reasoning_get_their_own_line(tmp_path):
     rows = [line for line in report(tmp_path).splitlines() if "ncsc-wisp |" in line]
 
     assert len(rows) == 2 and any("reasoning low" in row for row in rows)
+
+
+def test_a_case_with_no_scored_rows_has_no_accuracy(tmp_path):
+    """A gold file with no rows scores none: its line says "—" for both accuracies, and the
+    report still gives every other case's line."""
+    _record(tmp_path, "a")
+    _record(
+        tmp_path,
+        "e",
+        case="empty",
+        scored_rows=0,
+        correct=0,
+        provider_setting_flipped={"provider_on": True, "correct": 0},
+    )
+
+    lines = report(tmp_path).splitlines()
+    [empty] = [line for line in lines if line.startswith("| empty |")]
+    [ordinary] = [line for line in lines if line.startswith("| ncsc-wisp |")]
+
+    # Correct per run, accuracy, and accuracy with the provider setting flipped.
+    assert _cells(empty)[3:6] == ["0/0", "—", "—"]
+    assert _cells(ordinary)[3:6] == ["7/10", "70.0%", "80.0% (on)"]
+
+
+def _cells(line: str) -> list[str]:
+    return [cell.strip() for cell in line.split("|")[1:-1]]

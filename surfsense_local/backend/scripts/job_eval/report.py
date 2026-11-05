@@ -25,8 +25,10 @@ def report(out: Path) -> str:
         correct = sum(r["correct"] for r in records)
         problems = sum(r["dropdown_violations"] + len(r["integrity"]) for r in records)
         per_run = ", ".join(f"{r['correct']}/{r['scored_rows']}" for r in records)
+        # A case whose gold lists no rows scores none, and has no accuracy to give.
+        accuracy = f"{correct / scored:.1%}" if scored else "—"
         lines.append(
-            f"| {case} | {model} | {len(records)} | {per_run} | {correct / scored:.1%} | "
+            f"| {case} | {model} | {len(records)} | {per_run} | {accuracy} | "
             f"{_flipped(records, scored)} | "
             f"{sum(r['false_yes'] for r in records)} | {sum(_other_wrong(r) for r in records)} | "
             f"{sum(r['yes_without_quote'] for r in records)} | "
@@ -81,9 +83,10 @@ def _model(record: dict) -> str:
 
 
 def _flipped(records: list[dict], scored: int) -> str:
-    """Accuracy had the provider setting been the other way round; runs before it say "—"."""
+    """Accuracy had the provider setting been the other way round; runs before it, and a case
+    with no scored rows, say "—"."""
     flips = [r.get("provider_setting_flipped") for r in records]
-    if not all(flips):
+    if not scored or not all(flips):
         return "—"
     turned = "on" if flips[0]["provider_on"] else "off"
     return f"{sum(f['correct'] for f in flips) / scored:.1%} ({turned})"

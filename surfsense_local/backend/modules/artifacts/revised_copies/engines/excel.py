@@ -15,6 +15,7 @@ from modules.artifacts.revised_copies.engines.excel_new_sheet import (
     name_problem,
 )
 from modules.artifacts.revised_copies.engines.excel_refs import (
+    MAX_COLUMN,
     cell_name,
     parse_cell,
     parse_range,
@@ -151,13 +152,14 @@ def _add_sheet(book: Workbook, index: int, operation: dict) -> None:
         or not rows
         or len(rows) > MAX_NEW_ROWS
         or not all(isinstance(row, list) for row in rows)
+        or any(len(row) > MAX_COLUMN for row in rows)
     ):
         raise _RefusedError(
             bad_operation(
                 index,
                 "add_sheet",
                 "values",
-                f"send 1 to {MAX_NEW_ROWS:,} rows, each a list of values.",
+                f"send 1 to {MAX_NEW_ROWS:,} rows, each a list of at most {MAX_COLUMN:,} values.",
             )
         )
     for row in rows:

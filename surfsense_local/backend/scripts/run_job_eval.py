@@ -214,6 +214,14 @@ def _one_run(args, spec: str, case: Case, config, number: int, embed) -> None:
     )
 
 
+def _one_or_more(value: str) -> int:
+    """--runs 0 would read the pack and cases, run nothing and exit as if it had succeeded."""
+    number = int(value)
+    if number < 1:
+        raise argparse.ArgumentTypeError("give 1 or more")
+    return number
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     commands = parser.add_subparsers(dest="command", required=True)
@@ -231,7 +239,7 @@ def main() -> None:
         action="append",
         help="one of the job's firm settings, as key=true or key=false",
     )
-    run_parser.add_argument("--runs", type=int, default=1)
+    run_parser.add_argument("--runs", type=_one_or_more, default=1)
     run_parser.add_argument("--concurrency", type=int, default=4)
     run_parser.add_argument("--effort", default="low", help="Claude's effort level")
     run_parser.add_argument(

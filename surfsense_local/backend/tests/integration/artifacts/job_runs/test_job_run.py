@@ -13,7 +13,14 @@ from httpx import AsyncClient
 from openpyxl.worksheet.datavalidation import DataValidation
 from sqlalchemy.orm import Session
 
+from modules.agent.tool_endpoint import run_job
+from modules.agent.tool_endpoint.rendered_label import (
+    queued_artifact,
+    rendered_artifact,
+)
+from modules.agent.tool_endpoint.turn_scope import TurnScope
 from modules.artifacts.models import Artifact
+from modules.chat.models import AgentEngineKind, ChatThread
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.jobs.packs.access import DEV_SWITCH
 from modules.jobs.packs.install import install_pack
@@ -212,6 +219,81 @@ async def test_installed_packs_are_listed_with_whether_they_may_run(
     assert (job["entitlement"], job["unlocked"]) == ("JOB_TEST_QUESTIONNAIRE", False)
     assert "Business licence" in job["locked_reason"]
     assert job["locked_reason"] == locked[0]["locked_reason"]
+    # The screen picks its offer by the code: no licence, so the trial and pricing.
+    assert (job["locked_code"], locked[0]["locked_code"]) == ("none", "none")
+    assert unlocked[0]["locked_code"] is None
+    assert unlocked[0]["jobs"][0]["locked_code"] is None
+
+
+def _agent_thread(session: Session, workspace_id: int, *selected: int) -> TurnScope:
+    """An Agentic chat's scope with these sources ticked; the session's transaction ends."""
+    thread = ChatThread(
+        workspace_id=workspace_id, agent_engine=AgentEngineKind.OPENCODE
+    )
+    session.add(thread)
+    session.commit()
+    return TurnScope(
+        workspace_id,
+        thread.id,
+        get_storage_settings().data_dir / "thread",
+        frozenset(selected),
+    )
+
+
+@pytest.mark.parametrize("finished", [True, False], ids=["ready", "still answering"])
+async def test_the_job_tool_names_the_copy_it_filled_for_the_thread(
+    session: Session,
+    workspace: Workspace,
+    pack: None,
+    model: list[str],
+    monkeypatch: pytest.MonkeyPatch,
+    finished: bool,
+) -> None:
+    """The tool's first line names the revised copy, so the thread links it in Studio, ready
+    or still being made; a finished run's reply gives the counts the Jobs screen gives and
+    the sheets the pack named."""
+    monkeypatch.setenv(DEV_SWITCH, "1")
+    workspace_id = workspace.id
+    workbook_id = add_source(
+        session, workspace_id, "Client questionnaire.xlsx", _questionnaire()
+    )
+    plan_id = _plan(session, workspace_id)
+    scope = _agent_thread(session, workspace_id, workbook_id, plan_id)
+
+    def outcome(waiting: Session, artifact_id: int, _seconds: float) -> SimpleNamespace:
+        # Its first look commits the run, as wait_for_outcome's does.
+        waiting.commit()
+        if not finished:
+            return SimpleNamespace(status=DocumentStatus.PROCESSING, error_message=None)
+        run(artifact_id)
+        return SimpleNamespace(status=DocumentStatus.READY, error_message=None)
+
+    monkeypatch.setattr("modules.agent.tool_endpoint.run_job.wait_for_outcome", outcome)
+
+    said = await asyncio.to_thread(
+        run_job.run,
+        session,
+        scope,
+        {"job": JOB, "document_id": workbook_id, "source_ids": [plan_id]},
+    )
+    session.rollback()
+
+    first, rest = said.split("\n", 1)
+    named = rendered_artifact(first) if finished else queued_artifact(first)
+    assert named is not None
+    assert (named.title, named.version) == ("Client questionnaire (revised)", 1)
+    if not finished:
+        assert rest.startswith(
+            f"The {JOB} run (artifact {named.id}) is still answering."
+        )
+        return
+    assert rest.startswith(
+        f"Done: version 1 of a revised copy (artifact {named.id}) in Studio, with 3 "
+        "questions: 2 answered, 1 left to a person, 0 with a suggested answer to "
+        "confirm, and 0 rows left as they were. Answers by kind: 1 Yes, 1 N/A, "
+        '1 Needs review. Each answer\'s source and quote is on the "SurfSense answers" '
+        'sheet; the exceptions are on "SurfSense exceptions".'
+    )
 
 
 async def test_a_run_retried_without_access_fails_with_the_reason(
@@ -242,3 +324,85 @@ async def test_a_run_retried_without_access_fails_with_the_reason(
     assert artifact.document.status is DocumentStatus.FAILED
     assert "Business licence" in (artifact.document.error_message or "")
     assert model == []
+
+
+async def test_a_run_retried_after_an_update_records_the_version_it_ran_on(
+    session: Session,
+    workspace: Workspace,
+    client: AsyncClient,
+    pack: None,
+    model: list[str],
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """A run that failed on one version and is run again once a newer one is installed is
+    answered by the newer one, and its record names that version."""
+    monkeypatch.setenv(DEV_SWITCH, "1")
+    workspace_id = workspace.id
+    workbook_id = add_source(session, workspace_id, "Q.xlsx", _questionnaire())
+    plan_id = _plan(session, workspace_id)
+    started = await client.post(
+        f"/workspaces/{workspace_id}/job-runs",
+        json={"job": JOB, "document_id": workbook_id, "source_ids": [plan_id]},
+    )
+    assert started.status_code == 201, started.text
+    artifact_id = started.json()["artifact_id"]
+    monkeypatch.delenv(DEV_SWITCH)
+    await asyncio.to_thread(run, artifact_id)
+    monkeypatch.setenv(DEV_SWITCH, "1")
+    install_pack(
+        write_questionnaire_pack(tmp_path / "newer", version="1.0.1"), packs_dir()
+    )
+
+    again = await client.post(f"/artifacts/{artifact_id}/regenerate")
+    assert again.status_code == 202, again.text
+    await asyncio.to_thread(run, artifact_id)
+
+    read = (
+        await client.get(f"/workspaces/{workspace_id}/job-runs/{artifact_id}")
+    ).json()
+    assert (read["status"], read["pack_version"], read["pack"]) == (
+        "ready",
+        "1.0.1",
+        "test-jobs 1.0.1",
+    )
+
+
+async def test_a_run_is_linked_only_to_a_chat_of_its_workspace(
+    session: Session,
+    workspace: Workspace,
+    client: AsyncClient,
+    pack: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A chat no thread has, or another workspace's, refuses the run before its copy is
+    made, so no other workspace's chat is ever linked."""
+    monkeypatch.setenv(DEV_SWITCH, "1")
+    workspace_id = workspace.id
+    workbook_id = add_source(session, workspace_id, "Q.xlsx", _questionnaire())
+    plan_id = _plan(session, workspace_id)
+    elsewhere = Workspace(name="Elsewhere")
+    session.add(elsewhere)
+    session.commit()
+    foreign = ChatThread(
+        workspace_id=elsewhere.id, agent_engine=AgentEngineKind.OPENCODE
+    )
+    session.add(foreign)
+    session.commit()
+
+    for thread_id in (foreign.id + 1, foreign.id):
+        refused = await client.post(
+            f"/workspaces/{workspace_id}/job-runs",
+            json={
+                "job": JOB,
+                "document_id": workbook_id,
+                "source_ids": [plan_id],
+                "chat_thread_id": thread_id,
+            },
+        )
+        assert refused.status_code == 409
+        assert refused.json()["detail"] == {
+            "code": "JOB_RUN_REFUSED",
+            "message": f"There is no chat {thread_id} in this workspace.",
+        }
+    assert (await client.get(f"/workspaces/{workspace_id}/job-runs")).json() == []

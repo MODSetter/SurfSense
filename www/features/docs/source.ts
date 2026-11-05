@@ -25,6 +25,7 @@ import {
  */
 const DOCS_ICONS: Record<string, React.ComponentType> = {
 	BookOpen: BookOpen01Icon,
+	// The desktop app's Jobs icon, so the docs and the app match.
 	ClipboardCheck: ClipboardCheckIcon,
 	Compass: Compass01Icon,
 	Container: ContainerIcon,

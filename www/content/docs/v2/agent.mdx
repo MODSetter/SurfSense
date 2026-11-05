@@ -47,6 +47,14 @@ In Studio, the copy reads "Revised copy of MSA_Acme.docx", with a count such as 
 
 The agent edits by quoting the text to change. If one edit can't be applied, nothing is saved, and the agent tries again. Word headers, footers and footnotes are not edited yet.
 
+## Jobs
+
+With a [job](/docs/v2/jobs) on your computer, such as **Security questionnaire**, the agent can run it. Tick the workbook and your policies, and ask it to fill in the questionnaire. Its step reads "Filled in" with the workbook's name, or "Started filling in" while the job still runs, and opens the copy in Studio when it's done.
+
+Once you've checked the copy's suggested answers, ask the agent to confirm them. That step reads "Confirmed suggested answers in" with the copy's name.
+
+A Basic (Q&A) chat can't run jobs. Use **Jobs** in the sidebar instead.
+
 ## PDF tools
 
 The agent can work on PDF sources and the PDFs it made. Each result is a new PDF in Studio.
@@ -67,6 +75,14 @@ Tick a spreadsheet (`.xlsx`) or `.csv` source and ask a question about its numbe
 Ask for a web page, such as an interactive report or an explainer, and the agent writes one. It appears in Studio as a **Web page** and opens in its viewer there.
 
 A page runs with no network: it can't load anything from the internet, and links inside it don't open from Studio's viewer. Ask for changes in the same chat for its next version.
+
+## Search and read the web
+
+When your question needs more than your sources, such as recent facts or a page you name, the agent can search the web and read pages and YouTube videos. It needs no license and no plugin. SurfSense reads each page on your own computer and connection, and a video's transcript in the language the video speaks. Searches go to a SearXNG server: SurfSense's own, unless you enter your organization's under **Web search** in **Settings › Network**.
+
+The first time the agent reaches a site, its step says the site isn't allowed yet and offers **Allow** with the site's name. Allow it, then ask the agent again. The site gets the page's address and your IP address, and it stays listed in **Settings › Network**, where you can turn it off. The agent writes the addresses it reads and the searches it sends, so they can carry words from your chats or documents, but nothing else from them is sent.
+
+Some pages can't be read without a browser, such as ones behind a login. Save those as a PDF from your browser and add the file to your sources.
 
 ## Studio formats
 

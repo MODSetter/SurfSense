@@ -1,23 +1,30 @@
 """Job packs on this computer, the firm's settings for their jobs, and the runs of those jobs.
 
-A pack installs from a folder or a .zip on this computer, the way a developer or the
-licence server's download hands it over; a run starts from a workbook and its sources.
+A developer installs a pack from a folder or a .zip on this computer; a licence's packs come
+from the licence server or a pack file (`packs/delivery/`). A run starts from a workbook and
+its sources.
 """
 
 from pathlib import Path
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, StrictBool
 
 from api.dependencies import SessionDep
-from modules.artifacts.models import Artifact
 from modules.embedding.dependencies import EMBEDDER_CHOSEN
-from modules.jobs.packs.access import job_access
+from modules.jobs.packs.delivery.outcomes import default_message
 from modules.jobs.packs.install import install_pack, remove_pack
-from modules.jobs.packs.installed import find_job, installed_packs, packs_dir
+from modules.jobs.packs.installed import find_job, packs_dir
+from modules.jobs.packs.listing import PackInfo, pack_listing
 from modules.jobs.packs.manifest import PackRefusedError
 from modules.jobs.runs.confirm import confirm_suggestions
-from modules.jobs.runs.record import job_run_of
+from modules.jobs.runs.run_read import (
+    JobRunRead,
+    JobRunSummary,
+    run_read,
+    run_summaries,
+)
 from modules.jobs.runs.start import JobRunRefusedError, start_job_run
 from modules.jobs.settings.service import (
     ChosenSettings,
@@ -33,28 +40,6 @@ router = APIRouter(tags=["jobs"])
 
 class PackInstall(BaseModel):
     path: str
-
-
-class JobInfo(BaseModel):
-    key: str
-    name: str
-    description: str
-    # The licence entitlement that unlocks it, for a paid pack's job.
-    entitlement: str | None
-    unlocked: bool
-    locked_reason: str
-
-
-class PackInfo(BaseModel):
-    id: str
-    version: str
-    name: str
-    publisher: str
-    access: str
-    # Whether any of its jobs may run, and else why its first may not.
-    unlocked: bool
-    locked_reason: str
-    jobs: list[JobInfo]
 
 
 class JobRunStart(BaseModel):
@@ -105,35 +90,7 @@ class SuggestionsConfirm(BaseModel):
     "/job-packs", response_model=list[PackInfo], summary="List installed job packs"
 )
 def list_packs(session: SessionDep) -> list[PackInfo]:
-    found = []
-    for pack in installed_packs():
-        jobs = [
-            (job, job_access(session, pack.manifest, job)) for job in pack.manifest.jobs
-        ]
-        unlocked = any(access.allowed for _, access in jobs)
-        found.append(
-            PackInfo(
-                id=pack.manifest.id,
-                version=pack.manifest.version,
-                name=pack.manifest.name,
-                publisher=pack.manifest.publisher,
-                access=pack.manifest.access,
-                unlocked=unlocked,
-                locked_reason="" if unlocked else jobs[0][1].reason,
-                jobs=[
-                    JobInfo(
-                        key=job.key,
-                        name=job.name,
-                        description=job.description,
-                        entitlement=job.entitlement,
-                        unlocked=access.allowed,
-                        locked_reason=access.reason,
-                    )
-                    for job, access in jobs
-                ],
-            )
-        )
-    return found
+    return pack_listing(session)
 
 
 @router.post(
@@ -142,6 +99,8 @@ def list_packs(session: SessionDep) -> list[PackInfo]:
     summary="Install a job pack from a folder or .zip",
 )
 def install(payload: PackInstall, session: SessionDep) -> list[PackInfo]:
+    """For developers and live tests: any version installs, and other contents at an installed
+    version replace it."""
     source = Path(payload.path)
     if not source.exists():
         raise HTTPException(
@@ -149,13 +108,18 @@ def install(payload: PackInstall, session: SessionDep) -> list[PackInfo]:
             {"code": "NOT_FOUND", "message": f"{source} does not exist."},
         )
     try:
-        install_pack(source, packs_dir())
+        install_pack(source, packs_dir(), replace_same_version=True)
     except PackRefusedError as refused:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             {"code": refused.code, "message": refused.message},
         ) from refused
-    return list_packs(session)
+    except OSError as unwritten:
+        raise HTTPException(
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            {"code": "PACK_NOT_WRITTEN", "message": default_message("not_written")},
+        ) from unwritten
+    return pack_listing(session)
 
 
 @router.delete(
@@ -265,26 +229,32 @@ def start(
 
 
 @router.get(
-    "/workspaces/{workspace_id}/job-runs/{artifact_id}",
-    summary="Read a job run's status and report",
+    "/workspaces/{workspace_id}/job-runs",
+    response_model=list[JobRunSummary],
+    summary="List a workspace's job runs, newest first",
 )
-def read_run(workspace_id: int, artifact_id: int, session: SessionDep) -> dict:
-    artifact = session.get(Artifact, artifact_id)
-    run = job_run_of(artifact.artifact_metadata) if artifact is not None else None
-    if artifact is None or artifact.workspace_id != workspace_id or run is None:
+def list_runs(
+    workspace_id: int,
+    session: SessionDep,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+) -> list[JobRunSummary]:
+    return run_summaries(session, workspace_id, limit)
+
+
+@router.get(
+    "/workspaces/{workspace_id}/job-runs/{artifact_id}",
+    response_model=JobRunRead,
+    summary="Read a job run: its progress, counts, report and open suggestions",
+)
+def read_run(workspace_id: int, artifact_id: int, session: SessionDep) -> JobRunRead:
+    """Any version of a run's copy reads the run."""
+    found = run_read(session, workspace_id, artifact_id)
+    if found is None:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
             {"code": "NOT_FOUND", "message": "No such job run."},
         )
-    document = artifact.document
-    return {
-        "artifact_id": artifact.id,
-        "status": document.status.value,
-        "error": document.error_message,
-        "job": run["job"],
-        "pack": f"{run['pack_id']} {run['pack_version']}",
-        "report": run.get("report"),
-    }
+    return found
 
 
 @router.post(

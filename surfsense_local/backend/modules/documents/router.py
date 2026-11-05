@@ -60,6 +60,7 @@ from modules.documents.tasks import (
 from modules.documents.upload_order import cheapest_first
 from modules.documents.web_sources.background_pull.pull_task import pull_web_source
 from modules.documents.web_sources.background_pull.source_link import awaiting_pull
+from modules.documents.web_sources.link_consent import refused_pull_hosts
 from modules.embedding.dependencies import EMBEDDER_CHOSEN
 from modules.events.dependencies import EventBrokerDep
 from modules.events.schemas import EventKind
@@ -440,6 +441,11 @@ def retry_document(
             status.HTTP_409_CONFLICT,
             "only a failed or cancelled document can be retried",
         )
+    # Retry is the click a pull's hosts are asked about on, the host a site
+    # moved the page to included.
+    if awaiting_pull(document) and (refusal := refused_pull_hosts(session, document)):
+        session.commit()
+        raise refusal
 
     document.status = DocumentStatus.PENDING
     document.error_message = None

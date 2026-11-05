@@ -30,7 +30,7 @@ export function LicenseRenewal({
           {intl.formatMessage({
             id: "license_renewal_body",
             defaultMessage:
-              "Checking sends your license key to SurfSense’s license server and replaces the file on this device with the latest one.",
+              "Checking sends your license key to SurfSense’s license server, replaces the file on this device with the latest one, and downloads any job it adds.",
           })}
         </p>
         {refresh.error ? (

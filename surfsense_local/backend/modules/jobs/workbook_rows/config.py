@@ -11,6 +11,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from modules.artifacts.revised_copies.engines.excel_new_sheet import name_problem
 from modules.jobs.packs.manifest import PackRefusedError, safe_path
 
 
@@ -240,6 +241,19 @@ def load_config(config_file: Path) -> JobConfig:
             "BAD_JOB_CONFIG",
             "The statement gate names an answer the job does not give.",
         )
+    # Sliced as counts: 0 would show a question none of its own passages, and a negative
+    # count every passage but the last few, past the budget retrieval keeps.
+    if config.passages_per_question < 1:
+        raise PackRefusedError("BAD_JOB_CONFIG", "passages_per_question is at least 1.")
+    if config.standing_per_query < 0:
+        raise PackRefusedError("BAD_JOB_CONFIG", "standing.per_query is at least 0.")
+    # Refused here, before any call: the engine would refuse the sheet, and with it the
+    # whole copy, once every question was answered.
+    for name in (config.answers_sheet, config.exceptions_sheet):
+        if not isinstance(name, str) or name_problem(name, []) is not None:
+            raise PackRefusedError(
+                "BAD_JOB_CONFIG", f'Excel refuses "{name}" as a sheet name.'
+            )
     return config
 
 

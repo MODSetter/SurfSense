@@ -65,8 +65,15 @@ SurfSense, Studio, Markdown, llama.cpp, GGUF, Hugging Face, API, MCP, MCP's tran
 | license key (the user’s key, which the app sends to SurfSense’s plugin service to be checked) | ライセンスキー | 라이선스 키 | 许可证密钥 | लाइसेंस कुंजी | Lizenzschlüssel | clave de licencia | clé de licence | chave de licença | лицензионный ключ |
 | license server (SurfSense’s, which a renewal check asks for the license’s latest file) | ライセンスサーバー | 라이선스 서버 | 许可证服务器 | लाइसेंस सर्वर | Lizenzserver | servidor de licencias | serveur de licences | servidor de licenças | сервер лицензий |
 | renewal (a Business license’s next paid year, on the same key) | 更新 | 갱신 | 续期 | रिन्यूअल | Verlängerung | renovación | renouvellement | renovação | продление |
+| Check for renewal (the button in Settings › License and on a Jobs row that fetches the license’s latest file; a sentence that sends the user to it uses its verb) | 更新を確認 | 갱신 확인 | 检查续期 | रिन्यूअल जांचें | Auf Verlängerung prüfen | Comprobar renovación | Vérifier le renouvellement | Verificar renovação | Проверить продление |
 | job (paid work a Business license unlocks, such as the security questionnaire) | ジョブ | 작업 | 任务 | जॉब | Job | tarea | tâche | tarefa | задача |
 | security questionnaire (the first job) | セキュリティ質問票 | 보안 설문지 | 安全问卷 | सुरक्षा प्रश्नावली | Sicherheitsfragebogen | cuestionario de seguridad | questionnaire de sécurité | questionário de segurança | анкета по безопасности |
+| job pack (the signed file that carries a job, downloaded from SurfSense’s license server or imported) | ジョブパック | 작업 팩 | 任务包 | जॉब पैक | Job-Paket | paquete de tareas | paquet de tâches | pacote de tarefa | пакет задачи |
+| workbook (an Excel file a job fills in) | ブック | 통합 문서 | 工作簿 | वर्कबुक | Arbeitsmappe | libro | classeur | pasta de trabalho | рабочая книга |
+| suggested answer (an answer a job leaves for a person to check and confirm) | 回答案 | 제안된 답변 | 建议答案 | सुझाया गया जवाब | Antwortvorschlag | respuesta sugerida | réponse suggérée | resposta sugerida | предложенный ответ |
+| confirm (a suggested answer, which writes it into the copy; kept apart from check) | 確定 | 확정 | 确认 | पुष्टि करें | bestätigen | confirmar | confirmer | confirmar | подтвердить |
+| second check (another model checking each answer) | 二次チェック | 2차 검토 | 复核 | दूसरी जांच | Zweitprüfung | segunda comprobación | seconde vérification | segunda verificação | повторная проверка |
+| run (one run of a job) | 実行 | 실행 | 运行 | रन | Durchlauf | ejecución | exécution | execução | запуск |
 | usage statistics (the opt-in daily and weekly report of counts in ranges) | 利用統計 | 사용 통계 | 使用统计 | उपयोग आंकड़े | Nutzungsstatistiken | estadísticas de uso | statistiques d’utilisation | estatísticas de uso | статистика использования |
 | retry | 再試行 | 다시 시도 | 重试 | फिर से कोशिश करें | Erneut versuchen | Reintentar | Réessayer | Tentar novamente | Повторить |
 | plugin (an MCP server whose tools the agent can use) | プラグイン | 플러그인 | 插件 | प्लगइन | Plugin | plugin | plugin | plugin | плагин |
@@ -91,6 +98,8 @@ SurfSense, Studio, Markdown, llama.cpp, GGUF, Hugging Face, API, MCP, MCP's tran
 | client secret (of an OAuth app) | クライアントシークレット | 클라이언트 시크릿 | 客户端密钥 | क्लाइंट सीक्रेट | Client-Secret | secreto de cliente | secret client | segredo do cliente | секрет клиента |
 | scope (an OAuth permission) | スコープ | 범위 | 权限范围 | स्कोप | Scope | ámbito | portée | escopo | область доступа |
 | callback address (where a provider sends the browser back) | コールバックアドレス | 콜백 주소 | 回调地址 | कॉलबैक पता | Callback-Adresse | dirección de callback | adresse de rappel | endereço de callback | адрес обратного вызова |
+| search server (the SearXNG server Add from the web searches through) | 検索サーバー | 검색 서버 | 搜索服务器 | खोज सर्वर | Suchserver | servidor de búsqueda | serveur de recherche | servidor de pesquisa | поисковый сервер |
+| web search (Add from the web’s search, as Settings › Network names it) | ウェブ検索 | 웹 검색 | 网页搜索 | वेब खोज | Websuche | búsqueda web | recherche web | pesquisa na web | поиск в интернете |
 
 ## What the English means
 
@@ -98,6 +107,10 @@ Strings whose English is ambiguous enough that every translator so far had to op
 
 | String | What it means |
 |---|---|
+| “Cancel run” (`jobs_progress_cancel_button`) | stops a job’s run; it undoes nothing. Korean 실행 취소 reads as Undo, so the button says 실행 중지 while the status keeps 취소됨. |
+| “was under way”, “any newer version” (`jobs_row_deferred_status`, `jobs_license_deferred_status`) | a run of the job was pending or processing when SurfSense checked, so the check was held back, usually before the license server was asked: a newer version may not exist. The row’s line adds that SurfSense checks again by itself once the run ends. |
+| “comes only in a pack with a job your license doesn’t include” (`jobs_error_pack_not_covered`) | every job pack that carries this job also carries another job the license lacks, so the license server sent no pack at all. Not `jobs_error_job_not_included`, where the license lacks this job itself. |
+| “Your license has changed on SurfSense’s license server” (`jobs_error_license_outdated`) | the license server’s record of the license lists a job that this computer’s license file doesn’t yet, so the pack it sent was refused here. Check for renewal fetches the newer file; nothing is wrong with the license. |
 | "priced against this computer" (`models_download_chat_curated_body`, `models_hardware_summary_body`) | the fit estimate for this hardware, never money. Nine languages landed on "estimated for this computer"; Chinese read it as resource cost. |
 | "This build" (`models_download_*_unsupported_body`) | the **app** build the user installed, not the quantized variant the `build` row above covers, so it takes a different word. |
 | "the brief" (`studio_composer_brief_status`) | the podcast brief the user just filled in, not a summary; keep the `summary` term free. |

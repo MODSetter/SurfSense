@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { intl } from "@/i18n/intl"
 
-/** The end of a search's or a list's rows, scrolling with them. */
+/** The end of a search's rows, scrolling with them. */
 export function ShowMoreButton({
   loading,
   onClick,

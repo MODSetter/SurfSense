@@ -5,6 +5,7 @@ import pytest
 
 from modules.jobs.evidence.passages import SourceText, passages_of
 from modules.jobs.evidence.retrieval import Retriever
+from modules.jobs.workbook_rows.ask import passages_block
 
 pytestmark = pytest.mark.unit
 
@@ -28,6 +29,23 @@ def test_every_passage_is_shown_when_they_fit():
 
     assert retriever.whole
     assert retriever.for_question("anything") == list(range(len(passages)))
+
+
+def test_passages_whose_texts_fit_but_not_as_the_prompt_shows_them_are_not_whole():
+    """The prompt shows each passage under its document's title, its heading and its lines:
+    a budget the texts alone fit, but not as shown, gives each question its best few."""
+    source = SourceText(
+        1,
+        "information-security-policy-and-acceptable-use-standard",
+        "\n\n".join(
+            f"## Control {n}: access reviews\n\nAccess is reviewed." for n in range(20)
+        ),
+    )
+    passages = passages_of([source])
+    shown = len(passages_block(passages, list(range(len(passages)))))
+
+    assert sum(len(p.text) for p in passages) < shown - 1
+    assert not Retriever(passages, budget_chars=shown - 1, per_question=2).whole
 
 
 def test_a_passage_is_found_by_its_documents_title():

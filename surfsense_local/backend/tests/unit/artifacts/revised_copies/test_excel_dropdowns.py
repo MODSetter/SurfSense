@@ -1,5 +1,6 @@
 """A cell's dropdown and its sheet's protection hold at write time, as Excel holds them when typing."""
 
+import re
 from pathlib import Path
 
 import openpyxl
@@ -54,7 +55,9 @@ def questionnaire(tmp_path: Path) -> Path:
         ("D2:D4", "Lists!$A$1:$A$2"),
         ("E2:E4", "Statuses"),
     ):
-        rule = DataValidation(type="list", formula1=source, allow_blank=True)
+        rule = DataValidation(
+            type="list", formula1=source, allow_blank=True, showErrorMessage=True
+        )
         rule.add(area)
         sheet.add_data_validation(rule)
     for row in range(2, 5):
@@ -212,3 +215,88 @@ def test_a_warning_dropdown_lets_an_off_list_value_through_as_excel_does(
     )
 
     assert report.saved
+
+
+def test_a_dropdown_that_shows_no_error_alert_lets_an_off_list_value_through(
+    questionnaire, tmp_path
+):
+    """A list whose error alert is off accepts any typed value in Excel, and so here."""
+    rewrite_part(
+        questionnaire,
+        "xl/worksheets/sheet1.xml",
+        lambda data: re.sub(
+            rb'(sqref="C2:C4"[^>]*)showErrorMessage="1"',
+            rb'\1showErrorMessage="0"',
+            data,
+        ),
+    )
+
+    report, _ = run(
+        questionnaire,
+        tmp_path,
+        {"op": "set_cell", "sheet": "Questions", "cell": "C2", "value": "Partly"},
+    )
+
+    assert report.saved
+
+
+def test_a_list_of_formula_cells_offers_what_they_last_showed(questionnaire, tmp_path):
+    """List cells that hold formulas offer their stored results, as Excel's dropdown does, and
+    a value off them is still refused."""
+
+    def as_formulas(data: bytes) -> bytes:
+        for cell, text in ((b"A1", b"In scope"), (b"A2", b"Out of scope")):
+            data = data.replace(
+                b'<c r="%s" t="inlineStr"><is><t>%s</t></is></c>' % (cell, text),
+                b'<c r="%s" t="str"><f>UPPER("%s")</f><v>%s</v></c>'
+                % (cell, text, text.upper()),
+            )
+        return data
+
+    rewrite_part(questionnaire, "xl/worksheets/sheet2.xml", as_formulas)
+
+    dropdown = inspect_workbook(questionnaire).sheet("Questions").dropdown_at("D2")
+    report, _ = run(
+        questionnaire,
+        tmp_path,
+        {"op": "set_cell", "sheet": "Questions", "cell": "D2", "value": "Partly"},
+    )
+
+    assert dropdown.values == ("IN SCOPE", "OUT OF SCOPE")
+    assert report.outcomes[0].code == "VALUE_NOT_IN_LIST"
+
+
+def test_a_list_name_scoped_to_a_sheet_after_a_chart_sheet_is_read(tmp_path):
+    """A name's sheet scope counts chart sheets among the tabs, so the questions sheet's own
+    list wins over the workbook's list of the same name."""
+    book = openpyxl.Workbook()
+    sheet = book.active
+    sheet.title = "Questions"
+    sheet.append(["Question", "Answer"])
+    sheet.append(["Question 1?", None])
+    book.create_chartsheet("Chart", 0)
+    lists = book.create_sheet("Lists")
+    for row, (scoped, workbook_wide) in enumerate(
+        [("Yes", "High"), ("No", "Low")], start=1
+    ):
+        lists.cell(row, 1, scoped)
+        lists.cell(row, 2, workbook_wide)
+    rule = DataValidation(type="list", formula1="Choices", allow_blank=True)
+    rule.add("B2")
+    sheet.add_data_validation(rule)
+    path = tmp_path / "Charted.xlsx"
+    book.save(path)
+    rewrite_part(
+        path,
+        "xl/workbook.xml",
+        lambda data: data.replace(
+            b"<definedNames/>",
+            b'<definedNames><definedName name="Choices">Lists!$B$1:$B$2</definedName>'
+            b'<definedName name="Choices" localSheetId="1">Lists!$A$1:$A$2'
+            b"</definedName></definedNames>",
+        ),
+    )
+
+    questions = inspect_workbook(path).sheet("Questions")
+
+    assert questions.dropdown_at("B2").values == ("Yes", "No")
