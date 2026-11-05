@@ -127,22 +127,27 @@ def offer(server: StandInLicenseServer, tmp_path: Path, version: str = "1.0.0") 
     )
 
 
+# A slow CI runner takes seconds over what a laptop does in milliseconds, and a wait that
+# passes returns as soon as its condition holds, so only a failing test waits this long.
+WAIT_SECONDS = 30.0
+
+
 async def asked_at_least(server: StandInLicenseServer, count: int) -> None:
-    """Wait up to five seconds for the schedule's requests to arrive."""
-    for _ in range(500):
-        if len(server.pack_asked) >= count:
-            return
+    """Wait up to WAIT_SECONDS for the schedule's requests to arrive."""
+    deadline = asyncio.get_running_loop().time() + WAIT_SECONDS
+    while len(server.pack_asked) < count:
+        if asyncio.get_running_loop().time() > deadline:
+            raise AssertionError(f"asked {len(server.pack_asked)} times, not {count}")
         await asyncio.sleep(0.01)
-    raise AssertionError(f"asked {len(server.pack_asked)} times, not {count}")
 
 
 async def until(condition: Callable[[], bool], what: str) -> None:
-    """Wait up to five seconds for `condition`."""
-    for _ in range(500):
-        if condition():
-            return
+    """Wait up to WAIT_SECONDS for `condition`."""
+    deadline = asyncio.get_running_loop().time() + WAIT_SECONDS
+    while not condition():
+        if asyncio.get_running_loop().time() > deadline:
+            raise AssertionError(f"not {what} within {WAIT_SECONDS:.0f} seconds")
         await asyncio.sleep(0.01)
-    raise AssertionError(f"not {what} within five seconds")
 
 
 async def a_few_looks() -> None:
