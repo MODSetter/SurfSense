@@ -1,7 +1,7 @@
 """Word documents, decks and web pages waiting for Electron to draw them.
 
 The app has no Office converter. Electron lays the file out with the in-app
-viewer's library (docx-preview, or pptx-renderer for a deck) and prints it to
+viewer's renderer (@silurus/ooxml, or pptx-renderer for a deck) and prints it to
 PDF; a web page it loads as it is and captures as a PNG. It polls for requests
 as it polls for the image runtime, so the API needs no way to reach it. The
 name is the routes', kept from when only Word was printed.

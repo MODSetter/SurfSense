@@ -158,7 +158,7 @@ function renderThread() {
 }
 
 const OFFERED =
-  /Get exact Office pages, real spreadsheet totals and conversion to PDF/
+  /Let the agent check its work on pages laid out by LibreOffice/
 
 beforeEach(() => {
   localStorage.clear()

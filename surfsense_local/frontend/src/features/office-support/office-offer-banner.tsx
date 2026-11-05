@@ -55,7 +55,7 @@ export function OfficeOfferBanner() {
             {
               id: "office_support_offer_body",
               defaultMessage:
-                "Get exact Office pages, real spreadsheet totals and conversion to PDF: download Office support ({size, number, ::unit/megabyte .})?",
+                "Let the agent check its work on pages laid out by LibreOffice, put real totals in spreadsheets and convert to PDF: download Office support ({size, number, ::unit/megabyte .})?",
             },
             { size: Math.round(office.offer.size / 1e6) }
           )}

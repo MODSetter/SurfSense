@@ -4,69 +4,20 @@ import { createPortal } from "react-dom"
 import { Button } from "@/components/ui/button"
 import { FileIcon, ZoomInIcon, ZoomOutIcon } from "@/components/ui/icons"
 import { Spinner } from "@/components/ui/spinner"
-import { markTrackedChanges } from "@/features/docx-snapshot/tracked-changes"
+import { openWordDocument } from "@/features/word-document/open-word-document"
 import { intl } from "@/i18n/intl"
 import { fileUrl, type ArtifactDetail } from "../api"
-import { COMMENT_GUTTER, gatherComments, mendedMaker } from "./docx-comments"
 
-/** Reject before docx-preview allocates — keep below the server file limit. */
+/** Reject before the renderer allocates — keep below the server file limit. */
 const MAX_VIEWER_BYTES = 15 * 1024 * 1024
 
 const MIN_ZOOM = 0.25
 const MAX_ZOOM = 3
-const ZOOM_STEP = 1.1
 
-// The frame's own rules: it reaches nothing outside the file. A Word file's
-// styles are written into CSS as they come, so a font name can close its rule
-// and add one that loads a web image; this stops the load.
-const PAGES_POLICY =
-  "default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:"
-
-/**
- * The frame's document, readied for a Word file's pages. The frame keeps the
- * file's CSS out of the app's window and runs no script; its policy comes
- * first so it covers every style the file brings. Its base is its own
- * address, so a link to a place in the file scrolls there instead of loading
- * the app's address into the frame.
- */
-function readyPages(frame: HTMLIFrameElement): Document | null {
-  const pages = frame.contentDocument
-  if (!pages || pages.head.querySelector("meta[http-equiv]")) return pages
-  const policy = pages.createElement("meta")
-  policy.httpEquiv = "Content-Security-Policy"
-  policy.content = PAGES_POLICY
-  const base = pages.createElement("base")
-  base.href = "about:blank"
-  pages.head.prepend(policy, base)
-  pages.body.style.margin = "0"
-  pages.body.style.background = "white"
-  return pages
-}
-
-/**
- * A Word file's links come as written, so one can be a javascript: URL. Keep
- * links to places in the file and drop the rest: the app opens no web page a
- * document names.
- */
-function disarmLinks(body: HTMLElement): void {
-  for (const link of body.querySelectorAll<HTMLAnchorElement>("a[href]")) {
-    if (!link.getAttribute("href")?.startsWith("#")) {
-      link.removeAttribute("href")
-    }
-  }
-}
-
-/**
- * The zoom that fits pages this wide to the frame's viewport, not its element:
- * that leaves out the frame's own scrollbar, and the zoom on body does not
- * scale it.
- */
-function fittedZoom(pages: Document, width: number): number {
-  return Math.min(
-    1,
-    Math.max(MIN_ZOOM, pages.documentElement.clientWidth / width)
-  )
-}
+type PagesViewer = Pick<
+  import("@silurus/ooxml/docx").DocxScrollViewer,
+  "zoomIn" | "zoomOut" | "destroy"
+>
 
 export function DocxViewer({
   artifact,
@@ -76,30 +27,23 @@ export function DocxViewer({
   actionsContainer: HTMLElement | null
 }) {
   const primary = artifact.files.find((file) => file.role === "primary")
-  const frameRef = useRef<HTMLIFrameElement>(null)
+  const hostRef = useRef<HTMLDivElement>(null)
+  const viewerRef = useRef<PagesViewer | null>(null)
   const [loading, setLoading] = useState(() => primary != null)
   const [error, setError] = useState<unknown>(null)
   const [retryKey, setRetryKey] = useState(0)
-  const [zoom, setZoom] = useState(1)
   const [hasContent, setHasContent] = useState(false)
-  // What the page is fitted to, and whether it still is: a hand zoom stops the
-  // refit on resize, as in the PDF viewer.
-  const fitWidthRef = useRef<number | null>(null)
-  const fittedRef = useRef(true)
 
   useEffect(() => {
     void retryKey
-    const frame = frameRef.current
-    const pages = frame && readyPages(frame)
-    if (!frame || !pages || !primary) return
+    const host = hostRef.current
+    if (!host || !primary) return
 
     let cancelled = false
+    let close = () => {}
     setLoading(true)
     setError(null)
     setHasContent(false)
-    fitWidthRef.current = null
-    fittedRef.current = true
-    pages.body.replaceChildren()
 
     void (async () => {
       try {
@@ -133,71 +77,36 @@ export function DocxViewer({
             )
           )
         }
-        const buffer = await response.arrayBuffer()
-        // docx-preview has no top-level import cost worth paying eagerly —
-        // load it the same way the other heavy viewers (xlsx, pdf) do.
-        const { renderAsync, defaultOptions } = await import("docx-preview")
-        if (cancelled) return
-        // docx-preview always renders the page at its physical size (e.g.
-        // ~816px for 8.5x11in) — it has no fit-to-width or zoom option of
-        // its own, so both are hand-rolled here via the `zoom` CSS
-        // property. `zoom` (not `transform: scale`) reflows layout at the
-        // new size, so the scroll area actually matches what's visible;
-        // it's non-standard outside Chromium, which is fine since this is
-        // an Electron-only app.
-        // Each run lays out apart and goes in only if still current: a run
-        // cancelled mid-render still finishes, and must not replace a later
-        // version's pages. No altChunks: docx-preview puts their HTML in an
-        // unsandboxed iframe, where a script the file carries would run. Data
-        // URLs, the only images and fonts the frame's policy lets in. Tracked
-        // changes and comments show, as a revised copy is reviewed by them.
-        const rendered = pages.createElement("div")
-        const options = {
-          inWrapper: true,
-          ignoreWidth: false,
-          ignoreHeight: false,
-          renderAltChunks: false,
-          renderChanges: true,
-          useBase64URL: true,
+        const file = await response.arrayBuffer()
+        const document = await openWordDocument(file)
+        if (cancelled) {
+          document.destroy()
+          return
         }
-        try {
-          await renderAsync(buffer, rendered, rendered, {
-            ...options,
-            renderComments: true,
-            h: mendedMaker(defaultOptions.h),
+        const { DocxScrollViewer } = await import("@silurus/ooxml/docx")
+        if (cancelled) {
+          document.destroy()
+          return
+        }
+        // Pages draw to canvases, so nothing the file carries becomes HTML or
+        // runs. Its web links stay inert: the app opens no page a document names.
+        const viewer: PagesViewer & { scrollToPage(page: number): void } =
+          DocxScrollViewer.fromDocument(host, document, {
+            comments: true,
+            enableTextSelection: true,
+            zoomMin: MIN_ZOOM,
+            zoomMax: MAX_ZOOM,
+            onHyperlinkClick: (target) => {
+              if (target.kind !== "internal") return
+              const page = document.getBookmarkPage(target.ref)
+              if (page !== undefined) viewer.scrollToPage(page)
+            },
           })
-        } catch {
-          // docx-preview's comments are experimental: a comment it cannot
-          // lay out must not cost the reader the document.
-          await renderAsync(buffer, rendered, rendered, options)
-        }
-        // docx-preview shades commented text through the app window's
-        // highlight registry, which never paints in the frame; drop its
-        // ranges rather than keep the old pages alive.
-        globalThis.CSS?.highlights?.delete("docx-comments")
-        if (cancelled) return
-        markTrackedChanges(rendered)
-        const placeComments = gatherComments(rendered)
-        disarmLinks(rendered)
-        pages.body.replaceChildren(rendered)
-        placeComments?.()
-        // A file's own fonts can move its lines once they load.
-        void pages.fonts?.ready.then(() => {
-          if (!cancelled) placeComments?.()
-        })
-
-        // docx-preview's own injected styles set `.docx-wrapper`'s
-        // background to gray (the padding around each white page) — an
-        // inline style here beats that class rule's specificity.
-        const wrapper = rendered.querySelector<HTMLElement>(".docx-wrapper")
-        if (wrapper) wrapper.style.background = "white"
-
-        const page = rendered.querySelector<HTMLElement>(".docx")
-        const pageWidth = page?.offsetWidth
-        if (pageWidth) {
-          // Comments' balloons fit beside the page.
-          fitWidthRef.current = pageWidth + (placeComments ? COMMENT_GUTTER : 0)
-          setZoom(fittedZoom(pages, fitWidthRef.current))
+        viewerRef.current = viewer
+        close = () => {
+          viewerRef.current = null
+          viewer.destroy()
+          document.destroy()
         }
         setHasContent(true)
       } catch (cause) {
@@ -209,62 +118,12 @@ export function DocxViewer({
 
     return () => {
       cancelled = true
+      close()
     }
   }, [artifact.id, artifact.generation, primary, retryKey])
 
-  useEffect(() => {
-    const body = frameRef.current?.contentDocument?.body
-    body?.style.setProperty("zoom", String(zoom))
-  }, [zoom])
-
-  useEffect(() => {
-    const frame = frameRef.current
-    if (!frame) return
-
-    const observer = new ResizeObserver(() => {
-      const pages = frame.contentDocument
-      const width = fitWidthRef.current
-      if (fittedRef.current && pages && width) {
-        setZoom(fittedZoom(pages, width))
-      }
-    })
-    observer.observe(frame)
-    return () => observer.disconnect()
-  }, [])
-
-  // The pages fill the frame, so Ctrl+wheel lands in its document.
-  useEffect(() => {
-    const pages = frameRef.current?.contentDocument
-    if (!pages) return
-
-    const handleWheel = (event: WheelEvent) => {
-      if (!event.ctrlKey) return
-      event.preventDefault()
-      fittedRef.current = false
-      setZoom((current) =>
-        Math.min(
-          MAX_ZOOM,
-          Math.max(
-            MIN_ZOOM,
-            current * (event.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP)
-          )
-        )
-      )
-    }
-
-    pages.addEventListener("wheel", handleWheel, { passive: false })
-    return () => pages.removeEventListener("wheel", handleWheel)
-  }, [])
-
-  const zoomIn = useCallback(() => {
-    fittedRef.current = false
-    setZoom((current) => Math.min(MAX_ZOOM, current * ZOOM_STEP))
-  }, [])
-
-  const zoomOut = useCallback(() => {
-    fittedRef.current = false
-    setZoom((current) => Math.max(MIN_ZOOM, current / ZOOM_STEP))
-  }, [])
+  const zoomIn = useCallback(() => void viewerRef.current?.zoomIn(), [])
+  const zoomOut = useCallback(() => void viewerRef.current?.zoomOut(), [])
 
   if (!primary) return null
 
@@ -302,11 +161,11 @@ export function DocxViewer({
       {hasContent && actionsContainer
         ? createPortal(zoomControls, actionsContainer)
         : null}
-      <iframe
-        ref={frameRef}
-        title={artifact.title}
-        sandbox="allow-same-origin"
-        className="block h-full w-full border-0 bg-white"
+      <div
+        ref={hostRef}
+        role="document"
+        aria-label={artifact.title}
+        className="h-full w-full overflow-hidden bg-white"
       />
       {loading ? (
         <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">

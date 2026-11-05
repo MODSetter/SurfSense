@@ -6,6 +6,7 @@ import { defineConfig, type Plugin } from "vite"
 import type {} from "vitest/config"
 
 import { devTabIdentity } from "./vite-plugins/dev-tab-identity.ts"
+import { wasmDataUrl } from "./vite-plugins/wasm-data-url.ts"
 import { woff2OnlyFonts } from "./vite-plugins/woff2-only-fonts.ts"
 
 // The snapshot page's policy (docx-snapshot.html) leaves 'self' out of
@@ -36,6 +37,7 @@ export default defineConfig({
     { ...formatjs({ removeDefaultMessage: true }), apply: "build" },
     react(),
     tailwindcss(),
+    wasmDataUrl(),
     woff2OnlyFonts(),
     snapshotPageReachesDevServer(),
     devTabIdentity(),
@@ -69,6 +71,8 @@ export default defineConfig({
     // UTC that reads as the 9th, so the suite fails on a laptop and passes
     // in CI. Pin the zone tests run in instead of pinning every assertion.
     env: { TZ: "UTC" },
+    // Through the plugin rather than to Node, which cannot import a .wasm's data URL.
+    server: { deps: { inline: [/^virtual:wasm-data-url:/] } },
     // A test of what only the Docker image's build does carries this tag (strict:
     // an undeclared tag is an error). `pnpm test` leaves it out, `pnpm test:docker`
     // runs only it, in the `docker` project below.

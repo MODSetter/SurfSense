@@ -39,11 +39,11 @@ def test_the_skill_names_itself_as_opencode_finds_it() -> None:
 def test_the_skill_says_what_the_agent_can_look_at_and_what_previews_leave_out() -> (
     None
 ):
-    """A source's figures can be opened, and a Word preview hides headers and footers."""
+    """A source's figures can be opened, and a Word preview shows headers, footers and watermarks."""
     text = (skills_folder() / DOCUMENTS_SKILL / "SKILL.md").read_text(encoding="utf-8")
 
     assert "sources/figures/" in text
-    assert "headers and footers" in text
+    assert "headers, footers and watermarks" in text
     # Most local models read no images: opencode answers their `read` with an error.
     assert (
         "If `read` cannot show you the image, place that figure with its caption "

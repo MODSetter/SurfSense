@@ -16,7 +16,7 @@ from modules.agent.tool_endpoint.rendered_label import RenderedArtifact, first_l
 from modules.agent.tool_endpoint.tool import InlineImage, ToolCallError, ToolResult
 from modules.agent.tool_endpoint.version_pages import (
     SLIDE_PREVIEWS_DIFFER,
-    WORD_PREVIEWS_LEAVE_OUT,
+    WORD_PREVIEWS_ARE,
     drawn_by_office,
 )
 from modules.artifacts.models import Artifact
@@ -154,9 +154,7 @@ def _previews(
         drawn = [drawn_by_office(previews.drawn_by_office)]
     else:
         drawn = [
-            WORD_PREVIEWS_LEAVE_OUT
-            if artifact.format == "docx"
-            else SLIDE_PREVIEWS_DIFFER
+            WORD_PREVIEWS_ARE if artifact.format == "docx" else SLIDE_PREVIEWS_DIFFER
         ]
     shows_changes = [WORD_PREVIEWS_SHOW_CHANGES] if artifact.format == "docx" else []
     caveats = shows_changes + drawn

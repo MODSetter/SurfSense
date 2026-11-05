@@ -1,7 +1,7 @@
 """Electron's snapshot role, played by LibreOffice, so a live run's Word and PowerPoint files get page previews.
 
 It speaks the same routes Electron polls (modules/agent/previews/router.py). The
-pages come from LibreOffice's layout, not from docx-preview as in the app.
+pages come from LibreOffice's layout, not from the viewer's renderer as in the app.
 """
 
 import io
