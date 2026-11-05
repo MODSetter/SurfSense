@@ -8,9 +8,9 @@ import httpx
 from modules.llm.catalog.remote.manifest.loader import remote_lookup
 from modules.llm.catalog.remote.rows import CUSTOM
 from modules.llm.connections.key_headers import key_headers
+from modules.llm.connections.model_voices import voices_of
 from modules.llm.model_type import ModelType
 from modules.llm.models import ProviderConnection
-from modules.llm.providers.openai_compatible.published_voices import voices_of
 
 DISCOVERY_TIMEOUT = httpx.Timeout(10.0, connect=5.0)
 
