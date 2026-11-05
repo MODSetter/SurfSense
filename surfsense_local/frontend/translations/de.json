@@ -1697,7 +1697,7 @@
   "storage_move_confirm_models_adopt_body": "Dieser Ordner enthält bereits SurfSense-Modelle. SurfSense startet neu und verwendet sie. Deine aktuellen Modelle bleiben, wo sie sind.",
   "storage_move_confirm_models_body": "SurfSense kopiert deine Modelle und startet neu. Die alte Kopie wird automatisch entfernt. Lokale Modelle funktionieren nicht, solange dieses Laufwerk getrennt ist.",
   "storage_move_confirm_models_title": "Modelle verschieben?",
-  "storage_move_confirm_space_label": "Braucht {needed, number, ::unit/gigabyte .#} · {free, number, ::unit/gigabyte .#} frei",
+  "storage_move_confirm_space_label": "Braucht {needed, number, ::unit/gigabyte .#}<dot></dot>{free, number, ::unit/gigabyte .#} frei",
   "storage_move_confirm_to_label": "Nach",
   "storage_move_failed_body": "Nichts ging verloren: SurfSense verwendet weiter den bisherigen Ordner.",
   "storage_move_failed_error": "Beim Kopieren deiner Dateien ist etwas schiefgelaufen.",

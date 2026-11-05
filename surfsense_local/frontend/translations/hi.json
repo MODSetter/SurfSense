@@ -1697,7 +1697,7 @@
   "storage_move_confirm_models_adopt_body": "इस फ़ोल्डर में पहले से SurfSense के मॉडल हैं। SurfSense रीस्टार्ट होकर उनका उपयोग करेगा। आपके मौजूदा मॉडल जहां हैं वहीं रहेंगे।",
   "storage_move_confirm_models_body": "SurfSense आपके मॉडल कॉपी करके रीस्टार्ट होगा। पुरानी कॉपी अपने आप हट जाती है। यह ड्राइव डिस्कनेक्ट रहने पर लोकल मॉडल काम नहीं करेंगे।",
   "storage_move_confirm_models_title": "अपने मॉडल ले जाएं?",
-  "storage_move_confirm_space_label": "{needed, number, ::unit/gigabyte .#} चाहिए · {free, number, ::unit/gigabyte .#} खाली",
+  "storage_move_confirm_space_label": "{needed, number, ::unit/gigabyte .#} चाहिए<dot></dot>{free, number, ::unit/gigabyte .#} खाली",
   "storage_move_confirm_to_label": "तक",
   "storage_move_failed_body": "कुछ भी नहीं खोया: SurfSense पहले वाले फ़ोल्डर का ही उपयोग करता रहेगा।",
   "storage_move_failed_error": "आपकी फ़ाइलें कॉपी करते समय कुछ गड़बड़ हो गई।",

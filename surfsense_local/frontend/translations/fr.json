@@ -1697,7 +1697,7 @@
   "storage_move_confirm_models_adopt_body": "Ce dossier contient déjà des modèles SurfSense. SurfSense va redémarrer et les utiliser. Vos modèles actuels restent où ils sont.",
   "storage_move_confirm_models_body": "SurfSense va copier vos modèles et redémarrer. L’ancienne copie est supprimée automatiquement. Les modèles locaux ne fonctionneront pas tant que ce disque sera déconnecté.",
   "storage_move_confirm_models_title": "Déplacer vos modèles ?",
-  "storage_move_confirm_space_label": "Nécessite {needed, number, ::unit/gigabyte .#} · {free, number, ::unit/gigabyte .#} libres",
+  "storage_move_confirm_space_label": "Nécessite {needed, number, ::unit/gigabyte .#}<dot></dot>{free, number, ::unit/gigabyte .#} libres",
   "storage_move_confirm_to_label": "Vers",
   "storage_move_failed_body": "Rien n’a été perdu : SurfSense continue d’utiliser son dossier actuel.",
   "storage_move_failed_error": "Un problème est survenu lors de la copie de vos fichiers.",

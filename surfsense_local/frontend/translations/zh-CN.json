@@ -1697,7 +1697,7 @@
   "storage_move_confirm_models_adopt_body": "此文件夹中已有 SurfSense 模型。SurfSense 将重启并使用这些模型。你当前的模型会保留在原处。",
   "storage_move_confirm_models_body": "SurfSense 会复制你的模型并重启。旧副本会自动删除。此驱动器断开时，本地模型无法使用。",
   "storage_move_confirm_models_title": "移动模型？",
-  "storage_move_confirm_space_label": "需要 {needed, number, ::unit/gigabyte .#} · 可用 {free, number, ::unit/gigabyte .#}",
+  "storage_move_confirm_space_label": "需要 {needed, number, ::unit/gigabyte .#}<dot></dot>可用 {free, number, ::unit/gigabyte .#}",
   "storage_move_confirm_to_label": "到",
   "storage_move_failed_body": "没有丢失任何内容：SurfSense 会继续使用原来的文件夹。",
   "storage_move_failed_error": "复制文件时出错。",

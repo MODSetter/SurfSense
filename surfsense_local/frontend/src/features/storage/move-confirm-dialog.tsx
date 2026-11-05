@@ -8,6 +8,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { DotIcon } from "@/components/ui/icons"
 import { intl } from "@/i18n/intl"
 
 import type { MoveReady } from "./storage-types"
@@ -85,14 +86,20 @@ export function MoveConfirmContent({
           </span>
           <code className="break-all select-text">{ready.target}</code>
           {ready.adopt ? null : (
-            <span className="text-muted-foreground tabular-nums">
+            <span className="flex flex-wrap items-center text-muted-foreground tabular-nums">
               {intl.formatMessage(
                 {
                   id: "storage_move_confirm_space_label",
                   defaultMessage:
-                    "Needs {needed, number, ::unit/gigabyte .#} · {free, number, ::unit/gigabyte .#} free",
+                    "Needs {needed, number, ::unit/gigabyte .#}<dot></dot>{free, number, ::unit/gigabyte .#} free",
                 },
-                { needed: ready.neededBytes / 1e9, free: ready.freeBytes / 1e9 }
+                {
+                  needed: ready.neededBytes / 1e9,
+                  free: ready.freeBytes / 1e9,
+                  dot: () => (
+                    <DotIcon key="dot" aria-hidden="true" className="size-3 shrink-0" />
+                  ),
+                }
               )}
             </span>
           )}

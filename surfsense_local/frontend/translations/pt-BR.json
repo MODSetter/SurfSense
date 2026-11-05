@@ -1697,7 +1697,7 @@
   "storage_move_confirm_models_adopt_body": "Esta pasta já tem modelos do SurfSense. O SurfSense vai reiniciar e usá-los. Seus modelos atuais ficam onde estão.",
   "storage_move_confirm_models_body": "O SurfSense vai copiar seus modelos e reiniciar. A cópia antiga é removida automaticamente. Os modelos locais não funcionam enquanto esta unidade estiver desconectada.",
   "storage_move_confirm_models_title": "Mover seus modelos?",
-  "storage_move_confirm_space_label": "Precisa de {needed, number, ::unit/gigabyte .#} · {free, number, ::unit/gigabyte .#} livres",
+  "storage_move_confirm_space_label": "Precisa de {needed, number, ::unit/gigabyte .#}<dot></dot>{free, number, ::unit/gigabyte .#} livres",
   "storage_move_confirm_to_label": "Para",
   "storage_move_failed_body": "Nada foi perdido: o SurfSense continua usando a pasta que já tinha.",
   "storage_move_failed_error": "Algo deu errado ao copiar seus arquivos.",

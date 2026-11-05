@@ -1697,7 +1697,7 @@
   "storage_move_confirm_models_adopt_body": "В этой папке уже есть модели SurfSense. SurfSense перезапустится и будет использовать их. Текущие модели останутся на месте.",
   "storage_move_confirm_models_body": "SurfSense скопирует модели и перезапустится. Старая копия удаляется автоматически. Локальные модели не работают, пока этот диск отключен.",
   "storage_move_confirm_models_title": "Перенести модели?",
-  "storage_move_confirm_space_label": "Нужно {needed, number, ::unit/gigabyte .#} · свободно {free, number, ::unit/gigabyte .#}",
+  "storage_move_confirm_space_label": "Нужно {needed, number, ::unit/gigabyte .#}<dot></dot>свободно {free, number, ::unit/gigabyte .#}",
   "storage_move_confirm_to_label": "Куда",
   "storage_move_failed_body": "Ничего не потеряно: SurfSense продолжит использовать прежнюю папку.",
   "storage_move_failed_error": "При копировании файлов произошла ошибка.",

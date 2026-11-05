@@ -71,7 +71,7 @@ describe("ChangeModelsFolder", () => {
     expect(await screen.findByText("Move your models?")).toBeTruthy()
     expect(screen.getByText(READY.status === "ready" ? READY.source : "")).toBeTruthy()
     expect(screen.getByText("/Volumes/Big/SurfSense-Models")).toBeTruthy()
-    expect(screen.getByText("Needs 1.1 GB · 212 GB free")).toBeTruthy()
+    expect(screen.getByText("Needs 1.1 GB212 GB free")).toBeTruthy()
     expect(screen.getByText(/The old copy is removed automatically/)).toBeTruthy()
     expect(bridge.start).not.toHaveBeenCalled()
 

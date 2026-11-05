@@ -1697,7 +1697,7 @@
   "storage_move_confirm_models_adopt_body": "This folder already holds SurfSense models. SurfSense will restart and use them. Your current models stay where they are.",
   "storage_move_confirm_models_body": "SurfSense will copy your models and restart. The old copy is removed automatically. Local models won’t work while this drive is disconnected.",
   "storage_move_confirm_models_title": "Move your models?",
-  "storage_move_confirm_space_label": "Needs {needed, number, ::unit/gigabyte .#} · {free, number, ::unit/gigabyte .#} free",
+  "storage_move_confirm_space_label": "Needs {needed, number, ::unit/gigabyte .#}<dot></dot>{free, number, ::unit/gigabyte .#} free",
   "storage_move_confirm_to_label": "To",
   "storage_move_failed_body": "Nothing was lost: SurfSense keeps using the folder it had.",
   "storage_move_failed_error": "Something went wrong while copying your files.",

@@ -1697,7 +1697,7 @@
   "storage_move_confirm_models_adopt_body": "このフォルダーにはすでにSurfSenseのモデルがあります。SurfSenseは再起動してそのモデルを使います。現在のモデルはそのまま残ります。",
   "storage_move_confirm_models_body": "モデルをコピーして再起動します。古いコピーは自動的に削除されます。このドライブが接続されていない間、ローカルモデルは使えません。",
   "storage_move_confirm_models_title": "モデルを移動しますか？",
-  "storage_move_confirm_space_label": "必要: {needed, number, ::unit/gigabyte .#} · 空き: {free, number, ::unit/gigabyte .#}",
+  "storage_move_confirm_space_label": "必要: {needed, number, ::unit/gigabyte .#}<dot></dot>空き: {free, number, ::unit/gigabyte .#}",
   "storage_move_confirm_to_label": "移動先",
   "storage_move_failed_body": "失われたものはありません。SurfSenseはこれまでのフォルダーを使い続けます。",
   "storage_move_failed_error": "ファイルのコピー中に問題が発生しました。",

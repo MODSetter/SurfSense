@@ -1697,7 +1697,7 @@
   "storage_move_confirm_models_adopt_body": "이 폴더에 이미 SurfSense 모델이 있습니다. SurfSense가 다시 시작하여 이 모델을 사용합니다. 현재 모델은 그대로 유지됩니다.",
   "storage_move_confirm_models_body": "SurfSense가 모델을 복사한 뒤 다시 시작합니다. 이전 복사본은 자동으로 삭제됩니다. 이 드라이브의 연결이 끊어져 있는 동안에는 로컬 모델을 사용할 수 없습니다.",
   "storage_move_confirm_models_title": "모델을 이동할까요?",
-  "storage_move_confirm_space_label": "필요 {needed, number, ::unit/gigabyte .#} · 여유 공간 {free, number, ::unit/gigabyte .#}",
+  "storage_move_confirm_space_label": "필요 {needed, number, ::unit/gigabyte .#}<dot></dot>여유 공간 {free, number, ::unit/gigabyte .#}",
   "storage_move_confirm_to_label": "대상",
   "storage_move_failed_body": "손실된 것은 없습니다. SurfSense는 기존 폴더를 계속 사용합니다.",
   "storage_move_failed_error": "파일을 복사하는 중 문제가 발생했습니다.",

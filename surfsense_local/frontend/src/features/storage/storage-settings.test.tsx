@@ -66,7 +66,7 @@ describe("StorageSettings", () => {
 
     expect(await screen.findByText("Move your models?")).toBeTruthy()
     expect(screen.getByText("D:\\SurfSense-Models")).toBeTruthy()
-    expect(screen.getByText("Needs 12 GB · 212 GB free")).toBeTruthy()
+    expect(screen.getByText("Needs 12 GB212 GB free")).toBeTruthy()
     expect(screen.getByText("From")).toBeTruthy()
     expect(bridge.choose).toHaveBeenCalledWith("models")
     expect(bridge.start).not.toHaveBeenCalled()
