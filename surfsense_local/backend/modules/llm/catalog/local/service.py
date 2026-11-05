@@ -27,6 +27,9 @@ from modules.llm.catalog.local.install import download
 from modules.llm.catalog.local.install.codes import InstallCode
 from modules.llm.catalog.local.install.disk_room import refuse_without_room
 from modules.llm.catalog.local.install.plan import InstallPlan, InstallRefusedError
+from modules.llm.catalog.local.install.storage_available import (
+    refuse_while_storage_is_missing,
+)
 from modules.llm.catalog.local.install.tickets import TicketStore
 from modules.llm.catalog.local.install_jobs.jobs import InstallJobs
 from modules.llm.catalog.local.installs import (
@@ -276,7 +279,8 @@ class LocalCatalogService:
         return self._tickets.mint(build, engine=self.onnxruntime.name, model_id=spec.id)
 
     async def check(self, plan: InstallPlan) -> InstallPlan:
-        """The engine's refusals first, then the disk's."""
+        """A missing models drive first, then the engine's refusals, then the disk's."""
+        refuse_while_storage_is_missing()
         engine = self.engine(plan.engine)
         checked = await engine.check(plan)
         folder = self._folder(plan.engine)

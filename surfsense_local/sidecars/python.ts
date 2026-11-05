@@ -24,6 +24,15 @@ function pythonEnv(ctx: SidecarContext): Record<string, string> {
     SURFSENSE_LOCAL_DATA_DIR: ctx.dataDir,
     SURFSENSE_LOCAL_SECRET: ctx.secret,
     ...(ctx.modelsDir && { SURFSENSE_LOCAL_MODELS_DIR: ctx.modelsDir }),
+    ...(ctx.embeddingModelsDir && {
+      SURFSENSE_LOCAL_EMBEDDING_MODELS_DIR: ctx.embeddingModelsDir,
+    }),
+    ...(ctx.shellSettingsDir && {
+      SURFSENSE_LOCAL_SHELL_SETTINGS_DIR: ctx.shellSettingsDir,
+    }),
+    ...(ctx.modelStorageUnavailable && {
+      SURFSENSE_LOCAL_MODEL_STORAGE_UNAVAILABLE: "1",
+    }),
     ...(ctx.packaged && { HF_HUB_OFFLINE: "1" }),
     ...(ctx.llamacppUrl && { SURFSENSE_LOCAL_LLAMACPP_BASE_URL: ctx.llamacppUrl }),
     ...(ctx.llamacppModelsDir && {

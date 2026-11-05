@@ -28,6 +28,7 @@ class InstallCode(StrEnum):
     RETRIEVAL_CHECK_FAILED = "retrieval_check_failed"
     # Why one is refused before any byte moves.
     NOT_ENOUGH_DISK = "not_enough_disk"
+    MODEL_STORAGE_UNAVAILABLE = "model_storage_unavailable"
     TOO_BIG = "too_big"
     NOT_A_MODEL = "not_a_model"
     NO_ENGINE = "no_engine"
