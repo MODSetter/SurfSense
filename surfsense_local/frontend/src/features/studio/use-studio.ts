@@ -138,15 +138,20 @@ export function useStudio(workspaceId: number, selectionToken = "") {
   // runs send no event of their own.
   useWorkspaceChanges(workspaceId, "artifacts", () => {
     const list = studioKeys.artifacts(workspaceId)
-    // Cancelled first: a read still in flight with no answer yet would
-    // otherwise be reused, and its older answer would land last.
+    // The list and the runs are cancelled first: a read still in flight with
+    // no answer yet would otherwise be reused, and its older answer would
+    // land last.
     void queryClient
       .cancelQueries({ queryKey: list })
       .then(() => queryClient.invalidateQueries({ queryKey: list }))
     void queryClient.invalidateQueries({
       queryKey: studioKeys.openArtifacts(),
     })
-    void queryClient.invalidateQueries({ queryKey: jobsKeys.runs(workspaceId) })
+    void queryClient
+      .cancelQueries({ queryKey: jobsKeys.runs(workspaceId) })
+      .then(() =>
+        queryClient.invalidateQueries({ queryKey: jobsKeys.runs(workspaceId) })
+      )
   })
 
   // Only a list never read is an error to show: a failed reread keeps the

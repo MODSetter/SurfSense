@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from bisect import bisect_left
+from bisect import bisect_left, bisect_right
 from collections import Counter
 from dataclasses import dataclass
 from functools import lru_cache
@@ -51,6 +51,10 @@ WINDOW_WORDS = 300
 MIN_PART_WORDS = 3
 # Places tried per part when a quote has several: the nearest first.
 _TRIED = 20
+# Placements tried in one source before a quote counts as not there. Every place of the first
+# part is tried with the others at their nearest before any farther, since a quote that is
+# there sits at its parts' nearest places unless one of them recurs closer.
+_PLACEMENTS = 10_000
 
 
 @dataclass(frozen=True)
@@ -150,23 +154,31 @@ def find_quote(
 
 
 def _all_parts(parts: list[list[str]], text: str) -> tuple[int, int] | None:
-    """The line of the first part and of the last word a part ends on, where all the parts sit
-    within WINDOW_WORDS of each other, in any order, and the words a "..." skips between them
-    hold no negation: "data is ... encrypted at rest" is not in "data is not encrypted at
-    rest"."""
+    """The line of the part that comes first in the source and of the last word a part ends
+    on, where all the parts sit within WINDOW_WORDS of each other, in any order, and the words
+    a "..." skips between them hold no negation: "data is ... encrypted at rest" is not in
+    "data is not encrypted at rest". None once _PLACEMENTS are tried."""
     joined, lines, starts, tokens = _indexed(text)
     found = [_word_positions(joined, starts, " ".join(part)) for part in parts]
     if not all(found):
         return None
-    for first in found[0]:
+    budget = _PLACEMENTS
+    # Every place's nearest placement before any place's farther ones.
+    for tried, first in product((1, _TRIED), found[0]):
+        if (budget := budget - 1) < 0:
+            return None
+        # Bisected, not scanned: a scan per place took 2 s where a part recurs 9,000 times.
+        low, high = first - WINDOW_WORDS, first + WINDOW_WORDS
         near = [
             sorted(
-                (p for p in positions if abs(p - first) <= WINDOW_WORDS),
+                positions[bisect_left(positions, low) : bisect_right(positions, high)],
                 key=lambda p: abs(p - first),
-            )[:_TRIED]
+            )[:tried]
             for positions in found[1:]
         ]
         for chosen in product(*near):
+            if (budget := budget - 1) < 0:
+                return None
             spans = sorted(
                 [(first, len(parts[0]))]
                 + [(at, len(part)) for at, part in zip(chosen, parts[1:], strict=True)]
@@ -179,7 +191,7 @@ def _all_parts(parts: list[list[str]], text: str) -> tuple[int, int] | None:
                 for token in tokens[at + size : following]
             ):
                 last = max(at + size for at, size in spans) - 1
-                return lines[first], lines[last] if len(parts) > 1 else 0
+                return lines[spans[0][0]], lines[last] if len(parts) > 1 else 0
     return None
 
 

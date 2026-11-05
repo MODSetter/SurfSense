@@ -8,7 +8,7 @@ import { AppDialogs } from "@/components/ui/app-dialog-slot"
 import { EgressPrompt } from "@/features/egress/egress-prompt"
 import type { PackDownload, PackInfo } from "@/features/jobs/api"
 import { JobList } from "@/features/jobs/job-list"
-import { TEST_PACK } from "@/features/jobs/stub-jobs-api"
+import { TEST_PACK, showWindowAgainLater } from "@/features/jobs/stub-jobs-api"
 import { useJobPacks } from "@/features/jobs/use-job-packs"
 import {
   SettingsDialog,
@@ -58,6 +58,10 @@ let licenseChecks: string[] = []
 /** Each read of the jobs on this computer, and each download of them, in order. */
 let packRequests: string[] = []
 
+/** The license the backend has stored, which its own daily check may change
+ *  with no request from the app. */
+let storedLicense: LicenseStatus = NONE
+
 const downloads = () =>
   packRequests.filter((request) => request === "POST /job-packs/download")
     .length
@@ -76,7 +80,7 @@ function stubApi(
     onDownload?: () => Response | Promise<Response>
   } = {}
 ) {
-  let current = initial
+  storedLicense = initial
   let installed = packs
   licenseChecks = []
   packRequests = []
@@ -86,7 +90,7 @@ function stubApi(
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const path = String(input)
       const method = init?.method ?? "GET"
-      if (path === "/license/status") return Response.json(current)
+      if (path === "/license/status") return Response.json(storedLicense)
       if (path.startsWith("/plugins/license/check") && method === "POST") {
         licenseChecks.push(path)
         return new Response(null, { status: 204 })
@@ -108,19 +112,19 @@ function stubApi(
         calls.push({ method, body: init?.body ?? null })
         const response = await onRefresh()
         if (response.ok)
-          current = (await response.clone().json()) as LicenseStatus
+          storedLicense = (await response.clone().json()) as LicenseStatus
         return response
       }
       if (path === "/license" && method === "PUT") {
         calls.push({ method, body: JSON.parse(String(init?.body)) })
         const response = onPut()
         if (response.ok)
-          current = (await response.clone().json()) as LicenseStatus
+          storedLicense = (await response.clone().json()) as LicenseStatus
         return response
       }
       if (path === "/license" && method === "DELETE") {
         calls.push({ method, body: null })
-        current = NONE
+        storedLicense = NONE
         return new Response(null, { status: 204 })
       }
       return Response.json({ detail: "not found" }, { status: 404 })
@@ -508,6 +512,25 @@ describe("Business license", () => {
     await waitFor(() =>
       expect(licenseChecks).toEqual(["/plugins/license/check"])
     )
+  })
+
+  it("shows a renewal the app’s own daily check stored once the window is shown again", async () => {
+    stubApi({ ...BUSINESS, expiry: "2026-09-20T00:00:00Z" }, () =>
+      Response.json(BUSINESS)
+    )
+    render(<Harness />)
+
+    expect((await screen.findByRole("status")).textContent).toContain(
+      "Expiring soon"
+    )
+    // The backend stored the renewed file on its own, with no request from here.
+    storedLicense = BUSINESS
+    showWindowAgainLater()
+
+    expect(
+      await screen.findByText(/Expires (10 Oct 2027|Oct 10, 2027)/)
+    ).toBeTruthy()
+    expect(screen.queryByText("Expiring soon")).toBeNull()
   })
 
   it("says when no renewal has come yet", async () => {

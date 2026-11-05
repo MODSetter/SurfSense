@@ -35,6 +35,11 @@ from modules.jobs.evidence.vectors import remembered
 from modules.jobs.packs.access import job_access
 from modules.jobs.packs.installed import find_job
 from modules.jobs.runs.record import JOB_RUN_KEY, PROGRESS_KEY, job_run_of
+from modules.jobs.settings.service import (
+    CHECKER_GONE,
+    JobSettingsRefusedError,
+    check_checker,
+)
 from modules.jobs.workbook_rows.ask import ModelReply
 from modules.jobs.workbook_rows.config import JobConfig, load_config
 from modules.jobs.workbook_rows.fill import FillResult, NoQuestionsError, fill_workbook
@@ -191,6 +196,10 @@ def work_out(
     access = job_access(session, pack.manifest, job)
     if not access.allowed:
         raise JobRunFailedError(access.reason)
+    if run["pack_version"] != pack.manifest.version:
+        # A retry after an update reads the newer version: the record names what answered.
+        run = {**run, "pack_version": pack.manifest.version}
+        artifact.artifact_metadata = {**meta, JOB_RUN_KEY: run}
     config = load_config(pack.path(job.config))
     workbook = session.get(Document, revision["derived_from_document_id"])
     path = original_path(workbook) if workbook is not None else None
@@ -203,7 +212,7 @@ def work_out(
             raise JobRunFailedError(f"Source {document_id} is gone or holds no text.")
         sources.append(SourceText(document.id, document.title, document.content))
     model = resolve_routed_generation(session)
-    checker = _checker(run.get("checker"))
+    checker = _checker(session, run.get("checker"))
     declared = {s.key for s in config.settings}
     settings = {k: v for k, v in (run.get("settings") or {}).items() if k in declared}
     _, window = asyncio.run(selected_model_window(session))
@@ -255,12 +264,19 @@ def work_out(
     session.commit()
 
 
-def _checker(named: dict[str, Any] | None) -> ResolvedGeneration | None:
+def _checker(
+    session: Session, named: dict[str, Any] | None
+) -> ResolvedGeneration | None:
     """The model the firm chose to make the second checks, reached through the API's model route
-    as the selected one is; None checks on the answering model."""
+    as the selected one is; None checks on the answering model. One whose connection is gone
+    fails the run before any call, as a retry would otherwise fail its rows one by one."""
     if not named:
         return None
     ref = ModelRef.model_validate(named)
+    try:
+        check_checker(session, ref)
+    except JobSettingsRefusedError as gone:
+        raise JobRunFailedError(CHECKER_GONE) from gone
     try:
         url = api_url()
     except ApiNotRunningError as error:

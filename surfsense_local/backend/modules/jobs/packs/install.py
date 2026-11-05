@@ -16,6 +16,7 @@ import time
 import zipfile
 import zlib
 from collections.abc import Callable
+from contextlib import suppress
 from pathlib import Path
 from typing import BinaryIO
 from uuid import uuid4
@@ -141,7 +142,13 @@ def _put_in_place(
             # replacement: the version is missing for that moment only.
             aside = _aside(root)
             target.rename(aside)
-            staged.rename(target)
+            try:
+                staged.rename(target)
+            except OSError:
+                # The installed copy goes back, so a failed replacement keeps it listed.
+                with suppress(OSError):
+                    aside.rename(target)
+                raise
             shutil.rmtree(aside, ignore_errors=True)
     _remove_other_versions(root, manifest)
 

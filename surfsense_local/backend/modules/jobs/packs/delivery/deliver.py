@@ -93,9 +93,10 @@ async def deliver_packs(
     *,
     person_asked: bool = False,
 ) -> Delivery:
-    """Each code's outcome, in order: `entitlements`, or every job the licence includes.
-    Raises DeliveryRefusedError before anything is sent. A code a run held back is recorded
-    for the schedule to check once more when the run ends; any other outcome ends that.
+    """Each code's outcome, in order: `entitlements`, or every job the licence includes when
+    it is None. Raises DeliveryRefusedError before anything is sent. A code a run held back
+    is recorded for the schedule to check once more when the run ends; any other outcome
+    ends that.
 
     `person_asked` is a person's own request, which needs the licence server's host for any
     code it could ask for, a code a run holds back among them, since the check made once
@@ -142,7 +143,7 @@ def _planned(
         )
     held_jobs = frozenset(held.jobs)
     wanted = []
-    for code in dict.fromkeys(entitlements or held.jobs):
+    for code in dict.fromkeys(held.jobs if entitlements is None else entitlements):
         if not ENTITLEMENT.fullmatch(code):
             # No pack has a job for it, and the server would refuse the request.
             wanted.append(Wanted(code, code in held_jobs, None, None, sendable=False))

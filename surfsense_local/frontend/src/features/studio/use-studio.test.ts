@@ -577,4 +577,43 @@ describe("useStudio job runs", () => {
 
     await waitFor(() => expect(runReads).toBe(2))
   })
+
+  it("reads a run again when its copy changes while the first read is still on its way", async () => {
+    const stream = eventStream()
+    let answerFirstRead!: (response: Response) => void
+    let runReads = 0
+    let listReads = 0
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = String(input)
+        if (path.endsWith("/events")) return stream.response
+        if (path === "/workspaces/1/job-runs/41") {
+          // The first read began before the run ended; the second, after.
+          if (runReads++ === 0) {
+            return new Promise<Response>((resolve) => {
+              answerFirstRead = resolve
+            })
+          }
+          return Response.json(runRead())
+        }
+        if (path === "/workspaces/1/artifacts") listReads += 1
+        return Response.json([])
+      })
+    )
+
+    const { result } = renderHook(() => ({
+      studio: useStudio(1),
+      run: useJobRun(1, 41),
+    }))
+    await waitFor(() => expect(listReads).toBe(1))
+    await waitFor(() => expect(runReads).toBe(1))
+    stream.connected()
+    stream.artifactsChanged([41])
+    // The event was handled: the list it also refreshes was read again.
+    await waitFor(() => expect(listReads).toBe(2))
+    answerFirstRead(Response.json(runRead({ running: true })))
+
+    await waitFor(() => expect(result.current.run.data?.running).toBe(false))
+  })
 })

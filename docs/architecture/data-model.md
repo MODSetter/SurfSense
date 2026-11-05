@@ -184,7 +184,7 @@ From `0033`. A firm's choices for one job, kept for every run of it ([`jobs.md`]
 |---|---|
 | `job` | primary key: the job's key, as its pack names it |
 | `settings` | JSON: the settings the job's pack declares, by key, each true or false; one a newer pack no longer declares is left out when they are read |
-| `checker` | JSON, nullable: the text model that makes the second checks, by provider, name and `connection_id`; null checks on the answering model |
+| `checker` | JSON, nullable: the text model that makes the second checks, by provider, name and `connection_id`, which deleting the connection sets to null; null checks on the answering model |
 | `updated_at` | |
 
 ## On-disk layout

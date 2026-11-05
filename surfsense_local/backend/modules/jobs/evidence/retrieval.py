@@ -24,6 +24,9 @@ Embed = Callable[[list[str], bool], list[list[float]]]
 EMBED_BATCH = 64
 # How high in both rankings a standing query's passage must sit to be shown with every question.
 STANDING_TOP = 10
+# What the prompt shows around each passage beside its title, section and text: its number,
+# the dash before its section, its line range and the blank line after it.
+_FRAME = 30
 
 _STOP = frozenset(
     [
@@ -155,7 +158,12 @@ class Retriever:
 
     @property
     def whole(self) -> bool:
-        return sum(len(p.text) for p in self.passages) <= self.budget_chars
+        """Whether every passage fits the budget as the prompt shows it, with its title and
+        section."""
+        shown = sum(
+            len(p.title) + len(p.section) + len(p.text) + _FRAME for p in self.passages
+        )
+        return shown <= self.budget_chars
 
     @property
     def pinned(self) -> list[int]:

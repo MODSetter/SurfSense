@@ -100,6 +100,48 @@ def test_a_line_of_brackets_is_read_in_linear_time():
     assert time.monotonic() - started < 2
 
 
+def test_parts_repeated_with_a_negation_between_each_are_not_tried_every_way():
+    """A quote whose parts recur all through a source, a "not" between each, fits nowhere
+    and could be placed millions of ways: it counts as not found once a few thousand have
+    been tried, instead of stalling the run."""
+    import time
+
+    parts = [
+        "access is logged",
+        "keys rotate yearly",
+        "badges expire monthly",
+        "laptops are encrypted",
+        "backups are tested",
+        "vendors are vetted",
+    ]
+    source = " not ".join(parts * 15)
+
+    started = time.monotonic()
+    found = find_quote(" ... ".join(parts), [source])
+
+    assert found is None
+    assert time.monotonic() - started < 2
+
+
+def test_parts_that_recur_densely_early_do_not_hide_the_quote_further_on():
+    """Parts repeated with a "not" between each, early in a source, do not use up the tries
+    that find the quote where the source holds it whole."""
+    import time
+
+    parts = ["access is logged", "keys rotate yearly", "badges expire monthly"]
+    source = (
+        " not ".join(parts * 30)
+        + " filler" * 400
+        + "\naccess is logged and keys rotate yearly and badges expire monthly"
+    )
+
+    started = time.monotonic()
+    found = find_quote(" ... ".join(parts), [source])
+
+    assert found is not None and (found.line, found.end_line) == (2, 2)
+    assert time.monotonic() - started < 2
+
+
 def test_a_link_that_wraps_a_line_still_reads_as_its_text():
     """A Markdown link whose text breaks across lines matches a quote of the sentence."""
     source = (
@@ -124,3 +166,20 @@ def test_every_part_of_a_quote_sits_within_the_window_of_every_other():
         )
         is None
     )
+
+
+@pytest.mark.parametrize(
+    "quote",
+    [
+        "Access is logged daily ... Keys rotate every year",
+        "Keys rotate every year ... Access is logged daily",
+    ],
+)
+def test_a_quote_spans_from_the_part_the_source_gives_first(quote):
+    """In either order, a quote's lines run from its earliest part in the source to its last,
+    so the second check is shown every word between them."""
+    source = "Access is logged daily.\nfiller\nfiller\nKeys rotate every year."
+
+    found = find_quote(quote, [source])
+
+    assert found is not None and (found.line, found.end_line) == (1, 4)

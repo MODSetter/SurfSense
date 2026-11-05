@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { cleanup, screen, waitFor } from "@testing-library/react"
+import { act, cleanup, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { Toaster, toast } from "sonner"
 
@@ -160,6 +160,29 @@ describe("license job packs", () => {
     expect(
       screen.queryByText("Security questionnaire version 0.4.3 is installed")
     ).toBeNull()
+  })
+
+  it("keeps the import’s listing when a read sent before it answers after", async () => {
+    let answerRead: (response: Response) => void = () => undefined
+    const calls = renderBlock({
+      "GET /job-packs": () =>
+        new Promise<Response>((resolve) => (answerRead = resolve)),
+      "POST /job-packs/import": [TEST_PACK],
+    })
+    const user = userEvent.setup()
+
+    await user.upload(screen.getByLabelText("Choose a job pack file"), zip())
+    expect(await screen.findByText("Version 0.4.3")).toBeTruthy()
+    // The read went out first, so it carries the listing from before the import.
+    answerRead(Response.json([]))
+    await act(() => new Promise((resolve) => setTimeout(resolve, 50)))
+
+    expect(screen.getByText("Version 0.4.3")).toBeTruthy()
+    expect(screen.queryByText("Not downloaded yet")).toBeNull()
+    expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([
+      "GET /job-packs",
+      "POST /job-packs/import",
+    ])
   })
 
   it("says any newer version waits until a run under way ends", async () => {

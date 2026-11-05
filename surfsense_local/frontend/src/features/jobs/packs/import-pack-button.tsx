@@ -75,7 +75,9 @@ export function ImportPackButton({
       )
       return { before, packs: await importPackFile(file) }
     },
-    onSuccess: ({ before, packs }) => {
+    onSuccess: async ({ before, packs }) => {
+      // An older read still on its way must not land over the answer's listing.
+      await queryClient.cancelQueries({ queryKey: jobsKeys.packs() })
       queryClient.setQueryData(jobsKeys.packs(), packs)
       void queryClient.invalidateQueries({ queryKey: jobsKeys.settingsAll() })
       const added = addedPack(before, packs)

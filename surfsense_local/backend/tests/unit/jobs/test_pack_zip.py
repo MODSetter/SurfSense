@@ -216,13 +216,28 @@ def test_a_folder_entry_carrying_data_is_not_a_pack(
 
 
 @pytest.mark.parametrize(
-    "name", ["nul", "com1.txt", "docs/AUX.md", "Lpt9", "notes.", "dir./x.md", "draft "]
+    "name",
+    [
+        "nul",
+        "com1.txt",
+        "docs/AUX.md",
+        "Lpt9",
+        "notes.",
+        "dir./x.md",
+        "draft ",
+        "COM\u00b9.txt",
+        "docs/lpt\u00b3",
+        "CON .txt",
+        "CONIN$",
+        "docs/conout$.txt",
+    ],
 )
 def test_a_name_windows_cannot_write_is_a_bad_path(
     pack: Path, tmp_path: Path, name: str
 ) -> None:
-    """A device's name, with or without an extension, or a part ending in a dot or a space,
-    would be another file on Windows than the one the manifest lists."""
+    """A device's name, with or without an extension or spaces before it, COM and LPT with a
+    superscript digit too, or a part ending in a dot or a space, would be another file on
+    Windows than the one the manifest lists."""
     archive = zipped(pack, tmp_path / "named.zip", add=lambda a: a.writestr(name, "x"))
 
     assert refused(archive, tmp_path / "installed") == "BAD_PATH"

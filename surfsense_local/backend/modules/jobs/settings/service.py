@@ -16,6 +16,12 @@ from modules.llm.models import ProviderConnection
 from modules.llm.providers import llamacpp
 
 REMOTE = "openai_compatible"
+# A saved checker that `check_checker` refuses now: its connection was deleted after it was
+# chosen, and a run keeps the checker it started with, so only a new run can take another.
+CHECKER_GONE = (
+    "The checker's connection no longer exists. Choose another checker in the job's "
+    "settings, then start a new run."
+)
 
 
 class JobSettingsRefusedError(ValueError):
@@ -59,7 +65,7 @@ def save_job_settings(
     except ValueError as refused:
         raise JobSettingsRefusedError(str(refused)) from refused
     if checker is not None:
-        _check_model(session, checker)
+        check_checker(session, checker)
     row = session.get(JobSettings, job)
     if row is None:
         row = JobSettings(job=job)
@@ -70,19 +76,19 @@ def save_job_settings(
     return ChosenSettings(values, checker)
 
 
-def _check_model(session: Session, model: ModelRef) -> None:
+def check_checker(session: Session, model: ModelRef) -> None:
     """A text model the app can reach: the local runtime, or a remote connection that exists.
-    Whether it is installed or allowed out is the model route's to say when a run asks it."""
+    Whether it is installed or allowed out is the model route's to say when a run asks it.
+    Checked again when a run starts and when it is worked out: a connection can go."""
     if model.provider == llamacpp.PROVIDER:
         if model.connection_id is not None:
             raise JobSettingsRefusedError("A local model has no connection.")
     elif model.provider == REMOTE:
+        # A deleted connection leaves its checkers naming none (`deleted_connection.py`).
         if model.connection_id is None or (
             session.get(ProviderConnection, model.connection_id) is None
         ):
-            raise JobSettingsRefusedError(
-                f"There is no connection {model.connection_id} for the checker."
-            )
+            raise JobSettingsRefusedError(CHECKER_GONE)
     else:
         raise JobSettingsRefusedError(
             f"The checker is a local model or one on a connection, not {model.provider}."

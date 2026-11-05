@@ -319,3 +319,79 @@ def test_a_context_cell_merged_down_its_rows_reaches_every_row(tmp_path, config)
     assert [row.context for row in layout.rows] == [
         f"#: {n}; Topic: Business continuity exercises" for n in (1, 2, 3)
     ]
+
+
+def test_a_comment_cell_merged_down_its_rows_is_written_only_in_its_first_row(
+    tmp_path, config
+):
+    """The engine writes a merge only at its first cell, so the rows a comment cell's merge
+    covers below it get no comment, and the copy still saves."""
+    book = openpyxl.Workbook()
+    sheet = book.active
+    sheet.append(["Question", "Answer", "Comments"])
+    sheet.append(["Do users have the minimum access they need?", None, None])
+    sheet.append(["Is storage media wiped before disposal?", None, None])
+    sheet.append(["Have you had a breach in the last year?", None, None])
+    sheet.merge_cells("C2:C4")
+    rule = DataValidation(type="list", formula1='"Yes,No,N/A"', allow_blank=True)
+    rule.add("B2:B4")
+    sheet.add_data_validation(rule)
+    path = tmp_path / "Merged comments.xlsx"
+    book.save(path)
+    model = ScriptedModel(
+        {
+            "minimum access": [draft("Needs review")],
+            "wiped": [draft("Needs review")],
+            "breach": [draft("Needs review")],
+        }
+    )
+
+    layout = find_questions(inspect_workbook(path), config.layout)
+    filled = fill_workbook(path, [POLICY], config, model)
+
+    assert [row.comment_cell for row in layout.rows] == ["C2", None, None]
+    assert excel.apply(path, filled.operations, tmp_path / "filled.xlsx").saved
+
+
+def test_a_hidden_answer_column_is_not_answered_though_it_comes_first(tmp_path, config):
+    """A hidden column of dropdowns under an answer header, such as a scoring helper's, is not
+    where the requester reads the answers: the visible one is answered."""
+    book = openpyxl.Workbook()
+    sheet = book.active
+    sheet.append(["Question", "Answer", "Response"])
+    for question in ("Is access reviewed?", "Is media wiped?", "Is data encrypted?"):
+        sheet.append([f"{question} Say how often.", None, None])
+    for column in "BC":
+        rule = DataValidation(type="list", formula1='"Yes,No,N/A"', allow_blank=True)
+        rule.add(f"{column}2:{column}4")
+        sheet.add_data_validation(rule)
+    sheet.column_dimensions["B"].hidden = True
+    path = tmp_path / "Hidden answers.xlsx"
+    book.save(path)
+
+    layout = find_questions(inspect_workbook(path), config.layout)
+
+    assert [row.answer_cell for row in layout.rows] == ["C2", "C3", "C4"]
+
+
+def test_a_hidden_column_with_more_dropdowns_loses_to_the_visible_one(tmp_path, config):
+    """In a table found by its dropdowns, a hidden column covering more rows is not the
+    answers."""
+    book = openpyxl.Workbook()
+    sheet = book.active
+    sheet.append(["Security controls"])
+    for question in ("Is access reviewed?", "Is media wiped?", "Is data encrypted?"):
+        sheet.append([f"{question} Say how often.", None, None])
+    answers = DataValidation(type="list", formula1='"Yes,No,N/A"', allow_blank=True)
+    answers.add("B2:B4")
+    scores = DataValidation(type="list", formula1='"0,1,2"', allow_blank=True)
+    scores.add("C2:C1000")
+    for rule in (answers, scores):
+        sheet.add_data_validation(rule)
+    sheet.column_dimensions["C"].hidden = True
+    path = tmp_path / "Hidden scores.xlsx"
+    book.save(path)
+
+    layout = find_questions(inspect_workbook(path), config.layout)
+
+    assert [row.answer_cell for row in layout.rows] == ["B2", "B3", "B4"]

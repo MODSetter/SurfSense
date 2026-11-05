@@ -5,7 +5,7 @@ import asyncio
 import io
 import json
 import zipfile
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
 from typing import Annotated
 
@@ -17,6 +17,7 @@ from starlette.responses import (
     PlainTextResponse,
     RedirectResponse,
     Response,
+    StreamingResponse,
 )
 from starlette.routing import Route
 
@@ -33,6 +34,8 @@ JOB_NOT_INCLUDED = (
 PACK_NOT_COVERED = (
     "Every pack of that job also holds a job this license does not include."
 )
+# A sample license file, about 800 bytes, goes out in a dozen pieces.
+DRIP_BYTES = 64
 
 
 class _JobPackRequest(BaseModel):
@@ -83,6 +86,8 @@ class StandInLicenseServer:
     files: dict[str, str] = field(default_factory=dict)
     refusal: tuple[int, object] | None = None
     delay_seconds: float = 0.0
+    # Above 0, a file goes out in pieces of DRIP_BYTES this far apart, as on a slow line.
+    drip_seconds: float = 0.0
     asked: list[Asked] = field(default_factory=list)
     packs: dict[str, bytes] = field(default_factory=dict)
     pack_refusal: tuple[int, object] | None = None
@@ -118,13 +123,23 @@ class StandInLicenseServer:
         certificate = self.files.get(body.get("key", ""))
         if certificate is None:
             return JSONResponse({"detail": "No license has that key."}, 404)
-        return PlainTextResponse(
-            certificate,
-            headers={
-                "Content-Disposition": 'attachment; filename="surfsense.lic"',
-                "Cache-Control": "no-store",
-            },
-        )
+        headers = {
+            "Content-Disposition": 'attachment; filename="surfsense.lic"',
+            "Cache-Control": "no-store",
+        }
+        if self.drip_seconds:
+            return StreamingResponse(
+                self._drip(certificate.encode()),
+                media_type="text/plain",
+                headers=headers,
+            )
+        return PlainTextResponse(certificate, headers=headers)
+
+    async def _drip(self, data: bytes) -> AsyncIterator[bytes]:
+        for start in range(0, len(data), DRIP_BYTES):
+            if start:
+                await asyncio.sleep(self.drip_seconds)
+            yield data[start : start + DRIP_BYTES]
 
     async def _job_pack(self, request: Request) -> Response:
         if self.pack_route_missing:

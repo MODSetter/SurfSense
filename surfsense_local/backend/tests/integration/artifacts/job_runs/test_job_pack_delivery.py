@@ -879,7 +879,8 @@ async def test_without_an_active_license_with_jobs_nothing_is_sent(
 async def test_only_the_named_codes_are_fetched(
     client: AsyncClient, license_server: StandInLicenseServer, tmp_path: Path
 ) -> None:
-    """A code the license does not hold is answered at once and never asked for."""
+    """A code the license does not hold is answered at once and never asked for, and an
+    empty list asks for no job, where a request without a list asks for every one."""
     await add_license(client, business_license(jobs=f"{ENTITLEMENT},JOB_OTHER"))
     offer(license_server, tmp_path)
 
@@ -897,6 +898,13 @@ async def test_only_the_named_codes_are_fetched(
 
     assert malformed.status_code == 422
     assert isinstance(malformed.json()["detail"], list)
+
+    none = await download(client, {"entitlements": []})
+
+    assert (none.status_code, none.json()["outcomes"]) == (200, [])
+    assert [asked.body["entitlement"] for asked in license_server.pack_asked] == [
+        ENTITLEMENT
+    ]
 
 
 async def test_a_code_the_license_server_could_never_take_is_never_sent(

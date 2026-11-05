@@ -78,12 +78,35 @@ def test_a_sealed_folder_installs_and_is_listed(tmp_path):
     assert listed.path("jobs/fill/job.json").is_file()
 
 
-def test_a_zipped_pack_installs_whether_or_not_a_folder_wraps_it(tmp_path):
+def test_the_zip_the_author_tool_makes_installs(tmp_path):
     """The zip the author tool makes installs as the folder does."""
     pack = write_pack(tmp_path / "pack")
     flat = zip_pack(pack, tmp_path / "flat.zip")
 
     assert install_pack(flat, tmp_path / "a").version == "1.0.0"
+
+
+@pytest.mark.parametrize(
+    ("tamper", "code"),
+    [
+        (lambda p: (p / "jobs/fill/job.json").write_text("{}"), "PACK_FILE_CHANGED"),
+        (lambda p: (p / "extra.md").write_text("hi"), "PACK_FILE_UNLISTED"),
+        (lambda p: (p / "LICENSE.md").unlink(), "PACK_FILE_MISSING"),
+        (lambda p: (p / "job-pack.sig").unlink(), "PACK_NOT_SIGNED"),
+    ],
+)
+def test_the_author_tool_zips_no_folder_an_install_would_refuse(tmp_path, tamper, code):
+    """A file changed, added or removed since sealing, or no signature, is refused before the
+    zip is written, not later at install."""
+    pack = write_pack(tmp_path / "pack")
+    tamper(pack)
+    out = tmp_path / "pack.zip"
+
+    with pytest.raises(PackRefusedError) as refused:
+        zip_pack(pack, out)
+
+    assert refused.value.code == code
+    assert not out.exists()
 
 
 @pytest.mark.parametrize(
@@ -461,6 +484,31 @@ def test_other_contents_at_an_installed_version_are_refused_unless_replacing(tmp
     install_pack(other, root, replace_same_version=True)
 
     assert installed_packs(root)[0].manifest.description == "Fills other things."
+    assert _scratch(root) == []
+
+
+def test_a_replacement_that_cannot_move_in_puts_the_installed_copy_back(
+    tmp_path, monkeypatch
+):
+    """When the new copy cannot take the version's place, as when Windows holds a file of it
+    open, the installed copy goes back and stays listed, and no scratch is left."""
+    root = tmp_path / "installed"
+    install_pack(write_pack(tmp_path / "pack"), root)
+    other = write_pack(tmp_path / "other", description="Fills other things.")
+    rename = Path.rename
+
+    def held_open(self: Path, target: Path) -> Path:
+        # The staged copy, which an install builds as `pack` in its scratch folder.
+        if self.name == "pack":
+            raise PermissionError(13, "The file is in use by another process")
+        return rename(self, target)
+
+    monkeypatch.setattr(Path, "rename", held_open)
+
+    with pytest.raises(PermissionError):
+        install_pack(other, root, replace_same_version=True)
+
+    assert installed_packs(root)[0].manifest.description == "Fills things."
     assert _scratch(root) == []
 
 

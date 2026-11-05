@@ -27,9 +27,14 @@ _ID = re.compile(r"^[a-z][a-z0-9-]{0,63}$")
 _VERSION = re.compile(r"^[0-9]{1,9}\.[0-9]{1,9}\.[0-9]{1,9}$")
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 # Names Windows keeps for devices, with or without an extension: no file there can have one.
+# COM and LPT take a superscript 1, 2 or 3 as well as 1 to 9, and never 0.
 _RESERVED = frozenset(
-    {"con", "prn", "aux", "nul"}
-    | {f"{device}{n}" for device in ("com", "lpt") for n in range(1, 10)}
+    {"con", "prn", "aux", "nul", "conin$", "conout$"}
+    | {
+        f"{device}{n}"
+        for device in ("com", "lpt")
+        for n in "123456789\u00b9\u00b2\u00b3"
+    }
 )
 # Characters no Windows file name holds, beside the `\` and `:` every path refuses. Contract 6
 # refuses them on every system, so a pack installs everywhere or nowhere.
@@ -173,9 +178,11 @@ def safe_path(path: object) -> PurePosixPath:
             "BAD_PATH", f"{path!r} holds a character Windows cannot write."
         )
     for part in parts:
-        # Windows drops a part's closing dot or space and keeps device names, so the file
-        # written would not be the one listed.
-        if part.endswith((".", " ")) or part.split(".", 1)[0].casefold() in _RESERVED:
+        # Windows drops a part's closing dot or space and keeps device names, even with spaces
+        # before their extension (`CON .txt` is CON), so the file written would not be the
+        # one listed.
+        device = part.split(".", 1)[0].rstrip(" ").casefold()
+        if part.endswith((".", " ")) or device in _RESERVED:
             raise PackRefusedError(
                 "BAD_PATH", f"{path!r} names a file Windows cannot write."
             )

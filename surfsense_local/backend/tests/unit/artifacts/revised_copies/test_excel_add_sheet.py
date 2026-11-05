@@ -7,6 +7,7 @@ import openpyxl
 import pytest
 
 from modules.artifacts.revised_copies.engines import excel
+from modules.artifacts.revised_copies.engines.excel_refs import MAX_COLUMN
 from tests.unit.artifacts.revised_copies.office_fixtures import (
     build_workbook,
     check_workbook,
@@ -99,6 +100,19 @@ def test_a_sheet_name_excel_would_refuse_saves_nothing(book, tmp_path, name, cod
 
     assert not report.saved and not out.exists()
     assert report.outcomes[0].code == code
+
+
+def test_a_row_wider_than_excel_s_grid_saves_nothing(book, tmp_path):
+    """A row with a value past column XFD saves nothing, and the model is told which field to fix."""
+    report, out = run(
+        book,
+        tmp_path,
+        {"op": "add_sheet", "sheet": "Sources", "values": [["x"] * (MAX_COLUMN + 1)]},
+    )
+
+    assert not report.saved and not out.exists()
+    assert report.outcomes[0].code == "BAD_OPERATION"
+    assert report.outcomes[0].values == {"field": "values"}
 
 
 def test_a_macro_workbook_keeps_its_macros_when_a_sheet_is_added(tmp_path):

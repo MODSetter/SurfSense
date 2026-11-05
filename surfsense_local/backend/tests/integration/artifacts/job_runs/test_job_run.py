@@ -324,3 +324,85 @@ async def test_a_run_retried_without_access_fails_with_the_reason(
     assert artifact.document.status is DocumentStatus.FAILED
     assert "Business licence" in (artifact.document.error_message or "")
     assert model == []
+
+
+async def test_a_run_retried_after_an_update_records_the_version_it_ran_on(
+    session: Session,
+    workspace: Workspace,
+    client: AsyncClient,
+    pack: None,
+    model: list[str],
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """A run that failed on one version and is run again once a newer one is installed is
+    answered by the newer one, and its record names that version."""
+    monkeypatch.setenv(DEV_SWITCH, "1")
+    workspace_id = workspace.id
+    workbook_id = add_source(session, workspace_id, "Q.xlsx", _questionnaire())
+    plan_id = _plan(session, workspace_id)
+    started = await client.post(
+        f"/workspaces/{workspace_id}/job-runs",
+        json={"job": JOB, "document_id": workbook_id, "source_ids": [plan_id]},
+    )
+    assert started.status_code == 201, started.text
+    artifact_id = started.json()["artifact_id"]
+    monkeypatch.delenv(DEV_SWITCH)
+    await asyncio.to_thread(run, artifact_id)
+    monkeypatch.setenv(DEV_SWITCH, "1")
+    install_pack(
+        write_questionnaire_pack(tmp_path / "newer", version="1.0.1"), packs_dir()
+    )
+
+    again = await client.post(f"/artifacts/{artifact_id}/regenerate")
+    assert again.status_code == 202, again.text
+    await asyncio.to_thread(run, artifact_id)
+
+    read = (
+        await client.get(f"/workspaces/{workspace_id}/job-runs/{artifact_id}")
+    ).json()
+    assert (read["status"], read["pack_version"], read["pack"]) == (
+        "ready",
+        "1.0.1",
+        "test-jobs 1.0.1",
+    )
+
+
+async def test_a_run_is_linked_only_to_a_chat_of_its_workspace(
+    session: Session,
+    workspace: Workspace,
+    client: AsyncClient,
+    pack: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A chat no thread has, or another workspace's, refuses the run before its copy is
+    made, so no other workspace's chat is ever linked."""
+    monkeypatch.setenv(DEV_SWITCH, "1")
+    workspace_id = workspace.id
+    workbook_id = add_source(session, workspace_id, "Q.xlsx", _questionnaire())
+    plan_id = _plan(session, workspace_id)
+    elsewhere = Workspace(name="Elsewhere")
+    session.add(elsewhere)
+    session.commit()
+    foreign = ChatThread(
+        workspace_id=elsewhere.id, agent_engine=AgentEngineKind.OPENCODE
+    )
+    session.add(foreign)
+    session.commit()
+
+    for thread_id in (foreign.id + 1, foreign.id):
+        refused = await client.post(
+            f"/workspaces/{workspace_id}/job-runs",
+            json={
+                "job": JOB,
+                "document_id": workbook_id,
+                "source_ids": [plan_id],
+                "chat_thread_id": thread_id,
+            },
+        )
+        assert refused.status_code == 409
+        assert refused.json()["detail"] == {
+            "code": "JOB_RUN_REFUSED",
+            "message": f"There is no chat {thread_id} in this workspace.",
+        }
+    assert (await client.get(f"/workspaces/{workspace_id}/job-runs")).json() == []

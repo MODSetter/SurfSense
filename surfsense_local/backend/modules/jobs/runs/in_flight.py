@@ -29,7 +29,8 @@ def pack_in_use(session: Session, pack_id: str) -> bool:
 
 def version_in_use(session: Session, pack_id: str, jobs: Collection[str]) -> str | None:
     """The version of the pack a pending or processing run of one of its `jobs`, by key,
-    reads: the one it started on. None while no run of them is."""
+    reads: the one it started on, or, once the worker works it out, the one installed then.
+    None while no run of them is."""
     return session.scalar(
         select(func.json_extract(Artifact.artifact_metadata, "$.job_run.pack_version"))
         .join(Document, Document.id == Artifact.document_id)

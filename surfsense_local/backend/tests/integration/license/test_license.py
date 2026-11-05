@@ -14,9 +14,7 @@ from tests.license_samples import business_license, signed
 
 pytestmark = pytest.mark.integration
 
-SAMPLE = Path(__file__).resolve().parents[5] / (
-    "docs/contracts/license-sample"
-)
+SAMPLE = Path(__file__).resolve().parents[5] / ("docs/contracts/license-sample")
 # The fixtures were issued 2026-09-10 and the shortest one expires two weeks later.
 TODAY = datetime(2026, 9, 11, 12, 0, tzinfo=UTC)
 
@@ -82,6 +80,11 @@ async def test_a_business_license_shows_its_firm_people_and_jobs(
             "Example Accounting LLP",
             ["JOB_QUESTIONNAIRE", "JOB_RFP"],
         ),
+        (
+            {"jobs": "JOB_RFP, JOB_QUESTIONNAIRE, JOB_RFP"},
+            "Example Accounting LLP",
+            ["JOB_RFP", "JOB_QUESTIONNAIRE"],
+        ),
         ({"firm": None, "jobs": None}, None, []),
         ({"firm": "  "}, None, ["JOB_QUESTIONNAIRE"]),
         ({"plan": "trial", "firm": None}, None, ["JOB_QUESTIONNAIRE"]),
@@ -90,7 +93,8 @@ async def test_a_business_license_shows_its_firm_people_and_jobs(
 async def test_firm_and_jobs_read_as_the_checkout_wrote_them(
     client: AsyncClient, metadata: dict, firm: str | None, jobs: list[str]
 ) -> None:
-    """Codes trimmed, an empty list when none; the Business trial is a trial with jobs."""
+    """Codes trimmed and listed once, an empty list when none; the Business trial is a
+    trial with jobs."""
     response = await put_license(client, business_license(**metadata))
 
     assert (response.json()["firm"], response.json()["jobs"]) == (firm, jobs)

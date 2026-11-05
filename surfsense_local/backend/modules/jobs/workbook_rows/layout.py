@@ -80,7 +80,10 @@ def find_questions(facts: WorkbookFacts, words: LayoutWords) -> Layout:
     for sheet in facts.sheets:
         if sheet.state != "visible" or sheet.name.casefold() in words.skip_sheets:
             continue
-        texts = sheet.texts()
+        # A hidden column, such as a scoring helper's, is not one the requester reads or fills.
+        texts = {
+            c: t for c, t in sheet.texts().items() if c[0] not in sheet.hidden_columns
+        }
         if not texts:
             continue
         table = _by_headers(sheet, texts, words) or _by_dropdowns(sheet, texts, words)
@@ -173,6 +176,8 @@ def _by_dropdowns(
                 continue
             (left, top), (right, bottom) = area
             for column in range(left, right + 1):
+                if column in sheet.hidden_columns:
+                    continue
                 covered.setdefault(column, set()).update(
                     range(top, min(bottom, last_row) + 1)
                 )
@@ -318,6 +323,10 @@ def _writable(
         return None
     ref = cell_name(column, row)
     if sheet.locked(ref) or not _empty(sheet, ref, words):
+        return None
+    # The engine refuses a write inside a merge anywhere but its first cell.
+    merge = sheet.merge_of((column, row))
+    if merge is not None and merge[0] != (column, row):
         return None
     return ref
 

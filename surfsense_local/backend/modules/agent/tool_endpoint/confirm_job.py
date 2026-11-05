@@ -116,7 +116,13 @@ def _cells(value: object) -> list[tuple[str, str]] | None:
         sheet, _, cell = text.rpartition("!")
         if not sheet or not cell:
             raise ToolCallError(f'"{text}" is not a cell; write it as "Sheet1!B12".')
-        cells.append((sheet.strip("'"), cell))
+        if len(sheet) >= 2 and sheet[0] == sheet[-1] == "'":
+            # Excel's quoting, as in 'Vendor''s questions'!B2: an apostrophe inside is doubled.
+            sheet = sheet[1:-1].replace("''", "'")
+        else:
+            # A sheet name never starts or ends with an apostrophe.
+            sheet = sheet.strip("'")
+        cells.append((sheet, cell))
     return cells
 
 
