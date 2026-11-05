@@ -1,10 +1,14 @@
 import { readFileSync, renameSync, writeFileSync } from "node:fs"
 
+import { INSTALL_AGES, type InstallAge } from "./install-age.ts"
 import { setupStep, type SetupStep } from "./setup-progress.ts"
 import { parseSetupTries, type SetupTries } from "./setup-tries.ts"
 
-/** The UTC day, ISO week and month of the last report that was accepted. */
-export type ReportPeriod = { day: string; week: string; month: string }
+/**
+ * The UTC day, ISO week and month of the last daily report that was accepted,
+ * and from revision 1.2 its install_age range; never sent.
+ */
+export type ReportPeriod = { day: string; week: string; month: string; age?: InstallAge }
 
 /** The GPU half of the last hardware block sent; gpu_runtime null: sent before it existed. */
 export type SentHardware = { gpu: string; vram_gb: string; gpu_runtime: string | null }
@@ -50,15 +54,20 @@ function isoTime(value: unknown): string | null {
 function reportPeriod(value: unknown): ReportPeriod | null {
   const period = record(value)
   if (!period) return null
-  const { day, week, month } = period
-  return typeof day === "string" &&
-    DAY.test(day) &&
-    typeof week === "string" &&
-    WEEK.test(week) &&
-    typeof month === "string" &&
-    MONTH.test(month)
-    ? { day, week, month }
-    : null
+  const { day, week, month, age } = period
+  if (
+    typeof day !== "string" ||
+    !DAY.test(day) ||
+    typeof week !== "string" ||
+    !WEEK.test(week) ||
+    typeof month !== "string" ||
+    !MONTH.test(month)
+  ) {
+    return null
+  }
+  return INSTALL_AGES.includes(age as InstallAge)
+    ? { day, week, month, age: age as InstallAge }
+    : { day, week, month }
 }
 
 /** What a hardware block leaves to remember, or null when there is none. */

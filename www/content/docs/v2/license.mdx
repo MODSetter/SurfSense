@@ -7,18 +7,19 @@ import { Step, Steps } from 'fumadocs-ui/components/steps';
 
 SurfSense is free and open source under the Apache License 2.0. The whole app, and every update, is free with no account and no expiry.
 
-A SurfSense license adds two things:
+A SurfSense license adds:
 
-- **SurfSense's paid plugins.** These read public sites for the agent, such as Google Search, YouTube and a web crawler. Adding sources from the web in [Sources](/docs/v2/sources) uses them too. The [plugins page](/plugins) lists them.
+- **SurfSense's paid plugins.** The [plugins page](/plugins) lists them.
+- **Jobs**, with a Business license or its trial. A job fills in paperwork from your firm's own documents, such as a security questionnaire from your policies. See [Jobs](/docs/v2/jobs).
 - **Priority support.**
 
-Nothing else needs a license. Chat, the agent, Studio, voice, local and remote models, third-party plugins and updates all work without one. See [pricing](/pricing) for plans.
+Nothing else needs a license. Chat, the agent and its [web search and reading](/docs/v2/agent#search-and-read-the-web), Studio, voice, local and remote models, [adding sources from the web](/docs/v2/sources#add-from-the-web), third-party plugins and updates all work without one. See [pricing](/pricing) for plans.
 
 ## Free trial
 
-You can try the paid plugins free for 14 days, with no card. Enter your email on the [downloads page](/downloads) and the trial license arrives by email as a file. One trial per email address.
+You can try the paid plugins and [jobs](/docs/v2/jobs) free for 14 days, with no card, on a Business trial. Enter your email on the [downloads page](/downloads) and the trial license arrives by email as a file. One Business trial per email address, even if you tried the paid plugins before.
 
-In the app, **Start a free trial** in Settings › License opens [pricing](/pricing) in your browser.
+In the app, **Start a free trial** in Settings › License opens [pricing](/pricing) in your browser, and **Start 14-day trial** in Jobs opens the downloads page.
 
 ## Add your license
 
@@ -38,22 +39,36 @@ Your license is a file called `surfsense.lic`, sent to the email you bought it w
 
 Settings › License then shows your plan, your email, and **Expires** with the date. The sidebar shows **License active**.
 
+If your license includes jobs, SurfSense then downloads them from its license server. The first time, it asks before it contacts `api.surfsense.com`: choose **Allow**. See [Get the job](/docs/v2/jobs#get-the-job).
+
+A Business license shows as **Business plan**, or **Solo plan** when it is for one person. It also shows **Licensed to** with your firm's name, when one was given at checkout, how many people it covers, and **Jobs:** with the job plugins it unlocks, such as **Security questionnaire**, which you run from [Jobs](/docs/v2/jobs).
+
 To swap in a new file, use **Replace license**. To take the license off this computer, use **Remove license**.
 
 ## Checked on your computer
 
-SurfSense checks the license file on your computer, with no network. Adding it sends nothing anywhere.
+SurfSense checks the license file on your computer, with no network. Checking it sends nothing anywhere.
 
-When you use a paid plugin, your license key goes with each request to `plugins.surfsense.com`, so the plugin service can check it. That host has to be allowed in Settings › Network first. See [privacy](/docs/v2/privacy).
+When you use a paid plugin, your license key goes with each request to `plugins.surfsense.com`, so the plugin service can check it. Checking for a renewal, and getting the [jobs](/docs/v2/jobs) your license includes, send it to `api.surfsense.com`, SurfSense's license server ([below](#business-renewal)). **Check for renewal** sends it whatever your plan, whether you choose it in Settings › License or in Jobs. Those are the only two places your license key goes, and each host has to be allowed in Settings › Network first. See [privacy](/docs/v2/privacy).
 
 ## When it expires
 
-When a license runs out, the paid plugins stop. Everything else keeps working: the app, your data and your updates are never locked.
+When a license runs out, the paid plugins and its jobs stop. Everything else keeps working: the app, your data, what jobs made and your updates are never locked.
 
+- A Business license ends 30 days after the year you paid for.
 - In the last 14 days, Settings › License shows **Expiring soon**.
-- After it ends, Settings › License shows **Expired** with **Renew license**, and the sidebar shows **License expired**.
+- After it ends, Settings › License shows **Expired** with **Renew license**, and the sidebar shows **License expired**. For a Business license or its trial, **Expired** points to **Check for renewal** instead, with **See pricing**.
+- In [Jobs](/docs/v2/jobs), an ended Business license's jobs offer **Check for renewal**, and an ended trial's offer **See pricing** and **Replace license**.
 
-A renewal is a new license file. Add it with **Replace license**.
+For other plans, a renewal arrives by email as a new license file, as does a Business license you buy after a trial. Add it with **Replace license**.
+
+## Business renewal
+
+A Business license renews every year on the same key. Settings › License shows a **Renewal** row with **Check for renewal**, which sends your license key to `api.surfsense.com`, SurfSense's license server, replaces the file on this computer with the latest one, and downloads any job it adds. It then shows **Renewed until** with the new date, or **No renewal yet**.
+
+The first time, SurfSense asks before it contacts `api.surfsense.com`. Allowing it also lets SurfSense check on its own when it starts and once a day: for a renewal, from 30 days before your Business license ends until 30 days after, so a renewal arrives before you need it, and for newer versions of your jobs, while your license includes them. A check for a job that comes during a run of it is made again once the run ends. To stop all of it, untick **License server** in Settings › Network.
+
+Each renewal is also emailed to you as a license file. On a computer that stays offline, add it with **Replace license**.
 
 ## Lost your file?
 
@@ -71,3 +86,9 @@ If you can no longer reach that inbox, or mistyped it when buying, the same page
 | This license file uses an algorithm this version cannot check. | [Update SurfSense](/docs/v2/updates). |
 | **Clock is off** | Your computer's clock is behind the last time SurfSense ran. Set the right time and the license works again. |
 | **License not recognized** or **License revoked** on a plugin | The plugin service refused the key. Check that Settings › License shows the license you expect. A refunded license is revoked. |
+| No license is added, so there is none to renew. | [Add your license](#add-your-license) first. |
+| Allow SurfSense’s license server, api.surfsense.com, in Settings › Network, then try again. | Tick **License server** in Settings › Network, then choose **Check for renewal** again. |
+| SurfSense’s license server has no license with this key. | Check that Settings › License shows the license you bought, or get a fresh copy from [surfsense.com/license](/license). |
+| SurfSense’s license server will not renew this license. Contact support. | The license was suspended, as after a refund. Get help from [surfsense.com/license](/license). The app keeps working. |
+| This license was checked too often; try again in an hour. | Wait an hour, then choose **Check for renewal** again. |
+| SurfSense’s license server could not send a renewed file; try again later. | Try again later, or add the emailed file with **Replace license**. |

@@ -1,23 +1,23 @@
 ---
 title: Plugins
-description: Give the agent tools such as web search, site readers and your own MCP servers
+description: Give the agent more tools, from other publishers' MCP servers and your own
 ---
 
 import { Card, Cards } from 'fumadocs-ui/components/card';
 import { Step, Steps } from 'fumadocs-ui/components/steps';
 
-A plugin gives the [agent](/docs/v2/agent) tools it can use in an **Agentic** chat. Each plugin is an MCP server: a service that offers a set of tools, such as "search Google" or "read this page". You connect it once, choose what each tool may do, and the agent calls those tools when your question needs them.
+A plugin gives the [agent](/docs/v2/agent) tools it can use in an **Agentic** chat. Each plugin is an MCP server: a service that offers a set of tools, such as "search Notion" or "ask about a GitHub repository". You connect it once, choose what each tool may do, and the agent calls those tools when your question needs them.
 
 Plugins work in Agentic chats only. In a **Basic (Q&A)** chat, the Plugins menu is greyed out with the hint "Plugins work in Agentic chats".
 
-There are three kinds:
+There are two kinds:
 
-- **By SurfSense.** SurfSense's own plugins, such as Google Search, Web Crawl and YouTube. They need a [SurfSense license](/docs/v2/license).
 - **Third-party.** Plugins from other publishers, listed in Browse once you allow them.
 - **Custom.** Any remote MCP server you add by its URL.
 
+Searching the web and reading pages and YouTube videos need no plugin: the agent does them itself, for free. See [Search and read the web](/docs/v2/agent#search-and-read-the-web).
+
 <Cards>
-  <Card title="SurfSense plugins" description="Google Search, Web Crawl, YouTube, Reddit and the other built-in plugins" href="/docs/v2/plugins/surfsense-plugins" />
   <Card title="Third-party and custom plugins" description="Other publishers' plugins, and any MCP server by URL" href="/docs/v2/plugins/third-party" />
 </Cards>
 
@@ -25,7 +25,7 @@ There are three kinds:
 
 Open **Settings › Plugins**. It has two tabs, **Browse** and **Yours**, and an **Add custom plugin** button beside them. It opens on Yours when you have a plugin connected, and on Browse otherwise.
 
-- **Browse** lists what you can connect. **By SurfSense** comes first, each plugin with its logo, a short description and "License required". **Third-party** follows, with the **Allow third-party plugins** switch in its header.
+- **Browse** lists what you can connect, under **Third-party**, with the **Allow third-party plugins** switch in its header.
 - **Yours** is a table of the plugins you added, with **Plugin**, **Type** and **Status** columns. Type is **By SurfSense**, **Third-party** or **Custom**. Click a row to open the plugin's details.
 - **Search plugins**, beside the tabs, searches both lists at once by name, description, author or tool name. Results show **Yours** first, then **Available**.
 
@@ -44,11 +44,11 @@ Click **Connect** on the plugin you want.
 If SurfSense asks **Allow connecting to …?**, naming the plugin's server, allow it. SurfSense contacts no plugin server until you do. You can change this later in **Settings › Network**.
 </Step>
 <Step>
-Give what the plugin needs, if anything: nothing, a key, a sign-in with your account in the browser, or your SurfSense license, which SurfSense sends for you.
+Give what the plugin needs, if anything: nothing, a key, or a sign-in with your account in the browser.
 </Step>
 </Steps>
 
-A toast says "Reddit connected", for example, or "Couldn’t connect Reddit" with the reason and **Report issue**. The plugin then appears in Yours with the status **On**.
+A toast says "Notion connected", for example, or "Couldn’t connect Notion" with the reason and **Report issue**. The plugin then appears in Yours with the status **On**.
 
 From the chat, **+ › Plugins › Add plugin** takes you to **Browse plugins** or **Add custom plugin**, and **Manage plugins** opens Settings › Plugins.
 
@@ -92,7 +92,7 @@ Each group has its own menu, **Always allow**, **Needs approval** or **Blocked**
 
 Some choices are closed, and the icon's tooltip says why:
 
-- **SurfSense's read-only tools never ask.** "Needs approval" is dimmed on them: "Not needed: this tool only reads". Every tool of SurfSense's own plugins only reads.
+- **A SurfSense plugin you connected before never asks.** "Needs approval" is dimmed on its tools: "Not needed: this tool only reads".
 - **A tool that doesn't say it's safe always asks.** If the server doesn't mark a tool as read-only or harmless, "Always allowed" is dimmed: "Not available: the server doesn’t say this tool is safe".
 - **Other tools ask by default.** A tool from a third-party or custom plugin asks before each use until you set it to Always allowed.
 
@@ -106,21 +106,17 @@ The check covers a tool's description and how safe its server says it is. A serv
 
 Plugins work in **Agentic** chats. The agent picks the right tool from your question, so most of the time you just ask.
 
-- **Mention a plugin.** Type `@` in the composer and pick a plugin, such as `@youtube`. The agent then uses that plugin for this message.
-- **Switch plugins on and off.** **+ › Plugins** lists your connected plugins, each with a switch. The switch "Applies to all Agentic chats", not only this one.
+- **Name a plugin.** To point the agent at one, say so in your message, such as "use Notion".
+- **Switch plugins on and off.** **+ › Plugins** lists your connected plugins under "Your plugins", each with a switch. A switch applies to all Agentic chats, not only this one.
 - **Approve a step.** When a tool needs approval, the chat shows "Allow this step to run?" with what the agent wants to send. Click **Allow once** or **Deny**. Chats waiting on you are marked "Waiting for your approval".
 - **Read a step.** Each plugin call shows as a step named after the plugin and tool. Open it to see the whole result.
 - **Save to Sources.** On a finished plugin step, **Save to Sources** keeps its result as a note in your Sources, so later chats can cite it. Saving the same step again updates that note.
 
 When a plugin can't be used, the reply says so above its steps and carries on without it: for example "Couldn’t reach Notion", "Sign in to Notion again", "Notion needs more access" or "Amazon needs a SurfSense license".
 
-<Callout type="info">
-  If `@` shows nothing, it says why: "No plugins connected", "Your plugins are off. Turn one on from + › Plugins.", "Allow third-party plugins in Settings › Plugins to use them here." or "Your SurfSense license doesn’t unlock these plugins. Check Settings › License."
-</Callout>
-
 ## Plugins and Add from the web
 
-**+ › Add from the web…** in Sources uses SurfSense's own plugins to search the web and pull links into your Sources, with no chat needed. You don't have to connect the plugins in Settings › Plugins for this. It needs a SurfSense license and `plugins.surfsense.com` allowed in **Settings › Network**. See [Sources](/docs/v2/sources), and each [SurfSense plugin](/docs/v2/plugins/surfsense-plugins) page for which links it handles.
+**+ › Add from the web…** in Sources needs no plugin and no license: it searches the web and reads pages and YouTube videos on your own computer, with no chat needed. See [Add from the web](/docs/v2/sources#add-from-the-web).
 
 ## What a plugin can see
 

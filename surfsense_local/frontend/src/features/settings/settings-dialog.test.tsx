@@ -5,9 +5,21 @@ import userEvent from "@testing-library/user-event"
 
 import { THEME_STORAGE_KEY, ThemeProvider } from "@/components/theme-provider"
 import { TooltipProvider } from "@/components/ui/tooltip"
+import type { LicenseStatus } from "@/features/license/api"
 import { render } from "@/test-utils"
 
 import { SettingsDialog, type SettingsSectionId } from "./settings-dialog"
+
+// What /license/status answers with no license stored: every field, as the API sends it.
+const NO_LICENSE: LicenseStatus = {
+  state: "none",
+  plan: null,
+  email: null,
+  expiry: null,
+  max_users: null,
+  firm: null,
+  jobs: [],
+}
 
 function SettingsHarness() {
   const [section, setSection] = useState<SettingsSectionId>("general")
@@ -215,7 +227,12 @@ describe("SettingsDialog", () => {
   it("scrolls every section's heading with its content", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => Response.json([]))
+      // The License section reads its status's fields; every other section copes with a list.
+      vi.fn(async (input: RequestInfo | URL) =>
+        String(input) === "/license/status"
+          ? Response.json(NO_LICENSE)
+          : Response.json([])
+      )
     )
     const user = userEvent.setup()
     render(<SettingsHarness />)

@@ -20,7 +20,7 @@ import {
   said,
 } from "@/features/dictation/fake-dictation-api"
 import type { ModelSelection } from "@/features/models/selection/api"
-import { render } from "@/test-utils"
+import { boxText, render } from "@/test-utils"
 
 import type { ChatMessage } from "./api"
 import { AssistantMessage } from "./message"
@@ -186,10 +186,7 @@ describe("thread panel", () => {
       expect(api.calls).toContain("DELETE /llm/transcription/dictations/d1")
     )
     await new Promise((resolve) => setTimeout(resolve, 20))
-    expect(
-      screen.getByRole<HTMLTextAreaElement>("textbox", { name: "Message" })
-        .value
-    ).toBe("")
+    expect(boxText(screen.getByRole("textbox", { name: "Message" }))).toBe("")
     expect(dictation.getView().phase).toBe("idle")
   })
 })

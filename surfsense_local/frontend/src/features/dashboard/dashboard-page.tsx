@@ -3,6 +3,7 @@ import { AgentApprovalsProvider } from "@/features/agent/agent-approvals"
 import { IN_CONTAINER } from "@/app/in-container"
 import {
   CircleAlertIcon,
+  ClipboardCheckIcon,
   LayoutGridIcon,
   PlusIcon,
   PlugIcon,
@@ -30,6 +31,7 @@ import { canSkipThinking } from "@/features/chat/thinking-preference"
 import { ThreadPanel } from "@/features/chat/thread-panel"
 import { useChatRuntime } from "@/features/chat/use-chat-runtime"
 import { useHelpMenuReport } from "@/features/feedback/help-menu-report"
+import { JobsDialog } from "@/features/jobs/jobs-dialog"
 import type { ImportAccepted } from "@/features/migration/api"
 import { ImportBundleButton } from "@/features/migration/import-bundle"
 import { modelKey, type ModelSelection } from "@/features/models/selection/api"
@@ -140,11 +142,7 @@ function WorkspaceDashboard({
     readSourcePreview(workspace.id)
   )
   const sources = useSources(workspace.id)
-  const webSources = useWebSources(
-    workspace.id,
-    sources.addCreated,
-    onOpenLicense
-  )
+  const webSources = useWebSources(workspace.id, sources.addCreated)
   // Which formats Studio offers is the server's answer to what is selected,
   // so it has to be asked again when that changes. The chat model is named
   // here directly; the image model is chosen inside the settings dialog and
@@ -159,6 +157,21 @@ function WorkspaceDashboard({
     )
     return sources.includedDocumentIds.map((id) => titles.get(id) ?? "")
   }, [sources.documents, sources.includedDocumentIds])
+  const mentionables = useMemo(
+    () => ({
+      documents: sources.documents,
+      index: sources.index,
+      artifacts: studio.artifacts,
+      isLoading: sources.isLoading || studio.isLoading,
+    }),
+    [
+      sources.documents,
+      sources.index,
+      sources.isLoading,
+      studio.artifacts,
+      studio.isLoading,
+    ]
+  )
   const blockAgentic = useBlockAgentic()
   // Bound to the model the chat was asked on: the picker stays open meanwhile.
   const onAgenticGate = useCallback(
@@ -313,6 +326,14 @@ function WorkspaceDashboard({
     () => <SidebarFooter onOpenLicense={onOpenLicense} />,
     [onOpenLicense]
   )
+  const [jobsOpen, setJobsOpen] = useState(false)
+  const openJobs = useCallback(() => setJobsOpen(true), [])
+  // Stable, for the memoized Jobs dialog: the page above makes both anew on
+  // each of its renders.
+  const openModelSettings = useStableCallback((section: SettingsSectionId) =>
+    onOpenModelSettings(section)
+  )
+  const openLicense = useStableCallback(() => onOpenLicense())
   const sidebarActions = useMemo<SidebarNavAction[]>(
     () => [
       {
@@ -325,8 +346,18 @@ function WorkspaceDashboard({
         badge: <FeatureBadge stage="new" />,
         onClick: () => onOpenPlugins(),
       },
+      {
+        key: "jobs",
+        label: intl.formatMessage({
+          id: "dashboard_sidebar_jobs_button",
+          defaultMessage: "Jobs",
+        }),
+        icon: ClipboardCheckIcon,
+        badge: <FeatureBadge stage="new" />,
+        onClick: openJobs,
+      },
     ],
-    [onOpenPlugins]
+    [onOpenPlugins, openJobs]
   )
   // The sidebar's callbacks keep one identity and call the latest chat.
   const sidebarNewChat = useStableCallback(() => startNewChat())
@@ -497,6 +528,7 @@ function WorkspaceDashboard({
                 onRetry={chat.retry}
                 onNewChat={startNewChat}
                 sourceCount={sources.includedDocumentIds.length}
+                mentionables={mentionables}
                 onUploadSources={(files) => void sources.upload(files)}
                 isUploadingSources={sources.isUploading}
                 onOpenPlugins={onOpenPlugins}
@@ -537,6 +569,7 @@ function WorkspaceDashboard({
                     />
                   ) : inspect?.kind === "artifact" ? (
                     <ArtifactPanel
+                      workspaceId={workspace.id}
                       artifactId={inspect.artifactId}
                       artifacts={studio.artifacts}
                       onOpenVersion={openArtifact}
@@ -579,6 +612,19 @@ function WorkspaceDashboard({
             </div>
           </RightPanelRail>
         </DashboardColumns>
+        {/* Inside the opener, so a run's Open in Studio shows its copy here. */}
+        <JobsDialog
+          open={jobsOpen}
+          onOpenChange={setJobsOpen}
+          workspaceId={workspace.id}
+          documents={sources.documents}
+          includedDocumentIds={sources.includedDocumentIds}
+          selection={selection}
+          providerAvailable={providerAvailable}
+          onUploadSources={sources.upload}
+          onOpenModelSettings={openModelSettings}
+          onOpenLicense={openLicense}
+        />
       </OpenArtifactContext.Provider>
     </OfficeOfferContext.Provider>
   )
@@ -710,7 +756,7 @@ export function DashboardPage({
     Boolean(workspaces.activeWorkspace)
   )
 
-  // For the startup frame, which offers plugin mentions before this loads.
+  // For the startup frame, which offers mentions before this loads.
   useEffect(() => rememberNextNewChatMode(selection), [selection])
 
   // Checked when the model changes, when settings close (a key entered again,

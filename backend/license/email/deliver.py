@@ -7,7 +7,7 @@ import logging
 from mailer import get_mailer, is_mail_enabled
 
 from .address import normalize_email
-from .message import LicenseEmailKind, build_license_email
+from .message import BusinessCopy, LicenseEmailKind, build_license_email
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +17,7 @@ async def deliver_licenses(
     *,
     to: str,
     certificates: list[str] | tuple[str, ...],
+    business: BusinessCopy | None = None,
     idempotency_key: str | None = None,
 ) -> None:
     """Mail license files, if a provider is configured.
@@ -37,6 +38,7 @@ async def deliver_licenses(
         kind,
         to=normalize_email(to),
         certificates=tuple(certificates),
+        business=business,
         idempotency_key=idempotency_key,
     )
     await get_mailer().send(message)

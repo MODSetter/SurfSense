@@ -341,6 +341,10 @@ describe("the composer's mode switch", () => {
   it("is picked from the keyboard", async () => {
     const user = userEvent.setup()
     renderComposer({ model: SONNET_99 })
+    // The message box takes the focus as it mounts.
+    await waitFor(() =>
+      expect(document.activeElement?.getAttribute("role")).toBe("textbox")
+    )
 
     trigger().focus()
     await user.keyboard("{Enter}")

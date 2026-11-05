@@ -116,6 +116,7 @@ class ProviderConnection(Base):
     api_key_ciphertext: Mapped[bytes | None]
     # `chatgpt` signs in with a ChatGPT account: no key, OAuth tokens instead.
     # `claude_plan` holds nothing: the user's own Claude Code keeps the sign-in.
+    # `elevenlabs` holds a key like `api_key`, and speaks ElevenLabs' own API.
     auth_kind: Mapped[str] = mapped_column(server_default="api_key")
     # Encrypted JSON of the token set; NULL on a `chatgpt` row means signed out.
     oauth_ciphertext: Mapped[bytes | None]

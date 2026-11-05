@@ -13,7 +13,7 @@ Click **+** at the top of the **Sources** panel:
 |---|---|
 | **Upload files…** | Picks one or more files. |
 | **Upload folder…** | Adds a whole folder, keeping its subfolders. |
-| **Add from the web…** | Searches the web or opens links, and adds pages, videos and posts. See [Add from the web](#add-from-the-web). |
+| **Add from the web…** | Searches the web or opens links, and adds pages and YouTube videos. See [Add from the web](#add-from-the-web). |
 | **New folder** | Makes a folder in the panel. |
 | **New note** | Writes a note in the app. |
 
@@ -127,33 +127,29 @@ The same ticks apply to chat and Studio. Each message sends the ticks on screen 
 
 ## Add from the web
 
-**+ › Add from the web…** opens one box: **Search Google or paste links**.
+**+ › Add from the web…** opens one box: **Search the web or paste links**.
 
-- **Search.** Type words to search Google, or choose a site under the box to search it instead: YouTube, TikTok, Google Maps, Amazon, Walmart, Indeed, Reddit or Instagram.
+- **Search.** Type words to search the web, or choose **YouTube** under the box to find videos.
 - **Paste links.** Paste one or more links, one per line or several on a line.
-- **Add** a result to make it a source, or **Add all**. A link already in Sources says **Already in Sources**.
-- **Open** a list, such as a YouTube channel, a playlist, a subreddit or a search page, to see its items and add the ones you want. **Show more** loads more.
+- **Add** a result to make it a source, or **Add all**. A link already in Sources says **Already in Sources**. **Show more** loads more results.
 
 What each link becomes:
 
 | Link | Becomes |
 |---|---|
-| YouTube video | its transcript and top comments |
-| Google Maps place | the place and its reviews |
-| Amazon or Walmart product | the product and its reviews |
-| Indeed job | the job posting |
-| Reddit post | the post and its comments |
-| Instagram post or reel | its caption |
-| TikTok video | the video's details and comments |
+| YouTube video | its transcript, in the language the video speaks, with its title, channel and description |
 | Any other page | the page's text |
 
-The pages are fetched by SurfSense's own plugins, then indexed like any source. Each one is ready once SurfSense has read it.
+SurfSense reads each page on your own computer and connection, as your browser would, then indexes it like any source. No license is needed. Each one is ready once SurfSense has read it.
 
-<Callout title="Needs a license">
-  Adding from the web comes with a SurfSense
-  [license](/docs/v2/license), and the first time it asks to allow
-  `plugins.surfsense.com` in **Settings › Network**. See
-  [Plugins](/docs/v2/plugins) for the site readers.
+<Callout title="It asks before reaching a site">
+  The first time you add a page from a site, SurfSense asks to allow that
+  site in **Settings › Network**; a YouTube video asks for
+  `www.youtube.com`. The site gets the page's address and your IP
+  address, nothing from your documents. If a page has moved to another
+  site, the source says so, and **Retry** asks to allow that site too.
 </Callout>
 
-Short links such as `redd.it` or `vm.tiktok.com` can't be added: open them and copy the full link. A source added from the web is not refreshed from its link later.
+Searches go to a SearXNG server, which asks search engines for you: SurfSense's own, unless you enter your organization's under **Web search** in **Settings › Network**. The server must answer in JSON.
+
+Some pages can't be read without a browser, such as pages behind a login or ones that show a check before they load. For those, save the page as a PDF from your browser and add the file. A link to a file, such as a PDF, is added the same way: download it and add the file. A source added from the web is not refreshed from its link later.

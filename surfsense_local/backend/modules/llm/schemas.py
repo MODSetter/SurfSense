@@ -58,7 +58,8 @@ class ConnectionRead(BaseModel):
     base_url: str
     catalog_provider: str
     has_api_key: bool
-    # `api_key`, or `chatgpt` for a connection signed in with a ChatGPT account.
+    # `api_key`, `chatgpt` for a connection signed in with a ChatGPT account,
+    # `claude_plan` for one run through Claude Code, `elevenlabs` for its own API.
     auth_kind: str = "api_key"
     # Only for `chatgpt`: whether it holds tokens, and whose.
     signed_in: bool = False

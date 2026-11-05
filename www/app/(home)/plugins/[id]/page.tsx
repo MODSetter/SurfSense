@@ -11,6 +11,7 @@ import { cn } from "@/components/ui/cn";
 import { DotIcon } from "@/components/ui/icons";
 import { ACCESS_LABEL } from "../access-label";
 import { allPlugins, findPlugin } from "../all-plugins";
+import { BUILT_IN_LABEL, isBuiltIn } from "../built-in";
 import { markTile, PluginMark } from "../plugin-mark";
 import { VerifiedMark } from "../verified-mark";
 import { PluginDetails } from "./plugin-details";
@@ -36,7 +37,9 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
 	const plugin = await findPlugin((await params).id);
 	if (!plugin) return { title: "Plugin not found | SurfSense" };
-	const title = `${plugin.name} plugin for SurfSense`;
+	const title = isBuiltIn(plugin)
+		? `${plugin.name}, built into SurfSense`
+		: `${plugin.name} plugin for SurfSense`;
 	const canonicalUrl = `https://www.surfsense.com${plugin.href}`;
 	return {
 		title,
@@ -74,6 +77,7 @@ export default async function PluginPage({ params }: PageProps) {
 
 	const tile = markTile(plugin);
 	const thirdParty = plugin.publisher === "third-party";
+	const builtIn = isBuiltIn(plugin);
 	return (
 		<article className={cn(sectionSpacing.head, sectionSpacing.foot, "mx-auto max-w-3xl")}>
 			<BreadcrumbNav
@@ -101,7 +105,7 @@ export default async function PluginPage({ params }: PageProps) {
 						<p className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
 							<span>by {plugin.author}</span>
 							<DotIcon aria-hidden="true" className="size-3 shrink-0" />
-							<span>{ACCESS_LABEL[plugin.access]}</span>
+							<span>{builtIn ? BUILT_IN_LABEL : ACCESS_LABEL[plugin.access]}</span>
 						</p>
 					</div>
 				</div>
@@ -114,7 +118,9 @@ export default async function PluginPage({ params }: PageProps) {
 			<p className={cn(siteText.body, "mt-3 text-sm")}>
 				{thirdParty
 					? "Connect it in the SurfSense desktop app: turn on Allow third-party plugins in Settings › Plugins, then find it in Browse."
-					: "Connect it in the SurfSense desktop app, in Settings › Plugins."}
+					: builtIn
+						? "Built into the SurfSense desktop app: free, with no licence and nothing to connect. The agent uses it in chats, and Add from the web in Sources uses it to add sources."
+						: "Connect it in the SurfSense desktop app, in Settings › Plugins."}
 			</p>
 
 			<div className="mt-12 flex flex-col gap-10">
@@ -124,9 +130,12 @@ export default async function PluginPage({ params }: PageProps) {
 						<p className={siteText.body}>{plugin.about}</p>
 					</Section>
 				) : null}
-				<Section title="Tools">
-					<PluginTools tools={plugin.tools} />
-				</Section>
+				{/* A built-in feature is not a server with tools to list; its About says what it does. */}
+				{builtIn ? null : (
+					<Section title="Tools">
+						<PluginTools tools={plugin.tools} />
+					</Section>
+				)}
 				<Section title="Details">
 					<PluginDetails plugin={plugin} />
 				</Section>

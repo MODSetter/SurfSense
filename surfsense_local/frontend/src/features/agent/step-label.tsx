@@ -214,6 +214,57 @@ export function stepLabel(
         defaultMessage: "Edited a copy of a source file",
       })
     }
+    case "surfsense_run_job": {
+      const made = step.artifact
+      // The workbook as the turn named it, else the copy the run made of it.
+      const workbook =
+        (typeof input.document_id === "number"
+          ? sourceTitle(input.document_id)
+          : null) ?? text(made?.title)
+      if (made) {
+        return workbook
+          ? intl.formatMessage(
+              {
+                id: "agent_steps_run_job_label",
+                defaultMessage: "Filled in <doc>{workbook}</doc>",
+              },
+              { workbook, doc: documentTitle }
+            )
+          : intl.formatMessage({
+              id: "agent_steps_run_job_untitled_label",
+              defaultMessage: "Filled in a workbook",
+            })
+      }
+      // Still answering, refused or failed: no copy to open yet.
+      return workbook
+        ? intl.formatMessage(
+            {
+              id: "agent_steps_run_job_pending_label",
+              defaultMessage: "Started filling in <doc>{workbook}</doc>",
+            },
+            { workbook, doc: documentTitle }
+          )
+        : intl.formatMessage({
+            id: "agent_steps_run_job_pending_untitled_label",
+            defaultMessage: "Started filling in a workbook",
+          })
+    }
+    case "surfsense_confirm_job_suggestions": {
+      const made = step.artifact
+      return made
+        ? intl.formatMessage(
+            {
+              id: "agent_steps_confirm_job_label",
+              defaultMessage:
+                "Confirmed suggested answers in <doc>{title}</doc>",
+            },
+            { title: made.title, doc: documentTitle }
+          )
+        : intl.formatMessage({
+            id: "agent_steps_confirm_job_pending_label",
+            defaultMessage: "Started confirming suggested answers",
+          })
+    }
     case "surfsense_read_document": {
       const workbook =
         typeof input.document_id === "number"
@@ -304,6 +355,45 @@ export function stepLabel(
         },
         { kind: text(input.kind) ?? "other" }
       )
+    case "surfsense_search_web": {
+      const query = text(input.query)
+      if (query) {
+        return intl.formatMessage(
+          {
+            id: "agent_steps_search_web_label",
+            defaultMessage: "Searched the web for {query}",
+          },
+          { query: subject(query) }
+        )
+      }
+      break
+    }
+    case "surfsense_read_web_page": {
+      const url = text(input.url)
+      if (url) {
+        return intl.formatMessage(
+          {
+            id: "agent_steps_read_web_page_label",
+            defaultMessage: "Read the web page {url}",
+          },
+          { url: subject(url) }
+        )
+      }
+      break
+    }
+    case "surfsense_read_youtube_transcript": {
+      const url = text(input.url)
+      if (url) {
+        return intl.formatMessage(
+          {
+            id: "agent_steps_read_youtube_transcript_label",
+            defaultMessage: "Read the transcript of {url}",
+          },
+          { url: subject(url) }
+        )
+      }
+      break
+    }
     case "surfsense_pdf_form":
       return intl.formatMessage(
         {

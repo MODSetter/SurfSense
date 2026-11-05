@@ -1,20 +1,20 @@
-import { cleanup, fireEvent } from "@testing-library/react"
+import { cleanup } from "@testing-library/react"
 import { afterEach, describe, expect, it } from "vitest"
 
 import { render } from "@/test-utils"
 
+import { SEARCH_SITES } from "./search-sites"
 import { SearchSiteLogo } from "./search-site-logo"
 
 afterEach(cleanup)
 
 describe("SearchSiteLogo", () => {
-  it("tries the next site's logo after the last one failed", () => {
-    const { container, rerender } = render(<SearchSiteLogo site="reddit" />)
-    fireEvent.error(container.querySelector("img") as HTMLImageElement)
-    expect(container.querySelector("img")).toBeNull()
-
-    rerender(<SearchSiteLogo site="instagram" />)
-
-    expect(container.querySelector("img")).not.toBeNull()
+  it("draws each site's built-in mark, with no image to load or fail", () => {
+    for (const site of SEARCH_SITES) {
+      const { container, unmount } = render(<SearchSiteLogo site={site} />)
+      expect(container.querySelector("svg")).not.toBeNull()
+      expect(container.querySelector("img")).toBeNull()
+      unmount()
+    }
   })
 })

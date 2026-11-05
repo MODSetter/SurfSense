@@ -1,5 +1,6 @@
 import type { DictationAdapter } from "@assistant-ui/react"
 
+import { messageLength } from "@/features/chat/mentions/mention-text"
 import { QUESTION_MAX_CHARS } from "@/features/chat/question-limit"
 
 import {
@@ -44,7 +45,7 @@ const IDLE: DictationView = { phase: "idle" }
 /** Room for dictated text: assistant-ui adds a space after text that lacks one. */
 function roomAfter(text: string): number {
   const separator = text && !text.endsWith(" ") ? 1 : 0
-  return QUESTION_MAX_CHARS - text.length - separator
+  return QUESTION_MAX_CHARS - messageLength(text) - separator
 }
 
 /**
@@ -104,7 +105,7 @@ export function createDictation({
 
   return {
     listen,
-    // The textarea goes read-only instead, keeping its focus and its keys.
+    // DictationKeysPlugin holds the box instead, keeping its focus and its keys.
     disableInputDuringDictation: false,
     subscribe: (listener) => {
       viewListeners.add(listener)

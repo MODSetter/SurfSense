@@ -12,25 +12,49 @@ import { RedditLogo } from "@/components/site/logos/reddit-logo";
 import { TiktokLogo } from "@/components/site/logos/tiktok-logo";
 import { WalmartLogo } from "@/components/site/logos/walmart-logo";
 import { WebCrawlLogo } from "@/components/site/logos/web-crawl-logo";
+import { WebSearchLogo } from "@/components/site/logos/web-search-logo";
 import { YoutubeLogo } from "@/components/site/logos/youtube-logo";
+import { BUSINESS_LAUNCHED } from "@/features/business-launch/business-launched.mts";
+
+type Chip = {
+	key: string;
+	name: string;
+	Logo: (props: React.SVGProps<SVGSVGElement>) => React.ReactElement;
+};
+
+function chip(name: string, Logo: Chip["Logo"], key = name): Chip {
+	return { key, name, Logo };
+}
+
+// From Business on, the three built into the app; each row names them twice to fill the panel.
+const BUILT_IN = [
+	chip("YouTube", YoutubeLogo),
+	chip("Web Search", WebSearchLogo),
+	chip("Web Crawl", WebCrawlLogo),
+];
+const BUILT_IN_ROWS = [BUILT_IN, [...BUILT_IN].reverse()].map((row) => [
+	...row,
+	...row.map((entry) => ({ ...entry, key: `${entry.key} again` })),
+]);
 
 // The ten platforms `/plugins` lists as shipping first, five to a row.
-const ROWS = [
+const PLATFORM_ROWS = [
 	[
-		{ name: "Reddit", Logo: RedditLogo },
-		{ name: "YouTube", Logo: YoutubeLogo },
-		{ name: "Instagram", Logo: InstagramLogo },
-		{ name: "TikTok", Logo: TiktokLogo },
-		{ name: "Google Maps", Logo: GoogleMapsLogo },
+		chip("Reddit", RedditLogo),
+		chip("YouTube", YoutubeLogo),
+		chip("Instagram", InstagramLogo),
+		chip("TikTok", TiktokLogo),
+		chip("Google Maps", GoogleMapsLogo),
 	],
 	[
-		{ name: "Google Search", Logo: GoogleSearchLogo },
-		{ name: "Indeed", Logo: IndeedLogo },
-		{ name: "Amazon", Logo: AmazonLogo },
-		{ name: "Walmart", Logo: WalmartLogo },
-		{ name: "Web Crawl", Logo: WebCrawlLogo },
+		chip("Google Search", GoogleSearchLogo),
+		chip("Indeed", IndeedLogo),
+		chip("Amazon", AmazonLogo),
+		chip("Walmart", WalmartLogo),
+		chip("Web Crawl", WebCrawlLogo),
 	],
 ];
+const ROWS = BUSINESS_LAUNCHED ? BUILT_IN_ROWS : PLATFORM_ROWS;
 const SECONDS = [30, 26];
 
 /** The first plugins drifting past over the meadow, alternate rows reversed. */
@@ -39,9 +63,9 @@ export function PluginsVisual() {
 		<ScenePanel scene={featuresScene} position="center 85%">
 			<PauseOffscreen className="flex flex-col gap-5 py-10">
 				{ROWS.map((row, index) => (
-					<ChipMarquee key={row[0].name} seconds={SECONDS[index]} reverse={index % 2 === 1}>
-						{row.map(({ name, Logo }) => (
-							<GlassChip key={name} icon={<Logo />} label={name} large />
+					<ChipMarquee key={row[0].key} seconds={SECONDS[index]} reverse={index % 2 === 1}>
+						{row.map(({ key, name, Logo }) => (
+							<GlassChip key={key} icon={<Logo />} label={name} large />
 						))}
 					</ChipMarquee>
 				))}

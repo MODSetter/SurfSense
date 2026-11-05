@@ -39,6 +39,8 @@ export type PluginListing = {
 	added: string | null;
 	homepage: string | null;
 	privacyPolicy: string | null;
+	/** Part of the app rather than a server to connect; no list entry carries it. */
+	builtIn?: true;
 };
 
 type Entry = Record<string, unknown>;

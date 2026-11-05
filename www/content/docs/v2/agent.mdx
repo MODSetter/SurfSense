@@ -9,7 +9,11 @@ Each step shows above the reply as one line, such as "Searched the sources for �
 
 ## What it can see
 
-The agent searches and reads only the sources ticked in the **Sources** panel. Ticks are not a security boundary: [code the agent writes](#code-the-agent-writes) runs with your user's permissions. Under your message the chat shows what it worked from, such as "Working from Plan.pdf" or "Working from 5 sources". Tick a folder to give it everything in that folder.
+The agent searches and reads only the sources ticked in the **Sources** panel, and any you [name with `@`](#name-a-source-with-). Ticks are not a security boundary: [code the agent writes](#code-the-agent-writes) runs with your user's permissions. Under your message the chat shows what it worked from, such as "Working from Plan.pdf" or "Working from 5 sources". Tick a folder to give it everything in that folder.
+
+## Name a source with @
+
+In an Agentic chat, type `@` in the composer and choose **Sources** or **Artifacts**, or keep typing a name to search both. Pick one and it sits in your message as a chip, which you delete as one piece, and the agent is pointed at it. The agent can read what you name even if it isn't ticked, and it can keep reading it for the rest of that chat. Your ticks in the **Sources** panel don't change.
 
 ## Office files and PDFs
 
@@ -43,6 +47,14 @@ In Studio, the copy reads "Revised copy of MSA_Acme.docx", with a count such as 
 
 The agent edits by quoting the text to change. If one edit can't be applied, nothing is saved, and the agent tries again. Word headers, footers and footnotes are not edited yet.
 
+## Jobs
+
+With a [job](/docs/v2/jobs) on your computer, such as **Security questionnaire**, the agent can run it. Tick the workbook and your policies, and ask it to fill in the questionnaire. Its step reads "Filled in" with the workbook's name, or "Started filling in" while the job still runs, and opens the copy in Studio when it's done.
+
+Once you've checked the copy's suggested answers, ask the agent to confirm them. That step reads "Confirmed suggested answers in" with the copy's name.
+
+A Basic (Q&A) chat can't run jobs. Use **Jobs** in the sidebar instead.
+
 ## PDF tools
 
 The agent can work on PDF sources and the PDFs it made. Each result is a new PDF in Studio.
@@ -63,6 +75,14 @@ Tick a spreadsheet (`.xlsx`) or `.csv` source and ask a question about its numbe
 Ask for a web page, such as an interactive report or an explainer, and the agent writes one. It appears in Studio as a **Web page** and opens in its viewer there.
 
 A page runs with no network: it can't load anything from the internet, and links inside it don't open from Studio's viewer. Ask for changes in the same chat for its next version.
+
+## Search and read the web
+
+When your question needs more than your sources, such as recent facts or a page you name, the agent can search the web and read pages and YouTube videos. It needs no license and no plugin. SurfSense reads each page on your own computer and connection, and a video's transcript in the language the video speaks. Searches go to a SearXNG server: SurfSense's own, unless you enter your organization's under **Web search** in **Settings › Network**.
+
+The first time the agent reaches a site, its step says the site isn't allowed yet and offers **Allow** with the site's name. Allow it, then ask the agent again. The site gets the page's address and your IP address, and it stays listed in **Settings › Network**, where you can turn it off. The agent writes the addresses it reads and the searches it sends, so they can carry words from your chats or documents, but nothing else from them is sent.
+
+Some pages can't be read without a browser, such as ones behind a login. Save those as a PDF from your browser and add the file to your sources.
 
 ## Studio formats
 
@@ -88,9 +108,9 @@ A plugin tool set to **Needs approval** stops the turn and asks in the chat, und
 
 Set each tool to **Always allow**, **Needs approval** or **Blocked** in **Settings › Plugins**. See [Plugins](/docs/v2/plugins).
 
-## Plugins with @ mentions
+## Plugins
 
-In an Agentic chat, type `@` in the composer to list your ready plugins, and pick one to make the agent use it for this message. The agent can use connected plugins without a mention too.
+The agent can use your connected plugins whenever a request needs them. To point it at one, say so in your message, such as "use Linear".
 
 If a plugin can't be used, the reply says so above its steps, such as "Couldn’t reach Notes" or "Sign in to Notes again". A plugin step's full result can be saved as a note with **Save to Sources**.
 

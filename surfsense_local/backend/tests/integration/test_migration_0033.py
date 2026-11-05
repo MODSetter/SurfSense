@@ -1,11 +1,10 @@
-"""Revision 0033: a connection can be ElevenLabs' own."""
+"""Revision 0033: a firm's settings for each job, kept across its runs."""
 
 from pathlib import Path
 
 import pytest
 from alembic.config import Config
-from sqlalchemy import Engine, text
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import Engine, inspect, text
 
 from alembic import command
 from shared.db import create_db_engine
@@ -14,7 +13,6 @@ pytestmark = pytest.mark.integration
 
 
 def _config(engine: Engine) -> Config:
-    """Alembic pointed at this engine."""
     config = Config()
     config.set_main_option(
         "script_location", str(Path(__file__).parents[2] / "alembic")
@@ -23,70 +21,23 @@ def _config(engine: Engine) -> Config:
     return config
 
 
-def _insert(engine: Engine, label: str, auth_kind: str) -> None:
-    """One connection row, straight into the table."""
-    with engine.begin() as connection:
-        connection.execute(
-            text(
-                "INSERT INTO provider_connections"
-                "(label, provider, base_url, auth_kind) "
-                "VALUES (:label, 'openai_compatible', 'https://x.example', :kind)"
-            ),
-            {"label": label, "kind": auth_kind},
-        )
-
-
-def _kinds(engine: Engine) -> list[str]:
-    """Each connection's `auth_kind`, by label."""
-    with engine.connect() as connection:
-        return [
-            row[0]
-            for row in connection.execute(
-                text("SELECT auth_kind FROM provider_connections ORDER BY label")
-            )
-        ]
-
-
-@pytest.fixture
-def at_0032(tmp_path: Path) -> Engine:
-    """A database one revision short."""
+def test_job_settings_come_and_go_with_the_revision(tmp_path: Path) -> None:
+    """The table takes a job's settings, and goes again on downgrade."""
     engine = create_db_engine(tmp_path / "surfsense.db")
-    command.upgrade(_config(engine), "0032")
-    return engine
-
-
-def test_upgrading_takes_elevenlabs_and_keeps_what_was_chosen(at_0032: Engine) -> None:
-    """Rebuilding the table cascades through selections unless they are kept aside."""
-    engine = at_0032
-    _insert(engine, "server", "api_key")
+    config = _config(engine)
+    command.upgrade(config, "0033")
     with engine.begin() as connection:
         connection.execute(
             text(
-                "INSERT INTO selected_models"
-                "(model_type, provider, connection_id, name) "
-                "VALUES ('audio_gen', 'openai_compatible', 1, 'tts-1')"
+                "INSERT INTO job_settings(job, settings, checker) "
+                """VALUES ('security-questionnaire', '{"provider_na": true}', NULL)"""
             )
         )
-    with pytest.raises(IntegrityError):
-        _insert(engine, "too early", "elevenlabs")
+        stored = connection.execute(
+            text("SELECT settings, updated_at FROM job_settings")
+        ).one()
 
-    command.upgrade(_config(engine), "0033")
+    assert stored.settings == '{"provider_na": true}' and stored.updated_at
 
-    _insert(engine, "voices", "elevenlabs")
-    assert _kinds(engine) == ["api_key", "elevenlabs"]
-    with engine.connect() as connection:
-        assert connection.execute(
-            text("SELECT connection_id, name FROM selected_models")
-        ).one() == (1, "tts-1")
-
-
-def test_downgrading_takes_elevenlabs_connections_with_it(at_0032: Engine) -> None:
-    """The old check cannot hold one, and the rest stay."""
-    engine = at_0032
-    command.upgrade(_config(engine), "0033")
-    _insert(engine, "server", "api_key")
-    _insert(engine, "voices", "elevenlabs")
-
-    command.downgrade(_config(engine), "0032")
-
-    assert _kinds(engine) == ["api_key"]
+    command.downgrade(config, "0032")
+    assert "job_settings" not in inspect(engine).get_table_names()
