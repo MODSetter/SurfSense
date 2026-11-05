@@ -9,7 +9,7 @@ from typing import Any, cast
 import anyio
 
 from license.email.address import normalize_email
-from license.keygen import LicensePlan
+from license.keygen import COUNTED_PLANS, LicensePlan
 from license.models import LicenseIssueError
 from license.settings import config
 
@@ -41,6 +41,37 @@ def customer_id(checkout_session: Any) -> str | None:
     if isinstance(customer, str):
         return customer or None
     return str(getattr(customer, "id", "")) or None
+
+
+def subscription_id(checkout_session: Any) -> str | None:
+    """The subscription a subscription-mode checkout started, or ``None``."""
+    subscription = getattr(checkout_session, "subscription", None)
+    if isinstance(subscription, str):
+        return subscription or None
+    return str(getattr(subscription, "id", "") or "") or None
+
+
+# The Payment Link's custom text field; Stripe allows only alphanumeric keys.
+FIRM_FIELD_KEY = "firm"
+_FIRM_MAX_LENGTH = 120
+
+
+def _field(obj: Any, name: str) -> Any:
+    return obj.get(name) if isinstance(obj, dict) else getattr(obj, name, None)
+
+
+def firm_name(checkout_session: Any) -> str | None:
+    """The firm's name as typed at checkout, tidied, or ``None`` when left out.
+
+    Never a reason to refuse a purchase: the job screens fall back to the address.
+    """
+    for custom_field in getattr(checkout_session, "custom_fields", None) or []:
+        if _field(custom_field, "key") != FIRM_FIELD_KEY:
+            continue
+        value = _field(_field(custom_field, "text") or {}, "value")
+        name = " ".join(str(value or "").split())[:_FIRM_MAX_LENGTH]
+        return name or None
+    return None
 
 
 async def _line_items(checkout_session: Any, *, stripe_client: Any) -> list[Any]:
@@ -97,35 +128,58 @@ async def resolve_license_plan(
     2. The line item's price ID, matched against the configured license
        prices. Payment Links carry no session metadata, and supporting both
        means the Payment-Link-vs-API decision never blocks this code.
+
+    The count is a team's seats or a Business license's people.
     """
     metadata = _metadata_of(checkout_session)
     if metadata.get("purchase_type") == "license":
         raw_plan = metadata.get("plan")
-        if raw_plan not in {"individual", "team"}:
+        if raw_plan not in {"individual", "team", "business"}:
             raise LicenseIssueError(f"Unsupported license plan: {raw_plan!r}")
         plan = cast(LicensePlan, raw_plan)
-        if plan != "team":
+        if plan not in COUNTED_PLANS:
             return plan, None
         try:
             quantity = int(metadata["quantity"])
         except (KeyError, TypeError, ValueError) as exc:
-            raise LicenseIssueError("Team license quantity must be an integer") from exc
-        if quantity < 1:
-            raise LicenseIssueError("Team license quantity must be at least 1")
-        return plan, quantity
+            raise LicenseIssueError(
+                f"{plan.title()} license quantity must be an integer"
+            ) from exc
+        return plan, _at_least_one(plan, quantity)
 
-    individual_price = config.STRIPE_PRICE_LICENSE_INDIVIDUAL
-    team_price = config.STRIPE_PRICE_LICENSE_TEAM
-    if not (individual_price or team_price):
+    prices: dict[str, LicensePlan] = {
+        price: plan
+        for price, plan in (
+            (config.STRIPE_PRICE_LICENSE_INDIVIDUAL, "individual"),
+            (config.STRIPE_PRICE_LICENSE_TEAM, "team"),
+            (config.STRIPE_PRICE_LICENSE_BUSINESS, "business"),
+        )
+        if price
+    }
+    if not prices:
         return None
 
     for line_item in await _line_items(checkout_session, stripe_client=stripe_client):
-        price_id = _price_id(line_item)
-        if individual_price and price_id == individual_price:
-            return "individual", None
-        if team_price and price_id == team_price:
-            quantity = int(getattr(line_item, "quantity", 0) or 0)
-            if quantity < 1:
-                raise LicenseIssueError("Team license quantity must be at least 1")
-            return "team", quantity
+        plan = prices.get(_price_id(line_item))
+        if plan is None:
+            continue
+        if plan not in COUNTED_PLANS:
+            return plan, None
+        quantity = int(getattr(line_item, "quantity", 0) or 0)
+        return plan, _at_least_one(plan, quantity)
     return None
+
+
+def license_prices_configured() -> bool:
+    """Whether any price can name a plan; without one no line item is fetched."""
+    return bool(
+        config.STRIPE_PRICE_LICENSE_INDIVIDUAL
+        or config.STRIPE_PRICE_LICENSE_TEAM
+        or config.STRIPE_PRICE_LICENSE_BUSINESS
+    )
+
+
+def _at_least_one(plan: LicensePlan, quantity: int) -> int:
+    if quantity < 1:
+        raise LicenseIssueError(f"{plan.title()} license quantity must be at least 1")
+    return quantity

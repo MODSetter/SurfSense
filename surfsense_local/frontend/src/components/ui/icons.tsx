@@ -84,6 +84,8 @@ import {
   Settings02Icon,
   ShuffleIcon as ShuffleIconData,
   AiSparklesIcon as AiSparklesIconData,
+  LibraryBigIcon as LibraryBigIconData,
+  Shapes01Icon as Shapes01IconData,
   StarAward02Icon as StarAward02IconData,
   SquareDashedMousePointerIcon as SquareDashedMousePointerIconData,
   StopCircleIcon,
@@ -221,6 +223,8 @@ export const LayoutAlignRightIcon = createIcon(LayoutAlignRightIconData)
 export const Settings2Icon = createIcon(Settings02Icon)
 export const ShuffleIcon = createIcon(ShuffleIconData)
 export const AiSparklesIcon = createIcon(AiSparklesIconData)
+export const LibraryBigIcon = createIcon(LibraryBigIconData)
+export const Shapes01Icon = createIcon(Shapes01IconData)
 export const StarAward02Icon = createIcon(StarAward02IconData)
 export const SunIcon = createIcon(Sun03IconData)
 export const UnplugIcon = createIcon(UnplugIconData)

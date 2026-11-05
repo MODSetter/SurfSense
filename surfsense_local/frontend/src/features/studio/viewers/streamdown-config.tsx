@@ -1,5 +1,5 @@
 import { createMathPlugin } from "@streamdown/math"
-import type { LinkSafetyConfig } from "streamdown"
+import { defaultRehypePlugins, type LinkSafetyConfig } from "streamdown"
 
 import { ExternalLinkDialog } from "@/features/external-links/external-link-dialog"
 
@@ -15,6 +15,28 @@ export const streamdownPlugins = { code: codeHighlighter, math }
 // partial state of a growing block. The same math instance, or every block
 // re-parses when a finished reply switches to the set above.
 export const streamingStreamdownPlugins = { math }
+
+// Streamdown's default rehype pass is raw, sanitize, then harden with every link
+// and image allowed. For text from a model or a source: a remote image would
+// fetch without egress consent, and only ordinary links stay links.
+type RehypePluggable = (typeof defaultRehypePlugins)[string]
+const [harden] = defaultRehypePlugins.harden as Extract<
+  RehypePluggable,
+  readonly unknown[]
+>
+export const UNTRUSTED_REHYPE_PLUGINS: RehypePluggable[] = [
+  defaultRehypePlugins.raw,
+  defaultRehypePlugins.sanitize,
+  [
+    harden,
+    {
+      allowedLinkPrefixes: ["*"],
+      allowedImagePrefixes: [],
+      allowedProtocols: ["http", "https", "mailto"],
+      allowDataImages: false,
+    },
+  ] as RehypePluggable,
+]
 
 // Every link in rendered content asks first, in the app's own popup rather than
 // Streamdown's: translated, and opening through the desktop app's confirmed-link

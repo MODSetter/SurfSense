@@ -27,7 +27,7 @@ def test_the_last_exchange_is_searched_with_the_new_message() -> None:
         {"id": "i", "type": "idle", "outcome": "succeeded"},
     ]
 
-    asked = asked_of(messages, "now the other one", frozenset())
+    asked = asked_of(messages, "now the other one")
 
     assert asked.message == "now the other one"
     assert "Q3 issues in Linear" in asked.previous
@@ -44,14 +44,13 @@ def test_tools_used_since_the_last_compaction_stay_held() -> None:
         _step(_call("gcal_list_events"), _call("read")),
     ]
 
-    asked = asked_of(messages, "third", frozenset({"notes"}))
+    asked = asked_of(messages, "third")
 
     assert asked.used == frozenset({"gcal_list_events", "read"})
-    assert asked.mentioned == frozenset({"notes"})
 
 
 def test_a_new_thread_asks_with_its_message_alone() -> None:
     """No turn before it, and no tools used."""
-    asked = asked_of([], "hello", frozenset())
+    asked = asked_of([], "hello")
 
     assert (asked.previous, asked.used) == ("", frozenset())

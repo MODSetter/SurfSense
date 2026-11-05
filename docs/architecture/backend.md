@@ -9,7 +9,7 @@
 | Folder | Holds |
 |---|---|
 | [`server/`](../../backend/server/) | The process: `/health`, each module's routes mounted beside it, the image's `Dockerfile` and `entrypoint.sh`, and every setting in `.env.example` |
-| [`license/`](../../backend/license/) | The license portal at `/api/v1`: download, resend, trial and Stripe's webhook ([portal](license/portal.md)), served only when `KEYGEN_API_TOKEN` is set |
+| [`license/`](../../backend/license/) | The license portal at `/api/v1`: download, resend, trial, the app's refresh and Stripe's webhook ([portal](license/portal.md)), served only when `KEYGEN_API_TOKEN` is set |
 | [`mailer/`](../../backend/mailer/) | Mail over SMTP; the license emails are its first user |
 | [`plugins/host/`](../../backend/plugins/host/) | Serves each plugin at `/<id>/mcp`, with Stop, the usage meter and the `/license` check ([plugin host](plugin-host.md)) |
 | [`plugins/mcp_server/`](../../backend/plugins/mcp_server/) | What each plugin's server builds on: who may call it, progress, results |

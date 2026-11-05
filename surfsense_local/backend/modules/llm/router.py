@@ -17,6 +17,7 @@ from modules.llm.activity import (
     model_key,
 )
 from modules.llm.capability import capability_of
+from modules.llm.capability.modes.router import router as modes_router
 from modules.llm.capability.read import capability_read
 from modules.llm.catalog.local.dependencies import LocalCatalogDep
 from modules.llm.catalog.local.engines.engine import LocalEngine
@@ -68,6 +69,7 @@ router.include_router(connections_router)
 router.include_router(voices_router)
 router.include_router(language_router)
 router.include_router(transcription_router)
+router.include_router(modes_router)
 
 
 @router.get(

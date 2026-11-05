@@ -107,3 +107,115 @@ def test_idempotency_key_is_carried_through():
     )
 
     assert message.idempotency_key == "lic_1"
+
+
+# Business ---------------------------------------------------------------------
+
+INDIVIDUAL_PROMISES = ("works on every machine", "never contacts a license server")
+
+
+def business(**fields):
+    from license.email.message import BusinessCopy
+
+    return BusinessCopy(**fields)
+
+
+@pytest.mark.parametrize("kind", ["purchase", "resend", "trial", "renewal"])
+def test_no_business_mail_makes_the_individual_promises(kind):
+    """The app fetches a renewed Business file, and Business counts people, not machines."""
+    message = build_license_email(
+        kind, to="a@b.test", certificates=("CERT",), business=business(people=4)
+    )
+
+    for promise in INDIVIDUAL_PROMISES:
+        assert promise not in message.text_body
+    assert "Settings -> License" in message.text_body
+
+
+def test_the_business_purchase_names_the_firm_the_people_and_the_portal(monkeypatch):
+    from license.settings import config
+
+    monkeypatch.setattr(config, "STRIPE_CUSTOMER_PORTAL_URL", "https://portal.test/p")
+
+    message = build_license_email(
+        "purchase",
+        to="a@b.test",
+        certificates=("CERT",),
+        business=business(firm="Acme LLP", people=4),
+    )
+
+    assert message.subject == "Your SurfSense Business license"
+    assert "SurfSense Business for Acme LLP" in message.text_body
+    assert "It covers 4 people" in message.text_body
+    assert "renews automatically every year" in message.text_body
+    assert "https://portal.test/p" in message.text_body
+
+
+def test_a_solo_purchase_says_one_person():
+    message = build_license_email(
+        "purchase", to="a@b.test", certificates=("CERT",), business=business(people=1)
+    )
+
+    assert "It covers one person." in message.text_body
+    assert "Share the file" not in message.text_body
+
+
+def test_without_a_portal_link_the_business_mail_says_to_reply(monkeypatch):
+    from license.settings import config
+
+    monkeypatch.setattr(config, "STRIPE_CUSTOMER_PORTAL_URL", "")
+
+    message = build_license_email(
+        "renewal", to="a@b.test", certificates=("CERT",), business=business()
+    )
+
+    assert "reply to this email" in message.text_body
+
+
+def test_the_business_trial_says_what_stops_and_names_no_portal(monkeypatch):
+    from license.settings import config
+
+    monkeypatch.setattr(config, "LICENSE_TRIAL_DAYS", 14)
+    monkeypatch.setattr(config, "STRIPE_CUSTOMER_PORTAL_URL", "https://portal.test/p")
+
+    message = build_license_email(
+        "trial", to="a@b.test", certificates=("CERT",), business=business()
+    )
+
+    assert message.subject == "Your SurfSense Business 14-day trial license"
+    assert "only new job runs stop" in message.text_body
+    assert "https://portal.test/p" not in message.text_body
+
+
+def test_the_individual_purchase_mail_is_unchanged():
+    """Business copy is for Business licenses only; Individual buyers keep what they read."""
+    message = build_license_email("purchase", to="a@b.test", certificates=("CERT",))
+
+    for promise in INDIVIDUAL_PROMISES:
+        assert promise in message.text_body
+
+
+def test_an_individual_renewal_asks_for_the_file_to_be_imported():
+    """The app does not fetch it yet, so the mail is how the renewal arrives."""
+    message = build_license_email("renewal", to="a@b.test", certificates=("CERT",))
+
+    assert message.subject == "Your SurfSense license has renewed"
+    assert "replaces the old file" in message.text_body
+    assert "Business" not in message.text_body
+
+
+def test_a_business_copy_is_only_for_licenses_that_unlock_jobs():
+    from license.email.message import BusinessCopy
+    from license.models import IssuedLicense
+
+    def issued(plan, jobs=(), max_users=None):
+        return IssuedLicense("lic", "CERT", plan, "a@b.test", max_users, "Acme", jobs)
+
+    assert BusinessCopy.of(issued("individual")) is None
+    assert BusinessCopy.of(issued("trial")) is None
+    assert BusinessCopy.of(issued("trial", ("JOB_QUESTIONNAIRE",))) == BusinessCopy(
+        firm="Acme", people=None
+    )
+    assert BusinessCopy.of(issued("business", ("JOB_QUESTIONNAIRE",), 3)) == (
+        BusinessCopy(firm="Acme", people=3)
+    )
