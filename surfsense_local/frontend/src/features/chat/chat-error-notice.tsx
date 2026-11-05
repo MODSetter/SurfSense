@@ -16,8 +16,8 @@ function actionFor(error: ChatTurnError): Action {
     case "subscription_sign_in":
     case "provider_not_found":
     case "model_cannot_run":
-    // A retry meets the same refusal; another model is the fix in this app.
     case "provider_refused":
+      // A refusal meets the same answer on a retry; another model is the fix here.
       return "model-setup"
     case "network":
       // A bad base URL is a Model setup fix; a local runtime that isn't
