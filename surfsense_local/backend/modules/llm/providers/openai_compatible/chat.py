@@ -6,6 +6,7 @@ import httpx
 
 from modules.llm.connections.conversation_fields import conversation_fields
 from modules.llm.connections.key_headers import key_headers
+from modules.llm.connections.model_list_url import model_list_url
 from modules.llm.connections.service import parse_models
 from modules.llm.profile import Fingerprint, from_remote
 from modules.llm.providers.prompt_reuse import chunk_reuse, log_reuse
@@ -79,14 +80,14 @@ class OpenAICompatibleChatProvider:
     async def health(self) -> bool:
         try:
             async with self._client() as client:
-                reply = await client.get(f"{self._base_url}/models")
+                reply = await client.get(model_list_url(self._base_url))
                 return reply.status_code == 200
         except httpx.HTTPError:
             return False
 
     async def models(self) -> list[Model]:
         async with self._client() as client:
-            reply = await client.get(f"{self._base_url}/models")
+            reply = await client.get(model_list_url(self._base_url))
             reply.raise_for_status()
             discovered = parse_models(reply.json())
         return [
@@ -116,7 +117,7 @@ class OpenAICompatibleChatProvider:
     async def inspect(self, name: str) -> Fingerprint:
         """What this endpoint's listing reveals about one model, for prompt tiering."""
         async with self._client() as client:
-            reply = await client.get(f"{self._base_url}/models")
+            reply = await client.get(model_list_url(self._base_url))
             reply.raise_for_status()
             payload = reply.json()
         rows = payload.get("data") if isinstance(payload, dict) else None
