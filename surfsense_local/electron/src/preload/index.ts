@@ -116,6 +116,24 @@ contextBridge.exposeInMainWorld("surfsense", {
     openDataFolder: (): Promise<string> =>
       ipcRenderer.invoke("about:open-data-folder"),
   },
+  // Where the models and data live, and moving them. Absent where no other drive
+  // can be reached (a confined snap); main opens the picker and holds the plan.
+  storage: (ipcRenderer.sendSync("storage:supported") as boolean)
+    ? {
+        state: () => ipcRenderer.invoke("storage:state"),
+        choose: (kind: "data" | "models") => ipcRenderer.invoke("storage:choose", kind),
+        planDefault: (kind: "data" | "models") =>
+          ipcRenderer.invoke("storage:plan-default", kind),
+        start: (): Promise<boolean> => ipcRenderer.invoke("storage:start"),
+        cancel: (): Promise<void> => ipcRenderer.invoke("storage:cancel"),
+        restart: (): Promise<void> => ipcRenderer.invoke("storage:restart"),
+        onProgress: (listener: (progress: unknown) => void): (() => void) => {
+          const wrapped = (_event: unknown, progress: unknown) => listener(progress)
+          ipcRenderer.on("storage:progress", wrapped)
+          return () => ipcRenderer.removeListener("storage:progress", wrapped)
+        },
+      }
+    : undefined,
   sessionLog: {
     read: (): Promise<string[]> => ipcRenderer.invoke("session-log:read"),
   },
