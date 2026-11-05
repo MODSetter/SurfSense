@@ -137,7 +137,7 @@ describe("app bootstrap", () => {
     expect(setup.className).toContain("py-1")
     expect(setup.className).toContain("text-white")
     const message = screen.getByRole("textbox", { name: "Message" })
-    expect(boxHeld(message)).toBe(true)
+    await waitFor(() => expect(boxHeld(message)).toBe(true))
     // No chat remembered from before, so launch opens a new one, centered.
     expect(message.getAttribute("aria-placeholder")).toBe(
       "Turn your sources into answers"
@@ -238,8 +238,10 @@ describe("app bootstrap", () => {
       )
       expect(screen.queryByRole("button", { name: "Set up model" })).toBeNull()
       expect(screen.getByText("anthropic/claude-fable-5")).toBeTruthy()
-      expect(boxHeld(screen.getByRole("textbox", { name: "Message" }))).toBe(
-        true
+      await waitFor(() =>
+        expect(boxHeld(screen.getByRole("textbox", { name: "Message" }))).toBe(
+          true
+        )
       )
       const notice = reasonText.closest<HTMLElement>("[role=status]")!
       expect(
@@ -304,7 +306,7 @@ describe("app bootstrap", () => {
     const notice = reason.closest<HTMLElement>("[role=status]")!
     expect(screen.queryByRole("button", { name: "Set up model" })).toBeNull()
     const message = screen.getByRole("textbox", { name: "Message" })
-    expect(boxHeld(message)).toBe(true)
+    await waitFor(() => expect(boxHeld(message)).toBe(true))
     expect(message.getAttribute("aria-placeholder")).toBe(
       "Allow sending to openrouter.ai to chat"
     )
@@ -322,7 +324,7 @@ describe("app bootstrap", () => {
         screen.queryByText("Sending data to openrouter.ai is off.")
       ).toBeNull()
     )
-    expect(boxHeld(message)).toBe(false)
+    await waitFor(() => expect(boxHeld(message)).toBe(false))
   }, 15_000)
 
   it("sends the user to Network, not the model list, when egress is off", async () => {
@@ -393,6 +395,6 @@ describe("app bootstrap", () => {
 
     await waitFor(() => expect(screen.queryByText(unreadable)).toBeNull())
     const message = screen.getByRole("textbox", { name: "Message" })
-    expect(boxHeld(message)).toBe(false)
+    await waitFor(() => expect(boxHeld(message)).toBe(false))
   }, 15_000)
 })
