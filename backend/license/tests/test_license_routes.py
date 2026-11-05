@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import re
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 
 import httpx2
 import pytest
@@ -32,19 +33,47 @@ def snake(key: str) -> str:
 
 
 class FakeKeygen:
-    """The license endpoints the portal calls, over an in-memory store."""
+    """The license endpoints the portal calls, over an in-memory store.
+
+    Validation answers as Keygen's does for a user-less, non-strict license:
+    BANNED, SUSPENDED, EXPIRED or VALID, and NOT_FOUND with no license.
+    """
 
     def __init__(self) -> None:
         self.licenses: dict[str, dict] = {}
         self.requests: list[httpx2.Request] = []
         self.down = False
 
-    def add(self, license_id: str, status: str = "ACTIVE", **metadata: str) -> None:
+    def add(
+        self,
+        license_id: str,
+        status: str = "ACTIVE",
+        *,
+        policy: str | None = None,
+        expiry: str | None = None,
+        max_users: int | None = None,
+        **metadata: str,
+    ) -> None:
         self.licenses[license_id] = {
             "id": license_id,
-            "attributes": {"metadata": metadata, "status": status},
-            "policy": None,
+            "attributes": {
+                "key": f"KEY-{license_id}",
+                "metadata": metadata,
+                "status": status,
+                "expiry": expiry,
+                "maxUsers": max_users,
+            },
+            "policy": policy,
         }
+
+    def writes(self, license_id: str) -> list[httpx2.Request]:
+        """Every request that changed this license: an update, a suspension."""
+        return [
+            request
+            for request in self.requests
+            if license_id in request.url.path
+            and (request.method == "PATCH" or request.url.path.endswith("/suspend"))
+        ]
 
     def handle(self, request: httpx2.Request) -> httpx2.Response:
         self.requests.append(request)
@@ -55,6 +84,18 @@ class FakeKeygen:
             return self._list(request)
         if rest == "" and request.method == "POST":
             return self._create(json.loads(request.content)["data"])
+        if rest == "/actions/validate-key":
+            key = json.loads(request.content)["meta"]["key"]
+            return self._validation(
+                next(
+                    (
+                        record
+                        for record in self.licenses.values()
+                        if record["attributes"]["key"] == key
+                    ),
+                    None,
+                )
+            )
         license_id, _, action = rest.strip("/").partition("/")
         record = self.licenses.get(license_id)
         if record is None:
@@ -64,9 +105,32 @@ class FakeKeygen:
             return httpx2.Response(
                 200, json={"data": {"attributes": {"certificate": certificate}}}
             )
+        if action == "actions/validate":
+            return self._validation(record)
         if action == "actions/suspend":
             record["attributes"]["status"] = "SUSPENDED"
+        if request.method == "PATCH":
+            # Keygen replaces metadata whole, like every other attribute.
+            record["attributes"].update(
+                json.loads(request.content)["data"]["attributes"]
+            )
         return httpx2.Response(200, json={"data": record})
+
+    @staticmethod
+    def _validation(record: dict | None) -> httpx2.Response:
+        if record is None:
+            code = "NOT_FOUND"
+        elif record["attributes"]["status"] in {"BANNED", "SUSPENDED"}:
+            code = record["attributes"]["status"]
+        elif (expiry := record["attributes"].get("expiry")) and datetime.fromisoformat(
+            expiry
+        ) < datetime.now(UTC):
+            code = "EXPIRED"
+        else:
+            code = "VALID"
+        return httpx2.Response(
+            200, json={"data": record, "meta": {"valid": code == "VALID", "code": code}}
+        )
 
     def _list(self, request: httpx2.Request) -> httpx2.Response:
         params = request.url.params
@@ -97,7 +161,13 @@ class FakeKeygen:
         if license_id in self.licenses:
             return httpx2.Response(422, json={"errors": [{"code": "ID_CONFLICT"}]})
         policy = data["relationships"]["policy"]["data"]["id"]
-        attributes = {**data["attributes"], "status": "ACTIVE"}
+        attributes = {
+            "expiry": None,
+            "maxUsers": None,
+            **data["attributes"],
+            "key": f"KEY-{license_id}",
+            "status": "ACTIVE",
+        }
         self.licenses[license_id] = {
             "id": license_id,
             "attributes": attributes,
@@ -436,6 +506,45 @@ async def test_an_unknown_checkout_session_has_no_file(
         reply = await client.get("/license/file", params={"session_id": "cs_unknown"})
 
     assert reply.status_code == 404
+
+
+async def test_the_success_page_serves_no_file_for_a_refunded_purchase(
+    mailer: Mailer, keygen_store: FakeKeygen
+) -> None:
+    """A refund suspends the license, and Keygen would still check a file out."""
+    keygen_store.add(
+        "lic-refunded",
+        status="SUSPENDED",
+        email="buyer@example.com",
+        checkoutSessionId="cs_refunded",
+    )
+
+    async with portal() as client:
+        reply = await client.get("/license/file", params={"session_id": "cs_refunded"})
+
+    assert reply.status_code == 404
+    assert not any(r.url.path.endswith("/check-out") for r in keygen_store.requests)
+
+
+async def test_every_file_is_checked_out_right_after_its_license_validates(
+    mailer: Mailer, keygen_store: FakeKeygen
+) -> None:
+    keygen_store.add("lic-one", email="buyer@example.com")
+    keygen_store.add("lic-two", email="buyer@example.com")
+
+    await post("/license/resend", "buyer@example.com")
+
+    actions = [
+        request.url.path.split("/licenses/", 1)[1]
+        for request in keygen_store.requests
+        if "/actions/" in request.url.path
+    ]
+    assert actions == [
+        "lic-one/actions/validate",
+        "lic-one/actions/check-out",
+        "lic-two/actions/validate",
+        "lic-two/actions/check-out",
+    ]
 
 
 # rate limits ----------------------------------------------------------------

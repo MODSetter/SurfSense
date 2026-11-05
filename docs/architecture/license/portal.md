@@ -3,7 +3,7 @@
 The one [backend](../backend.md) sells, delivers and re-delivers the desktop app's license file with no accounts and no license table. Stripe and Keygen are the system of record: every search is a filter over Keygen license metadata, and the one direct read is by a derived id, and the license routes take no session, read no user table and touch no Postgres. Control of an inbox replaces the login, because a license is only ever mailed to the address it is registered to. Where having no table would cost a guarantee, the code moves the guarantee into Keygen instead of adding a table.
 
 **Code:** [`backend/license/`](../../../backend/license/), [`backend/mailer/`](../../../backend/mailer/), [`www/app/(home)/license/`](../../../www/app/\(home\)/license/)
-**Decisions:** [ADR 0024](../../adr/0024-portal-without-accounts.md), [ADR 0019](../../adr/0019-offline-licenses.md)
+**Decisions:** [ADR 0024](../../adr/0024-portal-without-accounts.md), [ADR 0019](../../adr/0019-offline-licenses.md), ADR 0080 (one Business license, priced per person; on the `docs/business-license` branch)
 
 What the routes produce is [contract 1](../../contracts/01-license-file.md); the [desktop app](app.md) consumes it.
 
@@ -16,19 +16,20 @@ All under `/api/v1`, unauthenticated, FastAPI routers that [`portal.py`](../../.
 | `GET /license/file?session_id=` | the `.lic` for that checkout session, or 404 |
 | `POST /license/resend` `{email}` | 200 with the same body whatever it found |
 | `POST /license/trial` `{email, channel?}` | 200 once the trial is mailed |
-| `POST /stripe/webhook` | fulfilment and refunds |
+| `POST /license/refresh` `{key}` | the license's current `.lic`, for the app after a renewal |
+| `POST /stripe/webhook` | purchases, renewals, seat changes, ended subscriptions, refunds and disputes |
 
-Both POSTs validate `email` as an email address and answer 422 for anything else. The trial's optional `channel` is the site's acquisition tag ([funnel events](#funnel-events)); it is kept only when it matches `^[a-z0-9_-]{1,40}$` and is dropped otherwise, never refused, so a bad tag cannot cost anyone a trial.
+Resend and trial validate `email` as an email address and answer 422 for anything else. The trial's optional `channel` is the site's acquisition tag ([funnel events](#funnel-events)); it is kept only when it matches `^[a-z0-9_-]{1,40}$` and is dropped otherwise, never refused, so a bad tag cannot cost anyone a trial.
 
 ### `GET /license/file`
 
-The success page's download. It lists Keygen licenses whose `metadata[checkoutSessionId]` is `session_id` and checks out a fresh file. On a miss, when Stripe is configured, it retrieves the session and runs the same fulfilment as the webhook, because the buyer lands on the success page seconds after paying and `checkout.session.completed` can arrive later. A session that is missing or is not a license purchase is 404, and a Keygen failure is 500. `session_id` is required, since there is no signed-in user to fall back to. The answer is `text/plain` with `Content-Disposition: attachment; filename="surfsense.lic"`. The route needs no mail, which is why the success page, not the email, is the reliable delivery path.
+The success page's download. It lists Keygen licenses whose `metadata[checkoutSessionId]` is `session_id` and checks out a fresh file, unless the license no longer validates ([check-out](#keygen-as-the-database)), as after a refund, which reads as a miss. On a miss, when Stripe is configured, it retrieves the session and runs the same fulfilment as the webhook, because the buyer lands on the success page seconds after paying and `checkout.session.completed` can arrive later. A session that is missing or is not a license purchase is 404, and a Keygen failure is 500. `session_id` is required, since there is no signed-in user to fall back to. The answer is `text/plain` with `Content-Disposition: attachment; filename="surfsense.lic"`. The route needs no mail, which is why the success page, not the email, is the reliable delivery path.
 
 ### `POST /license/resend`
 
 1. `503` when `SMTP_ENABLED` is false or the SMTP configuration is invalid, before anything else.
 2. The rate limits below; `429` when either bucket is empty.
-3. List licenses by `metadata[email]`, skip `SUSPENDED` and `BANNED` ones, check out a fresh file for each and mail them all in one message.
+3. List licenses by `metadata[email]`, skip `SUSPENDED` and `BANNED` ones, check out a fresh file for each that still validates and mail them all in one message, in the Business copy when any of them is a Business license or trial.
 4. `200` with "If a license is registered to that address, it is on its way.", whether it found three licenses or none, and also when the recipient's server refused the address.
 
 After the success page this is the only way to get a license back, so an answer that varied with the outcome would make it an oracle for who is a customer. Skipping suspended licenses keeps it consistent with refunds. A transient mail failure or a Keygen failure answers 503.
@@ -44,12 +45,29 @@ The file is never in the response. Delivery to a real inbox is what makes one tr
 
 The expiry is `max(now, LICENSE_TRIAL_EXPIRY_FLOOR) + LICENSE_TRIAL_DAYS`, 14 days by default. The floor is for trials issued before the first plugin ships, so the wait does not eat the trial. Unset, the rule is plain "days from now"; an unparseable floor is ignored with a warning.
 
+`LICENSE_TRIAL_BUSINESS`, off by default, switches the route to Business's trial on launch day. The trial is then a `trial` on the `KEYGEN_POLICY_BUSINESS_TRIAL` policy, with `jobs` in its metadata, mailed in the Business copy. Its derived id is `business-trial:<folded email>` and its `trialKey` check filters on that policy, so a person who took the earlier trial, which unlocked only the scrapers, can still try the job once. The plan stays `trial`, so the app and the [cohort report](#cohort-report) count it as one. With the switch on and the policy unset, the route answers 503 before any Keygen call, since a trial on the old policy would spend the address on a trial without the job.
+
+### `POST /license/refresh`
+
+The app's way to pick up a renewal: a renewal extends the same key, so the app sends the key it holds and gets a fresh file carrying the new expiry ([contract 1](../../contracts/01-license-file.md), producer rule 7). The key goes in the JSON body, never the URL, which ends up in logs.
+
+1. The [rate limits](#rate-limits): one bucket on the caller's IP and one on the key, named by a hash so the key never sits in Redis; `429` when either is empty.
+2. `validate-key` on Keygen, unscoped, as the product token, which reads a key of another product as unknown.
+3. `404` "No license has that key." for `NOT_FOUND`; `403` naming the code for any other code than `VALID` or `EXPIRED`, as for a suspended license; otherwise a fresh file, `text/plain` with `Content-Disposition: attachment; filename="surfsense.lic"` and `Cache-Control: no-store`.
+4. `503` when Keygen fails.
+
+A lapsed license still gets its file, which says what the app already shows. Naming the state leaks nothing, since the key is the credential the file already carries. The app does not call the route yet; [the app](app.md#settings-and-the-sidebar) still takes a renewal as a new file the user adds.
+
 ### Stripe webhook
 
-`stripe_webhook.py` verifies the signature, fulfils a paid checkout session that `purchase.py` claims as a license, and suspends on `charge.refunded`; any other event, a credit purchase of the hosted product included, is acknowledged and dropped. Stripe's calls run in a worker thread, since the event loop also streams every plugin call.
+`stripe_webhook.py` verifies the signature and acts on the seven events below; any other event, a credit purchase of the hosted product included, is acknowledged and dropped. Stripe's calls run in a worker thread, since the event loop also streams every plugin call. A purchase, renewal or seat change that fails answers 500, so Stripe retries: a fulfilment is safe to repeat by its derived id, and a renewal or seat change sets the same values again.
 
-- `checkout.session.completed` with `payment_status` `paid` or `no_payment_required`, and `checkout.session.async_payment_succeeded`: the license handler claims a session whose metadata says `purchase_type: license`, or, with no `purchase_type` and a license price configured, whose line item is a license price. It fulfils the session, then emails the file. A mail failure does not fail the webhook: the license exists, the success page serves it, and a Stripe retry would only risk a duplicate.
-- `charge.refunded`: acts only on a full refund, `refunded` or `amount_refunded >= amount`; a partial refund suspends nothing. It resolves the charge's `payment_intent` to its checkout session through Stripe, that session to its one license by `checkoutSessionId`, and suspends that license alone, so a customer's other purchases keep working. A refund that traces to no single license suspends nothing and logs a warning for support, because a wrong suspension is silent to the customer. Failures are logged and the webhook still answers 200, since a retry would re-run the suspension. Suspend, not revoke: it is reversible, the record stays listable for support, and Keygen's `validate-key` then reports `SUSPENDED`, which contract 2 maps to `revoked`.
+- `checkout.session.completed` with `payment_status` `paid` or `no_payment_required`, and `checkout.session.async_payment_succeeded`: the license handler claims a session whose metadata says `purchase_type: license`, or, with no `purchase_type` and a license price configured, whose line item is a license price. It fulfils the session, then emails the file, in the Business copy for a Business license. A mail failure does not fail the webhook: the license exists, the success page serves it, and a Stripe retry would only risk a duplicate. A subscription's checkout also writes `stripeSubscriptionId` and ends the license with its first period ([subscriptions](#subscriptions)). A Business checkout writes `jobs`, its quantity as `maxUsers`, and `firm` from the checkout's custom text field keyed `firm`, with its spaces collapsed and cut to 120 characters; a checkout without that field still issues the license.
+- `invoice.paid`: a paid period renews the same license ([subscriptions](#subscriptions)).
+- `customer.subscription.updated`: a Business license's `maxUsers` follows the subscription's quantity, and nothing else moves, since Stripe advances the period in this event before the renewal is paid.
+- `customer.subscription.deleted`: nothing changes in Keygen, and the log says when the license lapses. Its expiry already ends the last period paid for plus 30 days, and with no paid invoice nothing extends it; suspension is for money returned.
+- `charge.refunded`: acts only on a full refund, `refunded` or `amount_refunded >= amount`; a partial refund suspends nothing. It traces the charge's `payment_intent` to the one license it paid for and suspends that license alone, so a customer's other purchases keep working. A subscription's charge belongs to an invoice, not to a checkout session, so the trace asks Stripe's invoice payments for the invoice, reads its subscription (under `parent.subscription_details` since API 2025-03-31) and finds the license as [subscriptions](#subscriptions) does. A payment with no subscription invoice is a one-time one, traced to its checkout session and that session's license by `checkoutSessionId`. The charge's customer is not needed: a Payment Link's default `customer_creation` makes none for a one-time price, and such refunds used to be skipped. A charge for an invoice that pays for no period, the `subscription_update` proration for people added mid-year, traces to no license, since the year is still paid for. A refund that traces to no single license suspends nothing and logs a warning for support, because a wrong suspension is silent to the customer. Failures are logged and the webhook still answers 200, since a retry would re-run the suspension. Suspend, not revoke: it is reversible, the record stays listable for support, and Keygen's `validate-key` then reports `SUSPENDED`, which contract 2 maps to `revoked`. Refunding does not cancel the subscription; support cancels it in Stripe too, or a suspended license goes on being charged.
+- `charge.dispute.created`: suspends the license the disputed payment paid for, traced the same way. A dispute won later is reinstated by support.
 
 Fulfilment also writes the license's Keygen id onto the Stripe customer as `keygen_license_id`, best effort, so a Stripe error cannot fail the webhook. Nothing reads it back; refunds find licenses through Keygen metadata.
 
@@ -66,7 +84,16 @@ The purchase event comes from fulfilment rather than the webhook because the web
 
 ### Plan resolution
 
-`resolve_license_plan()` reads the plan two ways, so a Payment Link and an API-created session both work. Session metadata with `purchase_type: license` comes first (`plan` of `individual` or `team`, and `quantity` for team); otherwise the line item's price ID is matched against `STRIPE_PRICE_LICENSE_INDIVIDUAL` and `STRIPE_PRICE_LICENSE_TEAM`, with the line item quantity as the team's `maxUsers`. Webhook payloads carry no line items, so a Payment Link purchase costs one extra Stripe call. The site sells Individual through a Payment Link and no longer sells Team; the backend still supports it, and `scripts/issue_enterprise_license.py` issues team licenses by hand.
+`resolve_license_plan()` reads the plan two ways, so a Payment Link and an API-created session both work. Session metadata with `purchase_type: license` comes first (`plan` of `individual`, `team` or `business`, and `quantity` for team and business); otherwise the line item's price ID is matched against `STRIPE_PRICE_LICENSE_INDIVIDUAL`, `STRIPE_PRICE_LICENSE_TEAM` and `STRIPE_PRICE_LICENSE_BUSINESS`, with the line item quantity as the team's seats or the Business license's people, in `maxUsers`. Business is one yearly price per person, $60 a year (decided 4 Nov 2026), so its quantity is the number of people. Webhook payloads carry no line items, so a Payment Link purchase costs one extra Stripe call. The site sells Individual through a Payment Link and no longer sells Team; the backend still supports it, and `scripts/issue_enterprise_license.py` issues team licenses by hand.
+
+### Subscriptions
+
+Business renews every year on the same key (ADR 0080), and the Individual Payment Link has sold yearly subscriptions too, so a license sold on a subscription follows it. `subscription/` holds the rules:
+
+- **Expiry.** The license ends 30 days after the period paid for: the grace before a lapsed Business license stops new job runs, which also covers Stripe's retries of a failed renewal. The period's end is read from the subscription's items, where API 2025-03-31 moved it, or from the subscription in an older payload.
+- **Renewal.** On `invoice.paid` the subscription is read live, and the license's `expiry` moves to its period's end plus 30 days, only ever later. A Business license's `maxUsers` takes the subscription's quantity too, since the firm confirms its people at renewal. Reading the live subscription makes a retried or late event set the same values. A renewal (`billing_reason` `subscription_cycle`) that moved the expiry mails the renewed file, so a computer that stays offline can import it; a suspended license is extended but gets no file. The first invoice (`subscription_create`) usually comes before the checkout's event and finds no license, which the checkout then mints with that period's expiry.
+- **Finding the license.** By `metadata[stripeSubscriptionId]`. A license sold before that key was written, such as an existing Individual subscription, is found through the checkout session that started the subscription and gets the key on its next renewal, so each renews on its own key. Its price is Stripe's alone; nothing here touches a subscription. Two licenses on one subscription are a support case, never a guess.
+- **Only the attributes that change.** A renewal or a seat change sends `expiry` and `maxUsers` alone, so it never rewrites metadata support corrected; only writing `stripeSubscriptionId` on an older license sends the metadata, whole, from the record just read.
 
 ## Keygen as the database
 
@@ -75,16 +102,31 @@ The purchase event comes from fulfilment rather than the webhook because the web
 | `plan` | every license | the app (contract 1) |
 | `email` | every license | delivery, resend, shown in Settings |
 | `trialKey` | trials | the one-trial-per-person check |
-| `stripeCustomerId` | Stripe purchases | the Stripe customer a refund comes from |
-| `checkoutSessionId` | Stripe purchases | the success page, support corrections, refund → suspend |
+| `stripeCustomerId` | Stripe purchases | the Stripe customer the purchase came from |
+| `checkoutSessionId` | Stripe purchases | the success page, support corrections, a one-time payment's refund → suspend |
+| `stripeSubscriptionId` | subscription purchases | renewal, seat changes, a subscription charge's refund or dispute → suspend |
+| `firm` | Business, when the checkout's field was filled | the app's job screens (contract 1) |
+| `jobs` | Business and its trial | the app (contract 1): which job plugins the license unlocks |
 
 Keygen snake-cases metadata keys when it stores them and when it filters on them, and camelCases them in responses ([`jsonapi.rb`](https://github.com/keygen-sh/keygen-api/blob/v1.7.2/config/initializers/jsonapi.rb#L5-L11), [`license.rb`](https://github.com/keygen-sh/keygen-api/blob/v1.7.2/app/models/license.rb#L337-L338)), so `checkoutSessionId` and `checkout_session_id` are one key. A key with a different word is what goes wrong: it returns an empty list rather than an error, which reads as "no license". The spellings live in `app/license/models.py`, except that `create_license()` in `keygen.py` writes `plan` and `email` as literals.
 
-Certificates are never stored. Every delivery, whether success page, purchase mail or resend, checks out a fresh file with `{"meta": {"ttl": null}}`, so two files for one license differ in `meta.issued` and share a key. `ttl: null` matters because the app never refreshes, and Keygen's default 30-day TTL would kill every file a month after purchase.
+Certificates are never stored. Every delivery, whether success page, purchase or renewal mail, resend or the app's refresh, checks out a fresh file with `{"meta": {"ttl": null}}`, so two files for one license differ in `meta.issued` and share a key. `ttl: null` matters because the app keeps a file until it imports a newer one, and Keygen's default 30-day TTL would kill every file a month after purchase.
+
+Every check-out follows an unscoped validation (`fresh_file.py`): `POST /licenses/{id}/actions/validate`, or `validate-key` for the refresh, and a file only when Keygen answers `VALID` or `EXPIRED`. Keygen checks no license status when a product or admin token checks a file out, so without it a refunded, suspended license would still get a fresh file from the success page. `EXPIRED` passes because the file carries the expiry the app already shows, and a lapsed trial's resend has always been answered. Unscoped, because the server names no machine or fingerprint and no policy of ours requires a scope. The server creates no machines.
+
+Each plan has its own policy, and `jobs.py` lists the job entitlement codes, `JOB_QUESTIONNAIRE` first: the setup script attaches each to both Business policies, so Keygen holds them for a server-side check, and every Business license and trial copies them into `jobs`, which the app reads offline.
+
+| Policy | Setting | Made by |
+|---|---|---|
+| trial, individual, team | `KEYGEN_POLICY_TRIAL`, `_INDIVIDUAL`, `_TEAM` | by hand, live; never edited or made strict |
+| business | `KEYGEN_POLICY_BUSINESS` | the setup script: 395 days, the fallback for a license made without an expiry |
+| business-trial | `KEYGEN_POLICY_BUSINESS_TRIAL` | the setup script: 14 days |
+
+The live trial, individual and team policies are never edited or made strict: the plugin host accepts only `VALID`, and a strict policy answers `NO_MACHINE` for every key on it, which would lock all of them out. The setup script makes both Business policies non-strict and floating with no machine cap, since Business counts people, not devices (ADR 0080), with the live policies' signing scheme, so their files carry the `alg` the app accepts.
 
 ## Idempotency without a table
 
-The Keygen license id is derived, not assigned: `uuid5` of a fixed namespace and `stripe:<checkout session id>` for a purchase, or `trial:<folded email>` for a trial. When the webhook and the success page fulfil one payment at the same moment, both create the same id and Keygen refuses the second, with `422 ID_CONFLICT` when the first is already committed or a bare `409` when both are in flight, which the client confirms by fetching the id. For a purchase the loser reads the winner's license and delivers that; for a trial it answers 409. There is no lock and no table, and a second fulfilment cannot mint a second license; this replaces the earlier design of a Keygen lookup under a short Redis lock.
+The Keygen license id is derived, not assigned: `uuid5` of a fixed namespace and `stripe:<checkout session id>` for a purchase, `trial:<folded email>` for a trial, or `business-trial:<folded email>` for the Business trial. When the webhook and the success page fulfil one payment at the same moment, both create the same id and Keygen refuses the second, with `422 ID_CONFLICT` when the first is already committed or a bare `409` when both are in flight, which the client confirms by fetching the id. For a purchase the loser reads the winner's license and delivers that; for a trial it answers 409. There is no lock and no table, and a second fulfilment cannot mint a second license; this replaces the earlier design of a Keygen lookup under a short Redis lock.
 
 Only the id is derived. The license key stays Keygen-generated, because it is the bearer credential contract 2 sends to the scraper API and must be unguessable. The namespace is a constant rather than configuration, because changing it changes every derived id.
 
@@ -104,8 +146,10 @@ Each POST takes a token from two buckets through a Redis token bucket on `REDIS_
 |---|---|
 | `license:<route>:ip:<ip>` | 10 (`LICENSE_RATE_LIMIT_IP_PER_HOUR`) |
 | `license:<route>:email:<folded>` | 5 for resend, 3 for trial (`LICENSE_RESEND_RATE_LIMIT_PER_HOUR`, `LICENSE_TRIAL_RATE_LIMIT_PER_HOUR`) |
+| `license:refresh:ip:<ip>` | 60 (`LICENSE_REFRESH_RATE_LIMIT_IP_PER_HOUR`) |
+| `license:refresh:key:<sha256 of the key>` | 30 (`LICENSE_REFRESH_RATE_LIMIT_PER_HOUR`) |
 
-The client IP comes from `get_real_client_ip()`, which prefers `CF-Connecting-IP`, then `X-Real-IP`, then the first `X-Forwarded-For` entry. The limits also bound mail spend and check-out load, since one resend is one check-out per license. A limit of zero turns its bucket off.
+The refresh gets more room than resend and trial because a firm's people share one key and often one address. The client IP comes from `get_real_client_ip()`, which prefers `CF-Connecting-IP`, then `X-Real-IP`, then the first `X-Forwarded-For` entry. The limits also bound mail spend and check-out load, since one resend is one check-out per license. A limit of zero turns its bucket off.
 
 ## Mail
 
@@ -116,11 +160,15 @@ The client IP comes from `get_real_client_ip()`, which prefers `CF-Connecting-IP
 - Every send failure maps to one of two errors; a configuration error is neither: a bad setting raises `ValueError` when the mailer is built, which the routes turn into the 503 above. `MailerUnavailableError` covers connect failures, timeouts, 4xx replies, authentication failures and a refused sender, all ours to fix. `MailerRejectedError` is a permanent 5xx refusal during the conversation, of the recipient or of the message. A hard bounce arrives after a 250 accept, so trial promises "sent", never "delivered".
 - `OutboundEmail.idempotency_key` is carried and ignored by SMTP, so a future API transport can dedupe retries without changing any caller.
 
-`email/message.py` builds the three license messages, `purchase`, `resend` and `trial`, sent from `SMTP_LICENSE_FROM` or else `SMTP_FROM`, with `SMTP_LICENSE_REPLY_TO`. The file travels as `surfsense.lic`, numbered when one resend carries several, typed `application/octet-stream` so no mail client renders it inline and mangles its line endings. The install steps link each platform's installer through the site's download redirect, `https://www.surfsense.com/downloads/<platform>?src=email&v=<tag>`, with the tag pinned in `release.py`. The `v` keeps a mail already sent naming the build it was sent for, and the redirect counts the downloads mail produces ([updates](../updates.md#download-links)).
+`email/message.py` builds the four license messages, `purchase`, `resend`, `trial` and `renewal`, sent from `SMTP_LICENSE_FROM` or else `SMTP_FROM`, with `SMTP_LICENSE_REPLY_TO`. The file travels as `surfsense.lic`, numbered when one resend carries several, typed `application/octet-stream` so no mail client renders it inline and mangles its line endings. The install steps link each platform's installer through the site's download redirect, `https://www.surfsense.com/downloads/<platform>?src=email&v=<tag>`, with the tag pinned in `release.py`. The `v` keeps a mail already sent naming the build it was sent for, and the redirect counts the downloads mail produces ([updates](../updates.md#download-links)).
+
+A Business license or trial gets its own copy of each, chosen by `BusinessCopy.of()` for a license on the business plan or one that lists `jobs`, and a resend takes it when any of its files is one. The Individual purchase mail promises that the app never contacts a license server and that the file works on every machine; neither holds for Business, whose renewed file the app fetches and which counts people, so the Business copy says neither. It names the firm and how many people the license covers, says it renews every year on the same key until cancelled, and gives `STRIPE_CUSTOMER_PORTAL_URL`, the customer portal's login link, for adding or removing people and cancelling, or says to reply when that is unset; SurfSense still has no accounts. The Business trial says only new job runs stop when it expires. The renewal mail, sent for every plan, carries the renewed file and asks for it to be imported; the Individual copy of it is the only way that renewal reaches the app.
 
 ## Keygen
 
-Production runs a self-hosted Keygen CE. Keygen Cloud bills per active licensed user and counts a check-out as activity, and here every delivery, trials included, is a check-out. `keygen.py` talks to `KEYGEN_API_URL`, or to Keygen Cloud when that is unset; when `KEYGEN_HOST` is set it sends that name as `Host` and adds `X-Forwarded-Proto: https`. `KEYGEN_ACCOUNT_ID`, `KEYGEN_API_TOKEN` and the three `KEYGEN_POLICY_*` variables mean the same on either. CE is not a service in `docker/docker-compose.yml`; its web and worker images are in [`docker/keygen/`](../../../docker/keygen/).
+Production runs a self-hosted Keygen CE. Keygen Cloud bills per active licensed user and counts a check-out as activity, and here every delivery, trials included, is a check-out. `keygen.py` talks to `KEYGEN_API_URL`, or to Keygen Cloud when that is unset; when `KEYGEN_HOST` is set it sends that name as `Host` and adds `X-Forwarded-Proto: https`. `KEYGEN_ACCOUNT_ID`, `KEYGEN_API_TOKEN` and the five `KEYGEN_POLICY_*` variables mean the same on either.
+
+`KEYGEN_API_TOKEN` is a product token for the product every policy belongs to, and the admin token stays offline. A product token creates, reads, updates, validates, checks out and suspends its own product's licenses and creates its policies, which is all the server does; it cannot create entitlements or product tokens, so the setup script runs once with the admin token in `KEYGEN_API_TOKEN`. A product token lists only its own product's licenses, and a list that misses a license reads as "no license", so the setup script refuses when the live policies span products. CE is not a service in `docker/docker-compose.yml`; its web and worker images are in [`docker/keygen/`](../../../docker/keygen/).
 
 Three things break a CE instance's first boot or first call:
 
@@ -138,18 +186,25 @@ Under `backend/license/`, every setting under surfsense_backend's name and meani
 |---|---|
 | `portal.py` | the `/api/v1` router, only with `KEYGEN_API_TOKEN`, and the site origins CORS lets in |
 | `router.py` | the three license routes |
-| `stripe_webhook.py` | Stripe's webhook: the signature, then purchase or refund |
+| `refresh_route.py` | `POST /license/refresh`, the app's renewed file by key |
+| `stripe_webhook.py` | Stripe's webhook: the signature, then the event's handler |
 | `stripe_client.py` | the Stripe client, and a session's metadata as a dict |
 | `settings.py` | the `KEYGEN_*`, `LICENSE_*`, `STRIPE_*` and license sender settings |
-| `keygen.py` | the Keygen client: create, get, check out, list by metadata (one page, or every page), update metadata, suspend |
-| `issue.py` | minting: derived ids, trial expiry, fulfilling a purchase, the file for a session |
-| `checkout.py` | reading a Stripe session: email, customer, plan |
-| `purchase.py` | what a paid session or a refund means: claim, fulfil and mail, suspend |
+| `keygen.py` | the Keygen client: create, get, validate by id or key, check out, list by metadata (one page, or every page), update, suspend |
+| `fresh_file.py` | a check-out only after the license validates |
+| `jobs.py` | the job entitlement codes Business and its trial unlock |
+| `issue.py` | minting: derived ids, trial expiry and the Business trial, fulfilling a purchase, the file for a session |
+| `checkout.py` | reading a Stripe session: email, customer, subscription, firm, plan |
+| `purchase.py` | what a paid session or money returned means: claim, fulfil and mail, suspend |
+| `charged_license.py` | the one license a payment paid for: by invoice and subscription, or by checkout session |
+| `subscription/paid_period.py` | what a subscription paid for: the expiry it buys, its people, the invoice's subscription |
+| `subscription/subscribed_license.py` | the license a subscription pays for |
+| `subscription/renewal.py`, `people.py`, `lapse.py` | `invoice.paid`, `customer.subscription.updated` and `.deleted` |
 | `records.py` | reading licenses back by session, email or id |
-| `admin.py` | refunds and address corrections |
+| `admin.py` | address corrections |
 | `models.py` | metadata key spellings, errors and value types |
 | `schemas.py` | the request and acknowledgement bodies |
-| `rate_limit.py` | the two buckets |
+| `rate_limit.py` | the two buckets per route |
 | `token_bucket.py` | the bucket on Redis, and its in-memory fallback |
 | `client_ip.py` | the caller's address behind Cloudflare and the proxy |
 | `analytics.py` | the opt-in PostHog client |
@@ -158,7 +213,7 @@ Under `backend/license/`, every setting under surfsense_backend's name and meani
 | `funnel/events.py` | the personless `license_trial_issued` and `license_purchased` events |
 | `email/address.py` | normalizing, folding, the disposable-domain check |
 | `email/deliver.py` | handing a built message to the mailer |
-| `email/message.py` | subjects, bodies, attachments and sender |
+| `email/message.py` | subjects, bodies, attachments and sender, and the Business copy |
 | `cohorts/keygen_licences.py` | every licence, split into trials and purchases |
 | `cohorts/stripe_purchases.py` | a purchase's checkout and customer addresses, and full refunds, from Stripe |
 | `cohorts/plugin_host_first_seen.py` | the plugin host's first-seen day per licence |
@@ -168,7 +223,16 @@ Under `backend/license/`, every setting under surfsense_backend's name and meani
 | `cohorts/markdown_table.py`, `cohorts/posthog_events.py` | the printed table and the weekly events |
 | `cohorts/models.py` | the trial and purchase records, held in memory only |
 
-Three scripts sit in `backend/license/scripts/`, run as `python -m license.scripts.<name>` in the backend's container, or from `backend/` with `uv run`. `issue_enterprise_license.py` issues an invoiced license without Stripe and prints the file, and also mails it with `--mail`. `correct_license_email.py` repairs a mistyped purchase address, and `license_cohorts.py` prints the [cohort report](#cohort-report), both below.
+Four scripts sit in `backend/license/scripts/`, run as `python -m license.scripts.<name>` in the backend's container, or from `backend/` with `uv run`. `issue_enterprise_license.py` issues an invoiced license without Stripe and prints the file, and also mails it with `--mail`. `correct_license_email.py` repairs a mistyped purchase address, and `license_cohorts.py` prints the [cohort report](#cohort-report), both below.
+
+`setup_business_policies.py` creates the Business policies and the job entitlements, run with the admin token in `KEYGEN_API_TOKEN`:
+
+```bash
+python -m license.scripts.setup_business_policies --dry-run
+python -m license.scripts.setup_business_policies --product-token
+```
+
+It reads the live trial, individual and team policies for their product and signing scheme and writes nothing to them. It finds its own policies by `metadata.surfsensePolicy` among the product's, so a rename does not make a second run create them again; creates whichever of the two is missing, each entitlement in `jobs.py` that is missing, and attaches the missing ones to both. It refuses, before any write, when the live policies span products or one of its policies has been made strict. It prints the `KEYGEN_POLICY_BUSINESS` and `KEYGEN_POLICY_BUSINESS_TRIAL` lines, and with `--product-token` a new product token, shown once. A second run creates nothing, and a job added to `jobs.py` is created and attached by the next run.
 
 ## Pages
 
@@ -178,7 +242,7 @@ In `www`, all public routes:
 - `/license` has only the resend form. Resend can never say "no license found", so its success copy tells the user to check spam and use the exact address they paid with.
 - The trial form is on `/downloads`, beside the installers a license file is useless without. It sends the visitor's channel tag with the email and captures `license_trial_requested` with the outcome (`sent`, `already_claimed`, `refused` or `error`) and the channel, never the address. A sent trial fires confetti, and an "Already have a license? Resend it" line under the form links to `/license`.
 - Both forms are one email pill (`www/features/license/license-forms.tsx`), and a successful send links on to `/license/activate`. Confetti (`www/features/celebration/`) loads only when it fires and is skipped under reduced motion.
-- `/pricing/individual` sits between the pricing card and the Stripe Payment Link (`NEXT_PUBLIC_STRIPE_LICENSE_INDIVIDUAL_URL`): what the licence unlocks, the renewal, what happens after paying, the refund. Its Continue to checkout button appends `client_reference_id=<channel>` and captures `checkout_started` by beacon. The channel is the first-touch `?ref` code or `utm_source` the site already records, else the referring site's domain, else `direct` (`www/features/funnel-attribution/`), and never a person or browser id. The Payment Link's after-payment redirect must be `https://www.surfsense.com/license/success?session_id={CHECKOUT_SESSION_ID}`, and its price one-time rather than recurring: the page says the confirmation page downloads the file and that nothing charges again, and fulfilment handles only the first checkout session.
+- `/pricing/individual` sits between the pricing card and the Stripe Payment Link (`NEXT_PUBLIC_STRIPE_LICENSE_INDIVIDUAL_URL`): what the licence unlocks, the renewal, what happens after paying, the refund. Its Continue to checkout button appends `client_reference_id=<channel>` and captures `checkout_started` by beacon. The channel is the first-touch `?ref` code or `utm_source` the site already records, else the referring site's domain, else `direct` (`www/features/funnel-attribution/`), and never a person or browser id. The Payment Link's after-payment redirect must be `https://www.surfsense.com/license/success?session_id={CHECKOUT_SESSION_ID}`. The page says the confirmation page downloads the file and that nothing charges again, while the live Payment Link sells a yearly subscription; a paid renewal now extends the same license ([subscriptions](#subscriptions)).
 - `/license/activate` is the activation guide the mail links to.
 
 The pages state two dead ends plainly. An enterprise license is one file sent only to the buying address, so a colleague asks the buyer to forward it. A lost or mistyped inbox has no self-serve path, because a form that mailed a license to a newly typed address would be a way to steal one.
@@ -220,10 +284,14 @@ No address, domain, licence id or key is printed or sent. A count under 5 prints
 
 ## Tests
 
-Under `backend/license/tests/` and `backend/mailer/tests/`, run from `backend/` with `uv run pytest license mailer`. `test_funnel_events.py` covers the channel tag rules and the purchase event: its exact properties, nothing personal in it, and one event when the webhook and the success page both fulfil. `test_issue.py` covers Keygen payload shapes, metadata filter syntax, the CE headers, trial expiry, address folding, the disposable-domain check, plan resolution, derived ids and both duplicate-id answers; `test_message.py` and `test_release.py` cover the mail and its pinned redirect links; `test_mail_guard.py` covers the mail check both POST routes run before Keygen; `test_trial_disposable.py` covers the trial's refusal of a disposable address before Keygen; `test_trial_correction_lookup.py` covers the support lookup of a trial by its exact address. `backend/mailer/tests/` covers the SMTP error mapping, MIME shape, senders and configuration checks, and its `test_smtp_contract.py` sends through a real SMTP conversation against Mailpit when `SMTP_INTEGRATION=1`. `test_license_routes.py` drives the three routes over HTTP with Keygen faked at its transport, so the code under them runs as written, and the mailer faked at the router: resend's one answer for every outcome, asserted from the mailer side, including a license that is only suspended, and its 503 when mail is off before any lookup; each trial outcome, never with the file in the body, and a tagged address refused once the folded one holds a trial; `license_trial_issued` with only the channel, a bad channel dropped, and no event for a trial not issued; the success page's file and its 404; both rate-limit buckets biting, and a limit of zero turning one off. `test_keygen_contract.py` runs the client against a real Keygen when `KEYGEN_INTEGRATION=1`, proving the metadata keys the app writes are the ones it filters on, and that a key with another word answers an empty list. `test_stripe_webhook.py` posts events signed as Stripe signs them: a license purchase creates its license in Keygen, and an event signed with another secret is refused. `test_token_bucket.py` checks on a real Redis, CI's or a local `redis-server`, that two copies of the backend draw on one bucket; without one it skips. [`server/tests/`](../../../backend/server/tests/) check that the routes are served only with `KEYGEN_API_TOKEN`, that CORS answers the site, and that no `/docs` or `/openapi.json` is published.
+Under `backend/license/tests/` and `backend/mailer/tests/`, run from `backend/` with `uv run pytest license mailer`. `test_funnel_events.py` covers the channel tag rules and the purchase event: its exact properties, nothing personal in it, and one event when the webhook and the success page both fulfil. `test_issue.py` covers Keygen payload shapes, metadata filter syntax, the CE headers, trial expiry, address folding, the disposable-domain check, plan resolution, derived ids and both duplicate-id answers; `test_message.py` and `test_release.py` cover the mail and its pinned redirect links; `test_mail_guard.py` covers the mail check both POST routes run before Keygen; `test_trial_disposable.py` covers the trial's refusal of a disposable address before Keygen; `test_trial_correction_lookup.py` covers the support lookup of a trial by its exact address. `backend/mailer/tests/` covers the SMTP error mapping, MIME shape, senders and configuration checks, and its `test_smtp_contract.py` sends through a real SMTP conversation against Mailpit when `SMTP_INTEGRATION=1`. `test_license_routes.py` drives the three routes over HTTP with Keygen faked at its transport, so the code under them runs as written, and the mailer faked at the router: resend's one answer for every outcome, asserted from the mailer side, including a license that is only suspended, and its 503 when mail is off before any lookup; each trial outcome, never with the file in the body, and a tagged address refused once the folded one holds a trial; `license_trial_issued` with only the channel, a bad channel dropped, and no event for a trial not issued; the success page's file and its 404; both rate-limit buckets biting, and a limit of zero turning one off. `test_keygen_contract.py` runs the client against a real Keygen when `KEYGEN_INTEGRATION=1`, proving the metadata keys the app writes are the ones it filters on, and that a key with another word answers an empty list. `test_stripe_webhook.py` posts events signed as Stripe signs them: a license purchase creates its license in Keygen, and an event signed with another secret is refused. The Business and subscription tests post signed events too, with Keygen and Stripe both faked at their transports (`tests/billing_harness.py`, `tests/stripe_fake.py`, the real `StripeClient` over a fake HTTP client) and the mail built for real and caught at the mailer. `test_business_purchase.py` covers a Payment Link's Business checkout: one license on the business policy with the people, firm, jobs and subscription, its first period plus 30 days, a validation before the `ttl: null` check-out, the Business mail, and the success page before the webhook. `test_subscription_lifecycle.py` covers a renewal on the same key and its mail, a retried one changing nothing, the first invoice before the checkout, people confirmed at renewal, a suspended license extended but not mailed, an Individual subscription sold before `stripeSubscriptionId` renewing on its own key, a seat change moving only `maxUsers`, a period advanced before payment extending nothing, and an ended subscription left to lapse. `test_money_returned.py` covers a refunded or disputed year suspending its subscription's license and no other, a proration or partial refund suspending nothing, a one-time payment with no Stripe customer traced, and an older Individual subscription traced through its checkout. `test_refresh_route.py` covers the refresh's file, its validation first, a suspended license refused, a lapsed one served, an unknown key, the key kept out of bucket names, both buckets and Keygen down. `test_business_trial.py` covers the trial switch off and on, an earlier trial not using up the Business one, and the switch without its policy. `test_setup_business_policies.py` covers the setup script against a faked Keygen account: both policies non-strict and joined to the live product, a second run creating nothing, a new job attached, the live policies only read, the refusals, and the product token only when asked. `test_license_routes.py` also covers a refunded purchase's success page and every check-out following its license's validation. `test_token_bucket.py` checks on a real Redis, CI's or a local `redis-server`, that two copies of the backend draw on one bucket; without one it skips. [`server/tests/`](../../../backend/server/tests/) check that the routes are served only with `KEYGEN_API_TOKEN`, that CORS answers the site, and that no `/docs` or `/openapi.json` is published.
 
 ## Known gaps
 
 - The cohort report has not run against production Keygen or Stripe.
-- The Keygen contract test has not yet run against a live Keygen; it skips without `KEYGEN_INTEGRATION=1` and credentials.
-- Nothing checks the Payment Link's settings. Its after-payment redirect and one-time price ([pages](#pages)) are set by hand in Stripe, and PostHog's 15 checkout clicks against 1 success page view in the 30 days to 21 Oct 2026 suggest the redirect is not set.
+- The Keygen contract test has not yet run against a live Keygen; it skips without `KEYGEN_INTEGRATION=1` and credentials. Its cases for validation, a suspended license's check-out and an expiry moved on the same key have not run either, and neither has the setup script against Keygen CE.
+- The app does not call `POST /license/refresh` yet, so a renewal reaches an Individual or Business user only by the renewal mail until it does.
+- A dispute won later leaves its license suspended until support reinstates it.
+- A job added to `jobs.py` reaches new licenses and the policies' entitlements, but the `jobs` already written on existing licenses keep the old list.
+- The Business trial's two hidden rules in ADR 0080, Gmail dots folded into one address and at most two trials a year per company domain, are not built.
+- Nothing checks the Payment Links' settings. Their after-payment redirect, the Business price's quantity limits and its `firm` field are set by hand in Stripe, and PostHog's 15 checkout clicks against 1 success page view in the 30 days to 21 Oct 2026 suggest the Individual link's redirect is not set.

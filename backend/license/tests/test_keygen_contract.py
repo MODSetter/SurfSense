@@ -21,12 +21,13 @@ Keygen's client has no delete, and a suspended record is what a refund leaves.
 from __future__ import annotations
 
 import os
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
 
 from license import keygen
-from license.models import META_CUSTOMER, META_EMAIL, META_SESSION
+from license.models import META_CUSTOMER, META_EMAIL, META_SESSION, META_SUBSCRIPTION
 
 pytestmark = pytest.mark.integration
 
@@ -42,7 +43,11 @@ async def license_on_keygen():
     """One license carrying the metadata a purchase writes, suspended afterwards."""
     marker = uuid4().hex
     email = f"contract-{marker[:12]}@example.com"
-    metadata = {META_SESSION: f"cs_contract_{marker}", META_CUSTOMER: f"cus_{marker}"}
+    metadata = {
+        META_SESSION: f"cs_contract_{marker}",
+        META_CUSTOMER: f"cus_{marker}",
+        META_SUBSCRIPTION: f"sub_{marker}",
+    }
     license_id = await keygen.create_license(
         "individual", email, extra_metadata=metadata
     )
@@ -66,10 +71,14 @@ async def test_the_metadata_keys_the_app_writes_are_the_ones_it_can_filter_on(
         metadata={META_CUSTOMER: metadata[META_CUSTOMER]}
     )
     by_email = await keygen.list_licenses(metadata={META_EMAIL: email})
+    by_subscription = await keygen.list_licenses(
+        metadata={META_SUBSCRIPTION: metadata[META_SUBSCRIPTION]}
+    )
 
     assert ids(by_session) == [license_id]
     assert ids(by_customer) == [license_id]
     assert ids(by_email) == [license_id]
+    assert ids(by_subscription) == [license_id]
 
 
 async def test_a_key_with_another_word_finds_nothing_rather_than_failing(
@@ -87,3 +96,35 @@ async def test_a_key_with_another_word_finds_nothing_rather_than_failing(
 
     assert other_word == []
     assert [str(record.get("id")) for record in right_word] == [license_id]
+
+
+async def test_a_suspended_license_validates_as_such_but_still_checks_out() -> None:
+    """Why every delivery validates first: a token's check-out checks no status."""
+    license_id = await keygen.create_license(
+        "individual", f"contract-{uuid4().hex[:12]}@example.com"
+    )
+
+    before = await keygen.validate_license(license_id)
+    await keygen.suspend_license(license_id)
+    after = await keygen.validate_license(license_id)
+    certificate = await keygen.checkout_license(license_id)
+
+    assert before.code == "VALID"
+    assert after.code == "SUSPENDED"
+    assert certificate.startswith("-----BEGIN LICENSE FILE-----")
+
+
+async def test_a_renewal_moves_the_expiry_on_the_same_key(license_on_keygen) -> None:
+    license_id, _, _ = license_on_keygen
+    record = await keygen.get_license(license_id)
+    assert record is not None
+    key = record["attributes"]["key"]
+    renewed_to = (datetime.now(UTC) + timedelta(days=400)).replace(microsecond=0)
+
+    await keygen.update_license(license_id, expiry=renewed_to)
+    by_key = await keygen.validate_key(key)
+
+    assert by_key.code == "VALID"
+    assert by_key.record is not None
+    assert by_key.record["id"] == license_id
+    assert datetime.fromisoformat(by_key.record["attributes"]["expiry"]) == renewed_to
