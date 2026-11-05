@@ -5,7 +5,7 @@
 A connection is one named remote endpoint that speaks the OpenAI API: a hosted provider, an organization's gateway, a vLLM server, or a local server such as Ollama or LM Studio. The user adds as many as they need, each with its own URL and optional key, and assigns a model from any of them to a model type, such as `text_gen` for chat or `image_gen` for images. SurfSense configures and selects endpoints; it does not load-balance them, and it never copies an endpoint's model list into the database. The keys are encrypted with a per-install secret that Electron keeps in the OS keychain.
 
 **Code:** [`modules/llm/connections/`](../../surfsense_local/backend/modules/llm/connections/), [`modules/llm/providers/openai_compatible/`](../../surfsense_local/backend/modules/llm/providers/openai_compatible/), [`modules/llm/resolution.py`](../../surfsense_local/backend/modules/llm/resolution.py), [`modules/llm/selection.py`](../../surfsense_local/backend/modules/llm/selection.py), [`shared/secrets.py`](../../surfsense_local/backend/shared/secrets.py), [`electron/src/main/secret.ts`](../../surfsense_local/electron/src/main/secret.ts), [`frontend/src/features/models/remote/`](../../surfsense_local/frontend/src/features/models/remote/)
-**Decisions:** [ADR 0015](../adr/0015-openai-compatible-connections.md), [ADR 0017](../adr/0017-egress-off-by-default.md), [ADR 0018](../adr/0018-keychain-envelope-encryption.md), [ADR 0049](../adr/0049-prompts-grow-at-the-end.md)
+**Decisions:** [ADR 0015](../adr/0015-openai-compatible-connections.md), [ADR 0017](../adr/0017-egress-off-by-default.md), [ADR 0018](../adr/0018-keychain-envelope-encryption.md), [ADR 0049](../adr/0049-prompts-grow-at-the-end.md), [ADR 0079](../adr/0079-elevenlabs-is-a-connection-with-its-own-client.md)
 
 ## Terms
 
@@ -27,7 +27,7 @@ OpenAI-compatible connection
       └── POST /images              an alternate image route
 ```
 
-Out of scope: a standalone OpenRouter provider or its legacy Chat Completions image contract; replica management, load balancing, failover and retries across connections; storing an endpoint's model list, pricing or billing, or syncing any of it in the background; embeddings through a connection; custom headers, mTLS, private CAs and non-OpenAI transports.
+Out of scope: a standalone OpenRouter provider or its legacy Chat Completions image contract; replica management, load balancing, failover and retries across connections; storing an endpoint's model list, pricing or billing, or syncing any of it in the background; embeddings through a connection; custom headers, mTLS, private CAs and other non-OpenAI transports. ElevenLabs is the one exception, [below](#elevenlabs).
 
 ## Data model
 
@@ -41,7 +41,7 @@ Out of scope: a standalone OpenRouter provider or its legacy Chat Completions im
 | `catalog_provider` | the remote manifest provider this reaches, such as `openai` or `neon`, or `custom` for an endpoint the manifest does not list; stored as chosen, never read from the URL |
 | `base_url` | the exact API root, normally ending in `/v1`, stored without a trailing slash |
 | `api_key_ciphertext` | the Fernet-encrypted key, nullable, never returned by any route |
-| `auth_kind` | `api_key`, `chatgpt` for a connection signed in with a ChatGPT account, or `claude_plan` for one run through the user's own Claude Code ([Claude plan](claude-plan.md)), enforced by a CHECK; added in place by `0023`, so existing rows read `api_key`, and widened by `0031` |
+| `auth_kind` | `api_key`, `chatgpt` for a connection signed in with a ChatGPT account, `claude_plan` for one run through the user's own Claude Code ([Claude plan](claude-plan.md)), or `elevenlabs` for [ElevenLabs' own API](#elevenlabs), enforced by a CHECK; added in place by `0023`, so existing rows read `api_key`, and widened by `0031` and `0033` |
 | `oauth_ciphertext`, `token_version` | a `chatgpt` row's encrypted token set and its refresh counter ([`chatgpt-subscription.md`](chatgpt-subscription.md)) |
 | `created_at`, `updated_at` | |
 
@@ -160,6 +160,16 @@ Loading a connection runs the egress check for its host. The bundled sd-server s
 - `GET`, `POST` and `DELETE /llm/selection/audio_gen/voices` read the audio selection's voices (the server's list, else the model's published ones with the user's, else the user's; `added` names those removing can take away), add one once the server has voiced the `text` sent (`502` with the server's words when it refuses), and remove one. A model on this computer is a `409`.
 - Selecting a model never runs inference. The server group offers a test before the model is used, and "Use without testing" for a trusted internal endpoint, whose first real request then reports any error normally. Image tests run only on an explicit action, because they are real inference and may cost money.
 
+## ElevenLabs
+
+ElevenLabs does not speak the OpenAI API, so it has its own client ([`providers/elevenlabs/`](../../surfsense_local/backend/modules/llm/providers/elevenlabs/)) behind the same connection ([ADR 0079](../adr/0079-elevenlabs-is-a-connection-with-its-own-client.md)). It fills `audio_gen` alone ([`serves.py`](../../surfsense_local/backend/modules/llm/connections/serves.py)). OpenRouter's ElevenLabs models are unrelated to it and stay as any server's.
+
+- `GET /llm/connections/elevenlabs` says which slots offer it, and `POST` with `{label, api_key}` creates one at the fixed `https://api.elevenlabs.io`. It reads `GET /v1/models` and `GET /v2/voices` with the key first, which spends no credits: a key that cannot is a `422` with code `elevenlabs_refused` and ElevenLabs' own sentence, which names a missing permission, and nothing is saved. Whether it may voice cannot be checked without voicing a line.
+- `PUT` takes a new name and, when one is sent, a new key, checked the same way; a refused key leaves the old one. The address cannot be edited.
+- `connection_models()` answers with the models whose `can_do_text_to_speech` is true, without the Turbo models ElevenLabs deprecated, which it lists with no flag. Each carries the account's voices as `{id, label}`.
+- A voice's name, gender and languages come from the account and the model, so the brief groups by gender and offers what that model speaks ([Studio](studio.md#on-a-server)). The account's own and the premade voices come first, because a brief opens on the first two. A Free account is not offered the Voice Library voices its list carries, since voicing one is a 402; that takes `user_read`, an optional permission, and without it they stay and the refusal explains itself.
+- [`speech_client()`](../../surfsense_local/backend/modules/llm/connections/speech_client.py) is the one rule for what voices a model, for podcasts, `speech-test` and adding a voice.
+
 ## Where keys live
 
 Keys are protected by envelope encryption ([ADR 0018](../adr/0018-keychain-envelope-encryption.md)):
@@ -185,4 +195,5 @@ Keys are protected by envelope encryption ([ADR 0018](../adr/0018-keychain-envel
 
 ## Known gaps
 
+- A connection's `label` is unique case-sensitively on a database built by the migrations, whose rebuilds dropped the `NOCASE` the model declares.
 - A model on an endpoint the manifest does not carry never reads images here, even when its listing declares `image` input: discovery reads only output modalities, and nothing is stored at selection to carry the endpoint's word to the send ([ADR 0034](../adr/0034-vision-is-the-runtimes-answer-stored-nowhere.md)).
