@@ -743,6 +743,8 @@
   "models_connection_form_key_saved_placeholder": "Leer lassen, um den gespeicherten Schlüssel zu behalten",
   "models_connection_form_name_label": "Name",
   "models_connection_form_name_placeholder": "Entwicklungs-vLLM",
+  "models_connection_form_opencode_go_subscription_body": "Der Workspace des Schlüssels braucht ein Go-Abo.",
+  "models_connection_form_opencode_key_link": "Hol dir deinen Schlüssel in der OpenCode Console",
   "models_connection_form_provider_empty": "Kein Anbieter gefunden",
   "models_connection_form_provider_label": "Anbieter",
   "models_connection_form_provider_needs_account_body": "Braucht deine Kontodaten",

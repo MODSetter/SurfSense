@@ -37,6 +37,7 @@ import {
 import { CHATGPT_PROVIDER } from "./chatgpt/api"
 import { ChatGPTSignIn } from "./chatgpt/chatgpt-sign-in"
 import { CLAUDE_PLAN_PROVIDER, ClaudePlanEdit } from "./claude/claude-plan-edit"
+import { OpencodeKeyHint } from "./opencode-key-hint"
 import { fillTemplate } from "./provider-url"
 
 // A local server's port is whatever its owner set, so nothing is filled in:
@@ -500,6 +501,7 @@ export function ConnectionForm({
               }
               disabled={busy}
             />
+            <OpencodeKeyHint providerId={providerId} />
           </Field>
         )}
         {connection?.has_api_key ? (

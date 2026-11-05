@@ -743,6 +743,8 @@
   "models_connection_form_key_saved_placeholder": "Laissez vide pour conserver la clé enregistrée",
   "models_connection_form_name_label": "Nom",
   "models_connection_form_name_placeholder": "vLLM de l’équipe technique",
+  "models_connection_form_opencode_go_subscription_body": "L’espace de travail de la clé nécessite un abonnement Go.",
+  "models_connection_form_opencode_key_link": "Obtenir votre clé dans OpenCode Console",
   "models_connection_form_provider_empty": "Aucun fournisseur trouvé",
   "models_connection_form_provider_label": "Fournisseur",
   "models_connection_form_provider_needs_account_body": "Nécessite vos informations de compte",

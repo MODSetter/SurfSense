@@ -743,6 +743,8 @@
   "models_connection_form_key_saved_placeholder": "保存済みのキーを使う場合は空欄のまま",
   "models_connection_form_name_label": "名前",
   "models_connection_form_name_placeholder": "開発チームのvLLM",
+  "models_connection_form_opencode_go_subscription_body": "キーのワークスペースに Go サブスクリプションが必要です。",
+  "models_connection_form_opencode_key_link": "OpenCode Console でキーを取得",
   "models_connection_form_provider_empty": "プロバイダーが見つかりません",
   "models_connection_form_provider_label": "プロバイダー",
   "models_connection_form_provider_needs_account_body": "アカウント情報が必要です",

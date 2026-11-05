@@ -35,6 +35,14 @@ const PROVIDERS = [
     base_url: "https://api.openai.com/v1",
     base_url_origin: "reviewed",
   }),
+  provider("opencode", "OpenCode", {
+    base_url: "https://opencode.ai/inference/openai/v1",
+    base_url_origin: "models.dev",
+  }),
+  provider("opencode-go", "OpenCode Go", {
+    base_url: "https://opencode.ai/inference/go/openai/v1",
+    base_url_origin: "models.dev",
+  }),
   provider("databricks", "Databricks", {
     status: "needs_account_details",
     base_url: "https://${DATABRICKS_HOST}/ai-gateway/mlflow/v1",
@@ -113,6 +121,43 @@ describe("connection form", () => {
         catalog_provider: "openai",
       })
     )
+  })
+
+  it("points OpenCode at the Console for its key", async () => {
+    serve()
+    const user = userEvent.setup()
+    render(<ConnectionForm onCancel={vi.fn()} onSaved={vi.fn()} />)
+
+    // "OpenCode Go" starts with the same name; the URL tells them apart.
+    await pick(user, "OpenCode\\s*https")
+
+    expect(
+      screen
+        .getByRole("link", { name: /OpenCode Console/ })
+        .getAttribute("href")
+    ).toBe("https://opencode.ai/console")
+    expect(screen.queryByText(/Go subscription/)).toBeNull()
+  })
+
+  it("says OpenCode Go needs its own subscription", async () => {
+    serve()
+    const user = userEvent.setup()
+    render(<ConnectionForm onCancel={vi.fn()} onSaved={vi.fn()} />)
+
+    await pick(user, "OpenCode Go")
+
+    expect(screen.getByRole("link", { name: /OpenCode Console/ })).toBeTruthy()
+    expect(screen.getByText(/Go subscription/)).toBeTruthy()
+  })
+
+  it("adds no Console link to another provider", async () => {
+    serve()
+    const user = userEvent.setup()
+    render(<ConnectionForm onCancel={vi.fn()} onSaved={vi.fn()} />)
+
+    await pick(user, "OpenAI")
+
+    expect(screen.queryByRole("link", { name: /OpenCode Console/ })).toBeNull()
   })
 
   it("builds the URL from the account details a provider asks for", async () => {

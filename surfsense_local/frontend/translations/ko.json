@@ -743,6 +743,8 @@
   "models_connection_form_key_saved_placeholder": "저장된 키를 유지하려면 비워 두세요",
   "models_connection_form_name_label": "이름",
   "models_connection_form_name_placeholder": "엔지니어링팀 vLLM",
+  "models_connection_form_opencode_go_subscription_body": "키의 워크스페이스에 Go 구독이 필요합니다.",
+  "models_connection_form_opencode_key_link": "OpenCode Console에서 키 받기",
   "models_connection_form_provider_empty": "제공업체를 찾을 수 없습니다",
   "models_connection_form_provider_label": "제공업체",
   "models_connection_form_provider_needs_account_body": "계정 정보가 필요합니다",

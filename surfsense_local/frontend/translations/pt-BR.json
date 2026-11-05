@@ -743,6 +743,8 @@
   "models_connection_form_key_saved_placeholder": "Deixe em branco para manter a chave salva",
   "models_connection_form_name_label": "Nome",
   "models_connection_form_name_placeholder": "vLLM da engenharia",
+  "models_connection_form_opencode_go_subscription_body": "O workspace da chave precisa de uma assinatura do Go.",
+  "models_connection_form_opencode_key_link": "Obtenha sua chave no OpenCode Console",
   "models_connection_form_provider_empty": "Nenhum provedor encontrado",
   "models_connection_form_provider_label": "Provedor",
   "models_connection_form_provider_needs_account_body": "Precisa dos dados da sua conta",

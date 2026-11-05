@@ -743,6 +743,8 @@
   "models_connection_form_key_saved_placeholder": "Leave blank to keep the saved key",
   "models_connection_form_name_label": "Name",
   "models_connection_form_name_placeholder": "Engineering vLLM",
+  "models_connection_form_opencode_go_subscription_body": "The key’s workspace needs a Go subscription.",
+  "models_connection_form_opencode_key_link": "Get your key in the OpenCode Console",
   "models_connection_form_provider_empty": "No provider found",
   "models_connection_form_provider_label": "Provider",
   "models_connection_form_provider_needs_account_body": "Needs your account details",

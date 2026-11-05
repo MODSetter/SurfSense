@@ -743,6 +743,8 @@
   "models_connection_form_key_saved_placeholder": "सहेजी गई कुंजी रखने के लिए खाली छोड़ें",
   "models_connection_form_name_label": "नाम",
   "models_connection_form_name_placeholder": "इंजीनियरिंग vLLM",
+  "models_connection_form_opencode_go_subscription_body": "इस कुंजी के वर्कस्पेस में Go का सब्सक्रिप्शन होना चाहिए।",
+  "models_connection_form_opencode_key_link": "अपनी कुंजी OpenCode Console से पाएं",
   "models_connection_form_provider_empty": "कोई प्रोवाइडर नहीं मिला",
   "models_connection_form_provider_label": "प्रोवाइडर",
   "models_connection_form_provider_needs_account_body": "आपके खाते का विवरण चाहिए",

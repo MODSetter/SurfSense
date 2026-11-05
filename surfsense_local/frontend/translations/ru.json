@@ -743,6 +743,8 @@
   "models_connection_form_key_saved_placeholder": "Оставьте пустым, чтобы сохранить текущий ключ",
   "models_connection_form_name_label": "Название",
   "models_connection_form_name_placeholder": "vLLM для разработки",
+  "models_connection_form_opencode_go_subscription_body": "Для рабочей области этого ключа нужна подписка Go.",
+  "models_connection_form_opencode_key_link": "Получить ключ в OpenCode Console",
   "models_connection_form_provider_empty": "Провайдер не найден",
   "models_connection_form_provider_label": "Провайдер",
   "models_connection_form_provider_needs_account_body": "Нужны данные вашего аккаунта",
