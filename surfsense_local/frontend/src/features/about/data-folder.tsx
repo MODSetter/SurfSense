@@ -47,7 +47,7 @@ export function DataFolder() {
               "SurfSense keeps your data here, not in the folder it’s installed in.",
           })}
         </p>
-        <code className="text-sm break-all">{folder}</code>
+        <code className="text-sm break-all select-text">{folder}</code>
       </div>
       <Button type="button" variant="outline" onClick={() => void open()}>
         {intl.formatMessage({

@@ -31,7 +31,7 @@ function FolderRow({
       <div className="flex min-w-0 flex-col gap-1">
         <h3 className="text-sm font-medium">{title}</h3>
         <p className="text-sm text-pretty text-muted-foreground">{body}</p>
-        <code className="text-sm break-all">{folder.path}</code>
+        <code className="text-sm break-all select-text">{folder.path}</code>
         {folder.connected ? null : (
           <p className="text-sm text-destructive">
             {intl.formatMessage({
