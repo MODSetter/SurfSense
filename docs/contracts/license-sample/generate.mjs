@@ -33,9 +33,9 @@ const appPublicKey = createPublicKey({
 });
 
 const ISSUED = "2026-09-10T00:00:00.000Z";
-const POLICY = { trial: "5b1f7a9e-0000-4000-8000-000000000001", individual: "5b1f7a9e-0000-4000-8000-000000000002", team: "5b1f7a9e-0000-4000-8000-000000000003" };
+const POLICY = { trial: "5b1f7a9e-0000-4000-8000-000000000001", individual: "5b1f7a9e-0000-4000-8000-000000000002", team: "5b1f7a9e-0000-4000-8000-000000000003", business: "5b1f7a9e-0000-4000-8000-000000000004" };
 
-function license({ id, key, plan, email, expiry, maxUsers = null }) {
+function license({ id, key, plan, email, expiry, maxUsers = null, extra = {} }) {
   return {
     meta: { issued: ISSUED, expiry: null, ttl: null },
     data: {
@@ -48,7 +48,7 @@ function license({ id, key, plan, email, expiry, maxUsers = null }) {
         status: new Date(expiry) < new Date(ISSUED) ? "EXPIRED" : "ACTIVE",
         suspended: false,
         maxUsers,
-        metadata: { plan, email },
+        metadata: { plan, email, ...extra },
         created: ISSUED,
         updated: ISSUED,
       },
@@ -79,6 +79,7 @@ const fixtures = {
   "team.lic": license({ id: "c0ffee00-0000-4000-8000-000000000102", key: "TEST-TEAM-2026-0002", plan: "team", email: "ops@example.com", expiry: "2027-09-10T00:00:00.000Z", maxUsers: 12 }),
   "trial.lic": license({ id: "c0ffee00-0000-4000-8000-000000000103", key: "TEST-TRIL-2026-0003", plan: "trial", email: "try@example.com", expiry: "2026-09-24T00:00:00.000Z" }),
   "expired.lic": license({ id: "c0ffee00-0000-4000-8000-000000000104", key: "TEST-INDV-2025-0004", plan: "individual", email: "old@example.com", expiry: "2025-01-01T00:00:00.000Z" }),
+  "business.lic": license({ id: "c0ffee00-0000-4000-8000-000000000105", key: "TEST-BUSN-2026-0005", plan: "business", email: "partner@example.com", expiry: "2027-10-10T00:00:00.000Z", maxUsers: 5, extra: { firm: "Example Accounting LLP", jobs: "JOB_QUESTIONNAIRE" } }),
 };
 
 writeFileSync(join(here, "public-key.hex"), publicKeyHex + "\n");

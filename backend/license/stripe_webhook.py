@@ -1,4 +1,4 @@
-"""`POST /stripe/webhook`: verify Stripe's signature, then fulfil a license purchase or suspend a refunded one.
+"""`POST /stripe/webhook`: verify Stripe's signature, then act on a license's purchase, renewal, seats, end or returned money.
 
 surfsense_backend's credit purchases stayed with it; any other event is acknowledged and dropped.
 """
@@ -11,9 +11,17 @@ from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel
 from stripe import SignatureVerificationError
 
-from license.purchase import claims_checkout, fulfill, suspend_refunded
+from license.purchase import (
+    claims_checkout,
+    fulfill,
+    suspend_disputed,
+    suspend_refunded,
+)
 from license.settings import config
 from license.stripe_client import get_metadata, get_stripe_client
+from license.subscription.lapse import let_lapse
+from license.subscription.people import follow_people
+from license.subscription.renewal import renew_from_invoice
 
 logger = logging.getLogger(__name__)
 
@@ -83,10 +91,19 @@ async def stripe_webhook(request: Request) -> StripeWebhookResponse:
                     getattr(checkout_session, "id", "?"),
                     metadata.get("purchase_type"),
                 )
+        elif event.type == "invoice.paid":
+            await renew_from_invoice(event.data.object, stripe_client=stripe_client)
+        elif event.type == "customer.subscription.updated":
+            await follow_people(event.data.object)
+        elif event.type == "customer.subscription.deleted":
+            await let_lapse(event.data.object)
         elif event.type == "charge.refunded":
             await suspend_refunded(event.data.object, stripe_client=stripe_client)
+        elif event.type == "charge.dispute.created":
+            await suspend_disputed(event.data.object, stripe_client=stripe_client)
     except Exception:
-        # A 500 makes Stripe retry, which the fulfilment's derived license id makes safe.
+        # A 500 makes Stripe retry: the derived license id makes a fulfilment
+        # safe to repeat, and a renewal or seat change sets the same values again.
         logger.exception(
             "Stripe webhook handler failed for event id=%s type=%s; Stripe will retry",
             getattr(event, "id", "?"),

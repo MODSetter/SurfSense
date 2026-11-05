@@ -294,8 +294,44 @@ async def test_no_configured_prices_means_no_price_lookup(monkeypatch):
     """Ordinary checkouts must not pay for an extra Stripe call."""
     monkeypatch.setattr(config, "STRIPE_PRICE_LICENSE_INDIVIDUAL", "")
     monkeypatch.setattr(config, "STRIPE_PRICE_LICENSE_TEAM", "")
+    monkeypatch.setattr(config, "STRIPE_PRICE_LICENSE_BUSINESS", "")
 
     assert await resolve_license_plan(_session()) is None
+
+
+async def test_a_business_plan_comes_from_session_metadata_with_its_people():
+    resolved = await resolve_license_plan(
+        _session(
+            metadata={"purchase_type": "license", "plan": "business", "quantity": "4"}
+        )
+    )
+
+    assert resolved == ("business", 4)
+
+
+async def test_a_business_payment_link_is_known_by_its_price(monkeypatch):
+    """The price's quantity is the number of people."""
+    monkeypatch.setattr(config, "STRIPE_PRICE_LICENSE_BUSINESS", "price_business")
+
+    session = _session(
+        line_items=[
+            SimpleNamespace(price=SimpleNamespace(id="price_business"), quantity=6)
+        ]
+    )
+
+    assert await resolve_license_plan(session) == ("business", 6)
+
+
+async def test_a_business_purchase_without_people_is_an_error():
+    with pytest.raises(LicenseIssueError, match="quantity"):
+        await resolve_license_plan(
+            _session(metadata={"purchase_type": "license", "plan": "business"})
+        )
+
+
+async def test_a_business_license_requires_its_people(keygen_config):
+    with pytest.raises(ValueError, match="max_users"):
+        await keygen.create_license("business", "a@b.test", None)
 
 
 async def test_a_bad_plan_in_metadata_is_an_error():
