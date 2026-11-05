@@ -3,7 +3,7 @@
 **+ › Add from the web…** in the sources panel takes a web search or pasted links in one box, and shows what it found as rows. The user adds the rows they want, one at a time or all at once. None of it needs a license or a plugin. Pages and YouTube transcripts are read on the user's machine and their own connection, with no SurfSense server in the data path: a page's text with curl_cffi and trafilatura, a video's transcript with youtube-transcript-api. A search sends its query to a SearXNG server: SurfSense's own, `searxng.surfsense.com`, unless the user names another in Settings › Network. Every host asked is asked about first, as all egress is ([egress](egress.md)). The agent's web tools search and read with the same code ([agent](agent.md#surfsenses-tools)).
 
 **Code:** [`surfsense_local/backend/modules/documents/web_sources/`](../../surfsense_local/backend/modules/documents/web_sources/), [`surfsense_local/frontend/src/features/sources/web/`](../../surfsense_local/frontend/src/features/sources/web/)
-**Decisions:** [ADR 0068](../adr/0068-surfsense-calls-its-own-plugins-to-pull-a-link-into-sources.md), as ADR 0081 amends it: the scraper plugins retire, page reading, YouTube and search move into the app, and the license gate goes.
+**Decisions:** [ADR 0068](../adr/0068-surfsense-calls-its-own-plugins-to-pull-a-link-into-sources.md), as [ADR 0081](../adr/0081-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md) amends it: the scraper plugins retire, page reading, YouTube and search move into the app, and the license gate goes.
 
 ## Routes
 

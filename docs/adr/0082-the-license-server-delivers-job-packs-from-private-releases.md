@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-11-03
-- **Source:** [ADR 0067 L18–30](https://github.com/MODSetter/SurfSense/blob/51c593551cc8efae53473708eb2a03671a91e1c7/docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md#L18-L30), [bundles README L132–166](https://github.com/MODSetter/SurfSense/blob/51c593551cc8efae53473708eb2a03671a91e1c7/docs/proposals/plugins/bundles/README.md#L132-L166), ADR 0080 L14 and L31 (on the `docs/business-license` branch), maintainer decisions, 3 Nov 2026 (no permalink)
+- **Source:** [ADR 0067 L18–30](https://github.com/MODSetter/SurfSense/blob/51c593551cc8efae53473708eb2a03671a91e1c7/docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md#L18-L30), [bundles README L132–166](https://github.com/MODSetter/SurfSense/blob/51c593551cc8efae53473708eb2a03671a91e1c7/docs/proposals/plugins/bundles/README.md#L132-L166), [ADR 0080](0080-surfsense-sells-one-business-license-priced-per-person.md) L14 and L31, maintainer decisions, 3 Nov 2026 (no permalink)
 
 ## Context
 
