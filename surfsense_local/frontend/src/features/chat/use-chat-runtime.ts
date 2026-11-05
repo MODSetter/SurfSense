@@ -41,6 +41,11 @@ import { ChatImageAdapter, previewOf, uploadsOf } from "./image-attachments"
 import { AGENTIC_REFUSALS, agenticRefusedText } from "./modes/mode-text"
 import { AGENTIC_GATES, type NewChatChoice } from "./modes/new-chat-mode"
 import type { LiveThreadSource } from "./live-thread-runtime"
+import {
+  boxTextOf,
+  sentMessage,
+  type ShownMention,
+} from "./mentions/mention-text"
 import { isClaudeCodeRefusal } from "./claude-code-refusal"
 import { chatKeys } from "./query-keys"
 import type { LivePair } from "./runs/apply-frame"
@@ -168,7 +173,8 @@ function optimisticPair(
   version: number,
   text: string,
   images: ImageUpload[],
-  scope: TurnSources | null
+  scope: TurnSources | null,
+  mentions: readonly ShownMention[]
 ): LivePair {
   return [
     {
@@ -178,6 +184,7 @@ function optimisticPair(
         text,
         ...(images.length > 0 ? { previews: images.map(previewOf) } : {}),
         ...(scope ? { scope } : {}),
+        ...(mentions.length > 0 ? { mentions: [...mentions] } : {}),
       },
       created_at: null,
       completed_at: null,
@@ -566,7 +573,8 @@ export function useChatRuntime({
       typed: string,
       images: ImageUpload[] = [],
       retryOf: number | null = null,
-      replaces: ReadonlyArray<number | string> = []
+      replaces: ReadonlyArray<number | string> = [],
+      mentions: readonly ShownMention[] = []
     ) => {
       // The backend needs a question for retrieval and the title; an image sent
       // alone asks the obvious one.
@@ -600,7 +608,7 @@ export function useChatRuntime({
         if (threadId === null) {
           setConversationView({
             status: "new",
-            returned: { text: typed, images },
+            returned: { text: boxTextOf(typed, mentions), images },
           })
         }
         errorToast(
@@ -643,7 +651,7 @@ export function useChatRuntime({
           // agent; what was typed comes back rather than being lost.
           setConversationView({
             status: "new",
-            returned: { text: typed, images },
+            returned: { text: boxTextOf(typed, mentions), images },
           })
         }
         if (
@@ -676,7 +684,8 @@ export function useChatRuntime({
                 document_ids: selectedDocumentIds,
                 titles: selectedSourceTitles,
               }
-            : null
+            : null,
+          mentions
         ),
         replaces,
         retry: { text, images },
@@ -692,6 +701,7 @@ export function useChatRuntime({
             sourceScope,
             !canSkipThinking || readThinkingOn(),
             retryOf,
+            mentions,
             signal
           )
         )
@@ -710,7 +720,7 @@ export function useChatRuntime({
             setConversationView({
               status: "active",
               threadId: runThreadId,
-              returned: { text: typed, images },
+              returned: { text: boxTextOf(typed, mentions), images },
             })
           }
           onModelCheck?.()
@@ -789,8 +799,10 @@ export function useChatRuntime({
   )
 
   const onNew = useCallback(
-    (appendMessage: AppendMessage) =>
-      send(submittedText(appendMessage), uploadsOf(appendMessage)),
+    (appendMessage: AppendMessage) => {
+      const { text, mentions } = sentMessage(submittedText(appendMessage))
+      return send(text, uploadsOf(appendMessage), null, [], mentions)
+    },
     [send]
   )
 
@@ -827,10 +839,13 @@ export function useChatRuntime({
           activeThread?.uses_agent || typeof failed.id !== "number"
             ? null
             : failed.id
-        await send(question.content.text ?? "", images, retryOf, [
-          question.id,
-          failed.id,
-        ])
+        await send(
+          question.content.text ?? "",
+          images,
+          retryOf,
+          [question.id, failed.id],
+          question.content.mentions
+        )
       })()
     },
     [activeThread, activeThreadId, queryClient, send]

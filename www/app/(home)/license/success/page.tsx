@@ -7,6 +7,7 @@ import { SiteFaqItem } from "@/components/site/site-faq-item";
 import { siteText } from "@/components/site/site-text";
 import { cn } from "@/components/ui/cn";
 import { ArrowRightIcon } from "@/components/ui/icons";
+import { BUSINESS_LAUNCHED } from "@/features/business-launch/business-launched.mts";
 import { LicenseDownload } from "./license-download";
 
 /**
@@ -31,9 +32,10 @@ const FAQ: { question: string; answer: React.ReactNode }[] = [
 				<Link className={siteText.link} href="/license/activate">
 					activation guide
 				</Link>{" "}
-				shows each step. The file is checked on your own machine, so it works offline and on every
-				computer you install SurfSense on. Only the paid plugins send its key, to our plugin
-				service, which checks it.
+				{/* Business counts people, not devices, and renews on the same license. */}
+				{BUSINESS_LAUNCHED
+					? "shows each step. The file is checked on your own machine, so it works offline. Each year the renewal extends this same license: the app fetches the renewed file when it is allowed online, and we email it to you as well."
+					: "shows each step. The file is checked on your own machine, so it works offline and on every computer you install SurfSense on. Only the paid plugins send its key, to our plugin service, which checks it."}
 			</>
 		),
 	},
@@ -59,8 +61,9 @@ export default function LicenseSuccessPage() {
 				<HomeBadge>Thank you</HomeBadge>
 				<h1 className={cn(siteText.display, "mt-4")}>Thanks, you are all set</h1>
 				<p className={cn(siteText.lede, "mx-auto mt-6 max-w-xl")}>
-					Your license file is below. Save it now: it is the thing that unlocks plugins and priority
-					support, and we have also emailed you a copy.
+					{BUSINESS_LAUNCHED
+						? "Your license file is below. Save it now: it is the thing that unlocks the job plugins, and we have also emailed you a copy."
+						: "Your license file is below. Save it now: it is the thing that unlocks plugins and priority support, and we have also emailed you a copy."}
 				</p>
 				<div className="mt-10">
 					<Suspense fallback={null}>

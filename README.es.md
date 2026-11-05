@@ -89,24 +89,9 @@ Las ediciones, las conversiones y las herramientas de PDF siempre crean un archi
 
 ## Plugins
 
-Conéctalos en **Ajustes › Plugins**.
+Conéctalos en **Ajustes › Plugins**: servidores MCP del [registro de plugins](backend/plugins/registry), como DeepWiki y Notion, o cualquiera que añadas por URL. Siguen desactivados hasta que los permitas.
 
-**De SurfSense.** Leen páginas públicas sin usar tus propias cuentas y necesitan una licencia de SurfSense: [descarga la aplicación](https://www.surfsense.com/downloads) e introduce allí tu correo electrónico para conseguir una gratuita de 14 días.
-
-| Plugin | Qué hace |
-|---|---|
-| **Google Search** | Buscar en Google y leer sus resultados, anuncios y preguntas relacionadas |
-| **Web Crawl** | Leer una página web o rastrear un sitio entero y convertirlo en texto limpio |
-| **YouTube** | Leer videos y canales de YouTube, con sus comentarios |
-| **TikTok** | Leer videos de TikTok y sus comentarios, buscar usuarios y ver qué es tendencia |
-| **Reddit** | Leer publicaciones públicas de Reddit con sus hilos de comentarios, o una comunidad entera |
-| **Instagram** | Leer perfiles, publicaciones y reels públicos de Instagram, y buscar perfiles |
-| **Google Maps** | Encontrar lugares en Google Maps y leer sus reseñas |
-| **Amazon** | Leer productos y resultados de búsqueda de Amazon |
-| **Walmart** | Leer productos, resultados de búsqueda y reseñas de Walmart |
-| **Indeed** | Leer ofertas de empleo en Indeed |
-
-**De terceros.** Servidores MCP del [registro de plugins](backend/plugins/registry), como DeepWiki y Notion, o cualquiera que añadas por URL. No necesitan licencia; siguen desactivados hasta que los permitas.
+**Integrado y gratuito:** el agente y **Añadir desde la web**, en Fuentes, buscan en la web a través de SearXNG y leen páginas y transcripciones de YouTube desde tu propia conexión, sin plugin ni licencia.
 
 ## Cómo se compara
 

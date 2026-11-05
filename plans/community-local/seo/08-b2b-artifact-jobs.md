@@ -26,6 +26,23 @@ build at a time" and "Where each piece lives", "How SurfSense earns", "Pages
 and reach", "The next 90 days", the kill criteria, the swap rules and the open
 questions.
 
+**Revised 1 Nov 2026: one paid licence, Business, and the scrapers retire.**
+The maintainer decided that SurfSense sells one paid licence, Business, priced
+per person from one person; that a job plugin unlocks only with a Business
+licence or the 14-day trial; and that the Individual licence stops being sold
+([ADR 0080](../../../docs/adr/0080-surfsense-sells-one-business-license-priced-per-person.md)).
+Seven platform scrapers retire, and reading web pages, YouTube transcripts and
+web search move into the app, free for everyone
+([ADR 0081](../../../docs/adr/0081-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md),
+revised 2 Nov 2026: PostHog shows those three are the ones people use). It all
+happens in one release, the one that ships the first paid job: Business
+goes on sale, the scrapers retire and Individual sales stop together, so the
+paid offer is never empty. Until then the scrapers and the Individual licence
+stay on sale. Source: maintainer decision, 1 Nov 2026 (no permalink). None of
+it is built yet. The sections it changes are the headline's third point, the RFP section,
+"How SurfSense earns", "The next 90 days", the price in the kill criteria and
+swap rules, and the open questions.
+
 **Sources.** DataForSEO, pulled **21 Oct 2026**, Google US (`location_code:
 2840`, `language_code: en`), data through September 2026: Google Ads volume and
 CPC for 1,988 terms, clickstream exact-phrase volume for 1,492 of them, 83 SERPs
@@ -64,10 +81,12 @@ forums and Upwork, and is cited inline. The product facts were checked against
    paid hooks were wrappers around the jobs. Businesses already pay for the
    jobs: self-serve questionnaire tools at $50 to $249 a month, Loopio about
    $24K a year for small teams. So each B2B job ships as a plugin that runs on
-   the user's machine and unlocks with a SurfSense licence, the 14-day trial
-   included. The app, the general agent, the engines and the shared job
-   infrastructure stay free and open source. Team features and Enterprise
-   assurance sit on top, later.
+   the user's machine and unlocks with a Business licence, priced per person,
+   or the 14-day trial (decided 1 Nov 2026,
+   [ADR 0080](../../../docs/adr/0080-surfsense-sells-one-business-license-priced-per-person.md)).
+   The app, the general agent, the engines and the shared job infrastructure
+   stay free and open source. Firm controls and team features come later in
+   Business, and Enterprise assurance is quoted.
 4. **One engine, then many jobs.** Every second-wave job needs the same
    builds: page citations, a per-row or per-file runner, extraction into a
    schema with totals that tie out, per-row review beside the source, and a
@@ -408,9 +427,13 @@ SurfSense's own completed CAIQ goes through CSA's STAR Registry, the channel CSA
 names; its HECVAT is shared on request; the website shows only answers keyed by
 question ID.
 
-### Second wave, first in line: RFP and DDQ responses from the same library
+### Second wave, first in line: RFP and RFI responses from the same library
 
-**The job.** In: the issuer's RFP, RFI or DDQ response workbook, the answer
+Revised 1 Nov 2026: the DDQ comes first, with the security questionnaire, and
+RFP and RFI responses follow it
+([ADR 0080](../../../docs/adr/0080-surfsense-sells-one-business-license-priced-per-person.md)).
+
+**The job.** In: the issuer's RFP or RFI response workbook, the answer
 library and past proposals. Out: a revised copy with each response filled, a
 Source column citing the past bid, a Comply/Partial/Exception column, an
 exceptions list, and approved answers written back. Next, the issuer's `.docx`
@@ -528,14 +551,85 @@ included), written outside the Apache-2.0 tree from the first commit
 
 Decided 22 Oct 2026
 ([ADR 0067](../../../docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md)): the free
-layer distributes and the paid jobs earn.
+layer distributes and the paid jobs earn. Decided 1 Nov 2026
+([ADR 0080](../../../docs/adr/0080-surfsense-sells-one-business-license-priced-per-person.md)):
+the jobs are sold under one paid licence, Business, priced per person. None of
+it is built yet, and the pricing page still sells the Individual licence. The
+switch is one release, the one that ships the first paid job: Business goes on
+sale, the scrapers retire and Individual sales stop together. Until then the
+scrapers and the Individual licence stay on sale.
 
-| free, in the app (Apache-2.0) | paid job plugins (licence required, 14-day trial included) |
+**One paid licence: Business.** Business starts at one person; a one-person
+Business licence is shown as "Solo". Anyone who uses a SurfSense job plugin for
+work needs it. The job plugins unlock only with a Business licence or the
+14-day trial, where ADR 0067 said "Individual, Team, or the 14-day trial". The
+Individual licence ($60 the first year, then $120), which carries the scraper
+plugins, priority support and one feature build request a year, stops being
+sold at the switch. The jobs, in order: the security questionnaire and DDQ first; RFP and RFI
+responses; bank statements into a ledger, medical chronologies, and contract
+and lease registers; the contract redline against a playbook. Later come firm
+controls (a firm-wide policy lock, a local audit log with exports for a WISP
+and HIPAA reviews, a people roster) and team features (a shared library,
+approval by a second person, sealed client workspaces).
+
+**Price.** A founding price, which can change only at a renewal after at least
+30 days' notice
+([ADR 0083](../../../docs/adr/0083-the-founding-price-can-change-at-a-renewal-with-notice.md)),
+and a hypothesis to test: $60 a year for each person, the first included, to
+rise once sales justify it. It replaces the earlier plan of $1,200 a year per firm and the
+Individual licence's $60, then $120.
+
+| people | a year |
 |---|---|
-| Q&A with citations, Studio, the general agent and its format skills | the security questionnaire |
-| every engine: Word revisions as tracked changes, Excel and PowerPoint revisions, PDF tools, OCR, speech-to-text, data analysis | RFP, RFI and DDQ responses |
-| the study pack, and the capability jobs: conversion, comparison, transcription, redaction and organizing as they are built | the contract redline (review against a playbook, the issues list, starter playbooks) |
-| the shared job infrastructure: catalogue and entry points, eval harness, runner, provenance, per-row review, page citations, tie-out validator, bundle runtime | bank statements into a ledger; medical chronologies; contract and lease registers |
+| 1 ("Solo") | $60 |
+| 2 | $120 |
+| 5 | $300 |
+| 10 | $600 |
+| 15 | $900 |
+
+Each person costs the same, the first included (open question m, decided
+4 Nov 2026); how many people self-serve covers before a
+quoted Enterprise deal is open question k. Two anchors from the 1 Nov 2026
+research, both hypotheses: per-user AI tools for lawyers, accountants and
+clinicians run about $40 to $150 a month per user, and committed
+questionnaire-tool plans start around $3,000 a year. Business sits well below
+both.
+
+**Billing.** Business renews automatically every year on the same licence key.
+A renewal extends the same Keygen licence; the app fetches the renewed licence
+file when online, and an offline machine imports the emailed file. The checkout
+states the yearly renewal before payment, and cancellation and seat changes go
+through Stripe's emailed customer-portal link, so SurfSense still has no
+accounts.
+
+**Trials.** One 14-day trial of the full job, and nothing else: no separate
+pilots, and a design partner's trial is extended by hand. Two rules users do
+not see: Gmail dots fold into one address, and a company domain gets at most
+two trials a year.
+
+**People, not devices.** The firm declares at checkout how many people use job
+plugins and confirms the number at renewal. There is no device binding and no
+device identifier at launch. Device activation (two computers per person, a
+random code per install, never a hardware ID, with consent and an offline path)
+is added only if download counts show sharing. Who counts as a person is open
+question b; shared servers, offline firms, shared PCs and virtual desktops are
+open question c.
+
+**What is free and what is paid.** The app stays free and Apache-2.0,
+everything it does today included, with the engines and the shared job
+machinery. A licence never disables the app: when a Business licence lapses,
+new job runs stop after 30 days, and every file, library and output stays
+readable. When the scrapers retire, reading web pages, YouTube transcripts and
+web search move into the app, free for everyone, so Add from the web keeps
+working without a licence
+([ADR 0081](../../../docs/adr/0081-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)).
+
+| free, in the app (Apache-2.0) | paid job plugins (Business licence or the 14-day trial) |
+|---|---|
+| Q&A with citations, Studio, the general agent and its format skills | the security questionnaire and DDQ |
+| every engine: Word revisions as tracked changes, Excel and PowerPoint revisions, PDF tools, OCR, speech-to-text, data analysis | RFP and RFI responses |
+| the study pack, and the capability jobs: conversion, comparison, transcription, redaction and organizing as they are built | bank statements into a ledger; medical chronologies; contract and lease registers |
+| the shared job infrastructure: catalogue and entry points, eval harness, runner, provenance, per-row review, page citations, tie-out validator, bundle runtime | the contract redline (review against a playbook, the issues list, starter playbooks) |
 | the user's own files: libraries, playbooks they wrote, outputs and revised copies open and export without a licence | each job's skill, agent, workflow, mappings, playbooks, templates and eval cases |
 
 **The line between an edit and a job.** A user who asks the general agent to
@@ -548,45 +642,61 @@ examples name contracts and redlining, so a follow-up rewords them.
 
 **What can be sold, in order:**
 
-1. **The job plugins, under the SurfSense licence.** Today that is the
-   Individual licence ($60 the first year, then $120), which already carries
-   the scraper plugins, priority support and, since 21 Oct 2026, one feature
-   build request a year. Whether business jobs ship inside it at that price or
-   in a business licence at a higher one is open question 2. The trial gives
-   every user the jobs for 14 days, so the job catalogue in the app is where a
-   business user meets the paid layer.
-2. **Public-data plugins** inside the same licence, on the existing plugin host,
-   because only queries and public records pass through. One experiment, capped
-   at two weeks and built only if the questionnaire is on time: SAM.gov
+1. **The job plugins, under Business.** The trial gives every user the full
+   job for 14 days, so the job catalogue in the app is where a business user
+   meets the paid layer. Whether every job is included in Business or some are
+   add-ons is open question a.
+2. **Public-data plugins,** not yet placed in Business. They were planned for
+   the existing plugin host, because only queries and public records pass
+   through, but ADR 0081 leaves no paid plugin there and lets the maintainer
+   switch it off, so they need their own decision before they are built. One
+   experiment, capped at two weeks and built only if the questionnaire is on time: SAM.gov
    opportunities plus USAspending awards (anchor: HigherGov at $500 a year for
    one user, [pricing](https://www.highergov.com/pricing/)). Before building,
    confirm SAM.gov's API terms for proxying (it needs a key and limits calls by
    role), prefer the user's own key or start with USAspending, which needs none,
    and publish what the plugin host logs about queries.
-3. **Team features, once the jobs sell:** a library shared across installs,
+3. **Firm controls and team features, later, in Business, once the jobs
+   sell:** a firm-wide policy lock that users cannot override (the
+   per-workspace lock is free), a local audit log with exports for a WISP and
+   HIPAA reviews, and a people roster; then a library shared across installs,
    roles, approval by a second person, a signed change log, and sealed
-   per-client libraries for MSPs and vCISOs, synced through the customer's own
-   SharePoint, OneDrive, share or Git, so no SurfSense server is involved. Test
-   prices from before the decision, about $1,200 a year per team and $2,400 per
-   MSP, stay hypotheses. The MSP segment is unproven: no source yet shows MSPs
-   answering client questionnaires in volume.
+   per-client workspaces for MSPs and vCISOs, synced through the customer's own
+   SharePoint, OneDrive, share or Git, so no SurfSense server is involved. The
+   per-person price replaces the earlier test prices, about $1,200 a year per
+   team and $2,400 per MSP. The MSP segment is unproven: no source yet shows
+   MSPs answering client questionnaires in volume.
 4. **Enterprise, quoted.** The assurance basics (item 7) are published free as
    proof. Enterprise adds a third-party code audit on the
    [Obsidian/Cure53 model](https://obsidian.md/security) (a first SOC 2 Type II
-   costs $30K to $110K), an org-wide local-only policy that users cannot
-   override (the per-workspace lock is free), a local audit-log export, named
-   support and invoicing. No validated price exists yet.
+   costs $30K to $110K), named support and invoicing; the firm-wide policy lock
+   and the audit log, Enterprise items before 1 Nov 2026, are now planned as
+   Business's firm controls. Where self-serve Business ends and a quoted deal
+   begins is open question k. No validated price exists yet.
 5. **Paid setup through partners only.** MSPs, vCISOs and proposal
    consultancies bill their own clients for building a library or migrating
    from Loopio or Responsive; SurfSense supplies licences.
 
-**Enforcement.** A licence check on the user's machine can be stripped by any
-fork ([ADR 0019](../../../docs/adr/0019-offline-licenses.md)). What holds is
+**Enforcement.** Job content cannot be kept secret from a licensee: the agent
+reads it as plain text, and its prompts reach the model. A licence check in the
+open-source app can be stripped by any fork
+([ADR 0019](../../../docs/adr/0019-offline-licenses.md)). What holds is
 delivery, since the licence server serves a job plugin and its updates only to
-a valid licence, and the plugin's licence terms. The Business Source License
-used for the remote plugins grants production use to anyone who does not
-resell the work, which would let a business run a local job plugin without
-paying, so the local plugins' terms are open question 1.
+a valid Business licence or trial; the licence terms, under which the firm
+declares how many people use the jobs; and the firm's name, shown on job
+screens. There is no device binding at launch. The Business Source License used
+for the remote plugins grants production use to anyone who does not resell the
+work, which would let a business run a local job plugin without paying; closed
+terms for the job content are open question e, and the lawyer who drafts the
+terms is open question g.
+
+**Existing buyers.** Individual licences already sold keep what they bought
+until the switch, and their holders get a short notice that the scrapers
+retire. At the switch, each becomes Business Solo on the same key and keeps
+renewing at the price it was bought at, locked, as an early customer, with a
+notice email when converted and a reminder before each renewal. Whether
+Individual licences sold before the switch get the same treatment is open
+question q. Hand-issued Team licences are open question l.
 
 **Not now.** Bundled model access (a relay in the data path, thin margins, and
 Claude and ChatGPT plans already work through the app); connectors to document
@@ -599,9 +709,10 @@ a connector would route client files through SurfSense; and a standalone
 assurance-pack product, for which no buyer evidence was found. Once item 11
 exists, connectors can ship as local paid plugins like the jobs.
 
-**What $100K a year would take.** At today's $120 renewal, about 830 licences;
-a business price for the job plugins (open question 2) changes that figure. It
-is a target for the checks below, not a forecast.
+**What $100K a year would take.** At the founding price, about 1,670 Solo
+licences, about 330 five-person firms ($300 each) or about 170 ten-person firms
+($600).
+It is a target for the checks below, not a forecast.
 
 ## Pages and reach
 
@@ -664,7 +775,12 @@ checkout, so channels can be credited without an install ID.
 
 ## The next 90 days
 
-Two scopes fit; the maintainer chooses one (open question 3):
+The timeline recommended on 1 Nov 2026, open question j's default: no paid
+sale before the questionnaire passes the quality bar in the
+[kill criteria](#kill-criteria); free trials with design partners in December,
+once the job's eval harness and gold set (item 1) exist; and the paid launch
+with the beta, about mid-January 2027. Two scopes fit the beta; the maintainer
+chooses one (open question j):
 
 - **Minimum beta, about mid-January 2027:** items 1 to 5 (harness and corpus,
   baseline, inspection and validation, provenance, library with import).
@@ -684,20 +800,47 @@ Either way:
   or uses CMMC timing; ask CSA and EDUCAUSE in writing about question text; ask
   the lawyer whether the provenance review still gates selling a job that ships
   no `docxkit` or `crlib` code, and which licence terms a local job plugin
-  needs (open question 1).
+  needs (open questions e and g).
 - **From November.** Item 11 beside items 1 to 5: the licence server's route
   for paid bundles, install and update, and the job-pack loader. The
   questionnaire's job content goes into its plugin folder from its first
-  commit.
+  commit. The scrapers and the Individual licence stay on sale until the
+  switch; whether the Individual page and purchase email say from now that the
+  licence becomes Business Solo at the switch is open question q.
 - **By 15 Nov.** Publish the Cowork alternative page. Open the design-partner
-  call. Ship the harness and corpus and commit the baseline rows, failures
-  included.
+  call (open questions h and i). Ship the harness and corpus and commit the
+  baseline rows, failures included.
 - **Through December.** Items 3 to 5 in point releases; local rows once a 24–32
-  GB machine or rented GPU is confirmed.
-- **At the beta.** The job ships as a paid plugin on frontier models with an
-  n=3 row, and the 14-day trial covers design partners, who run it on their own
-  questionnaires. Settle the price (open question 2) before the first trials
-  end.
+  GB machine or rented GPU is confirmed. Once the harness and gold set exist,
+  design partners run the job on their own questionnaires on the 14-day trial,
+  extended by hand.
+- **Before the first sale.** The licence server's Stripe webhook handles only
+  the first checkout and full refunds today. It must handle `invoice.paid`, or
+  an auto-renewal charges without extending the licence, and trace a refund of
+  a subscription charge to its licence. Business gets new Keygen policies: the
+  Keygen CE v1.7.2 that production runs has everything needed, and the live
+  trial, individual and team policies are never edited or made strict, because
+  the plugin host accepts only `VALID` and every existing key would be locked
+  out. The licence server moves from the admin token to a product token, and
+  validates a licence before any machine creation or file check-out, since
+  Keygen does not check licence status there for admin or product callers. The
+  app learns to fetch a renewed licence file. The purchase email's "The app
+  never contacts a license server" and "works on every machine you install
+  SurfSense on", `/pricing/individual` and `/license/activate`, which say every
+  computer, and the pricing FAQ's "a single payment, not a subscription" are
+  rewritten; the privacy page's "does not compute or transmit a device
+  fingerprint" stays true, since there is no device identifier. Open questions
+  g and m are answered first.
+- **At the beta: the switch,** if the job has passed the quality bar;
+  otherwise the beta stays with design partners, and the scrapers stay on sale,
+  until it does. In one release the job ships as a paid plugin under Business
+  on frontier models with an n=3 row, the platform scrapers retire
+  ([ADR 0081](../../../docs/adr/0081-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)),
+  Individual sales stop, and Individual holders get a notice and become
+  Business Solo ([above](#how-surfsense-earns)). The pricing FAQ's line that a
+  licence is only needed for the scraper plugins and priority support, and
+  Terms section 5, which says a licence adds the scrapers and gates nothing
+  else, change in that release.
 - **About six weeks after the beta.** Run the quality and pay checks below;
   if they pass, publish the questionnaire pages and the model page, and
   decide whether the RFP job starts.
@@ -707,7 +850,7 @@ Either way:
 | check | when | if it fails |
 |---|---|---|
 | **Quality:** the Sonnet 5.5 row on the gold set is at least 90% correct, with no unsupported "Yes" and no broken dropdown or macro, after two fix cycles | about six weeks after the beta | no job pages; the beta stays with design partners; fix or demote the lead |
-| **Pay intent:** at least 3 design partners commit in writing to buy a licence for the job at its price (open question 2) when their trial ends | about six weeks after the beta | re-check the price and the job before building the next paid job; the job stays a plugin |
+| **Pay intent:** at least 3 design partners commit in writing to buy a Business licence for the job at the founding price when their trial ends | about six weeks after the beta | re-check the price and the job before building the next paid job; the job stays a plugin |
 | **Conversion:** at least 15% of business users who start the job's trial buy a licence, and $15K of new annual revenue from all sources | 30 Jun 2027 | stop adding paid jobs beyond the questionnaire and re-rank the bets |
 | **Local claim:** a locally served model of 24 GB class or less reaches 80% correct with no unsupported "Yes" in row-by-row mode | 31 Mar 2027 | no "fully local" questionnaire claim; state the frontier-model requirement; drop CUI and PHI positioning |
 | **Search:** core questionnaire clickstream averages at least 4,700 for October to December; the HECVAT and CAIQ pages reach Google's top 10 within 90 days and 100 clicks a month by day 120 | January re-pull; 90 and 120 days after publishing | keep only the HECVAT and CAIQ pages; move reach to partners. Above 6,000, add SIG Lite and PCI SAQ pages |
@@ -722,32 +865,118 @@ shows at least 99% row recall with every statement tying out on a local model of
 24 GB or less, and a test statements page reaches Google's top 5 within eight
 weeks. Medical records replace it if a 24 GB-class local model passes a 500 to
 1,000-page synthetic chronology at 95% row recall with every page cite valid,
-and at least three PI or legal-nurse firms commit in writing to buy a licence
-at its price (open question 2).
+and at least three PI or legal-nurse firms commit in writing to buy a Business
+licence for it at its price (open question a).
 
 ## Open questions for the maintainer
 
 Settled on 22 Oct 2026: the B2B jobs are paid plugins
 ([ADR 0067](../../../docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md)), which
 answers where the paid line falls; and the maintainer posts the Show HN that
-week. Still open:
+week.
 
-1. **Which licence terms does a local job plugin carry?** The Business Source
-   License in `backend/plugins/proprietary/` grants production use to anyone
-   who does not resell the work. That suits code on SurfSense's server, but on
-   the user's machine it would let a business run a job plugin without paying.
-   The choice is a Business Source License with a narrower Additional Use
-   Grant, or a closed licence; decide with the lawyer before the first job
-   plugin ships.
-2. **What does a business pay for the jobs?** Either the Individual licence
-   ($60 the first year, then $120) unlocks them as it unlocks the scraper
-   plugins today, or business jobs need a business licence at a higher price.
-   Self-serve questionnaire tools charge $50 to $249 a month.
-3. **Scope or date for the beta?** A minimum beta about mid-January, or the
-   full list about mid-February, both now also waiting on item 11.
-4. **Team features, later.** When the jobs sell, the shared library needs a
-   writable shared-library location, an exception to linked folders being
-   read-only ([01, open question 10](../../../docs/proposals/file-agent/01-sources-and-folders.md#open-questions)).
+Settled on 1 Nov 2026:
+
+- **One paid licence, Business,** from one person ("Solo"); the Individual
+  licence stops being sold at the switch
+  ([ADR 0080](../../../docs/adr/0080-surfsense-sells-one-business-license-priced-per-person.md)).
+- **One switch:** Business goes on sale, the scrapers retire and Individual
+  sales stop in one release, the one that ships the first paid job; until then
+  the scrapers and the Individual licence stay on sale
+  ([ADR 0080](../../../docs/adr/0080-surfsense-sells-one-business-license-priced-per-person.md),
+  [ADR 0081](../../../docs/adr/0081-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)).
+- **A job plugin unlocks only with Business or the 14-day trial,** and anyone
+  who uses one for work needs Business
+  ([ADR 0080](../../../docs/adr/0080-surfsense-sells-one-business-license-priced-per-person.md)).
+- **A founding price,** to test: $60 a year for each person, the first
+  included (revised 4 Nov 2026)
+  ([ADR 0080](../../../docs/adr/0080-surfsense-sells-one-business-license-priced-per-person.md)).
+- **Yearly automatic renewal on the same key,** with cancellation and seat
+  changes through Stripe's emailed customer-portal link, and no accounts
+  ([ADR 0080](../../../docs/adr/0080-surfsense-sells-one-business-license-priced-per-person.md)).
+- **One 14-day trial of the full job,** and no separate pilots
+  ([ADR 0080](../../../docs/adr/0080-surfsense-sells-one-business-license-priced-per-person.md)).
+- **People, not devices,** declared at checkout and confirmed at renewal, with
+  no device binding or device identifier at launch, and the firm's name on job
+  screens
+  ([ADR 0080](../../../docs/adr/0080-surfsense-sells-one-business-license-priced-per-person.md)).
+- **Individual licences already sold become Business Solo** on the same key at
+  the switch, renewing at the price they were bought at, locked
+  ([ADR 0080](../../../docs/adr/0080-surfsense-sells-one-business-license-priced-per-person.md)).
+- **Seven platform scrapers retire,** and reading web pages, YouTube
+  transcripts and web search move into the app, free for everyone, with search
+  through SearXNG and the Google scraper dropped; settled 2 Nov 2026, which
+  answers what was open question d
+  ([ADR 0081](../../../docs/adr/0081-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)).
+- **Unchanged:** the app stays free and Apache-2.0, an edit is free and a job
+  is paid, and a licence never disables the app
+  ([ADR 0080](../../../docs/adr/0080-surfsense-sells-one-business-license-priced-per-person.md)).
+
+The four questions open since 22 Oct 2026, which other documents cite by
+number: 1, a local job plugin's licence terms, is now e and g; 2, what a
+business pays, was settled on 1 Nov; 3, the beta's scope, folds into j, whose
+default is the minimum beta about mid-January; 4, a writable shared-library
+location for team features, stays open for later as
+[01's open question 10](../../../docs/proposals/file-agent/01-sources-and-folders.md#open-questions).
+
+Still open, each with its recommended default:
+
+- **a. Is every job included in Business, or is each job an add-on?**
+  Default: all included.
+- **b. Exactly who counts as a person?** Default: anyone who runs a job plugin,
+  or has the agent use one, for the organization, employees and contractors
+  alike, counted at the busiest month.
+- **c. How do shared servers, offline and air-gapped firms, shared PCs and
+  virtual desktops count?** The Docker server image is published on every `v*`
+  tag, and [docker.md](../../../docs/architecture/docker.md#data-and-license)
+  says one licence works on a desktop and a server. Default: count people; a
+  shared server needs a licence for two or more people; offline firms pay the
+  same price.
+- **d. Where do the kept crawler and search run?** Settled 2 Nov 2026: inside
+  the app, so the user's machine fetches pages and transcripts; search defaults
+  to SurfSense's hosted SearXNG, with a setting for the firm's own.
+- **e. Does job content live in a private repository, shipped as signed packs
+  under a closed Job Plugin License, with old pack versions published as open
+  source after 12 to 24 months?** The Business Source License, FCL, ELv2 and
+  PolyForm Noncommercial all allow redistribution. Default: yes.
+- **f. A sunset clause?** If SurfSense stops selling Business licences, firms
+  keep running the packs they have, backed by a pre-signed licence held
+  outside the company. Default: yes, on shutdown only; Enterprise may
+  negotiate keeping old versions after any lapse.
+- **g. The lawyer: who, on what budget, and which governing law, US first?**
+  The work is the Business terms, with audit and true-up clauses, and the Job
+  Plugin License. Default: the Business terms and the Job Plugin License
+  first.
+- **h. Who is the questionnaire job priced for?** CPA and law firms, or the
+  MSPs, vCISOs and software vendors this plan names. Default: CPA and law
+  firms.
+- **i. Who recruits the first 3 to 5 design partners, and by when?** Default:
+  start with existing licence holders who work with confidential client files.
+- **j. Paid sales before the questionnaire passes this plan's quality bar?**
+  Default: no; trials with design partners in December, and the paid launch
+  with the mid-January beta.
+- **k. Self-serve up to how many people before a quoted Enterprise deal?**
+  Default: 15.
+- **l. Do any hand-issued Team licences exist, and what do they become?**
+  Default: they keep working to expiry and are offered Business at renewal.
+- **m. Is the first person priced apart from each further one?** Decided
+  4 Nov 2026: no, each person is $60 a year, the first included.
+- **n. Does Business include the priority support and the yearly feature build
+  request that Individual carries?** Default: yes.
+- **o. Where does the app fetch a renewed licence file from?** Default:
+  SurfSense's licence server, so the app still never contacts Keygen
+  ([ADR 0019](../../../docs/adr/0019-offline-licenses.md)), with the call
+  described on the privacy page.
+- **p. What does Enterprise keep once firm controls move into Business?**
+  Default: more than 15 people, a site licence, an internal mirror, virtual
+  desktops, a DPA, the third-party code audit, named support, invoicing and
+  negotiated terms.
+- **q. Do Individual licences sold before the switch also become Business Solo
+  at their price?** Default: yes, and the Individual page and purchase email
+  say so from now, so no new sale commits SurfSense to running the scrapers for
+  a year under Terms section 5.
+- **r. Are the scrapers frozen until the switch, kept running with no new
+  fixes?** Default: yes.
 
 ## What would change the answer
 

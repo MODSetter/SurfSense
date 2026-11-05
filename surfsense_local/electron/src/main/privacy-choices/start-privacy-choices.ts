@@ -155,7 +155,7 @@ export function startPrivacyChoices(options: {
     lock: usageLock,
     endpoint,
     facts: { appVersion: version, platform, os },
-    summary: (since) => readLocalSummary(options.apiUrl, since),
+    summary: (since, firstRun) => readLocalSummary(options.apiUrl, since, firstRun),
     locale: currentLocale,
     totalMemoryBytes: totalmem,
     fetch: outboundFetch,

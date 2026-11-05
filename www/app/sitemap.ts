@@ -5,6 +5,7 @@ import { FREE_MODELS } from "@/app/(home)/free/free-models";
 import { allPlugins } from "@/app/(home)/plugins/all-plugins";
 import { getPublishedAnnouncementPosts } from "@/features/announcements/announcements-source";
 import { announcementPath } from "@/features/announcements/announcements-utils";
+import { BUSINESS_LAUNCHED } from "@/features/business-launch/business-launched.mts";
 import { source as docsSource } from "@/features/docs/source";
 
 const blogSource = loader({
@@ -45,7 +46,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 		},
 		{ url: `${BASE_URL}/pricing`, lastModified, changeFrequency: "weekly", priority: 0.9 },
 		{
-			url: `${BASE_URL}/pricing/individual`,
+			// The checkout page on sale: Individual's redirects to Business's once Business launches.
+			url: `${BASE_URL}/pricing/${BUSINESS_LAUNCHED ? "business" : "individual"}`,
 			lastModified,
 			changeFrequency: "weekly",
 			priority: 0.8,

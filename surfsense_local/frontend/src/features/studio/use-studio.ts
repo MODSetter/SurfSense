@@ -7,6 +7,7 @@ import {
 import { toast } from "sonner"
 
 import { errorToast } from "@/features/feedback/error-toast"
+import { jobsKeys } from "@/features/jobs/query-keys"
 import { useWorkspaceChanges } from "@/features/workspaces/use-workspace-changes"
 import { useStableCallback } from "@/hooks/use-stable-callback"
 import { intl } from "@/i18n/intl"
@@ -132,17 +133,25 @@ export function useStudio(workspaceId: number, selectionToken = "") {
     }
   }, [artifactsQuery.data])
 
-  // One event refreshes the list and everything read for an open artifact.
+  // One event refreshes the list and everything read for an open artifact,
+  // and the workspace's job runs: each run's copy is an artifact, and the
+  // runs send no event of their own.
   useWorkspaceChanges(workspaceId, "artifacts", () => {
     const list = studioKeys.artifacts(workspaceId)
-    // Cancelled first: a read still in flight with no answer yet would
-    // otherwise be reused, and its older answer would land last.
+    // The list and the runs are cancelled first: a read still in flight with
+    // no answer yet would otherwise be reused, and its older answer would
+    // land last.
     void queryClient
       .cancelQueries({ queryKey: list })
       .then(() => queryClient.invalidateQueries({ queryKey: list }))
     void queryClient.invalidateQueries({
       queryKey: studioKeys.openArtifacts(),
     })
+    void queryClient
+      .cancelQueries({ queryKey: jobsKeys.runs(workspaceId) })
+      .then(() =>
+        queryClient.invalidateQueries({ queryKey: jobsKeys.runs(workspaceId) })
+      )
   })
 
   // Only a list never read is an error to show: a failed reread keeps the

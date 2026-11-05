@@ -1,1 +1,1 @@
-"""Rows the Add from the web dialog shows: Google's results, pasted links, a list's items."""
+"""Rows the Add from the web dialog shows: search results and pasted links."""

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator, Mapping
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Literal
 
@@ -16,7 +17,9 @@ import httpx2
 
 from license.settings import config
 
-LicensePlan = Literal["trial", "individual", "team"]
+LicensePlan = Literal["trial", "individual", "team", "business"]
+# Plans whose maxUsers is a count: a team's seats, a Business license's people.
+COUNTED_PLANS = frozenset({"team", "business"})
 _CLOUD_BASE_URL = "https://api.keygen.sh/v1/accounts"
 _TIMEOUT_SECONDS = 30.0
 
@@ -37,6 +40,7 @@ def _policy_for(plan: LicensePlan) -> str:
             "trial": config.KEYGEN_POLICY_TRIAL,
             "individual": config.KEYGEN_POLICY_INDIVIDUAL,
             "team": config.KEYGEN_POLICY_TEAM,
+            "business": config.KEYGEN_POLICY_BUSINESS,
         }[plan],
         f"KEYGEN_POLICY_{plan.upper()}",
     )
@@ -120,28 +124,33 @@ async def create_license(
     license_id: str | None = None,
     expiry: datetime | None = None,
     extra_metadata: Mapping[str, str] | None = None,
+    policy: str | None = None,
     client: httpx2.AsyncClient | None = None,
 ) -> str:
     """Create a user-less Keygen license and return its id.
 
     ``metadata`` is the only index we have, so everything a later lookup needs
     goes in it. ``expiry`` overrides the policy duration; the trial route needs
-    that to keep the pre-plugin gap week from eating the trial.
+    that to keep the pre-plugin gap week from eating the trial, and a
+    subscription to end the license with what it paid for.
 
     ``license_id`` sets the record's id rather than letting Keygen assign one,
     which is what makes a duplicate fulfilment fail with
     :class:`LicenseExistsError` instead of succeeding twice. The license *key*
     stays Keygen-generated: it is the bearer credential contract 2 sends to the
     scraper API, so it must be unguessable, whereas an id is only a handle.
+
+    ``policy`` overrides the plan's own, for a plan sold on two policies: the
+    Business trial is a ``trial`` on the business-trial policy.
     """
     metadata: dict[str, str] = {"plan": plan, "email": email}
     if extra_metadata:
         metadata.update({str(k): str(v) for k, v in extra_metadata.items() if v})
 
     attributes: dict[str, Any] = {"metadata": metadata}
-    if plan == "team":
+    if plan in COUNTED_PLANS:
         if max_users is None or max_users < 1:
-            raise ValueError("Team licenses require max_users >= 1")
+            raise ValueError(f"{plan.title()} licenses require max_users >= 1")
         attributes["maxUsers"] = max_users
     if expiry is not None:
         attributes["expiry"] = expiry.isoformat()
@@ -154,7 +163,7 @@ async def create_license(
                 "policy": {
                     "data": {
                         "type": "policies",
-                        "id": _policy_for(plan),
+                        "id": policy or _policy_for(plan),
                     }
                 }
             },
@@ -216,6 +225,120 @@ async def checkout_license(
         )
         response.raise_for_status()
         return str(response.json()["data"]["attributes"]["certificate"])
+
+
+@dataclass(frozen=True, slots=True)
+class Validation:
+    """Keygen's ``meta.code`` for a license, and the license when it found one."""
+
+    code: str
+    record: dict[str, Any] | None = None
+
+
+def _validation(response: httpx2.Response) -> Validation:
+    body = response.json()
+    meta = body.get("meta") if isinstance(body, dict) else None
+    code = meta.get("code") if isinstance(meta, dict) else None
+    if not isinstance(code, str) or not code:
+        # A failure, as the plugin host's check treats it: an empty code would
+        # read as no license and answer 404 for one that exists.
+        raise RuntimeError("Keygen answered a validation without meta.code")
+    record = body.get("data")
+    return Validation(code=code, record=record if isinstance(record, dict) else None)
+
+
+async def validate_license(
+    license_id: str,
+    *,
+    client: httpx2.AsyncClient | None = None,
+) -> Validation:
+    """An unscoped validation by id: what Keygen says of the license's state.
+
+    Unscoped, because the server has no machine or fingerprint to name, and
+    none of our policies requires a scope.
+    """
+    async with _http(client) as http:
+        response = await http.post(
+            _account_url(f"licenses/{license_id}/actions/validate"),
+            headers=_headers(),
+            json={},
+        )
+        if response.status_code == 404:
+            return Validation("NOT_FOUND")
+        response.raise_for_status()
+        return _validation(response)
+
+
+async def validate_key(
+    key: str,
+    *,
+    client: httpx2.AsyncClient | None = None,
+) -> Validation:
+    """An unscoped validation by key, as the bearer: a key of another product reads as unknown."""
+    async with _http(client) as http:
+        response = await http.post(
+            _account_url("licenses/actions/validate-key"),
+            headers=_headers(),
+            json={"meta": {"key": key}},
+        )
+        # A product token may not validate another product's license; for
+        # this account that key belongs to no license we sold.
+        if response.status_code in {403, 404}:
+            return Validation("NOT_FOUND")
+        response.raise_for_status()
+        return _validation(response)
+
+
+async def update_license(
+    license_id: str,
+    *,
+    expiry: datetime | None = None,
+    max_users: int | None = None,
+    metadata: Mapping[str, str] | None = None,
+    client: httpx2.AsyncClient | None = None,
+) -> dict[str, Any]:
+    """Change only the given attributes and return the updated record.
+
+    ``metadata``, when given, replaces the whole object (see
+    :func:`update_license_metadata`); expiry and the people count go without
+    it, so a renewal or a seat change never rewrites what support corrected.
+    """
+    attributes: dict[str, Any] = {}
+    if expiry is not None:
+        attributes["expiry"] = expiry.isoformat()
+    if max_users is not None:
+        attributes["maxUsers"] = max_users
+    if metadata is not None:
+        attributes["metadata"] = dict(metadata)
+    if not attributes:
+        raise ValueError("Nothing to update")
+    async with _http(client) as http:
+        response = await http.patch(
+            _account_url(f"licenses/{license_id}"),
+            headers=_headers(),
+            json={"data": {"type": "licenses", "attributes": attributes}},
+        )
+        response.raise_for_status()
+        return dict(response.json()["data"])
+
+
+async def account_request(
+    method: str,
+    path: str,
+    *,
+    json: Mapping[str, Any] | None = None,
+    params: Mapping[str, str] | None = None,
+    client: httpx2.AsyncClient | None = None,
+) -> httpx2.Response:
+    """One call to the account's API with these credentials, for operator scripts."""
+    async with _http(client) as http:
+        return await http.request(
+            method,
+            _account_url(path),
+            headers=_headers(),
+            json=dict(json) if json is not None else None,
+            params=dict(params) if params is not None else None,
+        )
 
 
 async def list_licenses(
@@ -328,7 +451,7 @@ async def suspend_license(
     *,
     client: httpx2.AsyncClient | None = None,
 ) -> None:
-    """Suspend a license, e.g. after a refund.
+    """Suspend a license, e.g. after a refund; one already suspended stays as it is.
 
     Suspend rather than revoke: it is reversible, it keeps the record listable
     for support, and ``validate-key`` then returns ``SUSPENDED``, which maps
@@ -340,4 +463,10 @@ async def suspend_license(
             _account_url(f"licenses/{license_id}/actions/suspend"),
             headers=_headers(),
         )
+        if response.status_code == 422:
+            # Keygen's answer to suspending a suspended license, which a
+            # redelivered refund or a dispute after a full refund meets.
+            record = await get_license(license_id, client=client) or {}
+            if (record.get("attributes") or {}).get("status") == "SUSPENDED":
+                return
         response.raise_for_status()

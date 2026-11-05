@@ -35,6 +35,8 @@ dependencies = [
     "email-validator>=2.3.0",
     "disposable-email-domains>=0.0.271",
     "posthog>=7.28.0,<8",
+    # Checks a job pack's Ed25519 signature before the license server serves it.
+    "cryptography>=44",
 ]
 
 [dependency-groups]

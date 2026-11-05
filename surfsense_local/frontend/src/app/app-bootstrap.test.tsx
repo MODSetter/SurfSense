@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { EgressPrompt } from "@/features/egress/egress-prompt"
-import { render } from "@/test-utils"
+import { boxHeld, render } from "@/test-utils"
 import { AppBootstrap } from "./app-bootstrap"
 
 beforeEach(() => {
@@ -137,9 +137,9 @@ describe("app bootstrap", () => {
     expect(setup.className).toContain("py-1")
     expect(setup.className).toContain("text-white")
     const message = screen.getByRole("textbox", { name: "Message" })
-    expect((message as HTMLTextAreaElement).disabled).toBe(true)
+    expect(boxHeld(message)).toBe(true)
     // No chat remembered from before, so launch opens a new one, centered.
-    expect(message.getAttribute("placeholder")).toBe(
+    expect(message.getAttribute("aria-placeholder")).toBe(
       "Turn your sources into answers"
     )
     expect(screen.queryByText("No chat model is available")).toBeNull()
@@ -238,10 +238,9 @@ describe("app bootstrap", () => {
       )
       expect(screen.queryByRole("button", { name: "Set up model" })).toBeNull()
       expect(screen.getByText("anthropic/claude-fable-5")).toBeTruthy()
-      expect(
-        screen.getByRole<HTMLTextAreaElement>("textbox", { name: "Message" })
-          .disabled
-      ).toBe(true)
+      expect(boxHeld(screen.getByRole("textbox", { name: "Message" }))).toBe(
+        true
+      )
       const notice = reasonText.closest<HTMLElement>("[role=status]")!
       expect(
         within(notice).getByRole("button", { name: "Open settings" })
@@ -304,11 +303,9 @@ describe("app bootstrap", () => {
     )
     const notice = reason.closest<HTMLElement>("[role=status]")!
     expect(screen.queryByRole("button", { name: "Set up model" })).toBeNull()
-    const message = screen.getByRole<HTMLTextAreaElement>("textbox", {
-      name: "Message",
-    })
-    expect(message.disabled).toBe(true)
-    expect(message.getAttribute("placeholder")).toBe(
+    const message = screen.getByRole("textbox", { name: "Message" })
+    expect(boxHeld(message)).toBe(true)
+    expect(message.getAttribute("aria-placeholder")).toBe(
       "Allow sending to openrouter.ai to chat"
     )
 
@@ -325,7 +322,7 @@ describe("app bootstrap", () => {
         screen.queryByText("Sending data to openrouter.ai is off.")
       ).toBeNull()
     )
-    expect(message.disabled).toBe(false)
+    expect(boxHeld(message)).toBe(false)
   }, 15_000)
 
   it("sends the user to Network, not the model list, when egress is off", async () => {
@@ -395,9 +392,7 @@ describe("app bootstrap", () => {
     await userEvent.keyboard("{Escape}")
 
     await waitFor(() => expect(screen.queryByText(unreadable)).toBeNull())
-    const message = screen.getByRole<HTMLTextAreaElement>("textbox", {
-      name: "Message",
-    })
-    expect(message.disabled).toBe(false)
+    const message = screen.getByRole("textbox", { name: "Message" })
+    expect(boxHeld(message)).toBe(false)
   }, 15_000)
 })

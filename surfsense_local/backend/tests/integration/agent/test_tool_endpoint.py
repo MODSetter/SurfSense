@@ -95,6 +95,9 @@ async def test_it_offers_its_tools_with_flat_schemas(tools: ToolEndpoint) -> Non
         "pdf_pages",
         "pdf_stamp",
         "pdf_form",
+        "search_web",
+        "read_web_page",
+        "read_youtube_transcript",
     ]
     assert listed["search_sources"]["required"] == ["query"]
     assert listed["create_artifact"]["required"] == ["format", "source_ids"]
@@ -178,6 +181,9 @@ async def test_a_model_that_reads_images_is_also_offered_source_pages(
         "pdf_pages",
         "pdf_stamp",
         "pdf_form",
+        "search_web",
+        "read_web_page",
+        "read_youtube_transcript",
     ]
     pages = listed["source_pages"]
     assert pages["required"] == ["document_id"]

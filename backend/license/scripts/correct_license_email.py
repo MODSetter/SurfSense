@@ -14,6 +14,8 @@ was issued to, as the requester says they typed it. Never guess it from a
 lookalike: ask again. Someone who knows another person's exact address could
 have that trial repointed to them; they gain only a free, expiring, suspendable
 trial, and the correction moves the trial key too, so the owner can claim again.
+One address can hold both the earlier trial and the Business one; the lookup
+then refuses, and ``--trial-kind earlier`` or ``--trial-kind business`` picks one.
 
 Correcting the stored address matters as much as sending the file. Leave the
 typo in Keygen and every future re-download is another support ticket, because
@@ -23,6 +25,8 @@ typo in Keygen and every future re-download is another support ticket, because
         --email real@buyer.com --mail
     python -m license.scripts.correct_license_email --trial-email typo@exmaple.com \
         --email real@example.com --mail
+    python -m license.scripts.correct_license_email --trial-email typo@exmaple.com \
+        --trial-kind business --email real@example.com --mail
 
 Prints the current record and asks for confirmation before writing, unless
 --yes is passed.
@@ -36,11 +40,30 @@ import sys
 
 from license.admin import correct_license_email
 from license.email.deliver import deliver_licenses
+from license.email.message import BusinessCopy
 from license.models import LicenseNotFoundError
 from license.records import (
     find_license_by_checkout_session,
     find_trial_license_by_email,
 )
+from license.settings import config
+
+# Each trial kind by the setting naming the policy it is issued on.
+_TRIAL_POLICY_SETTINGS = {
+    "earlier": "KEYGEN_POLICY_TRIAL",
+    "business": "KEYGEN_POLICY_BUSINESS_TRIAL",
+}
+
+
+def _trial_policy(parser: argparse.ArgumentParser, kind: str | None) -> str | None:
+    """The policy of the trial kind support named; ``None`` looks at both."""
+    if kind is None:
+        return None
+    setting = _TRIAL_POLICY_SETTINGS[kind]
+    policy = getattr(config, setting)
+    if not policy:
+        parser.error(f"--trial-kind {kind} needs {setting} set")
+    return policy
 
 
 async def main() -> int:
@@ -54,6 +77,11 @@ async def main() -> int:
         "--trial-email",
         help="The exact address a trial was issued to, as the requester typed it",
     )
+    parser.add_argument(
+        "--trial-kind",
+        choices=tuple(_TRIAL_POLICY_SETTINGS),
+        help="With --trial-email, when the address holds both trials: which one",
+    )
     parser.add_argument("--email", required=True, help="The buyer's real address")
     parser.add_argument(
         "--mail",
@@ -62,12 +90,15 @@ async def main() -> int:
     )
     parser.add_argument("--yes", action="store_true", help="Skip the confirmation")
     args = parser.parse_args()
+    if args.trial_kind is not None and args.session is not None:
+        parser.error("--trial-kind goes with --trial-email, not --session")
+    policy = _trial_policy(parser, args.trial_kind)
 
     try:
         if args.session is not None:
             record = await find_license_by_checkout_session(args.session)
         else:
-            record = await find_trial_license_by_email(args.trial_email)
+            record = await find_trial_license_by_email(args.trial_email, policy=policy)
     except LicenseNotFoundError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
@@ -93,7 +124,11 @@ async def main() -> int:
         print("aborted")
         return 1
 
-    issued = await correct_license_email(record, args.email)
+    try:
+        issued = await correct_license_email(record, args.email)
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
     print(f"\ncorrected. {issued.email} can now use /license/resend.")
 
     if args.mail:
@@ -101,6 +136,7 @@ async def main() -> int:
             "resend",
             to=issued.email,
             certificates=[issued.certificate],
+            business=BusinessCopy.of(issued),
             idempotency_key=f"correct:{issued.keygen_license_id}",
         )
         print("emailed the license file")

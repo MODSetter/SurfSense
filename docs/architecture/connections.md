@@ -56,7 +56,7 @@ A base URL must be `http` or `https` with a host, and may not carry credentials,
 | `GET` | `/llm/connections` | list, by label, with `has_api_key` and never the key, and `serves`, the slots each can fill |
 | `POST` | `/llm/connections` | create; `201` |
 | `PUT` | `/llm/connections/{connection_id}` | replace |
-| `DELETE` | `/llm/connections/{connection_id}` | delete it and the selections that use it; `204` |
+| `DELETE` | `/llm/connections/{connection_id}` | delete it and the selections that use it, and leave every job checker that names it naming none ([jobs](jobs.md#runs)); `204` |
 | `GET` | `/llm/connections/{connection_id}/models` | the endpoint's live model list |
 | `POST` | `/llm/connections/{connection_id}/chat-test` | one short answer from a chosen model |
 | `POST` | `/llm/connections/{connection_id}/image-test` | one image from a chosen model |
