@@ -9,6 +9,7 @@ import httpx
 import pytest
 
 from modules.llm.connections import service
+from modules.llm.connections.model_list_url import model_list_url
 from modules.llm.connections.service import probe_connection
 from modules.llm.providers.openai_compatible.chat import OpenAICompatibleChatProvider
 
@@ -78,3 +79,11 @@ async def test_another_server_lists_under_its_base_url() -> None:
     await provider.models()
 
     assert str(seen[0].url) == "https://example.test/inference/openai/v1/models"
+
+
+def test_a_saved_port_and_scheme_are_kept() -> None:
+    """The list must come from the server that chat will call."""
+    assert (
+        model_list_url("http://opencode.ai:8443/inference/go/openai/v1")
+        == "http://opencode.ai:8443/inference/go/v1/models"
+    )

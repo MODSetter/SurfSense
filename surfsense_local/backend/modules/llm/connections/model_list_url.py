@@ -14,5 +14,5 @@ def model_list_url(base_url: str) -> str:
     address = base_url.rstrip("/")
     parts = urlsplit(address)
     if parts.hostname == _CONSOLE_HOST and parts.path in _CONSOLE_PATHS:
-        return f"https://{_CONSOLE_HOST}{_CONSOLE_PATHS[parts.path]}"
+        return f"{parts.scheme}://{parts.netloc}{_CONSOLE_PATHS[parts.path]}"
     return f"{address}/models"
