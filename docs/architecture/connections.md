@@ -195,7 +195,19 @@ Keys are protected by envelope encryption ([ADR 0018](../adr/0018-keychain-envel
 - Onboarding's chat step uses the same groups and the same dialog; with nothing connected yet, its **Connect** opens the dialog directly, and saving opens the server page on the new connection's models.
 - The connection form picks a provider from the remote manifest, through `GET /llm/catalog/remote`, or "Local or custom server". A ready provider fills its URL, which stays editable so a proxy in front of it still works; a provider that needs account details asks for each field and builds the URL from its template; a provider that needs a URL leaves it to the user; an unreachable one is listed, disabled, with its reason. A provider that takes no key, a loopback server, hides the key field. "Local or custom server" leaves the URL to the user, since its port is whatever its owner set, with `http://localhost:11434/v1` as placeholder text only; a loopback server the manifest lists, such as LM Studio, fills the manifest's URL like any ready provider. The save sends `catalog_provider`.
 
+## OpenCode's Console
+
+`opencode` and `opencode-go` take a Console API key, the only sign-in [OpenCode's docs](https://opencode.ai/v2/docs/console/harnesses) give for calling models. These rules come from those docs:
+
+- **Every paid text model answers on `/chat/completions`.** The Console translates between APIs, so the manifest records no native protocol for these providers, even though models.dev does ([`opencode_console.py`](../../surfsense_local/backend/scripts/remote_manifest/opencode_console.py)).
+- **A free model is listed but unusable.** The Console answers `403` outside OpenCode. The manifest marks a model free by its zero price, not its name, because `big-pickle` has no `-free` in its id.
+- **The model list has its own address.** It is `/inference/v1/models` or `/inference/go/v1/models`, not under the base URL ([`model_list_url.py`](../../surfsense_local/backend/modules/llm/connections/model_list_url.py)). A wrong key gets a `401` there, so saving a connection still checks the key.
+- **Every chat request carries `x-opencode-session` and `User-Agent: SurfSense`** ([`conversation_headers.py`](../../surfsense_local/backend/modules/llm/connections/conversation_headers.py)). Go requires the session on every request, so one outside a conversation gets a session of its own. Chat and the agent's model endpoint both send them.
+
 ## Known gaps
+
+- A connection saved before the Console's `/inference` URLs keeps its `/zen/v1` or `/zen/go/v1` base URL, which OpenCode's docs no longer mention.
+- A free Console model released after the last manifest refresh is listed as usable until the next refresh, and answers `403` when used.
 
 - A connection's `label` is unique case-sensitively on a database built by the migrations, whose rebuilds dropped the `NOCASE` the model declares.
 - A model on an endpoint the manifest does not carry never reads images here, even when its listing declares `image` input: discovery reads only output modalities, and nothing is stored at selection to carry the endpoint's word to the send ([ADR 0034](../adr/0034-vision-is-the-runtimes-answer-stored-nowhere.md)).
