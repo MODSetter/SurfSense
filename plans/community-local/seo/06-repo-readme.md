@@ -51,9 +51,16 @@ In order:
    transcripts on the user's own connection, with no plugin and no license.
    They replaced the table of SurfSense's own plugins, and the line on their
    license and free 14-day trial, in November 2026, when SurfSense's web
-   plugins became built-in tools. The section replaced **Star history**, under
-   the rule that anything added replaces something, and sits above the
-   comparison, as the maintainer asked.
+   plugins became built-in tools
+   ([ADR 0081](../../../docs/adr/0081-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)).
+   The section replaced **Star history**, under the rule that anything added
+   replaces something, and sits above the comparison, as the maintainer asked.
+   In the release that sells Business
+   ([ADR 0080](../../../docs/adr/0080-surfsense-sells-one-business-license-priced-per-person.md)),
+   anything the README says about a license names Business and the job
+   plugins, and it names no job before an eval row backs it
+   ([file agent strategy](../file-agent-strategy.md#the-headline), item 4).
+   Each change goes into every translation.
 6. **How it compares**, against NotebookLM (now Gemini Notebook) alone: offline
    use, whether documents leave the machine, editing files, licence and models.
    "Everything stays on your machine", the comparisons with local chat apps and
