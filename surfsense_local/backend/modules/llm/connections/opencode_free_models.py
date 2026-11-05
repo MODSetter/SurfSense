@@ -1,12 +1,17 @@
-"""OpenCode's Console refuses its free models outside OpenCode with a 403.
+"""Where OpenCode's free models work, which is narrower on Zen than on Go.
 
-https://opencode.ai/v2/docs/console/harnesses
+The docs promise a 403 outside OpenCode (https://opencode.ai/v2/docs/console/harnesses).
+Live on 5 Nov 2026, a Go key got `beam-free`'s reply and a Zen key got a 429 from all
+five free models tried, with the same account.
 """
 
 from urllib.parse import urlsplit
 
-OPENCODE_CONSOLE_PROVIDERS = frozenset({"opencode", "opencode-go"})
-FREE_MODEL_REASON = "OpenCode allows its free models only inside OpenCode"
+ZEN_PROVIDER = "opencode"
+OPENCODE_CONSOLE_PROVIDERS = frozenset({ZEN_PROVIDER, "opencode-go"})
+FREE_MODEL_REASON = (
+    "OpenCode's free models work only inside OpenCode or with OpenCode Go"
+)
 
 _CONSOLE_HOST = "opencode.ai"
 _REFUSED = 403
@@ -36,7 +41,7 @@ def unusable_reason(
     provider: str | None, listed_free: bool | None, from_manifest: str | None
 ) -> str | None:
     """A live price is newer than the manifest, which still decides without one."""
-    if provider not in OPENCODE_CONSOLE_PROVIDERS or listed_free is None:
+    if provider != ZEN_PROVIDER or listed_free is None:
         return from_manifest
     return FREE_MODEL_REASON if listed_free else None
 

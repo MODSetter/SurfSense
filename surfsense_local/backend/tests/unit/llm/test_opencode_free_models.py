@@ -77,6 +77,19 @@ async def test_a_list_without_a_readable_price_keeps_the_manifest(
     assert reasons == {"big-pickle": FREE_MODEL_REASON}
 
 
+@pytest.mark.parametrize(
+    "row",
+    [_priced("beam-free", 0), {"id": "beam-free"}, _priced("not-in-the-manifest", 0)],
+)
+async def test_a_go_key_can_use_free_models(
+    row: dict, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`beam-free` answered a Go key live on 5 Nov 2026, despite the docs' 403."""
+    reasons = await _reasons(monkeypatch, [row], "opencode-go")
+
+    assert reasons == {row["id"]: None}
+
+
 async def test_another_providers_price_means_nothing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

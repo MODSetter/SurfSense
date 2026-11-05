@@ -50,19 +50,25 @@ def test_a_paid_model_with_another_native_api_is_callable_on_chat_completions(
     assert model["call"] is None
 
 
-@pytest.mark.parametrize("provider", ["opencode", "opencode-go"])
-def test_a_free_model_says_it_only_works_inside_opencode(provider: str) -> None:
-    """The docs: other harnesses receive a 403. Price decides, since `big-pickle`
-    costs nothing and has no `-free` in its name."""
+def _free_model_call(provider: str) -> dict | None:
     api = {
         provider: _console_provider(
             {"big-pickle": {"id": "big-pickle", "cost": {"input": 0, "output": 0}}}
         )
     }
+    return translate(api)["providers"][provider]["models"]["big-pickle"]["call"]
 
-    call = translate(api)["providers"][provider]["models"]["big-pickle"]["call"]
+
+def test_a_free_zen_model_says_where_it_works() -> None:
+    """Price decides, since `big-pickle` costs nothing and has no `-free` in its name."""
+    call = _free_model_call("opencode")
 
     assert call_reason(Call(**call)) == FREE_MODEL_REASON
+
+
+def test_a_free_go_model_is_callable() -> None:
+    """`beam-free` answered a Go key live on 5 Nov 2026, despite the docs' 403."""
+    assert _free_model_call("opencode-go") is None
 
 
 def test_another_provider_keeps_its_native_protocol() -> None:
@@ -79,24 +85,26 @@ def test_another_provider_keeps_its_native_protocol() -> None:
 
 
 @pytest.mark.parametrize(
-    ("provider", "base_url", "paid", "free"),
+    ("provider", "base_url", "paid", "free", "free_reason"),
     [
         (
             "opencode",
             "https://opencode.ai/inference/openai/v1",
             "claude-opus-5-5",
             "big-pickle",
+            FREE_MODEL_REASON,
         ),
         (
             "opencode-go",
             "https://opencode.ai/inference/go/openai/v1",
             "claude-haiku-5-5",
             "beam-free",
+            None,
         ),
     ],
 )
-def test_the_shipped_manifest_reaches_opencode_as_its_docs_say(
-    provider: str, base_url: str, paid: str, free: str
+def test_the_shipped_manifest_reaches_opencode_as_it_answers(
+    provider: str, base_url: str, paid: str, free: str, free_reason: str | None
 ) -> None:
     """The committed file holds the rules, not only the translator."""
     served = load_remote_manifest().providers[provider]
@@ -104,4 +112,4 @@ def test_the_shipped_manifest_reaches_opencode_as_its_docs_say(
 
     assert served.connect.base_url == base_url
     assert lookup.unusable_reason(paid, provider) is None
-    assert lookup.unusable_reason(free, provider) is not None
+    assert lookup.unusable_reason(free, provider) == free_reason

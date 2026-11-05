@@ -57,7 +57,7 @@ def _provider(
         "models": {
             model_id: _model(
                 model,
-                console_call(model)
+                console_call(model, provider_id)
                 if provider_id in OPENCODE_CONSOLE_PROVIDERS
                 else _call(model),
             )
