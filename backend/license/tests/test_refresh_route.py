@@ -173,6 +173,21 @@ async def test_keygen_down_is_503(keygen_store: FakeKeygen) -> None:
     assert reply.status_code == 503
 
 
+async def test_a_validation_without_a_code_is_503_never_an_unknown_key(
+    keygen_store: FakeKeygen,
+) -> None:
+    """The license exists; a 404 would tell the app it has none."""
+    renewed_on_this_key(keygen_store)
+    keygen_store.codeless = True
+
+    reply = await refresh("KEY-lic-firm")
+
+    assert reply.status_code == 503
+    assert reply.json() == {
+        "detail": "Could not check that license right now. Try again later."
+    }
+
+
 async def test_the_portal_serves_the_refresh(keygen_store: FakeKeygen) -> None:
     portal = license_portal()
     assert portal is not None

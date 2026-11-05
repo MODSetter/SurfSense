@@ -24,5 +24,9 @@ def jobs_metadata() -> str:
 
 
 def jobs_of(metadata: Mapping[str, object]) -> tuple[str, ...]:
-    raw = str(metadata.get(META_JOBS) or "")
-    return tuple(code for code in raw.split(",") if code)
+    """``metadata.jobs`` read as the app reads it (contract 1), so both sides list the same jobs."""
+    raw = metadata.get(META_JOBS)
+    if not isinstance(raw, str):
+        return ()
+    trimmed = (code.strip() for code in raw.split(","))
+    return tuple(dict.fromkeys(code for code in trimmed if code))

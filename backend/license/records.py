@@ -112,20 +112,30 @@ async def find_license_by_checkout_session(session_id: str) -> LicenseRecord:
     return license_record(matches[0])
 
 
-async def find_trial_license_by_email(email: str) -> LicenseRecord:
+async def find_trial_license_by_email(
+    email: str, *, policy: str | None = None
+) -> LicenseRecord:
     """Resolve the trial issued to exactly this address, for a support correction.
 
     A trial has no payment to prove, so the anchor is the address as it was
     typed: support acts only on the exact address the requester says they
     entered, never on one that merely looks like it. Filtering on the trial key
-    as well keeps a paid licence at that address out of reach.
+    as well keeps a paid licence at that address out of reach. ``policy`` picks
+    the earlier trial or the Business one, which one address can both hold.
     """
     typed = normalize_email(email)
     matches = await keygen.list_licenses(
-        metadata={META_EMAIL: typed, META_TRIAL_KEY: fold_email(typed)}, limit=2
+        metadata={META_EMAIL: typed, META_TRIAL_KEY: fold_email(typed)},
+        policy=policy,
+        limit=2,
     )
     if not matches:
         raise LicenseNotFoundError(f"No trial license was issued to {typed!r}")
+    if len(matches) > 1 and policy is None:
+        raise LicenseNotFoundError(
+            f"{len(matches)} trial licenses were issued to {typed!r}, perhaps the "
+            "earlier trial and the Business one; pick one with --trial-kind"
+        )
     if len(matches) > 1:
         raise LicenseNotFoundError(
             f"{len(matches)} trial licenses were issued to {typed!r}; "

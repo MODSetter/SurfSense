@@ -46,6 +46,17 @@ def charge(payment_intent: str, *, refunded: bool = True, customer=None) -> dict
     }
 
 
+def dispute(payment_intent: str) -> dict:
+    return {
+        "id": f"dp_{payment_intent}",
+        "object": "dispute",
+        "amount": 6000,
+        "charge": f"ch_{payment_intent}",
+        "payment_intent": payment_intent,
+        "status": "needs_response",
+    }
+
+
 def status_of(env: Billing, license_id: str) -> str:
     return env.keygen.licenses[license_id]["attributes"]["status"]
 
@@ -98,16 +109,57 @@ async def test_a_partial_refund_of_a_year_suspends_nothing(env: Billing) -> None
 async def test_a_dispute_suspends_the_license_the_payment_bought(env: Billing) -> None:
     a_firm_and_another(env)
     charged_for(env, "pi_year", "sub_firm", "subscription_cycle")
-    dispute = {
-        "id": "dp_1",
-        "object": "dispute",
-        "amount": 6000,
-        "charge": "ch_pi_year",
-        "payment_intent": "pi_year",
-        "status": "needs_response",
-    }
 
-    response = await post_event(event("charge.dispute.created", dispute))
+    response = await post_event(event("charge.dispute.created", dispute("pi_year")))
+
+    assert response.status_code == 200
+    assert status_of(env, "lic-firm") == "SUSPENDED"
+    assert status_of(env, "lic-other") == "ACTIVE"
+
+
+@pytest.mark.parametrize(
+    "switch",
+    ["down", "refuse_suspend"],
+    ids=["Keygen down", "only the suspension failing"],
+)
+async def test_a_suspension_that_fails_answers_500_so_stripe_retries_it(
+    env: Billing, switch: str
+) -> None:
+    """A 200 would leave the refunded license working, with only a log line."""
+    a_firm_and_another(env)
+    charged_for(env, "pi_year", "sub_firm", "subscription_cycle")
+    refunded = event("charge.refunded", charge("pi_year"))
+
+    setattr(env.keygen, switch, True)
+    failed = await post_event(refunded, raise_app_exceptions=False)
+
+    assert failed.status_code == 500
+    assert status_of(env, "lic-firm") == "ACTIVE"
+
+    setattr(env.keygen, switch, False)
+    retried = await post_event(refunded)
+
+    assert retried.status_code == 200
+    assert status_of(env, "lic-firm") == "SUSPENDED"
+
+
+@pytest.mark.parametrize(
+    "again",
+    [
+        event("charge.refunded", charge("pi_year")),
+        event("charge.dispute.created", dispute("pi_year")),
+    ],
+    ids=["the refund redelivered", "a dispute after the refund"],
+)
+async def test_money_returned_for_a_suspended_license_answers_200(
+    env: Billing, again: bytes
+) -> None:
+    """Keygen refuses to suspend it again; the work is done, so nothing is retried."""
+    a_firm_and_another(env)
+    charged_for(env, "pi_year", "sub_firm", "subscription_cycle")
+    await post_event(event("charge.refunded", charge("pi_year")))
+
+    response = await post_event(again)
 
     assert response.status_code == 200
     assert status_of(env, "lic-firm") == "SUSPENDED"
