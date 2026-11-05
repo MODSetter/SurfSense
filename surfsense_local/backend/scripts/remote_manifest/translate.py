@@ -11,6 +11,7 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from remote_manifest.endpoints import ENDPOINTS, Fixed, Unreachable
+from remote_manifest.opencode_console import OPENCODE_CONSOLE_PROVIDERS, console_call
 
 __all__ = ["translate"]
 
@@ -53,13 +54,18 @@ def _provider(
         "doc": provider.get("doc"),
         "connect": _connect(provider, endpoints.get(provider_id)),
         "models": {
-            model_id: _model(model)
+            model_id: _model(
+                model,
+                console_call(model)
+                if provider_id in OPENCODE_CONSOLE_PROVIDERS
+                else _call(model),
+            )
             for model_id, model in (provider.get("models") or {}).items()
         },
     }
 
 
-def _model(model: dict[str, Any]) -> dict[str, Any]:
+def _model(model: dict[str, Any], call: dict[str, str] | None) -> dict[str, Any]:
     limit = model.get("limit") or {}
     return {
         "name": model.get("name") or model["id"],
@@ -77,18 +83,23 @@ def _model(model: dict[str, Any]) -> dict[str, Any]:
         "reasoning_options": model.get("reasoning_options"),
         "structured_output": model.get("structured_output"),
         "temperature": model.get("temperature"),
-        "call": _call(model),
+        "call": call,
     }
 
 
-def _connect(provider: dict[str, Any], reviewed: Fixed | Unreachable | None) -> dict[str, Any]:
+def _connect(
+    provider: dict[str, Any], reviewed: Fixed | Unreachable | None
+) -> dict[str, Any]:
     """How a connection reaches this provider, from models.dev and the reviewed table."""
     url = provider.get("api")
     package = provider.get("npm")
     if isinstance(reviewed, Unreachable):
         return _state("unreachable", reason=reviewed.reason)
     if url and package not in OPENAI_WIRE:
-        return _state("unreachable", reason=f"Speaks {_protocol_name(package)}, which SurfSense does not")
+        return _state(
+            "unreachable",
+            reason=f"Speaks {_protocol_name(package)}, which SurfSense does not",
+        )
     if url and _TEMPLATE_VARIABLE.search(url):
         fields = [
             {"name": name, "label": name.replace("_", " ").capitalize()}
