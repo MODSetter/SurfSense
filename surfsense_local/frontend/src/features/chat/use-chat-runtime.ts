@@ -48,6 +48,7 @@ import {
 } from "./mentions/mention-text"
 import { isClaudeCodeRefusal } from "./claude-code-refusal"
 import { chatKeys } from "./query-keys"
+import { clearDraftScope } from "./use-thread-scope"
 import type { LivePair } from "./runs/apply-frame"
 import {
   beginRun,
@@ -297,12 +298,14 @@ export function useChatRuntime({
     mutationFn: ({
       title,
       mode,
+      scope,
       signal,
     }: {
       title: string
       mode: NewChatChoice | null
+      scope: SourceScope | null
       signal: AbortSignal
-    }) => createThread(workspaceId, title, mode, signal),
+    }) => createThread(workspaceId, title, mode, scope, signal),
   })
   const deleteThreadMutation = useMutation({
     mutationFn: (threadId: number) => deleteThread(threadId),
@@ -626,11 +629,16 @@ export function useChatRuntime({
           const thread = await createThreadMutation.mutateAsync({
             title: "New chat",
             mode: newChatMode,
+            scope: sourceScope,
             signal: new AbortController().signal,
           })
           if (requestVersion.current !== version) {
             return
           }
+          // The thread holds the ticks now, whatever its first message does. A
+          // tick made meanwhile waits for the thread (useThreadScope), and a
+          // newer chat has already returned above.
+          clearDraftScope(workspaceId)
           threadId = thread.id
           usesAgent = thread.uses_agent
           queryClient.setQueryData<ChatThread[]>(
