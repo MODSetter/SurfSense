@@ -133,7 +133,7 @@ export function TryModelDialog({
   const [error, setError] = useState<string | null>(null)
   // On its first voice, because a server publishing them may have no default.
   const published = model.voices ?? []
-  const [voice, setVoice] = useState(published[0] ?? "")
+  const [voice, setVoice] = useState(published[0]?.id ?? "")
   const [confirmUnlisted, setConfirmUnlisted] = useState<string | null>(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
 

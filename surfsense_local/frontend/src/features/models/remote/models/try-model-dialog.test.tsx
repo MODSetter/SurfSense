@@ -62,7 +62,10 @@ const ELEVEN: ConnectionModel = {
   capability_source: "declared",
   selectable_for: ["audio_gen"],
   reads_images: false,
-  voices: ["george", "sarah"],
+  voices: [
+    { id: "george", label: "george" },
+    { id: "sarah", label: "sarah" },
+  ],
 }
 
 function openVoiceTrial(model: ConnectionModel) {
@@ -141,6 +144,43 @@ describe("trying a voice on a model that publishes them", () => {
         .getByRole("button", { name: "Test voice" })
         .hasAttribute("disabled")
     ).toBe(true)
+  })
+})
+
+describe("trying a voice the server names", () => {
+  const NAMED = {
+    ...ELEVEN,
+    voices: [
+      { id: "JBFqnCBsd6", label: "George" },
+      { id: "EXAVITQu4v", label: "Sarah" },
+    ],
+  }
+
+  it("shows the name and sends the id", async () => {
+    const user = userEvent.setup()
+    const sent = openVoiceTrial(NAMED)
+    const field = await screen.findByRole("combobox", { name: "Voice" })
+    expect((field as HTMLInputElement).value).toBe("George")
+
+    await user.click(field)
+    await user.click(await screen.findByRole("option", { name: "Sarah" }))
+    expect((field as HTMLInputElement).value).toBe("Sarah")
+    await user.click(screen.getByRole("button", { name: "Test voice" }))
+
+    await waitFor(() => expect(sent[0]?.voice).toBe("EXAVITQu4v"))
+  })
+
+  it("still takes a typed id", async () => {
+    const user = userEvent.setup()
+    const sent = openVoiceTrial(NAMED)
+    const field = await screen.findByRole("combobox", { name: "Voice" })
+
+    await user.clear(field)
+    await user.type(field, "OZ0L6")
+    await user.keyboard("{Escape}")
+    await user.click(screen.getByRole("button", { name: "Test voice" }))
+
+    await waitFor(() => expect(sent[0]?.voice).toBe("OZ0L6"))
   })
 })
 

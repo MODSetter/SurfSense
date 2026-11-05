@@ -27,7 +27,7 @@ function serving(
         connection_id: 1,
         model: "seed-audio",
         source: initial.source,
-        voices,
+        voices: voices.map((voice) => ({ id: voice, label: voice })),
         added: voices.filter(
           (voice) =>
             initial.source === "saved" ||
@@ -204,6 +204,47 @@ function hearing(refused: string[] = []) {
   )
   return tests
 }
+
+describe("a server that names its voices", () => {
+  it("shows the name, and plays and refers to it by the id", async () => {
+    const tests: string[] = []
+    FakeAudio.made = []
+    vi.stubGlobal("Audio", FakeAudio)
+    vi.stubGlobal(
+      "URL",
+      Object.assign(URL, {
+        createObjectURL: () => "blob:clip",
+        revokeObjectURL: () => {},
+      })
+    )
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (String(input).endsWith("/speech-test")) {
+          tests.push(JSON.parse(String(init?.body)).voice)
+          return new Response(new Blob(["clip"], { type: "audio/wav" }))
+        }
+        return Response.json({
+          connection_id: 7,
+          model: "eleven_v4",
+          source: "server",
+          voices: [{ id: "JBFqnCBsd6", label: "George" }],
+          added: [],
+          voices_page: null,
+        })
+      })
+    )
+    const user = userEvent.setup()
+    render(<ServerVoices />)
+
+    expect(await screen.findByText("George")).toBeTruthy()
+    expect(screen.queryByText("JBFqnCBsd6")).toBeNull()
+
+    await user.click(screen.getByRole("button", { name: "Play George" }))
+    await screen.findByRole("button", { name: "Stop George" })
+    expect(tests).toEqual(["JBFqnCBsd6"])
+  })
+})
 
 describe("hearing a listed voice", () => {
   it("plays with no player on the page, and offers Stop until told to", async () => {

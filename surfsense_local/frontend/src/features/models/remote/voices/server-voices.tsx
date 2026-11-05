@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input"
 import { ScrollFade } from "@/components/ui/scroll-fade"
 import { Spinner } from "@/components/ui/spinner"
 import { intl } from "@/i18n/intl"
+import { cn } from "@/lib/utils"
 
 import { testConnectionSpeech } from "../models/api"
 import { useServerVoices } from "./use-server-voices"
@@ -125,9 +126,10 @@ export function ServerVoices() {
           viewportClassName="max-h-56"
         >
           <ul className="divide-y">
-            {voices.data.voices.map((voice) => (
+            {voices.data.voices.map(({ id: voice, label }) => (
               <VoiceRow
                 key={voice}
+                label={label}
                 voice={voice}
                 trial={trials.trial?.voice === voice ? trials.trial : null}
                 error={
@@ -188,6 +190,7 @@ export function ServerVoices() {
 
 function VoiceRow({
   voice,
+  label,
   trial,
   error,
   onPlay,
@@ -195,6 +198,8 @@ function VoiceRow({
   onRemove,
 }: {
   voice: string
+  /** Its name, or the id again where the server states none. */
+  label: string
   trial: VoiceTrial | null
   error: string | null
   onPlay: () => void
@@ -205,8 +210,13 @@ function VoiceRow({
   return (
     <li className="space-y-2 px-3 py-2">
       <div className="flex items-center gap-2">
-        <span className="flex-1 truncate font-mono text-sm select-text">
-          {voice}
+        <span
+          className={cn(
+            "flex-1 truncate text-sm select-text",
+            label === voice && "font-mono"
+          )}
+        >
+          {label}
         </span>
         <Button
           type="button"
@@ -220,14 +230,14 @@ function VoiceRow({
                     id: "models_server_voices_stop_aria",
                     defaultMessage: "Stop {voice}",
                   },
-                  { voice }
+                  { voice: label }
                 )
               : intl.formatMessage(
                   {
                     id: "models_server_voices_play_aria",
                     defaultMessage: "Play {voice}",
                   },
-                  { voice }
+                  { voice: label }
                 )
           }
           onClick={playing ? onStop : onPlay}
@@ -250,7 +260,7 @@ function VoiceRow({
                 id: "models_server_voices_remove_aria",
                 defaultMessage: "Remove {voice}",
               },
-              { voice }
+              { voice: label }
             )}
             onClick={onRemove}
           >
