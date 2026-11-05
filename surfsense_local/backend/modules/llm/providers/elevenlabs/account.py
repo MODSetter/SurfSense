@@ -1,0 +1,174 @@
+"""What an ElevenLabs account offers: its models and its voices, asked live."""
+
+from dataclasses import dataclass
+
+import httpx
+
+from modules.llm.providers.elevenlabs.refusal import refusal_message
+from modules.llm.providers.protocols import Voice
+
+__all__ = [
+    "API_URL",
+    "ELEVENLABS",
+    "ElevenLabsModel",
+    "ElevenLabsRefusedError",
+    "account_voices",
+    "text_to_speech_models",
+    "verify_key",
+    "voices_for_model",
+]
+
+API_URL = "https://api.elevenlabs.io"
+# The connection's `auth_kind`: it signs in with `xi-api-key` and speaks this API.
+ELEVENLABS = "elevenlabs"
+
+_TIMEOUT = httpx.Timeout(10.0, connect=5.0)
+# Deprecated in favour of Flash, yet listed with no flag saying so.
+_RETIRED = frozenset({"eleven_turbo_v2", "eleven_turbo_v2_5"})
+_PAGE_SIZE = 100  # /v2/voices' most.
+_MAX_PAGES = 20  # Far past any account seen; a server looping on pages must end.
+_VOICE_ID_MAX = 100  # What a voice test and a brief take.
+
+
+class ElevenLabsRefusedError(Exception):
+    """The key cannot be used, in a sentence naming why."""
+
+
+@dataclass(frozen=True)
+class ElevenLabsModel:
+    id: str
+    languages: tuple[str, ...]
+
+
+def _client(
+    base_url: str, api_key: str | None, transport: httpx.BaseTransport | None
+) -> httpx.Client:
+    return httpx.Client(
+        base_url=base_url.rstrip("/"),
+        timeout=_TIMEOUT,
+        headers={"xi-api-key": api_key} if api_key else {},
+        transport=transport,
+    )
+
+
+def verify_key(
+    base_url: str, api_key: str, *, transport: httpx.BaseTransport | None = None
+) -> None:
+    """Raise unless the key reads what picking a model and a voice need. Spends no
+    credits. `text_to_speech` itself cannot be checked without voicing a line."""
+    try:
+        with _client(base_url, api_key, transport) as client:
+            for path, params in (
+                ("/v1/models", None),
+                ("/v2/voices", {"page_size": 1}),
+            ):
+                reply = client.get(path, params=params)
+                if reply.is_error:
+                    raise ElevenLabsRefusedError(refusal_message(reply))
+    except httpx.HTTPError as error:
+        raise ElevenLabsRefusedError("ElevenLabs could not be reached.") from error
+
+
+def text_to_speech_models(
+    base_url: str,
+    api_key: str | None,
+    *,
+    transport: httpx.BaseTransport | None = None,
+) -> list[ElevenLabsModel]:
+    """Raises `httpx.HTTPError`, which a model listing reports as any server's."""
+    with _client(base_url, api_key, transport) as client:
+        reply = client.get("/v1/models")
+    reply.raise_for_status()
+    return [
+        ElevenLabsModel(
+            entry["model_id"],
+            tuple(
+                language["language_id"]
+                for language in entry.get("languages") or []
+                if isinstance(language.get("language_id"), str)
+            ),
+        )
+        for entry in reply.json()
+        if entry.get("can_do_text_to_speech") and entry["model_id"] not in _RETIRED
+    ]
+
+
+def account_voices(
+    base_url: str,
+    api_key: str | None,
+    languages: tuple[str, ...],
+    *,
+    transport: httpx.BaseTransport | None = None,
+) -> list[Voice]:
+    """The account's voices its plan can use, its own and the premade first, since
+    a brief opens on the first two. Each speaks `languages`, its model's: no voice
+    is limited to fewer by anything the API enforces."""
+    with _client(base_url, api_key, transport) as client:
+        entries = _voice_entries(client)
+        free = _tier(client) == "free"
+    usable = [
+        entry
+        for entry in entries
+        if not (free and _from_library(entry))
+        and 0 < len(str(entry.get("voice_id") or "")) <= _VOICE_ID_MAX
+    ]
+    # Stable, so each group keeps the order ElevenLabs gives it.
+    usable.sort(key=_from_library)
+    usable.sort(key=lambda entry: not entry.get("is_owner"))
+    return [_voice(entry, languages) for entry in usable]
+
+
+def voices_for_model(
+    base_url: str,
+    api_key: str | None,
+    model: str,
+    *,
+    transport: httpx.BaseTransport | None = None,
+) -> list[Voice]:
+    """`model`'s languages come from its entry; a typed id has none to state."""
+    models = text_to_speech_models(base_url, api_key, transport=transport)
+    languages = next((m.languages for m in models if m.id == model), ())
+    return account_voices(base_url, api_key, languages, transport=transport)
+
+
+def _voice_entries(client: httpx.Client) -> list[dict]:
+    entries: list[dict] = []
+    token: str | None = None
+    for _ in range(_MAX_PAGES):
+        params: dict[str, str | int] = {"page_size": _PAGE_SIZE}
+        if token:
+            params["next_page_token"] = token
+        reply = client.get("/v2/voices", params=params)
+        reply.raise_for_status()
+        page = reply.json()
+        entries.extend(page.get("voices") or [])
+        token = page.get("next_page_token")
+        if not page.get("has_more") or not token:
+            break
+    return entries
+
+
+def _tier(client: httpx.Client) -> str | None:
+    """None without `user_read`, an optional permission."""
+    try:
+        reply = client.get("/v1/user/subscription")
+        return reply.json().get("tier") if reply.is_success else None
+    except (httpx.HTTPError, ValueError, AttributeError):
+        return None
+
+
+def _from_library(entry: dict) -> bool:
+    """A Voice Library voice, which ElevenLabs refuses Free accounts over the API
+    with a 402, though their own list carries the ones they saved."""
+    return entry.get("category") != "premade" and not entry.get("is_owner")
+
+
+def _voice(entry: dict, languages: tuple[str, ...]) -> Voice:
+    gender = (entry.get("labels") or {}).get("gender")
+    return Voice(
+        entry["voice_id"],
+        str(entry.get("name") or entry["voice_id"]),
+        # River is `neutral`; the brief groups by these two.
+        gender if gender in ("female", "male") else None,
+        languages,
+    )
