@@ -48,7 +48,7 @@ It runs in the open app, not on the next start: boot shows no window until the A
 3. Copy into `.incoming-<kind>` under the target, keeping hard links as links, modes and modified times. A symbolic link pointing inside the old folder is repointed.
 4. Read every copied file back and compare its SHA-256. The originals may be deleted on the strength of this.
 5. Repoint what stores absolute paths, in the copy (below).
-6. Rename into place, write the marker, then replace `storage-location.json` in one step. Until that write the old folder is still in charge, and any failure removes the copy.
+6. Rename into place, write the marker, then replace `storage-location.json` in one step. Until that write the old folder is still in charge, and any failure removes the copy. A folder holds one marker, so models returning into a moved data folder keep its data marker.
 7. Relaunch, or under `pnpm dev` only quit, because Electron's exit also takes Vite down. Once the new API has answered, `removeOldCopies` deletes only the entries the move named, because the old folder may be the user's home. A drive that is away keeps its record for a later start.
 
 Cancelling, or a failure, relaunches on the old folder. A closed window waits while a move copies.

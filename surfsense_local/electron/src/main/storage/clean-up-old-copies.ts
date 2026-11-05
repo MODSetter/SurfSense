@@ -32,7 +32,8 @@ export async function removeOldCopies(baseDir: string): Promise<void> {
     for (const entry of old.entries) {
       await rm(join(old.root, entry), { recursive: true, force: true, maxRetries: 5 }).catch(() => undefined)
     }
-    if (old.root !== baseDir) {
+    // Models can leave the data folder, which stays in use and still needs its marker.
+    if (old.root !== baseDir && old.root !== rest.dataRoot && old.root !== rest.modelsRoot) {
       await rm(join(old.root, MARKER_FILE), { force: true }).catch(() => undefined)
       await rmdir(old.root).catch(() => undefined)
     }

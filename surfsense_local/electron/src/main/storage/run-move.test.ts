@@ -243,6 +243,33 @@ test("moving back to the default folder undoes the move", async () => {
   assert.equal(existsSync(away), false)
 })
 
+test("models leaving a moved data folder leave it reachable once the old copies go", async () => {
+  const base = install()
+  await move(await plan(base, "data", temp()), base)
+  await removeOldCopies(base)
+
+  await move(await plan(base, "models", temp()), base)
+  await removeOldCopies(base)
+
+  assert.equal(resolveStorage(base, readStorageLocation(base)).dataReachable, true)
+})
+
+test("models coming back into a moved data folder leave it reachable", async () => {
+  const base = install()
+  await move(await plan(base, "data", temp()), base)
+  await removeOldCopies(base)
+  await move(await plan(base, "models", temp()), base)
+  await removeOldCopies(base)
+
+  await move(await plan(base, "models", null), base)
+  await removeOldCopies(base)
+
+  const storage = resolveStorage(base, readStorageLocation(base))
+  assert.equal(storage.modelsRoot, storage.dataRoot)
+  assert.equal(storage.dataReachable, true)
+  assert.equal(storage.modelsReachable, true)
+})
+
 test("all the data can come back to the default folder, models and all", async () => {
   const base = install()
   await move(await plan(base, "data", temp()), base)

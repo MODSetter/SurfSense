@@ -129,9 +129,12 @@ export async function runMove(options: {
       }
       await rm(staging, { recursive: true, force: true, maxRetries: 5 })
     }
+    const next = nextLocation(plan, baseDir, readStorageLocation(baseDir))
+    // A folder holds one marker, so models returning into the data folder keep its data marker.
+    const entersDataFolder = kind === "models" && toRoot === next.dataRoot
     // The default folder needs no proof that it is here: it is where the app starts.
-    if (toRoot !== baseDir) writeMarker(toRoot, kind)
-    writeStorageLocation(baseDir, nextLocation(plan, baseDir, readStorageLocation(baseDir)))
+    if (toRoot !== baseDir && !entersDataFolder) writeMarker(toRoot, kind)
+    writeStorageLocation(baseDir, next)
   } catch (error) {
     for (const path of placed) await rm(path, { recursive: true, force: true }).catch(() => undefined)
     await rm(staging, { recursive: true, force: true, maxRetries: 5 }).catch(() => undefined)
