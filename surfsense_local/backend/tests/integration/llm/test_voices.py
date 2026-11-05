@@ -69,6 +69,7 @@ async def test_a_server_that_lists_its_voices_offers_those(
         ],
         "added": [],
         "voices_page": None,
+        "problem": None,
     }
 
 
@@ -87,6 +88,7 @@ async def test_a_voice_is_kept_only_once_the_server_has_voiced_it(
         "voices": [],
         "added": [],
         "voices_page": None,
+        "problem": None,
     }
 
     refused = await client.post(URL, json={"voice": "nobody"})
@@ -150,6 +152,7 @@ async def test_a_model_that_publishes_its_voices_offers_them_and_takes_more(
         ],
         "added": [],
         "voices_page": None,
+        "problem": None,
     }
 
     assert (await client.post(URL, json={"voice": "OZ0L6"})).status_code == 201

@@ -205,6 +205,44 @@ function hearing(refused: string[] = []) {
   return tests
 }
 
+describe("a server whose voices could not be offered", () => {
+  function reading(problem: { code: string; message: string }) {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          connection_id: 7,
+          model: "eleven_v4",
+          source: "saved",
+          voices: [],
+          added: [],
+          voices_page: null,
+          problem,
+        })
+      )
+    )
+  }
+
+  it("says an account has no usable voices, and still takes one by id", async () => {
+    reading({ code: "no_usable_voices", message: "in English" })
+    render(<ServerVoices />)
+
+    expect(
+      await screen.findByText(/has no voices its plan can use through the API/)
+    ).toBeTruthy()
+    expect(screen.queryByText(/doesn’t list its voices/)).toBeNull()
+    expect(screen.getByRole("textbox", { name: "Voice ID" })).toBeTruthy()
+  })
+
+  it("says why a list failed, not that the server lists none", async () => {
+    reading({ code: "list_failed", message: "Invalid API key" })
+    render(<ServerVoices />)
+
+    expect(await screen.findByText(/Invalid API key/)).toBeTruthy()
+    expect(screen.queryByText(/doesn’t list its voices/)).toBeNull()
+  })
+})
+
 describe("a server that names its voices", () => {
   it("shows the name, and plays and refers to it by the id", async () => {
     const tests: string[] = []

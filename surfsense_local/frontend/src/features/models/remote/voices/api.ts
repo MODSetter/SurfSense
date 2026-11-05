@@ -17,6 +17,8 @@ export type ServerVoicesRead = {
   added: string[]
   /** Where the provider documents the model's voices, when it does. */
   voices_page: string | null
+  /** Why there is no list to offer, when it is not that the server has none. */
+  problem?: { code: "no_usable_voices" | "list_failed"; message: string } | null
 }
 
 export function readServerVoices(

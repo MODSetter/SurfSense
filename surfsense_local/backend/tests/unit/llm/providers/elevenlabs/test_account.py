@@ -204,3 +204,113 @@ def test_an_unreachable_server_is_refused_in_words_too() -> None:
 
     with pytest.raises(ElevenLabsRefusedError, match="could not be reached"):
         verify_key(BASE, "k", transport=httpx.MockTransport(handler))
+
+
+def test_voices_sharing_a_name_can_be_told_apart() -> None:
+    """Nothing makes names unique, and a picker chooses by what it shows."""
+    voices = [
+        voice("premade-id", "Sarah", "premade", "female"),
+        voice("clone-id-12345", "Sarah", "cloned", "female", owner=True),
+        voice("george-id", "George", "premade", "male"),
+    ]
+
+    labels = {
+        v.id: v.label
+        for v in account_voices(BASE, "k", (), transport=server(voices=voices))
+    }
+
+    assert labels["george-id"] == "George"
+    assert labels["premade-id"] == "Sarah (premade-)"
+    assert labels["clone-id-12345"] == "Sarah (clone-id)"
+
+
+@pytest.mark.parametrize(
+    "body", [{"detail": "not a list"}, "text", 7], ids=["object", "string", "number"]
+)
+def test_a_model_list_that_is_no_list_is_reported_as_a_bad_answer(body) -> None:
+    """A ValueError, which a model listing reports as a 502, not a raw 500."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=body)
+
+    with pytest.raises(ValueError, match="model list"):
+        text_to_speech_models(BASE, "k", transport=httpx.MockTransport(handler))
+
+
+def test_a_model_that_cannot_be_read_is_left_out() -> None:
+    """One odd entry should not cost the user the rest of the list."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json=[
+                "junk",
+                {"can_do_text_to_speech": True},
+                {"model_id": 7, "can_do_text_to_speech": True},
+                {
+                    "model_id": "eleven_v4",
+                    "can_do_text_to_speech": True,
+                    "languages": ["junk", {"language_id": "en"}, {"language_id": 7}],
+                },
+            ],
+        )
+
+    models = text_to_speech_models(BASE, "k", transport=httpx.MockTransport(handler))
+
+    assert [(m.id, m.languages) for m in models] == [("eleven_v4", ("en",))]
+
+
+@pytest.mark.parametrize(
+    "body",
+    [["a", "list"], {"voices": "not a list"}],
+    ids=["page is a list", "voices is a string"],
+)
+def test_a_voice_page_that_cannot_be_read_is_reported_as_a_bad_answer(body) -> None:
+    """A ValueError, which the roster reports rather than crashing on."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=body)
+
+    with pytest.raises(ValueError, match="voice list"):
+        account_voices(BASE, "k", (), transport=httpx.MockTransport(handler))
+
+
+def test_a_voice_that_cannot_be_read_is_left_out() -> None:
+    """One odd entry should not cost the user the rest of the list."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/v2/voices":
+            return httpx.Response(
+                200,
+                json={
+                    "voices": [
+                        "junk",
+                        {"name": "No id"},
+                        {
+                            "voice_id": "sarah",
+                            "name": "Sarah",
+                            "category": "premade",
+                            "labels": "not a mapping",
+                        },
+                    ],
+                    "has_more": False,
+                },
+            )
+        return httpx.Response(200, json={"tier": "free"})
+
+    voices = account_voices(BASE, "k", (), transport=httpx.MockTransport(handler))
+
+    assert [(v.id, v.gender) for v in voices] == [("sarah", None)]
+
+
+def test_a_subscription_reply_that_cannot_be_read_leaves_the_plan_unknown() -> None:
+    """It only decides what to hide, so it must not cost the voices."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/v2/voices":
+            return httpx.Response(200, json={"voices": [TALIA], "has_more": False})
+        return httpx.Response(200, json=["junk"])
+
+    voices = account_voices(BASE, "k", (), transport=httpx.MockTransport(handler))
+
+    assert [v.id for v in voices] == ["talia"]

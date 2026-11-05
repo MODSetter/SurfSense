@@ -2,6 +2,7 @@
 
 import io
 import json
+import sys
 import threading
 import wave
 from collections.abc import Iterator
@@ -14,6 +15,7 @@ from httpx import AsyncClient
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
+from modules.artifacts.podcast.brief import validate_options
 from modules.llm import resolution
 from modules.llm.connections import elevenlabs_router
 from modules.llm.providers.elevenlabs.speech import ElevenLabsSpeech
@@ -71,6 +73,9 @@ def _wav() -> bytes:
 class StubElevenLabs(BaseHTTPRequestHandler):
     spoken: ClassVar[list[tuple[str, dict]]] = []
     missing: str | None = None
+    voices: ClassVar[list[dict]] = VOICES
+    # A status to answer the voice list with, as an outage or a revoked key would.
+    voices_status: int | None = None
 
     def _answer(self, status: int, body: object) -> None:
         data = json.dumps(body).encode()
@@ -97,8 +102,10 @@ class StubElevenLabs(BaseHTTPRequestHandler):
             )
         elif path == "/v1/models":
             self._answer(200, MODELS)
+        elif path == "/v2/voices" and self.voices_status:
+            self._answer(self.voices_status, {"detail": {"message": "List refused."}})
         elif path == "/v2/voices":
-            self._answer(200, {"voices": VOICES, "has_more": False})
+            self._answer(200, {"voices": self.voices, "has_more": False})
         elif path == "/v1/user/subscription":
             self._answer(200, {"tier": "free"})
         else:
@@ -125,6 +132,8 @@ def eleven(monkeypatch: pytest.MonkeyPatch) -> Iterator[str]:
     """The stub, standing where the connection's fixed address points."""
     StubElevenLabs.spoken = []
     StubElevenLabs.missing = None
+    StubElevenLabs.voices = VOICES
+    StubElevenLabs.voices_status = None
     server = ThreadingHTTPServer(("127.0.0.1", 0), StubElevenLabs)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     url = f"http://127.0.0.1:{server.server_port}"
@@ -300,6 +309,7 @@ async def test_the_selection_lists_its_voices_by_name(
         ],
         "added": [],
         "voices_page": None,
+        "problem": None,
     }
 
 
@@ -377,3 +387,84 @@ async def test_disconnecting_clears_its_selection(
 
     selection = await client.get("/llm/selection/audio_gen")
     assert selection.status_code == 404
+
+
+VOICES_URL = "/llm/selection/audio_gen/voices"
+
+
+async def test_an_account_with_no_usable_voices_says_so_and_can_add_one(
+    client: AsyncClient, eleven: str, workspace_id: int
+) -> None:
+    """Not an empty list called the server's, which leaves nothing to do. A Free
+    account made since March 2026 has no Default voices to list."""
+    StubElevenLabs.voices = [VOICES[0]]
+    saved = await _connect(client)
+    await _choose(client, saved["id"])
+
+    read = (await client.get(VOICES_URL)).json()
+
+    assert read["source"] == "saved"
+    assert read["voices"] == []
+    assert read["problem"]["code"] == "no_usable_voices"
+    opened = (
+        await client.get(f"/workspaces/{workspace_id}/studio/podcast/brief")
+    ).json()
+    # What holds Generate and offers Set up voices.
+    assert (opened["voices_source"], opened["voices"]) == ("saved", [])
+
+
+async def test_a_refused_list_says_why_rather_than_that_none_are_listed(
+    client: AsyncClient, eleven: str
+) -> None:
+    """A revoked key must show, so what was read before is not kept up."""
+    saved = await _connect(client)
+    await _choose(client, saved["id"])
+    assert (await client.get(VOICES_URL)).json()["source"] == "server"
+
+    StubElevenLabs.voices_status = 401
+    read = (await client.get(VOICES_URL)).json()
+
+    assert read["source"] == "saved"
+    assert read["problem"] == {"code": "list_failed", "message": "List refused."}
+
+
+async def test_an_outage_keeps_the_voices_already_read(
+    client: AsyncClient, eleven: str
+) -> None:
+    """A brief failure says nothing about the voices, and Generate reads them too."""
+    saved = await _connect(client)
+    await _choose(client, saved["id"])
+    before = (await client.get(VOICES_URL)).json()
+
+    StubElevenLabs.voices_status = 503
+    during = (await client.get(VOICES_URL)).json()
+
+    assert during == before
+
+
+async def test_an_outage_with_nothing_read_yet_says_so(
+    client: AsyncClient, eleven: str, engine: Engine
+) -> None:
+    """Generate gives the real reason, not "add voices"."""
+    saved = await _connect(client)
+    StubElevenLabs.voices_status = 503
+    await _choose(client, saved["id"])
+
+    read = (await client.get(VOICES_URL)).json()
+
+    assert read["source"] == "saved"
+    assert read["problem"]["code"] == "list_failed"
+    with Session(engine) as session, pytest.raises(ValueError, match="List refused"):
+        validate_options(session, None)
+
+
+async def test_a_list_that_cannot_be_read_is_a_502_not_a_crash(
+    client: AsyncClient, eleven: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A malformed reply reaches the model listing's usual failure."""
+    saved = await _connect(client)
+    monkeypatch.setattr(sys.modules[__name__], "MODELS", {"detail": "not a list"})
+
+    reply = await client.get(f"/llm/connections/{saved['id']}/models")
+
+    assert reply.status_code == 502

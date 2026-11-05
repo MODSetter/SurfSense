@@ -1,5 +1,6 @@
 """What an ElevenLabs account offers: its models and its voices, asked live."""
 
+from collections import Counter
 from dataclasses import dataclass
 
 import httpx
@@ -75,22 +76,31 @@ def text_to_speech_models(
     *,
     transport: httpx.BaseTransport | None = None,
 ) -> list[ElevenLabsModel]:
-    """Raises `httpx.HTTPError`, which a model listing reports as any server's."""
+    """Raises `httpx.HTTPError`, or `ValueError` for a reply that is no list, which
+    a model listing reports as any server's."""
     with _client(base_url, api_key, transport) as client:
         reply = client.get("/v1/models")
     reply.raise_for_status()
+    entries = reply.json()
+    if not isinstance(entries, list):
+        raise ValueError("ElevenLabs answered with no model list")
     return [
-        ElevenLabsModel(
-            entry["model_id"],
-            tuple(
-                language["language_id"]
-                for language in entry.get("languages") or []
-                if isinstance(language.get("language_id"), str)
-            ),
-        )
-        for entry in reply.json()
-        if entry.get("can_do_text_to_speech") and entry["model_id"] not in _RETIRED
+        ElevenLabsModel(entry["model_id"], _languages(entry))
+        for entry in entries
+        if isinstance(entry, dict)
+        and isinstance(entry.get("model_id"), str)
+        and entry.get("can_do_text_to_speech")
+        and entry["model_id"] not in _RETIRED
     ]
+
+
+def _languages(entry: dict) -> tuple[str, ...]:
+    listed = entry.get("languages")
+    return tuple(
+        language["language_id"]
+        for language in (listed if isinstance(listed, list) else [])
+        if isinstance(language, dict) and isinstance(language.get("language_id"), str)
+    )
 
 
 def account_voices(
@@ -106,16 +116,13 @@ def account_voices(
     with _client(base_url, api_key, transport) as client:
         entries = _voice_entries(client)
         free = _tier(client) == "free"
-    usable = [
-        entry
-        for entry in entries
-        if not (free and _from_library(entry))
-        and 0 < len(str(entry.get("voice_id") or "")) <= _VOICE_ID_MAX
-    ]
+    usable = [entry for entry in entries if not (free and _from_library(entry))]
     # Stable, so each group keeps the order ElevenLabs gives it.
     usable.sort(key=_from_library)
     usable.sort(key=lambda entry: not entry.get("is_owner"))
-    return [_voice(entry, languages) for entry in usable]
+    # Nothing makes names unique, and a picker chooses by what it shows.
+    names = Counter(_name(entry) for entry in usable)
+    return [_voice(entry, languages, names[_name(entry)] > 1) for entry in usable]
 
 
 def voices_for_model(
@@ -141,11 +148,22 @@ def _voice_entries(client: httpx.Client) -> list[dict]:
         reply = client.get("/v2/voices", params=params)
         reply.raise_for_status()
         page = reply.json()
-        entries.extend(page.get("voices") or [])
+        voices = page.get("voices") if isinstance(page, dict) else None
+        if not isinstance(voices, list):
+            raise ValueError("ElevenLabs answered with no voice list")
+        entries.extend(entry for entry in voices if _readable(entry))
         token = page.get("next_page_token")
         if not page.get("has_more") or not token:
             break
     return entries
+
+
+def _readable(entry: object) -> bool:
+    """One odd entry should not cost the user the rest of the list."""
+    if not isinstance(entry, dict):
+        return False
+    voice_id = entry.get("voice_id")
+    return isinstance(voice_id, str) and 0 < len(voice_id) <= _VOICE_ID_MAX
 
 
 def _tier(client: httpx.Client) -> str | None:
@@ -163,11 +181,17 @@ def _from_library(entry: dict) -> bool:
     return entry.get("category") != "premade" and not entry.get("is_owner")
 
 
-def _voice(entry: dict, languages: tuple[str, ...]) -> Voice:
-    gender = (entry.get("labels") or {}).get("gender")
+def _name(entry: dict) -> str:
+    return str(entry.get("name") or entry["voice_id"])
+
+
+def _voice(entry: dict, languages: tuple[str, ...], name_repeats: bool) -> Voice:
+    labels = entry.get("labels")
+    gender = labels.get("gender") if isinstance(labels, dict) else None
+    voice_id = entry["voice_id"]
     return Voice(
-        entry["voice_id"],
-        str(entry.get("name") or entry["voice_id"]),
+        voice_id,
+        f"{_name(entry)} ({voice_id[:8]})" if name_repeats else _name(entry),
         # River is `neutral`; the brief groups by these two.
         gender if gender in ("female", "male") else None,
         languages,

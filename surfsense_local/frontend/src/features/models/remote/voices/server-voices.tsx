@@ -55,7 +55,7 @@ export function ServerVoices() {
   )
 
   if (!voices.data) return null
-  const { source, voices_page: page } = voices.data
+  const { source, voices_page: page, problem } = voices.data
   const listed = source === "server"
 
   const submit = (event: React.SubmitEvent) => {
@@ -78,22 +78,37 @@ export function ServerVoices() {
         })}
       </h4>
       <p className="text-sm text-muted-foreground">
-        {listed
+        {problem?.code === "no_usable_voices"
           ? intl.formatMessage({
-              id: "models_server_voices_listed_body",
-              defaultMessage: "Listed by the server",
+              id: "models_server_voices_no_usable_body",
+              defaultMessage:
+                "This account has no voices its plan can use through the API. Upgrade your plan, or add a voice ID it can use.",
             })
-          : source === "published"
-            ? intl.formatMessage({
-                id: "models_server_voices_published_body",
-                defaultMessage:
-                  "Published for this model. You can also add a voice by its ID; it’s played once before it’s kept.",
-              })
-            : intl.formatMessage({
-                id: "models_server_voices_saved_body",
-                defaultMessage:
-                  "This server doesn’t list its voices. Add the IDs you want; each is played once before it’s kept. A podcast needs one per speaker.",
-              })}
+          : problem
+            ? intl.formatMessage(
+                {
+                  id: "models_server_voices_list_failed_body",
+                  defaultMessage:
+                    "Couldn’t read this server’s voices: {reason}",
+                },
+                { reason: problem.message }
+              )
+            : listed
+              ? intl.formatMessage({
+                  id: "models_server_voices_listed_body",
+                  defaultMessage: "Listed by the server",
+                })
+              : source === "published"
+                ? intl.formatMessage({
+                    id: "models_server_voices_published_body",
+                    defaultMessage:
+                      "Published for this model. You can also add a voice by its ID; it’s played once before it’s kept.",
+                  })
+                : intl.formatMessage({
+                    id: "models_server_voices_saved_body",
+                    defaultMessage:
+                      "This server doesn’t list its voices. Add the IDs you want; each is played once before it’s kept. A podcast needs one per speaker.",
+                  })}
         {page ? (
           <>
             {" "}

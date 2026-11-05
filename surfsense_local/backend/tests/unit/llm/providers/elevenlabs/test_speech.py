@@ -240,3 +240,16 @@ def test_voicing_needs_no_memory_here() -> None:
     client = ElevenLabsSpeech("m", base_url="http://x", api_key="k")
 
     asyncio.run(client.check_memory())
+
+
+@pytest.mark.parametrize("cost", ["12.5", "n/a", ""])
+def test_an_unreadable_cost_header_cannot_lose_a_paid_episode(cost: str) -> None:
+    """The header is undocumented and feeds only a log line, and the lines before
+    it are already billed."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=wav(), headers={"character-cost": cost})
+
+    audio = speak(handler, [SpokenTurn("sarah", "Hi."), SpokenTurn("george", "Yo.")])
+
+    assert audio.media_type == "audio/wav"

@@ -57,7 +57,7 @@ class ElevenLabsSpeech:
             for index, turn in enumerate(spoken, start=1):
                 reply = await self._voice(client, index, len(spoken), turn, language)
                 voiced.append(reply.content)
-                cost += int(reply.headers.get("character-cost") or 0)
+                cost += _credits(reply)
         logger.info("elevenlabs: %s lines cost %s credits", len(spoken), cost)
         try:
             return joined_replies(voiced)
@@ -95,6 +95,15 @@ class ElevenLabsSpeech:
         if reply.is_error:
             raise _failure(index, total, refusal_message(reply))
         return reply
+
+
+def _credits(reply: httpx.Response) -> int:
+    """For the log alone, from an undocumented header: the lines before it are
+    already billed, so nothing here may fail the episode."""
+    try:
+        return int(reply.headers.get("character-cost") or 0)
+    except ValueError:
+        return 0
 
 
 def _failure(index: int, total: int, words: str) -> NonRetryableSpeechError:

@@ -25,6 +25,12 @@ VoiceId = Annotated[
 ]
 
 
+class VoicesProblemRead(BaseModel):
+    # The interface words `no_usable_voices` itself; `list_failed` carries the server's.
+    code: str
+    message: str
+
+
 class VoicesRead(BaseModel):
     # What a voice is played through: the connection's speech test.
     connection_id: int
@@ -34,6 +40,7 @@ class VoicesRead(BaseModel):
     # Those removing can take away; the rest are the server's.
     added: list[str]
     voices_page: str | None
+    problem: VoicesProblemRead | None = None
 
 
 class VoiceWrite(BaseModel):
@@ -56,6 +63,11 @@ def list_voices(session: SessionDep) -> VoicesRead:
         # A list here leaves no reason to go and read the provider's page.
         voices_page=voices_page(connection, selected.name)
         if roster.source == "saved"
+        else None,
+        problem=VoicesProblemRead(
+            code=roster.problem.code, message=roster.problem.message
+        )
+        if roster.problem
         else None,
     )
 

@@ -3,17 +3,17 @@
 from dataclasses import dataclass
 from typing import Literal
 
-import httpx
 from sqlalchemy.orm import Session
 
 from modules.egress import service as egress
 from modules.llm.models import ProviderConnection, SelectedModel
 from modules.llm.providers import audiocpp
-from modules.llm.providers.elevenlabs.account import ELEVENLABS, voices_for_model
+from modules.llm.providers.elevenlabs.account import ELEVENLABS
 from modules.llm.providers.openai_compatible.published_voices import published_voices
 from modules.llm.providers.openai_compatible.voice_list import listed_voices
 from modules.llm.providers.protocols import Voice
 from modules.llm.resolution import local_speech, selected_audio, stored_connection
+from modules.llm.voices.elevenlabs_roster import VoicesProblem, elevenlabs_voices
 from modules.llm.voices.saved import saved_voices
 
 __all__ = [
@@ -47,6 +47,8 @@ class SpeechRoster:
     voices: list[Voice]
     source: Source
     voiced_by: VoicedBy | None
+    # Why a server has no voices to offer, when it is not simply that it lists none.
+    problem: VoicesProblem | None = None
 
 
 @dataclass(frozen=True)
@@ -55,6 +57,7 @@ class ServerRoster:
     voices: list[Voice]
     # The ones only the user's adding keeps here, which removing can take away.
     added: list[str]
+    problem: VoicesProblem | None = None
 
 
 def speech_voices(session: Session) -> SpeechRoster:
@@ -67,6 +70,7 @@ def speech_voices(session: Session) -> SpeechRoster:
         roster.voices,
         roster.source,
         VoicedBy(connection.label, selected.name),
+        roster.problem,
     )
 
 
@@ -89,7 +93,7 @@ def server_roster(
     native = connection.auth_kind == ELEVENLABS
     session.commit()
     if native:
-        return _elevenlabs_roster(ask[1], ask[2], model, saved)
+        return _elevenlabs_roster(*ask, model, saved)
     listed = listed_voices(*ask)
     if listed is not None:
         return ServerRoster("server", listed, [])
@@ -106,13 +110,17 @@ def _by_id(ids: list[str]) -> list[Voice]:
 
 
 def _elevenlabs_roster(
-    base_url: str, api_key: str | None, model: str, saved: list[str]
+    connection_id: int,
+    base_url: str,
+    api_key: str | None,
+    model: str,
+    saved: list[str],
 ) -> ServerRoster:
-    """A list that cannot be read leaves any voices added, as on another server."""
-    try:
-        return ServerRoster("server", voices_for_model(base_url, api_key, model), [])
-    except (httpx.HTTPError, ValueError, KeyError, TypeError):
-        return ServerRoster("saved", _by_id(saved), saved)
+    """With no list, any voices added stand, and the user can add one."""
+    read = elevenlabs_voices(connection_id, base_url, api_key, model)
+    if read.problem:
+        return ServerRoster("saved", _by_id(saved), saved, read.problem)
+    return ServerRoster("server", read.voices, [])
 
 
 def voices_page(connection: ProviderConnection, model: str) -> str | None:
