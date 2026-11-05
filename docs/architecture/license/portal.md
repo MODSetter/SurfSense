@@ -57,7 +57,7 @@ The app's way to pick up a renewal: a renewal extends the same key, so the app s
 3. `404` "No license has that key." for `NOT_FOUND`; `403` naming the code for any other code than `VALID` or `EXPIRED`, as for a suspended license; otherwise a fresh file, `text/plain` with `Content-Disposition: attachment; filename="surfsense.lic"` and `Cache-Control: no-store`.
 4. `503` when Keygen fails.
 
-A lapsed license still gets its file, which says what the app already shows. Naming the state leaks nothing, since the key is the credential the file already carries. The app does not call the route yet; [the app](app.md#settings-and-the-sidebar) still takes a renewal as a new file the user adds.
+A lapsed license still gets its file, which says what the app already shows. Naming the state leaks nothing, since the key is the credential the file already carries. The app calls the route when the user chooses Check for renewal, and on its own once a day around a Business license's end while the license server is allowed ([the app](app.md#renewal)).
 
 ### `POST /license/job-pack`
 
@@ -108,7 +108,7 @@ The purchase event comes from fulfilment rather than the webhook because the web
 
 ### Subscriptions
 
-Business renews every year on the same key (ADR 0080), and the Individual Payment Link has sold yearly subscriptions too, so a license sold on a subscription follows it. `subscription/` holds the rules:
+Business renews every year on the same key ([ADR 0080](../../adr/0080-surfsense-sells-one-business-license-priced-per-person.md)), and the Individual Payment Link has sold yearly subscriptions too, so a license sold on a subscription follows it. `subscription/` holds the rules:
 
 - **Expiry.** The license ends 30 days after the period paid for: the grace before a lapsed Business license stops new job runs, which also covers Stripe's retries of a failed renewal. The period's end is read from the subscription's items, where API 2025-03-31 moved it, or from the subscription in an older payload.
 - **Renewal.** On `invoice.paid` the subscription is read live. An invoice that pays for a period, `billing_reason` `subscription_create` or `subscription_cycle`, moves the license's `expiry` to its period's end plus 30 days, only ever later; a proration's (`subscription_update`) moves only `maxUsers`, since Stripe may already have advanced the period to a year not yet paid. A Business license's `maxUsers` takes the subscription's quantity on every paid invoice, since the firm confirms its people at renewal. Reading the live subscription makes a retried or late event set the same values. A renewal (`billing_reason` `subscription_cycle`) that moved the expiry mails the renewed file, so a computer that stays offline can import it; a suspended license is extended but gets no file. The first invoice (`subscription_create`) usually comes before the checkout's event and finds no license, which the checkout then mints with that period's expiry.
@@ -144,7 +144,7 @@ Each plan has its own policy, and `jobs.py` lists the job entitlement codes, `JO
 | business | `KEYGEN_POLICY_BUSINESS` | the setup script: 395 days, the fallback for a license made without an expiry |
 | business-trial | `KEYGEN_POLICY_BUSINESS_TRIAL` | the setup script: 14 days |
 
-The live trial, individual and team policies are never edited or made strict: the plugin host accepts only `VALID`, and a strict policy answers `NO_MACHINE` for every key on it, which would lock all of them out. The setup script makes both Business policies non-strict and floating with no machine cap, since Business counts people, not devices (ADR 0080), with the live policies' signing scheme, so their files carry the `alg` the app accepts.
+The live trial, individual and team policies are never edited or made strict: the plugin host accepts only `VALID`, and a strict policy answers `NO_MACHINE` for every key on it, which would lock all of them out. The setup script makes both Business policies non-strict and floating with no machine cap, since Business counts people, not devices ([ADR 0080](../../adr/0080-surfsense-sells-one-business-license-priced-per-person.md)), with the live policies' signing scheme, so their files carry the `alg` the app accepts.
 
 ## Idempotency without a table
 
@@ -395,7 +395,6 @@ The job pack tests build packs signed by a test key (`tests/job_pack_samples.py`
 
 - The cohort report has not run against production Keygen or Stripe.
 - The Keygen contract test has not yet run against a live Keygen; it skips without `KEYGEN_INTEGRATION=1` and credentials. Its cases for validation, a suspended license's check-out, an expiry moved on the same key and `validate-key` answering a license's `jobs` have not run either, and neither has the setup script against Keygen CE.
-- The app does not call `POST /license/refresh` yet, so a renewal reaches an Individual or Business user only by the renewal mail until it does.
 - No app on dev calls `POST /license/job-pack` yet.
 - A dispute won later leaves its license suspended until support reinstates it.
 - A full refund or a dispute that arrives before its purchase's license exists, as during a fulfilment outage, suspends nothing, since it traces to no license. A later webhook retry, or the success page whenever it is opened, then mints an active license, since fulfilment reads only the session's `payment_status`, which a refund leaves `paid`; support suspends that license by hand.
@@ -403,10 +402,10 @@ The job pack tests build packs signed by a test key (`tests/job_pack_samples.py`
 - The GitHub store has not read the real releases repository, and no pack is published; its tests fake GitHub at the transport.
 - A computer that cannot reach the license server gets a pack file only from support, by hand.
 - `scripts/issue_enterprise_license.py` issues no Business license with `jobs`, so a license it issues gets no pack.
-- Individual licenses are not converted to Business Solo (ADR 0080): nothing moves one to a Business policy and writes its `jobs`, so the job pack route refuses it every job.
+- Individual licenses are not converted to Business Solo ([ADR 0080](../../adr/0080-surfsense-sells-one-business-license-priced-per-person.md)): nothing moves one to a Business policy and writes its `jobs`, so the job pack route refuses it every job.
 - Nothing warns before `JOB_PACKS_GITHUB_TOKEN` expires; once it has, the refusal is only logged.
 - Each copy of the backend keeps its own pack cache, and without `REDIS_URL` its own rate-limit counts too, so every copy allows the full limits.
 - Without `REDIS_URL`, 100,000 new addresses within an hour push the least recently refilled memory buckets out, so those callers start again with full ones; and a caller that changes its IPv6 address on each request gets a fresh address bucket every time, though the key's bucket still holds.
 - Nothing detects a license key shared beyond its firm, such as one key asking from many networks.
-- The Business trial's two hidden rules in ADR 0080, Gmail dots folded into one address and at most two trials a year per company domain, are not built.
+- The Business trial's two hidden rules in [ADR 0080](../../adr/0080-surfsense-sells-one-business-license-priced-per-person.md), Gmail dots folded into one address and at most two trials a year per company domain, are not built.
 - Nothing checks the Payment Links' settings. Their after-payment redirect, the Business price's quantity limits and its `firm` field are set by hand in Stripe, and PostHog's 15 checkout clicks against 1 success page view in the 30 days to 21 Oct 2026 suggest the Individual link's redirect is not set.

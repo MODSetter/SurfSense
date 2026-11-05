@@ -6,7 +6,7 @@
 
 ## Context
 
-ADR 0067 makes SurfSense's B2B jobs paid plugins that the license server delivers only to a valid license, never in the installer or the public plugin list, and says what holds is delivery and terms, since a check in the app can be stripped. ADR 0080 makes Business, or its 14-day trial, the license that unlocks them, and lists the license server's route for paid bundles among what must exist before Business is sold. A job ships as a job pack: signed data, no code (`surfsense-job-pack/1`, a manifest listing every file's sha256 and signed with SurfSense's Ed25519 pack key; about 20 KB for the security questionnaire), which the app installs from a folder or a zip and checks before every read. Until now it installs only from a path on the computer.
+ADR 0067 makes SurfSense's B2B jobs paid plugins that the license server delivers only to a valid license, never in the installer or the public plugin list, and says what holds is delivery and terms, since a check in the app can be stripped. [ADR 0080](0080-surfsense-sells-one-business-license-priced-per-person.md) makes Business, or its 14-day trial, the license that unlocks them, and lists the license server's route for paid bundles among what must exist before Business is sold. A job ships as a job pack: signed data, no code (`surfsense-job-pack/1`, a manifest listing every file's sha256 and signed with SurfSense's Ed25519 pack key; about 20 KB for the security questionnaire), which the app installs from a folder or a zip and checks before every read. Until now it installs only from a path on the computer.
 
 What constrains where the server gets a pack and how it hands it over:
 
