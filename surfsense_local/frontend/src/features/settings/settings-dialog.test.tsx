@@ -95,6 +95,26 @@ describe("SettingsDialog", () => {
     vi.unstubAllGlobals()
   })
 
+  it("offers Storage only where main can move folders", () => {
+    const nav = () =>
+      Array.from(
+        screen.getByRole("navigation", { name: "System" }).querySelectorAll("button"),
+        (b) => b.textContent
+      )
+
+    const { unmount } = render(<SettingsHarness />)
+    expect(nav()).not.toContain("Storage")
+    unmount()
+
+    window.surfsense = {
+      ...window.surfsense!,
+      storage: { state: async () => null } as never,
+    }
+    render(<SettingsHarness />)
+    expect(nav()).toEqual(["Resources", "Storage", "Office support", "Network"])
+    delete window.surfsense!.storage
+  })
+
   it("groups the sections into Settings, Models, System and App", () => {
     render(<SettingsHarness />)
 

@@ -29,12 +29,14 @@ export function registerStorageHandlers(options: {
   appFolder: string
   isTrusted: (sender: Electron.WebContents) => boolean
   mainWindow: () => BrowserWindow | null
-  /** Ask about running replies, then stop every sidecar; false if the user stayed. */
-  stopTheApp: () => Promise<boolean>
+  /** Ask about running replies; false if the user stayed. */
+  confirmStop: () => Promise<boolean>
+  /** Stop every sidecar, so nothing writes while the files move. */
+  stop: () => Promise<void>
   relaunch: () => void
   onMovingChange: (moving: boolean) => void
 }): void {
-  const { storage, modelsUnavailable, appFolder, isTrusted, mainWindow, stopTheApp, relaunch, onMovingChange } = options
+  const { storage, modelsUnavailable, appFolder, isTrusted, mainWindow, confirmStop, stop, relaunch, onMovingChange } = options
   const { baseDir } = storage
   let pending: MovePlan | null = null
   let running: AbortController | null = null
@@ -93,10 +95,13 @@ export function registerStorageHandlers(options: {
   ipcMain.handle("storage:start", async (event) => {
     if (!isTrusted(event.sender) || pending === null || running !== null) return false
     const chosen = pending
-    if (!(await stopTheApp())) return false
+    if (!(await confirmStop())) return false
     pending = null
     running = new AbortController()
     onMovingChange(true)
+    // First, so the page covers itself before its API goes away.
+    send({ phase: "stopping" })
+    await stop()
     // Listed again now the sidecars are stopped: a database's -wal may have gone with them.
     const current = { ...chosen, entries: entriesToMove(chosen.kind, chosen.fromRoot) }
     void runMove({ plan: current, baseDir, signal: running.signal, onProgress: send })

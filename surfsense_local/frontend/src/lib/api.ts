@@ -1,3 +1,4 @@
+import type { StorageBridge } from "@/features/storage/storage-types"
 import { intl } from "@/i18n/intl"
 
 export type Health = {
@@ -59,6 +60,9 @@ declare global {
         // "" once opened, else the OS's reason.
         openDataFolder?: () => Promise<string>
       }
+      // Where the models and data live, and moving them. Absent in Docker and a
+      // confined snap. Mirrors electron/src/preload/index.ts.
+      storage?: StorageBridge
       // This run's log, oldest line first. Mirrors electron/src/preload/index.ts.
       sessionLog?: {
         read: () => Promise<string[]>

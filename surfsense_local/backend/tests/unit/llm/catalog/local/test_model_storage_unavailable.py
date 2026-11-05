@@ -20,6 +20,7 @@ def _fresh_settings():
 def test_a_download_is_refused_while_the_models_drive_is_missing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """The interface has its own words for this code, in each language."""
     monkeypatch.setenv("SURFSENSE_LOCAL_MODEL_STORAGE_UNAVAILABLE", "1")
 
     with pytest.raises(InstallRefusedError) as refused:
@@ -31,6 +32,7 @@ def test_a_download_is_refused_while_the_models_drive_is_missing(
 def test_a_download_goes_ahead_when_the_folder_is_there(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Unset, as on every install that never moved its models."""
     monkeypatch.delenv("SURFSENSE_LOCAL_MODEL_STORAGE_UNAVAILABLE", raising=False)
 
     refuse_while_storage_is_missing()

@@ -44,7 +44,7 @@ export function DataFolder() {
           {intl.formatMessage({
             id: "about_data_folder_body",
             defaultMessage:
-              "Models, workspaces and settings are kept here, not in the folder SurfSense is installed in.",
+              "SurfSense keeps your data here, not in the folder it’s installed in.",
           })}
         </p>
         <code className="text-sm break-all">{folder}</code>

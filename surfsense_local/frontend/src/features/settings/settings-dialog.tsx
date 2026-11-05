@@ -15,6 +15,7 @@ import {
   BugIcon,
   Chat01Icon,
   ComputerEthernetIcon,
+  HardDriveIcon,
   CpuIcon,
   Image01Icon,
   InformationCircleIcon,
@@ -60,6 +61,7 @@ import { ImageEditModelsSettings } from "./models/image-edit-models-settings"
 import { ImageModelsSettings } from "./models/image-models-settings"
 import { SpeechModelsSettings } from "./models/speech-models-settings"
 import { VideoModelsSettings } from "./models/video-models-settings"
+import { StorageSettings } from "@/features/storage/storage-settings"
 import { SettingsSection } from "./settings-section"
 
 type SettingsNavItem = {
@@ -78,6 +80,7 @@ export type SettingsSectionId =
   | "video-models"
   | "embedding-model"
   | "resources"
+  | "storage"
   | "office-support"
   | "network"
   | "plugins"
@@ -234,6 +237,7 @@ const ALL_SECTIONS = [
   { id: "video-models", group: "models", icon: Video01Icon },
   { id: "embedding-model", group: "models", icon: EmbeddingIcon },
   { id: "resources", group: "system", icon: CpuIcon },
+  { id: "storage", group: "system", icon: HardDriveIcon },
   { id: "office-support", group: "system", icon: File02Icon },
   { id: "network", group: "system", icon: ComputerEthernetIcon },
   { id: "report-issue", group: "app", icon: BugIcon },
@@ -241,9 +245,14 @@ const ALL_SECTIONS = [
 ] satisfies SettingsNavItem[]
 
 // Access is the Docker image's sign-in (ADR 0074); the desktop has none.
-const SETTINGS_SECTIONS = ALL_SECTIONS.filter(
-  (section) => section.id !== "access" || IN_CONTAINER
-)
+// Storage needs main: the Docker image's folder is its volume, and a snap can reach no other.
+function settingsSections() {
+  return ALL_SECTIONS.filter(
+    (section) =>
+      (section.id !== "access" || IN_CONTAINER) &&
+      (section.id !== "storage" || window.surfsense?.storage !== undefined)
+  )
+}
 
 const GROUP_LABELS: Record<SettingsNavItem["group"], () => string> = {
   settings: () =>
@@ -308,6 +317,11 @@ const SECTION_LABELS: Record<SettingsSectionId, () => string> = {
     intl.formatMessage({
       id: "settings_nav_embedding_label",
       defaultMessage: "Embedding",
+    }),
+  storage: () =>
+    intl.formatMessage({
+      id: "settings_nav_storage_label",
+      defaultMessage: "Storage",
     }),
   resources: () =>
     intl.formatMessage({
@@ -374,9 +388,9 @@ export function SettingsDialog({
   onModelSelected: (selection: ModelSelection) => void
   onImported?: (accepted: ImportAccepted) => Promise<void> | void
 }) {
+  const sections = settingsSections()
   const activeSection =
-    SETTINGS_SECTIONS.find((candidate) => candidate.id === section) ??
-    SETTINGS_SECTIONS[0]
+    sections.find((candidate) => candidate.id === section) ?? sections[0]
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -414,7 +428,7 @@ export function SettingsDialog({
                     className="flex flex-col gap-0.5"
                     aria-labelledby={`settings-nav-${group}`}
                   >
-                    {SETTINGS_SECTIONS.filter(
+                    {sections.filter(
                       (section) => section.group === group
                     ).map((section) => {
                       const Icon = section.icon
@@ -475,6 +489,7 @@ export function SettingsDialog({
               <EmbeddingSettings />
             ) : null}
             {activeSection.id === "resources" ? <ResourceSettings /> : null}
+            {activeSection.id === "storage" ? <StorageSettings /> : null}
             {activeSection.id === "office-support" ? (
               <OfficeSupportSettings askConsent={askOfficeConsent} />
             ) : null}

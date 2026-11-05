@@ -63,6 +63,7 @@ import type { Workspace } from "@/features/workspaces/api"
 import { useWorkspaces } from "@/features/workspaces/use-workspaces"
 import { useStartupReveal } from "@/features/startup/use-startup-reveal"
 import { useStableCallback } from "@/hooks/use-stable-callback"
+import { onStorageSettingsRequested } from "@/features/storage/open-storage-settings"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 import { WorkspaceRail } from "@/features/workspaces/workspace-rail"
@@ -737,6 +738,14 @@ export function DashboardPage({
     setSettingsSection(section)
     setSettingsOpen(true)
   }
+  useEffect(
+    () =>
+      onStorageSettingsRequested(() => {
+        setSettingsSection("storage")
+        setSettingsOpen(true)
+      }),
+    []
+  )
   const openOfficeSupport = useCallback(() => {
     setAskOfficeConsent(true)
     setSettingsSection("office-support")

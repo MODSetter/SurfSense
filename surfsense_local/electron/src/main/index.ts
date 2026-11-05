@@ -542,11 +542,8 @@ function main(): void {
         isTrusted: (sender) =>
           mainWindow !== null && sender === mainWindow.webContents,
         mainWindow: () => mainWindow,
-        stopTheApp: async () => {
-          if (!(await quitWithConfirmation())) return false
-          await shutdown()
-          return true
-        },
+        confirmStop: quitWithConfirmation,
+        stop: shutdown,
         relaunch: () => {
           app.relaunch()
           app.quit()

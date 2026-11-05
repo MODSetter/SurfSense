@@ -35,6 +35,7 @@ import {
   ComputerEthernetIcon as ComputerEthernetIconData,
   Copy01Icon,
   CpuIcon as CpuIconData,
+  HardDriveIcon as HardDriveIconData,
   CursorRemoveSelection02Icon as CursorRemoveSelection02IconData,
   Delete02Icon,
   Download01Icon as Download01IconData,
@@ -172,6 +173,7 @@ export const CircleAlertIcon = createIcon(AlertCircleIcon)
 export const CircleStopIcon = createIcon(StopCircleIcon)
 export const CopyIcon = createIcon(Copy01Icon)
 export const CpuIcon = createIcon(CpuIconData)
+export const HardDriveIcon = createIcon(HardDriveIconData)
 export const CursorRemoveSelection02Icon = createIcon(
   CursorRemoveSelection02IconData
 )
