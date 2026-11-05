@@ -453,3 +453,14 @@ describe("SettingsDialog in the Docker image", { tags: ["docker"] }, () => {
     ).toEqual(["General", "Access", "License", "Plugins"])
   })
 })
+
+describe("SettingsDialog in the Docker image", { tags: ["docker"] }, () => {
+  it("has no Storage section: the volume decides where the files are", () => {
+    render(<SettingsHarness />)
+
+    const system = screen.getByRole("navigation", { name: "System" })
+    expect(
+      Array.from(system.querySelectorAll("button"), (b) => b.textContent)
+    ).not.toContain("Storage")
+  })
+})
