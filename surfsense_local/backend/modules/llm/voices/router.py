@@ -76,6 +76,7 @@ def list_voices(session: SessionDep) -> VoicesRead:
 async def add_voice(payload: VoiceWrite, session: SessionDep) -> Response:
     """Voice one line in it, then keep it; a refusal keeps nothing."""
     selected, connection = await transact(session, _server_selection)
+    tested = (selected.connection_id, selected.name)
     speech = speech_client(connection, selected.name)
     try:
         await speech.synthesize(
@@ -83,7 +84,7 @@ async def add_voice(payload: VoiceWrite, session: SessionDep) -> Response:
         )
     except NonRetryableSpeechError as error:
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(error)) from error
-    await transact(session, _keep, payload.voice)
+    await transact(session, _keep, payload.voice, tested)
     return Response(status_code=status.HTTP_201_CREATED)
 
 
@@ -105,6 +106,13 @@ def _server_selection(session: Session) -> tuple[SelectedModel, ProviderConnecti
     return selected, allowed_connection(session, selected.connection_id)
 
 
-def _keep(session: Session, voice: str) -> None:
+def _keep(session: Session, voice: str, tested: tuple[int | None, str]) -> None:
+    """Read again, past what this session holds: voicing takes seconds, and the voice
+    was only heard on the model it began on."""
+    session.expire_all()
     selected, _ = _server_selection(session)
+    if (selected.connection_id, selected.name) != tested:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "the audio model changed while this was tested"
+        )
     keep(session, selected, voice)

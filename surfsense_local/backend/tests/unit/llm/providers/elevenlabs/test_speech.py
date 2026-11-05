@@ -3,6 +3,8 @@
 import asyncio
 import io
 import json
+import threading
+import time
 import wave
 
 import httpx
@@ -253,3 +255,45 @@ def test_an_unreadable_cost_header_cannot_lose_a_paid_episode(cost: str) -> None
     audio = speak(handler, [SpokenTurn("sarah", "Hi."), SpokenTurn("george", "Yo.")])
 
     assert audio.media_type == "audio/wav"
+
+
+def _peak_while_voicing(jobs: int, keys: list[str]) -> int:
+    """The most requests in flight while `jobs` threads voice, as Studio's do."""
+    lock = threading.Lock()
+    flight = {"now": 0, "peak": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        with lock:
+            flight["now"] += 1
+            flight["peak"] = max(flight["peak"], flight["now"])
+        time.sleep(0.03)
+        with lock:
+            flight["now"] -= 1
+        return httpx.Response(200, content=wav())
+
+    def job(key: str) -> None:
+        client = ElevenLabsSpeech(
+            "eleven_v4",
+            base_url="https://api.elevenlabs.io",
+            api_key=key,
+            transport=httpx.MockTransport(handler),
+        )
+        asyncio.run(client.synthesize([SpokenTurn("sarah", "Hi.")] * 3, "en"))
+
+    threads = [threading.Thread(target=job, args=(key,)) for key in keys[:jobs]]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    return flight["peak"]
+
+
+def test_jobs_on_one_key_stay_within_the_smallest_plan_limit() -> None:
+    """Studio runs four jobs and Free allows two v4 requests at a time, and the
+    backoff alone could run out with the slots still taken, losing the episode."""
+    assert _peak_while_voicing(4, ["shared-key"] * 4) <= 2
+
+
+def test_a_key_does_not_wait_on_another_keys_requests() -> None:
+    """The limit is each account's own."""
+    assert _peak_while_voicing(4, ["a", "b", "c", "d"]) > 2

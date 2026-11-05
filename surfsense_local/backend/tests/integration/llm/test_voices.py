@@ -1,12 +1,15 @@
 """The voices a server's audio model offers podcasts: listed by the server,
 or added by the user to the audio selection once each has been heard."""
 
+import asyncio
 import json
 import sqlite3
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import Engine
+from sqlalchemy import Engine, text
+
+from modules.llm.voices import router as voices_router
 
 from . import conftest
 from .conftest import REMOTE_REQUESTS
@@ -258,3 +261,39 @@ async def test_asking_the_server_for_its_voices_leaves_the_database_free(
     await client.get(URL)
 
     assert writable == [True]
+
+
+async def test_a_voice_tested_on_a_model_the_slot_has_left_is_not_kept(
+    client: AsyncClient,
+    openai_server: str,
+    engine: Engine,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Voicing takes seconds, and the voice was only heard on the model it began on."""
+    connection = await _choose(client, openai_server, "first-model")
+
+    def change_the_slot() -> None:
+        with engine.begin() as database:
+            database.execute(
+                text(
+                    "UPDATE selected_models SET name = 'second-model' "
+                    "WHERE model_type = 'audio_gen'"
+                )
+            )
+
+    class ChangesTheSlot:
+        async def synthesize(self, turns, language):
+            # Off the event loop, where the app holds no SQLite transaction.
+            await asyncio.to_thread(change_the_slot)
+
+    monkeypatch.setattr(voices_router, "speech_client", lambda *_: ChangesTheSlot())
+
+    reply = await client.post(URL, json={"voice": "alloy"})
+
+    assert reply.status_code == 409
+    with engine.connect() as database:
+        settings = database.execute(
+            text("SELECT settings FROM selected_models WHERE model_type = 'audio_gen'")
+        ).scalar_one()
+    assert "alloy" not in str(settings)
+    assert connection

@@ -217,9 +217,15 @@ async def update_connection(
     if connection.auth_kind in (CHATGPT, CLAUDE_PLAN):
         return await transact(session, _rename, connection, payload)
     if connection.auth_kind == ELEVENLABS:
-        # Its address is fixed; a new key replaces the old only once it works.
-        new_key = (payload.api_key or "").strip()
-        if new_key:
+        # Its address is fixed; a new key replaces the old only once it works. Null
+        # clears a key elsewhere, but this connection is nothing without one.
+        if "api_key" in payload.model_fields_set:
+            new_key = (payload.api_key or "").strip()
+            if not new_key:
+                raise HTTPException(
+                    status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    "an ElevenLabs connection needs a key; disconnect it to remove it",
+                )
             await require_usable_key(session, connection.base_url, new_key)
             connection.api_key = new_key
         return await transact(session, _rename, connection, payload)

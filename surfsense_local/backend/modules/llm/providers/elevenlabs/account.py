@@ -29,6 +29,7 @@ _RETIRED = frozenset({"eleven_turbo_v2", "eleven_turbo_v2_5"})
 _PAGE_SIZE = 100  # /v2/voices' most.
 _MAX_PAGES = 20  # Far past any account seen; a server looping on pages must end.
 _VOICE_ID_MAX = 100  # What a voice test and a brief take.
+_NEVER_FROM_LIBRARY = frozenset({"premade", "cloned", "generated"})
 
 
 class ElevenLabsRefusedError(Exception):
@@ -59,15 +60,35 @@ def verify_key(
     credits. `text_to_speech` itself cannot be checked without voicing a line."""
     try:
         with _client(base_url, api_key, transport) as client:
-            for path, params in (
-                ("/v1/models", None),
-                ("/v2/voices", {"page_size": 1}),
+            for path, params, is_answer in (
+                ("/v1/models", None, _is_model_list),
+                ("/v2/voices", {"page_size": 1}, _is_voice_page),
             ):
                 reply = client.get(path, params=params)
                 if reply.is_error:
                     raise ElevenLabsRefusedError(refusal_message(reply))
+                if not reply.is_success or not is_answer(reply):
+                    # A key saved on this could list nothing afterwards.
+                    raise ElevenLabsRefusedError(
+                        "ElevenLabs answered in a way SurfSense could not read."
+                    )
     except httpx.HTTPError as error:
         raise ElevenLabsRefusedError("ElevenLabs could not be reached.") from error
+
+
+def _is_model_list(reply: httpx.Response) -> bool:
+    try:
+        return isinstance(reply.json(), list)
+    except ValueError:
+        return False
+
+
+def _is_voice_page(reply: httpx.Response) -> bool:
+    try:
+        page = reply.json()
+    except ValueError:
+        return False
+    return isinstance(page, dict) and isinstance(page.get("voices"), list)
 
 
 def text_to_speech_models(
@@ -120,9 +141,8 @@ def account_voices(
     # Stable, so each group keeps the order ElevenLabs gives it.
     usable.sort(key=_from_library)
     usable.sort(key=lambda entry: not entry.get("is_owner"))
-    # Nothing makes names unique, and a picker chooses by what it shows.
-    names = Counter(_name(entry) for entry in usable)
-    return [_voice(entry, languages, names[_name(entry)] > 1) for entry in usable]
+    labels = _distinct_labels(usable)
+    return [_voice(entry, labels[entry["voice_id"]], languages) for entry in usable]
 
 
 def voices_for_model(
@@ -177,21 +197,42 @@ def _tier(client: httpx.Client) -> str | None:
 
 def _from_library(entry: dict) -> bool:
     """A Voice Library voice, which ElevenLabs refuses Free accounts over the API
-    with a 402, though their own list carries the ones they saved."""
-    return entry.get("category") != "premade" and not entry.get("is_owner")
+    with a 402, though their own list carries the ones they saved. Only Professional
+    clones can be shared there, so a clone or generated voice is the account's own,
+    even where `is_owner` is null, as the API allows."""
+    return entry.get("category") not in _NEVER_FROM_LIBRARY and not entry.get(
+        "is_owner"
+    )
 
 
 def _name(entry: dict) -> str:
     return str(entry.get("name") or entry["voice_id"])
 
 
-def _voice(entry: dict, languages: tuple[str, ...], name_repeats: bool) -> Voice:
+def _distinct_labels(entries: list[dict]) -> dict[str, str]:
+    """Each voice's label by id. Nothing makes names unique and a picker chooses by
+    what it shows, and a name can already read like one told apart by its id."""
+    names = Counter(_name(entry) for entry in entries)
+    labels = {e["voice_id"]: _name(e) for e in entries if names[_name(e)] == 1}
+    taken = set(labels.values())
+    for entry in entries:
+        voice_id = entry["voice_id"]
+        if voice_id in labels:
+            continue
+        label = f"{_name(entry)} ({voice_id[:8]})"
+        if label in taken:
+            label = f"{_name(entry)} ({voice_id})"
+        labels[voice_id] = label
+        taken.add(label)
+    return labels
+
+
+def _voice(entry: dict, label: str, languages: tuple[str, ...]) -> Voice:
     labels = entry.get("labels")
     gender = labels.get("gender") if isinstance(labels, dict) else None
-    voice_id = entry["voice_id"]
     return Voice(
-        voice_id,
-        f"{_name(entry)} ({voice_id[:8]})" if name_repeats else _name(entry),
+        entry["voice_id"],
+        label,
         # River is `neutral`; the brief groups by these two.
         gender if gender in ("female", "male") else None,
         languages,

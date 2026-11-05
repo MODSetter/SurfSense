@@ -314,3 +314,68 @@ def test_a_subscription_reply_that_cannot_be_read_leaves_the_plan_unknown() -> N
     voices = account_voices(BASE, "k", (), transport=httpx.MockTransport(handler))
 
     assert [v.id for v in voices] == ["talia"]
+
+
+@pytest.mark.parametrize(
+    ("path", "status", "body"),
+    [
+        ("/v1/models", 302, []),
+        ("/v1/models", 200, {"detail": "not a list"}),
+        ("/v2/voices", 200, ["not", "an", "object"]),
+        ("/v2/voices", 200, {"voices": "not a list"}),
+    ],
+    ids=["a redirect", "models not a list", "voices not an object", "no voice list"],
+)
+def test_a_reply_that_proves_nothing_does_not_pass_a_key(path, status, body) -> None:
+    """Saving on it would keep a connection that cannot list anything."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == path:
+            return httpx.Response(status, json=body)
+        if request.url.path == "/v1/models":
+            return httpx.Response(200, json=[])
+        return httpx.Response(200, json={"voices": []})
+
+    with pytest.raises(ElevenLabsRefusedError):
+        verify_key(BASE, "k", transport=httpx.MockTransport(handler))
+
+
+def test_a_free_account_keeps_its_own_voices_when_ownership_is_not_stated() -> None:
+    """`is_owner` may be null. Only Professional clones reach the library, so a
+    cloned or generated voice cannot be one a Free account would be refused."""
+    voices = [
+        {"voice_id": "clone", "name": "Clone", "category": "cloned", "is_owner": None},
+        {"voice_id": "made", "name": "Made", "category": "generated"},
+        {
+            "voice_id": "lib",
+            "name": "Lib",
+            "category": "professional",
+            "is_owner": False,
+        },
+        {
+            "voice_id": "pro",
+            "name": "Pro",
+            "category": "professional",
+            "is_owner": True,
+        },
+    ]
+
+    kept = account_voices(BASE, "k", (), transport=server("free", voices))
+
+    assert {v.id for v in kept} == {"clone", "made", "pro"}
+
+
+def test_a_name_can_already_be_what_telling_two_apart_would_make() -> None:
+    """A picker maps a label back to one voice, so every final label must differ."""
+    voices = [
+        voice("abcdefgh-1", "Sarah", "premade", "female"),
+        voice("abcdefgh-2", "Sarah", "premade", "female"),
+        voice("other", "Sarah (abcdefgh)", "premade", "female"),
+    ]
+
+    labels = [
+        v.label for v in account_voices(BASE, "k", (), transport=server(voices=voices))
+    ]
+
+    assert len(set(labels)) == 3
+    assert "Sarah (abcdefgh)" in labels

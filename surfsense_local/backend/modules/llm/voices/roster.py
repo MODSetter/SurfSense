@@ -120,7 +120,10 @@ def _elevenlabs_roster(
     read = elevenlabs_voices(connection_id, base_url, api_key, model)
     if read.problem:
         return ServerRoster("saved", _by_id(saved), saved, read.problem)
-    return ServerRoster("server", read.voices, [])
+    # A voice added while the list was down may be in a brief, so it stays.
+    listed = {voice.id for voice in read.voices}
+    added = [voice for voice in saved if voice not in listed]
+    return ServerRoster("server", [*read.voices, *_by_id(added)], added)
 
 
 def voices_page(connection: ProviderConnection, model: str) -> str | None:

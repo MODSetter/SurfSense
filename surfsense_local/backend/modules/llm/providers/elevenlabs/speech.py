@@ -8,6 +8,7 @@ from urllib.parse import quote
 import httpx
 
 from modules.llm.providers.elevenlabs.refusal import refusal_message
+from modules.llm.providers.elevenlabs.request_slots import request_slot
 from modules.llm.providers.openai_compatible.joined_replies import joined_replies
 from modules.llm.providers.openai_compatible.speech import NonRetryableSpeechError
 from modules.llm.providers.protocols import SpokenTurn, SynthesizedAudio
@@ -20,9 +21,10 @@ logger = logging.getLogger(__name__)
 LINE_TIMEOUT = httpx.Timeout(120.0, connect=10.0)
 # WAV, because only WAV takes a pause between speakers; 44.1 kHz needs a Pro plan.
 _OUTPUT_FORMAT = "wav_24000"
-# A concurrency refusal comes at once and bills nothing, with no Retry-After. Free
-# allows two v4 requests at a time, and Studio runs four jobs. A 5xx is not repeated:
-# the audio may already be billed.
+# A concurrency refusal comes at once and bills nothing, with no Retry-After. The
+# request slots keep this process within the limit, but a Test voice from the API's
+# process or another client of the key can still fill it. A 5xx is not repeated: the
+# audio may already be billed.
 _BACKOFF_SECONDS = (1, 2, 4, 8)
 
 
@@ -84,9 +86,10 @@ class ElevenLabsSpeech:
             # A request in flight cannot be stopped; a line not yet sent can.
             cancellation.raise_if_cancelled()
             try:
-                reply = await client.post(
-                    url, params={"output_format": _OUTPUT_FORMAT}, json=body
-                )
+                async with request_slot(self._base_url, self._api_key):
+                    reply = await client.post(
+                        url, params={"output_format": _OUTPUT_FORMAT}, json=body
+                    )
             except httpx.HTTPError as error:
                 raise _failure(index, total, str(error)) from error
             if reply.status_code != 429 or delay is None:

@@ -468,3 +468,86 @@ async def test_a_list_that_cannot_be_read_is_a_502_not_a_crash(
     reply = await client.get(f"/llm/connections/{saved['id']}/models")
 
     assert reply.status_code == 502
+
+
+@pytest.mark.parametrize("key", [None, "", "   "], ids=["null", "empty", "blank"])
+async def test_an_edit_cannot_leave_it_with_no_key(
+    client: AsyncClient, eleven: str, key: str | None
+) -> None:
+    """Null clears a key elsewhere, but this connection is nothing without one, so
+    it is refused rather than reported as saved and ignored."""
+    saved = await _connect(client)
+    url = f"/llm/connections/{saved['id']}"
+
+    reply = await client.put(
+        url, json={"label": "Renamed", "base_url": eleven, "api_key": key}
+    )
+
+    assert reply.status_code == 422
+    kept = (await client.get("/llm/connections")).json()
+    assert next(c for c in kept if c["id"] == saved["id"])["label"] == "My voices"
+    assert (await client.get(f"{url}/models")).status_code == 200
+
+
+async def test_voices_added_while_the_list_was_down_stay_once_it_is_back(
+    client: AsyncClient, eleven: str
+) -> None:
+    """Settings takes one by id while there is no list, and a brief may be using it."""
+    saved = await _connect(client)
+    await _choose(client, saved["id"])
+    StubElevenLabs.voices_status = 401
+    assert (await client.get(VOICES_URL)).json()["source"] == "saved"
+    added = await client.post(VOICES_URL, json={"voice": "kept-id", "text": "Hi."})
+    assert added.status_code == 201, added.text
+
+    StubElevenLabs.voices_status = None
+    read = (await client.get(VOICES_URL)).json()
+
+    assert read["source"] == "server"
+    assert [v["id"] for v in read["voices"]] == ["george-id", "sarah-id", "kept-id"]
+    assert read["added"] == ["kept-id"]
+
+
+async def test_a_voice_already_in_the_list_is_not_offered_twice(
+    client: AsyncClient, eleven: str
+) -> None:
+    """Adding it again changes nothing, and nothing the list brings back is removable."""
+    saved = await _connect(client)
+    await _choose(client, saved["id"])
+
+    assert (
+        await client.post(VOICES_URL, json={"voice": "george-id", "text": "Hi."})
+    ).status_code == 201
+    read = (await client.get(VOICES_URL)).json()
+
+    assert [v["id"] for v in read["voices"]] == ["george-id", "sarah-id"]
+    assert read["added"] == []
+
+
+async def test_a_brief_says_why_it_has_no_voices(
+    client: AsyncClient, eleven: str, workspace_id: int
+) -> None:
+    """The form otherwise says the server does not list them, for every failure."""
+    saved = await _connect(client)
+    await _choose(client, saved["id"])
+    StubElevenLabs.voices_status = 401
+
+    opened = (
+        await client.get(f"/workspaces/{workspace_id}/studio/podcast/brief")
+    ).json()
+
+    assert opened["problem"] == {"code": "list_failed", "message": "List refused."}
+
+
+async def test_a_brief_with_voices_has_no_problem_to_state(
+    client: AsyncClient, eleven: str, workspace_id: int
+) -> None:
+    """Only what is wrong is reported."""
+    saved = await _connect(client)
+    await _choose(client, saved["id"])
+
+    opened = (
+        await client.get(f"/workspaces/{workspace_id}/studio/podcast/brief")
+    ).json()
+
+    assert opened["problem"] is None
