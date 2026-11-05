@@ -15,7 +15,7 @@ import {
 } from "./business-price";
 
 /**
- * `/pricing` once Business is on sale (`NEXT_PUBLIC_BUSINESS_LAUNCHED`), from ADR 0080 and the
+ * `/pricing` once Business is on sale (`NEXT_PUBLIC_BUSINESS_LAUNCHED`), from ADR 0080, ADR 0083 and the
  * `/pricing` brief in `plans/community-local/seo/02-page-briefs.md` as revised on 1 Nov 2026.
  * When the switch goes, this replaces `pricing-content.ts`.
  *
@@ -120,7 +120,7 @@ export const FAQ_WHO_NEEDS_BUSINESS: PricingQuestion = {
 
 const FAQ_BUSINESS_PRICE: PricingQuestion = {
 	question: "How much does Business cost?",
-	answer: `${FIRST} a year for the first person and ${FURTHER} a year for each further person, so 2 people are ${priceFor(2)}, 5 are ${priceFor(5)} and 10 are ${priceFor(10)} a year. It is a founding price, locked in for early customers. A firm of more than ${SELF_SERVE_PEOPLE} people, or one that needs SurfSense run inside its own network, can ask about Enterprise.`,
+	answer: `${FIRST} a year for the first person and ${FURTHER} a year for each further person, so 2 people are ${priceFor(2)}, 5 are ${priceFor(5)} and 10 are ${priceFor(10)} a year. It is a founding price: a price change applies only at renewal, after at least 30 days' notice by email. A firm of more than ${SELF_SERVE_PEOPLE} people, or one that needs SurfSense run inside its own network, can ask about Enterprise.`,
 };
 
 export const FAQ_BUSINESS_TRIAL: PricingQuestion = {
@@ -209,7 +209,7 @@ export const BUSINESS_PRICING_SCHEMA = {
 			price: FIRST_PERSON_PRICE,
 			priceCurrency: "USD",
 			url: `https://www.surfsense.com${BUSINESS_CHECKOUT_URL}`,
-			description: `The job plugins, starting with the security questionnaire, for the first person for a year; each further person is ${FURTHER} a year. A founding price that renews yearly.`,
+			description: `The job plugins, starting with the security questionnaire, for the first person for a year; each further person is ${FURTHER} a year. Renews yearly until cancelled, at a founding price that can change only at renewal, after at least 30 days' notice by email.`,
 		},
 	],
 };

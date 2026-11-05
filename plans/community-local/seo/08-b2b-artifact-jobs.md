@@ -572,9 +572,11 @@ controls (a firm-wide policy lock, a local audit log with exports for a WISP
 and HIPAA reviews, a people roster) and team features (a shared library,
 approval by a second person, sealed client workspaces).
 
-**Price.** A founding price, locked for early customers, and a hypothesis to
-test: $60 a year for each person, the first included, to rise once sales
-justify it. It replaces the earlier plan of $1,200 a year per firm and the
+**Price.** A founding price, which can change only at a renewal after at least
+30 days' notice
+([ADR 0083](../../../docs/adr/0083-the-founding-price-can-change-at-a-renewal-with-notice.md)),
+and a hypothesis to test: $60 a year for each person, the first included, to
+rise once sales justify it. It replaces the earlier plan of $1,200 a year per firm and the
 Individual licence's $60, then $120.
 
 | people | a year |

@@ -1,6 +1,6 @@
 # Terms for the Business licence: a draft for counsel
 
-**Status: draft, not live.** Written 3 Nov 2026 for the lawyer who drafts the Business terms
+**Status: draft, not live.** Written 3 Nov 2026, revised 4 Nov 2026 for ADR 0083, for the lawyer who drafts the Business terms
 and the Job Plugin License. Nothing here is on the site: the live
 [Terms page](../../../www/app/\(home\)/terms/page.tsx) keeps its 22 Oct 2026 text until counsel
 signs off, and the new text goes live in the release that ships the first paid job, when the
@@ -11,7 +11,9 @@ site's `NEXT_PUBLIC_BUSINESS_LAUNCHED` switch goes on.
 [PR #2391](https://github.com/MODSetter/SurfSense/pull/2391). They amend
 [ADR 0019](../../../docs/adr/0019-offline-licenses.md) (offline licences) and
 [ADR 0067](../../../docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md) (jobs as paid plugins), and
-keep [ADR 0024](../../../docs/adr/0024-portal-without-accounts.md) (no accounts). The site's
+keep [ADR 0024](../../../docs/adr/0024-portal-without-accounts.md) (no accounts).
+[ADR 0083](../../../docs/adr/0083-the-founding-price-can-change-at-a-renewal-with-notice.md) (4 Nov 2026) amends ADR 0080: the founding price
+can change at a renewal, after at least 30 days' notice by email. The site's
 Business copy, behind the switch, is in `www/app/(home)/pricing/`.
 
 **How to read it.** For sections 5 and 6, today's text comes first, quoted from the live page,
@@ -25,7 +27,8 @@ default is written in.
   questionnaire first. The Individual licence is no longer sold, and the scraper plugins
   retire.
 - Business is **priced per person**: $60 a year for each person, the first included, a
-  founding price. One person is shown as "Solo".
+  founding price that can change at a renewal after at least 30 days' notice by email.
+  One person is shown as "Solo".
 - It is a **yearly subscription** that renews automatically on the same licence key, where
   today's licences are single payments.
 - **Cancellation and seat changes** go through Stripe's customer portal, from a link sent by
@@ -88,11 +91,14 @@ trials a year. Counsel: is the general sentence enough?] A design partner's tria
 extended by agreement.
 
 **5.5 Price and payment.** Business is sold through Stripe at $60 a year for each
-person, the first included. This is a founding price: a licence bought
-at it keeps it at renewal for as long as it renews without a break [and for the same number
-of people or more?]. Prices include or exclude tax as shown at checkout. More than 15 people
-(k), or a deployment inside your own network, is Enterprise, quoted and invoiced on a
-contract.
+person, the first included. This is a founding price. We may change it, but only from a
+renewal of a licence, after emailing the address on the licence at least 30 days before
+that renewal. [Counsel: California's automatic renewal law, as amended by AB 2863, may want
+a consumer's notice of a fee change no more than 30 days before it takes effect, so "at
+least 30 days" would fit only on the 30th day. Is that the promise to make, for which
+buyers, and must the checkout and the purchase email also say the price can change?]
+Prices include or exclude tax as shown at checkout. More than 15 people (k), or a
+deployment inside your own network, is Enterprise, quoted and invoiced on a contract.
 
 **5.6 Automatic renewal.** A Business licence is a yearly subscription. It renews
 automatically at the end of each licence year, and Stripe charges the payment method you
@@ -136,10 +142,10 @@ not refundable except where the law says otherwise, and your statutory cancellat
 a consumer are unaffected. [Counsel: the EU and UK 14-day right of withdrawal for digital
 content, and whether checkout asks for the waiver.] A full refund suspends the licence.
 
-**5.12 Price changes and earlier licences.** We may change prices for future purchases and,
-with notice before a renewal, for renewals after the founding price ends. An Individual
-licence bought before Business went on sale became Business Solo on the same key, renews at
-the price it was bought at, and otherwise keeps the terms it was bought on for the year
+**5.12 Price changes and earlier licences.** We may change prices for future purchases, and
+for a licence's renewals with at least 30 days' notice by email, as 5.5 says, except for an
+earlier Individual licence. An Individual licence bought before Business went on sale became
+Business Solo on the same key, always renews at the price it was bought at, and otherwise keeps the terms it was bought on for the year
 already paid.
 
 ## Section 6: The scraper plugins and the service behind them
@@ -198,7 +204,7 @@ its recommended default:
   for people over the licensed number at the founding or current price, with no penalty for
   a good-faith count.
 - **Renewal:** yearly and automatic on the same key, stated before payment, with a reminder
-  before each renewal; the founding price locked for early customers.
+  before each renewal; the founding price can change at a renewal, after at least 30 days' notice by email.
 - **Cancellation and seat changes:** in Stripe's emailed customer portal, with no account;
   what cancelling mid-year does, and how adding or removing people is charged.
 - **Lapse:** new job runs stop 30 days after a lapse; files, libraries and outputs stay
