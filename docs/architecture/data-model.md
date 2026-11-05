@@ -159,7 +159,7 @@ Connections are in [`connections.md`](connections.md); selection and onboarding 
 |---|---|---|
 | `license_state` | `id`, `certificate`, `imported_at`, `clock_watermark` | a singleton; plan and expiry are re-derived from the certificate on every read, and `clock_watermark` is the highest instant ever seen |
 | `egress_destinations` | `destination`, `enabled`, `last_call_at` | one row per host; `enabled` defaults to false |
-| `web_search_settings` | `id`, `searxng_url` | From `0033`. A singleton (`CHECK id = 1`): the SearXNG server Add from the web searches with, or `NULL`, like no row, for SurfSense's own ([`web-sources.md`](web-sources.md#routes)) |
+| `web_search_settings` | `id`, `searxng_url` | From `0034`. A singleton (`CHECK id = 1`): the SearXNG server Add from the web searches with, or `NULL`, like no row, for SurfSense's own ([`web-sources.md`](web-sources.md#routes)) |
 
 A destination is `host:<hostname>`: `host:huggingface.co` for model search and downloads, and one per remote host, shared by every connection to it; a loopback endpoint needs none. Revision `0027` removes rows under the earlier names `model_download`, `model_search` and `image_model_pull`, carrying a grant to `host:huggingface.co` only where search and a download were both allowed and the host had no answer of its own. See [`license/app.md`](license/app.md) and [`egress.md`](egress.md).
 
