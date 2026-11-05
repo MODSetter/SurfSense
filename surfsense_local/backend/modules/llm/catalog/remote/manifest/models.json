@@ -6640,7 +6640,7 @@
    }
   },
   "opencode": {
-   "name": "OpenCode",
+   "name": "OpenCode Zen",
    "doc": "https://opencode.ai/v2/docs/console/models/",
    "connect": {"status": "ready", "base_url": "https://opencode.ai/inference/openai/v1", "base_url_origin": "models.dev", "account_fields": [], "key": "required", "local": false, "reason": null},
    "models": {

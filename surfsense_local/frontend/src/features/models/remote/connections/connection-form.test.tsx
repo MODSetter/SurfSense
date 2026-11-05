@@ -35,7 +35,7 @@ const PROVIDERS = [
     base_url: "https://api.openai.com/v1",
     base_url_origin: "reviewed",
   }),
-  provider("opencode", "OpenCode", {
+  provider("opencode", "OpenCode Zen", {
     base_url: "https://opencode.ai/inference/openai/v1",
     base_url_origin: "models.dev",
   }),
@@ -128,8 +128,7 @@ describe("connection form", () => {
     const user = userEvent.setup()
     render(<ConnectionForm onCancel={vi.fn()} onSaved={vi.fn()} />)
 
-    // "OpenCode Go" starts with the same name; the URL tells them apart.
-    await pick(user, "OpenCode\\s*https")
+    await pick(user, "OpenCode Zen")
 
     expect(
       screen

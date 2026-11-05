@@ -71,6 +71,14 @@ def test_a_free_go_model_is_callable() -> None:
     assert _free_model_call("opencode-go") is None
 
 
+def test_the_shipped_manifest_names_both_options() -> None:
+    """Plain "OpenCode" would read as the whole product beside OpenCode Go."""
+    providers = load_remote_manifest().providers
+
+    assert providers["opencode"].name == "OpenCode Zen"
+    assert providers["opencode-go"].name == "OpenCode Go"
+
+
 def test_another_provider_keeps_its_native_protocol() -> None:
     """Only OpenCode's docs promise translation."""
     api = {
