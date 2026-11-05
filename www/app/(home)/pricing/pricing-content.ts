@@ -112,7 +112,7 @@ export const PRICING_LEDE: PricingLede = {
 	before: "The app and every update are ",
 	highlight: "free, forever",
 	after:
-		", with no account, no trial clock and no usage cap. A licence adds the scraper plugins and priority support, and a 30-day one comes with the app.",
+		", with no account, no trial clock and no usage cap. A licence adds the scraper plugins and priority support, and a 14-day one comes with the app.",
 };
 
 export const PLANS: Plan[] = [

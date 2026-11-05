@@ -66,10 +66,9 @@ default is written in.
 YouTube videos and web search inside it. A Business licence adds SurfSense's job plugins
 [and priority support and one feature build request a year (n)] and gates nothing else.
 
-**5.2 Who needs Business.** Anyone who uses a SurfSense job plugin for work for an
-organisation, or has the application's agent use one for it, needs to be covered by a
-Business licence. That includes employees and contractors alike (b). A licence covers the
-number of people stated on it, and is for the organisation it was issued to. A Business
+**5.2 Who needs Business.** Anyone who uses a SurfSense job plugin for work, or has the
+application's agent use one for it, needs to be covered by a Business licence. That includes employees and contractors alike (b). A licence covers the
+number of people stated on it, and is for the person or organisation it was issued to. A Business
 licence for one person is called Business Solo.
 
 **5.3 How people are counted.** You tell us at checkout how many people will use job plugins,
@@ -190,8 +189,8 @@ serious enough that waiting would cause harm.
 ADR 0080 asks for Business terms beside the Terms of Service. The points they need, each with
 its recommended default:
 
-- **Who needs Business:** anyone who uses a SurfSense job plugin for work for an
-  organisation, or has the agent use one, employees and contractors alike (b).
+- **Who needs Business:** anyone who uses a SurfSense job plugin for work, or has the agent
+  use one, employees and contractors alike (b).
 - **How people are counted:** declared at checkout, confirmed at each renewal, counted at the
   busiest month (b); shared servers, virtual desktops, shared PCs and offline firms count
   people, and a shared server needs at least two (c); offline firms pay the same price (c).
