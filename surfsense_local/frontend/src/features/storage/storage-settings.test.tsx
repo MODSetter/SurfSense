@@ -15,6 +15,7 @@ const MOVED_NOTHING: StorageState = {
 const READY: PlanResult = {
   status: "ready",
   kind: "models",
+  source: "C:\\Users\\ana\\.surfsense",
   target: "D:\\SurfSense-Models",
   neededBytes: 12_000_000_000,
   freeBytes: 212_000_000_000,
@@ -65,7 +66,8 @@ describe("StorageSettings", () => {
 
     expect(await screen.findByText("Move your models?")).toBeTruthy()
     expect(screen.getByText("D:\\SurfSense-Models")).toBeTruthy()
-    expect(screen.getByText(/needs 12 GB free; the drive has 212 GB/)).toBeTruthy()
+    expect(screen.getByText("Needs 12 GB · 212 GB free")).toBeTruthy()
+    expect(screen.getByText("From")).toBeTruthy()
     expect(bridge.choose).toHaveBeenCalledWith("models")
     expect(bridge.start).not.toHaveBeenCalled()
 
@@ -96,6 +98,17 @@ describe("StorageSettings", () => {
     expect(await screen.findByText(/won’t start unless this drive is connected/)).toBeTruthy()
   })
 
+  it("says the old copy goes by itself, so nobody looks for it to delete", async () => {
+    stubBridge()
+    const user = userEvent.setup()
+    render(<StorageSettings />)
+
+    const [changeModels] = await screen.findAllByRole("button", { name: "Change…" })
+    await user.click(changeModels!)
+
+    expect(await screen.findByText(/The old copy is removed automatically/)).toBeTruthy()
+  })
+
   it("says it will switch, not copy, to a folder that already holds models", async () => {
     stubBridge({ choose: vi.fn(async () => ({ ...READY, adopt: true, neededBytes: 0 })) })
     const user = userEvent.setup()
@@ -105,6 +118,7 @@ describe("StorageSettings", () => {
     await user.click(changeModels!)
 
     expect(await screen.findByRole("button", { name: "Switch and restart" })).toBeTruthy()
+    expect(screen.queryByText("From")).toBeNull()
   })
 
   it("offers the way back only once a folder has moved", async () => {

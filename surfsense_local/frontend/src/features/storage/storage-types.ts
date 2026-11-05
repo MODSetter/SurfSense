@@ -25,6 +25,7 @@ export type StorageRefusalCode =
 export type MoveReady = {
   status: "ready"
   kind: StorageKind
+  source: string
   target: string
   neededBytes: number
   freeBytes: number

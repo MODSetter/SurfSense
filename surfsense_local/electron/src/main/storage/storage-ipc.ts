@@ -48,8 +48,8 @@ export function registerStorageHandlers(options: {
     const result = await planMove({ kind, picked, storage, appFolder })
     pending = "plan" in result ? result.plan : null
     if ("plan" in result) {
-      const { toRoot, neededBytes, freeBytes, adopt } = result.plan
-      return { status: "ready" as const, kind, target: toRoot, neededBytes, freeBytes, adopt }
+      const { fromRoot, toRoot, neededBytes, freeBytes, adopt } = result.plan
+      return { status: "ready" as const, kind, source: fromRoot, target: toRoot, neededBytes, freeBytes, adopt }
     }
     return { status: "refused" as const, code: result.refused, neededBytes: result.neededBytes, freeBytes: result.freeBytes }
   }

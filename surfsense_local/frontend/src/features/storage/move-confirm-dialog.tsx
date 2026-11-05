@@ -24,7 +24,7 @@ function title({ kind }: MoveReady) {
       })
 }
 
-function body({ kind, adopt, neededBytes, freeBytes }: MoveReady) {
+function body({ kind, adopt }: MoveReady) {
   if (adopt) {
     return kind === "models"
       ? intl.formatMessage({
@@ -39,22 +39,87 @@ function body({ kind, adopt, neededBytes, freeBytes }: MoveReady) {
         })
   }
   return kind === "models"
-    ? intl.formatMessage(
-        {
-          id: "storage_move_confirm_models_body",
-          defaultMessage:
-            "SurfSense will copy your models here, check the copy and restart, then delete the old copy. This needs {needed, number, ::unit/gigabyte .#} free; the drive has {free, number, ::unit/gigabyte .#}. Local models won’t work while this drive is disconnected.",
-        },
-        { needed: neededBytes / 1e9, free: freeBytes / 1e9 }
-      )
-    : intl.formatMessage(
-        {
-          id: "storage_move_confirm_data_body",
-          defaultMessage:
-            "SurfSense will copy your data here, check the copy and restart, then delete the old copy. This needs {needed, number, ::unit/gigabyte .#} free; the drive has {free, number, ::unit/gigabyte .#}. SurfSense won’t start unless this drive is connected.",
-        },
-        { needed: neededBytes / 1e9, free: freeBytes / 1e9 }
-      )
+    ? intl.formatMessage({
+        id: "storage_move_confirm_models_body",
+        defaultMessage:
+          "SurfSense will copy your models and restart. The old copy is removed automatically. Local models won’t work while this drive is disconnected.",
+      })
+    : intl.formatMessage({
+        id: "storage_move_confirm_data_body",
+        defaultMessage:
+          "SurfSense will copy your data and restart. The old copy is removed automatically. SurfSense won’t start unless this drive is connected.",
+      })
+}
+
+/** One screen of a dialog, so a flow can arrive here without closing and reopening. */
+export function MoveConfirmContent({
+  ready,
+  onConfirm,
+}: {
+  ready: MoveReady
+  onConfirm: () => void
+}) {
+  return (
+    <>
+      <AlertDialogHeader>
+        <AlertDialogTitle>{title(ready)}</AlertDialogTitle>
+      </AlertDialogHeader>
+      <div className="flex flex-col gap-3 text-sm">
+        {ready.adopt ? null : (
+          <div className="flex flex-col gap-0.5">
+            <span className="text-muted-foreground">
+              {intl.formatMessage({
+                id: "storage_move_confirm_from_label",
+                defaultMessage: "From",
+              })}
+            </span>
+            <code className="break-all select-text">{ready.source}</code>
+          </div>
+        )}
+        <div className="flex flex-col gap-0.5">
+          <span className="text-muted-foreground">
+            {intl.formatMessage({
+              id: "storage_move_confirm_to_label",
+              defaultMessage: "To",
+            })}
+          </span>
+          <code className="break-all select-text">{ready.target}</code>
+          {ready.adopt ? null : (
+            <span className="text-muted-foreground tabular-nums">
+              {intl.formatMessage(
+                {
+                  id: "storage_move_confirm_space_label",
+                  defaultMessage:
+                    "Needs {needed, number, ::unit/gigabyte .#} · {free, number, ::unit/gigabyte .#} free",
+                },
+                { needed: ready.neededBytes / 1e9, free: ready.freeBytes / 1e9 }
+              )}
+            </span>
+          )}
+        </div>
+      </div>
+      <AlertDialogDescription>{body(ready)}</AlertDialogDescription>
+      <AlertDialogFooter>
+        <AlertDialogCancel>
+          {intl.formatMessage({
+            id: "storage_move_confirm_cancel_button",
+            defaultMessage: "Cancel",
+          })}
+        </AlertDialogCancel>
+        <AlertDialogAction onClick={onConfirm}>
+          {ready.adopt
+            ? intl.formatMessage({
+                id: "storage_move_confirm_adopt_button",
+                defaultMessage: "Switch and restart",
+              })
+            : intl.formatMessage({
+                id: "storage_move_confirm_button",
+                defaultMessage: "Move and restart",
+              })}
+        </AlertDialogAction>
+      </AlertDialogFooter>
+    </>
+  )
 }
 
 export function MoveConfirmDialog({
@@ -73,35 +138,8 @@ export function MoveConfirmDialog({
         if (!open) onDismiss()
       }}
     >
-      <AlertDialogContent>
-        {ready ? (
-          <>
-            <AlertDialogHeader className="select-none">
-              <AlertDialogTitle>{title(ready)}</AlertDialogTitle>
-              <AlertDialogDescription>{body(ready)}</AlertDialogDescription>
-            </AlertDialogHeader>
-            <code className="text-sm break-all">{ready.target}</code>
-            <AlertDialogFooter>
-              <AlertDialogCancel>
-                {intl.formatMessage({
-                  id: "storage_move_confirm_cancel_button",
-                  defaultMessage: "Cancel",
-                })}
-              </AlertDialogCancel>
-              <AlertDialogAction onClick={onConfirm}>
-                {ready.adopt
-                  ? intl.formatMessage({
-                      id: "storage_move_confirm_adopt_button",
-                      defaultMessage: "Switch and restart",
-                    })
-                  : intl.formatMessage({
-                      id: "storage_move_confirm_button",
-                      defaultMessage: "Move and restart",
-                    })}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </>
-        ) : null}
+      <AlertDialogContent className="select-none">
+        {ready ? <MoveConfirmContent ready={ready} onConfirm={onConfirm} /> : null}
       </AlertDialogContent>
     </AlertDialog>
   )
