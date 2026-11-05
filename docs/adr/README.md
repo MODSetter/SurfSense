@@ -113,4 +113,5 @@ The Date is the day the decision was first written down. Source links are permal
 | 0082 | [The license server delivers job packs itself, from a private repository's releases, to a license whose jobs list them](0082-the-license-server-delivers-job-packs-from-private-releases.md) | Accepted |
 | 0083 | [Business's founding price can change at a renewal, after at least 30 days' notice by email](0083-the-founding-price-can-change-at-a-renewal-with-notice.md) | Accepted |
 | 0084 | [ElevenLabs is a connection with its own client](0084-elevenlabs-is-a-connection-with-its-own-client.md) | Accepted |
+| 0085 | [A user can move models or all data to another drive, and Electron's settings stay behind](0085-the-data-folder-moves-and-electrons-settings-stay.md) | Accepted |
 | 0086 | [The app draws Word and Excel files with one renderer](0086-the-app-draws-word-and-excel-files-with-one-renderer.md) | Proposed |
