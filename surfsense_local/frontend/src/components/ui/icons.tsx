@@ -44,6 +44,7 @@ import {
   DotIcon as DotIconData,
   Edit02Icon as Edit02IconData,
   EllipsisIcon as EllipsisIconData,
+  EqualIcon as EqualIconData,
   File02Icon as File02IconData,
   FilePlusCornerIcon,
   FileIcon as FileIconData,
@@ -182,6 +183,7 @@ export const DownloadIcon = createIcon(DownloadIconData)
 export const DotIcon = createIcon(DotIconData)
 export const Edit02Icon = createIcon(Edit02IconData)
 export const EllipsisIcon = createIcon(EllipsisIconData)
+export const EqualIcon = createIcon(EqualIconData)
 export const File02Icon = createIcon(File02IconData)
 export const FileIcon = createIcon(FileIconData)
 export const FilePlus2Icon = createIcon(FilePlusCornerIcon)

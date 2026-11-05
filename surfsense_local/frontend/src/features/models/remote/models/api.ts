@@ -2,6 +2,7 @@ import { request, requestJson } from "@/lib/api"
 
 import type { CapabilityLevel } from "../../capability/api"
 import type { ModelType } from "../../model-type"
+import type { VoiceOption } from "../voices/api"
 
 /**
  * Where a model's capabilities came from. "declared" is the endpoint's own word
@@ -25,7 +26,7 @@ export type ConnectionModel = {
   /** Its measured level, for a model that can fill the chat slot. */
   capability_level?: CapabilityLevel | null
   /** The voices the endpoint publishes for it; a typed model has none. */
-  voices?: string[]
+  voices?: VoiceOption[]
 }
 
 export function getConnectionModels(

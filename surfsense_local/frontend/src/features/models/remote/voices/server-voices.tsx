@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input"
 import { ScrollFade } from "@/components/ui/scroll-fade"
 import { Spinner } from "@/components/ui/spinner"
 import { intl } from "@/i18n/intl"
+import { cn } from "@/lib/utils"
 
 import { testConnectionSpeech } from "../models/api"
 import { useServerVoices } from "./use-server-voices"
@@ -54,7 +55,7 @@ export function ServerVoices() {
   )
 
   if (!voices.data) return null
-  const { source, voices_page: page } = voices.data
+  const { source, voices_page: page, problem } = voices.data
   const listed = source === "server"
 
   const submit = (event: React.SubmitEvent) => {
@@ -77,22 +78,37 @@ export function ServerVoices() {
         })}
       </h4>
       <p className="text-sm text-muted-foreground">
-        {listed
+        {problem?.code === "no_usable_voices"
           ? intl.formatMessage({
-              id: "models_server_voices_listed_body",
-              defaultMessage: "Listed by the server",
+              id: "models_server_voices_no_usable_body",
+              defaultMessage:
+                "This account has no voices its plan can use through the API. Upgrade your plan, or add a voice ID it can use.",
             })
-          : source === "published"
-            ? intl.formatMessage({
-                id: "models_server_voices_published_body",
-                defaultMessage:
-                  "Published for this model. You can also add a voice by its ID; it’s played once before it’s kept.",
-              })
-            : intl.formatMessage({
-                id: "models_server_voices_saved_body",
-                defaultMessage:
-                  "This server doesn’t list its voices. Add the IDs you want; each is played once before it’s kept. A podcast needs one per speaker.",
-              })}
+          : problem
+            ? intl.formatMessage(
+                {
+                  id: "models_server_voices_list_failed_body",
+                  defaultMessage:
+                    "Couldn’t read this server’s voices: {reason}",
+                },
+                { reason: problem.message }
+              )
+            : listed
+              ? intl.formatMessage({
+                  id: "models_server_voices_listed_body",
+                  defaultMessage: "Listed by the server",
+                })
+              : source === "published"
+                ? intl.formatMessage({
+                    id: "models_server_voices_published_body",
+                    defaultMessage:
+                      "Published for this model. You can also add a voice by its ID; it’s played once before it’s kept.",
+                  })
+                : intl.formatMessage({
+                    id: "models_server_voices_saved_body",
+                    defaultMessage:
+                      "This server doesn’t list its voices. Add the IDs you want; each is played once before it’s kept. A podcast needs one per speaker.",
+                  })}
         {page ? (
           <>
             {" "}
@@ -125,9 +141,10 @@ export function ServerVoices() {
           viewportClassName="max-h-56"
         >
           <ul className="divide-y">
-            {voices.data.voices.map((voice) => (
+            {voices.data.voices.map(({ id: voice, label }) => (
               <VoiceRow
                 key={voice}
+                label={label}
                 voice={voice}
                 trial={trials.trial?.voice === voice ? trials.trial : null}
                 error={
@@ -188,6 +205,7 @@ export function ServerVoices() {
 
 function VoiceRow({
   voice,
+  label,
   trial,
   error,
   onPlay,
@@ -195,6 +213,8 @@ function VoiceRow({
   onRemove,
 }: {
   voice: string
+  /** Its name, or the id again where the server states none. */
+  label: string
   trial: VoiceTrial | null
   error: string | null
   onPlay: () => void
@@ -205,8 +225,13 @@ function VoiceRow({
   return (
     <li className="space-y-2 px-3 py-2">
       <div className="flex items-center gap-2">
-        <span className="flex-1 truncate font-mono text-sm select-text">
-          {voice}
+        <span
+          className={cn(
+            "flex-1 truncate text-sm select-text",
+            label === voice && "font-mono"
+          )}
+        >
+          {label}
         </span>
         <Button
           type="button"
@@ -220,14 +245,14 @@ function VoiceRow({
                     id: "models_server_voices_stop_aria",
                     defaultMessage: "Stop {voice}",
                   },
-                  { voice }
+                  { voice: label }
                 )
               : intl.formatMessage(
                   {
                     id: "models_server_voices_play_aria",
                     defaultMessage: "Play {voice}",
                   },
-                  { voice }
+                  { voice: label }
                 )
           }
           onClick={playing ? onStop : onPlay}
@@ -250,7 +275,7 @@ function VoiceRow({
                 id: "models_server_voices_remove_aria",
                 defaultMessage: "Remove {voice}",
               },
-              { voice }
+              { voice: label }
             )}
             onClick={onRemove}
           >

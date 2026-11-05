@@ -6,11 +6,14 @@ import {
   ComboboxList,
 } from "@/components/ui/combobox"
 
+import type { VoiceOption } from "./api"
+
 const ITEM_CLASS =
   "flex cursor-default items-center rounded-md py-1 pl-1.5 text-sm outline-hidden select-none data-highlighted:bg-accent data-highlighted:text-accent-foreground"
 
 /** A voice from `voices`, or any id typed: a server may voice ones it does not
- *  list, so this suggests rather than restricts, which a combobox would. */
+ *  list, so this suggests rather than restricts, which a combobox would. It shows
+ *  a voice's name and hands over its id. */
 export function VoiceField({
   voices,
   value,
@@ -18,22 +21,26 @@ export function VoiceField({
   placeholder,
   onChange,
 }: {
-  voices: string[]
+  voices: VoiceOption[]
+  /** The voice's id, or the text being typed. */
   value: string
   label: string
   placeholder: string
   onChange: (voice: string) => void
 }) {
+  const labels = voices.map((voice) => voice.label)
   return (
     <Autocomplete.Root
-      items={voices}
-      value={value}
-      onValueChange={(next) => onChange(next)}
+      items={labels}
+      value={voices.find((voice) => voice.id === value)?.label ?? value}
+      onValueChange={(next) =>
+        onChange(voices.find((voice) => voice.label === next)?.id ?? next)
+      }
       openOnInputClick
       // A chosen voice is the box's text; matching on it would hide the others.
-      filter={(voice: string, query: string) =>
-        voices.includes(query) ||
-        voice.toLowerCase().includes(query.trim().toLowerCase())
+      filter={(name: string, query: string) =>
+        labels.includes(query) ||
+        name.toLowerCase().includes(query.trim().toLowerCase())
       }
     >
       <ComboboxInput
@@ -48,9 +55,9 @@ export function VoiceField({
       {/* An id no voice matches leaves nothing to show. */}
       <ComboboxContent className="data-empty:hidden">
         <ComboboxList>
-          {(voice: string) => (
-            <Autocomplete.Item key={voice} value={voice} className={ITEM_CLASS}>
-              {voice}
+          {(name: string) => (
+            <Autocomplete.Item key={name} value={name} className={ITEM_CLASS}>
+              {name}
             </Autocomplete.Item>
           )}
         </ComboboxList>

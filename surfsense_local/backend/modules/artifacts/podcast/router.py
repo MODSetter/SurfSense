@@ -6,7 +6,8 @@ from pydantic import BaseModel
 from api.dependencies import SessionDep
 from modules.artifacts.podcast.brief import PodcastBrief, languages
 from modules.artifacts.podcast.service import open_brief
-from modules.llm.providers.protocols import Voice
+from modules.llm.voices.elevenlabs_roster import VoicesProblem
+from modules.llm.voices.voice import Voice
 from modules.workspaces.dependencies import WorkspaceDep
 
 router = APIRouter(tags=["studio"])
@@ -25,6 +26,8 @@ class BriefRead(BaseModel):
     # The server that voices it; None for a model on this computer.
     voiced_by: VoicedByRead | None
     languages: list[str]
+    # Why a server model has no voices, when it is not simply that it lists none.
+    problem: VoicesProblem | None = None
 
 
 @router.get(
@@ -41,4 +44,5 @@ def podcast_brief(workspace: WorkspaceDep, session: SessionDep) -> BriefRead:
         voices_source=roster.source,
         voiced_by=VoicedByRead(server=by.server, model=by.model) if by else None,
         languages=languages(roster.voices),
+        problem=roster.problem,
     )
