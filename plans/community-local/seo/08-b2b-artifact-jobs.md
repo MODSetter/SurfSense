@@ -427,13 +427,13 @@ SurfSense's own completed CAIQ goes through CSA's STAR Registry, the channel CSA
 names; its HECVAT is shared on request; the website shows only answers keyed by
 question ID.
 
-### Second wave, first in line: RFP and DDQ responses from the same library
+### Second wave, first in line: RFP and RFI responses from the same library
 
 Revised 1 Nov 2026: the DDQ comes first, with the security questionnaire, and
 RFP and RFI responses follow it
 ([ADR 0080](../../../docs/adr/0080-surfsense-sells-one-business-license-priced-per-person.md)).
 
-**The job.** In: the issuer's RFP, RFI or DDQ response workbook, the answer
+**The job.** In: the issuer's RFP or RFI response workbook, the answer
 library and past proposals. Out: a revised copy with each response filled, a
 Source column citing the past bid, a Comply/Partial/Exception column, an
 exceptions list, and approved answers written back. Next, the issuer's `.docx`
@@ -644,9 +644,11 @@ examples name contracts and redlining, so a follow-up rewords them.
    job for 14 days, so the job catalogue in the app is where a business user
    meets the paid layer. Whether every job is included in Business or some are
    add-ons is open question a.
-2. **Public-data plugins** inside Business, on the existing plugin host,
-   because only queries and public records pass through. One experiment, capped
-   at two weeks and built only if the questionnaire is on time: SAM.gov
+2. **Public-data plugins,** not yet placed in Business. They were planned for
+   the existing plugin host, because only queries and public records pass
+   through, but ADR 0081 leaves no paid plugin there and lets the maintainer
+   switch it off, so they need their own decision before they are built. One
+   experiment, capped at two weeks and built only if the questionnaire is on time: SAM.gov
    opportunities plus USAspending awards (anchor: HigherGov at $500 a year for
    one user, [pricing](https://www.highergov.com/pricing/)). Before building,
    confirm SAM.gov's API terms for proxying (it needs a key and limits calls by

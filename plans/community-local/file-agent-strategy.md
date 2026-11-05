@@ -235,7 +235,7 @@ the first buyer target.**
 The public promise binds this. The pricing FAQ says "everything the app itself
 does stays free" and "The licence does not lock any of the app's own features"
 ([`pricing-content.ts`](../../www/app/(home)/pricing/pricing-content.ts),
-lines 150 and 155), and [ADR 0019](../../docs/adr/0019-offline-licenses.md) says
+`FAQ_IS_IT_FREE` and `FAQ_WHAT_A_LICENCE_ADDS`), and [ADR 0019](../../docs/adr/0019-offline-licenses.md) says
 a license never disables the app. A job plugin is a plugin, not one of the
 app's own features, so the promise holds. One FAQ line, "A paid licence is only
 needed for the scraper plugins and priority support", becomes untrue in the
@@ -246,7 +246,7 @@ section 5 says a license adds the scraper plugins and "gates nothing else", and
 section 6 covers the scrapers' service. Business counts people, not devices,
 so three promises that a license file works on every machine change before it
 is sold: the purchase email's "works on every machine you install SurfSense
-on" ([`message.py`](../../backend/license/email/message.py), line 59), and the
+on" ([`message.py`](../../backend/license/email/message.py), `_INTROS["purchase"]`), and the
 same on `/pricing/individual` and `/license/activate`. The privacy page's "does
 not compute or transmit a device fingerprint" stays true, since Business
 launches with no device identifier.
@@ -375,8 +375,9 @@ Keygen CE v1.7.2, which production runs, has everything Business needs:
 policies with entitlements, machines whose cap is enforced at creation,
 machine files and licensed downloads. What is not built:
 
-- **A Business policy,** with entitlements for the jobs, and a `business`
-  plan in [contract 1](../../docs/contracts/01-license-file.md). New plans get
+- **A Business policy and a Business trial policy,** both with entitlements
+  for the jobs, and a `business` plan in
+  [contract 1](../../docs/contracts/01-license-file.md). New plans get
   new policies: the live trial, individual and team policies must never be
   edited or made strict, because the plugin host accepts only `VALID`, so
   every existing key would be locked out.

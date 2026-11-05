@@ -15,7 +15,7 @@ SurfSense's paid offer moves to the B2B job plugins, which run on the user's mac
 ## Decision
 
 - **Seven platform scrapers retire:** Google Maps, Amazon, Walmart, TikTok, Indeed, Reddit and Instagram.
-- **Reading web pages, YouTube and web search move into the app, free and under Apache-2.0.** They run on the user's machine, with no license and no SurfSense server in the data path:
+- **Reading web pages, YouTube and web search move into the app, free and under Apache-2.0.** They run on the user's machine, with no license; pages and transcripts come straight from their sites, and searches go to a SearXNG server, SurfSense's hosted one by default:
   - page reading with `trafilatura` and `curl_cffi`, without stealth browsers;
   - YouTube transcripts, fetched over the user's own connection;
   - web search through SearXNG, by default SurfSense's hosted instance, with a setting for the firm's own.
@@ -25,7 +25,7 @@ SurfSense's paid offer moves to the B2B job plugins, which run on the user's mac
 
 ## Consequences
 
-- **Add from the web keeps working, with or without a license.** A link to a retired platform falls back to page reading. Searching inside one retired site, such as Amazon, goes with that site's puller.
+- **Add from the web keeps working, with or without a license.** A link to a retired platform falls back to page reading. Searching inside one retired site, such as Amazon, goes away with that site's puller, and the remaining searches go through SearXNG.
 - **The app changes in that release.** Its first-party list keeps only the three, now built in; `links.py` drops the seven pullers; Add from the web stops refusing a request with no license, and its license offer goes.
 - **Each site the app reaches follows egress consent** ([ADR 0017](0017-egress-off-by-default.md), [ADR 0027](0027-egress-consent-per-host.md), [ADR 0060](0060-one-consent-question-per-user-action.md)). Pages and searches now go from the user's machine to the sites and to SearXNG, and the privacy page says so.
 - **The hosted plugins keep running for older apps,** which call them with a license, until the maintainer switches the host off. DataImpulse and capsolver can then be cancelled. SurfSense's hosted SearXNG stays, with a limit per IP address.

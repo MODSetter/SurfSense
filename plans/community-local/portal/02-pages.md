@@ -90,7 +90,10 @@ license stops being sold. Seven platform scrapers retire, while reading web
 pages, YouTube transcripts and web search move into the app, free for
 everyone. All of it happens in one
 release, the one that ships the first paid job; until then the live pages stay
-as they are.
+as they are, except that, if open question q takes its default
+([08](../seo/08-b2b-artifact-jobs.md#open-questions-for-the-maintainer)), the
+Individual page and the purchase email say from now that the license becomes
+Business Solo at the switch.
 
 **The release that ships the first paid job, retires the scrapers and sells
 Business:**
@@ -131,9 +134,16 @@ Business:**
 - The trial stays one per address, with two rules users do not see: Gmail
   dots fold into one address, and a company domain gets at most two trials a
   year.
-- Individual licenses already sold become Business Solo on the same key at the
-  price they were bought at, locked, with a notice email when converted and a
-  reminder before each renewal.
+- Individual licenses already sold when ADR 0080 was decided (1 Nov 2026)
+  become Business Solo on the same key at the price they were bought at,
+  locked, with a notice email when converted and a reminder before each
+  renewal. Whether licenses sold from then until the switch do the same is
+  open question q
+  ([08](../seo/08-b2b-artifact-jobs.md#open-questions-for-the-maintainer));
+  unless the Individual page and purchase email say so from now, they keep
+  what they bought, the scrapers included, for their whole year
+  ([ADR 0080](../../../docs/adr/0080-surfsense-sells-one-business-license-priced-per-person.md),
+  Terms section 5).
 
 ## Open items
 
