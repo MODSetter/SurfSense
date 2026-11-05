@@ -297,3 +297,26 @@ def test_jobs_on_one_key_stay_within_the_smallest_plan_limit() -> None:
 def test_a_key_does_not_wait_on_another_keys_requests() -> None:
     """The limit is each account's own."""
     assert _peak_while_voicing(4, ["a", "b", "c", "d"]) > 2
+
+
+@pytest.mark.parametrize(
+    ("turns", "words"),
+    [
+        ([SpokenTurn("sarah", "Hi.")], "ReadTimeout"),
+        (
+            [SpokenTurn("sarah", "Hi."), SpokenTurn("george", "Yo.")],
+            "line 1 of 2: ReadTimeout",
+        ),
+    ],
+    ids=["a trial", "an episode"],
+)
+def test_a_transport_error_with_no_message_still_gives_a_reason(
+    turns: list[SpokenTurn], words: str
+) -> None:
+    """A timeout's text is often empty, and this is all the user is shown."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ReadTimeout("")
+
+    with pytest.raises(NonRetryableSpeechError, match=words):
+        speak(handler, turns)

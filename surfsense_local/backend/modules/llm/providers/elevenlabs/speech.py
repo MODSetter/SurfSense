@@ -91,7 +91,10 @@ class ElevenLabsSpeech:
                         url, params={"output_format": _OUTPUT_FORMAT}, json=body
                     )
             except httpx.HTTPError as error:
-                raise _failure(index, total, str(error)) from error
+                # A timeout's text is often empty, and this is all the user is shown.
+                raise _failure(
+                    index, total, str(error) or type(error).__name__
+                ) from error
             if reply.status_code != 429 or delay is None:
                 break
             await asyncio.sleep(delay)
