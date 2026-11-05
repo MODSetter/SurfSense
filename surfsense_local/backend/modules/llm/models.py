@@ -100,7 +100,8 @@ class ProviderConnection(Base):
     __table_args__ = (
         CheckConstraint("provider = 'openai_compatible'", name="provider"),
         CheckConstraint(
-            "auth_kind IN ('api_key', 'chatgpt', 'claude_plan')", name="auth_kind"
+            "auth_kind IN ('api_key', 'chatgpt', 'claude_plan', 'elevenlabs')",
+            name="auth_kind",
         ),
         UniqueConstraint("label"),
     )
