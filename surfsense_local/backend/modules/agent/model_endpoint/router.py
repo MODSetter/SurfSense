@@ -1,4 +1,5 @@
 from contextlib import AsyncExitStack
+from dataclasses import replace
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Body, Depends, Header, HTTPException, Request, Response
@@ -12,7 +13,10 @@ from modules.agent.model_endpoint.model_address import (
     address_selected_model,
 )
 from modules.agent.model_endpoint.relay import relay
-from modules.agent.model_endpoint.request_shaping import shaped_request
+from modules.agent.model_endpoint.request_shaping import (
+    shaped_headers,
+    shaped_request,
+)
 from modules.egress.service import EgressDeniedError
 from modules.llm.activity import ModelBusyError, model_activity
 from modules.llm.admission.pool import LineFullError, Priority
@@ -79,7 +83,9 @@ async def complete_chat(
         await held.aclose()
         await model_activity.release_use(address.activity_key)
 
-    return await relay(address, body, done)
+    return await relay(
+        replace(address, headers=shaped_headers(address, affinity)), body, done
+    )
 
 
 def _max_tokens(payload: dict[str, Any]) -> int | None:

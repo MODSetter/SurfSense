@@ -5,6 +5,7 @@ from collections.abc import AsyncIterator
 import httpx
 
 from modules.llm.connections.conversation_fields import conversation_fields
+from modules.llm.connections.conversation_headers import conversation_headers
 from modules.llm.connections.key_headers import key_headers
 from modules.llm.connections.model_list_url import model_list_url
 from modules.llm.connections.service import parse_models
@@ -187,7 +188,7 @@ class OpenAICompatibleChatProvider:
         if self._prompt_progress is not None:
             body.update(self._prompt_progress)
         async for delta in with_deadlines(
-            self._stream(body),
+            self._stream(body, conversation_headers(self._base_url, conversation)),
             first_item_seconds=FIRST_TOKEN_SECONDS,
             between_items_seconds=BETWEEN_TOKENS_SECONDS,
             subject="the model",
@@ -197,12 +198,17 @@ class OpenAICompatibleChatProvider:
         ):
             yield delta
 
-    async def _stream(self, body: dict[str, object]) -> AsyncIterator[Delta]:
+    async def _stream(
+        self, body: dict[str, object], headers: dict[str, str]
+    ) -> AsyncIterator[Delta]:
         """The deltas as the endpoint sends them, with no waiting rule of its own."""
         async with (
             self._client(TIMEOUT) as client,
             client.stream(
-                "POST", f"{self._base_url}/chat/completions", json=body
+                "POST",
+                f"{self._base_url}/chat/completions",
+                json=body,
+                headers=headers,
             ) as reply,
         ):
             if reply.status_code >= 400:
