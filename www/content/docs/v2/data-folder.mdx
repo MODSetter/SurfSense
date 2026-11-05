@@ -5,7 +5,7 @@ description: Where SurfSense keeps your data, and how to back it up, reset it or
 
 import { Step, Steps } from 'fumadocs-ui/components/steps';
 
-SurfSense keeps your workspaces, sources, chats, Studio outputs, downloaded models and settings in one folder in your home folder. It's separate from where the app is installed, so updating or reinstalling the app leaves your data alone.
+SurfSense keeps your workspaces, sources, chats, Studio outputs, downloaded models and settings in one folder in your home folder, unless you move them to another drive. It's separate from where the app is installed, so updating or reinstalling the app leaves your data alone.
 
 To open it, go to Settings › About › **Your data** and choose **Open folder**.
 
@@ -35,7 +35,38 @@ Downloaded models are often the biggest part. To free space, remove models you d
 
 ## Moving it
 
-The desktop app always uses this folder. It can't be moved to another drive yet.
+To keep your files on another drive, go to Settings › Storage. You can move **Models** on their own, or **All data**, which takes your workspaces, chats, uploads and search index, plus your models unless you moved them separately.
+
+<Steps>
+  <Step>
+    Choose **Change…** and pick a folder. SurfSense makes its own folder inside it, called `SurfSense-Models` or `SurfSense-Data`.
+  </Step>
+  <Step>
+    Check how much space the move needs, then choose **Move and restart**.
+  </Step>
+  <Step>
+    Keep SurfSense open. It copies your files, checks the copy and restarts. The old copy is deleted after the restart.
+  </Step>
+</Steps>
+
+To undo it, choose **Move back to default**.
+
+Some drives can't be used:
+
+| Drive | Models | All data |
+|---|---|---|
+| exFAT | Yes | No |
+| FAT32 | No, because it can't hold files over 4 GB | No |
+| Network drive | Yes, though models load more slowly | No |
+
+If the drive isn't connected when SurfSense starts:
+
+- **All data:** SurfSense can't start. Connect the drive and choose **Try again**, or choose **Choose folder…** if it has a new location.
+- **Models:** connect the drive and choose **Try again**, or choose **Continue without local models**. Models on a server keep working, but local models can't be used or downloaded until the drive is back.
+
+The Snap Store version can't reach other drives, so it doesn't have Settings › Storage. In Docker, your files are wherever you mount the volume. See [Docker](/docs/v2/docker).
+
+Your window, theme and language settings and the encrypted key for your API keys always stay in `.surfsense`, in a folder called `electron`.
 
 ## Back up and restore
 
@@ -51,7 +82,7 @@ The desktop app always uses this folder. It can't be moved to another drive yet.
   </Step>
 </Steps>
 
-Copying only part of the folder can leave sources or outputs that point at missing files, so back up the whole folder.
+Copying only part of the folder can leave sources or outputs that point at missing files, so back up the whole folder. If you moved your models or data to another drive with Settings › Storage, back up those folders as well, and restore them to the same place.
 
 <Callout title="API keys don't move to another computer">
   Your API keys are encrypted with a key kept in this computer's keychain. If
@@ -62,7 +93,7 @@ Copying only part of the folder can leave sources or outputs that point at missi
 
 ## Start over
 
-To reset SurfSense to a fresh install, quit it and rename or delete the `.surfsense` folder. The next time SurfSense starts, it creates a new one and runs setup again. Renaming instead of deleting keeps your old data in case you want it back.
+To reset SurfSense to a fresh install, quit it and rename or delete the `.surfsense` folder. If you moved your models or data to another drive, those folders stay there until you delete them. The next time SurfSense starts, it creates a new one and runs setup again. Renaming instead of deleting keeps your old data in case you want it back.
 
 ## Remove everything
 

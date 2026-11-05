@@ -564,7 +564,9 @@ the renderer shows its own line for a code it knows, in the interface language,
 and the frame's English `message` for one it does not
 ([`install-text.ts`](../../../surfsense_local/frontend/src/features/models/local/installs/install-text.ts), [localization](../localization.md#backend-text)).
 A refusal for disk space is `not_enough_disk` with `needed_bytes` and
-`free_bytes` raw, so each language formats the sizes itself. A searched file of
+`free_bytes` raw, so each language formats the sizes itself. While the drive of
+a [moved models folder](../storage-location.md) is away, every install is refused
+with `model_storage_unavailable`. A searched file of
 a type the runtime cannot run is refused with the classifier's sentence and its
 `NotRunnableCode`, as a row is, so the toast is worded like a row's reason. A
 Hugging Face embedder that fails its search check is `retrieval_check_failed`
