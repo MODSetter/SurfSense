@@ -5,7 +5,7 @@ import { intl } from "@/i18n/intl"
 
 /**
  * The other way in, kept to one line under the local list. Servers connected
- * earlier, even on the step before, are named so they are reused, not re-added.
+ * earlier are named so they are reused, not re-added.
  */
 export function ServerOption({
   connections,

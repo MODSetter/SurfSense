@@ -111,6 +111,20 @@ def data_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
 
 
 @pytest.fixture(autouse=True)
+def test_pack_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    """While tests run, the app trusts the test key for job packs besides the shipped keys, so
+    a live test still installs a pack SurfSense signed."""
+    from modules.jobs.packs import signature
+    from tests.job_pack_samples import TEST_PACK_PUBLIC_KEY_HEX
+
+    monkeypatch.setattr(
+        signature,
+        "PACK_PUBLIC_KEYS_HEX",
+        (TEST_PACK_PUBLIC_KEY_HEX, *signature.PACK_PUBLIC_KEYS_HEX),
+    )
+
+
+@pytest.fixture(autouse=True)
 def no_office_support(monkeypatch: pytest.MonkeyPatch) -> None:
     """Office support starts off in every test, whatever LibreOffice this machine has;
     a test of the Office path turns it on (tests/office_stand_in.py)."""

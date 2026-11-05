@@ -1,8 +1,8 @@
-"""The license portal at `/api/v1`: download, resend, trial and Stripe's webhook, served when KEYGEN_API_TOKEN is set."""
+"""The license portal at `/api/v1`: download, resend, trial, the app's refresh and Stripe's webhook, served when KEYGEN_API_TOKEN is set."""
 
 from fastapi import APIRouter
 
-from license import router, stripe_webhook
+from license import refresh_route, router, stripe_webhook
 from license.settings import config
 
 # Localhost on any port, for the site run locally.
@@ -10,11 +10,12 @@ LOCAL_ORIGINS = r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$"
 
 
 def license_portal() -> APIRouter | None:
-    """None without the Keygen admin token, so a backend run without licenses serves none."""
+    """None without a Keygen token, so a backend run without licenses serves none."""
     if not config.KEYGEN_API_TOKEN:
         return None
     portal = APIRouter(prefix="/api/v1")
     portal.include_router(router.router)
+    portal.include_router(refresh_route.router)
     portal.include_router(stripe_webhook.router)
     return portal
 

@@ -22,6 +22,7 @@ import { ScrollFade } from "@/components/ui/scroll-fade"
 import { Separator } from "@/components/ui/separator"
 import { Spinner } from "@/components/ui/spinner"
 import type { LocalBuild, LocalRow } from "@/features/models/local/chat/api"
+import { useDeleteLocalChatModel } from "@/features/models/local/chat/use-delete-local-chat-model"
 import { useInstall } from "@/features/models/local/installs/use-install"
 import { ChatGPTOption } from "@/features/models/remote/connections/chatgpt/chatgpt-option"
 import { ClaudeOption } from "@/features/models/remote/connections/claude/claude-option"
@@ -39,14 +40,13 @@ import { ModelReady } from "./model-ready"
 import { STEP_COPY } from "./step-copy"
 import { ServerOption } from "./server/server-option"
 import { ServerPath } from "./server/server-path"
-import { slotOf, type OnboardingStepKind } from "./kinds/step-kind"
+import type { OnboardingStepKind } from "./kinds/step-kind"
 import { stepModels } from "./kinds/step-models-table"
-import { stepDeletes } from "./kinds/step-deletes"
 
 /**
- * One onboarding step, for a slot or the embedding model; what differs is in
+ * One onboarding step, for the chat or the embedding model; what differs is in
  * `kinds/` and `step-copy.ts`. Every local model is listed at once, the
- * recommended one first, with a server one line below for a slot: nothing is
+ * recommended one first, with a server one line below for chat: nothing is
  * hidden behind a click. The step is done once it has a model.
  */
 export function ModelStep({
@@ -65,17 +65,19 @@ export function ModelStep({
   onBack?: () => void
   /** Given what finishing from this step sends: the embedding choice, or null. */
   onNext: (value: string | null) => void
-  /** Present only where the slot is optional. */
+  /** Present only where the step is optional. */
   onSkip?: () => void
 }) {
   const copy = STEP_COPY[modelType]
   const models = stepModels[modelType]()
-  // A slot's download becomes its model, so a first model takes one click.
+  // A chat download becomes the model, so a first model takes one click.
   const { jobs, installs, install, cancel } = useInstall(models.install)
-  const remove = stepDeletes[modelType]()
+  // No callback on clearing the chat slot: the step reads the selection itself,
+  // so Continue disables on its own. The API refuses to delete the shipped embedder.
+  const remove = useDeleteLocalChatModel()
   // Remote embedders are not offered yet, so that step has no server.
-  const slot = slotOf(modelType)
-  const connections = useConnectionsServing(slot)
+  const offersServer = modelType === "text_gen"
+  const connections = useConnectionsServing(offersServer ? "text_gen" : null)
   const [onServer, setOnServer] = useState(false)
   // With nothing connected yet there is no server page to show: Connect
   // opens the dialog here, and a server saved from it opens on its models.
@@ -153,11 +155,11 @@ export function ModelStep({
   const body = () => {
     if (models.error) return <OfflineState message={models.error.message} />
     if (models.isPending) return null
-    if (onServer && slot) {
+    if (onServer) {
       return (
         // Choosing a model stays here, as in Settings: its group marks it
         // "In use", and the footer says which.
-        <ServerPath modelType={slot} openServerId={openServerId} />
+        <ServerPath openServerId={openServerId} />
       )
     }
     return (
@@ -216,19 +218,17 @@ export function ModelStep({
               {copy.noLocal()}
             </p>
           )}
-          {copy.search ? (
-            <HuggingFaceSearch
-              jobs={jobs}
-              disabled={busy}
-              onInstall={downloadBuild}
-              onCancel={cancel}
-              source={copy.search.source}
-              note={copy.search.note?.()}
-            />
-          ) : null}
+          <HuggingFaceSearch
+            jobs={jobs}
+            disabled={busy}
+            onInstall={downloadBuild}
+            onCancel={cancel}
+            source={copy.search.source}
+            note={copy.search.note?.()}
+          />
         </section>
 
-        {slot ? (
+        {offersServer ? (
           <>
             <Separator />
             <ServerOption
@@ -240,7 +240,7 @@ export function ModelStep({
               }
             />
             <ChatGPTOption
-              modelType={slot}
+              modelType="text_gen"
               dense
               onConnected={(connection) => {
                 setOpenServerId(connection.id)
@@ -248,7 +248,7 @@ export function ModelStep({
               }}
             />
             <ClaudeOption
-              modelType={slot}
+              modelType="text_gen"
               dense
               onConnected={(connection) => {
                 setOpenServerId(connection.id)
@@ -331,15 +331,10 @@ export function ModelStep({
               disabled={finishing}
               onClick={onSkip}
             >
-              {last
-                ? intl.formatMessage({
-                    id: "onboarding_model_step_skip_finish_button",
-                    defaultMessage: "Skip and finish",
-                  })
-                : intl.formatMessage({
-                    id: "onboarding_model_step_skip_button",
-                    defaultMessage: "Skip",
-                  })}
+              {intl.formatMessage({
+                id: "onboarding_model_step_skip_finish_button",
+                defaultMessage: "Skip and finish",
+              })}
             </Button>
           ) : null}
           <Button

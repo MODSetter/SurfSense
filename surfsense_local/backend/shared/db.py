@@ -74,6 +74,7 @@ def import_models() -> None:
     import modules.egress.models
     import modules.embedding.models
     import modules.folders.models
+    import modules.jobs.settings.models
     import modules.license.models
     import modules.llm.models
     import modules.plugins.bundles.models

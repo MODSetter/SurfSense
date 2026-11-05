@@ -11,13 +11,24 @@ from typing import Any
 import anyio
 
 from license import keygen
-from license.checkout import customer_email, customer_id, resolve_license_plan
+from license.checkout import (
+    customer_email,
+    customer_id,
+    firm_name,
+    resolve_license_plan,
+    subscription_id,
+)
 from license.email.address import fold_email, normalize_email
+from license.fresh_file import fresh_file
 from license.funnel.events import record_license_purchased
+from license.jobs import jobs_metadata, jobs_of
 from license.keygen import LicensePlan
 from license.models import (
     META_CUSTOMER,
+    META_FIRM,
+    META_JOBS,
     META_SESSION,
+    META_SUBSCRIPTION,
     META_TRIAL_KEY,
     PAID_STATUSES,
     IssuedLicense,
@@ -27,6 +38,8 @@ from license.models import (
 )
 from license.records import existing_for_session, issued_for_id
 from license.settings import config
+from license.subscription.paid_period import expiry_for
+from license.subscription.paid_period import retrieve as retrieve_subscription
 
 logger = logging.getLogger(__name__)
 
@@ -89,17 +102,20 @@ async def issue_license(
     stripe_session_id: str | None = None,
     stripe_customer_id: str | None = None,
     extra_metadata: dict[str, str] | None = None,
+    expiry: datetime | None = None,
+    policy: str | None = None,
 ) -> IssuedLicense:
     """Create one Keygen license and check out its file.
 
     Raises :class:`keygen.LicenseExistsError` when ``license_id`` is already
     taken, which is how callers learn they lost a race rather than by looking
-    first.
+    first. Without ``expiry`` a trial runs :func:`trial_expiry` and anything
+    else its policy's duration.
     """
     normalized_email = normalize_email(email)
     if not normalized_email:
         raise LicenseIssueError("License email is required")
-    if plan != "team":
+    if plan not in keygen.COUNTED_PLANS:
         max_users = None
 
     metadata: dict[str, str] = dict(extra_metadata or {})
@@ -113,10 +129,13 @@ async def issue_license(
         normalized_email,
         max_users,
         license_id=license_id,
-        expiry=trial_expiry() if plan == "trial" else None,
+        expiry=expiry or (trial_expiry() if plan == "trial" else None),
         extra_metadata=metadata or None,
+        policy=policy,
     )
-    certificate = await keygen.checkout_license(keygen_license_id)
+    certificate = await fresh_file(keygen_license_id)
+    if certificate is None:
+        raise LicenseIssueError(f"New license {keygen_license_id} does not validate")
     logger.info(
         "Issued %s license %s for %s (source=%s)",
         plan,
@@ -130,6 +149,8 @@ async def issue_license(
         plan=plan,
         email=normalized_email,
         max_users=max_users,
+        firm=metadata.get(META_FIRM) or None,
+        jobs=jobs_of(metadata),
     )
 
 
@@ -151,6 +172,20 @@ async def fulfill_license_session(
         raise LicenseIssueError("Checkout session is not a license purchase")
     plan, max_users = resolved
 
+    metadata: dict[str, str] = {}
+    expiry: datetime | None = None
+    subscription = subscription_id(checkout_session)
+    if subscription:
+        # It renews on this key, so the license ends with what the first
+        # period paid for, not with the policy's duration.
+        metadata[META_SUBSCRIPTION] = subscription
+        expiry = await _first_period_expiry(subscription, stripe_client)
+    if plan == "business":
+        metadata[META_JOBS] = jobs_metadata()
+        firm = firm_name(checkout_session)
+        if firm:
+            metadata[META_FIRM] = firm
+
     # No look-before-create: the id is derived from the session, so a second
     # caller fulfilling the same payment collides inside Keygen rather than
     # reading "not found" a moment before the first one writes.
@@ -165,14 +200,16 @@ async def fulfill_license_session(
             license_id=license_id,
             stripe_session_id=session_id,
             stripe_customer_id=stripe_customer,
+            extra_metadata=metadata,
+            expiry=expiry,
         )
     except keygen.LicenseExistsError:
         existing = await issued_for_id(license_id)
         if existing is None:
-            # Only reachable if the winner's license was deleted between its
-            # create and this lookup. Retrying would collide again.
+            # The winner's license was deleted between its create and this
+            # lookup, or is suspended already. Retrying would collide again.
             raise LicenseIssueError(
-                f"License for session {session_id} exists but is unreadable"
+                f"License for session {session_id} exists but cannot be delivered"
             ) from None
         logger.info(
             "Session %s was already fulfilled as license %s; reusing it",
@@ -187,6 +224,18 @@ async def fulfill_license_session(
     if stripe_customer and stripe_client is not None:
         await _record_license_on_customer(stripe_client, stripe_customer, issued)
     return issued
+
+
+async def _first_period_expiry(subscription_id: str, stripe_client: Any) -> datetime:
+    """Raises when the subscription cannot be read, so the webhook is retried."""
+    if stripe_client is None:
+        raise LicenseIssueError(
+            f"Subscription {subscription_id} needs Stripe to read its period"
+        )
+    expiry = expiry_for(await retrieve_subscription(stripe_client, subscription_id))
+    if expiry is None:
+        raise LicenseIssueError(f"Subscription {subscription_id} has no period end")
+    return expiry
 
 
 async def _record_license_on_customer(
@@ -221,40 +270,59 @@ async def issue_trial_license(email: str) -> IssuedLicense:
     and Keygen refuses the second create outright. One-trial-per-person is
     therefore enforced by the store rather than by a lookup that two
     simultaneous claims could both pass.
+
+    With ``LICENSE_TRIAL_BUSINESS`` on, the trial is Business's: a ``trial`` on
+    the business-trial policy that lists the jobs. It is claimed apart from the
+    earlier trial, which unlocked only the scrapers.
     """
     normalized = normalize_email(email)
     folded = fold_email(email)
+    business = config.LICENSE_TRIAL_BUSINESS
+    policy = config.KEYGEN_POLICY_BUSINESS_TRIAL if business else None
+    if business and not policy:
+        # Before any Keygen call: a trial on the old policy would claim the
+        # address for a trial without the jobs.
+        raise RuntimeError("KEYGEN_POLICY_BUSINESS_TRIAL is not configured")
 
     # Two guards, because they answer different questions. The derived id is
     # the constraint: it is immutable, so it settles simultaneous claims by the
     # same address without anyone having to look first. ``trialKey`` is the
     # mutable index: support re-points it when it corrects a mistyped address,
     # and the id cannot follow, because a record's id is fixed once created.
-    if await trial_exists(folded):
+    if await trial_exists(folded, business=business):
         raise TrialAlreadyClaimedError(folded)
 
+    metadata = {META_TRIAL_KEY: folded}
+    if business:
+        metadata[META_JOBS] = jobs_metadata()
     try:
         return await issue_license(
             plan="trial",
             email=normalized,
             source="trial",
-            license_id=derive_license_id("trial", folded),
-            extra_metadata={META_TRIAL_KEY: folded},
+            license_id=derive_license_id(
+                "business-trial" if business else "trial", folded
+            ),
+            extra_metadata=metadata,
+            policy=policy,
         )
     except keygen.LicenseExistsError:
         raise TrialAlreadyClaimedError(folded) from None
 
 
-async def trial_exists(folded_email: str) -> bool:
-    """Whether this person already holds a trial, by the mutable index.
+async def trial_exists(folded_email: str, *, business: bool = False) -> bool:
+    """Whether this person already holds a trial of this kind, by the mutable index.
 
     Filters on the folded key, not the delivery address, so ``a+one@`` and
     ``a+two@`` are one claimant. Racy on its own -- two simultaneous claims can
     both pass -- which is what the derived license key is there to catch.
     """
+    policy = (
+        config.KEYGEN_POLICY_BUSINESS_TRIAL if business else config.KEYGEN_POLICY_TRIAL
+    )
     matches = await keygen.list_licenses(
         metadata={META_TRIAL_KEY: folded_email},
-        policy=config.KEYGEN_POLICY_TRIAL or None,
+        policy=policy or None,
         limit=1,
     )
     return bool(matches)

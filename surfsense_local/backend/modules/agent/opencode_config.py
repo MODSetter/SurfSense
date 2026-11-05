@@ -12,6 +12,7 @@ from importlib.resources import files
 from pathlib import Path
 from typing import Any
 
+from modules.jobs.packs.skills import JobSkill
 from modules.llm.catalog.remote.manifest.lookup import CallRoute
 
 PROVIDER = "surfsense"
@@ -86,12 +87,15 @@ def _rule(action: str, resource: str, effect: str) -> dict[str, str]:
     return {"action": action, "resource": resource, "effect": effect}
 
 
-def _permissions(skills: Path, tool_output: Path) -> list[dict[str, str]]:
+def _permissions(
+    skills: Path, tool_output: Path, job_skills: tuple[JobSkill, ...] = ()
+) -> list[dict[str, str]]:
     """What the agent may do; the last matching rule wins, so each allow follows the deny it narrows.
 
     An edit inside the thread's folder is matched relative to it (`outputs/a.md`),
     and one outside it absolutely, which `external_directory` refuses first. `*`
-    spans folders, so `sources/Lib/outputs/x` never matches `outputs/*`.
+    spans folders, so `sources/Lib/outputs/x` never matches `outputs/*`. An
+    installed job pack's skills are allowed by name and their folder by path.
     """
     return [
         *(_rule(action, "*", "deny") for action in DENIED),
@@ -114,9 +118,14 @@ def _permissions(skills: Path, tool_output: Path) -> list[dict[str, str]]:
         _rule("external_directory", "*", "deny"),
         _rule("external_directory", f"{skills.as_posix()}/*", "allow"),
         _rule("external_directory", f"{tool_output.as_posix()}/*", "allow"),
+        *(
+            _rule("external_directory", f"{folder.as_posix()}/*", "allow")
+            for folder in dict.fromkeys(skill.folder for skill in job_skills)
+        ),
         # Not opencode's built-in skills, nor any the user installed for their own opencode.
         _rule("skill", "*", "deny"),
         *(_rule("skill", name, "allow") for name in SKILLS),
+        *(_rule("skill", skill.name, "allow") for skill in job_skills),
     ]
 
 
@@ -132,6 +141,8 @@ class AgentSetup:
     launch_key: str
     # Where the model answers; opencode then speaks that route to the endpoint.
     route: CallRoute
+    # Skills the installed job packs bring.
+    job_skills: tuple[JobSkill, ...] = ()
 
 
 def opencode_config(setup: AgentSetup, agent_dir: Path) -> dict[str, Any]:
@@ -170,8 +181,13 @@ def opencode_config(setup: AgentSetup, agent_dir: Path) -> dict[str, Any]:
                 "models": {setup.model: _model_entry(setup, output)},
             }
         },
-        "skills": [str(skills)],
-        "permissions": _permissions(skills, tool_output_folder(agent_dir)),
+        "skills": [
+            str(skills),
+            *dict.fromkeys(str(skill.folder) for skill in setup.job_skills),
+        ],
+        "permissions": _permissions(
+            skills, tool_output_folder(agent_dir), setup.job_skills
+        ),
         "agents": {
             AGENT: {"mode": "primary", "system": agent_prompt()},
             TITLE_AGENT: {"model": model},

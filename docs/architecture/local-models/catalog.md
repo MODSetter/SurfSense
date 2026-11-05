@@ -506,7 +506,7 @@ counted rather than decoded
 
 `POST /llm/installs` takes `{"catalog_id": "...", "select": true}`, and
 optionally the `model_type` that `select` fills, the engine's first type when
-absent, so onboarding's editing step installs straight into `image_edit`. Nothing
+absent, so a speech model's download installs straight into `speech_to_text`. Nothing
 else: no repo, file, URL, path or quantization, so the renderer cannot name an
 arbitrary download. A curated build's id is minted once per process and keyed on
 its repo and weights path; a searched build's is a ticket holding the whole build

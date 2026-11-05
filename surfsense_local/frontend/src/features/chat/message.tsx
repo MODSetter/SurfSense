@@ -42,6 +42,7 @@ import { ChatErrorNotice } from "./chat-error-notice"
 import { preprocessCitationMarkdown } from "./citation-markdown"
 import { useCitationContext } from "./citation-context"
 import { CitationProvider, InlineCitation } from "./inline-citation"
+import { MentionedText } from "./mentions/mentioned-text"
 import { ReplyAnnouncer } from "./reply-announcer"
 import {
   ReplyThinking,
@@ -96,6 +97,7 @@ function MarkdownText() {
 }
 
 const assistantMessageParts = { Text: MarkdownText }
+const userMessageParts = { Text: MentionedText }
 
 function reasoningFrom(custom: unknown): ReplyReasoning | null {
   if (typeof custom === "object" && custom !== null && "reasoning" in custom) {
@@ -398,7 +400,7 @@ export function UserMessage() {
         />
       </div>
       <div className="max-w-[78%] rounded-2xl rounded-br-md bg-primary px-4 py-2.5 text-sm leading-6 whitespace-pre-wrap text-primary-foreground">
-        <MessagePrimitive.Parts />
+        <MessagePrimitive.Parts components={userMessageParts} />
       </div>
       <div className="mt-1.5 flex w-full justify-end empty:hidden">
         <MessageScope />

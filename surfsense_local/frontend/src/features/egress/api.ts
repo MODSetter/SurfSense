@@ -44,10 +44,13 @@ export function setDestinationsEnabled(
 const CLAUDE_API_HOST = "api.anthropic.com"
 const CLAUDE_SIGN_IN_HOST = "platform.claude.com"
 
-// SurfSense's own plugins: the one host the license key is ever sent to.
+// SurfSense's own plugins: one of the two hosts the license key is sent to.
 const SURFSENSE_PLUGIN_HOST = "plugins.surfsense.com"
 // SurfSense's own SearXNG server, where Add from the web searches by default.
 const SURFSENSE_SEARCH_HOST = "searxng.surfsense.com"
+
+// SurfSense's license server, the other: a renewed license file for the key.
+const LICENSE_SERVER = "host:api.surfsense.com"
 
 export type DestinationCopy = {
   label: string
@@ -303,6 +306,28 @@ function describeOne(destination: string, host: string, purpose?: string) {
           id: "egress_plugin_registry_prompt_body",
           defaultMessage:
             "SurfSense fetches the list of third-party plugins from {host}, sending your IP address and nothing else. SurfSense’s own plugins run on the same host, so this also lets you connect them. Using them sends {host} what each tool needs and, for the paid ones, your license key so the service can check it. You can turn this off any time in Settings › Network.",
+        },
+        { host }
+      ),
+    }
+  }
+  // Allowing the server also lets the app's own daily check reach it, which
+  // no dialog can ask about later (ADR 0060). A mirror's row is named by its host.
+  if (purpose === "license_refresh" || destination === LICENSE_SERVER) {
+    return {
+      label: intl.formatMessage({
+        id: "egress_license_renewal_label",
+        defaultMessage: "License renewal",
+      }),
+      title: intl.formatMessage({
+        id: "egress_license_renewal_prompt_title",
+        defaultMessage: "Allow checking for license renewals?",
+      }),
+      body: intl.formatMessage(
+        {
+          id: "egress_license_renewal_prompt_body",
+          defaultMessage:
+            "SurfSense asks {host}, its license server, for your license’s latest file, sending your license key and your IP address. Allowing also lets SurfSense check on its own when it starts and once a day, from 30 days before a Business license ends until 30 days after. You can turn this off any time in Settings › Network.",
         },
         { host }
       ),

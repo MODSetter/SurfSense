@@ -9,7 +9,11 @@ Each step shows above the reply as one line, such as "Searched the sources for �
 
 ## What it can see
 
-The agent searches and reads only the sources ticked in the **Sources** panel. Ticks are not a security boundary: [code the agent writes](#code-the-agent-writes) runs with your user's permissions. Under your message the chat shows what it worked from, such as "Working from Plan.pdf" or "Working from 5 sources". Tick a folder to give it everything in that folder.
+The agent searches and reads only the sources ticked in the **Sources** panel, and any you [name with `@`](#name-a-source-with-). Ticks are not a security boundary: [code the agent writes](#code-the-agent-writes) runs with your user's permissions. Under your message the chat shows what it worked from, such as "Working from Plan.pdf" or "Working from 5 sources". Tick a folder to give it everything in that folder.
+
+## Name a source with @
+
+In an Agentic chat, type `@` in the composer and choose **Sources** or **Artifacts**, or keep typing a name to search both. Pick one and it sits in your message as a chip, which you delete as one piece, and the agent is pointed at it. The agent can read what you name even if it isn't ticked, and it can keep reading it for the rest of that chat. Your ticks in the **Sources** panel don't change.
 
 ## Office files and PDFs
 
@@ -96,9 +100,9 @@ A plugin tool set to **Needs approval** stops the turn and asks in the chat, und
 
 Set each tool to **Always allow**, **Needs approval** or **Blocked** in **Settings › Plugins**. See [Plugins](/docs/v2/plugins).
 
-## Plugins with @ mentions
+## Plugins
 
-In an Agentic chat, type `@` in the composer to list your ready plugins, and pick one to make the agent use it for this message. The agent can use connected plugins without a mention too.
+The agent can use your connected plugins whenever a request needs them. To point it at one, say so in your message, such as "use Linear".
 
 If a plugin can't be used, the reply says so above its steps, such as "Couldn’t reach Notes" or "Sign in to Notes again". A plugin step's full result can be saved as a note with **Save to Sources**.
 
