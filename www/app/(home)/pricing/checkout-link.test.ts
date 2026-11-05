@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-// Run with: pnpm exec tsx --test app/(home)/pricing/individual/individual-checkout.test.ts
+// Run with: pnpm exec tsx --test "app/(home)/pricing/checkout-link.test.ts"
 
-import { checkoutHref, isPaymentLink } from "@/app/(home)/pricing/individual/checkout-link";
+import { checkoutHref, isPaymentLink } from "@/app/(home)/pricing/checkout-link";
 
 test("the checkout link carries only the channel as client_reference_id", () => {
 	const href = checkoutHref("https://buy.stripe.com/test_abc?prefilled_promo_code=EARLY", "hn");

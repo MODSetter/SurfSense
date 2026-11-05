@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { INDIVIDUAL_PRICE } from "@/app/(home)/pricing/pricing-content";
+import { ContinueToCheckout } from "@/app/(home)/pricing/continue-to-checkout";
+import { BUY_INDIVIDUAL_URL, INDIVIDUAL_PRICE } from "@/app/(home)/pricing/pricing-content";
 import { type GuideStep, GuideSteps } from "@/components/site/guide-steps";
 import { HomeBadge } from "@/components/site/home-badge";
 import { sectionSpacing } from "@/components/site/home-section-spacing";
@@ -9,7 +10,6 @@ import { SiteFaqItem } from "@/components/site/site-faq-item";
 import { siteText } from "@/components/site/site-text";
 import { cn } from "@/components/ui/cn";
 import { CheckIcon } from "@/components/ui/icons";
-import { ContinueToCheckout } from "./continue-to-checkout";
 import {
 	BENEFITS,
 	CHECKOUT_NOTE,
@@ -60,7 +60,7 @@ function PriceCard() {
 			<p className="mt-3 text-sm font-medium text-primary">{RENEWAL_NOTE}</p>
 
 			<div className="mt-6">
-				<ContinueToCheckout />
+				<ContinueToCheckout buyUrl={BUY_INDIVIDUAL_URL} plan="individual" />
 			</div>
 
 			{/* The filled tick /pricing and /private-ai-for-business use. */}
@@ -237,7 +237,7 @@ export function ClosingCheckout() {
 				</h2>
 				<p className={cn(siteText.body, "mt-4 max-w-xl")}>{RENEWAL_NOTE}</p>
 				<div className="mt-8 w-full max-w-sm">
-					<ContinueToCheckout />
+					<ContinueToCheckout buyUrl={BUY_INDIVIDUAL_URL} plan="individual" />
 				</div>
 				<p className={cn(siteText.body, "mt-6 text-sm")}>
 					Want to try the plugins first? The free plan comes with a 14-day licence and needs no
