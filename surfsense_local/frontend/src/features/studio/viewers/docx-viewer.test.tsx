@@ -186,7 +186,7 @@ describe("Word viewer", () => {
 
   it("shows the version picked last when an earlier one finishes after it", async () => {
     serve()
-    let finishFirst = (_: unknown) => {}
+    let finishFirst: (document: unknown) => void = () => {}
     const first = fakeDocument()
     renderer.load
       .mockImplementationOnce(
