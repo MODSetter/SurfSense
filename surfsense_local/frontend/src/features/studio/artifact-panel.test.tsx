@@ -1,7 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { cleanup, screen } from "@testing-library/react"
+import { cleanup, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
+import { useJobRun } from "@/features/jobs/run/use-job-run"
+import {
+  refusal,
+  runRead,
+  stubJobsApi,
+  type Answer,
+} from "@/features/jobs/stub-jobs-api"
 import { useRefreshModels } from "@/features/models/models-query"
 import { render } from "@/test-utils"
 
@@ -1214,5 +1221,209 @@ describe("artifact panel revised copy", () => {
     expect(screen.getByRole("link", { name: "With changes" })).toBeTruthy()
     expect(screen.queryByRole("link", { name: "Clean" })).toBeNull()
     expect(screen.queryByRole("button", { name: "Accept all" })).toBeNull()
+  })
+})
+
+describe("artifact panel job run", () => {
+  // Version `number` of a job run's copy, whose first version is artifact 41.
+  function runCopy(id: number, number: number, extra: Partial<Artifact> = {}) {
+    return {
+      id,
+      document_id: id + 100,
+      format: "summary",
+      generation: 1,
+      title: "Vendor questionnaire (revised)",
+      status: "ready",
+      error_message: null,
+      created_at: `2026-11-0${number}T00:00:00Z`,
+      updated_at: `2026-11-0${number}T00:00:00Z`,
+      version: { root_id: 41, number, parent_id: number > 1 ? id - 1 : null },
+      spec_kind: null,
+      refinable: false,
+      image_editable: false,
+      ...extra,
+    } satisfies Artifact
+  }
+
+  // Served as a summary so the test needs no spreadsheet renderer; the
+  // revision's file name says the copy is a workbook.
+  function detail(artifact: Artifact, sourceName: string) {
+    return {
+      ...artifact,
+      content: "Do you encrypt backups? Yes",
+      files: [],
+      quiz_state: null,
+      flashcard_state: null,
+      revision: {
+        derived_from_document_id: 7,
+        source_name: sourceName,
+        counts: null,
+        applied: null,
+      },
+    }
+  }
+
+  /** The copy's detail and the run it is, over workspace 1. */
+  function serveRun(
+    shown: Artifact,
+    run: Answer,
+    {
+      sourceName = "Vendor questionnaire.xlsx",
+      routes = {},
+    }: { sourceName?: string; routes?: Record<string, Answer> } = {}
+  ) {
+    return stubJobsApi({
+      [`GET /artifacts/${shown.id}`]: detail(shown, sourceName),
+      "GET /workspaces/1/job-runs/41": run,
+      ...routes,
+    })
+  }
+
+  // Shown beside the panel once the run's read has answered, which the panel
+  // shares, so a test can tell "nothing offered" from "not read yet".
+  function RunAnswered() {
+    const run = useJobRun(1, 41)
+    return run.data === undefined ? null : <p>The run was read</p>
+  }
+
+  function panel(artifactId: number, artifacts: Artifact[]) {
+    return (
+      <>
+        <ArtifactPanel
+          workspaceId={1}
+          artifactId={artifactId}
+          artifacts={artifacts}
+          onOpenVersion={vi.fn()}
+          onRefine={vi.fn()}
+          onClose={vi.fn()}
+        />
+        <RunAnswered />
+      </>
+    )
+  }
+
+  async function askToConfirm(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Confirm 2 suggested answers",
+      })
+    )
+    return screen.getByRole("alertdialog", {
+      name: "Confirm 2 suggested answers?",
+    })
+  }
+
+  it("confirms the run’s suggested answers from its newest version, after asking", async () => {
+    const calls = serveRun(runCopy(41, 1), runRead(), {
+      routes: {
+        "POST /workspaces/1/job-runs/41/confirm": { artifact_id: 42 },
+      },
+    })
+    const user = userEvent.setup()
+
+    render(panel(41, [runCopy(41, 1)]))
+
+    const question = await askToConfirm(user)
+    expect(within(question).getByText("Do you encrypt backups?")).toBeTruthy()
+    expect(within(question).getByText("Suggested: Not applicable")).toBeTruthy()
+    await user.click(within(question).getByRole("button", { name: "Confirm" }))
+
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull())
+    expect(calls.filter((call) => call.method === "POST")).toEqual([
+      {
+        method: "POST",
+        path: "/workspaces/1/job-runs/41/confirm",
+        body: "{}",
+      },
+    ])
+  })
+
+  it("offers no confirmation on an older version of the copy", async () => {
+    serveRun(runCopy(41, 1), runRead())
+
+    render(panel(41, [runCopy(42, 2), runCopy(41, 1)]))
+
+    expect(await screen.findByText("The run was read")).toBeTruthy()
+    expect(
+      screen.getByText("Revised copy of Vendor questionnaire.xlsx")
+    ).toBeTruthy()
+    expect(screen.queryByRole("button", { name: /^Confirm/ })).toBeNull()
+  })
+
+  it("offers no confirmation while a version of the run’s copy is being made", async () => {
+    serveRun(runCopy(41, 1), runRead({ running: true }))
+
+    render(panel(41, [runCopy(41, 1)]))
+
+    expect(await screen.findByText("The run was read")).toBeTruthy()
+    expect(screen.queryByRole("button", { name: /^Confirm/ })).toBeNull()
+  })
+
+  it("holds the confirmation while Studio is making the copy’s next version", async () => {
+    serveRun(runCopy(41, 1), runRead())
+
+    render(panel(41, [runCopy(42, 2, { status: "pending" }), runCopy(41, 1)]))
+
+    const confirm = await screen.findByRole("button", {
+      name: "Confirm 2 suggested answers",
+    })
+    expect((confirm as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it("shows nothing more for a workbook copy that is no job’s run", async () => {
+    serveRun(runCopy(41, 1), refusal(404, "NOT_FOUND", "No such job run."), {
+      sourceName: "Pricing.xlsx",
+    })
+
+    render(panel(41, [runCopy(41, 1)]))
+
+    expect(await screen.findByText("The run was read")).toBeTruthy()
+    expect(screen.getByText("Revised copy of Pricing.xlsx")).toBeTruthy()
+    expect(screen.queryByRole("button", { name: /^Confirm/ })).toBeNull()
+    expect(screen.queryByRole("alert")).toBeNull()
+  })
+
+  it("never asks whether a Word copy is a job’s run", async () => {
+    const calls = serveRun(runCopy(41, 1), runRead(), {
+      sourceName: "MSA_Acme.docx",
+    })
+
+    render(
+      <ArtifactPanel
+        workspaceId={1}
+        artifactId={41}
+        artifacts={[runCopy(41, 1)]}
+        onOpenVersion={vi.fn()}
+        onRefine={vi.fn()}
+        onClose={vi.fn()}
+      />
+    )
+
+    expect(
+      await screen.findByText("Revised copy of MSA_Acme.docx")
+    ).toBeTruthy()
+    expect(calls.map((call) => call.path)).toEqual(["/artifacts/41"])
+  })
+
+  it("shows why a confirmation was refused", async () => {
+    serveRun(runCopy(41, 1), runRead(), {
+      routes: {
+        "POST /workspaces/1/job-runs/41/confirm": refusal(
+          409,
+          "JOB_RUN_REFUSED",
+          "The run has no suggested answers left to confirm."
+        ),
+      },
+    })
+    const user = userEvent.setup()
+
+    render(panel(41, [runCopy(41, 1)]))
+
+    const question = await askToConfirm(user)
+    await user.click(within(question).getByRole("button", { name: "Confirm" }))
+
+    expect((await within(question).findByRole("alert")).textContent).toBe(
+      "The run has no suggested answers left to confirm."
+    )
   })
 })

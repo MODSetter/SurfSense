@@ -1,6 +1,6 @@
 # Contract 6: job pack delivery
 
-How a SurfSense license gets its job plugins: the desktop app asks the license server for the newest job pack its license may run, and the server answers with that pack's signed zip, from its own host. Version 1 (3 Nov 2026). Why it works this way is [ADR 0082](../adr/0082-the-license-server-delivers-job-packs-from-private-releases.md); why a job is a paid plugin is [ADR 0067](../adr/0067-b2b-jobs-ship-as-paid-plugins.md); which license unlocks it is ADR 0080 (one Business license, priced per person; on the `docs/business-license` branch).
+How a SurfSense license gets its job plugins: the desktop app asks the license server for the newest job pack its license may run, and the server answers with that pack's signed zip, from its own host. Version 1 (3 Nov 2026). Why it works this way is [ADR 0082](../adr/0082-the-license-server-delivers-job-packs-from-private-releases.md); why a job is a paid plugin is [ADR 0067](../adr/0067-b2b-jobs-ship-as-paid-plugins.md); which license unlocks it is [ADR 0080](../adr/0080-surfsense-sells-one-business-license-priced-per-person.md) (one Business license, priced per person).
 
 | Side | Who | Built |
 |---|---|---|

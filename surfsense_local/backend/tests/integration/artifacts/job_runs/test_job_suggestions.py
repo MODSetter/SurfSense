@@ -14,6 +14,7 @@ from openpyxl.worksheet.datavalidation import DataValidation
 from sqlalchemy.orm import Session
 
 from modules.agent.tool_endpoint import confirm_job
+from modules.agent.tool_endpoint.rendered_label import rendered_artifact
 from modules.agent.tool_endpoint.tool import ToolCallError
 from modules.agent.tool_endpoint.turn_scope import TurnScope
 from modules.artifacts.models import Artifact
@@ -22,6 +23,8 @@ from modules.jobs.packs.access import DEV_SWITCH
 from modules.jobs.packs.install import install_pack
 from modules.jobs.packs.installed import packs_dir
 from modules.jobs.runs.record import job_run_of
+from modules.jobs.settings.service import CHECKER_GONE
+from modules.llm.models import ProviderConnection
 from modules.workspaces.models import Workspace
 from shared.config import get_storage_settings
 from tests.integration.artifacts.revised_copies.source_files import add_source
@@ -83,10 +86,12 @@ def models(monkeypatch: pytest.MonkeyPatch) -> list[str]:
     return calls
 
 
-def _questionnaire(dropdown: str = "Yes,No,N/A", questions: int = 1) -> bytes:
+def _questionnaire(
+    dropdown: str = "Yes,No,N/A", questions: int = 1, title: str = "Questions"
+) -> bytes:
     book = openpyxl.Workbook()
     sheet = book.active
-    sheet.title = "Questions"
+    sheet.title = title
     sheet.append(["Question", "Answer", "Comments"])
     sheet.append(["Is physical access to the data centre controlled?", None, None])
     if questions > 1:
@@ -104,9 +109,13 @@ def _sources(
     workspace_id: int,
     dropdown: str = "Yes,No,N/A",
     questions: int = 1,
+    title: str = "Questions",
 ) -> tuple[int, int]:
     workbook_id = add_source(
-        session, workspace_id, "Questionnaire.xlsx", _questionnaire(dropdown, questions)
+        session,
+        workspace_id,
+        "Questionnaire.xlsx",
+        _questionnaire(dropdown, questions, title),
     )
     policy = Document(
         workspace_id=workspace_id,
@@ -126,8 +135,9 @@ async def _ran(
     workspace_id: int,
     dropdown: str = "Yes,No,N/A",
     questions: int = 1,
+    title: str = "Questions",
 ) -> tuple[int, dict]:
-    workbook_id, policy_id = _sources(session, workspace_id, dropdown, questions)
+    workbook_id, policy_id = _sources(session, workspace_id, dropdown, questions, title)
     started = await client.post(
         f"/workspaces/{workspace_id}/job-runs",
         json={"job": JOB, "document_id": workbook_id, "source_ids": [policy_id]},
@@ -225,6 +235,14 @@ async def test_a_suggested_n_a_is_confirmed_as_the_next_version(
     assert "no suggested answers left" in again.json()["detail"]["message"]
 
 
+@pytest.mark.parametrize(
+    ("title", "cell"),
+    [
+        ("Questions", "Questions!B2"),
+        # As Excel quotes a sheet name: an apostrophe inside it is doubled.
+        ("Vendor's questions", "'Vendor''s questions'!B2"),
+    ],
+)
 async def test_the_agent_confirms_a_suggestion_by_its_cell(
     session: Session,
     workspace: Workspace,
@@ -233,12 +251,14 @@ async def test_the_agent_confirms_a_suggestion_by_its_cell(
     models: list[str],
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    title: str,
+    cell: str,
 ) -> None:
-    """Asked to, the agent confirms one suggestion by its cell; asked again, it is told the
-    suggestion is already confirmed."""
+    """Asked to, the agent confirms one suggestion by its cell, written as Excel writes it;
+    asked again, it is told the suggestion is already confirmed."""
     monkeypatch.setenv(DEV_SWITCH, "1")
     workspace_id = workspace.id
-    artifact_id, _ = await _ran(client, session, workspace_id)
+    artifact_id, _ = await _ran(client, session, workspace_id, title=title)
 
     def made(_session, version_id, _seconds):
         run(version_id)
@@ -248,11 +268,17 @@ async def test_the_agent_confirms_a_suggestion_by_its_cell(
         "modules.agent.tool_endpoint.confirm_job.wait_for_outcome", made
     )
     scope = TurnScope(workspace_id, 1, tmp_path, frozenset(), known=False)
-    arguments = {"artifact_id": artifact_id, "cells": ["Questions!B2"]}
+    arguments = {"artifact_id": artifact_id, "cells": [cell]}
 
     said = await asyncio.to_thread(confirm_job.run, session, scope, arguments)
 
-    assert said.startswith("Done: The confirmed version")
+    # The first line names the version, so the thread links it in Studio.
+    first, rest = said.split("\n", 1)
+    confirmed = rendered_artifact(first)
+    assert (confirmed.version, confirmed.title) == (2, "Questionnaire (revised)")
+    assert rest.startswith("Done: The confirmed version")
+    session.expire_all()
+    assert _filled(session, confirmed.id)[title]["B2"].value == "N/A"
     with pytest.raises(ToolCallError, match="No suggestion is left to confirm"):
         await asyncio.to_thread(confirm_job.run, session, scope, arguments)
 
@@ -283,6 +309,68 @@ async def test_the_firm_s_setting_and_checker_reach_the_run(
     assert record["report"]["checker"] == "gemma-4-31b"
     assert models == ["qwen3.8-27b", "gemma-4-31b"]
     assert _filled(session, artifact_id)["Questions"]["B2"].value == "N/A"
+
+
+async def test_a_checker_whose_connection_is_gone_stops_a_run_before_any_call(
+    session: Session,
+    workspace: Workspace,
+    client: AsyncClient,
+    pack: None,
+    models: list[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Once the saved checker's connection is deleted, a new run is refused, one already
+    queued, as a retry is, fails with the same reason before any model is asked, and Save
+    refuses the checker Settings shows; so too once the next connection added takes the
+    deleted one's id, as SQLite gives it."""
+    monkeypatch.setenv(DEV_SWITCH, "1")
+    connection = ProviderConnection(
+        label="Checker", provider="openai_compatible", base_url="http://127.0.0.1:1/v1"
+    )
+    session.add(connection)
+    session.commit()
+    connection_id = connection.id
+    checker = {
+        "provider": "openai_compatible",
+        "name": "gemma-4-31b",
+        "connection_id": connection_id,
+    }
+    put = await client.put(f"/job-packs/jobs/{JOB}/settings", json={"checker": checker})
+    assert put.status_code == 200, put.text
+    workbook_id, policy_id = _sources(session, workspace.id)
+    body = {"job": JOB, "document_id": workbook_id, "source_ids": [policy_id]}
+    queued = await client.post(f"/workspaces/{workspace.id}/job-runs", json=body)
+    assert queued.status_code == 201, queued.text
+    deleted = await client.delete(f"/llm/connections/{connection_id}")
+    assert deleted.status_code == 204, deleted.text
+    session.expunge(connection)
+    another = ProviderConnection(
+        label="Another", provider="openai_compatible", base_url="http://127.0.0.1:2/v1"
+    )
+    session.add(another)
+    session.commit()
+    assert another.id == connection_id
+
+    refused = await client.post(f"/workspaces/{workspace.id}/job-runs", json=body)
+    await asyncio.to_thread(run, queued.json()["artifact_id"])
+    shown = (await client.get(f"/job-packs/jobs/{JOB}/settings")).json()["checker"]
+    resaved = await client.put(
+        f"/job-packs/jobs/{JOB}/settings", json={"checker": shown}
+    )
+
+    assert refused.status_code == 409
+    assert refused.json()["detail"] == {
+        "code": "JOB_RUN_REFUSED",
+        "message": CHECKER_GONE,
+    }
+    runs = (await client.get(f"/workspaces/{workspace.id}/job-runs")).json()
+    assert [(r["status"], r["error"]) for r in runs] == [("failed", CHECKER_GONE)]
+    assert models == []
+    assert resaved.status_code == 422
+    assert resaved.json()["detail"] == {
+        "code": "BAD_JOB_SETTINGS",
+        "message": CHECKER_GONE,
+    }
 
 
 async def test_a_confirmation_whose_version_failed_can_be_made_again(

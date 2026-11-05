@@ -6,13 +6,15 @@ are signed with a key made for tests, which the app trusts only while tests run.
 
 import base64
 import json
+from collections.abc import Sequence
 from pathlib import Path
+from typing import Any
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
 from modules.jobs.packs.manifest import MANIFEST, SIGNATURE
-from modules.jobs.packs.seal import seal_pack
+from modules.jobs.packs.seal import seal_pack, zip_pack
 from modules.jobs.packs.signature import signed_payload
 
 # Not a secret: a fixed key so a test pack's signature is the same every run.
@@ -21,7 +23,10 @@ TEST_PACK_PUBLIC_KEY_HEX = (
     TEST_PACK_KEY.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw).hex()
 )
 
+PACK_ID = "test-jobs"
 JOB = "test-questionnaire"
+# The test job's licence code; the samples' Business licence carries JOB_QUESTIONNAIRE instead.
+ENTITLEMENT = "JOB_TEST_QUESTIONNAIRE"
 SKILL = "surfsense-job-test-questionnaire"
 QUESTIONS_SHEET = "Questions"
 
@@ -49,9 +54,19 @@ CHECKS = {
 
 
 def write_questionnaire_pack(
-    folder: Path, *, access: str = "paid", checks: bool = False
+    folder: Path,
+    *,
+    access: str = "paid",
+    checks: bool = False,
+    version: str = "1.0.0",
+    entitlement: str | None = ENTITLEMENT,
+    other_jobs: Sequence[str] = (),
+    signed_by: Sequence[Ed25519PrivateKey] = (TEST_PACK_KEY,),
+    sig_lines: Sequence[bytes] | None = None,
 ) -> Path:
-    """A sealed pack in `folder` with one workbook-rows job and its skill."""
+    """A sealed pack in `folder` with one workbook-rows job and its skill, signed by each key of
+    `signed_by`, one line each; `sig_lines` writes those lines as its signature instead.
+    `other_jobs` adds a job for each of those codes, with the same config and no skill."""
     files = {
         "LICENSE.md": "Test pack.",
         f"jobs/{JOB}/prompts/system.md": "Answer with one of $answers.",
@@ -100,36 +115,57 @@ def write_questionnaire_pack(
         path = folder / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text, encoding="utf-8")
+    job = {
+        "key": JOB,
+        "name": "Test questionnaire",
+        "description": "Fill in a test questionnaire.",
+        "runner": "workbook-rows/1",
+        "config": f"jobs/{JOB}/job.json",
+        "skill": f"skills/{SKILL}",
+    }
+    if entitlement is not None:
+        job["entitlement"] = entitlement
     manifest = {
         "schema": "surfsense-job-pack/1",
-        "id": "test-jobs",
-        "version": "1.0.0",
+        "id": PACK_ID,
+        "version": version,
         "name": "Test jobs",
         "publisher": "Tests",
         "description": "A test pack.",
         "access": access,
         "license_file": "LICENSE.md",
         "jobs": [
-            {
-                "key": JOB,
-                "name": "Test questionnaire",
-                "description": "Fill in a test questionnaire.",
-                "runner": "workbook-rows/1",
-                "entitlement": "JOB_TEST_QUESTIONNAIRE",
-                "config": f"jobs/{JOB}/job.json",
-                "skill": f"skills/{SKILL}",
-            }
+            job,
+            *(
+                {
+                    **{k: v for k, v in job.items() if k != "skill"},
+                    "key": f"other-job-{n}",
+                    "entitlement": code,
+                }
+                for n, code in enumerate(other_jobs, start=1)
+            ),
         ],
         "files": {"LICENSE.md": "0" * 64},
     }
     (folder / "job-pack.json").write_text(json.dumps(manifest), encoding="utf-8")
     seal_pack(folder)
-    sign_pack(folder)
+    if sig_lines is None:
+        sign_pack(folder, *signed_by)
+    else:
+        (folder / SIGNATURE).write_bytes(b"\n".join(sig_lines) + b"\n")
     return folder
 
 
-def sign_pack(folder: Path, key: Ed25519PrivateKey = TEST_PACK_KEY) -> None:
-    """Sign a sealed pack as SurfSense's script signs a real one, here with `key`."""
+def zipped_questionnaire_pack(folder: Path, **options: Any) -> bytes:
+    """The pack `write_questionnaire_pack` writes in `folder`, zipped as it is published."""
+    write_questionnaire_pack(folder, **options)
+    return zip_pack(folder, folder.with_name(f"{folder.name}.zip")).read_bytes()
+
+
+def sign_pack(folder: Path, *keys: Ed25519PrivateKey) -> None:
+    """Sign a sealed pack as SurfSense's script signs a real one, one line per key: the test
+    key when none is given."""
     manifest = json.loads((folder / MANIFEST).read_text(encoding="utf-8"))
-    signature = key.sign(signed_payload(manifest))
-    (folder / SIGNATURE).write_bytes(base64.b64encode(signature) + b"\n")
+    payload = signed_payload(manifest)
+    lines = [base64.b64encode(key.sign(payload)) for key in keys or (TEST_PACK_KEY,)]
+    (folder / SIGNATURE).write_bytes(b"\n".join(lines) + b"\n")

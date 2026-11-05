@@ -165,6 +165,43 @@ async def test_a_slow_server_is_given_up_on(
     assert await stored_expiry(client) == "2027-10-10T00:00:00Z"
 
 
+async def test_a_file_that_trickles_in_is_given_up_on_at_the_deadline(
+    client: AsyncClient,
+    license_server: StandInLicenseServer,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The deadline covers the whole exchange: a byte now and then never resets it."""
+    monkeypatch.setattr(renewed_file, "TIMEOUT_SECONDS", 0.5)
+    await add_business_license(client)
+    license_server.files[BUSINESS_KEY] = RENEWED
+    # A dozen pieces 0.1 s apart: no gap reaches a read's timeout, the whole does.
+    license_server.drip_seconds = 0.1
+
+    response = await refresh(client)
+
+    assert (response.status_code, response.json()["detail"]["code"]) == (
+        503,
+        "refresh_unavailable",
+    )
+    assert await stored_expiry(client) == "2027-10-10T00:00:00Z"
+
+
+async def test_a_body_too_large_for_a_license_file_is_refused(
+    client: AsyncClient, license_server: StandInLicenseServer
+) -> None:
+    """A license file is a few kilobytes; a body past 64 KiB is refused as unavailable."""
+    await add_business_license(client)
+    license_server.files[BUSINESS_KEY] = "x" * (64 * 1024 + 1)
+
+    response = await refresh(client)
+
+    assert (response.status_code, response.json()["detail"]["code"]) == (
+        503,
+        "refresh_unavailable",
+    )
+    assert await stored_expiry(client) == "2027-10-10T00:00:00Z"
+
+
 def signed_elsewhere(certificate: str) -> str:
     """The same file, signed by a key no SurfSense build trusts."""
     body = re.sub(

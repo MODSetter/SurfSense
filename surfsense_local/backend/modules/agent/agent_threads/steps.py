@@ -3,10 +3,12 @@
 from dataclasses import asdict
 from typing import Any
 
+from modules.agent.tool_endpoint.confirm_job import TOOL_NAME as CONFIRM_JOB_TOOL
 from modules.agent.tool_endpoint.convert_document import TOOL_NAME as CONVERT_TOOL
 from modules.agent.tool_endpoint.registration import SERVER
 from modules.agent.tool_endpoint.rendered_label import TOOL_NAME, rendered_artifact
 from modules.agent.tool_endpoint.revise_document import TOOL_NAME as REVISE_TOOL
+from modules.agent.tool_endpoint.run_job import TOOL_NAME as RUN_JOB_TOOL
 from modules.agent.tool_endpoint.save_page import TOOL_NAME as SAVE_PAGE_TOOL
 from modules.agent.tool_endpoint.search_web import TOOL_NAME as SEARCH_WEB_TOOL
 from modules.agent.tool_endpoint.web_reach import refused_hosts_in
@@ -27,7 +29,17 @@ REVISE_STEP = f"{SERVER}_{REVISE_TOOL}"
 CONVERT_STEP = f"{SERVER}_{CONVERT_TOOL}"
 # A saved page's result opens as a render's does.
 SAVE_PAGE_STEP = f"{SERVER}_{SAVE_PAGE_TOOL}"
-VERSION_STEPS = (RENDER_STEP, REVISE_STEP, CONVERT_STEP, SAVE_PAGE_STEP)
+# A job run opens the revised copy it filled in, and a confirmation the version it made.
+RUN_JOB_STEP = f"{SERVER}_{RUN_JOB_TOOL}"
+CONFIRM_JOB_STEP = f"{SERVER}_{CONFIRM_JOB_TOOL}"
+VERSION_STEPS = (
+    RENDER_STEP,
+    REVISE_STEP,
+    CONVERT_STEP,
+    SAVE_PAGE_STEP,
+    RUN_JOB_STEP,
+    CONFIRM_JOB_STEP,
+)
 # The web tools; a refused host is offered to the user on the step, by the consent
 # question each asks with.
 WEB_STEPS = {

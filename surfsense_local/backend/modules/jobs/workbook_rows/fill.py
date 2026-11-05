@@ -44,6 +44,10 @@ class FillStoppedError(Exception):
     """The run was cancelled between questions."""
 
 
+class NoQuestionsError(Exception):
+    """A workbook in which no question was found, so the run has nothing to answer."""
+
+
 class Turns:
     """Two models that cannot be loaded at once take turns. A call to the one out of turn
     waits; the turn passes when the one in turn has no call running or waiting and no question
@@ -179,7 +183,16 @@ def fill_workbook(
     chosen = config.setting_values(settings)
     facts = inspect_workbook(workbook)
     layout = find_questions(facts, config.layout)
+    if not layout.rows:
+        # Before any embedding, which takes minutes on a laptop for nothing to answer.
+        raise NoQuestionsError(
+            "SurfSense found no questions in this workbook. It needs a column of "
+            "questions and a column for answers, or answer dropdowns."
+        )
     rows = [row for row in layout.rows if only is None or only(row)]
+    if on_row is not None:
+        # The total, while the sources are still being read for the first question.
+        on_row(0, len(rows))
     passages = passages_of(sources)
     budget = min(
         int(

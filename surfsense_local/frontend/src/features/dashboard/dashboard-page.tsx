@@ -3,6 +3,7 @@ import { AgentApprovalsProvider } from "@/features/agent/agent-approvals"
 import { IN_CONTAINER } from "@/app/in-container"
 import {
   CircleAlertIcon,
+  ClipboardCheckIcon,
   LayoutGridIcon,
   PlusIcon,
   PlugIcon,
@@ -30,6 +31,7 @@ import { canSkipThinking } from "@/features/chat/thinking-preference"
 import { ThreadPanel } from "@/features/chat/thread-panel"
 import { useChatRuntime } from "@/features/chat/use-chat-runtime"
 import { useHelpMenuReport } from "@/features/feedback/help-menu-report"
+import { JobsDialog } from "@/features/jobs/jobs-dialog"
 import type { ImportAccepted } from "@/features/migration/api"
 import { ImportBundleButton } from "@/features/migration/import-bundle"
 import { modelKey, type ModelSelection } from "@/features/models/selection/api"
@@ -324,6 +326,14 @@ function WorkspaceDashboard({
     () => <SidebarFooter onOpenLicense={onOpenLicense} />,
     [onOpenLicense]
   )
+  const [jobsOpen, setJobsOpen] = useState(false)
+  const openJobs = useCallback(() => setJobsOpen(true), [])
+  // Stable, for the memoized Jobs dialog: the page above makes both anew on
+  // each of its renders.
+  const openModelSettings = useStableCallback((section: SettingsSectionId) =>
+    onOpenModelSettings(section)
+  )
+  const openLicense = useStableCallback(() => onOpenLicense())
   const sidebarActions = useMemo<SidebarNavAction[]>(
     () => [
       {
@@ -336,8 +346,18 @@ function WorkspaceDashboard({
         badge: <FeatureBadge stage="new" />,
         onClick: () => onOpenPlugins(),
       },
+      {
+        key: "jobs",
+        label: intl.formatMessage({
+          id: "dashboard_sidebar_jobs_button",
+          defaultMessage: "Jobs",
+        }),
+        icon: ClipboardCheckIcon,
+        badge: <FeatureBadge stage="new" />,
+        onClick: openJobs,
+      },
     ],
-    [onOpenPlugins]
+    [onOpenPlugins, openJobs]
   )
   // The sidebar's callbacks keep one identity and call the latest chat.
   const sidebarNewChat = useStableCallback(() => startNewChat())
@@ -549,6 +569,7 @@ function WorkspaceDashboard({
                     />
                   ) : inspect?.kind === "artifact" ? (
                     <ArtifactPanel
+                      workspaceId={workspace.id}
                       artifactId={inspect.artifactId}
                       artifacts={studio.artifacts}
                       onOpenVersion={openArtifact}
@@ -591,6 +612,19 @@ function WorkspaceDashboard({
             </div>
           </RightPanelRail>
         </DashboardColumns>
+        {/* Inside the opener, so a run's Open in Studio shows its copy here. */}
+        <JobsDialog
+          open={jobsOpen}
+          onOpenChange={setJobsOpen}
+          workspaceId={workspace.id}
+          documents={sources.documents}
+          includedDocumentIds={sources.includedDocumentIds}
+          selection={selection}
+          providerAvailable={providerAvailable}
+          onUploadSources={sources.upload}
+          onOpenModelSettings={openModelSettings}
+          onOpenLicense={openLicense}
+        />
       </OpenArtifactContext.Provider>
     </OfficeOfferContext.Provider>
   )

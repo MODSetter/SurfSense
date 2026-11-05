@@ -51,7 +51,8 @@ const SURFSENSE_SEARCH_HOST = "searxng.surfsense.com"
 // HUGGINGFACE's host: a page read there shares model search's row.
 const HUGGINGFACE_HOST = "huggingface.co"
 
-// SurfSense's license server, the other: a renewed license file for the key.
+// SurfSense's license server, the other: a renewed license file for the key,
+// and the jobs the license includes.
 const LICENSE_SERVER = "host:api.surfsense.com"
 
 export type DestinationCopy = {
@@ -199,6 +200,25 @@ function updatesBody(host: string, purpose?: string) {
   )
 }
 
+// The question names the errand that asked; one the refusal does not name
+// asks about the server itself.
+function licenseServerTitle(purpose?: string) {
+  if (purpose === "job_packs")
+    return intl.formatMessage({
+      id: "egress_license_server_jobs_prompt_title",
+      defaultMessage: "Allow downloading your jobs?",
+    })
+  if (purpose === "license_refresh")
+    return intl.formatMessage({
+      id: "egress_license_renewal_prompt_title",
+      defaultMessage: "Allow checking for license renewals?",
+    })
+  return intl.formatMessage({
+    id: "egress_license_server_prompt_title",
+    defaultMessage: "Allow reaching SurfSense’s license server?",
+  })
+}
+
 function describeOne(destination: string, host: string, purpose?: string) {
   if (destination === "app_updates") {
     return {
@@ -326,23 +346,26 @@ function describeOne(destination: string, host: string, purpose?: string) {
       ),
     }
   }
-  // Allowing the server also lets the app's own daily check reach it, which
-  // no dialog can ask about later (ADR 0060). A mirror's row is named by its host.
-  if (purpose === "license_refresh" || destination === LICENSE_SERVER) {
+  // Renewal and the license's jobs are two errands to one server, so one
+  // answer covers both and says what each sends. Allowing also lets the app's
+  // own daily checks reach it, which no dialog can ask about later (ADR 0060).
+  // A mirror's row is named by its host.
+  if (
+    purpose === "license_refresh" ||
+    purpose === "job_packs" ||
+    destination === LICENSE_SERVER
+  ) {
     return {
       label: intl.formatMessage({
-        id: "egress_license_renewal_label",
-        defaultMessage: "License renewal",
+        id: "egress_license_server_label",
+        defaultMessage: "License server",
       }),
-      title: intl.formatMessage({
-        id: "egress_license_renewal_prompt_title",
-        defaultMessage: "Allow checking for license renewals?",
-      }),
+      title: licenseServerTitle(purpose),
       body: intl.formatMessage(
         {
-          id: "egress_license_renewal_prompt_body",
+          id: "egress_license_server_prompt_body",
           defaultMessage:
-            "SurfSense asks {host}, its license server, for your license’s latest file, sending your license key and your IP address. Allowing also lets SurfSense check on its own when it starts and once a day, from 30 days before a Business license ends until 30 days after. You can turn this off any time in Settings › Network.",
+            "SurfSense asks {host}, its license server, for your license’s latest file and for the jobs your license includes, sending your license key and your IP address. A job download also sends the job’s code, the version you already have and the kinds of job this version of SurfSense can run. Allowing also lets SurfSense check on its own when it starts and once a day: for a renewal, from 30 days before a Business license ends until 30 days after, and for newer versions of your jobs, while a license with jobs is active. A check for a job that comes during a run of it is made again once the run ends. You can turn this off any time in Settings › Network.",
         },
         { host }
       ),

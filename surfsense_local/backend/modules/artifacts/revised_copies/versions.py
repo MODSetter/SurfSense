@@ -1,11 +1,12 @@
 """A revised copy's versions, and the one its next version starts from: the newest ready one."""
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, contains_eager
 
 from modules.artifacts.models import Artifact, ArtifactFileRole
 from modules.artifacts.revised_copies.formats import RevisableFormat, revisable_format
@@ -86,6 +87,30 @@ def versions_of(session: Session, workspace_id: int, root: int) -> list[Artifact
             .order_by(version["number"].as_integer().desc())
         )
     )
+
+
+def versions_of_roots(
+    session: Session, workspace_id: int, roots: Iterable[int]
+) -> dict[int, list[Artifact]]:
+    """`versions_of` for many roots in one query, each root's newest first."""
+    found: dict[int, list[Artifact]] = {root: [] for root in roots}
+    if not found:
+        return found
+    version = Artifact.artifact_metadata["version"]
+    for artifact in session.scalars(
+        select(Artifact)
+        .join(Artifact.document)
+        .options(contains_eager(Artifact.document))
+        .where(
+            Artifact.workspace_id == workspace_id,
+            version["root"].as_integer().in_(list(found)),
+        )
+        .order_by(version["number"].as_integer().desc())
+    ):
+        numbered = version_of(artifact.artifact_metadata)
+        if numbered is not None:
+            found[numbered.root].append(artifact)
+    return found
 
 
 def version_numbered(

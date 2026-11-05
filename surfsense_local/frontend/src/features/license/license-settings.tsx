@@ -18,6 +18,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
 import { ExternalLink } from "@/features/about/external-link"
 import { useAppDetails } from "@/features/about/use-app-details"
+import { useDeliveries } from "@/features/jobs/packs/download-job-packs"
+import { LicenseJobPacks } from "@/features/jobs/packs/license-job-packs"
 import { SettingsSection } from "@/features/settings/settings-section"
 import { intl } from "@/i18n/intl"
 
@@ -316,8 +318,14 @@ export function LicenseSettings() {
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
   const refresh = useLicenseRefresh()
+  const deliveries = useDeliveries()
+  // A download still out asks with this license's key, so the license stays
+  // until it answers: one put in its place meanwhile would get no download.
+  const downloading = Object.values(deliveries).some(
+    (delivery) => delivery.phase === "downloading"
+  )
   // One change to the license at a time, a renewal check included.
-  const changing = busy || refresh.isPending
+  const changing = busy || refresh.isPending || downloading
 
   const status = license.data ?? null
   const publishLicense = usePublishLicense()
@@ -357,7 +365,7 @@ export function LicenseSettings() {
       description={intl.formatMessage({
         id: "license_settings_body",
         defaultMessage:
-          "Paid plugins need a license file tied to your email. It’s verified on this device.",
+          "Paid plugins and jobs need a license file tied to your email. It’s verified on this device.",
       })}
     >
       {loading ? (
@@ -506,6 +514,15 @@ export function LicenseSettings() {
 
       {status && status.state !== "none" && offersRenewal(status) ? (
         <LicenseRenewal refresh={refresh} disabled={busy} />
+      ) : null}
+
+      {/* A license that ended can still take a pack file from support. */}
+      {status && status.state !== "none" && status.jobs.length > 0 ? (
+        <LicenseJobPacks
+          jobs={status.jobs}
+          canDownload={status.state === "active"}
+          disabled={changing}
+        />
       ) : null}
 
       {shown ? (

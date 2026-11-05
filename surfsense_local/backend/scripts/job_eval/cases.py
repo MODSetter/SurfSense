@@ -59,7 +59,8 @@ def load_cases(eval_dir: Path, only: list[str] | None = None) -> list[Case]:
                 gold=tuple(
                     GoldRow(
                         sheet=row["sheet"],
-                        cell=row["cell"],
+                        # As the runner names its cells, which every match compares exactly.
+                        cell=str(row["cell"]).strip().upper(),
                         question=row["question"],
                         answer=row["answer"],
                         evidence=row.get("evidence", ""),

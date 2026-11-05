@@ -49,7 +49,7 @@ One container, because the stack assumes one machine: SQLite and the Huey queue 
 | The container's loopback | the API, the workers, the model servers, opencode and the access service, each on a free port | processes in the container only |
 | Compose's default bridge | the container's interface, with only Caddy listening, on `:80` and `:443` | the host, through the published ports |
 | The published ports | `${SURFSENSE_BIND:-0.0.0.0}:${SURFSENSE_PORT:-4929}` → `80`, and `${SURFSENSE_HTTPS_PORT:-4943}` → `443` | every network the server is on, behind the password; the host alone with `SURFSENSE_BIND=127.0.0.1` |
-| Outbound | NAT through the bridge | remote providers, model downloads, the plugin host and, for a Business license, the license server's renewal, daily check included ([license](license/app.md#renewal)), under the backend's egress rules |
+| Outbound | NAT through the bridge | remote providers, model downloads, the plugin host and the license server, for a renewal check and the job packs a Business license or its trial includes, the app's own checks included ([license](license/app.md#renewal), [jobs](jobs.md#delivery)), under the backend's egress rules |
 
 - **No container talks to another,** and every call stays on loopback.
 - **Docker's published ports pass the host's firewall,** `ufw` included, so a server reachable from the internet presets `SURFSENSE_PASSWORD` before its first start ([Docker access](docker-access.md#the-first-password)).
@@ -174,9 +174,10 @@ The hosted page at `plugins.surfsense.com/oauth/callback` stays loopback-only: f
 
 ## Data and license
 
-- `/data` holds what `~/.surfsense` holds: `surfsense.db`, `huey.db`, `secret`, `access.json`, `models/`, `embeddings/`, `images/`, `audio/`, `agent/`, `data/workspaces/`, `plugins/`, `plugin-registry/`, `imports/`, `backups/`, `runtime/office/`, and `home/`. Backing up is copying the volume.
+- `/data` holds what `~/.surfsense` holds: `surfsense.db`, `huey.db`, `secret`, `access.json`, `models/`, `embeddings/`, `images/`, `audio/`, `agent/`, `data/workspaces/`, `plugins/`, `plugin-registry/`, `job-packs/`, `imports/`, `backups/`, `runtime/office/`, and `home/`. Backing up is copying the volume.
 - Migrations run when the API starts, after a backup to `backups/` ([ADR 0005](../adr/0005-hand-written-migrations.md)); workers never migrate.
 - The license is entered in the app and verified offline with the keys built into the image. It has no machine binding ([ADR 0019](../adr/0019-offline-licenses.md)), so the same license works on a desktop and a server.
+- A license's job packs download into `job-packs/`, as on the desktop ([jobs](jobs.md#delivery)). Import pack file uploads the `.zip` from the browser, since the container reads no path on the user's computer.
 - The Office pack downloads into `runtime/office/` on first use, as on the desktop; the image carries the system libraries its LibreOffice links against ([Office pack](office-pack.md)).
 - The container runs as a non-root `surfsense` user, uid 1000, which owns `/data`.
 

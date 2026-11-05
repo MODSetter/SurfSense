@@ -188,6 +188,9 @@ class Workbook:
         texts = []
         for coord in coords:
             content = sheet.content(coord)
+            if content.kind == "formula":
+                # The dropdown offers what the formula last showed.
+                content = sheet.cached_result(coord)
             if content.kind in ("text", "number", "boolean"):
                 texts.append(shown_value(content))
         return tuple(texts)
@@ -197,7 +200,9 @@ class Workbook:
         names = self.root.find(f"{{{self.ns}}}definedNames")
         if names is None or not re.fullmatch(r"[A-Za-z_\\][\w.\\]*", reference):
             return reference
-        position = list(self.sheets).index(on_sheet) if on_sheet in self.sheets else -1
+        # localSheetId counts every tab, chart sheets included; self.sheets holds worksheets only.
+        tabs = [s.get("name", "") for s in self.root.iter(f"{{{self.ns}}}sheet")]
+        position = tabs.index(on_sheet) if on_sheet in tabs else -1
         matches = [
             n
             for n in names.findall(f"{{{self.ns}}}definedName")

@@ -97,6 +97,11 @@ export function isWordCopy(revision: Revision): boolean {
   return revision.source_name.toLowerCase().endsWith(".docx")
 }
 
+/** Only a workbook copy can be a job run's. */
+export function isWorkbookCopy(revision: Revision): boolean {
+  return /\.xls[xm]$/i.test(revision.source_name)
+}
+
 export type RevisionDecision = "accept_all" | "reject_all"
 export type RevisedCopyVariant = "changes" | "clean"
 

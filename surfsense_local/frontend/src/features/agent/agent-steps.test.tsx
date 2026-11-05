@@ -376,6 +376,131 @@ describe("agent steps", () => {
     )
   })
 
+  it("names the workbook a job run filled in and opens its copy", async () => {
+    const openArtifact = vi.fn()
+    const user = userEvent.setup()
+    render(
+      <OpenArtifactContext.Provider value={openArtifact}>
+        <AgentSteps
+          steps={[
+            rendered({
+              tool: "surfsense_run_job",
+              input: { job: "security-questionnaire", document_id: 8 },
+              artifact: {
+                id: 41,
+                title: "Vendor questionnaire (revised)",
+                version: 1,
+              },
+            }),
+          ]}
+          scope={{ document_ids: [8], titles: ["Vendor questionnaire.xlsx"] }}
+        />
+      </OpenArtifactContext.Provider>
+    )
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Filled in Vendor questionnaire.xlsx",
+      })
+    )
+    expect(openArtifact).toHaveBeenCalledExactlyOnceWith(41)
+  })
+
+  it("names a job run by its copy when the turn names no workbook", () => {
+    render(
+      <AgentSteps
+        steps={[
+          rendered({
+            tool: "surfsense_run_job",
+            input: { job: "security-questionnaire", document_id: 8 },
+            artifact: {
+              id: 41,
+              title: "Vendor questionnaire (revised)",
+              version: 1,
+            },
+          }),
+        ]}
+        scope={null}
+      />
+    )
+
+    expect(screen.getByRole("listitem").textContent).toBe(
+      "Filled in Vendor questionnaire (revised)"
+    )
+  })
+
+  it("says a job run started filling in while no copy is linked", () => {
+    render(
+      <AgentSteps
+        steps={[
+          rendered({
+            tool: "surfsense_run_job",
+            status: "running",
+            input: { job: "security-questionnaire", document_id: 8 },
+            output: undefined,
+            artifact: null,
+          }),
+          rendered({
+            id: "prt_2",
+            tool: "surfsense_run_job",
+            status: "running",
+            input: { job: "security-questionnaire", document_id: 9 },
+            output: undefined,
+            artifact: null,
+          }),
+        ]}
+        scope={{ document_ids: [8], titles: ["Vendor questionnaire.xlsx"] }}
+      />
+    )
+
+    expect(
+      screen.getAllByRole("listitem").map((item) => item.textContent)
+    ).toEqual([
+      "Started filling in Vendor questionnaire.xlsx",
+      "Started filling in a workbook",
+    ])
+  })
+
+  it("names the copy whose suggested answers were confirmed and opens that version", async () => {
+    const openArtifact = vi.fn()
+    const user = userEvent.setup()
+    render(
+      <OpenArtifactContext.Provider value={openArtifact}>
+        <AgentSteps
+          steps={[
+            rendered({
+              tool: "surfsense_confirm_job_suggestions",
+              input: { artifact_id: 41 },
+              artifact: {
+                id: 42,
+                title: "Vendor questionnaire (revised)",
+                version: 2,
+              },
+            }),
+            rendered({
+              id: "prt_2",
+              tool: "surfsense_confirm_job_suggestions",
+              status: "running",
+              input: { artifact_id: 41 },
+              output: undefined,
+              artifact: null,
+            }),
+          ]}
+        />
+      </OpenArtifactContext.Provider>
+    )
+
+    expect(screen.getAllByRole("listitem")[1].textContent).toBe(
+      "Started confirming suggested answers"
+    )
+    await user.click(
+      screen.getByRole("button", {
+        name: "Confirmed suggested answers in Vendor questionnaire (revised)",
+      })
+    )
+    expect(openArtifact).toHaveBeenCalledExactlyOnceWith(42)
+  })
+
   it("names looking at a source's pages by the source's title", () => {
     render(
       <AgentSteps

@@ -99,7 +99,7 @@ export const REASSURANCES: Reassurance[] = [
 	},
 	{
 		title: "Checked offline",
-		body: "The app verifies the licence file's signature on your own machine and never contacts a licence server. Only SurfSense's plugins see your licence key, when you use them.",
+		body: "The app verifies the licence file's signature on your own machine. Your licence key goes only to SurfSense's plugins, when you use them, and to SurfSense's licence server, when you choose Check for renewal.",
 		icon: WifiOffIcon,
 	},
 	{
