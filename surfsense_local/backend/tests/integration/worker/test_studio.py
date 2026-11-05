@@ -20,9 +20,9 @@ from modules.llm.providers.protocols import (
     GeneratedImage,
     SpokenTurn,
     SynthesizedAudio,
-    Voice,
 )
 from modules.llm.resolution import ResolvedGeneration, ResolvedImageGeneration
+from modules.llm.voices.voice import Voice
 from modules.workspaces.models import Workspace
 from shared.config import get_storage_settings
 from shared.db import create_session_factory

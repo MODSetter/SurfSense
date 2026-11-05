@@ -1,12 +1,15 @@
 """The voices a server's audio model offers podcasts: listed by the server,
 or added by the user to the audio selection once each has been heard."""
 
+import asyncio
 import json
 import sqlite3
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import Engine
+from sqlalchemy import Engine, text
+
+from modules.llm.voices import router as voices_router
 
 from . import conftest
 from .conftest import REMOTE_REQUESTS
@@ -63,9 +66,13 @@ async def test_a_server_that_lists_its_voices_offers_those(
         "connection_id": connection,
         "model": "kokoro",
         "source": "server",
-        "voices": ["af_heart", "am_adam"],
+        "voices": [
+            {"id": "af_heart", "label": "af_heart"},
+            {"id": "am_adam", "label": "am_adam"},
+        ],
         "added": [],
         "voices_page": None,
+        "problem": None,
     }
 
 
@@ -84,6 +91,7 @@ async def test_a_voice_is_kept_only_once_the_server_has_voiced_it(
         "voices": [],
         "added": [],
         "voices_page": None,
+        "problem": None,
     }
 
     refused = await client.post(URL, json={"voice": "nobody"})
@@ -97,11 +105,14 @@ async def test_a_voice_is_kept_only_once_the_server_has_voiced_it(
     assert (await client.post(URL, json={"voice": "alloy"})).status_code == 201
     await client.post(URL, json={"voice": "echo"})
 
-    assert (await client.get(URL)).json()["voices"] == ["alloy", "echo"]
+    assert [v["id"] for v in (await client.get(URL)).json()["voices"]] == [
+        "alloy",
+        "echo",
+    ]
 
     removed = await client.delete(f"{URL}?voice=alloy")
     assert removed.status_code == 204
-    assert (await client.get(URL)).json()["voices"] == ["echo"]
+    assert [v["id"] for v in (await client.get(URL)).json()["voices"]] == ["echo"]
 
 
 async def test_choosing_another_model_starts_its_voices_afresh(
@@ -112,7 +123,7 @@ async def test_choosing_another_model_starts_its_voices_afresh(
     await client.post(URL, json={"voice": "alloy"})
 
     await _select(client, connection, "tts-1")
-    assert (await client.get(URL)).json()["voices"] == ["alloy"]
+    assert [v["id"] for v in (await client.get(URL)).json()["voices"]] == ["alloy"]
     await _select(client, connection, "tts-1-hd")
     assert (await client.get(URL)).json()["voices"] == []
 
@@ -138,20 +149,27 @@ async def test_a_model_that_publishes_its_voices_offers_them_and_takes_more(
         "connection_id": connection,
         "model": ELEVEN["id"],
         "source": "published",
-        "voices": ["sarah", "george"],
+        "voices": [
+            {"id": "sarah", "label": "sarah"},
+            {"id": "george", "label": "george"},
+        ],
         "added": [],
         "voices_page": None,
+        "problem": None,
     }
 
     assert (await client.post(URL, json={"voice": "OZ0L6"})).status_code == 201
     assert (await client.post(URL, json={"voice": "sarah"})).status_code == 201
     read = (await client.get(URL)).json()
-    assert read["voices"] == ["sarah", "george", "OZ0L6"]
+    assert [v["id"] for v in read["voices"]] == ["sarah", "george", "OZ0L6"]
     # Only what the list would not bring back can be removed.
     assert read["added"] == ["OZ0L6"]
 
     assert (await client.delete(URL, params={"voice": "OZ0L6"})).status_code == 204
-    assert (await client.get(URL)).json()["voices"] == ["sarah", "george"]
+    assert [v["id"] for v in (await client.get(URL)).json()["voices"]] == [
+        "sarah",
+        "george",
+    ]
 
 
 async def test_a_model_listing_carries_the_voices_each_model_publishes(
@@ -164,7 +182,10 @@ async def test_a_model_listing_carries_the_voices_each_model_publishes(
     listed = (await client.get(f"/llm/connections/{connection}/models")).json()
 
     voices = {model["name"]: model["voices"] for model in listed}
-    assert voices[ELEVEN["id"]] == ["sarah", "george"]
+    assert voices[ELEVEN["id"]] == [
+        {"id": "sarah", "label": "sarah"},
+        {"id": "george", "label": "george"},
+    ]
     assert voices[conftest.REMOTE_MODELS[0]["id"]] == []
 
 
@@ -240,3 +261,39 @@ async def test_asking_the_server_for_its_voices_leaves_the_database_free(
     await client.get(URL)
 
     assert writable == [True]
+
+
+async def test_a_voice_tested_on_a_model_the_slot_has_left_is_not_kept(
+    client: AsyncClient,
+    openai_server: str,
+    engine: Engine,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Voicing takes seconds, and the voice was only heard on the model it began on."""
+    connection = await _choose(client, openai_server, "first-model")
+
+    def change_the_slot() -> None:
+        with engine.begin() as database:
+            database.execute(
+                text(
+                    "UPDATE selected_models SET name = 'second-model' "
+                    "WHERE model_type = 'audio_gen'"
+                )
+            )
+
+    class ChangesTheSlot:
+        async def synthesize(self, turns, language):
+            # Off the event loop, where the app holds no SQLite transaction.
+            await asyncio.to_thread(change_the_slot)
+
+    monkeypatch.setattr(voices_router, "speech_client", lambda *_: ChangesTheSlot())
+
+    reply = await client.post(URL, json={"voice": "alloy"})
+
+    assert reply.status_code == 409
+    with engine.connect() as database:
+        settings = database.execute(
+            text("SELECT settings FROM selected_models WHERE model_type = 'audio_gen'")
+        ).scalar_one()
+    assert "alloy" not in str(settings)
+    assert connection

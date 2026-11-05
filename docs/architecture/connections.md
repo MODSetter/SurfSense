@@ -2,16 +2,16 @@
 
 > **Partly built.** Classification from the remote manifest and the form's providers have shipped, and this page describes them. The [model catalog proposal](../proposals/model-catalog.md) still moves the model lists the cards and pickers read onto the remote catalog routes, and connections into a settings panel; connection storage, keys and the runtime stay.
 
-A connection is one named remote endpoint that speaks the OpenAI API: a hosted provider, an organization's gateway, a vLLM server, or a local server such as Ollama or LM Studio. The user adds as many as they need, each with its own URL and optional key, and assigns a model from any of them to a model type, such as `text_gen` for chat or `image_gen` for images. SurfSense configures and selects endpoints; it does not load-balance them, and it never copies an endpoint's model list into the database. The keys are encrypted with a per-install secret that Electron keeps in the OS keychain.
+A connection is one named remote endpoint that speaks the OpenAI API: a hosted provider, an organization's gateway, a vLLM server, or a local server such as Ollama or LM Studio. [ElevenLabs](#elevenlabs) is the one exception, with an API of its own. The user adds as many as they need, each with its own URL and optional key, and assigns a model from any of them to a model type, such as `text_gen` for chat or `image_gen` for images. SurfSense configures and selects endpoints; it does not load-balance them, and it never copies an endpoint's model list into the database. The keys are encrypted with a per-install secret that Electron keeps in the OS keychain.
 
 **Code:** [`modules/llm/connections/`](../../surfsense_local/backend/modules/llm/connections/), [`modules/llm/providers/openai_compatible/`](../../surfsense_local/backend/modules/llm/providers/openai_compatible/), [`modules/llm/resolution.py`](../../surfsense_local/backend/modules/llm/resolution.py), [`modules/llm/selection.py`](../../surfsense_local/backend/modules/llm/selection.py), [`shared/secrets.py`](../../surfsense_local/backend/shared/secrets.py), [`electron/src/main/secret.ts`](../../surfsense_local/electron/src/main/secret.ts), [`frontend/src/features/models/remote/`](../../surfsense_local/frontend/src/features/models/remote/)
-**Decisions:** [ADR 0015](../adr/0015-openai-compatible-connections.md), [ADR 0017](../adr/0017-egress-off-by-default.md), [ADR 0018](../adr/0018-keychain-envelope-encryption.md), [ADR 0049](../adr/0049-prompts-grow-at-the-end.md)
+**Decisions:** [ADR 0015](../adr/0015-openai-compatible-connections.md), [ADR 0017](../adr/0017-egress-off-by-default.md), [ADR 0018](../adr/0018-keychain-envelope-encryption.md), [ADR 0049](../adr/0049-prompts-grow-at-the-end.md), [ADR 0084](../adr/0084-elevenlabs-is-a-connection-with-its-own-client.md)
 
 ## Terms
 
 ```text
 provider             a protocol implementation: llamacpp, sdcpp, audiocpp or openai_compatible
-provider connection  one named remote endpoint and its optional bearer key
+provider connection  one named remote endpoint and its optional key
 model                an id the endpoint lists live, or one entered by hand
 model type           what a model is for, and the slot one selection fills: text_gen, image_gen, image_edit, video_gen, audio_gen or speech_to_text, which only a model on this computer fills
 ```
@@ -27,7 +27,7 @@ OpenAI-compatible connection
       └── POST /images              an alternate image route
 ```
 
-Out of scope: a standalone OpenRouter provider or its legacy Chat Completions image contract; replica management, load balancing, failover and retries across connections; storing an endpoint's model list, pricing or billing, or syncing any of it in the background; embeddings through a connection; custom headers, mTLS, private CAs and non-OpenAI transports.
+Out of scope: a standalone OpenRouter provider or its legacy Chat Completions image contract; replica management, load balancing, failover and retries across connections; storing an endpoint's model list, pricing or billing, or syncing any of it in the background; embeddings through a connection; custom headers, mTLS, private CAs and other non-OpenAI transports. ElevenLabs is the one exception, [below](#elevenlabs).
 
 ## Data model
 
@@ -41,7 +41,7 @@ Out of scope: a standalone OpenRouter provider or its legacy Chat Completions im
 | `catalog_provider` | the remote manifest provider this reaches, such as `openai` or `neon`, or `custom` for an endpoint the manifest does not list; stored as chosen, never read from the URL |
 | `base_url` | the exact API root, normally ending in `/v1`, stored without a trailing slash |
 | `api_key_ciphertext` | the Fernet-encrypted key, nullable, never returned by any route |
-| `auth_kind` | `api_key`, `chatgpt` for a connection signed in with a ChatGPT account, or `claude_plan` for one run through the user's own Claude Code ([Claude plan](claude-plan.md)), enforced by a CHECK; added in place by `0023`, so existing rows read `api_key`, and widened by `0031` |
+| `auth_kind` | `api_key`, `chatgpt` for a connection signed in with a ChatGPT account, `claude_plan` for one run through the user's own Claude Code ([Claude plan](claude-plan.md)), or `elevenlabs` for [ElevenLabs' own API](#elevenlabs), enforced by a CHECK; added in place by `0023`, so existing rows read `api_key`, and widened by `0031` and `0035` |
 | `oauth_ciphertext`, `token_version` | a `chatgpt` row's encrypted token set and its refresh counter ([`chatgpt-subscription.md`](chatgpt-subscription.md)) |
 | `created_at`, `updated_at` | |
 
@@ -160,6 +160,18 @@ Loading a connection runs the egress check for its host. The bundled sd-server s
 - `GET`, `POST` and `DELETE /llm/selection/audio_gen/voices` read the audio selection's voices (the server's list, else the model's published ones with the user's, else the user's; `added` names those removing can take away), add one once the server has voiced the `text` sent (`502` with the server's words when it refuses), and remove one. A model on this computer is a `409`.
 - Selecting a model never runs inference. The server group offers a test before the model is used, and "Use without testing" for a trusted internal endpoint, whose first real request then reports any error normally. Image tests run only on an explicit action, because they are real inference and may cost money.
 
+## ElevenLabs
+
+ElevenLabs does not speak the OpenAI API, so it has its own client ([`providers/elevenlabs/`](../../surfsense_local/backend/modules/llm/providers/elevenlabs/)) behind the same connection ([ADR 0084](../adr/0084-elevenlabs-is-a-connection-with-its-own-client.md)). It fills `audio_gen` alone ([`serves.py`](../../surfsense_local/backend/modules/llm/connections/serves.py)). OpenRouter's ElevenLabs models are unrelated to it and stay as any server's.
+
+- `GET /llm/connections/elevenlabs` says which slots offer it, and `POST` with `{label, api_key}` creates one at the fixed `https://api.elevenlabs.io`. It reads `GET /v1/models` and `GET /v2/voices` with the key first, which spends no credits: a key that cannot, or a reply that is not those lists, is a `422` with code `elevenlabs_refused` and ElevenLabs' own sentence, which names a missing permission, and nothing is saved. Whether it may voice cannot be checked without voicing a line.
+- `PUT` takes a new name and, when one is sent, a new key, checked the same way; a refused key leaves the old one. The address cannot be edited, and a `null` or empty key is a `422`, since this connection is nothing without one.
+- `connection_models()` answers with the models whose `can_do_text_to_speech` is true, without the Turbo models ElevenLabs deprecated, which it lists with no flag. Each carries the account's voices as `{id, label}`.
+- A voice's name, gender and languages come from the account and the model, so the brief groups by gender and offers what that model speaks ([Studio](studio.md#on-a-server)). The account's own and the premade voices come first, because a brief opens on the first two. A Free account is not offered the Voice Library voices its list carries, since voicing one is a 402: those that are neither premade, cloned nor generated and that it does not own, because only Professional clones can be shared there and `is_owner` may be null; that takes `user_read`, an optional permission, and without it they stay and the refusal explains itself.
+- Voices sharing a name are told apart by their id, so every label in the list differs, since nothing makes names unique and a picker chooses by what it shows. A voice added while the list was down stays in the list once it is back, as a brief may be using it.
+- An account with no voices it can use, or a list ElevenLabs refuses, is not called a list: the voices route answers `source: saved` and a `problem`, `no_usable_voices` or `list_failed` with ElevenLabs' words, so Settings says which and still takes a voice by id, and a job is refused with that reason ([`elevenlabs_roster.py`](../../surfsense_local/backend/modules/llm/voices/elevenlabs_roster.py)). What was last read is held for the process, for that key, through a 5xx or a failed connection, because one failed request at Generate should not refuse a good brief; a 4xx, such as a revoked key, drops it, because that has to show.
+- [`speech_client()`](../../surfsense_local/backend/modules/llm/connections/speech_client.py) is the one rule for what voices a model, for podcasts, `speech-test` and adding a voice.
+
 ## Where keys live
 
 Keys are protected by envelope encryption ([ADR 0018](../adr/0018-keychain-envelope-encryption.md)):
@@ -178,11 +190,12 @@ Keys are protected by envelope encryption ([ADR 0018](../adr/0018-keychain-envel
 
 ## Frontend
 
-- Each model section in Settings shows, as a group under the local models, every connection whose `serves` includes that section's slot. `serves` comes from one backend rule ([`serves.py`](../../surfsense_local/backend/modules/llm/connections/serves.py)): every slot but `speech_to_text` for a key connection, `text_gen` alone for a ChatGPT one. The section's empty state counts only those connections. A group loads its models only when opened, so a slow or failed endpoint does not hold up the others, and lists only those whose `selectable_for` includes that section's slot; the model in use, if it comes from that server, stays shown above the list whether the group is open or closed. Open, its list scrolls inside its own capped-height area rather than lengthening the page. A model's row shows its type chips, and a Vision chip when `reads_images` is true. A model is assigned after an optional test; an exact ID the listing lacks can be typed in. A new connection is added from **Use a server** on the section's **Add model** page. Adding and editing a connection happen in a dialog over the page. Saving a new connection returns to the list with its group open on its models, since choosing one is why it was added; saving an edit only refreshes.
+- Each model section in Settings shows, as a group under the local models, every connection whose `serves` includes that section's slot. `serves` comes from one backend rule ([`serves.py`](../../surfsense_local/backend/modules/llm/connections/serves.py)): every slot but `speech_to_text` for a key connection, `text_gen` alone for a ChatGPT one, `audio_gen` alone for ElevenLabs. The section's empty state counts only those connections. A group loads its models only when opened, so a slow or failed endpoint does not hold up the others, and lists only those whose `selectable_for` includes that section's slot; the model in use, if it comes from that server, stays shown above the list whether the group is open or closed. Open, its list scrolls inside its own capped-height area rather than lengthening the page. A model's row shows its type chips, and a Vision chip when `reads_images` is true. A model is assigned after an optional test; an exact ID the listing lacks can be typed in. A new connection is added from **Use a server** on the section's **Add model** page. Adding and editing a connection happen in a dialog over the page. Saving a new connection returns to the list with its group open on its models, since choosing one is why it was added; saving an edit only refreshes.
 - Edit and Disconnect sit on each group. Edit opens the same form in that dialog. A connection can fill every slot but `speech_to_text`, so Disconnect names each model it will clear, Chat, Image or both, whichever section it is disconnected from.
 - Onboarding's chat step uses the same groups and the same dialog; with nothing connected yet, its **Connect** opens the dialog directly, and saving opens the server page on the new connection's models.
 - The connection form picks a provider from the remote manifest, through `GET /llm/catalog/remote`, or "Local or custom server". A ready provider fills its URL, which stays editable so a proxy in front of it still works; a provider that needs account details asks for each field and builds the URL from its template; a provider that needs a URL leaves it to the user; an unreachable one is listed, disabled, with its reason. A provider that takes no key, a loopback server, hides the key field. "Local or custom server" leaves the URL to the user, since its port is whatever its owner set, with `http://localhost:11434/v1` as placeholder text only; a loopback server the manifest lists, such as LM Studio, fills the manifest's URL like any ready provider. The save sends `catalog_provider`.
 
 ## Known gaps
 
+- A connection's `label` is unique case-sensitively on a database built by the migrations, whose rebuilds dropped the `NOCASE` the model declares.
 - A model on an endpoint the manifest does not carry never reads images here, even when its listing declares `image` input: discovery reads only output modalities, and nothing is stored at selection to carry the endpoint's word to the send ([ADR 0034](../adr/0034-vision-is-the-runtimes-answer-stored-nowhere.md)).

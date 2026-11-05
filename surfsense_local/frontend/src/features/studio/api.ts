@@ -159,6 +159,12 @@ export type Voice = {
  *  own list, or the ones the user added for a server model. */
 export type VoicesSource = "local" | "server" | "published" | "saved"
 
+/** `list_failed` carries the server's own words; the interface words the other. */
+export type VoicesProblem = {
+  code: "no_usable_voices" | "list_failed"
+  message: string
+}
+
 /** The server that voices a podcast. */
 export type VoicedBy = { server: string; model: string }
 
@@ -170,6 +176,8 @@ export type OpenedBrief = {
   voices_source: VoicesSource
   voiced_by: VoicedBy | null
   languages: string[]
+  /** Why a server model has no voices, when it is not simply that it lists none. */
+  problem?: VoicesProblem | null
 }
 
 export function readPodcastBrief(

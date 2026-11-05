@@ -11,6 +11,7 @@ from modules.llm.connections.key_headers import key_headers
 from modules.llm.connections.model_voices import voices_of
 from modules.llm.model_type import ModelType
 from modules.llm.models import ProviderConnection
+from modules.llm.voices.voice import Voice
 
 DISCOVERY_TIMEOUT = httpx.Timeout(10.0, connect=5.0)
 
@@ -40,7 +41,7 @@ class DiscoveredModel:
     # provider the connection names; None for a custom connection.
     unusable_reason: str | None = None
     # What the endpoint publishes for this model, as OpenRouter's `supported_voices`.
-    voices: tuple[str, ...] = ()
+    voices: tuple[Voice, ...] = ()
 
     @property
     def capability_known(self) -> bool:
@@ -185,7 +186,10 @@ async def discover_models(connection: ProviderConnection) -> list[DiscoveredMode
     provider = None if connection.catalog_provider == CUSTOM else connection.catalog_provider
     return sorted(
         (
-            replace(_classify(name, listed.modalities, provider), voices=listed.voices)
+            replace(
+                _classify(name, listed.modalities, provider),
+                voices=tuple(Voice(v, v, None, ()) for v in listed.voices),
+            )
             for name, listed in merged.items()
         ),
         key=lambda model: model.name.casefold(),

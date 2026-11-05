@@ -193,6 +193,7 @@ function Composer({
                 voices={podcast.opened.voices}
                 languages={podcast.opened.languages}
                 voicesSource={podcast.opened.voices_source}
+                voicesProblem={podcast.opened.problem}
                 voicedBy={podcast.opened.voiced_by}
                 onSetUpVoices={onSetUpVoices}
                 onChange={podcast.setBrief}
