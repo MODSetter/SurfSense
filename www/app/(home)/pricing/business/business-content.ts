@@ -25,7 +25,7 @@ import { FURTHER_PERSON_PRICE, yearlyPriceLabel } from "../business-price";
 /**
  * Copy for `/pricing/business`, the page between the Business card and Stripe.
  *
- * Every claim is ADR 0080's or carried over from `/pricing/individual`, whose page this
+ * Every claim is ADR 0080's or ADR 0083's, or carried over from `/pricing/individual`, whose page this
  * replaces: the yearly renewal stated before payment, cancellation and seat changes through
  * Stripe's emailed customer portal, people counted rather than devices, the 30 days before
  * a lapse stops new job runs, and terms section 5's refund.
@@ -64,7 +64,7 @@ export const BENEFITS: Benefit[] = [
 export const FREE_STILL_APPLIES =
 	"Everything in Free still applies: the full app on Windows, macOS and Linux, reading web pages, YouTube and web search, and every update stay free forever, with or without a licence.";
 
-export const FURTHER_PEOPLE_NOTE = `Each further person adds ${FURTHER} a year. A founding price, locked in for early customers.`;
+export const FURTHER_PEOPLE_NOTE = `Each further person adds ${FURTHER} a year. A founding price: a price change applies only at renewal, after at least 30 days' notice by email.`;
 
 /** Shown above the checkout button, so nobody pays without reading it. */
 export const RENEWAL_NOTE =
