@@ -9,7 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { AudioWaveformIcon } from "@/components/ui/icons"
+import { EqualIcon } from "@/components/ui/icons"
 import { intl } from "@/i18n/intl"
 
 import type { ModelType } from "../../../model-type"
@@ -56,9 +56,9 @@ export function ElevenLabsOption({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="flex items-center gap-2 text-base font-medium">
-            <AudioWaveformIcon
+            <EqualIcon
               aria-hidden="true"
-              className="size-4 text-muted-foreground"
+              className="size-4 rotate-90 text-muted-foreground"
             />
             {title}
           </h3>
