@@ -57,7 +57,8 @@ The provider now appears as its own group in each model section it can fill: tex
 Pick **OpenCode** for pay-as-you-go or **OpenCode Go** for a Go plan, then paste an API key from the [OpenCode Console](https://opencode.ai/console). OpenCode has no sign-in for this, only a key.
 
 - **OpenCode Go** needs a Go subscription on the key's workspace. OpenCode designed Go for coding agents and monitors its traffic for abuse.
-- **Free models** are listed but can't be picked, because OpenCode allows them only inside its own app.
+- **Free models** can be picked with **OpenCode Go**, though some need a privacy setting turned on in the Console. With **OpenCode** they are listed but can't be picked, because OpenCode refuses them there.
+- **When OpenCode refuses a request**, chat shows its reason, such as an account out of funds or a privacy setting to change. Fix it in the Console or pick another model. Retrying won't help.
 
 ## Choosing a model from a provider
 
