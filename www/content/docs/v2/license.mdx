@@ -38,22 +38,32 @@ Your license is a file called `surfsense.lic`, sent to the email you bought it w
 
 Settings › License then shows your plan, your email, and **Expires** with the date. The sidebar shows **License active**.
 
+A Business license shows as **Business plan**, or **Solo plan** when it is for one person. It also shows **Licensed to** with your firm's name, when one was given at checkout, how many people it covers, and **Jobs:** with the job plugins it unlocks, such as **Security questionnaire**.
+
 To swap in a new file, use **Replace license**. To take the license off this computer, use **Remove license**.
 
 ## Checked on your computer
 
 SurfSense checks the license file on your computer, with no network. Adding it sends nothing anywhere.
 
-When you use a paid plugin, your license key goes with each request to `plugins.surfsense.com`, so the plugin service can check it. That host has to be allowed in Settings › Network first. See [privacy](/docs/v2/privacy).
+When you use a paid plugin, your license key goes with each request to `plugins.surfsense.com`, so the plugin service can check it. Checking for a Business license's renewal sends it to `api.surfsense.com`, SurfSense's license server ([below](#business-renewal)). Those are the only two places your license key goes, and each host has to be allowed in Settings › Network first. See [privacy](/docs/v2/privacy).
 
 ## When it expires
 
 When a license runs out, the paid plugins stop. Everything else keeps working: the app, your data and your updates are never locked.
 
 - In the last 14 days, Settings › License shows **Expiring soon**.
-- After it ends, Settings › License shows **Expired** with **Renew license**, and the sidebar shows **License expired**.
+- After it ends, Settings › License shows **Expired** with **Renew license**, and the sidebar shows **License expired**. For a Business license, **Expired** points to **Check for renewal** instead, with **See pricing**.
 
-A renewal is a new license file. Add it with **Replace license**.
+For other plans, a renewal arrives by email as a new license file. Add it with **Replace license**.
+
+## Business renewal
+
+A Business license renews every year on the same key. Settings › License shows a **Renewal** row with **Check for renewal**, which sends your license key to `api.surfsense.com`, SurfSense's license server, and replaces the file on this computer with the latest one. It then shows **Renewed until** with the new date, or **No renewal yet**.
+
+The first time you check, SurfSense asks before it contacts `api.surfsense.com`. Allowing it also lets SurfSense check on its own when it starts and once a day, from 30 days before your Business license ends until 30 days after, so a renewal arrives before you need it. To stop both, untick **License renewal** in Settings › Network.
+
+Each renewal is also emailed to you as a license file. On a computer that stays offline, add it with **Replace license**.
 
 ## Lost your file?
 
@@ -71,3 +81,9 @@ If you can no longer reach that inbox, or mistyped it when buying, the same page
 | This license file uses an algorithm this version cannot check. | [Update SurfSense](/docs/v2/updates). |
 | **Clock is off** | Your computer's clock is behind the last time SurfSense ran. Set the right time and the license works again. |
 | **License not recognized** or **License revoked** on a plugin | The plugin service refused the key. Check that Settings › License shows the license you expect. A refunded license is revoked. |
+| No license is added, so there is none to renew. | [Add your license](#add-your-license) first. |
+| Allow SurfSense’s license server, api.surfsense.com, in Settings › Network, then try again. | Tick **License renewal** in Settings › Network, then choose **Check for renewal** again. |
+| SurfSense’s license server has no license with this key. | Check that Settings › License shows the license you bought, or get a fresh copy from [surfsense.com/license](/license). |
+| SurfSense’s license server will not renew this license. Contact support. | The license was suspended, as after a refund. Get help from [surfsense.com/license](/license). The app keeps working. |
+| This license was checked too often; try again in an hour. | Wait an hour, then choose **Check for renewal** again. |
+| SurfSense’s license server could not send a renewed file; try again later. | Try again later, or add the emailed file with **Replace license**. |

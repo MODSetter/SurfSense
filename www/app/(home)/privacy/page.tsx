@@ -62,7 +62,7 @@ export const metadata: Metadata = {
  * `new Date()`: a render-time date causes a hydration mismatch and tells every
  * reader the document changed the moment they opened it.
  */
-const LAST_UPDATED = "October 27, 2026";
+const LAST_UPDATED = "November 3, 2026";
 
 /** Matches the `prose` treatment used for blog posts. */
 const PROSE =
@@ -191,6 +191,16 @@ export default function PrivacyPolicy() {
 							the service can check it, as section 3.3 describes.
 						</li>
 						<li>
+							<strong>Licence renewal, to api.surfsense.com.</strong> A Business licence renews
+							every year on the same key. When you choose Check for renewal in Settings, for a
+							Business licence or a trial that includes job plugins, the app asks our licence server
+							for that licence's latest file, sending your licence key, a user agent that says only
+							SurfSense, and your IP address, as any request does. Once you have allowed it, the app
+							also checks on its own, when it starts and once a day while it runs, but only for a
+							Business licence, from 30 days before it ends until 30 days after. Off until you allow
+							it, which the app asks about the first time you check.
+						</li>
+						<li>
 							<strong>The Office pack, from downloadarchive.documentfoundation.org.</strong> Turning
 							on Office support downloads The Document Foundation's LibreOffice build, sending the
 							file's name and your IP address. That host redirects the download to one of its
@@ -238,18 +248,28 @@ export default function PrivacyPolicy() {
 						either off for a whole computer. SurfSense's own plugins are separate. That service sees
 						the requests you send them, as section 4.4 describes, and, once you have added a paid
 						one, the licence checks described below, which show it roughly when you open the plugin
-						list or ask the agent something.
+						list or ask the agent something. A Business licence's renewal check is separate too.
+						Once you allow api.surfsense.com, its automatic check, described below, tells our
+						licence server, by licence, each time the app starts and once a day while it runs, from
+						30 days before the licence ends until 30 days after.
 					</p>
 					<p>
 						If you buy a licence, the licence file is verified on your own machine. The app checks
 						its cryptographic signature against a public key compiled into the build, without
-						contacting anyone. The exception is SurfSense's paid plugins. Once you add one and allow
-						plugins.surfsense.com, every request to those plugins carries your licence key. The app
-						also asks that service to check the key: at once when you import or replace a licence,
-						and, at most about every five minutes, when you open the plugin list or before the agent
-						answers, whether or not that answer uses a plugin. If you have not added a paid plugin,
-						your licence key never leaves your machine. The app does not compute or transmit a
-						device fingerprint.
+						contacting anyone. There are two exceptions. The first is SurfSense's paid plugins. Once
+						you add one and allow plugins.surfsense.com, every request to those plugins carries your
+						licence key. The app also asks that service to check the key: at once when you import or
+						replace a licence, and, at most about every five minutes, when you open the plugin list
+						or before the agent answers, whether or not that answer uses a plugin. The second is
+						renewal. A Business licence renews every year on the same key, and the app fetches the
+						renewed licence file from api.surfsense.com, sending your licence key, a user agent that
+						says only SurfSense, and your IP address, as any request does. It does so whenever you
+						choose Check for renewal in Settings, for a Business licence or a trial that includes
+						job plugins. It also does so on its own, when the app starts and once a day while it
+						runs, but only for a Business licence, from 30 days before its end until 30 days after.
+						It does neither until you allow api.surfsense.com under Network in Settings. Apart from
+						these two exceptions, your licence key never leaves your machine. The app does not
+						compute or transmit a device fingerprint.
 					</p>
 					<p>
 						The retired 0.0.x desktop app, which wrapped our former hosted service, still sends
@@ -393,6 +413,13 @@ export default function PrivacyPolicy() {
 						with no licence in them, such as how many calls a tool received and how many licences
 						used it, are sent to PostHog.
 					</p>
+					<p>
+						When the app checks for a renewal, our licence server receives your licence key and your
+						IP address, checks the licence with our licensing system and answers with its current
+						licence file. To limit how often one licence or one address can ask, it counts those
+						requests for an hour, under your IP address and under a one-way hash of the key. The
+						request also appears in its server logs for the short time section 8 describes.
+					</p>
 
 					<h3>4.5 Hosting and server logs</h3>
 					<p>
@@ -411,8 +438,9 @@ export default function PrivacyPolicy() {
 					<ul>
 						<li>
 							<strong>Contract.</strong> Sending you a licence you asked for, taking payment,
-							providing the plugin service and supporting it, and answering the desktop app's update
-							checks, which is the update service you enabled when you turned them on.
+							providing the plugin service and supporting it, answering the desktop app's update
+							checks, which is the update service you enabled when you turned them on, and sending a
+							Business licence's renewed file when the app asks for it.
 						</li>
 						<li>
 							<strong>Legitimate interests.</strong> Keeping the site available and secure,
@@ -484,11 +512,12 @@ export default function PrivacyPolicy() {
 						as long as the licence is live and for a reasonable period afterwards, so we can resend
 						it and honour support. Payment and invoice records are kept by Stripe and by us for the
 						period tax law requires, commonly six to seven years. Server and edge logs are
-						short-lived, typically days to a few weeks. The plugin service's per-licence daily
-						counts are kept in our own database for 13 months and then deleted; the day a licence
-						first used a plugin is deleted once that licence has made no call for 13 months. Daily
-						totals with no licence in them may be kept longer. Aggregated figures that can no longer
-						identify anyone may be kept indefinitely.
+						short-lived, typically days to a few weeks. The licence server's counts of renewal
+						checks expire after an hour. The plugin service's per-licence daily counts are kept in
+						our own database for 13 months and then deleted; the day a licence first used a plugin
+						is deleted once that licence has made no call for 13 months. Daily totals with no
+						licence in them may be kept longer. Aggregated figures that can no longer identify
+						anyone may be kept indefinitely.
 					</p>
 					<p>
 						Anything inside the desktop app is kept for exactly as long as you keep it, because we

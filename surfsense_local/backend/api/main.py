@@ -48,6 +48,7 @@ from modules.folders.router import router as folders_router
 from modules.health.router import router as health_router
 from modules.jobs.packs.dev_packs import install_dev_packs
 from modules.jobs.router import router as jobs_router
+from modules.license.renewal.renewal_schedule import renewing_daily
 from modules.license.router import router as license_router
 from modules.llm.admission.local_runtime import LocalAdmission
 from modules.llm.catalog.local.dependencies import get_local_catalog
@@ -155,6 +156,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         async with (
             _opencode_proxy(session_factory),
             serving_claude_proxy(session_factory, get_settings().host),
+            renewing_daily(session_factory),
         ):
             yield
     finally:

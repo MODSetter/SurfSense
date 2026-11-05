@@ -9,7 +9,15 @@ import { render } from "@/test-utils"
 import { SidebarFooter } from "./sidebar-footer"
 
 function license(state: LicenseStatus["state"]): LicenseStatus {
-  return { state, plan: null, email: null, expiry: null, max_users: null }
+  return {
+    state,
+    plan: null,
+    email: null,
+    expiry: null,
+    max_users: null,
+    firm: null,
+    jobs: [],
+  }
 }
 
 function stubLicense(status: LicenseStatus) {
