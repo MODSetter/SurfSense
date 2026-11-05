@@ -190,13 +190,19 @@ async def test_a_file_behind_a_link_is_not_read(
     assert text.startswith("This link is a file, not a web page.")
 
 
-async def test_only_web_addresses_are_read(tools: ToolEndpoint) -> None:
-    """A file path or another scheme never reaches the network."""
+@pytest.mark.parametrize(
+    "url",
+    [
+        "file:///etc/passwd",
+        "https://example.com](https://example.com)",
+        "https://[domain]/x",
+    ],
+)
+async def test_only_web_addresses_are_read(tools: ToolEndpoint, url: str) -> None:
+    """A file path, another scheme or a broken link never reaches the network."""
     workspace_id = await tools.workspace()
 
-    text, is_error = await tools.call(
-        workspace_id, "read_web_page", {"url": "file:///etc/passwd"}
-    )
+    text, is_error = await tools.call(workspace_id, "read_web_page", {"url": url})
 
     assert is_error
     assert text == "url is a web address starting with https:// or http://."

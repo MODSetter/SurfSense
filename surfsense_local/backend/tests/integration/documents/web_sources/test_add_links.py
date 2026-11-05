@@ -97,13 +97,28 @@ async def test_a_link_already_in_sources_is_not_added_again(
     ]
 
 
-async def test_only_web_links_are_taken(client: AsyncClient, workspace_id: int) -> None:
-    """A file path or another scheme is never fetched."""
-    added = await client.post(
-        add_url(workspace_id), json={"urls": ["file:///etc/passwd"]}
-    )
+@pytest.mark.parametrize(
+    "url", ["file:///etc/passwd", "http://a[b@example.com/", "http:///x.com"]
+)
+async def test_only_web_links_are_taken(
+    client: AsyncClient, workspace_id: int, url: str
+) -> None:
+    """A file path, another scheme, or a link naming no host is never fetched."""
+    added = await client.post(add_url(workspace_id), json={"urls": [url]})
 
     assert added.status_code == 422
+
+
+async def test_a_broken_pasted_link_opens_no_row(
+    client: AsyncClient, workspace_id: int
+) -> None:
+    """Refused as Add refuses it, not failed as a server error."""
+    opened = await client.post(
+        f"/workspaces/{workspace_id}/documents/web/open",
+        json={"urls": [PAGE, "http://["]},
+    )
+
+    assert opened.status_code == 422
 
 
 async def test_pasted_links_open_as_rows_without_reading_them(

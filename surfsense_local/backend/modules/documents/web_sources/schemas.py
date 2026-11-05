@@ -1,6 +1,7 @@
 from typing import Annotated, Literal
+from urllib.parse import urlsplit
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, StringConstraints
 
 from modules.documents.schemas import DocumentRead
 
@@ -36,12 +37,20 @@ class WebResults(BaseModel):
     more: bool
 
 
+def _web_link(url: str) -> str:
+    """A link urlsplit parses, with a host: rows, pulls and consent all use its parts."""
+    if not urlsplit(url).hostname:
+        raise ValueError("must name a host")
+    return url
+
+
 # http(s) only: a file path or another scheme is never fetched.
 WebLink = Annotated[
     str,
     StringConstraints(
         strip_whitespace=True, pattern=r"^https?://\S+$", max_length=2048
     ),
+    AfterValidator(_web_link),
 ]
 
 

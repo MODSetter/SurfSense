@@ -92,8 +92,11 @@ def _body(response: Response) -> bytes:
 
 def _next_hop(url: str, location: str, reach: HostCheck) -> str:
     """The redirect's target, once its host is allowed; a host not allowed is MOVED."""
-    target = urljoin(url, location.strip())
-    parts = urlsplit(target)
+    try:
+        target = urljoin(url, location.strip())
+        parts = urlsplit(target)
+    except ValueError as malformed:
+        raise ReadFailedError(Why.UNREADABLE) from malformed
     host = parts.hostname or ""
     if parts.scheme not in ("http", "https") or not host:
         raise ReadFailedError(Why.UNREADABLE)

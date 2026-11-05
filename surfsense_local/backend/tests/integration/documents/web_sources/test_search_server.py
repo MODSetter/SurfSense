@@ -50,12 +50,16 @@ async def test_choosing_none_goes_back_to_surfsenses_server(
         "ftp://search.firm.example",
         "https://user:secret@search.firm.example",
         "https://search.firm.example/?q=tides",
+        "https://search.firm.example:88a8",
+        "https://search.firm.example:99999",
+        "http://192.168.1.256:8888",
     ],
 )
 async def test_an_address_that_is_not_a_servers_base_is_refused(
     client: AsyncClient, url: str
 ) -> None:
-    """No scheme, another scheme, a password kept in plain text, or a query."""
+    """No scheme, another scheme, a password kept in plain text, a query, a bad port,
+    or a host no request can be sent to, such as a mistyped LAN address."""
     refused = await client.put(SERVER, json={"url": url})
 
     assert refused.status_code == 422

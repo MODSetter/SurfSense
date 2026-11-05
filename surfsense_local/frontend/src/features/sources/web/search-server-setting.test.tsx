@@ -94,4 +94,25 @@ describe("the search server setting", () => {
       )
     ).toBeTruthy()
   })
+
+  it("says the save failed, not what an address must look like, when the app errs", async () => {
+    serving(() => new Response("Internal Server Error", { status: 500 }))
+    const user = userEvent.setup()
+    render(<SearchServerSetting />)
+
+    await user.type(
+      await screen.findByRole("textbox", { name: "Web search" }),
+      "https://search.firm.example"
+    )
+    await user.click(screen.getByRole("button", { name: "Save" }))
+
+    expect(
+      await screen.findByText("Couldn’t save the search server. Try again.")
+    ).toBeTruthy()
+    expect(
+      screen.queryByText(
+        "Enter the server’s address, starting with https:// or http://."
+      )
+    ).toBeNull()
+  })
 })

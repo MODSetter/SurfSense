@@ -196,6 +196,8 @@ export function AddFromWebDialog({
       onOpenChangeComplete={(next) => {
         if (next) return
         run.current?.abort()
+        // A Show more still in flight then finds no run, so its page is dropped.
+        run.current = null
         setText("")
         setRows(null)
         setMore(false)
@@ -315,12 +317,21 @@ export function AddFromWebDialog({
               viewportClassName="flex flex-col gap-2 p-1"
             >
               {rows.length === 0 ? (
-                <p className="flex flex-1 items-center justify-center px-3 py-6 text-center text-sm text-muted-foreground">
-                  {intl.formatMessage({
-                    id: "sources_web_results_empty",
-                    defaultMessage: "No results. Try other words.",
-                  })}
-                </p>
+                // A YouTube page can hold no video yet have more pages after it.
+                <div className="flex flex-1 flex-col items-center justify-center">
+                  <p className="px-3 py-6 text-center text-sm text-muted-foreground">
+                    {intl.formatMessage({
+                      id: "sources_web_results_empty",
+                      defaultMessage: "No results. Try other words.",
+                    })}
+                  </p>
+                  {searched && more ? (
+                    <ShowMoreButton
+                      loading={loadingMore}
+                      onClick={() => void showMore()}
+                    />
+                  ) : null}
+                </div>
               ) : (
                 <div className="flex flex-col">
                   <WebResultRows results={rows} actions={actions} />

@@ -3,6 +3,7 @@ import { cleanup, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
 import { EgressPrompt } from "@/features/egress/egress-prompt"
+import { NetworkSettings } from "@/features/egress/network-settings"
 import { render as renderInApp } from "@/test-utils"
 import { OpenArtifactContext } from "@/features/studio/open-artifact"
 
@@ -26,6 +27,43 @@ function rendered(extra: Partial<AgentStep> = {}): AgentStep {
     artifact: { id: 40, title: "Client proposal", version: 1 },
     ...extra,
   }
+}
+
+// A page read refused because its site is not allowed yet.
+const REFUSED_READ: AgentStep = {
+  id: "prt_19",
+  tool: "surfsense_read_web_page",
+  status: "error",
+  input: { url: "https://tides.example/explained" },
+  error: "Not allowed in Settings > Network yet: tides.example.",
+  refused: { hosts: ["tides.example"], purpose: "web_page" },
+}
+
+/** The API's egress list, whose one site PUT /egress turns on and off. */
+function servingEgress(allowed: boolean) {
+  const calls: string[] = []
+  let enabled = allowed
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const path = String(input)
+      calls.push(`${init?.method ?? "GET"} ${path} ${init?.body ?? ""}`.trim())
+      if (path !== "/egress") return Response.json([])
+      if (init?.method === "PUT") {
+        enabled = (JSON.parse(String(init.body)) as { enabled: boolean })
+          .enabled
+      }
+      return Response.json([
+        {
+          destination: "host:tides.example",
+          host: "tides.example",
+          enabled,
+          last_call_at: null,
+        },
+      ])
+    })
+  )
+  return calls
 }
 
 afterEach(cleanup)
@@ -552,32 +590,12 @@ describe("agent steps", () => {
   })
 
   it("asks to allow a site a web step was refused, on a click", async () => {
-    const calls: string[] = []
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-        calls.push(
-          `${init?.method ?? "GET"} ${String(input)} ${init?.body ?? ""}`.trim()
-        )
-        return Response.json([])
-      })
-    )
+    const calls = servingEgress(false)
     const user = userEvent.setup()
     renderInApp(
       <>
         <EgressPrompt />
-        <AgentSteps
-          steps={[
-            {
-              id: "prt_19",
-              tool: "surfsense_read_web_page",
-              status: "error",
-              input: { url: "https://tides.example/explained" },
-              error: "Not allowed in Settings > Network yet: tides.example.",
-              refused: { hosts: ["tides.example"], purpose: "web_page" },
-            },
-          ]}
-        />
+        <AgentSteps steps={[REFUSED_READ]} />
       </>
     )
 
@@ -598,6 +616,29 @@ describe("agent steps", () => {
     expect(calls).toContain(
       'PUT /egress {"destinations":["host:tides.example"],"enabled":true}'
     )
+    vi.unstubAllGlobals()
+  })
+
+  it("offers Allow again once Settings › Network turns the site off", async () => {
+    servingEgress(true)
+    const user = userEvent.setup()
+    renderInApp(
+      <>
+        <AgentSteps steps={[REFUSED_READ]} />
+        <NetworkSettings />
+      </>
+    )
+
+    expect(
+      await screen.findByText("Allowed. Ask the agent to try again.")
+    ).toBeTruthy()
+    await user.click(
+      await screen.findByRole("checkbox", { name: "Allow tides.example" })
+    )
+
+    expect(
+      await screen.findByRole("button", { name: "Allow tides.example" })
+    ).toBeTruthy()
     vi.unstubAllGlobals()
   })
 })

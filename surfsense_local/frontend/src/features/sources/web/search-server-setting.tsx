@@ -4,6 +4,7 @@ import { useId, useState, type SubmitEvent } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { intl } from "@/i18n/intl"
+import { ApiError } from "@/lib/api"
 
 import {
   chooseSearchServer,
@@ -85,11 +86,17 @@ export function SearchServerSetting() {
       </form>
       {choose.isError ? (
         <p role="alert" className="text-sm text-destructive">
-          {intl.formatMessage({
-            id: "sources_search_server_invalid_error",
-            defaultMessage:
-              "Enter the server’s address, starting with https:// or http://.",
-          })}
+          {/* Only the API's address check answers 422; a good address can fail too. */}
+          {choose.error instanceof ApiError && choose.error.status === 422
+            ? intl.formatMessage({
+                id: "sources_search_server_invalid_error",
+                defaultMessage:
+                  "Enter the server’s address, starting with https:// or http://.",
+              })
+            : intl.formatMessage({
+                id: "sources_search_server_save_error",
+                defaultMessage: "Couldn’t save the search server. Try again.",
+              })}
         </p>
       ) : null}
       <p className="text-xs text-pretty text-muted-foreground">

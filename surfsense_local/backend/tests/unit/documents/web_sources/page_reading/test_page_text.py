@@ -93,8 +93,8 @@ def test_prices_the_text_lost_are_read_from_the_whole_page() -> None:
     assert "$199" in repaired
 
 
-def test_text_that_kept_its_prices_is_left_as_it_is() -> None:
-    """No second extraction for a page that lost nothing."""
+def test_text_that_kept_a_price_is_left_as_it_is() -> None:
+    """One kept price means no second extraction, though $199 was lost."""
     kept = "# Plans\n\nTeam is $49."
 
     assert with_prices(load_html(PRICING), PRICING, URL, kept) == kept

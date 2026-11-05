@@ -119,6 +119,39 @@ async def test_a_page_moved_to_a_host_not_allowed_fails_and_retry_asks_about_it(
     ]
 
 
+async def test_a_moved_page_read_on_retry_forgets_where_it_moved(
+    client: AsyncClient, workspace_id: int, stand_in_site: Site, engine: Engine
+) -> None:
+    """A read that succeeds drops the host, so a later Retry no longer asks about it."""
+    url = stand_in_site.at("/explained")
+    document_id = await added(client, workspace_id, url)
+    with engine.begin() as connection:
+        connection.execute(
+            update(Document)
+            .where(Document.id == document_id)
+            .values(
+                status=DocumentStatus.FAILED,
+                document_metadata={
+                    "source_url": url,
+                    "puller": "web_page",
+                    "moved_to": "tides.example",
+                },
+            )
+        )
+    await allow(client, "tides.example")
+    retried = await client.post(
+        f"/workspaces/{workspace_id}/documents/{document_id}/retry"
+    )
+    assert retried.status_code == 200, retried.text
+
+    await pulled(document_id)
+
+    note = await source(client, workspace_id, document_id)
+    assert note["status"] == "pending"
+    assert note["title"] == "Tide tables explained"
+    assert "moved_to" not in note["document_metadata"]
+
+
 @pytest.mark.parametrize(
     ("path", "sentence"),
     [

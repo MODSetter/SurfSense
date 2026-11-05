@@ -121,6 +121,19 @@ def test_a_public_page_cannot_send_the_read_into_this_machine(
     assert web.asked == ["https://tides.example/a"]
 
 
+def test_a_page_moved_to_a_broken_link_is_unreadable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A location no browser could follow is an unreadable page, never a crash."""
+    web = Web(monkeypatch, {"https://tides.example/a": moved("http://[::1")})
+
+    with pytest.raises(ReadFailedError) as failed:
+        fetched_page("https://tides.example/a", web.reach({"tides.example"}))
+
+    assert failed.value.why is Why.UNREADABLE
+    assert web.asked == ["https://tides.example/a"]
+
+
 def test_a_site_redirecting_in_a_loop_is_given_up_on(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

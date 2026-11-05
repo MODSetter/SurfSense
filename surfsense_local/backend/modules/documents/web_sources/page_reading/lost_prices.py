@@ -3,8 +3,10 @@
 Its main-content detection drops div-grid pricing cards and stat tables (live,
 duplicati.com/pricing kept 15% of its visible text, goauthentik.io/pricing none of
 its five prices). A currency amount is easy to spot, never navigation, and the
-point of the pages people ask about, so one that the markdown lost triggers the
-repair: extraction favouring recall, then the whole body as markdown.
+point of the pages people ask about, so the repair runs when the visible page shows
+one and the markdown kept none: extraction favouring recall, then the whole body as
+markdown. One kept amount counts as the prices surviving, so ordinary pages skip a
+second extraction.
 """
 
 import re
@@ -27,7 +29,7 @@ _NOT_SHOWN = "//script | //style | //noscript | //template | //svg | //iframe | 
 
 
 def with_prices(tree: Any, html: str, url: str, markdown: str) -> str:
-    """`markdown`, or a fuller one when it lost the page's currency amounts."""
+    """`markdown`, or a fuller one when it kept none of the page's currency amounts."""
     if not _CURRENCY_AMOUNT.search(html) or _CURRENCY_AMOUNT.search(markdown):
         return markdown
     if not _CURRENCY_AMOUNT.search(_visible_text(tree)):

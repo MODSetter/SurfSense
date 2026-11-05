@@ -27,6 +27,12 @@ async def test_a_search_shows_the_servers_results_as_rows_to_add(
             found("https://youtu.be/dQw4w9WgXcQ", "Tides in a minute"),
             found("https://tides.example/explained", "Tide tables again"),
             found("ftp://tides.example/table.txt", "A file server"),
+            found("http://[::1", "A broken link"),
+            found("https://tides.example]/x", "A link with markdown left on it"),
+            found("http:///tides", "A link with no host"),
+            # Add would refuse these two, failing Add all's whole batch.
+            found("https://tides.example/a b", "A link with a space in it"),
+            found(f"https://tides.example/{'a' * 2078}", "A link too long to add"),
         )
     )
 
@@ -129,6 +135,18 @@ async def test_a_server_without_its_json_api_fails_the_search(
 ) -> None:
     """A stock SearXNG answers 403 until `json` is in its search formats."""
     search_server.answer(JSONResponse({}, status_code=403))
+
+    searched = await client.post(search_url(workspace_id), json={"query": "tides"})
+
+    assert searched.status_code == 502
+    assert searched.json()["detail"]["code"] == "search_failed"
+
+
+async def test_an_answer_without_a_results_list_fails_the_search(
+    client: AsyncClient, workspace_id: int, search_server: SearchServer
+) -> None:
+    """SearXNG always lists its results, even none: a server that is not one has no search."""
+    search_server.answer(JSONResponse({"error": "upstream failed"}))
 
     searched = await client.post(search_url(workspace_id), json={"query": "tides"})
 

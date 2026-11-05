@@ -6,7 +6,7 @@ description: Give the agent more tools, from other publishers' MCP servers and y
 import { Card, Cards } from 'fumadocs-ui/components/card';
 import { Step, Steps } from 'fumadocs-ui/components/steps';
 
-A plugin gives the [agent](/docs/v2/agent) tools it can use in an **Agentic** chat. Each plugin is an MCP server: a service that offers a set of tools, such as "search Google" or "read this page". You connect it once, choose what each tool may do, and the agent calls those tools when your question needs them.
+A plugin gives the [agent](/docs/v2/agent) tools it can use in an **Agentic** chat. Each plugin is an MCP server: a service that offers a set of tools, such as "search Notion" or "ask about a GitHub repository". You connect it once, choose what each tool may do, and the agent calls those tools when your question needs them.
 
 Plugins work in Agentic chats only. In a **Basic (Q&A)** chat, the Plugins menu is greyed out with the hint "Plugins work in Agentic chats".
 
@@ -44,11 +44,11 @@ Click **Connect** on the plugin you want.
 If SurfSense asks **Allow connecting to …?**, naming the plugin's server, allow it. SurfSense contacts no plugin server until you do. You can change this later in **Settings › Network**.
 </Step>
 <Step>
-Give what the plugin needs, if anything: nothing, a key, a sign-in with your account in the browser, or your SurfSense license, which SurfSense sends for you.
+Give what the plugin needs, if anything: nothing, a key, or a sign-in with your account in the browser.
 </Step>
 </Steps>
 
-A toast says "YouTube connected", for example, or "Couldn’t connect YouTube" with the reason and **Report issue**. The plugin then appears in Yours with the status **On**.
+A toast says "Notion connected", for example, or "Couldn’t connect Notion" with the reason and **Report issue**. The plugin then appears in Yours with the status **On**.
 
 From the chat, **+ › Plugins › Add plugin** takes you to **Browse plugins** or **Add custom plugin**, and **Manage plugins** opens Settings › Plugins.
 
@@ -92,7 +92,7 @@ Each group has its own menu, **Always allow**, **Needs approval** or **Blocked**
 
 Some choices are closed, and the icon's tooltip says why:
 
-- **SurfSense's read-only tools never ask.** "Needs approval" is dimmed on them: "Not needed: this tool only reads". SurfSense's own tools only read.
+- **A SurfSense plugin you connected before never asks.** "Needs approval" is dimmed on its tools: "Not needed: this tool only reads".
 - **A tool that doesn't say it's safe always asks.** If the server doesn't mark a tool as read-only or harmless, "Always allowed" is dimmed: "Not available: the server doesn’t say this tool is safe".
 - **Other tools ask by default.** A tool from a third-party or custom plugin asks before each use until you set it to Always allowed.
 
@@ -106,7 +106,7 @@ The check covers a tool's description and how safe its server says it is. A serv
 
 Plugins work in **Agentic** chats. The agent picks the right tool from your question, so most of the time you just ask.
 
-- **Name a plugin.** To point the agent at one, say so in your message, such as "use YouTube".
+- **Name a plugin.** To point the agent at one, say so in your message, such as "use Notion".
 - **Switch plugins on and off.** **+ › Plugins** lists your connected plugins under "Your plugins", each with a switch. A switch applies to all Agentic chats, not only this one.
 - **Approve a step.** When a tool needs approval, the chat shows "Allow this step to run?" with what the agent wants to send. Click **Allow once** or **Deny**. Chats waiting on you are marked "Waiting for your approval".
 - **Read a step.** Each plugin call shows as a step named after the plugin and tool. Open it to see the whole result.

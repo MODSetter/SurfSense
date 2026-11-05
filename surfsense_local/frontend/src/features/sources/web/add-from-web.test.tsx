@@ -367,6 +367,73 @@ describe("adding sources from the web", () => {
     })
   })
 
+  it("offers Show more under a YouTube page that held no video", async () => {
+    const user = userEvent.setup()
+    const sent = serving({
+      search: (body) =>
+        (body as { page: number }).page === 0
+          ? found([], true)
+          : found([row(VIDEO, "Tides in 3 minutes", "youtube")]),
+    })
+    render(<WebHarness />)
+    const dialog = await openDialog(user)
+    await pickSite(user, dialog, "Search the web. Change site.", "YouTube")
+    await ask(user, dialog, "tides")
+
+    // Only channels and playlists on the first page; videos may follow.
+    expect(
+      await within(dialog).findByText("No results. Try other words.")
+    ).toBeTruthy()
+    await user.click(within(dialog).getByRole("button", { name: "Show more" }))
+
+    expect(
+      await within(dialog).findByRole("button", {
+        name: "Add Tides in 3 minutes",
+      })
+    ).toBeTruthy()
+    expect(sent.at(-1)).toEqual({
+      path: "/workspaces/1/documents/web/search",
+      body: { query: "tides", source: "youtube", page: 1 },
+    })
+  })
+
+  it("drops a Show more page that answers after the dialog closed", async () => {
+    const user = userEvent.setup()
+    let answerMore: (response: Response) => void = () => {}
+    serving({
+      search: (body) =>
+        (body as { page: number }).page === 0
+          ? found(SEARCHED, true)
+          : new Promise<Response>((resolve) => {
+              answerMore = resolve
+            }),
+    })
+    render(<WebHarness />)
+    const dialog = await openDialog(user)
+    await ask(user, dialog, "tides")
+    await user.click(
+      await within(dialog).findByRole("button", { name: "Show more" })
+    )
+
+    await user.click(
+      within(dialog).getAllByRole("button", { name: "Close" })[0]
+    )
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
+    const late = found([row("https://tides.example/more", "More about tides")])
+    answerMore(late)
+    await waitFor(() => expect(late.bodyUsed).toBe(true))
+    const reopened = await openDialog(user)
+
+    expect(within(reopened).getByText("Find sources on the web")).toBeTruthy()
+    expect(
+      within(reopened).queryByRole("button", { name: "Add More about tides" })
+    ).toBeNull()
+    expect(
+      within(reopened).queryByRole("button", { name: /Add all/ })
+    ).toBeNull()
+    expect(within(reopened).queryByRole("alert")).toBeNull()
+  })
+
   it("opens pasted links as rows, whatever is chosen", async () => {
     const user = userEvent.setup()
     const sent = serving()
