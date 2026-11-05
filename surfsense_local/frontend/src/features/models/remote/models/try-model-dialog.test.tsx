@@ -54,6 +54,28 @@ describe("what testing a chat model costs", () => {
   })
 })
 
+describe("a test the provider refuses", () => {
+  it("keeps a long address inside the dialog, and lets it be copied", async () => {
+    const user = userEvent.setup()
+    const refusal =
+      "Select Global at https://opencode.ai/console/org_01/settings/privacy#regions to use it."
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ detail: refusal }), { status: 502 })
+      )
+    )
+    open(false)
+
+    await user.click(await screen.findByRole("button", { name: "Test chat" }))
+
+    const shown = await screen.findByText(refusal)
+    expect(shown.className).toContain("wrap-anywhere")
+    expect(shown.className).toContain("select-text")
+  })
+})
+
 const ELEVEN: ConnectionModel = {
   connection_id: 2,
   connection_label: "OpenRouter",

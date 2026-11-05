@@ -3,6 +3,7 @@ import enum
 import httpx
 
 from modules.egress.service import EgressDeniedError
+from modules.llm.connections.console_refusals import PROVIDER_REFUSED, refusal_words
 from modules.llm.providers.openai_compatible.chat import StreamedError
 from modules.llm.providers.openai_responses import PlanLimitError, SignInRequiredError
 from modules.llm.subscriptions.claude.errors import (
@@ -23,6 +24,7 @@ class ChatErrorKind(enum.StrEnum):
     PROVIDER_NOT_FOUND = "provider_not_found"
     PROVIDER_RATE_LIMITED = "provider_rate_limited"
     PROVIDER_UNAVAILABLE = "provider_unavailable"
+    PROVIDER_REFUSED = PROVIDER_REFUSED
     MODEL_CANNOT_RUN = "model_cannot_run"
     CONTEXT_TOO_LONG = "context_too_long"
     SUBSCRIPTION_SIGN_IN = "subscription_sign_in"
@@ -146,6 +148,10 @@ def classify_chat_error(exc: Exception, provider: str) -> tuple[ChatErrorKind, s
         return kind, _MESSAGES[kind]
     if isinstance(exc, httpx.HTTPStatusError):
         status_code = exc.response.status_code
+        words = refusal_words(exc)
+        if words is not None and not _is_context_too_long(exc.response):
+            # Only the provider's words name the fix, so they are the message.
+            return ChatErrorKind.PROVIDER_REFUSED, words
         if status_code in _AUTH_STATUS_CODES:
             kind = ChatErrorKind.PROVIDER_AUTH
         elif status_code == 404:
@@ -189,7 +195,7 @@ def _is_context_too_long(response: httpx.Response) -> bool:
     """
     try:
         payload = response.json()
-    except (httpx.HTTPError, ValueError):
+    except (httpx.HTTPError, httpx.ResponseNotRead, ValueError):
         return False
     error = payload.get("error") if isinstance(payload, dict) else None
     error_type = error.get("type") if isinstance(error, dict) else None

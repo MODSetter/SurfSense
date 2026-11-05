@@ -13,6 +13,7 @@ from modules.llm.capability import capability_of
 from modules.llm.catalog.remote.manifest.loader import remote_lookup
 from modules.llm.catalog.remote.reads_images import remote_reads_images
 from modules.llm.catalog.remote.rows import CUSTOM
+from modules.llm.connections.console_refusals import refusal_words
 from modules.llm.connections.discovery_failure import discovery_failure
 from modules.llm.connections.elevenlabs_key import require_usable_key
 from modules.llm.connections.listing import connection_models
@@ -350,6 +351,11 @@ async def test_connection_chat(
     except StreamedError as error:
         raise HTTPException(
             status.HTTP_502_BAD_GATEWAY, f"chat request failed: {error}"
+        ) from error
+    except httpx.HTTPStatusError as error:
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY,
+            refusal_words(error) or f"chat request failed: {error}",
         ) from error
     except httpx.HTTPError as error:
         raise HTTPException(

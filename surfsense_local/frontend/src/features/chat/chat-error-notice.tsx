@@ -16,6 +16,8 @@ function actionFor(error: ChatTurnError): Action {
     case "subscription_sign_in":
     case "provider_not_found":
     case "model_cannot_run":
+    case "provider_refused":
+      // A refusal meets the same answer on a retry; another model is the fix here.
       return "model-setup"
     case "network":
       // A bad base URL is a Model setup fix; a local runtime that isn't
@@ -64,7 +66,9 @@ export function ChatErrorNotice({
     <Alert variant="destructive" className="mt-2 w-auto">
       <Alert02Icon />
       <AlertDescription className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <span>{translatedChatError(error)}</span>
+        <span className="min-w-0 wrap-anywhere">
+          {translatedChatError(error)}
+        </span>
         {action === "model-setup" ? (
           <Button
             variant="outline"
