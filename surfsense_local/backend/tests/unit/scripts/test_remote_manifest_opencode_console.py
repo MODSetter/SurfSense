@@ -12,6 +12,7 @@ from modules.llm.catalog.remote.manifest.loader import (
 )
 from modules.llm.catalog.remote.manifest.lookup import call_reason
 from modules.llm.catalog.remote.manifest.schema import Call
+from modules.llm.connections.opencode_free_models import FREE_MODEL_REASON
 
 pytestmark = pytest.mark.unit
 
@@ -61,10 +62,7 @@ def test_a_free_model_says_it_only_works_inside_opencode(provider: str) -> None:
 
     call = translate(api)["providers"][provider]["models"]["big-pickle"]["call"]
 
-    assert (
-        call_reason(Call(**call))
-        == "OpenCode allows this free model only inside OpenCode"
-    )
+    assert call_reason(Call(**call)) == FREE_MODEL_REASON
 
 
 def test_another_provider_keeps_its_native_protocol() -> None:

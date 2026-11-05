@@ -10,8 +10,9 @@ import re
 from typing import Any
 from urllib.parse import urlsplit
 
+from modules.llm.connections.opencode_free_models import OPENCODE_CONSOLE_PROVIDERS
 from remote_manifest.endpoints import ENDPOINTS, Fixed, Unreachable
-from remote_manifest.opencode_console import OPENCODE_CONSOLE_PROVIDERS, console_call
+from remote_manifest.opencode_console import console_call
 
 __all__ = ["translate"]
 

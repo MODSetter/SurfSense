@@ -8,11 +8,9 @@ https://opencode.ai/v2/docs/console/harnesses
 
 from typing import Any
 
-__all__ = ["OPENCODE_CONSOLE_PROVIDERS", "console_call"]
+from modules.llm.connections.opencode_free_models import FREE_MODEL_REASON
 
-OPENCODE_CONSOLE_PROVIDERS = frozenset({"opencode", "opencode-go"})
-
-_FREE_MODEL_REASON = "OpenCode allows this free model only inside OpenCode"
+__all__ = ["console_call"]
 
 
 def console_call(model: dict[str, Any]) -> dict[str, str] | None:
@@ -20,5 +18,5 @@ def console_call(model: dict[str, Any]) -> dict[str, str] | None:
     `big-pickle` and `grok-code` cost nothing and have no `-free` in their ids."""
     cost = model.get("cost") or {}
     if cost.get("input") == 0 and cost.get("output") == 0:
-        return {"unavailable": _FREE_MODEL_REASON}
+        return {"unavailable": FREE_MODEL_REASON}
     return None

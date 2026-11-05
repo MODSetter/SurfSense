@@ -7,6 +7,7 @@ from fastapi import APIRouter, Body, Depends, Header, HTTPException, Request, Re
 from api.dependencies import SessionDep, transact
 from modules.agent.launch_key import require_launch_key
 from modules.agent.model_endpoint.admission_messages import admission_messages
+from modules.agent.model_endpoint.console_refusal import refusal_for
 from modules.agent.model_endpoint.error_replies import error_reply
 from modules.agent.model_endpoint.model_address import (
     WrongRouteError,
@@ -84,7 +85,10 @@ async def complete_chat(
         await model_activity.release_use(address.activity_key)
 
     return await relay(
-        replace(address, headers=shaped_headers(address, affinity)), body, done
+        replace(address, headers=shaped_headers(address, affinity)),
+        body,
+        done,
+        refusal=refusal_for(address.url),
     )
 
 

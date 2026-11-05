@@ -10,6 +10,10 @@ from modules.llm.catalog.remote.rows import CUSTOM
 from modules.llm.connections.key_headers import key_headers
 from modules.llm.connections.model_list_url import model_list_url
 from modules.llm.connections.model_voices import voices_of
+from modules.llm.connections.opencode_free_models import (
+    listed_as_free,
+    unusable_reason,
+)
 from modules.llm.model_type import ModelType
 from modules.llm.models import ProviderConnection
 from modules.llm.voices.voice import Voice
@@ -89,6 +93,7 @@ def _modalities(entry: dict) -> set[str]:
 class _Entry:
     modalities: set[str] = field(default_factory=set)
     voices: tuple[str, ...] = ()
+    free: bool | None = None
 
 
 def _entries(payload: object) -> dict[str, _Entry]:
@@ -112,6 +117,8 @@ def _entries(payload: object) -> dict[str, _Entry]:
         listed = entries.setdefault(name, _Entry())
         listed.modalities.update(_modalities(entry))
         listed.voices = listed.voices or tuple(voices_of(entry))
+        if listed.free is None:
+            listed.free = listed_as_free(entry)
     return entries
 
 
@@ -183,6 +190,8 @@ async def discover_models(connection: ProviderConnection) -> list[DiscoveredMode
         listed = merged.setdefault(name, _Entry())
         listed.modalities.update(other.modalities)
         listed.voices = listed.voices or other.voices
+        if listed.free is None:
+            listed.free = other.free
     # `custom` names no manifest provider, so its models are read across all.
     provider = (
         None if connection.catalog_provider == CUSTOM else connection.catalog_provider
@@ -190,8 +199,11 @@ async def discover_models(connection: ProviderConnection) -> list[DiscoveredMode
     return sorted(
         (
             replace(
-                _classify(name, listed.modalities, provider),
+                classified := _classify(name, listed.modalities, provider),
                 voices=tuple(Voice(v, v, None, ()) for v in listed.voices),
+                unusable_reason=unusable_reason(
+                    provider, listed.free, classified.unusable_reason
+                ),
             )
             for name, listed in merged.items()
         ),

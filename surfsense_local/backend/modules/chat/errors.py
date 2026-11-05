@@ -3,6 +3,7 @@ import enum
 import httpx
 
 from modules.egress.service import EgressDeniedError
+from modules.llm.connections.opencode_free_models import is_free_model_refusal
 from modules.llm.providers.openai_compatible.chat import StreamedError
 from modules.llm.providers.openai_responses import PlanLimitError, SignInRequiredError
 from modules.llm.subscriptions.claude.errors import (
@@ -146,7 +147,10 @@ def classify_chat_error(exc: Exception, provider: str) -> tuple[ChatErrorKind, s
         return kind, _MESSAGES[kind]
     if isinstance(exc, httpx.HTTPStatusError):
         status_code = exc.response.status_code
-        if status_code in _AUTH_STATUS_CODES:
+        if is_free_model_refusal(str(exc.request.url), status_code):
+            # The key is fine, so asking for a new one would change nothing.
+            kind = ChatErrorKind.MODEL_CANNOT_RUN
+        elif status_code in _AUTH_STATUS_CODES:
             kind = ChatErrorKind.PROVIDER_AUTH
         elif status_code == 404:
             kind = ChatErrorKind.PROVIDER_NOT_FOUND
