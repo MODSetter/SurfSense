@@ -8,7 +8,6 @@ from modules.llm.connections.conversation_fields import conversation_fields
 from modules.llm.connections.conversation_headers import conversation_headers
 from modules.llm.connections.key_headers import key_headers
 from modules.llm.connections.model_list_url import model_list_url
-from modules.llm.connections.opencode_free_models import explained_refusal
 from modules.llm.connections.service import parse_models
 from modules.llm.profile import Fingerprint, from_remote
 from modules.llm.providers.prompt_reuse import chunk_reuse, log_reuse
@@ -217,9 +216,7 @@ class OpenAICompatibleChatProvider:
                 # handling upstream is unchanged, but carrying what the endpoint
                 # actually said instead of only the status line.
                 raise httpx.HTTPStatusError(
-                    explained_refusal(
-                        self._base_url, reply.status_code, await _error_message(reply)
-                    ),
+                    await _error_message(reply),
                     request=reply.request,
                     response=reply,
                 )

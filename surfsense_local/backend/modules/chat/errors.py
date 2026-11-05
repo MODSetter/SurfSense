@@ -4,7 +4,6 @@ import httpx
 
 from modules.egress.service import EgressDeniedError
 from modules.llm.connections.console_refusals import PROVIDER_REFUSED, refusal_words
-from modules.llm.connections.opencode_free_models import is_free_model_refusal
 from modules.llm.providers.openai_compatible.chat import StreamedError
 from modules.llm.providers.openai_responses import PlanLimitError, SignInRequiredError
 from modules.llm.subscriptions.claude.errors import (
@@ -153,10 +152,7 @@ def classify_chat_error(exc: Exception, provider: str) -> tuple[ChatErrorKind, s
         if words is not None and not _is_context_too_long(exc.response):
             # Only the provider's words name the fix, so they are the message.
             return ChatErrorKind.PROVIDER_REFUSED, words
-        if is_free_model_refusal(str(exc.request.url), status_code):
-            # The key is fine, so asking for a new one would change nothing.
-            kind = ChatErrorKind.MODEL_CANNOT_RUN
-        elif status_code in _AUTH_STATUS_CODES:
+        if status_code in _AUTH_STATUS_CODES:
             kind = ChatErrorKind.PROVIDER_AUTH
         elif status_code == 404:
             kind = ChatErrorKind.PROVIDER_NOT_FOUND
@@ -199,7 +195,7 @@ def _is_context_too_long(response: httpx.Response) -> bool:
     """
     try:
         payload = response.json()
-    except (httpx.HTTPError, ValueError):
+    except (httpx.HTTPError, httpx.ResponseNotRead, ValueError):
         return False
     error = payload.get("error") if isinstance(payload, dict) else None
     error_type = error.get("type") if isinstance(error, dict) else None

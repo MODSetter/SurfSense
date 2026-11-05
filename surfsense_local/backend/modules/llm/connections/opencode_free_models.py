@@ -5,16 +5,11 @@ Live on 5 Nov 2026, a Go key got `beam-free`'s reply and a Zen key got a 429 fro
 five free models tried, with the same account.
 """
 
-from urllib.parse import urlsplit
-
 ZEN_PROVIDER = "opencode"
 OPENCODE_CONSOLE_PROVIDERS = frozenset({ZEN_PROVIDER, "opencode-go"})
 FREE_MODEL_REASON = (
     "OpenCode's free models work only inside OpenCode or with OpenCode Go"
 )
-
-_CONSOLE_HOST = "opencode.ai"
-_REFUSED = 403
 
 
 def listed_as_free(entry: dict[str, object]) -> bool | None:
@@ -44,15 +39,3 @@ def unusable_reason(
     if provider != ZEN_PROVIDER or listed_free is None:
         return from_manifest
     return FREE_MODEL_REASON if listed_free else None
-
-
-def is_free_model_refusal(url: str, status_code: int) -> bool:
-    """A 403 the Console may mean for a typed or already selected free model."""
-    return status_code == _REFUSED and urlsplit(url).hostname == _CONSOLE_HOST
-
-
-def explained_refusal(url: str, status_code: int, message: str) -> str:
-    """The endpoint's words, plus the reason where it could be this rule."""
-    if not is_free_model_refusal(url, status_code):
-        return message
-    return f"{message.rstrip('.')}. {FREE_MODEL_REASON}"

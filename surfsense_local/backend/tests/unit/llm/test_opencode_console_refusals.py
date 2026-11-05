@@ -37,6 +37,7 @@ FREE_LIMIT = {
         "message": "Free usage limit reached. Free models work in OpenCode.",
     },
 }
+FORBIDDEN = {"error": {"message": "This workspace cannot use this model."}}
 BUSY = {"error": {"type": "rate_limit", "message": "Slow down"}}
 
 
@@ -62,6 +63,7 @@ async def _classified(
         (402, NO_FUNDS, "Insufficient account funds"),
         (400, TRAINING, "This Go model trains on request data."),
         (429, FREE_LIMIT, "Free usage limit reached. Free models work in OpenCode."),
+        (403, FORBIDDEN, "This workspace cannot use this model."),
     ],
 )
 async def test_chat_shows_what_the_console_said(
@@ -122,3 +124,68 @@ def test_the_agent_can_still_wait_out_a_real_rate_limit() -> None:
     _, body = _relayed(429, BUSY)
 
     assert "code" not in body["error"]
+
+
+def test_the_agent_gets_a_reason_for_a_403_with_no_words() -> None:
+    """A refusal with an empty body still has to say something."""
+    status, content = refusal_for(ZEN_CHAT)(403, b"")
+    body = json.loads(content)
+
+    assert status == 403
+    assert body["error"] == {
+        "message": "the model answered 403",
+        "code": "provider_refused",
+    }
+
+
+def test_the_agent_passes_on_another_hosts_403() -> None:
+    """Every other model's words reach opencode untouched."""
+    body = json.dumps(FORBIDDEN).encode()
+
+    assert refusal_for("https://api.openai.com/v1/chat/completions")(403, body) == (
+        403,
+        body,
+    )
+
+
+def _status_error(url: str, status: int) -> httpx.HTTPStatusError:
+    request = httpx.Request("POST", url)
+    return httpx.HTTPStatusError(
+        "refused", request=request, response=httpx.Response(status, request=request)
+    )
+
+
+@pytest.mark.parametrize(
+    ("url", "status"),
+    [(ZEN_CHAT, 401), ("https://api.openai.com/v1/chat/completions", 403)],
+)
+def test_chat_still_blames_the_key_elsewhere(url: str, status: int) -> None:
+    """A wrong Console key, or another server's 403, is still the key."""
+    kind, _ = classify_chat_error(_status_error(url, status), "openai_compatible")
+
+    assert kind == ChatErrorKind.PROVIDER_AUTH
+
+
+def _unread_failure(url: str, status: int) -> httpx.HTTPStatusError:
+    """A failure raised mid-stream, as a `response.failed` event raises one."""
+    request = httpx.Request("POST", url)
+    response = httpx.Response(status, request=request, stream=httpx.ByteStream(b"{}"))
+    return httpx.HTTPStatusError("It failed", request=request, response=response)
+
+
+def test_a_failure_whose_body_was_never_read_is_still_sorted() -> None:
+    """Sorting an error must not raise one of its own, on any provider."""
+    failure = _unread_failure("https://chatgpt.com/backend-api/codex/responses", 200)
+
+    kind, _ = classify_chat_error(failure, "openai_compatible")
+
+    assert kind == ChatErrorKind.PROVIDER_UNAVAILABLE
+
+
+def test_a_console_refusal_with_an_unread_body_keeps_its_words() -> None:
+    """The status and the host decide; only the free limit needs the body."""
+    kind, words = classify_chat_error(
+        _unread_failure(ZEN_CHAT, 402), "openai_compatible"
+    )
+
+    assert (kind, words) == (ChatErrorKind.PROVIDER_REFUSED, "It failed")

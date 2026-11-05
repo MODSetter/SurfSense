@@ -1,7 +1,7 @@
 """Refusals from OpenCode's Console that no retry fixes and whose words name the fix.
 
-Its 400s and 402 say what is missing: funds, a privacy setting, a model. Its 429 is
-this kind only for the free limit, since an ordinary rate limit does pass with time.
+Its 400s, 402 and 403s say what is missing: funds, a privacy setting, access, a model.
+Its 429 is this kind only for the free limit, since a rate limit does pass with time.
 """
 
 import json
@@ -12,7 +12,7 @@ import httpx
 PROVIDER_REFUSED = "provider_refused"
 
 _CONSOLE_HOST = "opencode.ai"
-_ALWAYS_FINAL = frozenset({400, 402})
+_ALWAYS_FINAL = frozenset({400, 402, 403})
 _RATE_LIMITED = 429
 _FREE_LIMIT = "FreeUsageLimitError"
 _RELAY_PREFIX = "Upstream request failed: "
@@ -29,9 +29,12 @@ def is_final_refusal(url: str, status_code: int, body: bytes) -> bool:
 def refusal_words(error: httpx.HTTPStatusError) -> str | None:
     """What to show for a failed chat request, or None when it is no such refusal."""
     response = error.response
-    if not is_final_refusal(
-        str(error.request.url), response.status_code, response.content
-    ):
+    # A failure raised mid-stream carries a body nobody can read any more.
+    try:
+        body = response.content
+    except httpx.ResponseNotRead:
+        body = b""
+    if not is_final_refusal(str(error.request.url), response.status_code, body):
         return None
     return console_words(str(error))
 

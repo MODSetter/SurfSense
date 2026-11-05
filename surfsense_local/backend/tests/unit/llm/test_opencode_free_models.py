@@ -3,23 +3,17 @@
 Its price field is undocumented, so a list without one falls back to the manifest.
 """
 
-import json
 from types import SimpleNamespace
 
 import httpx
 import pytest
 
-from modules.agent.model_endpoint.console_refusal import refusal_for
-from modules.chat.errors import ChatErrorKind, classify_chat_error
 from modules.llm.connections import service
 from modules.llm.connections.opencode_free_models import FREE_MODEL_REASON
 from modules.llm.connections.service import discover_models
-from modules.llm.providers.openai_compatible.chat import OpenAICompatibleChatProvider
-from modules.llm.providers.types import Message
 
 pytestmark = pytest.mark.unit
 ZEN = "https://opencode.ai/inference/openai/v1"
-ZEN_CHAT = f"{ZEN}/chat/completions"
 
 
 def _priced(model: str, price: float) -> dict:
@@ -97,94 +91,3 @@ async def test_another_providers_price_means_nothing(
     reasons = await _reasons(monkeypatch, [_priced("free-tier", 0)], "openrouter")
 
     assert reasons == {"free-tier": None}
-
-
-async def _chat_failure(base_url: str, status: int, body: dict) -> str:
-    provider = OpenAICompatibleChatProvider(
-        base_url,
-        "oc_sk_test",
-        transport=httpx.MockTransport(lambda _: httpx.Response(status, json=body)),
-    )
-    with pytest.raises(httpx.HTTPStatusError) as refused:
-        async for _ in provider.chat(
-            "typed-free-model", [Message(role="user", content="Hi")]
-        ):
-            pass
-    return str(refused.value)
-
-
-async def test_chat_explains_the_consoles_403_and_keeps_its_words() -> None:
-    """A typed id reaches the Console. A 403 may have another cause, so its words stay."""
-    message = await _chat_failure(ZEN, 403, {"error": {"message": "Not allowed"}})
-
-    assert message == f"Not allowed. {FREE_MODEL_REASON}"
-
-
-async def test_chat_leaves_another_failure_alone() -> None:
-    """A wrong key is not a free model."""
-    message = await _chat_failure(ZEN, 401, {"error": {"message": "Bad key"}})
-
-    assert message == "Bad key"
-
-
-async def test_chat_leaves_another_servers_403_alone() -> None:
-    """Only OpenCode has this rule."""
-    message = await _chat_failure(
-        "https://api.openai.com/v1", 403, {"error": {"message": "Not allowed"}}
-    )
-
-    assert message == "Not allowed"
-
-
-def test_the_agent_gets_the_same_explanation() -> None:
-    """opencode shows the message in `{"error": {"message": …}}`."""
-    body = json.dumps({"error": {"message": "Not allowed"}}).encode()
-
-    status, content = refusal_for(ZEN_CHAT)(403, body)
-
-    assert status == 403
-    assert json.loads(content)["error"]["message"] == (
-        f"Not allowed. {FREE_MODEL_REASON}"
-    )
-
-
-def test_the_agent_explains_a_403_with_no_message() -> None:
-    """A body with no words still gets a reason."""
-    _, content = refusal_for(ZEN_CHAT)(403, b"")
-
-    assert FREE_MODEL_REASON in json.loads(content)["error"]["message"]
-
-
-def test_the_agent_passes_on_another_hosts_403() -> None:
-    """Every other model's words reach opencode untouched."""
-    body = json.dumps({"error": {"message": "Not allowed"}}).encode()
-
-    assert refusal_for("https://api.openai.com/v1/chat/completions")(403, body) == (
-        403,
-        body,
-    )
-
-
-def _status_error(url: str, status: int) -> httpx.HTTPStatusError:
-    request = httpx.Request("POST", url)
-    return httpx.HTTPStatusError(
-        "refused", request=request, response=httpx.Response(status, request=request)
-    )
-
-
-def test_chat_asks_for_another_model_rather_than_a_new_key() -> None:
-    """The key is fine: a new one would change nothing."""
-    kind, _ = classify_chat_error(_status_error(ZEN_CHAT, 403), "openai_compatible")
-
-    assert kind == ChatErrorKind.MODEL_CANNOT_RUN
-
-
-@pytest.mark.parametrize(
-    ("url", "status"),
-    [(ZEN_CHAT, 401), ("https://api.openai.com/v1/chat/completions", 403)],
-)
-def test_chat_still_blames_the_key_elsewhere(url: str, status: int) -> None:
-    """A wrong Console key, or another server's 403, is still the key."""
-    kind, _ = classify_chat_error(_status_error(url, status), "openai_compatible")
-
-    assert kind == ChatErrorKind.PROVIDER_AUTH
