@@ -69,6 +69,12 @@ class ConnectionRead(BaseModel):
     updated_at: datetime
 
 
+class VoiceRead(BaseModel):
+    id: str
+    # The voice's name where the server states one, else its id.
+    label: str
+
+
 class ConnectionModelRead(BaseModel):
     connection_id: int
     connection_label: str
@@ -84,7 +90,7 @@ class ConnectionModelRead(BaseModel):
     # Its measured level, for a model that can fill the chat slot.
     capability_level: Level | None = None
     # The voices the endpoint publishes for it; most endpoints publish none.
-    voices: list[str] = []
+    voices: list[VoiceRead] = []
 
 
 class RuntimeFileRead(BaseModel):

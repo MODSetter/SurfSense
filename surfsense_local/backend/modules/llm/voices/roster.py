@@ -3,11 +3,13 @@
 from dataclasses import dataclass
 from typing import Literal
 
+import httpx
 from sqlalchemy.orm import Session
 
 from modules.egress import service as egress
 from modules.llm.models import ProviderConnection, SelectedModel
 from modules.llm.providers import audiocpp
+from modules.llm.providers.elevenlabs.account import ELEVENLABS, voices_for_model
 from modules.llm.providers.openai_compatible.published_voices import published_voices
 from modules.llm.providers.openai_compatible.voice_list import listed_voices
 from modules.llm.providers.protocols import Voice
@@ -50,7 +52,7 @@ class SpeechRoster:
 @dataclass(frozen=True)
 class ServerRoster:
     source: ServerSource
-    voices: list[str]
+    voices: list[Voice]
     # The ones only the user's adding keeps here, which removing can take away.
     added: list[str]
 
@@ -62,8 +64,7 @@ def speech_voices(session: Session) -> SpeechRoster:
     connection = stored_connection(session, selected)
     roster = server_roster(session, selected, connection)
     return SpeechRoster(
-        # Ids alone: no server states a voice's gender or languages.
-        [Voice(voice, voice, None, ()) for voice in roster.voices],
+        roster.voices,
         roster.source,
         VoicedBy(connection.label, selected.name),
     )
@@ -84,16 +85,34 @@ def server_roster(
     try:
         egress.require(session, egress.host_destination(connection.base_url))
     except egress.EgressDeniedError:
-        return ServerRoster("saved", saved, saved)
+        return ServerRoster("saved", _by_id(saved), saved)
+    native = connection.auth_kind == ELEVENLABS
     session.commit()
+    if native:
+        return _elevenlabs_roster(ask[1], ask[2], model, saved)
     listed = listed_voices(*ask)
     if listed is not None:
-        return ServerRoster("server", [voice.id for voice in listed], [])
+        return ServerRoster("server", listed, [])
     published = published_voices(*ask, model)
     if published is None:
-        return ServerRoster("saved", saved, saved)
+        return ServerRoster("saved", _by_id(saved), saved)
     added = [voice for voice in saved if voice not in published]
-    return ServerRoster("published", [*published, *added], added)
+    return ServerRoster("published", _by_id([*published, *added]), added)
+
+
+def _by_id(ids: list[str]) -> list[Voice]:
+    """Ids alone: only ElevenLabs states a voice's name, gender or languages."""
+    return [Voice(voice, voice, None, ()) for voice in ids]
+
+
+def _elevenlabs_roster(
+    base_url: str, api_key: str | None, model: str, saved: list[str]
+) -> ServerRoster:
+    """A list that cannot be read leaves any voices added, as on another server."""
+    try:
+        return ServerRoster("server", voices_for_model(base_url, api_key, model), [])
+    except (httpx.HTTPError, ValueError, KeyError, TypeError):
+        return ServerRoster("saved", _by_id(saved), saved)
 
 
 def voices_page(connection: ProviderConnection, model: str) -> str | None:

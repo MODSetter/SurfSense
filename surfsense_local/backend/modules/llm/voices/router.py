@@ -6,13 +6,12 @@ from sqlalchemy.orm import Session
 
 from api.dependencies import SessionDep, transact
 from modules.llm.connections.router import allowed_connection
+from modules.llm.connections.speech_client import speech_client
 from modules.llm.model_type import ModelType
 from modules.llm.models import ProviderConnection, SelectedModel
-from modules.llm.providers.openai_compatible.speech import (
-    NonRetryableSpeechError,
-    RemoteSpeech,
-)
+from modules.llm.providers.openai_compatible.speech import NonRetryableSpeechError
 from modules.llm.providers.protocols import SpokenTurn
+from modules.llm.schemas import VoiceRead
 from modules.llm.voices.roster import server_roster, voices_page
 from modules.llm.voices.saved import forget, keep
 
@@ -31,7 +30,7 @@ class VoicesRead(BaseModel):
     connection_id: int
     model: str
     source: str
-    voices: list[str]
+    voices: list[VoiceRead]
     # Those removing can take away; the rest are the server's.
     added: list[str]
     voices_page: str | None
@@ -52,7 +51,7 @@ def list_voices(session: SessionDep) -> VoicesRead:
         connection_id=connection.id,
         model=selected.name,
         source=roster.source,
-        voices=roster.voices,
+        voices=[VoiceRead(id=voice.id, label=voice.label) for voice in roster.voices],
         added=roster.added,
         # A list here leaves no reason to go and read the provider's page.
         voices_page=voices_page(connection, selected.name)
@@ -65,9 +64,7 @@ def list_voices(session: SessionDep) -> VoicesRead:
 async def add_voice(payload: VoiceWrite, session: SessionDep) -> Response:
     """Voice one line in it, then keep it; a refusal keeps nothing."""
     selected, connection = await transact(session, _server_selection)
-    speech = RemoteSpeech(
-        selected.name, base_url=connection.base_url, api_key=connection.api_key
-    )
+    speech = speech_client(connection, selected.name)
     try:
         await speech.synthesize(
             [SpokenTurn(payload.voice, payload.text or TRIAL_LINE)], ""

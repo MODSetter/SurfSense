@@ -9,6 +9,7 @@ from modules.llm.catalog.local.engines.audiocpp.audio_folder.installed_recognise
 )
 from modules.llm.catalog.remote.reads_images import remote_reads_images
 from modules.llm.connections.serves import connection_serves
+from modules.llm.connections.speech_client import speech_client
 from modules.llm.connections.text_generator import connection_generator
 from modules.llm.model_route.runtime_hold import text_runtime_given_up
 from modules.llm.model_type import ModelType
@@ -22,7 +23,6 @@ from modules.llm.providers.openai_compatible import (
 from modules.llm.providers.openai_compatible.image_edit import (
     OpenAICompatibleImageEditor,
 )
-from modules.llm.providers.openai_compatible.speech import RemoteSpeech
 from modules.llm.providers.protocols import (
     Generator,
     ImageEditor,
@@ -172,17 +172,7 @@ def resolve_text_to_speech(session: Session) -> TextToSpeech:
         return local_speech(selected)
     connection = _connection(session, selected)
     _require_serves(connection, ModelType.AUDIO_GEN)
-    return _remote_speech(selected, connection)
-
-
-def _remote_speech(
-    selected: SelectedModel, connection: ProviderConnection
-) -> RemoteSpeech:
-    return RemoteSpeech(
-        selected.name,
-        base_url=connection.base_url,
-        api_key=connection.api_key,
-    )
+    return speech_client(connection, selected.name)
 
 
 def selected_audio(session: Session) -> SelectedModel:

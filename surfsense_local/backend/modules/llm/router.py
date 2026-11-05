@@ -24,6 +24,7 @@ from modules.llm.catalog.local.engines.engine import LocalEngine
 from modules.llm.catalog.local.install_jobs.router import router as install_jobs_router
 from modules.llm.catalog.local.router import router as local_catalog_router
 from modules.llm.catalog.remote.router import router as remote_catalog_router
+from modules.llm.connections.elevenlabs_router import router as elevenlabs_router
 from modules.llm.connections.router import router as connections_router
 from modules.llm.dependencies import ProviderDep
 from modules.llm.local_image_state import local_image_state
@@ -65,6 +66,7 @@ router.include_router(remote_catalog_router)
 # connection ids.
 router.include_router(chatgpt_router)
 router.include_router(claude_router)
+router.include_router(elevenlabs_router)
 router.include_router(connections_router)
 router.include_router(voices_router)
 router.include_router(language_router)

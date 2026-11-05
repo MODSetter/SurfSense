@@ -63,7 +63,10 @@ async def test_a_server_that_lists_its_voices_offers_those(
         "connection_id": connection,
         "model": "kokoro",
         "source": "server",
-        "voices": ["af_heart", "am_adam"],
+        "voices": [
+            {"id": "af_heart", "label": "af_heart"},
+            {"id": "am_adam", "label": "am_adam"},
+        ],
         "added": [],
         "voices_page": None,
     }
@@ -97,11 +100,14 @@ async def test_a_voice_is_kept_only_once_the_server_has_voiced_it(
     assert (await client.post(URL, json={"voice": "alloy"})).status_code == 201
     await client.post(URL, json={"voice": "echo"})
 
-    assert (await client.get(URL)).json()["voices"] == ["alloy", "echo"]
+    assert [v["id"] for v in (await client.get(URL)).json()["voices"]] == [
+        "alloy",
+        "echo",
+    ]
 
     removed = await client.delete(f"{URL}?voice=alloy")
     assert removed.status_code == 204
-    assert (await client.get(URL)).json()["voices"] == ["echo"]
+    assert [v["id"] for v in (await client.get(URL)).json()["voices"]] == ["echo"]
 
 
 async def test_choosing_another_model_starts_its_voices_afresh(
@@ -112,7 +118,7 @@ async def test_choosing_another_model_starts_its_voices_afresh(
     await client.post(URL, json={"voice": "alloy"})
 
     await _select(client, connection, "tts-1")
-    assert (await client.get(URL)).json()["voices"] == ["alloy"]
+    assert [v["id"] for v in (await client.get(URL)).json()["voices"]] == ["alloy"]
     await _select(client, connection, "tts-1-hd")
     assert (await client.get(URL)).json()["voices"] == []
 
@@ -138,7 +144,10 @@ async def test_a_model_that_publishes_its_voices_offers_them_and_takes_more(
         "connection_id": connection,
         "model": ELEVEN["id"],
         "source": "published",
-        "voices": ["sarah", "george"],
+        "voices": [
+            {"id": "sarah", "label": "sarah"},
+            {"id": "george", "label": "george"},
+        ],
         "added": [],
         "voices_page": None,
     }
@@ -146,12 +155,15 @@ async def test_a_model_that_publishes_its_voices_offers_them_and_takes_more(
     assert (await client.post(URL, json={"voice": "OZ0L6"})).status_code == 201
     assert (await client.post(URL, json={"voice": "sarah"})).status_code == 201
     read = (await client.get(URL)).json()
-    assert read["voices"] == ["sarah", "george", "OZ0L6"]
+    assert [v["id"] for v in read["voices"]] == ["sarah", "george", "OZ0L6"]
     # Only what the list would not bring back can be removed.
     assert read["added"] == ["OZ0L6"]
 
     assert (await client.delete(URL, params={"voice": "OZ0L6"})).status_code == 204
-    assert (await client.get(URL)).json()["voices"] == ["sarah", "george"]
+    assert [v["id"] for v in (await client.get(URL)).json()["voices"]] == [
+        "sarah",
+        "george",
+    ]
 
 
 async def test_a_model_listing_carries_the_voices_each_model_publishes(
@@ -164,7 +176,10 @@ async def test_a_model_listing_carries_the_voices_each_model_publishes(
     listed = (await client.get(f"/llm/connections/{connection}/models")).json()
 
     voices = {model["name"]: model["voices"] for model in listed}
-    assert voices[ELEVEN["id"]] == ["sarah", "george"]
+    assert voices[ELEVEN["id"]] == [
+        {"id": "sarah", "label": "sarah"},
+        {"id": "george", "label": "george"},
+    ]
     assert voices[conftest.REMOTE_MODELS[0]["id"]] == []
 
 
