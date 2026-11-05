@@ -1,0 +1,92 @@
+---
+title: Differences from the desktop app
+description: What works differently in the Docker image than in the desktop app, and how it differs from the legacy Docker stack
+---
+
+The Docker image runs the same app as the desktop: the same workspaces, sources, chat, agent, Studio, plugins and models. What differs comes from running in a browser on another machine.
+
+## From the desktop app
+
+### Local models run on the processor
+
+The image has no GPU support yet. llama.cpp, image generation and voice run on the CPU only. Chat with a local model and Studio images are much slower than on a desktop with a graphics card. A [remote connection](/docs/v2/models) is unaffected. The image runs on x86-64 (amd64) only.
+
+### Files
+
+| Desktop | Docker |
+|---|---|
+| A source's **Show in folder** and opening its file | **Download** in the source row's menu. Clicking a PDF previews it; clicking other files does nothing. |
+| Word and web-page previews | Word files and decks preview through LibreOffice when Office support is on; otherwise there is no preview. |
+| Your data in the [data folder](/docs/v2/data-folder) on your computer | The same layout, in the `surfsense_data` volume. See [Configuration](/docs/v2/docker/configuration#where-your-data-lives). |
+
+### Updates
+
+There is no in-app updater and no update check. You update by pulling a newer image. See [Updating](/docs/v2/docker/updating).
+
+### Sign-in
+
+The desktop app has no password. The image asks for one, managed in **Settings › Access**, which exists only in Docker. See [Access](/docs/v2/docker/access).
+
+### Privacy
+
+The image keeps no usage statistics, and the privacy step of onboarding is not shown. See [Privacy](/docs/v2/privacy).
+
+### Secrets
+
+On the desktop, stored provider keys are encrypted with a secret in your system keychain. In Docker the secret is `SURFSENSE_SECRET`, or a file the image creates in the data volume.
+
+### Dictation
+
+Browsers allow the microphone only over HTTPS or on the machine running SurfSense. From another device over plain HTTP, the dictation strip says: "Your browser allows the microphone only over HTTPS, or on the computer running SurfSense." Turn on [HTTPS](/docs/v2/docker/configuration#https) to dictate from other devices.
+
+### ChatGPT and plugin sign-ins
+
+Plugin sign-ins return to the device you started them on. A ChatGPT subscription sign-in from another device ends on an error page; paste that tab's address into the sign-in dialog to finish. See [Sign-ins from another device](/docs/v2/docker/configuration#sign-ins-from-another-device).
+
+### Claude plan
+
+As on the desktop, a Claude plan uses your own Claude Code. In Docker you install it inside the container. The dialog shows each command with a copy button. Run them on the Docker host, in the folder with `docker-compose.yml`:
+
+```bash
+docker compose exec surfsense bash -c 'set -o pipefail; curl -fsSL https://claude.ai/install.sh | bash'
+docker compose exec -it surfsense claude
+```
+
+In the second, type `/login` and sign in with your Claude account. Claude Code and its sign-in are kept in the data volume, so they survive image updates.
+
+### The interface
+
+- The right panel's toggle sits on the Studio heading's line, or on the chat header while the panel is hidden. The desktop has it in the title bar.
+- **Match system** follows the browser's languages, and the theme and **Reduce motion** follow the browser. Each browser keeps its own **Reduce motion** choice.
+- About shows the image's version. The session log and the crash notice are desktop-only.
+
+### License
+
+Your license works the same way. Enter it in the app; it is checked offline and isn't tied to a machine, so one license works on a desktop and a server. See [License](/docs/v2/license).
+
+## From the legacy Docker stack
+
+The image replaces the old self-hosted stack, which now lives on the `legacy` branch ([Legacy Docker installation](/docs/legacy/docker-installation)). They share nothing.
+
+| | Legacy stack | This image |
+|---|---|---|
+| Containers | Postgres, Redis, Zero, SearxNG, OpenSandbox, Caddy, backend, workers and frontend | One |
+| Accounts | Email and password accounts, or Google sign-in | One password, no accounts |
+| Models | Remote providers | The desktop's local models on the CPU, plus remote connections |
+| Data | Postgres and an object store | One `/data` volume |
+| License | None | The desktop's license |
+| Port | `3929` | `4929` |
+| GPU | CUDA images | None yet |
+| Updates | Watchtower or a manual pull | The installer, or a manual pull |
+| Install URL | `…/SurfSense/legacy/docker/scripts/install.sh` | `…/SurfSense/main/docker/scripts/install.sh` |
+
+Both use a `surfsense` folder by default, so install the new image from another directory. The ports differ, so both can run side by side while you move your data.
+
+### Moving your data from the legacy stack
+
+There is no database migration from the legacy stack. Documents move over as markdown; chats, original files and generated artifacts don't.
+
+1. In the legacy app, open each workspace's settings and use **Export knowledge base**. You get a ZIP of markdown files in the workspace's folder structure.
+2. Unzip it.
+3. In the Docker image, create a workspace, then in its sources choose **Upload folder…** and pick the unzipped folder. SurfSense indexes the files as new sources.
+

@@ -2,7 +2,7 @@
   Rationale and how to change it: plans/community-local/seo/06-repo-readme.md. Anything
   added replaces something (AGENTS.md). The agent copy holds from v2.2.0, the first
   release whose installers carry the agent.
-  The format table is checked against origin/dev c5ff7938a, which v2.2.0 contains; re-check
+  The format table is checked against origin/dev 3da73d28e, which v2.3.0 contains; re-check
   each cell against the release commit before a release.
   The demo videos under the header are GitHub uploads, not files in the repo, each under a bold
   caption on its own line. To replace one, drag an MP4 under 10 MB into any comment box in this
@@ -61,14 +61,11 @@ SurfSense is a free, open-source desktop app for documents you can't upload. A p
 | **Windows** x64 | [SurfSense-Setup.exe](https://www.surfsense.com/downloads/windows?src=readme) |
 | **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
 | **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
+| **Docker** Linux, macOS | `curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh \| bash` |
+| **Docker** Windows (Docker Desktop) | `irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 \| iex` |
 
-**Self-host it on a server** with Docker, and open it from any device on your network. Run the same command again to update.
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
-```
-
-On Windows with Docker Desktop: `irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 | iex`
+> [!NOTE]
+> Docker self-hosts it on a server you open from any device on your network. Run the same command again to update.
 
 ## Quick start
 
@@ -85,9 +82,10 @@ On Windows with Docker Desktop: `irm https://raw.githubusercontent.com/MODSetter
 | **Excel** `.xlsx` | ✓ the agent also reads formulas | ✓ with formulas and native charts | ✓ cell values and formulas | Analyse with pandas, chart the results |
 | **PowerPoint** `.pptx` | ✓ | ✓ or from your own `.pptx` as a template | Replace text on slides and notes; delete or duplicate slides | To PDF¹ |
 | **CSV** | ✓ | — | — | Analyse with pandas, chart the results |
-| **Images** PNG, JPEG, TIFF, BMP, WebP | ✓ text read by OCR³ | Images and infographics² | — | Place in new documents |
+| **Images** PNG, JPEG, TIFF, BMP, WebP | ✓ text read by OCR³ | Images and infographics, edited by instruction² | — | Place in new documents |
 | **Markdown**, plain text | ✓ | ✓ Markdown | — | — |
 | **HTML** | ✓ | ✓ web page | — | — |
+| **Books** EPUB, MOBI, AZW3 | ✓ without DRM | — | — | — |
 | **Recordings** WAV, MP3, FLAC, Ogg Vorbis | ✓ transcribed on your machine | — | — | — |
 | **Podcast** (audio) | — | ✓ with a transcript, voiced on your machine by default | — | — |
 | **Mind maps, flashcards, quizzes** | — | ✓ in the app | — | — |
@@ -98,24 +96,9 @@ Edits, conversions and PDF tools always make a new file; your original is never 
 
 ## Plugins
 
-Connect them in **Settings › Plugins**.
+Connect them in **Settings › Plugins**: MCP servers from the [plugin registry](backend/plugins/registry), such as DeepWiki and Notion, or any you add by URL. They stay off until you allow them.
 
-**By SurfSense.** They read public pages without your own accounts and need a SurfSense license: [download the app](https://www.surfsense.com/downloads) and enter your email there for a free 14-day one.
-
-| Plugin | What it does |
-|---|---|
-| **Google Search** | Search Google and read its results, ads and related questions |
-| **Web Crawl** | Read a web page, or crawl a whole site into clean text |
-| **YouTube** | Read YouTube videos, channels and their comments |
-| **TikTok** | Read TikTok videos and their comments, search users, and see what is trending |
-| **Reddit** | Read public Reddit posts with their comment threads, or a whole community |
-| **Instagram** | Read public Instagram profiles, posts and reels, and find profiles by search |
-| **Google Maps** | Find places on Google Maps and read their reviews |
-| **Amazon** | Read Amazon products and search results |
-| **Walmart** | Read Walmart products, search results and reviews |
-| **Indeed** | Read job listings on Indeed |
-
-**Third-party.** MCP servers from the [plugin registry](backend/plugins/registry), such as DeepWiki and Notion, or any you add by URL. No license needed; they stay off until you allow them.
+**Built in, free:** the agent and **Add from the web**, in Sources, search the web through SearXNG and read pages and YouTube transcripts on your own connection, with no plugin and no license.
 
 ## How it compares
 

@@ -1,6 +1,8 @@
 """Schemas for the unauthenticated license routes."""
 
-from pydantic import BaseModel, EmailStr, field_validator
+from typing import Annotated
+
+from pydantic import BaseModel, EmailStr, StringConstraints, field_validator
 
 from license.funnel.channel import valid_channel
 
@@ -24,6 +26,15 @@ class LicenseTrialRequest(LicenseEmailRequest):
     @classmethod
     def _keep_only_a_channel_tag(cls, value: object) -> str | None:
         return valid_channel(value)
+
+
+class LicenseRefreshRequest(BaseModel):
+    """A license key, the credential the file already carries; in the body, never the URL."""
+
+    # Signed Keygen keys run to a few hundred characters.
+    key: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=1024)
+    ]
 
 
 class LicenseAckResponse(BaseModel):

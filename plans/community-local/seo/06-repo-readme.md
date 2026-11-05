@@ -43,13 +43,24 @@ In order:
    from with citations, creates, edits as a copy and transforms, with three
    footnotes. It replaced "What SurfSense makes", the table of Studio outputs,
    because what the agent does to the user's own files is now the pitch.
-5. **Plugins**, added on 15 Oct 2026 once SurfSense's plugins shipped (2.2.1):
-   where to connect them, a table of the ten first-party ones (Reddit and
-   Instagram joined in 2.2.5) with the app's
-   one-line descriptions, which need a license, with the free 14-day one claimed
-   on `/downloads`, and third-party ones, which need none. It replaced **Star
-   history**, under the rule that anything added replaces something, and sits
-   above the comparison, as the maintainer asked.
+5. **Plugins**, added on 15 Oct 2026 once SurfSense's plugins shipped (2.2.1),
+   is two paragraphs. The first says where to connect plugins: MCP servers from
+   the plugin registry, or any added by URL, which stay off until allowed. The
+   second, **Built in, free**, says the agent and **Add from the web**, in
+   Sources, search the web through SearXNG and read pages and YouTube
+   transcripts on the user's own connection, with no plugin and no license.
+   They replaced the table of SurfSense's own plugins, and the line on their
+   license and free 14-day trial, in November 2026, when SurfSense's web
+   plugins became built-in tools
+   ([ADR 0081](../../../docs/adr/0081-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)).
+   The section replaced **Star history**, under the rule that anything added
+   replaces something, and sits above the comparison, as the maintainer asked.
+   In the release that sells Business
+   ([ADR 0080](../../../docs/adr/0080-surfsense-sells-one-business-license-priced-per-person.md)),
+   anything the README says about a license names Business and the job
+   plugins, and it names no job before an eval row backs it
+   ([file agent strategy](../file-agent-strategy.md#the-headline), item 4).
+   Each change goes into every translation.
 6. **How it compares**, against NotebookLM (now Gemini Notebook) alone: offline
    use, whether documents leave the machine, editing files, licence and models.
    "Everything stays on your machine", the comparisons with local chat apps and
@@ -82,9 +93,8 @@ own register and terms. In each one:
 
 The top comment of `README.md` says the same in brief.
 
-**The format table** was checked cell by cell against `c5ff7938a` on `dev`
-(9 Oct 2026). v2.2.0 contains it; between the two, only the composer's mode
-menus (#2211) and the version bump changed the app, and neither touches a cell.
+**The format table** was checked cell by cell against `3da73d28e` on `dev`
+(2 Nov 2026), for v2.3.0, which added the Books row and image edits.
 Before each release, re-check every cell against what it ships
 ([`RELEASE.md`](../../../surfsense_local/RELEASE.md), step 4), and change the
 translations with any cell that moves:
@@ -94,7 +104,8 @@ translations with any cell that moves:
 | Research: every listed format is read and cited; scanned pages and images through OCR, in Latin, Chinese and Japanese script | [`storage.py`](../../../surfsense_local/backend/modules/documents/storage.py) (the types accepted), [`parsing.py`](../../../surfsense_local/backend/worker/ingestion/parsing.py) (RapidOCR); the scripts OCR misreads are a [documents](../../../docs/architecture/documents.md#known-gaps) Known gap |
 | Excel: the agent reads formulas | [`read_workbook.py`](../../../surfsense_local/backend/modules/agent/tool_endpoint/read_workbook.py) |
 | Create Word, PDF, PowerPoint and Excel; Word and PowerPoint from the user's own file as a template; Excel with formulas and native charts | [`render_document.py`](../../../surfsense_local/backend/modules/agent/tool_endpoint/render_document.py) (`DOCUMENT_FORMATS`, `template_source_id`), the [`surfsense-documents`](../../../surfsense_local/backend/modules/agent/skills/surfsense-documents/SKILL.md) skill |
-| Create Markdown, a web page, images and infographics (with an image model), a podcast, mind maps, flashcards and quizzes | [`formats.py`](../../../surfsense_local/backend/modules/artifacts/formats.py); the podcast's default voice is in [studio](../../../docs/architecture/studio.md#formats) |
+| Read EPUB, MOBI and AZW3 books; a MOBI or AZW3 book with DRM, or a KFX book, is refused at upload | [`storage.py`](../../../surfsense_local/backend/modules/documents/storage.py), [`upload_check.py`](../../../surfsense_local/backend/modules/documents/kindle_books/upload_check.py) |
+| Create Markdown, a web page, images and infographics (with an image model), a podcast, mind maps, flashcards and quizzes; edit an image or infographic by instruction | [`formats.py`](../../../surfsense_local/backend/modules/artifacts/formats.py); the podcast's default voice is in [studio](../../../docs/architecture/studio.md#formats); editing in [studio](../../../docs/architecture/studio.md#editing-a-picture) |
 | Edit Word body text as tracked changes and comments, Excel cell values and formulas, PowerPoint text on slides and notes, and delete or duplicate slides, always on a copy | [`revise_document.py`](../../../surfsense_local/backend/modules/agent/tool_endpoint/revise_document.py) and its [engines](../../../surfsense_local/backend/modules/artifacts/revised_copies/engines/) |
 | PDF: fill and flatten forms; stamp a watermark, page numbers, a header or a footer; merge, split, extract, rotate and reorder pages, each into a new PDF | [`pdf_form.py`](../../../surfsense_local/backend/modules/agent/tool_endpoint/pdf_form.py), [`pdf_stamp.py`](../../../surfsense_local/backend/modules/agent/tool_endpoint/pdf_stamp.py), [`pdf_pages.py`](../../../surfsense_local/backend/modules/agent/tool_endpoint/pdf_pages.py) |
 | Analyse CSV and Excel with pandas and chart the results | [`analyze_data.py`](../../../surfsense_local/backend/modules/agent/tool_endpoint/analyze_data.py) |

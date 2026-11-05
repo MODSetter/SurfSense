@@ -9,6 +9,8 @@ declare global {
     surfsense?: {
       apiUrl: string
       platform: string
+      // Changes when the database is made again; null before it exists.
+      databaseIdentity: () => string | null
       openDocument: (workspaceId: number, documentId: number) => Promise<string>
       revealDocument: (
         workspaceId: number,

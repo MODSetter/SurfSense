@@ -16,6 +16,7 @@ import { SiteFaqItem } from "@/components/site/site-faq-item";
 import { siteText } from "@/components/site/site-text";
 import { cn } from "@/components/ui/cn";
 import { CheckIcon } from "@/components/ui/icons";
+import { BUSINESS_LAUNCHED } from "@/features/business-launch/business-launched.mts";
 import { HomeDownloadButton } from "@/features/downloads/home-download-button";
 
 /**
@@ -41,9 +42,8 @@ import { HomeDownloadButton } from "@/features/downloads/home-download-button";
  *   false, so none of it survived. What replaced it says only what the desktop
  *   app does: no account, your own key or a local model, files on your disk.
  *
- * Rendered in the site design via the `/free/` prefix in `SITE_DESIGN_PREFIXES`
- * (`components/site/site-shell.tsx`). A server component, no client JavaScript
- * beyond the hero button.
+ * Rendered in the site design from `app/(home)/layout.tsx`. A server component,
+ * no client JavaScript beyond the hero button.
  */
 
 interface PageProps {
@@ -161,8 +161,10 @@ export default async function FreeModelPage({ params }: PageProps) {
 		},
 		{
 			question: "Is the SurfSense desktop app free?",
-			answer:
-				"Yes. The app and every update are free forever on Windows, macOS and Linux, and a 14-day licence for the scraper plugins comes with it. There is no account to create and no trial clock on the app itself.",
+			// From Business on, the trial is the job's and the scrapers are retired.
+			answer: BUSINESS_LAUNCHED
+				? "Yes. The app and every update are free forever on Windows, macOS and Linux, reading web pages, YouTube and web search included, and a 14-day trial of the paid security questionnaire job comes with it. There is no account to create and no trial clock on the app itself."
+				: "Yes. The app and every update are free forever on Windows, macOS and Linux, and a 14-day licence for the scraper plugins comes with it. There is no account to create and no trial clock on the app itself.",
 		},
 		{
 			question: "What happened to the 500,000 free tokens?",

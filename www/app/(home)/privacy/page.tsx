@@ -6,9 +6,8 @@ import { siteText } from "@/components/site/site-text";
  * Privacy Policy. Plain long-form prose, laid out like a blog post: the
  * padded `max-w-3xl` + Tailwind `prose` wrapper is copied from
  * `app/(home)/blog/[slug]/page.tsx` so a legal page reads like body text
- * rather than like a landing page. Listed in `SITE_DESIGN_ROUTES` in
- * `components/site/site-shell.tsx`, which supplies the light palette, the
- * navigation and the footer.
+ * rather than like a landing page. `app/(home)/layout.tsx` supplies the light
+ * palette, the navigation and the footer.
  *
  * Every factual claim here was checked against the code, not against the
  * previous policy or the marketing copy. The version this replaced described
@@ -63,7 +62,7 @@ export const metadata: Metadata = {
  * `new Date()`: a render-time date causes a hydration mismatch and tells every
  * reader the document changed the moment they opened it.
  */
-const LAST_UPDATED = "October 29, 2026";
+const LAST_UPDATED = "November 5, 2026";
 
 /** Matches the `prose` treatment used for blog posts. */
 const PROSE =
@@ -167,12 +166,12 @@ export default function PrivacyPolicy() {
 							not get through is tried again later. Each report sends the app's version, platform,
 							operating system and interface language, the week the app was installed, why it was
 							sent (the day's report or a new setup step), and whether this is its first daily
-							report ever, this week and this month. From version 2.2.6 it also says how many days
+							report ever, this week and this month. From version 2.3.2 it also says how many days
 							ago the app was installed, in ranges such as 2-3, and whether this is its first daily
 							report in that range. Once a week it adds counts in ranges, such as 10-49, for the
 							past seven days: chat turns, agent turns, whether a local or a remote model answered,
 							the documents in your library, Studio outputs, plugin calls, and how far setup got,
-							and, from version 2.2.6, on how many of the 7 and the 28 days before it SurfSense was
+							and, from version 2.3.2, on how many of the 7 and the 28 days before it SurfSense was
 							used. During the first week every report carries those counts, for the time since
 							installation. The first daily report adds your computer's memory, graphics card maker
 							and graphics memory, also in ranges, and whether SurfSense's model runtime can use the
@@ -188,11 +187,49 @@ export default function PrivacyPolicy() {
 							prompts are involved.
 						</li>
 						<li>
+							<strong>Pages and videos you or the agent read, to each site.</strong> Adding a link
+							in Sources, or the agent reading one, reads that page from its own site on your own
+							connection, as your browser would: the site receives the page's address and your IP
+							address. The agent chooses the addresses it reads, so an address can carry words from
+							your chats or documents, such as a search term, but nothing else from them is sent. A
+							YouTube video's transcript is read the same way, from www.youtube.com. The app asks
+							before it first reads from a site, including one a page sends it on to.
+						</li>
+						<li>
+							<strong>Web search, to searxng.surfsense.com.</strong> A search in Add from the web or
+							by the agent sends what you search for and your IP address to a SearXNG server, which
+							asks search engines for you and returns their links. By default that is our server, as
+							section 4.4 describes; you can name your own in Settings, and then we receive nothing.
+							A search the agent writes can carry words from your chats or documents, but nothing
+							else from them is sent.
+						</li>
+						<li>
 							<strong>Plugins, to plugins.surfsense.com.</strong> Fetching the list of third-party
 							plugins sends your IP address and nothing else. SurfSense's own plugins run on the
 							same service, and using one sends it what each tool needs, such as the page or search
 							you asked the plugin to fetch. For paid plugins the app also sends your licence key so
 							the service can check it, as section 3.3 describes.
+						</li>
+						<li>
+							<strong>Licence server, to api.surfsense.com.</strong> Our licence server renews a
+							Business licence and sends the job plugins a licence includes, and one switch covers
+							both. A Business licence renews every year on the same key. Whenever you choose Check
+							for renewal, in Settings or on the Jobs screen, the app asks for your licence's latest
+							file, whatever its plan, sending your licence key. A licence that includes job
+							plugins, a Business licence or its trial, also has the app ask for each job's latest
+							pack, sending your licence key, the job's code (such as JOB_QUESTIONNAIRE), the
+							version of that job's pack already on your computer, if any, and the job formats your
+							version of the app can run. It asks when you add or replace that licence, after you
+							check for its renewal, and when you choose Download or Check for updates. Every
+							request also sends a user agent that says only SurfSense, and your IP address, as any
+							request does. Once you have allowed it, the app also asks on its own, each time it
+							starts and once a day while it runs: for job plugins, for as long as a licence that
+							includes them is active; for a renewal, only for a Business licence, from 30 days
+							before it ends until 30 days after. A check for a job plugin that comes while a run of
+							that job is under way is made again, on its own, once the run ends. A job pack is data
+							the app reads, not a program, and importing one from a file sends nothing. Off until
+							you allow it, which the app asks about the first time you add a licence that includes
+							job plugins, check for a renewal, or download a job.
 						</li>
 						<li>
 							<strong>The Office pack, from downloadarchive.documentfoundation.org.</strong> Turning
@@ -242,18 +279,40 @@ export default function PrivacyPolicy() {
 						either off for a whole computer. SurfSense's own plugins are separate. That service sees
 						the requests you send them, as section 4.4 describes, and, once you have added a paid
 						one, the licence checks described below, which show it roughly when you open the plugin
-						list or ask the agent something.
+						list or ask the agent something. Our licence server's automatic checks are separate too.
+						Once you allow api.surfsense.com, they tell it, by licence, that the app is running, and
+						our licensing system notes when your licence was last checked. The check for job plugins
+						runs each time the app starts and once a day while it runs, for as long as a licence
+						that includes job plugins is active, a trial included. The renewal check runs at the
+						same times, but only from 30 days before a Business licence ends until 30 days after. A
+						check for a job plugin that comes while a run of that job is under way is made again
+						once the run ends.
 					</p>
 					<p>
 						If you buy a licence, the licence file is verified on your own machine. The app checks
 						its cryptographic signature against a public key compiled into the build, without
-						contacting anyone. The exception is SurfSense's paid plugins. Once you add one and allow
-						plugins.surfsense.com, every request to those plugins carries your licence key. The app
-						also asks that service to check the key: at once when you import or replace a licence,
-						and, at most about every five minutes, when you open the plugin list or before the agent
-						answers, whether or not that answer uses a plugin. If you have not added a paid plugin,
-						your licence key never leaves your machine. The app does not compute or transmit a
-						device fingerprint.
+						contacting anyone. There are two exceptions. The first is SurfSense's paid plugins. Once
+						you add one and allow plugins.surfsense.com, every request to those plugins carries your
+						licence key. The app also asks that service to check the key: at once when you import or
+						replace a licence, and, at most about every five minutes, when you open the plugin list
+						or before the agent answers, whether or not that answer uses a plugin. The second is our
+						licence server, for renewal and job plugins. A Business licence renews every year on the
+						same key, and the app fetches your licence's latest file from api.surfsense.com, sending
+						your licence key, whenever you choose Check for renewal, in Settings or on the Jobs
+						screen, whatever your licence's plan. For a licence that includes job plugins, a
+						Business licence or its trial, the app also asks api.surfsense.com for each job's latest
+						pack, sending your licence key, the job's code, the version of that job's pack already
+						on your computer, if any, and the job formats your version of the app can run: when you
+						add or replace that licence, after you check for its renewal, and when you choose
+						Download or Check for updates. Each request also sends a user agent that says only
+						SurfSense, and your IP address, as any request does. The app also asks on its own, each
+						time it starts and once a day while it runs: for job plugins, for as long as a licence
+						that includes them is active; for a renewal, only for a Business licence, from 30 days
+						before its end until 30 days after. A check for a job plugin that comes while a run of
+						that job is under way is made again once the run ends. It does none of this until you
+						allow api.surfsense.com under Network in Settings. Apart from these two exceptions, your
+						licence key never leaves your machine. The app does not compute or transmit a device
+						fingerprint.
 					</p>
 					<p>
 						The retired 0.0.x desktop app, which wrapped our former hosted service, still sends
@@ -397,6 +456,33 @@ export default function PrivacyPolicy() {
 						with no licence in them, such as how many calls a tool received and how many licences
 						used it, are sent to PostHog.
 					</p>
+					<p>
+						When the app checks for a renewal, our licence server receives your licence key and your
+						IP address, checks the licence with our licensing system and answers with its current
+						licence file. To limit how often one licence or one address can ask, it counts those
+						requests for an hour, under your IP address and under a one-way hash of the key. The
+						request also appears in its server logs for the short time section 8 describes.
+					</p>
+					<p>
+						When the app asks for a job plugin, our licence server receives your licence key, the
+						job's code, the version of its pack you already have, if any, the job formats your app
+						can run, and your IP address. It checks the licence with our licensing system, which
+						notes when your licence was last checked, and answers with the newest pack of that job
+						your licence includes and your app can run, or with the fact that you already have it.
+						To limit how often one licence or one address can ask, it counts those requests under
+						your IP address and under a one-way hash of the key, apart from renewal checks, and
+						drops each count an hour after the last request. The request appears in its server logs
+						for the short time section 8 describes; your licence key does not. Running a job sends
+						us nothing: the app reads your documents on your computer and sends them only to the
+						models you chose for the job, the one that answers and, if you set one, the one that
+						checks.
+					</p>
+					<p>
+						Our web search server at searxng.surfsense.com receives the searches the desktop app
+						sends it, with the IP address each comes from, and asks search engines for results from
+						its own address, so they do not receive yours. It needs no licence and no account. Like
+						our other servers, its logs are short-lived, as section 8 describes.
+					</p>
 
 					<h3>4.5 Hosting and server logs</h3>
 					<p>
@@ -415,8 +501,10 @@ export default function PrivacyPolicy() {
 					<ul>
 						<li>
 							<strong>Contract.</strong> Sending you a licence you asked for, taking payment,
-							providing the plugin service and supporting it, and answering the desktop app's update
-							checks, which is the update service you enabled when you turned them on.
+							providing the plugin service and supporting it, answering the desktop app's update
+							checks, which is the update service you enabled when you turned them on, and sending a
+							licence's latest file, such as a Business licence's renewal, and the job plugins a
+							Business licence or trial includes, when the app asks for them.
 						</li>
 						<li>
 							<strong>Legitimate interests.</strong> Keeping the site available and secure,
@@ -488,11 +576,12 @@ export default function PrivacyPolicy() {
 						as long as the licence is live and for a reasonable period afterwards, so we can resend
 						it and honour support. Payment and invoice records are kept by Stripe and by us for the
 						period tax law requires, commonly six to seven years. Server and edge logs are
-						short-lived, typically days to a few weeks. The plugin service's per-licence daily
-						counts are kept in our own database for 13 months and then deleted; the day a licence
-						first used a plugin is deleted once that licence has made no call for 13 months. Daily
-						totals with no licence in them may be kept longer. Aggregated figures that can no longer
-						identify anyone may be kept indefinitely.
+						short-lived, typically days to a few weeks. The licence server's counts of renewal
+						checks and job plugin requests are dropped an hour after the last request. The plugin
+						service's per-licence daily counts are kept in our own database for 13 months and then
+						deleted; the day a licence first used a plugin is deleted once that licence has made no
+						call for 13 months. Daily totals with no licence in them may be kept longer. Aggregated
+						figures that can no longer identify anyone may be kept indefinitely.
 					</p>
 					<p>
 						Anything inside the desktop app is kept for exactly as long as you keep it, because we

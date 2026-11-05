@@ -53,14 +53,11 @@ SurfSense 是一款免费开源的桌面应用，专为那些不能上传的文�
 | **Windows** x64 | [SurfSense-Setup.exe](https://www.surfsense.com/downloads/windows?src=readme) |
 | **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
 | **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
+| **Docker** Linux, macOS | `curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh \| bash` |
+| **Docker** Windows (Docker Desktop) | `irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 \| iex` |
 
-**用 Docker 在服务器上自托管**，并在你网络中的任何设备上打开。再次运行同一条命令即可更新。
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
-```
-
-在装有 Docker Desktop 的 Windows 上：`irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 | iex`
+> [!NOTE]
+> 用 Docker 在服务器上自托管，并在你网络中的任何设备上打开。再次运行同一条命令即可更新。
 
 ## 快速开始
 
@@ -77,9 +74,10 @@ curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scr
 | **Excel** `.xlsx` | ✓ 智能体还会读取公式 | ✓ 带公式和原生图表 | ✓ 单元格的值和公式 | 用 pandas 分析，并把结果做成图表 |
 | **PowerPoint** `.pptx` | ✓ | ✓ 也可以用你自己的 `.pptx` 作模板 | 替换幻灯片和备注中的文字；删除或复制幻灯片 | 转为 PDF¹ |
 | **CSV** | ✓ | — | — | 用 pandas 分析，并把结果做成图表 |
-| **图像** PNG、JPEG、TIFF、BMP、WebP | ✓ 通过 OCR 识别其中的文字³ | 图像和信息图² | — | 放入新文档 |
+| **图像** PNG、JPEG、TIFF、BMP、WebP | ✓ 通过 OCR 识别其中的文字³ | 图像和信息图，可按指令编辑² | — | 放入新文档 |
 | **Markdown**、纯文本 | ✓ | ✓ Markdown | — | — |
 | **HTML** | ✓ | ✓ 网页 | — | — |
+| **电子书** EPUB、MOBI、AZW3 | ✓ 无 DRM | — | — | — |
 | **录音** WAV、MP3、FLAC、Ogg Vorbis | ✓ 在你的电脑上转写 | — | — | — |
 | **播客**（音频） | — | ✓ 附文字稿，默认在你的电脑上配音 | — | — |
 | **思维导图、记忆卡片、测验** | — | ✓ 在应用内 | — | — |
@@ -90,24 +88,9 @@ curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scr
 
 ## 插件
 
-在**设置 › 插件**中连接它们。
+在**设置 › 插件**中连接它们：来自[插件注册表](backend/plugins/registry)的 MCP 服务器，例如 DeepWiki 和 Notion，或者你通过网址添加的任意服务器。在你允许之前，它们一直保持关闭。
 
-**SurfSense 提供：** 这些插件读取公开网页，不需要你自己的账号，但需要 SurfSense 许可证。[下载应用](https://www.surfsense.com/downloads)并在应用里填写你的邮箱，即可免费获得 14 天的许可证。
-
-| 插件 | 功能 |
-|---|---|
-| **Google Search** | 在 Google 上搜索，并读取搜索结果、广告和相关问题 |
-| **Web Crawl** | 读取单个网页，或把整个网站抓取为干净的文本 |
-| **YouTube** | 读取 YouTube 视频、频道及其评论 |
-| **TikTok** | 读取 TikTok 视频及其评论，搜索用户，查看当前的热门内容 |
-| **Reddit** | 读取 Reddit 的公开帖子及其评论串，或整个社区 |
-| **Instagram** | 读取 Instagram 的公开主页、帖子和 Reels，并搜索主页 |
-| **Google Maps** | 在 Google Maps 上查找地点，并读取这些地点的评价 |
-| **Amazon** | 读取 Amazon 商品和搜索结果 |
-| **Walmart** | 读取 Walmart 商品、搜索结果和评价 |
-| **Indeed** | 读取 Indeed 上的职位信息 |
-
-**第三方：** 来自[插件注册表](backend/plugins/registry)的 MCP 服务器，例如 DeepWiki 和 Notion，或者你通过网址添加的任意服务器。不需要许可证；在你允许之前，它们一直保持关闭。
+**内置且免费：** 智能体以及来源中的**从网页添加**都通过 SearXNG 在网上搜索，并使用你自己的网络连接读取网页和 YouTube 文字稿，既不需要插件，也不需要许可证。
 
 ## SurfSense 与同类工具对比
 

@@ -41,7 +41,7 @@ Electron writes `http://127.0.0.1:<port>` to `api-url` in its data folder, `~/.s
 - Install, then list shows `installed` and no `update`. After a fixture catalog with a newer version this app can run, list shows `update`, and install moves to it.
 - A fixture catalog with a version newer than the app does not offer that version.
 - Run with a missing required input returns 422 and does not insert a run.
-- Run of a `paid` plugin with no license returns 402. With a trial license, it runs.
+- Run of a `paid` plugin with no license, or with a license that does not carry its entitlement, returns 402. With a Business or trial license that carries it, it runs. It still runs within 30 days of a Business license lapsing, and returns 402 after that ([ADR 0080](../../../../adr/0080-surfsense-sells-one-business-license-priced-per-person.md)).
 - Run of a plugin with two declared hosts, neither allowed, returns 403 naming both, and does not insert a run.
 - Run of an installed version blocked for this app returns 409 `cannot_run` with the reason and an offer, and list shows the same.
 - A successful run of `backend/plugins/bundles/example` returns a run id; polling the run reaches `succeeded`; a note exists in the workspace, and its `document_metadata` names the plugin, its version and the run.

@@ -43,7 +43,7 @@ export function DashboardColumns({
   return (
     <section
       ref={sectionRef}
-      className="my-2 mr-2 flex min-h-0 min-w-0 overflow-hidden rounded-[16px] border bg-background shadow-sm"
+      className="my-(--columns-gap) mr-2 flex min-h-0 min-w-0 overflow-hidden rounded-[16px] border bg-background shadow-sm"
     >
       <ColumnsContext.Provider value={columns}>
         {children}
@@ -65,13 +65,20 @@ export function SidebarColumn({
     <div
       id={id}
       className={cn(
-        "flex h-full min-h-0 min-w-68 flex-col transition-[width] duration-[240ms] ease-[cubic-bezier(0.4,0,0.2,1)] motion-reduce:transition-none",
+        "flex h-full min-h-0 min-w-68 flex-col transition-[width] duration-240 ease-in-out motion-reduce:transition-none",
         !columns.animate && "transition-none"
       )}
       style={{ width: columns.sidebar.width }}
     >
       {children}
     </div>
+  )
+}
+
+/** The chat's column, which takes what the other two leave. */
+export function ChatColumn({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex min-h-0 min-w-130 flex-1 flex-col">{children}</div>
   )
 }
 

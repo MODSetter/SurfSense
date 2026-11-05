@@ -11,8 +11,11 @@ import type { TrialOutcome } from "./trial-outcome";
 /** Skips the batch queue and goes by beacon, so it survives leaving for Stripe. */
 const SURVIVES_NAVIGATION = { send_instantly: true, transport: "sendBeacon" } as const;
 
-export function trackCheckoutStarted(channel: string): void {
-	capture("checkout_started", { plan: "individual", channel }, SURVIVES_NAVIGATION);
+/** The plans with a checkout page: Individual until Business goes on sale, then Business. */
+export type CheckoutPlan = "individual" | "business";
+
+export function trackCheckoutStarted(plan: CheckoutPlan, channel: string): void {
+	capture("checkout_started", { plan, channel }, SURVIVES_NAVIGATION);
 }
 
 export function trackTrialRequested(outcome: TrialOutcome, channel: string): void {

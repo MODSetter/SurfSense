@@ -1,6 +1,6 @@
 # Contract 5: desktop telemetry
 
-What the desktop app may send about itself, and only with the user's yes: at most one automatic update check per UTC day, plus the checks the user starts, and an opt-in usage report. Version 1, revision 1.2 (29 Oct 2026). Revision 1.1 adds the first week's setup reports, the report's `trigger` and `hardware.gpu_runtime`. Revision 1.2 adds `install_age`, `active.age` and the week's `days_used_7` and `days_used_28`, so retention and how often an install is used read by cohort with no ID. The schema number stays 1 and every addition is optional, so a 2.2.4 or 2.2.5 app's reports stay valid. The reverse does not hold: the route before revision 1.1 answers 400 to `trigger`, `gpu_runtime`, and `week` or `hardware` outside its flags, and the route before revision 1.2 answers 400 to `install_age`, `active.age` and `days_used_*`, so the `/api/usage` route that accepts a revision is deployed to `usage.surfsense.com` before any app that sends it is released. It binds four parts that ship apart: the Electron main process, the app's UI, the app's local API, and the website routes at `updates.surfsense.com` and `usage.surfsense.com`. Why the app sends anything at all is [ADR 0070](../adr/0070-opt-in-id-less-update-checks-and-usage-statistics.md); how the app does it is [usage statistics](../architecture/usage-statistics.md) and [updates](../architecture/updates.md).
+What the desktop app may send about itself, and only with the user's yes: at most one automatic update check per UTC day, plus the checks the user starts, and an opt-in usage report. Version 1, revision 1.2 (29 Oct 2026). Revision 1.1 adds the first week's setup reports, the report's `trigger` and `hardware.gpu_runtime`. Revision 1.2 adds `install_age`, `active.age` and the week's `days_used_7` and `days_used_28`, so retention and how often an install is used read by cohort with no ID. The schema number stays 1 and every addition is optional, so the reports of an app from 2.2.4 to 2.3.1 stay valid. The reverse does not hold: the route before revision 1.1 answers 400 to `trigger`, `gpu_runtime`, and `week` or `hardware` outside its flags, and the route before revision 1.2 answers 400 to `install_age`, `active.age` and `days_used_*`, so the `/api/usage` route that accepts a revision is deployed to `usage.surfsense.com` before any app that sends it is released. It binds four parts that ship apart: the Electron main process, the app's UI, the app's local API, and the website routes at `updates.surfsense.com` and `usage.surfsense.com`. Why the app sends anything at all is [ADR 0070](../adr/0070-opt-in-id-less-update-checks-and-usage-statistics.md); how the app does it is [usage statistics](../architecture/usage-statistics.md) and [updates](../architecture/updates.md).
 
 No part of this contract carries an identifier. Not `x-user-staging-id`, not a licence key, not an install ID, not a cookie, anywhere.
 
@@ -48,7 +48,7 @@ The body, schema 1. Every value is an enum, a boolean or a fixed format, never f
 ```json
 {
   "schema": 1,
-  "app_version": "2.2.6",
+  "app_version": "2.3.2",
   "platform": "win32-x64",
   "os": "windows-11",
   "ui_language": "en",
@@ -76,7 +76,7 @@ A setup report in the first week, on a machine whose card the model runtime cann
 ```json
 {
   "schema": 1,
-  "app_version": "2.2.6",
+  "app_version": "2.3.2",
   "platform": "win32-x64",
   "os": "windows-11",
   "ui_language": "en",

@@ -53,14 +53,11 @@ SurfSense は、アップロードできない文書のための、無料のオ�
 | **Windows** x64 | [SurfSense-Setup.exe](https://www.surfsense.com/downloads/windows?src=readme) |
 | **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
 | **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
+| **Docker** Linux, macOS | `curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh \| bash` |
+| **Docker** Windows (Docker Desktop) | `irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 \| iex` |
 
-**Docker でサーバーにセルフホスト**し、ネットワーク上のどのデバイスからでも開けます。更新するには、同じコマンドをもう一度実行してください。
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
-```
-
-Windows（Docker Desktop）の場合：`irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 | iex`
+> [!NOTE]
+> Docker でサーバーにセルフホストし、ネットワーク上のどのデバイスからでも開けます。更新するには、同じコマンドをもう一度実行してください。
 
 ## クイックスタート
 
@@ -77,9 +74,10 @@ Windows（Docker Desktop）の場合：`irm https://raw.githubusercontent.com/MO
 | **Excel** `.xlsx` | ✓ エージェントは数式も読み取る | ✓ 数式とネイティブのグラフ付き | ✓ セルの値と数式 | pandas で分析し、結果をグラフにする |
 | **PowerPoint** `.pptx` | ✓ | ✓ 自分の `.pptx` をテンプレートにすることも可能 | スライドとノートのテキストを置換。スライドの削除や複製 | PDF へ¹ |
 | **CSV** | ✓ | — | — | pandas で分析し、結果をグラフにする |
-| **画像** PNG、JPEG、TIFF、BMP、WebP | ✓ 文字は OCR で読み取る³ | 画像とインフォグラフィック² | — | 新しい文書に配置する |
+| **画像** PNG、JPEG、TIFF、BMP、WebP | ✓ 文字は OCR で読み取る³ | 画像とインフォグラフィック、指示で編集² | — | 新しい文書に配置する |
 | **Markdown**、プレーンテキスト | ✓ | ✓ Markdown | — | — |
 | **HTML** | ✓ | ✓ Webページ | — | — |
+| **電子書籍** EPUB、MOBI、AZW3 | ✓ DRM なし | — | — | — |
 | **録音** WAV、MP3、FLAC、Ogg Vorbis | ✓ 自分のマシン上で文字起こし | — | — | — |
 | **ポッドキャスト**（音声） | — | ✓ 文字起こし付き。初期状態では自分のマシン上で読み上げる | — | — |
 | **マインドマップ、フラッシュカード、クイズ** | — | ✓ アプリ内で | — | — |
@@ -90,24 +88,9 @@ Windows（Docker Desktop）の場合：`irm https://raw.githubusercontent.com/MO
 
 ## プラグイン
 
-**設定 › プラグイン**で接続します。
+**設定 › プラグイン**で、[プラグインレジストリ](backend/plugins/registry)にある DeepWiki や Notion などの MCP サーバーや、URL を指定して自分で追加したサーバーを接続します。許可するまではオフのままです。
 
-**SurfSense提供。** 自分のアカウントを使わずに公開ページを読み取ります。利用には SurfSense ライセンスが必要です。[アプリをダウンロード](https://www.surfsense.com/downloads)し、アプリでメールアドレスを入力すると、14 日間の無料ライセンスを受け取れます。
-
-| プラグイン | できること |
-|---|---|
-| **Google Search** | Google で検索し、検索結果、広告、関連する質問を読み取る |
-| **Web Crawl** | Webページを読み取るか、サイト全体をクロールしてクリーンなテキストにする |
-| **YouTube** | YouTube の動画、チャンネル、それらのコメントを読み取る |
-| **TikTok** | TikTok の動画とそのコメントを読み取り、ユーザーを検索し、トレンドを確認する |
-| **Reddit** | Reddit の公開投稿とそのコメントスレッド、またはコミュニティ全体を読み取る |
-| **Instagram** | Instagram の公開プロフィール、投稿、リールを読み取り、プロフィールを検索する |
-| **Google Maps** | Google Maps で場所を探し、そのレビューを読み取る |
-| **Amazon** | Amazon の商品と検索結果を読み取る |
-| **Walmart** | Walmart の商品、検索結果、レビューを読み取る |
-| **Indeed** | Indeed の求人情報を読み取る |
-
-**サードパーティ。** [プラグインレジストリ](backend/plugins/registry)にある DeepWiki や Notion などの MCP サーバーや、URL を指定して自分で追加したサーバーです。ライセンスは不要で、許可するまではオフのままです。
+**標準搭載・無料：** エージェントも、ソースにある**ウェブから追加**も、SearXNG を通じてウェブを検索し、自分のインターネット接続でページと YouTube の文字起こしを読み取ります。プラグインもライセンスも不要です。
 
 ## SurfSenseの比較
 

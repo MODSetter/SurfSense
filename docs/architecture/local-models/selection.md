@@ -22,7 +22,7 @@ type is the slot.
 |---|---|---|---|
 | `text_gen` | `llamacpp`, the bundled runtime | `openai_compatible`, with a `connection_id` | chat, titles, Studio's writing |
 | `image_gen` | `sdcpp`, the bundled sd-server | `openai_compatible`, with a `connection_id` | Studio's `image` and `infographic` |
-| `image_edit` | `sdcpp`, a model whose entry names `edit` | `openai_compatible`, with a `connection_id` | nothing yet |
+| `image_edit` | `sdcpp`, a model whose entry names `edit` | `openai_compatible`, with a `connection_id` | Studio's image and infographic edits ([studio](../studio.md#editing-a-picture)) |
 | `audio_gen` | `audiocpp`, the bundled audio.cpp server | `openai_compatible`, with a `connection_id` | Studio's `podcast` |
 | `video_gen` | `sdcpp`, a model whose entry has a `video` block | `openai_compatible`, with a `connection_id` | nothing yet |
 | `speech_to_text` | `audiocpp`, a recogniser, run on a second audio.cpp server | none: local only | the transcription routes ([admission](admission.md#speech-recognition)), which a recording's ingest calls ([documents](../documents.md#recordings)) |
@@ -202,13 +202,15 @@ route. Only the onboarding page's last step does, once a chat model is
 persisted. Once the marker exists the app never shows onboarding again, and a
 missing selection is fixed from Settings' Chat section.
 
-The onboarding page opens on a welcome screen, then six steps: chat, image, image editing, audio, video and search model. The welcome is not counted as a step, but it is part of onboarding and gated by the same marker, so it is never shown again once onboarding is done.
+The onboarding page opens on a welcome screen, then the privacy choices ([usage statistics](../usage-statistics.md#consent)), then two model steps: chat and search model. The welcome is not counted as a step, but it is part of onboarding and gated by the same marker, so it is never shown again once onboarding is done. Image, image editing, audio and video models are not asked for: they are chosen in Settings, and the feature that needs one says so.
 
 The embedding step comes last and is not a slot, but it is the same component
-as the model steps below, with one more entry in their tables
+as the chat step below, with its own entry in their tables
 ([`model-step/`](../../../surfsense_local/frontend/src/features/onboarding/model-step/)).
-What a step does on Use is its own hook: a slot's saves the selection, and the
-embedding step's ([`use-embedding-step.ts`](../../../surfsense_local/frontend/src/features/onboarding/model-step/kinds/use-embedding-step.ts))
+What a step does on Use is its own hook: the chat step's
+([`use-chat-step.ts`](../../../surfsense_local/frontend/src/features/onboarding/model-step/kinds/use-chat-step.ts))
+saves the selection, and the embedding step's
+([`use-embedding-step.ts`](../../../surfsense_local/frontend/src/features/onboarding/model-step/kinds/use-embedding-step.ts))
 only marks a choice, In use until another is used, bge-small by default and again
 if the chosen one is deleted. Its downloads install with `select: false`; a
 Hugging Face pick is labelled not tested by SurfSense; the bundled bge-small has
@@ -220,21 +222,17 @@ Finish sends the choice with the call that ends onboarding; Skip and finish, or
 Finish with the choice untouched, sends none, which means bge-small
 ([embedding](../embedding.md)).
 
-The model steps are one component for any slot
+The model steps are one component
 ([`frontend/src/features/onboarding/model-step/`](../../../surfsense_local/frontend/src/features/onboarding/model-step/)),
-built on the same hooks as Settings but with its own screens. Each lists every
-model this computer can run at once: in the chat step, models downloaded from Hugging Face first, then the curated list with its starred row first, with
+built on the same hooks as Settings but with its own screens. The chat step lists every
+model this computer can run at once: models downloaded from Hugging Face first, then the curated list with its starred row first, with
 Download, Use and Delete as in Settings, and no Delete on a model the app ships; a download's progress shows under its
-row and never moves the page. The chat step also offers Settings' Hugging Face
-search, closed until asked for; the image, image editing, audio and video steps have none, since
-sd.cpp's and audio.cpp's models are the few the catalog ships. The image editing step lists first the model chosen for images earlier when it edits too, so FLUX.2 klein is one Use away, and its downloads fill `image_edit`. A server sits one line below the list and names
-any connected earlier. Once the slot has a model, the footer names it beside
-Continue. Onboarding installs with `select: true`, so a download is also the
-choice; Settings installs with `select: false`. The chat step's Continue is
-enabled only once a chat model is selected, local or from a server. The image,
-image editing, audio and video steps are optional, and each enables its Continue or Finish only once
-its slot has a model. Each step's Skip and Continue move on to the next, image
-to image editing to audio to video. The last step's buttons read Skip and finish and Finish, and both post the marker.
+row and never moves the page. It also offers Settings' Hugging Face
+search, closed until asked for. A server sits one line below the list and names
+any connected earlier. Once a chat model is chosen, the footer names it beside
+Continue. The chat step installs with `select: true`, so a download is also the
+choice; Settings installs with `select: false`. Its Continue is
+enabled only once a chat model is selected, local or from a server, and it has no Skip. The embedding step's buttons read Skip and finish and Finish, and both post the marker.
 
 ## Resolution: local and remote
 

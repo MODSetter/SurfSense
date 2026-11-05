@@ -53,14 +53,11 @@ SurfSense — бесплатное настольное приложение с 
 | **Windows** x64 | [SurfSense-Setup.exe](https://www.surfsense.com/downloads/windows?src=readme) |
 | **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
 | **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
+| **Docker** Linux, macOS | `curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh \| bash` |
+| **Docker** Windows (Docker Desktop) | `irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 \| iex` |
 
-**Разверните на своём сервере** с Docker и открывайте с любого устройства в вашей сети. Чтобы обновить, запустите ту же команду ещё раз.
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
-```
-
-В Windows с Docker Desktop: `irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 | iex`
+> [!NOTE]
+> С Docker вы разворачиваете его на своём сервере и открываете с любого устройства в вашей сети. Чтобы обновить, запустите ту же команду ещё раз.
 
 ## Быстрый старт
 
@@ -77,9 +74,10 @@ curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scr
 | **Excel** `.xlsx` | ✓ агент читает и формулы | ✓ с формулами и нативными диаграммами | ✓ значения ячеек и формулы | Анализ в pandas, диаграммы по результатам |
 | **PowerPoint** `.pptx` | ✓ | ✓ или на основе вашего `.pptx` как шаблона | Замена текста на слайдах и в заметках; удаление и дублирование слайдов | В PDF¹ |
 | **CSV** | ✓ | — | — | Анализ в pandas, диаграммы по результатам |
-| **Изображения** PNG, JPEG, TIFF, BMP, WebP | ✓ текст распознаётся через OCR³ | Изображения и инфографика² | — | Вставка в новые документы |
+| **Изображения** PNG, JPEG, TIFF, BMP, WebP | ✓ текст распознаётся через OCR³ | Изображения и инфографика, с правкой по инструкции² | — | Вставка в новые документы |
 | **Markdown**, обычный текст | ✓ | ✓ Markdown | — | — |
 | **HTML** | ✓ | ✓ веб-страница | — | — |
+| **Книги** EPUB, MOBI, AZW3 | ✓ без DRM | — | — | — |
 | **Аудиозаписи** WAV, MP3, FLAC, Ogg Vorbis | ✓ расшифровываются на вашем компьютере | — | — | — |
 | **Подкаст** (аудио) | — | ✓ с расшифровкой, по умолчанию озвучивается на вашем компьютере | — | — |
 | **Интеллект-карты, карточки, тесты** | — | ✓ в приложении | — | — |
@@ -91,24 +89,9 @@ curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scr
 
 ## Плагины
 
-Подключите их в разделе **Настройки › Плагины**.
+Подключите их в разделе **Настройки › Плагины**: MCP-серверы из [реестра плагинов](backend/plugins/registry), например DeepWiki и Notion, или любые другие, которые вы добавите по URL. Они остаются выключенными, пока вы их не разрешите.
 
-**От SurfSense.** Они читают общедоступные страницы без ваших собственных аккаунтов, и для них нужна лицензия SurfSense: [скачайте приложение](https://www.surfsense.com/downloads) и введите в нём свою почту, чтобы получить бесплатную лицензию на 14 дней.
-
-| Плагин | Что делает |
-|---|---|
-| **Google Search** | Ищет в Google и читает результаты, рекламу и похожие вопросы |
-| **Web Crawl** | Читает веб-страницу или обходит весь сайт, превращая его в чистый текст |
-| **YouTube** | Читает видео и каналы YouTube, а также комментарии к ним |
-| **TikTok** | Читает видео TikTok и комментарии к ним, ищет пользователей и показывает, что сейчас в тренде |
-| **Reddit** | Читает публичные посты Reddit с ветками комментариев или целое сообщество |
-| **Instagram** | Читает публичные профили, посты и рилсы Instagram и ищет профили |
-| **Google Maps** | Находит места на Google Maps и читает отзывы о них |
-| **Amazon** | Читает карточки товаров и результаты поиска на Amazon |
-| **Walmart** | Читает карточки товаров, результаты поиска и отзывы на Walmart |
-| **Indeed** | Читает вакансии на Indeed |
-
-**Сторонние.** MCP-серверы из [реестра плагинов](backend/plugins/registry), например DeepWiki и Notion, или любые другие, которые вы добавите по URL. Лицензия не нужна; они остаются выключенными, пока вы их не разрешите.
+**Встроено и бесплатно:** агент и **Добавить из интернета** в разделе «Источники» ищут в интернете через SearXNG, а страницы и расшифровки YouTube читают через ваше собственное подключение, без плагина и без лицензии.
 
 ## Сравнение
 

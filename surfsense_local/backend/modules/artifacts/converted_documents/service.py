@@ -13,8 +13,8 @@ from modules.artifacts.converted_documents.input_file import (
     input_file,
 )
 from modules.artifacts.models import Artifact
+from modules.artifacts.queued_job import queue_job
 from modules.artifacts.script_documents.version import ArtifactVersion
-from modules.artifacts.tasks import studio_job
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.embedding.active import EmbeddingNotChosenError, require_active_index
 from modules.workspaces.models import Workspace
@@ -69,7 +69,6 @@ def create_conversion(
         ),
         "prompt": None,
     }
-    session.commit()
-    studio_job(artifact.id)
+    queue_job(session, artifact)
     logger.info("studio: enqueued conversion %s to pdf", artifact.id)
     return artifact

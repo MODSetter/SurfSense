@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from api.dependencies import SessionDep, transact
 from modules.egress import service as egress
+from modules.jobs.settings.deleted_connection import forget_connection
 from modules.llm.capability import capability_of
 from modules.llm.catalog.remote.manifest.loader import remote_lookup
 from modules.llm.catalog.remote.reads_images import remote_reads_images
@@ -253,6 +254,7 @@ def delete_connection(connection_id: int, session: SessionDep) -> Response:
     revoke = forgotten is not None and revocation.may_revoke(session)
     session.delete(connection)
     session.flush()
+    forget_connection(session, connection_id)
     egress.forget_if_unused(session, egress.host_destination(connection.base_url))
     if connection.auth_kind == CLAUDE_PLAN:
         # No connection names the sign-in host, so nothing else would clear it.
@@ -360,17 +362,8 @@ async def test_connection_image(
     connection = await transact(session, allowed_connection, connection_id)
     _require_serves(connection, ModelType.IMAGE_GEN)
 
-    async def allow_url_host(url: str) -> None:
-        # A 403 like the connection's own, so the renderer asks about this host.
-        refused = await transact(session, egress.refused_named_host, url)
-        if refused is not None:
-            raise refused
-
     provider = OpenAICompatibleImageProvider(
-        connection.id,
-        connection.base_url,
-        connection.api_key,
-        allow_url_host=allow_url_host,
+        connection.id, connection.base_url, connection.api_key
     )
     model = _requested_model(payload)
     try:

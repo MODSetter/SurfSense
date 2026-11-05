@@ -1,0 +1,6 @@
+{
+	"title": "Plugins",
+	"icon": "Plug",
+	"defaultOpen": false,
+	"pages": ["third-party"]
+}

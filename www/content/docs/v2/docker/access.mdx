@@ -1,0 +1,92 @@
+---
+title: Sign-in and password
+description: The password that protects a SurfSense Docker install, sessions, and turning sign-in off
+---
+
+Every SurfSense Docker install asks for one password. There are no accounts: one person uses SurfSense, as on the desktop, from as many devices as they like. The desktop app has none of this.
+
+## Create the password
+
+The first time anyone opens a new install, SurfSense shows **Set up SurfSense**. Enter a password of at least 8 characters and choose **Create password**. Until a password exists, the log says:
+
+```text
+[headless] No password yet. Open SurfSense in a browser to create one, or set SURFSENSE_PASSWORD and restart.
+```
+
+After that, each browser shows **Sign in to SurfSense**. Enter the password and choose **Sign in**.
+
+## Set the password before the first start
+
+By default SurfSense is published on every network the server is on, and Docker's published ports pass the server's firewall, `ufw` included. On a server reachable from the internet, such as a VPS, whoever reaches a new install first would create its password.
+
+Set it in `.env` before the first `docker compose up -d`:
+
+```dotenv
+SURFSENSE_PASSWORD=choose-a-long-password
+```
+
+With the one-line installer, which starts SurfSense straight away, either install with `SURFSENSE_BIND=127.0.0.1` first or install the [manual way](/docs/v2/docker#install-with-docker-compose-by-hand) and edit `.env` before starting.
+
+A password set this way is applied at every start, and the app shows it locked. **Settings › Access** says: "This password is set where SurfSense is installed. To change it, update SurfSense’s setup on that computer, then restart it."
+
+## Change the password
+
+Who changes it depends on where it was set.
+
+| Set in | Change it |
+|---|---|
+| The app | **Settings › Access**: enter **Current password** and **New password**, then **Change password**. |
+| `SURFSENSE_PASSWORD` | Change the value in `.env`, then `docker compose up -d`. |
+
+Changing the password signs every other device out. The browser you changed it in stays signed in.
+
+To hand a password set in `.env` over to the app, remove `SURFSENSE_PASSWORD` from `.env` and run `docker compose up -d`. The current password keeps working, and **Settings › Access** can change it from then on. Removing the variable never removes the password.
+
+## Reset a forgotten password
+
+Set a new one in `.env` and restart:
+
+```dotenv
+SURFSENSE_PASSWORD=your-new-password
+```
+
+```bash
+docker compose up -d
+```
+
+Sign in with the new password. To manage it in the app again, remove the line and run `docker compose up -d` once more.
+
+## Sessions
+
+- A sign-in lasts 30 days per browser.
+- **Settings › Access › Sign out** signs out this browser only. Other devices stay signed in.
+- Five wrong passwords from one client within a minute make SurfSense wait before it accepts another try.
+
+## Turn sign-in off
+
+```dotenv
+SURFSENSE_AUTH=none
+SURFSENSE_ALLOWED_HOSTS=surfsense.lan
+```
+
+SurfSense then opens for anyone who reaches it, with no setup and no sign-in, and the log warns at every start. **Settings › Access** says: "Sign-in is turned off where SurfSense is installed. Anyone who can reach it can use it."
+
+<Callout type="warn" title="Only behind something that decides who gets in">
+Without a password, anyone who reaches SurfSense gets your documents, chats, plugins and API keys. Turn sign-in off only when something else decides who can reach it:
+
+- the server alone, with `SURFSENSE_BIND=127.0.0.1`, since the default publishes on every network;
+- a VPN such as Tailscale;
+- a reverse proxy with its own login, such as Cloudflare Access or Authelia.
+
+Name your hosts in `SURFSENSE_ALLOWED_HOSTS` too. Without a password, that list is what stops a web page from rebinding its own name to your server.
+</Callout>
+
+`SURFSENSE_AUTH` takes only an empty value or `none`. Anything else stops SurfSense at start, with the reason in the log.
+
+## Security notes
+
+- **Use HTTPS on a network.** Over plain HTTP the password and the session cookie cross the network unencrypted. See [HTTPS](/docs/v2/docker/configuration#https).
+- **The password is never stored.** SurfSense keeps only a salted scrypt hash, in `access.json` in the data volume.
+- **Every request is checked** before it reaches the app. Without a session, only the app's own files, sign-in, and the plugin and ChatGPT sign-in callbacks get through.
+- **Names you didn't allow are refused,** with sign-in on or off, once `SURFSENSE_ALLOWED_HOSTS` is set.
+- **Internal routes are never reachable** from a browser, signed in or not.

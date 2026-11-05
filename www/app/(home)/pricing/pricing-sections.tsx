@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { PlatformsTooltip } from "@/app/(home)/pricing/platforms-tooltip";
 import {
-	PLANS,
 	type Plan,
-	PRICING_FAQ,
+	type PricingLede,
+	type PricingQuestion,
 	SELF_BUILD_URL,
 } from "@/app/(home)/pricing/pricing-content";
 import { HomeBadge } from "@/components/site/home-badge";
@@ -48,15 +48,15 @@ function renderFeature(feature: string) {
  * table. Burying it reads as a bait-and-switch to an audience that arrived via
  * the words "open source".
  */
-export function PricingHero() {
+export function PricingHero({ lede }: { lede: PricingLede }) {
 	return (
 		<section className={cn("text-center", sectionSpacing.head)}>
 			<HomeBadge>Free forever</HomeBadge>
 			<h1 className={cn(siteText.display, "mt-4")}>Pricing</h1>
 			<p className={cn(siteText.lede, "mx-auto mt-8 max-w-2xl")}>
-				The app and every update are <span className="text-primary">free, forever</span>, with no
-				account, no trial clock and no usage cap. A licence adds the scraper plugins and priority
-				support, and a 30-day one comes with the app.
+				{lede.before}
+				<span className="text-primary">{lede.highlight}</span>
+				{lede.after}
 			</p>
 			<p className={cn(siteText.body, "mx-auto mt-5 max-w-2xl text-sm")}>
 				Prefer to build it yourself?{" "}
@@ -87,7 +87,7 @@ function PlanCard({ plan }: { plan: Plan }) {
 					<span className={siteText.eyebrow}>{plan.name}</span>
 					{plan.featured ? (
 						<span className="rounded-full bg-foreground px-2.5 py-1 text-xs font-medium whitespace-nowrap text-background">
-							Most popular
+							{plan.badge ?? "Most popular"}
 						</span>
 					) : null}
 				</p>
@@ -145,11 +145,11 @@ function PlanCard({ plan }: { plan: Plan }) {
 	);
 }
 
-export function PricingPlans() {
+export function PricingPlans({ plans }: { plans: Plan[] }) {
 	return (
 		<section className={sectionSpacing.foot}>
 			<div className="ss-home-plans mt-12 grid gap-4 md:grid-cols-3 lg:mt-16">
-				{PLANS.map((plan) => (
+				{plans.map((plan) => (
 					<PlanCard key={plan.name} plan={plan} />
 				))}
 			</div>
@@ -158,7 +158,7 @@ export function PricingPlans() {
 }
 
 /** Headed and ruled like the homepage FAQ, one flat list. */
-export function PricingQuestions() {
+export function PricingQuestions({ questions }: { questions: PricingQuestion[] }) {
 	return (
 		<section className={sectionSpacing.foot} aria-labelledby="ss-pricing-faq-label">
 			<div className={cn("text-center", sectionSpacing.head)}>
@@ -169,14 +169,14 @@ export function PricingQuestions() {
 			</div>
 
 			<div className="ss-home-grid mt-10 border-t border-border lg:mt-14">
-				{PRICING_FAQ.map((item) => (
+				{questions.map((item) => (
 					<SiteFaqItem key={item.question} question={item.question}>
 						<p className={siteText.body}>{item.answer}</p>
 					</SiteFaqItem>
 				))}
 			</div>
 
-			<FAQJsonLd questions={PRICING_FAQ} />
+			<FAQJsonLd questions={questions} />
 		</section>
 	);
 }

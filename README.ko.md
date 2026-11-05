@@ -53,14 +53,11 @@ SurfSense는 업로드할 수 없는 문서를 위한 무료 오픈소스 데스
 | **Windows** x64 | [SurfSense-Setup.exe](https://www.surfsense.com/downloads/windows?src=readme) |
 | **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
 | **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
+| **Docker** Linux, macOS | `curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh \| bash` |
+| **Docker** Windows (Docker Desktop) | `irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 \| iex` |
 
-**Docker로 서버에 직접 호스팅**하고, 네트워크의 어느 기기에서든 여세요. 업데이트하려면 같은 명령을 다시 실행하세요.
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
-```
-
-Docker Desktop이 설치된 Windows에서: `irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 | iex`
+> [!NOTE]
+> Docker로 서버에 직접 호스팅하고, 네트워크의 어느 기기에서든 열 수 있습니다. 업데이트하려면 같은 명령을 다시 실행하세요.
 
 ## 빠른 시작
 
@@ -77,9 +74,10 @@ Docker Desktop이 설치된 Windows에서: `irm https://raw.githubusercontent.co
 | **Excel** `.xlsx` | ✓ 에이전트가 수식도 읽음 | ✓ 수식과 네이티브 차트 포함 | ✓ 셀 값과 수식 | pandas로 분석하고 결과를 차트로 |
 | **PowerPoint** `.pptx` | ✓ | ✓ 또는 내 `.pptx`를 템플릿으로 | 슬라이드와 노트의 텍스트 바꾸기, 슬라이드 삭제·복제 | PDF로¹ |
 | **CSV** | ✓ | — | — | pandas로 분석하고 결과를 차트로 |
-| **이미지** PNG, JPEG, TIFF, BMP, WebP | ✓ OCR로 텍스트 인식³ | 이미지와 인포그래픽² | — | 새 문서에 넣기 |
+| **이미지** PNG, JPEG, TIFF, BMP, WebP | ✓ OCR로 텍스트 인식³ | 이미지와 인포그래픽, 지시로 편집² | — | 새 문서에 넣기 |
 | **Markdown**, 일반 텍스트 | ✓ | ✓ Markdown | — | — |
 | **HTML** | ✓ | ✓ 웹 페이지 | — | — |
+| **전자책** EPUB, MOBI, AZW3 | ✓ DRM 없는 책 | — | — | — |
 | **녹음 파일** WAV, MP3, FLAC, Ogg Vorbis | ✓ 내 컴퓨터에서 텍스트로 변환 | — | — | — |
 | **팟캐스트** (오디오) | — | ✓ 스크립트 포함, 기본적으로 내 컴퓨터에서 음성 생성 | — | — |
 | **마인드맵, 플래시카드, 퀴즈** | — | ✓ 앱 안에서 | — | — |
@@ -91,24 +89,9 @@ Docker Desktop이 설치된 Windows에서: `irm https://raw.githubusercontent.co
 
 ## 플러그인
 
-**설정 › 플러그인**에서 연결하세요.
+**설정 › 플러그인**에서 [플러그인 레지스트리](backend/plugins/registry)에 있는 DeepWiki, Notion 같은 MCP 서버 또는 URL로 직접 추가한 서버를 연결하세요. 허용하기 전까지 꺼져 있습니다.
 
-**SurfSense 제공.** 내 계정 없이 공개 페이지를 읽으며, SurfSense 라이선스가 필요합니다. [앱을 다운로드](https://www.surfsense.com/downloads)한 다음 앱에서 이메일을 입력하면 14일 무료 라이선스를 받을 수 있습니다.
-
-| 플러그인 | 하는 일 |
-|---|---|
-| **Google Search** | Google에서 검색하고 검색 결과, 광고, 관련 질문 읽기 |
-| **Web Crawl** | 웹 페이지를 읽거나 사이트 전체를 크롤링해 깔끔한 텍스트로 만들기 |
-| **YouTube** | YouTube 동영상, 채널, 댓글 읽기 |
-| **TikTok** | TikTok 동영상과 댓글 읽기, 사용자 검색, 지금 인기 있는 콘텐츠 보기 |
-| **Reddit** | Reddit 공개 게시물과 댓글 스레드, 또는 커뮤니티 전체 읽기 |
-| **Instagram** | Instagram 공개 프로필, 게시물, 릴스 읽기, 프로필 검색 |
-| **Google Maps** | Google Maps에서 장소를 찾고 리뷰 읽기 |
-| **Amazon** | Amazon 상품과 검색 결과 읽기 |
-| **Walmart** | Walmart 상품, 검색 결과, 리뷰 읽기 |
-| **Indeed** | Indeed의 채용 공고 읽기 |
-
-**서드파티.** [플러그인 레지스트리](backend/plugins/registry)에 있는 DeepWiki, Notion 같은 MCP 서버 또는 URL로 직접 추가한 서버입니다. 라이선스는 필요 없으며, 허용하기 전까지 꺼져 있습니다.
+**기본 제공, 무료:** 에이전트도 소스에 있는 **웹에서 추가**도 SearXNG 서버를 통해 웹을 검색하고, 내 인터넷 연결로 페이지와 YouTube 스크립트를 읽습니다. 플러그인도 라이선스도 필요 없습니다.
 
 ## 비교
 

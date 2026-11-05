@@ -3,10 +3,11 @@ then: the weights stay resident until the process exits."""
 
 from datetime import datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import Row, select
 from sqlalchemy.orm import Session
 
 from modules.artifacts.formats import FORMATS, Format
+from modules.artifacts.image_edits.recipe import image_edit_of
 from modules.artifacts.models import Artifact
 from modules.documents.models import Document, DocumentStatus
 from modules.llm.model_type import ModelType
@@ -26,9 +27,12 @@ def local_image_demand(session: Session, now: datetime) -> ModelType | None:
     window at once: sd-server cannot stop a generation, so stopping the
     process is the cancel."""
     needs = {fmt.key: slot for fmt in FORMATS if (slot := _image_type(fmt))}
-    studio = select(Artifact.format, Document.status, Document.updated_at).join(
-        Document, Artifact.document_id == Document.id
-    )
+    studio = select(
+        Artifact.format,
+        Artifact.artifact_metadata,
+        Document.status,
+        Document.updated_at,
+    ).join(Document, Artifact.document_id == Document.id)
     jobs = studio.where(Artifact.format.in_(needs))
     running = session.execute(
         jobs.where(Document.status == DocumentStatus.PROCESSING)
@@ -36,7 +40,7 @@ def local_image_demand(session: Session, now: datetime) -> ModelType | None:
         .limit(1)
     ).first()
     if running is not None:
-        return needs[running.format]
+        return _job_type(running, needs)
     # A podcast voices on the processor and a text job loads the chat model;
     # either needs the memory more than a second image would.
     if session.execute(
@@ -50,7 +54,14 @@ def local_image_demand(session: Session, now: datetime) -> ModelType | None:
     ).first()
     if last is None or last.status is DocumentStatus.CANCELLED:
         return None
-    return needs[last.format] if now - last.updated_at < IDLE else None
+    return _job_type(last, needs) if now - last.updated_at < IDLE else None
+
+
+def _job_type(job: Row, needs: dict[str, ModelType]) -> ModelType:
+    """By the job, not its format: an edit is still an `image` or an `infographic`."""
+    if image_edit_of(job.artifact_metadata) is not None:
+        return ModelType.IMAGE_EDIT
+    return needs[job.format]
 
 
 def _image_type(fmt: Format) -> ModelType | None:

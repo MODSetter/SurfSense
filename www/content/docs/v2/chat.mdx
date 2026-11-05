@@ -1,0 +1,98 @@
+---
+title: Chat
+description: Ask questions across your sources in Basic (Q&A) or Agentic mode, with citations
+---
+
+A chat answers from the sources ticked in the **Sources** panel and cites the passage behind each point. Every chat belongs to one workspace and has a mode: **Basic (Q&A)** or **Agentic**.
+
+## Two modes
+
+| | Basic (Q&A) | Agentic |
+|---|---|---|
+| In the picker | "Answers from your sources" | "Does tasks across your files" |
+| How it works | Finds the passages that best match your question and answers from them in one go | Works in steps: searches, reads whole sources, then answers or makes something |
+| Makes files | No. Use [Studio](/docs/v2/studio) beside it | Yes: Word, PDF, PowerPoint, Excel, web pages, revised copies of your files. See [Agent](/docs/v2/agent) |
+| Plugins | No | Yes |
+| Name a source with `@` | No | Yes |
+| Images in your message | Yes, with a model that reads images | Not yet |
+| Speed | Fast, works on small local models | Slower; does more |
+
+Use Basic (Q&A) for quick questions. Use Agentic when the task needs several steps, reading a source in full, or a file at the end.
+
+## Choose a mode for a chat
+
+The mode picker sits in the composer. In a new chat it reads **Mode for this chat**: pick **Basic (Q&A)** or **Agentic** before you send the first message.
+
+A chat keeps its mode. In an open chat the picker reads **This chat’s mode**, and choosing the other mode starts a **New chat**.
+
+The mode you pick becomes the default for new chats on that model. Until you pick one, SurfSense starts:
+
+- **Agentic** for a model that passed SurfSense's Agentic tests on its provider's servers, or is expected to.
+- **Basic (Q&A)** for every other model, including every model running on your own computer. You can still pick Agentic.
+
+## Which models can run Agentic
+
+Any chat model can try Agentic. The picker shows how the model did in SurfSense's tests beside it, such as **May need nudges**, **Low score**, **Expected to pass**, **Local copy** or **Not tested**. That is advice: it never stops you.
+
+Agentic is turned off for a model only when it can't work:
+
+- The model can't use tools.
+- The model's context window is under 32,768 tokens.
+- This install doesn't include the agent.
+
+The picker then says why, and the chat stays Basic (Q&A). A local model's tools and window are checked when you first start an Agentic chat on it, since that loads the model.
+
+<Callout type="info">
+  Agentic works best on strong remote models. Small local models can stall on
+  multi-step tasks. See [Models](/docs/v2/models).
+</Callout>
+
+## Ask a question
+
+Type in the composer and press Enter. Shift+Enter starts a new line.
+
+- The composer shows how many sources are ticked. Unticking every source leaves the model with nothing to cite.
+- While the model reads a long prompt the reply shows "Reading 42%", then **Thinking** until the first words arrive.
+- **Stop** ends a reply early and keeps what was written.
+- A failed reply says why, with **Retry**, or **Model setup** when the fix is there.
+- Hover over a message to see its time and **Copy**.
+
+If none of your ticked sources answers the question, the model says so, then answers from its general knowledge if it can.
+
+## Citations
+
+A cited point carries a small chip. Click it to open the passage in the right panel, highlighted, with the text around it. For an uploaded file, **Open file** opens the original.
+
+Citations work the same way in Agentic chats.
+
+## Replies keep going in the background
+
+A reply belongs to its chat, not to the window.
+
+- Switch to another chat or workspace and the reply keeps being written. When it finishes, the chat gets a dot in **Chats**.
+- Several chats can answer at once. With a local model, a reply may wait its turn: "Waiting for another reply (2nd in line)".
+- In an Agentic chat that waits for your approval, **Chats** shows "Waiting for your approval".
+- If you quit while replies are being written, SurfSense asks first, then saves what they have so far. Those replies read "Interrupted when the app closed." and offer **Retry**.
+
+## Find, rename and delete chats
+
+**Chats** in the left sidebar lists every chat in the workspace, with a search box. **New chat** starts one. Each chat's menu has **Rename** and **Delete chat**. A chat is named after its first question.
+
+## Switch models
+
+The model control in the composer shows the chat model in use. Click it to pick another installed model, or **Manage models** to add one.
+
+The chat model is one setting for the whole app. The next reply in any chat uses the model you picked. An Agentic chat carries on with the new model as long as that model can run Agentic. If it can't, start a new chat or choose another model.
+
+See [Models](/docs/v2/models) to set up local models, API connections, or your ChatGPT or Claude plan.
+
+## More in the composer
+
+**+** in the composer opens:
+
+- **Attach images**: add pictures to your question, in Basic (Q&A) with a model that reads images.
+- **Upload sources**: add files to this workspace's sources.
+- **Thinking**: let a thinking model think before it answers, or answer sooner without. Only a local model can answer without thinking.
+- **Plugins**: in Agentic chats. See [Plugins](/docs/v2/plugins).
+
+The microphone beside **Send** dictates your question. See [Voice](/docs/v2/voice).

@@ -7,11 +7,11 @@ import { intl } from "@/i18n/intl"
 import type { WorkspaceDocument } from "../api"
 import {
   addWebLinks,
-  listWebLink,
   openWebLinks,
   searchWeb,
-  type WebGroup,
   type WebLinksOutcome,
+  type WebResult,
+  type WebResults,
 } from "./api"
 
 /** What the Add from the web dialog needs from its owner; each throws what it shows instead. */
@@ -21,17 +21,14 @@ export type WebSources = {
     source: string,
     page: number,
     signal?: AbortSignal
-  ) => Promise<WebGroup>
-  open: (urls: string[], signal?: AbortSignal) => Promise<WebGroup[]>
-  list: (url: string, page: number) => Promise<WebGroup>
+  ) => Promise<WebResults>
+  open: (urls: string[], signal?: AbortSignal) => Promise<WebResult[]>
   add: (urls: string[]) => Promise<WebLinksOutcome>
-  onOpenLicense: () => void
 }
 
 export function useWebSources(
   workspaceId: number,
-  addCreated: (created: WorkspaceDocument[]) => void,
-  onOpenLicense: () => void
+  addCreated: (created: WorkspaceDocument[]) => void
 ): WebSources {
   const search = useStableCallback(
     (query: string, source: string, page: number, signal?: AbortSignal) =>
@@ -40,9 +37,6 @@ export function useWebSources(
   const open = useStableCallback((urls: string[], signal?: AbortSignal) =>
     openWebLinks(workspaceId, urls, signal)
   )
-  const list = useStableCallback((url: string, page: number) =>
-    listWebLink(workspaceId, url, page)
-  )
   const add = useStableCallback(async (urls: string[]) => {
     const outcome = await addWebLinks(workspaceId, urls)
     // Created in the order asked; the list is newest first, as uploads keep it.
@@ -50,11 +44,7 @@ export function useWebSources(
     announce(outcome)
     return outcome
   })
-  const openLicense = useStableCallback(() => onOpenLicense())
-  return useMemo(
-    () => ({ search, open, list, add, onOpenLicense: openLicense }),
-    [search, open, list, add, openLicense]
-  )
+  return useMemo(() => ({ search, open, add }), [search, open, add])
 }
 
 function announce(outcome: WebLinksOutcome) {

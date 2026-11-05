@@ -14,12 +14,17 @@ def as_frame(failure: Exception) -> dict:
     """A generation's failure, as the worker needs it to raise the same type."""
     message = str(failure)
     if isinstance(failure, httpx.HTTPStatusError):
-        return {
+        frame = {
             "type": "error",
             "error": "http_status",
             "status": failure.response.status_code,
             "message": message,
         }
+        # A rate limit says how long to wait; the worker raising it again needs to know.
+        retry_after = failure.response.headers.get("retry-after")
+        if retry_after:
+            frame["retry_after"] = retry_after
+        return frame
     if isinstance(failure, StreamTimeoutError):
         return {
             "type": "error",
@@ -54,8 +59,15 @@ def raise_from_frame(frame: dict) -> None:
     if kind == "http_status":
         status = int(frame["status"])
         request = httpx.Request("POST", "http://model")
+        headers = (
+            {"retry-after": str(frame["retry_after"])}
+            if frame.get("retry_after")
+            else {}
+        )
         raise httpx.HTTPStatusError(
-            message, request=request, response=httpx.Response(status, request=request)
+            message,
+            request=request,
+            response=httpx.Response(status, request=request, headers=headers),
         )
     if kind == "stream_timeout":
         raise StreamTimeoutError(

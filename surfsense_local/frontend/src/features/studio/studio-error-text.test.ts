@@ -25,6 +25,20 @@ describe("a refused Studio job", () => {
       "version_unfinished",
       "This version did not finish: retry it, or refine another version.",
     ],
+    // And from an image edit, modules/artifacts/image_edits/service.py.
+    [
+      "not_editable",
+      "Only an image or infographic made in Studio can be edited.",
+    ],
+    [
+      "image_version_unfinished",
+      "This version did not finish: retry it, or edit another version.",
+    ],
+    ["needs_image_edit", "Needs an image editing model."],
+    [
+      "edited_from",
+      "A later version is edited from this one: delete the whole document.",
+    ],
   ])("has its own line for %s", (code, line) => {
     const refusal = new ApiError(409, "backend prose, never shown", code)
 

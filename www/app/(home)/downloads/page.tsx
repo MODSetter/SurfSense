@@ -3,6 +3,7 @@ import { HomeBadge } from "@/components/site/home-badge";
 import { sectionSpacing } from "@/components/site/home-section-spacing";
 import { siteText } from "@/components/site/site-text";
 import { cn } from "@/components/ui/cn";
+import { BUSINESS_LAUNCHED } from "@/features/business-launch/business-launched.mts";
 import { getReleaseAssets } from "@/features/downloads/release-assets";
 import { TrialForm } from "@/features/license/license-forms";
 import { AllReleasesLink, OSDownloadGrid } from "./download-panels";
@@ -10,9 +11,16 @@ import { AllReleasesLink, OSDownloadGrid } from "./download-panels";
 /**
  * Rendered in the site design: the palette, column, navigation and footer all
  * come from `app/(home)/layout.tsx`; the page uses the homepage's centred heads
- * and rounded cards. Listed in `SITE_DESIGN_ROUTES` in
- * `components/site/site-shell.tsx`.
+ * and rounded cards.
  */
+
+/**
+ * From Business on, the emailed trial is the paid job's, which most visitors to this page do
+ * not need, so the form says what it sends. Until then it needs no note.
+ */
+const TRIAL_NOTE = BUSINESS_LAUNCHED
+	? "Your email gets a 14-day trial of the paid security questionnaire job, one per address. The app itself needs no license."
+	: "";
 
 export const metadata: Metadata = {
 	title: "Download SurfSense | Windows, macOS, Linux",
@@ -32,7 +40,7 @@ export default async function DownloadsPage() {
 				<p className={cn(siteText.lede, "mx-auto mt-6 max-w-xl")}>
 					One installer, no account, no cloud.
 				</p>
-				<TrialForm label="Download" note="" />
+				<TrialForm label="Download" note={TRIAL_NOTE} />
 			</section>
 
 			{assets.length > 0 ? (

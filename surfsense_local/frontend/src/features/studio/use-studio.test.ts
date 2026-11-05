@@ -8,6 +8,8 @@ import {
 } from "@testing-library/react"
 import { toast } from "sonner"
 
+import { useJobRun } from "@/features/jobs/run/use-job-run"
+import { runRead } from "@/features/jobs/stub-jobs-api"
 import { createQueryClient } from "@/lib/query-client"
 
 import { messageFrom, useStudio } from "./use-studio"
@@ -34,6 +36,7 @@ function artifact(overrides: Partial<Artifact> = {}): Artifact {
     version: null,
     spec_kind: null,
     refinable: false,
+    image_editable: false,
     ...overrides,
   }
 }
@@ -320,6 +323,7 @@ describe("useStudio", () => {
       version: { root_id: 1, number: 1, parent_id: null },
       spec_kind: "python",
       refinable: false,
+      image_editable: false,
     } as const
     const api = studioApi([
       [artifact(scriptDocument)],
@@ -348,6 +352,7 @@ describe("useStudio", () => {
       version: { root_id: 1, number: 1, parent_id: null },
       spec_kind: "python",
       refinable: false,
+      image_editable: false,
     } as const
     const api = studioApi([
       [artifact(scriptDocument)],
@@ -416,6 +421,7 @@ describe("useStudio refine", () => {
     version: { root_id: 40, number: 1, parent_id: null },
     spec_kind: "markdown",
     refinable: true,
+    image_editable: false,
   })
 
   function refineApi(answer: Response) {
@@ -540,5 +546,74 @@ describe("useStudio decide all", () => {
     await waitFor(() =>
       expect(result.current.artifacts.map((each) => each.id)).toEqual([51, 50])
     )
+  })
+})
+
+describe("useStudio job runs", () => {
+  it("reads the workspace’s job runs again when its artifacts change, since each run’s copy is one", async () => {
+    const stream = eventStream()
+    let runReads = 0
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = String(input)
+        if (path.endsWith("/events")) return stream.response
+        if (path === "/workspaces/1/job-runs/41") {
+          runReads += 1
+          return Response.json(runRead())
+        }
+        return Response.json([])
+      })
+    )
+
+    // Studio and a run of one copy, read side by side as the panel reads them.
+    const { result } = renderHook(() => ({
+      studio: useStudio(1),
+      run: useJobRun(1, 41),
+    }))
+    await waitFor(() => expect(result.current.run.data).toBeTruthy())
+    stream.connected()
+    stream.artifactsChanged([42])
+
+    await waitFor(() => expect(runReads).toBe(2))
+  })
+
+  it("reads a run again when its copy changes while the first read is still on its way", async () => {
+    const stream = eventStream()
+    let answerFirstRead!: (response: Response) => void
+    let runReads = 0
+    let listReads = 0
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = String(input)
+        if (path.endsWith("/events")) return stream.response
+        if (path === "/workspaces/1/job-runs/41") {
+          // The first read began before the run ended; the second, after.
+          if (runReads++ === 0) {
+            return new Promise<Response>((resolve) => {
+              answerFirstRead = resolve
+            })
+          }
+          return Response.json(runRead())
+        }
+        if (path === "/workspaces/1/artifacts") listReads += 1
+        return Response.json([])
+      })
+    )
+
+    const { result } = renderHook(() => ({
+      studio: useStudio(1),
+      run: useJobRun(1, 41),
+    }))
+    await waitFor(() => expect(listReads).toBe(1))
+    await waitFor(() => expect(runReads).toBe(1))
+    stream.connected()
+    stream.artifactsChanged([41])
+    // The event was handled: the list it also refreshes was read again.
+    await waitFor(() => expect(listReads).toBe(2))
+    answerFirstRead(Response.json(runRead({ running: true })))
+
+    await waitFor(() => expect(result.current.run.data?.running).toBe(false))
   })
 })

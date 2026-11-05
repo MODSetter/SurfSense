@@ -24,6 +24,7 @@ from modules.agent.previews.router import file_router as agent_preview_files_rou
 from modules.agent.previews.router import router as agent_previews_router
 from modules.agent.runtime_proxy.server import serving_runtime_proxy
 from modules.agent.tool_endpoint.router import router as agent_tools_router
+from modules.artifacts.image_edits.router import router as image_edit_router
 from modules.artifacts.podcast.router import router as podcast_router
 from modules.artifacts.router import router as artifacts_router
 from modules.artifacts.studio_documents.router import router as refine_router
@@ -33,6 +34,9 @@ from modules.chat.runs.registry import ChatRuns
 from modules.chat.runs.router import router as chat_runs_router
 from modules.documents.router import router as documents_router
 from modules.documents.web_sources.router import router as web_sources_router
+from modules.documents.web_sources.web_search.server_router import (
+    router as search_server_router,
+)
 from modules.egress.router import router as egress_router
 from modules.egress.service import EgressDeniedError
 from modules.embedding.active import EmbeddingNotChosenError
@@ -45,6 +49,11 @@ from modules.events.router import router as events_router
 from modules.folders.finish_deletes import finish_interrupted_deletes
 from modules.folders.router import router as folders_router
 from modules.health.router import router as health_router
+from modules.jobs.packs.delivery.delivery_schedule import delivering_daily
+from modules.jobs.packs.delivery.router import router as job_pack_delivery_router
+from modules.jobs.packs.dev_packs import install_dev_packs
+from modules.jobs.router import router as jobs_router
+from modules.license.renewal.renewal_schedule import renewing_daily
 from modules.license.router import router as license_router
 from modules.llm.admission.local_runtime import LocalAdmission
 from modules.llm.catalog.local.dependencies import get_local_catalog
@@ -123,6 +132,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             session.commit()
             begin_counting(session)
         app.state.session_factory = session_factory
+        install_dev_packs()
         # A thread too: a large subtree takes a while, and it is out of every
         # scope and the tree meanwhile.
         threading.Thread(
@@ -148,9 +158,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             name="catalog-warm",
             daemon=True,
         ).start()
+        # Last in, so it stops first; it runs after the developer's packs are installed.
         async with (
             _opencode_proxy(session_factory),
             serving_claude_proxy(session_factory, get_settings().host),
+            renewing_daily(session_factory),
+            delivering_daily(session_factory),
         ):
             yield
     finally:
@@ -244,6 +257,7 @@ def create_app() -> FastAPI:
     app.include_router(workspaces_router)
     app.include_router(documents_router)
     app.include_router(web_sources_router)
+    app.include_router(search_server_router)
     app.include_router(folders_router)
     app.include_router(llm_router)
     app.include_router(model_route_router)
@@ -254,9 +268,12 @@ def create_app() -> FastAPI:
     app.include_router(artifacts_router)
     app.include_router(podcast_router)
     app.include_router(refine_router)
+    app.include_router(image_edit_router)
     app.include_router(events_router)
     app.include_router(migration_router)
     app.include_router(license_router)
+    app.include_router(jobs_router)
+    app.include_router(job_pack_delivery_router)
     app.include_router(egress_router)
     app.include_router(embedding_router)
     app.include_router(embedding_huggingface_router)

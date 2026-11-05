@@ -1,0 +1,136 @@
+---
+title: Configuration
+description: The settings in .env, where your data lives, and how to open SurfSense to your network, a domain or your own proxy
+---
+
+All settings live in `.env`, beside `docker-compose.yml` in the install folder. The installer writes it once, from `.env.example`, and never overwrites it. Every value is optional.
+
+After you change `.env`, apply it from the install folder:
+
+```bash
+docker compose up -d
+```
+
+## Settings
+
+| Setting | Default | Does |
+|---|---|---|
+| `SURFSENSE_VERSION` | `latest` | The image tag: `latest`, or a version such as `2.3.0` to pin one. See [Updating](/docs/v2/docker/updating#pin-a-version). |
+| `SURFSENSE_VARIANT` | empty | Leave empty. Empty is the CPU image, the only one published. |
+| `SURFSENSE_IMAGE` | `ghcr.io/modsetter/surfsense` | Another registry, or a local build. |
+| `SURFSENSE_PORT` | `4929` | The host port for HTTP. Sign-ins send your browser back through it. |
+| `SURFSENSE_HTTPS_PORT` | `4943` | The host port for HTTPS. Plain HTTP on another address redirects here once HTTPS is on. |
+| `SURFSENSE_BIND` | `0.0.0.0` | Where the ports are published: `0.0.0.0` is every network the server is on, `127.0.0.1` is the server alone. |
+| `SURFSENSE_ALLOWED_HOSTS` | empty | The host names or addresses SurfSense answers on, comma-separated, such as `surfsense.lan,192.168.1.20`. Empty answers any. |
+| `SURFSENSE_PASSWORD` | empty | Sets the sign-in password at every start. See [Access](/docs/v2/docker/access). |
+| `SURFSENSE_AUTH` | empty | Empty asks for the password. `none` turns sign-in off. Any other value stops SurfSense at start. |
+| `SURFSENSE_TLS` | empty | `internal` turns on HTTPS for the names in `SURFSENSE_ALLOWED_HOSTS`, from the container's own certificate authority. `internal` is the only value it takes. |
+| `SURFSENSE_DOMAIN` | empty | A public domain that resolves to this server. SurfSense gets a certificate for it from Let's Encrypt. |
+| `SURFSENSE_SECRET` | empty | The secret that encrypts stored provider keys. Empty creates one in the data volume on the first start. |
+
+<Callout type="warn" title="Keep the secret">
+If you set `SURFSENSE_SECRET`, never change it later: stored provider keys become unreadable. If you leave it empty, the secret lives in the data volume, so a backup of the volume includes it.
+</Callout>
+
+## Where your data lives
+
+Everything SurfSense keeps is in one Docker volume, `surfsense_data`, mounted at `/data` in the container. Compose names it `surfsense_surfsense_data` on the host. It has the same layout as the desktop app's [data folder](/docs/v2/data-folder): the database, models, workspaces, plugins, backups and the password file.
+
+Updating or recreating the container keeps the volume. Only `docker compose down -v` or `docker volume rm` deletes it. See [Updating](/docs/v2/docker/updating#back-up-your-data) for backups.
+
+The container runs as a non-root user, uid 1000, which owns `/data`.
+
+## Change the port
+
+Set `SURFSENSE_PORT` in `.env`, then `docker compose up -d`:
+
+```dotenv
+SURFSENSE_PORT=8080
+```
+
+SurfSense now answers on `http://<server address>:8080`. Plugin and ChatGPT sign-ins follow the new port on their own.
+
+## Keep it to this machine
+
+```dotenv
+SURFSENSE_BIND=127.0.0.1
+```
+
+Only the server itself can open SurfSense, at `http://localhost:4929`. Combined with `SURFSENSE_AUTH=none`, this gives you a desktop-like setup with no password.
+
+## Name the hosts you use
+
+When others can reach the server, list the names and addresses you open SurfSense on:
+
+```dotenv
+SURFSENSE_ALLOWED_HOSTS=surfsense.lan,192.168.1.20
+```
+
+Any other name is refused. This stops a web page you visit from rebinding its own name to your server's address. With sign-in on, the password also stands in its way. With sign-in off, this list is the only thing that does.
+
+## HTTPS
+
+Without HTTPS, your password and session cookie cross the network unencrypted, and browsers allow the microphone only on the server itself. Turn HTTPS on to [dictate](/docs/v2/voice) from another device. Pick one of the two modes.
+
+### On your network
+
+```dotenv
+SURFSENSE_ALLOWED_HOSTS=surfsense.lan
+SURFSENSE_TLS=internal
+```
+
+SurfSense issues a certificate for each name in `SURFSENSE_ALLOWED_HOSTS` from the container's own certificate authority. `SURFSENSE_TLS=internal` without any allowed host stops SurfSense at start. Open it at `https://surfsense.lan:4943`.
+
+Each device must trust the authority's root certificate once. Copy it out of the container from the install folder:
+
+```bash
+docker compose cp surfsense:/data/home/.local/share/caddy/pki/authorities/local/root.crt .
+```
+
+Then install `root.crt` as a trusted root on each device that opens SurfSense. The name must resolve to the server on that device, through your router's DNS or the device's hosts file.
+
+### On a public domain
+
+```dotenv
+SURFSENSE_DOMAIN=surfsense.example.com
+SURFSENSE_PORT=80
+SURFSENSE_HTTPS_PORT=443
+SURFSENSE_PASSWORD=choose-a-long-password
+```
+
+The domain must resolve to the server, and ports 80 and 443 must be reachable from the internet so Let's Encrypt can issue the certificate. Open it at `https://surfsense.example.com`.
+
+Set the password here before the first start. Otherwise whoever opens the domain first creates it. See [Access](/docs/v2/docker/access#set-the-password-before-the-first-start).
+
+## Behind your own reverse proxy
+
+If you already run a proxy such as Caddy, nginx or Traefik that terminates HTTPS:
+
+1. Point the proxy at SurfSense's HTTP port, `4929` by default.
+2. Leave `SURFSENSE_DOMAIN` and `SURFSENSE_TLS` empty.
+3. Add the name the proxy serves to `SURFSENSE_ALLOWED_HOSTS`.
+4. Keep the password on. Set `SURFSENSE_AUTH=none` only if the proxy signs people in itself, as Cloudflare Access or Authelia do.
+
+If the proxy runs on the same server, also set `SURFSENSE_BIND=127.0.0.1` so the port is not open to the network around the proxy.
+
+The proxy must pass streamed responses (`text/event-stream`) through without buffering, or chat answers arrive all at once. Uploads are capped at 500 MB by SurfSense, so allow at least that much in the proxy's body limit.
+
+## Through a VPN
+
+On a VPN such as Tailscale, open SurfSense on the server's VPN name and list it:
+
+```dotenv
+SURFSENSE_ALLOWED_HOSTS=surfsense.tail1234.ts.net
+```
+
+## Sign-ins from another device
+
+Plugin sign-ins return to the address your browser is on, so they work from another device. One exception: a provider that accepts only SurfSense's own registered app can't finish a sign-in from another device on a network name. Register your own app with that provider, using the callback address the plugin's settings show, or sign in through the SSH tunnel below.
+
+A ChatGPT subscription sign-in can only return to the server's own `127.0.0.1`. From another device, the browser ends on an error page after you agree. Copy that tab's address, paste it into **Address your browser ended on**, and choose **Finish signing in**.
+
+To make every sign-in automatic from another computer, reach SurfSense through an SSH tunnel and open `http://localhost:4929`:
+
+```bash
+ssh -L 4929:localhost:4929 <server>
+```

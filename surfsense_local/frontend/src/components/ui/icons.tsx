@@ -29,7 +29,9 @@ import {
   CheckmarkCircle02Icon,
   ChevronDownIcon as ChevronDownIconData,
   ChevronRightIcon as ChevronRightIconData,
+  ClipboardCheckIcon as ClipboardCheckIconData,
   Clock01Icon as Clock01IconData,
+  CircleArrowUp02Icon as CircleArrowUp02IconData,
   ComputerEthernetIcon as ComputerEthernetIconData,
   Copy01Icon,
   CpuIcon as CpuIconData,
@@ -83,6 +85,8 @@ import {
   Settings02Icon,
   ShuffleIcon as ShuffleIconData,
   AiSparklesIcon as AiSparklesIconData,
+  LibraryBigIcon as LibraryBigIconData,
+  Shapes01Icon as Shapes01IconData,
   StarAward02Icon as StarAward02IconData,
   SquareDashedMousePointerIcon as SquareDashedMousePointerIconData,
   StopCircleIcon,
@@ -97,6 +101,7 @@ import {
   WebDesign01Icon as WebDesign01IconData,
   XIcon as XIconData,
   Xls01Icon as Xls01IconData,
+  YoutubeIcon as YoutubeIconData,
   ZoomInIcon as ZoomInIconData,
   ZoomOutIcon as ZoomOutIconData,
 } from "@hugeicons/core-free-icons"
@@ -158,7 +163,10 @@ export const CheckIcon = createIcon(CheckIconData)
 export const CheckmarkBadgeIcon = createIcon(CheckmarkBadge02IconData)
 export const ChevronDownIcon = createIcon(ChevronDownIconData)
 export const ChevronRightIcon = createIcon(ChevronRightIconData)
+// Jobs: the same icon the docs show beside Jobs.
+export const ClipboardCheckIcon = createIcon(ClipboardCheckIconData)
 export const ClockIcon = createIcon(Clock01IconData)
+export const CircleArrowUp02Icon = createIcon(CircleArrowUp02IconData)
 export const ComputerEthernetIcon = createIcon(ComputerEthernetIconData)
 export const CircleAlertIcon = createIcon(AlertCircleIcon)
 export const CircleStopIcon = createIcon(StopCircleIcon)
@@ -219,6 +227,8 @@ export const LayoutAlignRightIcon = createIcon(LayoutAlignRightIconData)
 export const Settings2Icon = createIcon(Settings02Icon)
 export const ShuffleIcon = createIcon(ShuffleIconData)
 export const AiSparklesIcon = createIcon(AiSparklesIconData)
+export const LibraryBigIcon = createIcon(LibraryBigIconData)
+export const Shapes01Icon = createIcon(Shapes01IconData)
 export const StarAward02Icon = createIcon(StarAward02IconData)
 export const SunIcon = createIcon(Sun03IconData)
 export const UnplugIcon = createIcon(UnplugIconData)
@@ -235,5 +245,6 @@ export const ViewOffIcon = createIcon(ViewOffSlashIconData)
 export const WebDesign01Icon = createIcon(WebDesign01IconData)
 export const XIcon = createIcon(XIconData)
 export const Xls01Icon = createIcon(Xls01IconData)
+export const YoutubeIcon = createIcon(YoutubeIconData)
 export const ZoomInIcon = createIcon(ZoomInIconData)
 export const ZoomOutIcon = createIcon(ZoomOutIconData)

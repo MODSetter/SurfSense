@@ -1,47 +1,18 @@
-"""Which puller takes a link: the site's own when there is one, Web Crawl otherwise."""
+"""Which puller takes a link: YouTube's for a video, the page reader for anything else.
 
-from dataclasses import dataclass
+The link alone decides, so a note added by a puller this version retired is read
+by whichever takes its link now.
+"""
+
 from urllib.parse import urlsplit
 
-from modules.documents.web_sources.pullers import (
-    amazon,
-    google_maps,
-    indeed,
-    instagram,
-    reddit,
-    tiktok,
-    walmart,
-    web_page,
-    youtube,
-)
-from modules.documents.web_sources.pullers.puller import Fit, Puller
+from modules.documents.web_sources.pullers import web_page, youtube
+from modules.documents.web_sources.pullers.puller import Puller
 
-PULLERS = (
-    youtube.PULLER,
-    tiktok.PULLER,
-    google_maps.PULLER,
-    amazon.PULLER,
-    walmart.PULLER,
-    indeed.PULLER,
-    reddit.PULLER,
-    instagram.PULLER,
-)
+# The page reader last: it takes every link.
+PULLERS = (youtube.PULLER, web_page.PULLER)
 
 
-@dataclass(frozen=True)
-class Route:
-    puller: Puller
-    fit: Fit
-
-
-def routed(url: str) -> Route:
+def routed(url: str) -> Puller:
     parts = urlsplit(url)
-    for puller in PULLERS:
-        fit = puller.fit(parts)
-        if fit is not None:
-            return Route(puller, fit)
-    return Route(web_page.PULLER, Fit.ONE)
-
-
-def puller_named(puller_id: str) -> Puller:
-    return next(p for p in (*PULLERS, web_page.PULLER) if p.id == puller_id)
+    return next(puller for puller in PULLERS if puller.takes(parts))

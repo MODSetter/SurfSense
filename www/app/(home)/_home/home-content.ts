@@ -1,4 +1,5 @@
 import { BUSINESS_URL, DOWNLOADS_URL, REPO_URL } from "@/components/site/site-content";
+import { BUSINESS_LAUNCHED } from "@/features/business-launch/business-launched.mts";
 
 /**
  * Homepage copy and data.
@@ -190,15 +191,23 @@ export const FEATURES: {
 	{
 		key: "plugins",
 		heading: "Open source, extended by plugins",
-		body: "Each plugin gives the agent live data from one platform. Eight ship today.",
+		// From Business on, the platform scrapers are retired and SurfSense's three are built in.
+		body: BUSINESS_LAUNCHED
+			? "Reading web pages, YouTube and web search is built in and free. Plugins add more."
+			: "Each plugin gives the agent live data from one platform. Ten ship today.",
 		points: [
+			BUSINESS_LAUNCHED
+				? {
+						title: "Built in, free",
+						body: "Web search, YouTube and Web Crawl, with no licence and nothing to connect.",
+					}
+				: {
+						title: "More places to search",
+						body: "Google Search, Reddit, YouTube, Instagram, TikTok, Google Maps, Amazon, Walmart, Indeed and the open web.",
+					},
 			{
-				title: "More places to search",
-				body: "Google Search, YouTube, TikTok, Google Maps, Amazon, Walmart, Indeed and the open web.",
-			},
-			{
-				title: "Open by pull request",
-				body: "Our plugins are code in the public repo; anyone can list an MCP server in the registry.",
+				title: "Open to everyone",
+				body: "Every plugin is open source, and anyone can add their own MCP server to the registry.",
 			},
 		],
 		action: { label: "See the plugins", href: "/plugins" },

@@ -54,14 +54,11 @@ SurfSense es una aplicación de escritorio gratuita y de código abierto para lo
 | **Windows** x64 | [SurfSense-Setup.exe](https://www.surfsense.com/downloads/windows?src=readme) |
 | **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
 | **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
+| **Docker** Linux, macOS | `curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh \| bash` |
+| **Docker** Windows (Docker Desktop) | `irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 \| iex` |
 
-**Alójalo en tu propio servidor** con Docker y ábrelo desde cualquier dispositivo de tu red. Ejecuta el mismo comando de nuevo para actualizarlo.
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
-```
-
-En Windows con Docker Desktop: `irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 | iex`
+> [!NOTE]
+> Con Docker lo alojas en tu propio servidor y lo abres desde cualquier dispositivo de tu red. Ejecuta el mismo comando de nuevo para actualizarlo.
 
 ## Inicio rápido
 
@@ -78,9 +75,10 @@ En Windows con Docker Desktop: `irm https://raw.githubusercontent.com/MODSetter/
 | **Excel** `.xlsx` | ✓ el agente también lee las fórmulas | ✓ con fórmulas y gráficos nativos | ✓ valores de celda y fórmulas | Analizar con pandas y representar los resultados en gráficos |
 | **PowerPoint** `.pptx` | ✓ | ✓ o a partir de tu propio `.pptx` como plantilla | Reemplazar texto en diapositivas y notas; eliminar o duplicar diapositivas | A PDF¹ |
 | **CSV** | ✓ | — | — | Analizar con pandas y representar los resultados en gráficos |
-| **Imágenes** PNG, JPEG, TIFF, BMP, WebP | ✓ texto leído por OCR³ | Imágenes e infografías² | — | Insertar en documentos nuevos |
+| **Imágenes** PNG, JPEG, TIFF, BMP, WebP | ✓ texto leído por OCR³ | Imágenes e infografías, editables con una instrucción² | — | Insertar en documentos nuevos |
 | **Markdown**, texto sin formato | ✓ | ✓ Markdown | — | — |
 | **HTML** | ✓ | ✓ página web | — | — |
+| **Libros** EPUB, MOBI, AZW3 | ✓ sin DRM | — | — | — |
 | **Grabaciones** WAV, MP3, FLAC, Ogg Vorbis | ✓ transcritas en tu equipo | — | — | — |
 | **Podcast** (audio) | — | ✓ con transcripción; por defecto, la voz se genera en tu equipo | — | — |
 | **Mapas mentales, tarjetas didácticas, cuestionarios** | — | ✓ en la aplicación | — | — |
@@ -91,24 +89,9 @@ Las ediciones, las conversiones y las herramientas de PDF siempre crean un archi
 
 ## Plugins
 
-Conéctalos en **Ajustes › Plugins**.
+Conéctalos en **Ajustes › Plugins**: servidores MCP del [registro de plugins](backend/plugins/registry), como DeepWiki y Notion, o cualquiera que añadas por URL. Siguen desactivados hasta que los permitas.
 
-**De SurfSense.** Leen páginas públicas sin usar tus propias cuentas y necesitan una licencia de SurfSense: [descarga la aplicación](https://www.surfsense.com/downloads) e introduce allí tu correo electrónico para conseguir una gratuita de 14 días.
-
-| Plugin | Qué hace |
-|---|---|
-| **Google Search** | Buscar en Google y leer sus resultados, anuncios y preguntas relacionadas |
-| **Web Crawl** | Leer una página web o rastrear un sitio entero y convertirlo en texto limpio |
-| **YouTube** | Leer videos y canales de YouTube, con sus comentarios |
-| **TikTok** | Leer videos de TikTok y sus comentarios, buscar usuarios y ver qué es tendencia |
-| **Reddit** | Leer publicaciones públicas de Reddit con sus hilos de comentarios, o una comunidad entera |
-| **Instagram** | Leer perfiles, publicaciones y reels públicos de Instagram, y buscar perfiles |
-| **Google Maps** | Encontrar lugares en Google Maps y leer sus reseñas |
-| **Amazon** | Leer productos y resultados de búsqueda de Amazon |
-| **Walmart** | Leer productos, resultados de búsqueda y reseñas de Walmart |
-| **Indeed** | Leer ofertas de empleo en Indeed |
-
-**De terceros.** Servidores MCP del [registro de plugins](backend/plugins/registry), como DeepWiki y Notion, o cualquiera que añadas por URL. No necesitan licencia; siguen desactivados hasta que los permitas.
+**Integrado y gratuito:** el agente y **Añadir desde la web**, en Fuentes, buscan en la web a través de SearXNG y leen páginas y transcripciones de YouTube desde tu propia conexión, sin plugin ni licencia.
 
 ## Cómo se compara
 

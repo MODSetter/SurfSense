@@ -14,6 +14,7 @@ from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.llm.providers import sdcpp
 from modules.workspaces.models import Workspace
 from shared.db import create_session_factory
+from tests.integration.llm.test_sdcpp_slots import KLEIN, put_on_disk
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
@@ -32,7 +33,11 @@ async def choose_sdxl(client: AsyncClient, images_dir: Path) -> None:
 
 
 def studio_job(
-    engine: Engine, status: DocumentStatus, ago: timedelta, fmt: str = "image"
+    engine: Engine,
+    status: DocumentStatus,
+    ago: timedelta,
+    fmt: str = "image",
+    metadata: dict | None = None,
 ) -> None:
     """A Studio job of this format, last changed `ago`."""
     with create_session_factory(engine)() as session:
@@ -51,7 +56,12 @@ def studio_job(
         session.add(document)
         session.flush()
         session.add(
-            Artifact(document_id=document.id, workspace_id=workspace.id, format=fmt)
+            Artifact(
+                document_id=document.id,
+                workspace_id=workspace.id,
+                format=fmt,
+                artifact_metadata=metadata,
+            )
         )
         session.commit()
 
@@ -135,3 +145,54 @@ async def test_a_job_that_needs_no_image_model_does_not_start_it(
     studio_job(engine, DocumentStatus.PROCESSING, timedelta(0), fmt="summary")
 
     assert await served(client) == []
+
+
+EDIT = {"recipe": {"kind": "image_edit", "instruction": "x", "base_artifact_id": 1}}
+
+
+async def choose_klein_to_edit(client: AsyncClient, images_dir: Path) -> None:
+    """SDXL draws and klein edits, so the two need different weights."""
+    await choose_sdxl(client, images_dir)
+    put_on_disk(images_dir, "flux2-klein-4b")
+    chosen = await client.put(
+        "/llm/selection/image_edit",
+        json={"provider": sdcpp.PROVIDER, "connection_id": None, "name": KLEIN},
+    )
+    assert chosen.status_code == 200, chosen.text
+
+
+async def test_an_edit_runs_the_editing_model_not_the_drawing_one(
+    client: AsyncClient, images_dir: Path, engine: Engine
+) -> None:
+    """Its format is still `image`; launching SDXL would leave the edit waiting
+    on weights that never load."""
+    await choose_klein_to_edit(client, images_dir)
+    studio_job(engine, DocumentStatus.PROCESSING, timedelta(0), metadata=EDIT)
+
+    flags = {file["flag"] for file in await served(client)}
+    assert flags == {"--diffusion-model", "--llm", "--vae"}
+
+
+async def test_the_idle_minutes_after_an_edit_keep_the_editing_model(
+    client: AsyncClient, images_dir: Path, engine: Engine
+) -> None:
+    """The next edit of the same picture does not reload it."""
+    await choose_klein_to_edit(client, images_dir)
+    studio_job(engine, DocumentStatus.READY, timedelta(minutes=1), metadata=EDIT)
+
+    assert len(await served(client)) == 3
+
+
+async def test_a_drawn_image_still_runs_the_drawing_model(
+    client: AsyncClient, images_dir: Path, engine: Engine
+) -> None:
+    """A draft carries a recipe too, which is not an edit's."""
+    await choose_klein_to_edit(client, images_dir)
+    studio_job(
+        engine,
+        DocumentStatus.PROCESSING,
+        timedelta(0),
+        metadata={"recipe": {"kind": "draft"}},
+    )
+
+    assert await served(client) == SDXL_FILES

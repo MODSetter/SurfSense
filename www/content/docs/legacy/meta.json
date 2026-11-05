@@ -1,6 +1,7 @@
 {
 	"title": "SurfSense Legacy",
 	"description": "The self-hosted Docker stack, whose final release is 0.0.41",
+	"icon": "History",
 	"root": true,
 	"pages": [
 		"---Guides---",

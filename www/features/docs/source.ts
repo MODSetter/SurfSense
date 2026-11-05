@@ -11,6 +11,9 @@ import {
 	DownloadIcon,
 	FavouriteIcon,
 	FlaskConicalIcon,
+	HistoryIcon,
+	LaptopIcon,
+	Plug01Icon,
 	Radar01Icon,
 	UnplugIcon,
 	Wrench01Icon,
@@ -22,6 +25,7 @@ import {
  */
 const DOCS_ICONS: Record<string, React.ComponentType> = {
 	BookOpen: BookOpen01Icon,
+	// The desktop app's Jobs icon, so the docs and the app match.
 	ClipboardCheck: ClipboardCheckIcon,
 	Compass: Compass01Icon,
 	Container: ContainerIcon,
@@ -29,7 +33,11 @@ const DOCS_ICONS: Record<string, React.ComponentType> = {
 	Download: DownloadIcon,
 	FlaskConical: FlaskConicalIcon,
 	Heart: FavouriteIcon,
+	History: HistoryIcon,
+	Laptop: LaptopIcon,
 	MessageCircle: BubbleChatIcon,
+	// The desktop app's plugin icon, so the docs and the app match.
+	Plug: Plug01Icon,
 	Radar: Radar01Icon,
 	Unplug: UnplugIcon,
 	Wrench: Wrench01Icon,

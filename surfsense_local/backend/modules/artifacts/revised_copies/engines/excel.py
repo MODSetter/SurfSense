@@ -10,13 +10,23 @@ import hashlib
 from pathlib import Path
 from typing import Any
 
-from modules.artifacts.revised_copies.engines.excel_refs import parse_cell, parse_range
+from modules.artifacts.revised_copies.engines.excel_new_sheet import (
+    MAX_NAME,
+    name_problem,
+)
+from modules.artifacts.revised_copies.engines.excel_refs import (
+    MAX_COLUMN,
+    cell_name,
+    parse_cell,
+    parse_range,
+)
 from modules.artifacts.revised_copies.engines.excel_sheet import (
     MAX_FORMULA,
     MAX_TEXT,
     Content,
     content_from,
     parsable_formula,
+    shown_value,
     valid_number,
 )
 from modules.artifacts.revised_copies.engines.excel_workbook import Workbook
@@ -35,7 +45,9 @@ from modules.artifacts.revised_copies.engines.report import (
 )
 
 FORMAT = "xlsx"
-OPERATIONS = ("set_cell", "set_range")
+OPERATIONS = ("set_cell", "set_range", "add_sheet")
+# Rows of a sheet the edit adds; enough for a questionnaire's sources and exceptions.
+MAX_NEW_ROWS = 20_000
 _OTHER_FORMATS = (
     "replace_text",
     "insert_paragraphs",
@@ -68,8 +80,14 @@ def apply(
     formula_cells_changed = False
     values_changed = False
 
+    sheets_added = 0
     for index, operation in enumerate(operations):
         try:
+            if op_name(operation) == "add_sheet":
+                _add_sheet(book, index, operation)
+                sheets_added += 1
+                outcomes.append(applied(index, "add_sheet"))
+                continue
             for sheet, coord, content in _resolve(book, index, operation):
                 before = sheet.content(coord)
                 if sheet.write(coord, content):
@@ -86,7 +104,7 @@ def apply(
                 return _unsaved(skip_others(operations, refusal.outcome), (), input_sha)
 
     edited = book.edited()
-    if not edited:
+    if not edited and not sheets_added:
         return _unsaved(tuple(outcomes), (nothing_changed(),), input_sha)
     for part, sheet in edited:
         sheet.grow_dimension()
@@ -119,6 +137,57 @@ def _unsaved(
     outcomes: tuple[OpOutcome, ...], notices: tuple[Notice, ...], input_sha: str
 ) -> Report:
     return Report(False, outcomes, notices, input_sha, None)
+
+
+def _add_sheet(book: Workbook, index: int, operation: dict) -> None:
+    """A new last sheet of values; the requester's own sheets are not touched."""
+    name = operation.get("sheet")
+    if not isinstance(name, str) or not name:
+        raise _RefusedError(
+            bad_operation(index, "add_sheet", "sheet", "name the new sheet.")
+        )
+    rows = operation.get("values")
+    if (
+        not isinstance(rows, list)
+        or not rows
+        or len(rows) > MAX_NEW_ROWS
+        or not all(isinstance(row, list) for row in rows)
+        or any(len(row) > MAX_COLUMN for row in rows)
+    ):
+        raise _RefusedError(
+            bad_operation(
+                index,
+                "add_sheet",
+                "values",
+                f"send 1 to {MAX_NEW_ROWS:,} rows, each a list of at most {MAX_COLUMN:,} values.",
+            )
+        )
+    for row in rows:
+        for value in row:
+            _check_value(index, "add_sheet", value)
+    problem = name_problem(name, list(book.sheets))
+    if problem == "SHEET_EXISTS":
+        raise _RefusedError(
+            refused(
+                index,
+                "add_sheet",
+                problem,
+                {"sheet": name},
+                f'A sheet is already named "{name}"; give the new one another name.',
+            )
+        )
+    if problem is not None:
+        raise _RefusedError(
+            refused(
+                index,
+                "add_sheet",
+                problem,
+                {"sheet": name},
+                f'Excel refuses "{name}" as a sheet name: at most {MAX_NAME} characters, '
+                "none of \\ / ? * [ ] :, no quote at either end, and not History.",
+            )
+        )
+    book.add_sheet(name, rows)
 
 
 def _resolve(book: Workbook, index: int, operation: object):
@@ -161,7 +230,7 @@ def _resolve(book: Workbook, index: int, operation: object):
                     f"{ref} is not a cell such as B7.",
                 )
             )
-        _check(sheet, index, op, coord, content)
+        _check(book, sheet, index, op, coord, content)
         return [(sheet, coord, content)]
 
     area_ref = operation.get("range")
@@ -210,7 +279,7 @@ def _resolve(book: Workbook, index: int, operation: object):
             content = content_from(value)
             if content.kind == "empty" and sheet.merged_away(coord):
                 continue
-            _check(sheet, index, op, coord, content)
+            _check(book, sheet, index, op, coord, content)
             writes.append((sheet, coord, content))
     return writes
 
@@ -296,15 +365,45 @@ _MESSAGES = {
     "CELL_IN_ARRAY_FORMULA": "{cell} belongs to an array formula, which this edit cannot change in part.",
     "SHARED_FORMULA_MASTER": "{cell} holds the formula other cells share; change those cells, not this one.",
     "CELL_IN_TABLE_HEADER": "{cell} is a header of table {table}; header names cannot be changed here.",
+    "CELL_LOCKED": "{cell} is locked: its sheet is protected, so Excel refuses edits there. Leave it as it is.",
+    "VALUE_NOT_IN_LIST": "{cell} takes only a value from its dropdown, written exactly: {allowed}.",
 }
 
 
 def _check(
-    sheet, index: int, op: str, coord: tuple[int, int], content: Content
+    book: Workbook,
+    sheet,
+    index: int,
+    op: str,
+    coord: tuple[int, int],
+    content: Content,
 ) -> None:
     problem = sheet.refusal(coord, clearing=content.kind == "empty")
+    if problem is None:
+        problem = _protection_refusal(book, sheet, coord, content)
     if problem is not None:
         code, values = problem
         raise _RefusedError(
             refused(index, op, code, values, _MESSAGES[code].format(**values))
         )
+
+
+def _protection_refusal(
+    book: Workbook, sheet, coord: tuple[int, int], content: Content
+) -> tuple[str, dict] | None:
+    """What the requester's own rules refuse: a locked cell, or a value off its dropdown.
+
+    Clearing a dropdown cell and writing a formula pass: Excel checks only what is typed.
+    """
+    name = cell_name(*coord)
+    if book.locked(sheet, coord):
+        return "CELL_LOCKED", {"cell": name}
+    if content.kind in ("empty", "formula"):
+        return None
+    rule = book.dropdown_at(sheet, coord)
+    if rule is not None and not rule.allows(shown_value(content)):
+        return "VALUE_NOT_IN_LIST", {
+            "cell": name,
+            "allowed": ", ".join(rule.values or ()),
+        }
+    return None

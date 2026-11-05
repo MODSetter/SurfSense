@@ -53,14 +53,11 @@ https://github.com/user-attachments/assets/073577b7-f055-4f59-8540-330bd764aeb0
 | **Windows** x64 | [SurfSense-Setup.exe](https://www.surfsense.com/downloads/windows?src=readme) |
 | **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
 | **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
+| **Docker** Linux, macOS | `curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh \| bash` |
+| **Docker** Windows (Docker Desktop) | `irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 \| iex` |
 
-**استضفه بنفسك على خادم** باستخدام Docker، وافتحه من أي جهاز على شبكتك. شغّل الأمر نفسه مرة أخرى للتحديث.
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
-```
-
-على Windows مع Docker Desktop: `irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 | iex`
+> [!NOTE]
+> مع Docker تستضيفه بنفسك على خادم وتفتحه من أي جهاز على شبكتك. شغّل الأمر نفسه مرة أخرى للتحديث.
 
 ## بداية سريعة
 
@@ -77,9 +74,10 @@ curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scr
 | **Excel** `.xlsx` | ✓ ويقرأ الوكيل الصيغ الحسابية أيضًا | ✓ مع صيغ حسابية ومخططات أصلية | ✓ قيم الخلايا والصيغ الحسابية | التحليل باستخدام pandas وتمثيل النتائج بمخططات |
 | **PowerPoint** `.pptx` | ✓ | ✓ أو انطلاقًا من ملف `.pptx` خاص يُعتمد قالبًا | استبدال النص في الشرائح والملاحظات؛ وحذف الشرائح أو تكرارها | إلى PDF¹ |
 | **CSV** | ✓ | — | — | التحليل باستخدام pandas وتمثيل النتائج بمخططات |
-| **الصور** PNG, JPEG, TIFF, BMP, WebP | ✓ يُقرأ نصها بالتعرّف الضوئي على الحروف (OCR)³ | صور وإنفوجرافيك (Infographic)² | — | إدراجها في مستندات جديدة |
+| **الصور** PNG, JPEG, TIFF, BMP, WebP | ✓ يُقرأ نصها بالتعرّف الضوئي على الحروف (OCR)³ | صور وإنفوجرافيك (Infographic)، تُعدَّل بتعليمات² | — | إدراجها في مستندات جديدة |
 | **Markdown**، والنص العادي | ✓ | ✓ Markdown | — | — |
 | **HTML** | ✓ | ✓ صفحة ويب | — | — |
+| **الكتب الإلكترونية** EPUB, MOBI, AZW3 | ✓ دون DRM | — | — | — |
 | **التسجيلات الصوتية** WAV وMP3 وFLAC وOgg Vorbis | ✓ تُفرَّغ نصيًا على جهازك | — | — | — |
 | **بودكاست صوتي** (Podcast) | — | ✓ مع تفريغ نصي، وتُولَّد الأصوات على الجهاز نفسه افتراضيًا | — | — |
 | **الخرائط الذهنية (Mind map)، والبطاقات التعليمية (Flashcards)، والاختبارات (Quiz)** | — | ✓ داخل التطبيق | — | — |
@@ -90,24 +88,9 @@ curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scr
 
 ## الإضافات
 
-تُربط من **الإعدادات › الإضافات** (Settings › Plugins).
+تُربط من **الإعدادات › الإضافات** (Settings › Plugins): خوادم MCP من [سجل الإضافات](backend/plugins/registry)، مثل DeepWiki وNotion، أو أي خادم يُضاف عبر عنوان URL. تبقى معطّلة إلى أن يُسمح بها.
 
-**من SurfSense** (By SurfSense). تقرأ الصفحات العامة دون الحاجة إلى حسابات شخصية، وتتطلب رخصة SurfSense (License): يكفي [تنزيل التطبيق](https://www.surfsense.com/downloads) وإدخال البريد الإلكتروني فيه للحصول على رخصة مجانية لمدة 14 يومًا.
-
-| الإضافة | ما تفعله |
-|---|---|
-| **Google Search** | البحث في Google وقراءة نتائجه وإعلاناته والأسئلة ذات الصلة |
-| **Web Crawl** | قراءة صفحة ويب، أو الزحف على موقع كامل وتحويله إلى نص نظيف |
-| **YouTube** | قراءة مقاطع فيديو YouTube وقنواته والتعليقات عليها |
-| **TikTok** | قراءة مقاطع فيديو TikTok والتعليقات عليها، والبحث عن المستخدمين، ومعرفة الرائج حاليًا |
-| **Reddit** | قراءة منشورات Reddit العامة مع سلاسل تعليقاتها، أو مجتمع كامل |
-| **Instagram** | قراءة ملفات Instagram الشخصية العامة ومنشوراتها ومقاطع Reels، والبحث عن الملفات الشخصية |
-| **Google Maps** | العثور على الأماكن في Google Maps وقراءة مراجعاتها |
-| **Amazon** | قراءة منتجات Amazon ونتائج البحث فيه |
-| **Walmart** | قراءة منتجات Walmart ونتائج البحث فيه والمراجعات |
-| **Indeed** | قراءة إعلانات الوظائف على Indeed |
-
-**من جهات خارجية** (Third-party). خوادم MCP من [سجل الإضافات](backend/plugins/registry)، مثل DeepWiki وNotion، أو أي خادم يُضاف عبر عنوان URL. لا تتطلب رخصة، وتبقى معطّلة إلى أن يُسمح بها.
+**مدمج ومجاني:** الوكيل و**إضافة من الويب** (Add from the web)، الموجودة في المصادر (Sources)، يبحثان في الويب من خلال SearXNG ويقرآن الصفحات والتفريغ النصي لمقاطع فيديو YouTube عبر اتصال الجهاز نفسه بالإنترنت، دون الحاجة إلى إضافة أو رخصة.
 
 ## كيف يقارن بغيره
 

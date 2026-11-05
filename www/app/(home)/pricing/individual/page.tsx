@@ -17,7 +17,7 @@ import {
  * and the Stripe Payment Link, which needs no account. Its job is that nobody
  * reaches Stripe unsure what they are buying.
  *
- * Rendered in the site design (listed in `SITE_DESIGN_ROUTES`). Copy and its
+ * Rendered in the site design from `app/(home)/layout.tsx`. Copy and its
  * sources are in `individual-content.ts`.
  */
 

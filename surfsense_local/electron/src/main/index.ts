@@ -43,6 +43,7 @@ import { loadLocalePreference } from "./i18n/locale-prefs.ts"
 import { registerLocaleHandlers } from "./i18n/locale-ipc.ts"
 import { registerAboutHandlers } from "./about/about-ipc.ts"
 import { registerDataFolderHandlers } from "./about/data-folder-ipc.ts"
+import { registerStartupFrameHandlers } from "./startup-frame/startup-frame-ipc.ts"
 import { sessionLog } from "../../../sidecars/session-log/session-log.ts"
 import { warnMain } from "../../../sidecars/session-log/main-warn.ts"
 import { registerSessionLogHandlers } from "./session-log/session-log-ipc.ts"
@@ -493,6 +494,11 @@ function main(): void {
           mainWindow !== null && sender === mainWindow.webContents,
       })
       registerSessionLogHandlers({
+        isTrusted: (sender) =>
+          mainWindow !== null && sender === mainWindow.webContents,
+      })
+      registerStartupFrameHandlers({
+        dataDir: boot.dataDir,
         isTrusted: (sender) =>
           mainWindow !== null && sender === mainWindow.webContents,
       })
