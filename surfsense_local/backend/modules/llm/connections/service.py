@@ -1,5 +1,5 @@
 import asyncio
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from typing import Literal
 from urllib.parse import urlsplit, urlunsplit
 
@@ -8,6 +8,7 @@ import httpx
 from modules.llm.catalog.remote.manifest.loader import remote_lookup
 from modules.llm.catalog.remote.rows import CUSTOM
 from modules.llm.connections.key_headers import key_headers
+from modules.llm.connections.model_voices import voices_of
 from modules.llm.model_type import ModelType
 from modules.llm.models import ProviderConnection
 
@@ -38,6 +39,8 @@ class DiscoveredModel:
     # The manifest's own reason this model cannot be called through the
     # provider the connection names; None for a custom connection.
     unusable_reason: str | None = None
+    # What the endpoint publishes for this model, as OpenRouter's `supported_voices`.
+    voices: tuple[str, ...] = ()
 
     @property
     def capability_known(self) -> bool:
@@ -80,8 +83,14 @@ def _modalities(entry: dict) -> set[str]:
     } - {None}
 
 
-def _entries(payload: object) -> dict[str, set[str]]:
-    """Enumerate a listing into id -> declared output modalities.
+@dataclass
+class _Entry:
+    modalities: set[str] = field(default_factory=set)
+    voices: tuple[str, ...] = ()
+
+
+def _entries(payload: object) -> dict[str, _Entry]:
+    """Enumerate a listing into id -> what the endpoint declares of it.
 
     Listing and classifying are kept apart because a full catalogue can take
     more than one request, and an id may appear in several of them. Collecting
@@ -91,14 +100,16 @@ def _entries(payload: object) -> dict[str, set[str]]:
     if not isinstance(payload, dict) or not isinstance(payload.get("data"), list):
         raise ValueError("model endpoint did not return an OpenAI list envelope")
 
-    entries: dict[str, set[str]] = {}
+    entries: dict[str, _Entry] = {}
     for entry in payload["data"]:
         if not isinstance(entry, dict) or not isinstance(entry.get("id"), str):
             continue
         name = entry["id"].strip()
         if not name:
             continue
-        entries.setdefault(name, set()).update(_modalities(entry))
+        listed = entries.setdefault(name, _Entry())
+        listed.modalities.update(_modalities(entry))
+        listed.voices = listed.voices or tuple(voices_of(entry))
     return entries
 
 
@@ -135,7 +146,7 @@ def _classify(
 
 def parse_models(payload: object) -> list[DiscoveredModel]:
     return [
-        _classify(name, modalities) for name, modalities in _entries(payload).items()
+        _classify(name, listed.modalities) for name, listed in _entries(payload).items()
     ]
 
 
@@ -144,7 +155,7 @@ async def _request_entries(
     api_key: str | None,
     *,
     every_modality: bool = False,
-) -> dict[str, set[str]]:
+) -> dict[str, _Entry]:
     params = {"output_modalities": "all"} if every_modality else None
     async with httpx.AsyncClient(
         timeout=DISCOVERY_TIMEOUT,
@@ -157,7 +168,7 @@ async def _request_entries(
 
 async def probe_connection(base_url: str, api_key: str | None) -> list[DiscoveredModel]:
     entries = await _request_entries(base_url, api_key)
-    return [_classify(name, modalities) for name, modalities in entries.items()]
+    return [_classify(name, listed.modalities) for name, listed in entries.items()]
 
 
 async def discover_models(connection: ProviderConnection) -> list[DiscoveredModel]:
@@ -165,20 +176,25 @@ async def discover_models(connection: ProviderConnection) -> list[DiscoveredMode
         _request_entries(connection.base_url, connection.api_key),
         _optional_other_entries(connection.base_url, connection.api_key),
     )
-    merged = {name: set(modalities) for name, modalities in baseline.items()}
-    for name, modalities in optional.items():
-        merged.setdefault(name, set()).update(modalities)
+    merged = baseline
+    for name, other in optional.items():
+        listed = merged.setdefault(name, _Entry())
+        listed.modalities.update(other.modalities)
+        listed.voices = listed.voices or other.voices
     # `custom` names no manifest provider, so its models are read across all.
     provider = None if connection.catalog_provider == CUSTOM else connection.catalog_provider
     return sorted(
-        (_classify(name, modalities, provider) for name, modalities in merged.items()),
+        (
+            replace(_classify(name, listed.modalities, provider), voices=listed.voices)
+            for name, listed in merged.items()
+        ),
         key=lambda model: model.name.casefold(),
     )
 
 
 async def _optional_other_entries(
     base_url: str, api_key: str | None
-) -> dict[str, set[str]]:
+) -> dict[str, _Entry]:
     """Ask again for every modality, because a default listing may not hold them.
 
     OpenRouter's /models holds 464 models; `output_modalities=all` holds 635,

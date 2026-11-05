@@ -157,7 +157,7 @@ export type Voice = {
 
 /** Where a brief's voices come from: the local model's roster, the server's
  *  own list, or the ones the user added for a server model. */
-export type VoicesSource = "local" | "server" | "saved"
+export type VoicesSource = "local" | "server" | "published" | "saved"
 
 /** The server that voices a podcast. */
 export type VoicedBy = { server: string; model: string }

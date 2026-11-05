@@ -21,7 +21,7 @@ class BriefRead(BaseModel):
     brief: PodcastBrief
     # Empty only for a server model with no voices added yet.
     voices: list[Voice]
-    voices_source: Literal["local", "server", "saved"]
+    voices_source: Literal["local", "server", "published", "saved"]
     # The server that voices it; None for a model on this computer.
     voiced_by: VoicedByRead | None
     languages: list[str]

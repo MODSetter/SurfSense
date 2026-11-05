@@ -32,6 +32,8 @@ class VoicesRead(BaseModel):
     model: str
     source: str
     voices: list[str]
+    # Those removing can take away; the rest are the server's.
+    added: list[str]
     voices_page: str | None
 
 
@@ -44,14 +46,18 @@ class VoiceWrite(BaseModel):
 @router.get("", response_model=VoicesRead)
 def list_voices(session: SessionDep) -> VoicesRead:
     selected, connection = _server_selection(session)
-    source, voices = server_roster(session, selected, connection)
+    roster = server_roster(session, selected, connection)
     session.commit()  # egress stamps the host's last call
     return VoicesRead(
         connection_id=connection.id,
         model=selected.name,
-        source=source,
-        voices=voices,
-        voices_page=voices_page(connection, selected.name),
+        source=roster.source,
+        voices=roster.voices,
+        added=roster.added,
+        # A list here leaves no reason to go and read the provider's page.
+        voices_page=voices_page(connection, selected.name)
+        if roster.source == "saved"
+        else None,
     )
 
 

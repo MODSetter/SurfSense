@@ -12,7 +12,7 @@ from collections.abc import Sequence
 from modules.llm.providers.episode_audio.joined_wav import joined_wav
 from modules.llm.providers.protocols import SynthesizedAudio
 
-__all__ = ["joined_replies"]
+__all__ = ["joined_replies", "joins_as_it_is"]
 
 
 def joined_replies(replies: Sequence[bytes]) -> SynthesizedAudio:
@@ -25,6 +25,11 @@ def joined_replies(replies: Sequence[bytes]) -> SynthesizedAudio:
     if kinds == {"mp3"}:
         return SynthesizedAudio(b"".join(map(_mp3_frames, replies)), "audio/mpeg")
     raise ValueError(f"the lines came back as {', '.join(sorted(kinds))}")
+
+
+def joins_as_it_is(reply: bytes) -> bool:
+    """Whether a reply is already audio this can join, whatever was asked for."""
+    return _kind(reply) in ("wav", "mp3")
 
 
 def _kind(reply: bytes) -> str:

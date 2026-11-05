@@ -83,6 +83,8 @@ class ConnectionModelRead(BaseModel):
     unusable_reason: str | None = None
     # Its measured level, for a model that can fill the chat slot.
     capability_level: Level | None = None
+    # The voices the endpoint publishes for it; most endpoints publish none.
+    voices: list[str] = []
 
 
 class RuntimeFileRead(BaseModel):

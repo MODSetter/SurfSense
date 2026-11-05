@@ -2,13 +2,16 @@ import { request, requestJson } from "@/lib/api"
 
 const URL = "/llm/selection/audio_gen/voices"
 
-/** The audio selection's voices: the server's own list, or the ones the user
- *  added after hearing each. `connection_id` and `model` play a voice. */
+/** The audio selection's voices: the server's own list; the model's published
+ *  ones and those the user added; or the added ones alone. `connection_id` and
+ *  `model` play a voice. */
 export type ServerVoicesRead = {
   connection_id: number
   model: string
-  source: "server" | "saved"
+  source: "server" | "published" | "saved"
   voices: string[]
+  /** The ones removing can take away; the rest are the server's. */
+  added: string[]
   /** Where the provider documents the model's voices, when it does. */
   voices_page: string | null
 }

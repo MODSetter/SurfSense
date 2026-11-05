@@ -1,14 +1,20 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 
 import { Button } from "@/components/ui/button"
-import { ExternalLinkIcon, PlayIcon, Trash2Icon } from "@/components/ui/icons"
+import {
+  CircleStopIcon,
+  ExternalLinkIcon,
+  PlayIcon,
+  Trash2Icon,
+} from "@/components/ui/icons"
 import { Input } from "@/components/ui/input"
+import { ScrollFade } from "@/components/ui/scroll-fade"
 import { Spinner } from "@/components/ui/spinner"
 import { intl } from "@/i18n/intl"
 
 import { testConnectionSpeech } from "../models/api"
-import type { ServerVoicesRead } from "./api"
 import { useServerVoices } from "./use-server-voices"
+import { useVoiceTrial, type VoiceTrial } from "./use-voice-trial"
 
 /** What a voice is heard saying: the interface's language, the one the user
  *  is likeliest to write podcasts in, since no server says what it speaks. */
@@ -33,6 +39,19 @@ export function ServerVoices() {
   const { voices, add, remove } = useServerVoices()
   const [draft, setDraft] = useState("")
   const [error, setError] = useState<string | null>(null)
+  const read = voices.data
+  const trials = useVoiceTrial(
+    (voice) => `${read?.connection_id}/${read?.model}/${voice}`,
+    (voice, signal) =>
+      testConnectionSpeech(
+        read!.connection_id,
+        read!.model,
+        voice,
+        trialLine(),
+        signal
+      ),
+    messageFrom
+  )
 
   if (!voices.data) return null
   const { source, voices_page: page } = voices.data
@@ -63,11 +82,17 @@ export function ServerVoices() {
               id: "models_server_voices_listed_body",
               defaultMessage: "Listed by the server",
             })
-          : intl.formatMessage({
-              id: "models_server_voices_saved_body",
-              defaultMessage:
-                "This server doesn’t list its voices. Add the IDs you want; each is played once before it’s kept. A podcast needs one per speaker.",
-            })}
+          : source === "published"
+            ? intl.formatMessage({
+                id: "models_server_voices_published_body",
+                defaultMessage:
+                  "Published for this model. You can also add a voice by its ID; it’s played once before it’s kept.",
+              })
+            : intl.formatMessage({
+                id: "models_server_voices_saved_body",
+                defaultMessage:
+                  "This server doesn’t list its voices. Add the IDs you want; each is played once before it’s kept. A podcast needs one per speaker.",
+              })}
         {page ? (
           <>
             {" "}
@@ -95,23 +120,37 @@ export function ServerVoices() {
       </p>
 
       {voices.data.voices.length ? (
-        <ul className="divide-y rounded-lg border">
-          {voices.data.voices.map((voice) => (
-            <VoiceRow
-              key={voice}
-              voice={voice}
-              read={voices.data}
-              onRemove={
-                listed
-                  ? undefined
-                  : () =>
-                      void remove
-                        .mutateAsync(voice)
-                        .catch((cause: unknown) => setError(messageFrom(cause)))
-              }
-            />
-          ))}
-        </ul>
+        <ScrollFade
+          className="overflow-hidden rounded-lg border"
+          viewportClassName="max-h-56"
+        >
+          <ul className="divide-y">
+            {voices.data.voices.map((voice) => (
+              <VoiceRow
+                key={voice}
+                voice={voice}
+                trial={trials.trial?.voice === voice ? trials.trial : null}
+                error={
+                  trials.failure?.voice === voice
+                    ? trials.failure.message
+                    : null
+                }
+                onPlay={() => void trials.play(voice)}
+                onStop={trials.stop}
+                onRemove={
+                  voices.data.added.includes(voice)
+                    ? () =>
+                        void remove
+                          .mutateAsync(voice)
+                          .catch((cause: unknown) =>
+                            setError(messageFrom(cause))
+                          )
+                    : undefined
+                }
+              />
+            ))}
+          </ul>
+        </ScrollFade>
       ) : null}
 
       {listed ? null : (
@@ -149,33 +188,20 @@ export function ServerVoices() {
 
 function VoiceRow({
   voice,
-  read,
+  trial,
+  error,
+  onPlay,
+  onStop,
   onRemove,
 }: {
   voice: string
-  read: ServerVoicesRead
+  trial: VoiceTrial | null
+  error: string | null
+  onPlay: () => void
+  onStop: () => void
   onRemove?: () => void
 }) {
-  const [clip, setClip] = useState<string | null>(null)
-  const [playing, setPlaying] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(
-    () => () => {
-      if (clip) URL.revokeObjectURL(clip)
-    },
-    [clip]
-  )
-
-  const play = () => {
-    setPlaying(true)
-    setError(null)
-    testConnectionSpeech(read.connection_id, read.model, voice, trialLine())
-      .then((blob) => setClip(URL.createObjectURL(blob)))
-      .catch((cause: unknown) => setError(messageFrom(cause)))
-      .finally(() => setPlaying(false))
-  }
-
+  const playing = trial?.state === "playing"
   return (
     <li className="space-y-2 px-3 py-2">
       <div className="flex items-center gap-2">
@@ -186,17 +212,33 @@ function VoiceRow({
           type="button"
           variant="ghost"
           size="icon-xs"
-          disabled={playing}
-          aria-label={intl.formatMessage(
-            {
-              id: "models_server_voices_play_aria",
-              defaultMessage: "Play {voice}",
-            },
-            { voice }
-          )}
-          onClick={play}
+          disabled={trial?.state === "loading"}
+          aria-label={
+            playing
+              ? intl.formatMessage(
+                  {
+                    id: "models_server_voices_stop_aria",
+                    defaultMessage: "Stop {voice}",
+                  },
+                  { voice }
+                )
+              : intl.formatMessage(
+                  {
+                    id: "models_server_voices_play_aria",
+                    defaultMessage: "Play {voice}",
+                  },
+                  { voice }
+                )
+          }
+          onClick={playing ? onStop : onPlay}
         >
-          {playing ? <Spinner /> : <PlayIcon />}
+          {trial?.state === "loading" ? (
+            <Spinner />
+          ) : playing ? (
+            <CircleStopIcon />
+          ) : (
+            <PlayIcon />
+          )}
         </Button>
         {onRemove ? (
           <Button
@@ -216,21 +258,6 @@ function VoiceRow({
           </Button>
         ) : null}
       </div>
-      {clip ? (
-        <audio
-          controls
-          autoPlay
-          src={clip}
-          className="w-full"
-          aria-label={intl.formatMessage(
-            {
-              id: "models_server_voices_clip_aria",
-              defaultMessage: "{voice}, as the server voices it",
-            },
-            { voice }
-          )}
-        />
-      ) : null}
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
     </li>
   )

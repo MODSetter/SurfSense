@@ -64,6 +64,7 @@ async def test_a_server_that_lists_its_voices_offers_those(
         "model": "kokoro",
         "source": "server",
         "voices": ["af_heart", "am_adam"],
+        "added": [],
         "voices_page": None,
     }
 
@@ -81,6 +82,7 @@ async def test_a_voice_is_kept_only_once_the_server_has_voiced_it(
         "model": "tts-1",
         "source": "saved",
         "voices": [],
+        "added": [],
         "voices_page": None,
     }
 
@@ -113,6 +115,57 @@ async def test_choosing_another_model_starts_its_voices_afresh(
     assert (await client.get(URL)).json()["voices"] == ["alloy"]
     await _select(client, connection, "tts-1-hd")
     assert (await client.get(URL)).json()["voices"] == []
+
+
+ELEVEN = {
+    "id": "elevenlabs/eleven-v4",
+    "architecture": {"output_modalities": ["speech"]},
+    "supported_voices": ["sarah", "george"],
+}
+
+
+async def test_a_model_that_publishes_its_voices_offers_them_and_takes_more(
+    client: AsyncClient, openai_server: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """OpenRouter's `supported_voices`, read from its model list. It also voices
+    ids it does not list, so one can still be added and removed."""
+    monkeypatch.setattr(conftest, "REMOTE_MODELS", [*conftest.REMOTE_MODELS, ELEVEN])
+    connection = await _choose(
+        client, openai_server, ELEVEN["id"], catalog_provider="openrouter"
+    )
+
+    assert (await client.get(URL)).json() == {
+        "connection_id": connection,
+        "model": ELEVEN["id"],
+        "source": "published",
+        "voices": ["sarah", "george"],
+        "added": [],
+        "voices_page": None,
+    }
+
+    assert (await client.post(URL, json={"voice": "OZ0L6"})).status_code == 201
+    assert (await client.post(URL, json={"voice": "sarah"})).status_code == 201
+    read = (await client.get(URL)).json()
+    assert read["voices"] == ["sarah", "george", "OZ0L6"]
+    # Only what the list would not bring back can be removed.
+    assert read["added"] == ["OZ0L6"]
+
+    assert (await client.delete(URL, params={"voice": "OZ0L6"})).status_code == 204
+    assert (await client.get(URL)).json()["voices"] == ["sarah", "george"]
+
+
+async def test_a_model_listing_carries_the_voices_each_model_publishes(
+    client: AsyncClient, openai_server: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """So a model can be tried in a listed voice before it is chosen."""
+    monkeypatch.setattr(conftest, "REMOTE_MODELS", [*conftest.REMOTE_MODELS, ELEVEN])
+    connection = await _choose(client, openai_server, ELEVEN["id"])
+
+    listed = (await client.get(f"/llm/connections/{connection}/models")).json()
+
+    voices = {model["name"]: model["voices"] for model in listed}
+    assert voices[ELEVEN["id"]] == ["sarah", "george"]
+    assert voices[conftest.REMOTE_MODELS[0]["id"]] == []
 
 
 async def test_openrouter_links_the_page_that_names_a_models_voices(
