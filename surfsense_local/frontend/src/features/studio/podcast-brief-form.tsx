@@ -347,7 +347,8 @@ export function PodcastBriefForm({
                 number: index + 1,
               }
             )}
-            className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-1.5"
+            // The voice shrinks, not the name: a provider's voice labels can fill the row.
+            className="grid grid-cols-[minmax(6rem,1fr)_auto_minmax(0,2fr)_auto] items-center gap-1.5"
           >
             <Input
               aria-label={intl.formatMessage({
