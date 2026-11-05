@@ -11,6 +11,7 @@ import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
+from modules.jobs.packs import installed
 from modules.jobs.packs.install import install_pack, remove_pack
 from modules.jobs.packs.installed import find_job, installed_packs
 from modules.jobs.packs.manifest import PackManifest, PackRefusedError, version_key
@@ -405,6 +406,26 @@ def test_a_version_is_listed_at_every_moment_of_an_install(tmp_path):
 
     assert seen
     assert [listed for listed in seen if len(listed) != 1] == []
+
+
+def test_a_listing_reads_again_while_installs_follow_each_other(tmp_path, monkeypatch):
+    """Two installs in a row can each move the version the last read found: the listing reads
+    the pack's folder again until a read sees none go, so the pack never drops out."""
+    root = tmp_path / "installed"
+    install_pack(write_pack(tmp_path / "v1"), root)
+    read_versions = installed._read_versions
+    reads: list[Path] = []
+
+    def moved_twice(folder: Path):
+        reads.append(folder)
+        if len(reads) <= 2:
+            return [], True
+        return read_versions(folder)
+
+    monkeypatch.setattr(installed, "_read_versions", moved_twice)
+
+    assert [pack.manifest.version for pack in installed_packs(root)] == ["1.0.0"]
+    assert len(reads) == 3
 
 
 def test_an_old_version_that_cannot_be_moved_stays_and_the_newest_is_listed(
