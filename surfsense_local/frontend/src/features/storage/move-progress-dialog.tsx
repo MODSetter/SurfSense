@@ -86,7 +86,7 @@ export function MoveProgressDialog() {
 
   return (
     <AlertDialog open>
-      <AlertDialogContent>
+      <AlertDialogContent className="select-none">
         <AlertDialogHeader>
           <AlertDialogTitle>
             {intl.formatMessage({

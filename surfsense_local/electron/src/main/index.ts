@@ -1,5 +1,5 @@
 import { mkdirSync, rmSync } from "node:fs"
-import { dirname, join } from "node:path"
+import { join } from "node:path"
 import { pathToFileURL } from "node:url"
 
 import {
@@ -45,6 +45,7 @@ import { registerAboutHandlers } from "./about/about-ipc.ts"
 import { registerDataFolderHandlers } from "./about/data-folder-ipc.ts"
 import { registerStartupFrameHandlers } from "./startup-frame/startup-frame-ipc.ts"
 import { isOwnSnap } from "./install-channel/own-snap.ts"
+import { appInstallFolder, relaunchOptions } from "./storage/app-install.ts"
 import { removeInterruptedCopy, removeOldCopies } from "./storage/clean-up-old-copies.ts"
 import { drivePrompts } from "./storage/drive-prompts.ts"
 import { UNAVAILABLE_STANDIN } from "./storage/plan-move.ts"
@@ -538,14 +539,18 @@ function main(): void {
       registerStorageHandlers({
         storage: settled.storage,
         modelsUnavailable: settled.modelsUnavailable,
-        appFolder: app.isPackaged ? dirname(process.execPath) : app.getAppPath(),
+        appFolder: app.isPackaged
+          ? appInstallFolder(process.platform, process.execPath)
+          : app.getAppPath(),
         isTrusted: (sender) =>
           mainWindow !== null && sender === mainWindow.webContents,
         mainWindow: () => mainWindow,
         confirmStop: quitWithConfirmation,
         stop: shutdown,
         relaunch: () => {
-          app.relaunch()
+          // In `pnpm dev` the app's exit also takes Vite down, so a relaunch finds no page.
+          if (app.isPackaged) app.relaunch(relaunchOptions(process.env))
+          else warnMain(sessionLog, "storage changed: run pnpm dev again")
           app.quit()
         },
         onMovingChange: (moving) => {

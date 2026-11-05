@@ -77,7 +77,7 @@ export function MoveConfirmDialog({
       <AlertDialogContent>
         {ready ? (
           <>
-            <AlertDialogHeader>
+            <AlertDialogHeader className="select-none">
               <AlertDialogTitle>{title(ready)}</AlertDialogTitle>
               <AlertDialogDescription>{body(ready)}</AlertDialogDescription>
             </AlertDialogHeader>

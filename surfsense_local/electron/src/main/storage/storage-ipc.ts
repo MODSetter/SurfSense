@@ -5,7 +5,8 @@ import { dialog, ipcMain, type BrowserWindow } from "electron"
 import type { StorageKind } from "./marker.ts"
 import { entriesToMove, planMove, type MovePlan } from "./plan-move.ts"
 import type { ResolvedStorage } from "./resolve-storage.ts"
-import { MoveFailedError, runMove } from "./run-move.ts"
+import { runMove } from "./run-move.ts"
+import { settleMove } from "./settle-move.ts"
 
 const kindFrom = (value: unknown): StorageKind | null =>
   value === "data" || value === "models" ? value : null
@@ -104,15 +105,10 @@ export function registerStorageHandlers(options: {
     await stop()
     // Listed again now the sidecars are stopped: a database's -wal may have gone with them.
     const current = { ...chosen, entries: entriesToMove(chosen.kind, chosen.fromRoot) }
-    void runMove({ plan: current, baseDir, signal: running.signal, onProgress: send })
-      .then(relaunch)
-      .catch((error: unknown) => {
-        onMovingChange(false)
-        const reason = error instanceof MoveFailedError ? error.reason : "failed"
-        // A cancelled move has nothing to say: restart on the folder it never left.
-        if (reason === "canceled") relaunch()
-        else send({ phase: "failed", reason })
-      })
+    void settleMove(
+      runMove({ plan: current, baseDir, signal: running.signal, onProgress: send }),
+      { onMovingChange, restart: relaunch, onFailed: (reason) => send({ phase: "failed", reason }) },
+    )
     return true
   })
 

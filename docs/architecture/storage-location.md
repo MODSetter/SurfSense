@@ -49,7 +49,7 @@ It runs in the open app, not on the next start: boot shows no window until the A
 4. Read every copied file back and compare its SHA-256. The originals may be deleted on the strength of this.
 5. Repoint what stores absolute paths, in the copy (below).
 6. Rename into place, write the marker, then replace `storage-location.json` in one step. Until that write the old folder is still in charge, and any failure removes the copy.
-7. Relaunch. Once the new API has answered, `removeOldCopies` deletes only the entries the move named, because the old folder may be the user's home. A drive that is away keeps its record for a later start.
+7. Relaunch, or under `pnpm dev` only quit, because Electron's exit also takes Vite down. Once the new API has answered, `removeOldCopies` deletes only the entries the move named, because the old folder may be the user's home. A drive that is away keeps its record for a later start.
 
 Cancelling, or a failure, relaunches on the old folder. A closed window waits while a move copies.
 
@@ -74,8 +74,8 @@ A moved folder carries a marker, `.surfsense-storage`. `settleStorageBeforeBoot`
 ## Platforms
 
 - **Windows:** a directory link is copied as a junction, which needs no privilege. Renames retry while antivirus holds a new file.
-- **macOS:** the app is not sandboxed, so `NSRemovableVolumesUsageDescription` and its siblings in `electron-builder.yml` are all it needs; security-scoped bookmarks apply only to Mac App Store builds.
-- **Linux:** AppImage, deb and rpm reach any mounted drive. A confined snap reaches none without the `removable-media` plug, so the bridge and the section are absent there.
+- **macOS:** the folder a move may not enter is the whole `.app` bundle. The app is not sandboxed, so `NSRemovableVolumesUsageDescription` and its siblings in `electron-builder.yml` are all it needs; security-scoped bookmarks apply only to Mac App Store builds.
+- **Linux:** AppImage, deb and rpm reach any mounted drive. An AppImage relaunches from `$APPIMAGE`, because its running path is a mount that goes when it exits. A confined snap reaches none without the `removable-media` plug, so the bridge and the section are absent there.
 
 ## Known gaps
 
