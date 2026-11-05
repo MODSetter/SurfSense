@@ -34,15 +34,14 @@ async def turn_holding(
     servers: set[str],
     tools: TurnTools,
     message: str,
-    mentioned: frozenset[str],
 ) -> Starting:
-    asked = Asked(message, mentioned=mentioned)
+    asked = Asked(message)
     embed: Embed | None = None
     if tools.fit:
         chosen = [t.ready for t in tools.tools]
     else:
         # Only past the share: the thread's history and the embedder cost a read each.
-        asked = asked_of(await client.messages(session_id), message, mentioned)
+        asked = asked_of(await client.messages(session_id), message)
         embed = await transact(session, tool_vectors)
         chosen, embed = await _chosen(tools, asked, embed)
     holding = Holding(

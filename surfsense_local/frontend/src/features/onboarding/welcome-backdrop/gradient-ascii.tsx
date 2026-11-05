@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react"
 
+import { motionIsReduced } from "@/features/motion-preference/motion-preference"
 import { cn } from "@/lib/utils"
 
 import {
@@ -163,8 +164,7 @@ export function GradientAscii({
       return rgb
     }
 
-    const reduce =
-      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false
+    const reduce = motionIsReduced()
     const view = { width: 1, height: 1, ratio: 1 }
     const ramp = new Float32Array(MAX_COLORS * 3)
     const clickData = new Float32Array(MAX_CLICKS * 4)

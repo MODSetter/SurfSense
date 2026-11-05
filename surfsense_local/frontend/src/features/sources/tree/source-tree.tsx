@@ -9,6 +9,7 @@ import {
 } from "react"
 
 import { getFileViewer } from "@/features/file-viewers/registry"
+import { motionIsReduced } from "@/features/motion-preference/motion-preference"
 import { useStableCallback } from "@/hooks/use-stable-callback"
 import { intl } from "@/i18n/intl"
 
@@ -100,7 +101,10 @@ export const SourceTree = memo(function SourceTree({
     if (highlightedDocumentId === null) return
     rowElements.current
       .get(documentKey(highlightedDocumentId))
-      ?.scrollIntoView({ behavior: "smooth", block: "nearest" })
+      ?.scrollIntoView({
+        behavior: motionIsReduced() ? "auto" : "smooth",
+        block: "nearest",
+      })
   }, [highlightedDocumentId])
 
   const focusRow = (row: TreeRow | undefined) => {

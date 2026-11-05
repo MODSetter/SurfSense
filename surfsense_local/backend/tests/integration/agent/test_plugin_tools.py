@@ -394,7 +394,7 @@ async def test_only_a_plugins_step_is_saved_to_sources(agent_api: AgentAPI) -> N
     assert saved.status_code == 409
 
 
-async def test_mentioning_a_plugin_never_unblocks_its_tools(
+async def test_naming_a_plugin_never_unblocks_its_tools(
     agent_api: AgentAPI, notes_url: str
 ) -> None:
     """A tool switched off stays hidden, whatever the message names."""
@@ -408,7 +408,7 @@ async def test_mentioning_a_plugin_never_unblocks_its_tools(
     assert offered(agent_api) == ["notes_search"]
 
 
-async def test_a_mention_of_a_plugin_that_is_not_ready_changes_nothing(
+async def test_naming_a_plugin_that_is_not_ready_changes_nothing(
     agent_api: AgentAPI, notes_url: str
 ) -> None:
     """With third-party plugins refused, the agent is neither given it nor told of it."""
@@ -420,9 +420,6 @@ async def test_a_mention_of_a_plugin_that_is_not_ready_changes_nothing(
     await send(agent_api, thread["id"], "Use @notes")
 
     assert offered(agent_api) == []
-    assert "The user asked you to use" not in json.dumps(
-        agent_api.model.requests[0]["messages"]
-    )
 
 
 @contextmanager

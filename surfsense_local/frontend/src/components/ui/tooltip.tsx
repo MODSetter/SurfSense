@@ -87,7 +87,9 @@ function TooltipContent({
         side={side}
         sideOffset={sideOffset}
         collisionPadding={collisionPadding}
-        className="isolate"
+        // Over anything with its own layer, such as the composer's `@` list, and
+        // gone once what it describes scrolls out of view, not left beside it.
+        className="isolate z-50 data-anchor-hidden:invisible"
       >
         <TooltipPrimitive.Popup
           id={tooltipId ?? undefined}

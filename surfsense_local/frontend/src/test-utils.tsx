@@ -23,3 +23,13 @@ export function render(
     ...options,
   })
 }
+
+/** What the message box reads: its text, each chip as its name. */
+export function boxText(box: Element | null) {
+  return (box?.textContent ?? "").replace(/\u200b/g, "")
+}
+
+/** Whether the message box refuses writing, as a disabled textarea would. */
+export function boxHeld(box: Element | null) {
+  return box?.getAttribute("contenteditable") !== "true"
+}

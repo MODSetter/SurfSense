@@ -40,6 +40,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { useStartupReveal } from "@/features/startup/use-startup-reveal"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
@@ -172,6 +173,7 @@ export function WorkspaceRail({
   const [namingOpen, setNamingOpen] = useState(false)
   const [deleting, setDeleting] = useState<Workspace | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const reveal = useStartupReveal()
 
   const openNaming = (target: Workspace | "new") => {
     setNaming(target)
@@ -180,7 +182,11 @@ export function WorkspaceRail({
 
   return (
     <nav
-      className="flex h-full flex-col items-center bg-app-shell py-3 text-sidebar-foreground"
+      {...reveal}
+      className={cn(
+        "flex h-full flex-col items-center bg-app-shell py-3 text-sidebar-foreground",
+        reveal.className
+      )}
       aria-label={intl.formatMessage({
         id: "workspaces_rail_aria",
         defaultMessage: "Workspaces",
