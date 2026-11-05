@@ -145,7 +145,7 @@ def test_the_business_purchase_names_the_firm_the_people_and_the_portal(monkeypa
         "purchase",
         to="a@b.test",
         certificates=("CERT",),
-        business=business(firm="Acme LLP", people=4),
+        business=business(firm="Acme LLP", people=4, paid=True),
     )
 
     assert message.subject == "Your SurfSense Business license"
@@ -170,7 +170,7 @@ def test_without_a_portal_link_the_business_mail_says_to_reply(monkeypatch):
     monkeypatch.setattr(config, "STRIPE_CUSTOMER_PORTAL_URL", "")
 
     message = build_license_email(
-        "renewal", to="a@b.test", certificates=("CERT",), business=business()
+        "renewal", to="a@b.test", certificates=("CERT",), business=business(paid=True)
     )
 
     assert "reply to this email" in message.text_body
@@ -189,6 +189,25 @@ def test_the_business_trial_says_what_stops_and_names_no_portal(monkeypatch):
     assert message.subject == "Your SurfSense Business 14-day trial license"
     assert "only new job runs stop" in message.text_body
     assert "https://portal.test/p" not in message.text_body
+
+
+def test_only_a_paid_business_license_resent_names_the_portal(monkeypatch):
+    """Resend takes a trial's copy when the address holds no paid license, and a trial
+    has no subscription to change or cancel."""
+    from license.settings import config
+
+    monkeypatch.setattr(config, "STRIPE_CUSTOMER_PORTAL_URL", "https://portal.test/p")
+
+    def resent(copy):
+        return build_license_email(
+            "resend", to="a@b.test", certificates=("CERT",), business=copy
+        ).text_body
+
+    trial, paid = resent(business()), resent(business(people=4, paid=True))
+
+    assert "https://portal.test/p" not in trial
+    assert "to cancel" not in trial
+    assert "https://portal.test/p" in paid
 
 
 @pytest.mark.parametrize("kind", ["purchase", "trial"])
@@ -271,5 +290,5 @@ def test_a_business_copy_is_only_for_licenses_that_unlock_jobs():
         firm="Acme", people=None
     )
     assert BusinessCopy.of(issued("business", ("JOB_QUESTIONNAIRE",), 3)) == (
-        BusinessCopy(firm="Acme", people=3)
+        BusinessCopy(firm="Acme", people=3, paid=True)
     )

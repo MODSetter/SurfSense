@@ -94,7 +94,7 @@ async def stripe_webhook(request: Request) -> StripeWebhookResponse:
         elif event.type == "invoice.paid":
             await renew_from_invoice(event.data.object, stripe_client=stripe_client)
         elif event.type == "customer.subscription.updated":
-            await follow_people(event.data.object)
+            await follow_people(event.data.object, stripe_client=stripe_client)
         elif event.type == "customer.subscription.deleted":
             await let_lapse(event.data.object)
         elif event.type == "charge.refunded":
@@ -103,7 +103,8 @@ async def stripe_webhook(request: Request) -> StripeWebhookResponse:
             await suspend_disputed(event.data.object, stripe_client=stripe_client)
     except Exception:
         # A 500 makes Stripe retry: the derived license id makes a fulfilment
-        # safe to repeat, and a renewal or seat change sets the same values again.
+        # safe to repeat, a renewal or seat change reads the live subscription,
+        # and a repeated suspension is a no-op.
         logger.exception(
             "Stripe webhook handler failed for event id=%s type=%s; Stripe will retry",
             getattr(event, "id", "?"),

@@ -431,6 +431,21 @@ async def test_keygen_down_is_503(pack_portal: PackPortal) -> None:
     )
 
 
+async def test_a_validation_without_a_code_is_503_never_license_not_found(
+    pack_portal: PackPortal,
+) -> None:
+    """The license exists; license_not_found would tell the app it has none."""
+    licensed(pack_portal)
+    pack_portal.keygen.codeless = True
+
+    reply = await pack_portal.ask(KEY)
+
+    assert refusal(reply, 503) == (
+        "job_packs_unavailable",
+        "Could not check that license right now. Try again later.",
+    )
+
+
 # the key and the limits -------------------------------------------------------
 
 

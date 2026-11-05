@@ -115,8 +115,10 @@ async def resend_license(
     try:
         licenses = await licenses_for_email(email)
         if licenses:
+            copies = [copy for copy in map(BusinessCopy.of, licenses) if copy]
+            # A paid license's copy, which names the billing portal, before a trial's.
             business = next(
-                (copy for copy in map(BusinessCopy.of, licenses) if copy), None
+                (copy for copy in copies if copy.paid), copies[0] if copies else None
             )
             await deliver_licenses(
                 "resend",

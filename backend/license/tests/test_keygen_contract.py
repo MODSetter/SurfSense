@@ -10,12 +10,12 @@ this test exists to catch.
 
 Run it against a Keygen CE account (images in ``docker/keygen/``) with the
 usual ``KEYGEN_ACCOUNT_ID``, ``KEYGEN_API_TOKEN`` and ``KEYGEN_POLICY_INDIVIDUAL``
-set, plus ``KEYGEN_API_URL``/``KEYGEN_HOST`` for a self-hosted one:
+set, plus ``KEYGEN_API_URL``/``KEYGEN_HOST`` for a self-hosted one, from ``backend/``:
 
-    KEYGEN_INTEGRATION=1 pytest tests/integration/license
+    KEYGEN_INTEGRATION=1 uv run pytest license/tests/test_keygen_contract.py
 
-Each run creates one license under a random id and suspends it afterwards;
-Keygen's client has no delete, and a suspended record is what a refund leaves.
+Each test creates its own license and suspends it afterwards; Keygen's client
+has no delete, and a suspended record is what a refund leaves.
 """
 
 from __future__ import annotations
@@ -112,8 +112,10 @@ async def test_a_suspended_license_validates_as_such_but_still_checks_out() -> N
         "individual", f"contract-{uuid4().hex[:12]}@example.com"
     )
 
-    before = await keygen.validate_license(license_id)
-    await keygen.suspend_license(license_id)
+    try:
+        before = await keygen.validate_license(license_id)
+    finally:
+        await keygen.suspend_license(license_id)
     after = await keygen.validate_license(license_id)
     certificate = await keygen.checkout_license(license_id)
 

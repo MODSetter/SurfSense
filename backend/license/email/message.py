@@ -50,14 +50,17 @@ class BusinessCopy:
 
     firm: str | None = None
     people: int | None = None
+    # A paid license has a subscription to change or cancel; a trial has none.
+    paid: bool = False
 
     @classmethod
     def of(cls, issued: IssuedLicense) -> BusinessCopy | None:
         """For a license that unlocks the jobs; ``None`` keeps the copy as it was."""
         if issued.plan != "business" and not issued.jobs:
             return None
-        people = issued.max_users if issued.plan == "business" else None
-        return cls(firm=issued.firm, people=people)
+        paid = issued.plan == "business"
+        people = issued.max_users if paid else None
+        return cls(firm=issued.firm, people=people, paid=paid)
 
 
 def _install_steps(
@@ -172,8 +175,7 @@ def _business_intro(kind: LicenseEmailKind, business: BusinessCopy, days: int) -
         for_firm=f" for {business.firm}" if business.firm else "",
         covers=covers,
     )
-    # A trial has nothing to cancel; every paid kind names the portal.
-    return intro if kind == "trial" else f"{intro}\n\n{_manage_line()}"
+    return f"{intro}\n\n{_manage_line()}" if business.paid else intro
 
 
 def build_license_email(

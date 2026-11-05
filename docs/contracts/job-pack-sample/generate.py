@@ -60,7 +60,7 @@ FIRST_MEMBERS = ("job-pack.json", "job-pack.sig")
 MAX_MEMBERS = 1000
 # No name holds these, beside the `\` and `:` every name refuses.
 UNWRITABLE = frozenset('<>"|?*') | frozenset(map(chr, range(32)))
-VERSION = re.compile(r"^\d{1,9}\.\d{1,9}\.\d{1,9}$")
+VERSION = re.compile(r"^[0-9]{1,9}\.[0-9]{1,9}\.[0-9]{1,9}$")
 
 
 def signed_payload(manifest: object) -> bytes:

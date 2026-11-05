@@ -25,11 +25,13 @@ _VERSION = re.compile(VERSION_PATTERN)
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _ENTITLEMENT = re.compile(r"^[A-Z][A-Z0-9_]{0,63}$")
 _RUNNER = re.compile(RUNNER_PATTERN)
-# Device names Windows reserves, with or without an extension.
+# Device names Windows reserves, with or without an extension. COM and LPT take the
+# superscript one, two and three too, and never 0.
+_PORT_DIGITS = "123456789\u00b9\u00b2\u00b3"
 _RESERVED = frozenset(
-    {"con", "prn", "aux", "nul"}
-    | {f"com{n}" for n in range(1, 10)}
-    | {f"lpt{n}" for n in range(1, 10)}
+    {"con", "prn", "aux", "nul", "conin$", "conout$"}
+    | {f"com{digit}" for digit in _PORT_DIGITS}
+    | {f"lpt{digit}" for digit in _PORT_DIGITS}
 )
 # Characters no Windows file name holds, beside the `\` and `:` every path refuses.
 _UNWRITABLE = frozenset('<>"|?*') | frozenset(map(chr, range(32)))
@@ -144,7 +146,9 @@ def safe_path(path: object) -> PurePosixPath:
             "BAD_PATH", f"{path!r} holds a character Windows cannot write."
         )
     for part in parts:
-        if part.endswith((".", " ")) or part.split(".", 1)[0].casefold() in _RESERVED:
+        # Windows reads `CON .txt` as CON: spaces before the extension do not count.
+        device = part.split(".", 1)[0].rstrip(" ").casefold()
+        if part.endswith((".", " ")) or device in _RESERVED:
             raise PackRefusedError(
                 "BAD_PATH", f"{path!r} names a file Windows cannot write."
             )

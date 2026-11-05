@@ -2,7 +2,8 @@
 
 The same key renews (ADR 0080), so nothing new is minted: the license's expiry
 moves to the end of the paid period plus the grace. The expiry is read from the
-live subscription, which makes a retried or late event set the same value.
+live subscription, which makes a retried or late event set the same value. Only
+a period's invoice moves it: a proration for people moves only their count.
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ from license.models import META_PLAN
 from license.records import issued_for_id
 
 from .paid_period import (
+    PERIOD_BILLING_REASONS,
     expiry_for,
     people,
     retrieve,
@@ -58,7 +60,8 @@ async def renew_from_invoice(invoice: Any, *, stripe_client: Any) -> None:
     record = found.record
     changes: dict[str, Any] = {}
 
-    expiry = expiry_for(subscription)
+    # A proration pays no period, and the live one may be a year not yet paid.
+    expiry = expiry_for(subscription) if reason in PERIOD_BILLING_REASONS else None
     current = _instant(record.expiry)
     if expiry is not None and (current is None or expiry > current):
         changes["expiry"] = expiry
