@@ -1,4 +1,4 @@
-# ADR 0084: A user can move models or all data to another drive, and Electron's settings stay behind
+# ADR 0085: A user can move models or all data to another drive, and Electron's settings stay behind
 
 - **Status:** Accepted
 - **Date:** 2026-11-05

@@ -3,7 +3,7 @@
 Settings › Storage moves the downloaded models, or all of a user's data, to another drive. The model step of onboarding offers the models half through a link beside the Hugging Face search, which opens on the current folder, and a download refused for disk space offers it too. The Docker image has no such setting: its folder is the volume it mounts.
 
 **Code:** [`surfsense_local/electron/src/main/storage/`](../../surfsense_local/electron/src/main/storage/), [`surfsense_local/frontend/src/features/storage/`](../../surfsense_local/frontend/src/features/storage/), [`surfsense_local/sidecars/model-folders.ts`](../../surfsense_local/sidecars/model-folders.ts)
-**Decisions:** [ADR 0084](../adr/0084-the-data-folder-moves-and-electrons-settings-stay.md)
+**Decisions:** [ADR 0085](../adr/0085-the-data-folder-moves-and-electrons-settings-stay.md)
 
 ```text
   ~/.surfsense                 fixed: electron/, storage-location.json, api-url
