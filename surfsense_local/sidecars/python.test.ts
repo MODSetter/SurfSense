@@ -188,3 +188,28 @@ test("without a staged audio.cpp the API is told of no speech recognition server
 
   assert.equal(api.SURFSENSE_LOCAL_TRANSCRIPTION_BASE_URL, undefined)
 })
+
+test("the API and every worker hear where a moved models folder and the shell's settings are", () => {
+  const ctx: SidecarContext = {
+    ...withAudio(),
+    embeddingModelsDir: join("D:", "SurfSense-Models", "embeddings"),
+    shellSettingsDir: join("C:", ".surfsense", "electron"),
+  }
+
+  for (const env of [apiSpec(ctx).env, workerSpec(ctx, "ingest").env]) {
+    assert.equal(env.SURFSENSE_LOCAL_EMBEDDING_MODELS_DIR, ctx.embeddingModelsDir)
+    assert.equal(env.SURFSENSE_LOCAL_SHELL_SETTINGS_DIR, ctx.shellSettingsDir)
+    assert.equal(env.SURFSENSE_LOCAL_MODEL_STORAGE_UNAVAILABLE, undefined)
+  }
+})
+
+test("workers hear that the models drive is missing, so downloads wait for it", () => {
+  const env = apiSpec({ ...withAudio(), modelStorageUnavailable: true }).env
+  assert.equal(env.SURFSENSE_LOCAL_MODEL_STORAGE_UNAVAILABLE, "1")
+})
+
+test("an install that never moved anything sets none of the storage variables", () => {
+  const env = apiSpec(withAudio()).env
+  assert.equal(env.SURFSENSE_LOCAL_EMBEDDING_MODELS_DIR, undefined)
+  assert.equal(env.SURFSENSE_LOCAL_SHELL_SETTINGS_DIR, undefined)
+})

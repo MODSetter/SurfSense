@@ -35,7 +35,7 @@ def get_machine_readings() -> MachineReadings:
         holds_local_model=lambda name: (
             get_local_catalog().engine_holding(name) is not None
         ),
-        ui_language=lambda: ui_language(get_storage_settings().data_dir / "electron"),
+        ui_language=lambda: ui_language(get_storage_settings().shell_settings_dir),
     )
 
 

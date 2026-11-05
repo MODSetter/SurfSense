@@ -95,6 +95,26 @@ describe("SettingsDialog", () => {
     vi.unstubAllGlobals()
   })
 
+  it("offers Storage only where main can move folders", () => {
+    const nav = () =>
+      Array.from(
+        screen.getByRole("navigation", { name: "System" }).querySelectorAll("button"),
+        (b) => b.textContent
+      )
+
+    const { unmount } = render(<SettingsHarness />)
+    expect(nav()).not.toContain("Storage")
+    unmount()
+
+    window.surfsense = {
+      ...window.surfsense!,
+      storage: { state: async () => null } as never,
+    }
+    render(<SettingsHarness />)
+    expect(nav()).toEqual(["Resources", "Storage", "Office support", "Network"])
+    delete window.surfsense!.storage
+  })
+
   it("groups the sections into Settings, Models, System and App", () => {
     render(<SettingsHarness />)
 
@@ -431,5 +451,16 @@ describe("SettingsDialog in the Docker image", { tags: ["docker"] }, () => {
     expect(
       Array.from(nav.querySelectorAll("button"), (b) => b.textContent)
     ).toEqual(["General", "Access", "License", "Plugins"])
+  })
+})
+
+describe("SettingsDialog in the Docker image", { tags: ["docker"] }, () => {
+  it("has no Storage section: the volume decides where the files are", () => {
+    render(<SettingsHarness />)
+
+    const system = screen.getByRole("navigation", { name: "System" })
+    expect(
+      Array.from(system.querySelectorAll("button"), (b) => b.textContent)
+    ).not.toContain("Storage")
   })
 })

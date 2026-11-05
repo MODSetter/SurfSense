@@ -46,16 +46,16 @@ describe("what an install event says", () => {
     expect(
       installMessage({
         type: "error",
-        message: "This download needs 5.0 GB free; this computer has 2.1 GB.",
+        message: "This download needs 5.0 GB free; this drive has 2.1 GB.",
         code: "not_enough_disk",
         needed_bytes: 5_000_000_000,
         free_bytes: 2_140_000_000,
       })
-    ).toBe("This download needs 5 GB free; this computer has 2.1 GB.")
+    ).toBe("This download needs 5 GB free; this drive has 2.1 GB.")
   })
 
   it("keeps the backend's sentence when the disk refusal lacks a number", () => {
-    const message = "This download needs 5.0 GB free; this computer has 2.1 GB."
+    const message = "This download needs 5.0 GB free; this drive has 2.1 GB."
 
     expect(
       installMessage({ type: "error", message, code: "not_enough_disk" })

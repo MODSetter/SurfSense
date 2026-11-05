@@ -27,6 +27,12 @@ export interface SidecarContext {
   secret: string
   /** Packaged: read-only bundled embedding, voice, and Docling parser packs. */
   modelsDir?: string
+  /** Downloaded embedders, named only when the models folder is not the data folder. */
+  embeddingModelsDir?: string
+  /** Electron's own settings, named only when the data folder moved away from them. */
+  shellSettingsDir?: string
+  /** The drive holding the chosen models folder is not connected; downloads wait for it. */
+  modelStorageUnavailable?: boolean
   /**
    * llama-server's router port, models dir, and URL for API + worker.
    *

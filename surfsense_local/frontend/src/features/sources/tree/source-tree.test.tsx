@@ -174,6 +174,14 @@ function TreeHarness({ realOpen = false }: { realOpen?: boolean }) {
 
 const row = (name: string) => screen.getByRole("treeitem", { name })
 
+// A row starts taking drops in an effect after it appears, and a drop that comes
+// sooner lands on the panel. The drag library sets `draggable` in that same effect.
+async function rowTakingDrops(name: string) {
+  const found = await screen.findByRole("treeitem", { name })
+  await waitFor(() => expect(found.getAttribute("draggable")).toBe("true"))
+  return found
+}
+
 // jsdom lays nothing out: give a name the widths of one its row cuts off.
 function cutOff(element: HTMLElement) {
   Object.defineProperty(element, "scrollWidth", {
@@ -418,7 +426,7 @@ describe("source tree", () => {
     const dialog = await screen.findByRole("dialog", { name: "New folder" })
     await user.type(within(dialog).getByLabelText("Name"), "Archive")
     await user.click(within(dialog).getByRole("button", { name: "Create" }))
-    const archive = await screen.findByRole("treeitem", { name: "Archive" })
+    const archive = await rowTakingDrops("Archive")
 
     const dataTransfer = fakeDataTransfer()
     fireEvent.dragStart(research, { dataTransfer })
@@ -517,7 +525,7 @@ describe("source tree", () => {
   it("uploads a folder dropped on a folder row into it, with each file's path", async () => {
     const { writes } = folderApi()
     render(<TreeHarness />)
-    const research = await screen.findByRole("treeitem", { name: "Research" })
+    const research = await rowTakingDrops("Research")
     const a = new File(["a"], "a.md", { type: "text/markdown" })
     const b = new File(["b"], "b.txt", { type: "text/plain" })
     const clutter = new File(["x"], "HEAD")
@@ -580,7 +588,7 @@ describe("source tree", () => {
   it("skips the lock file Office keeps beside a document it has open", async () => {
     const { writes } = folderApi()
     render(<TreeHarness />)
-    const research = await screen.findByRole("treeitem", { name: "Research" })
+    const research = await rowTakingDrops("Research")
     const plan = new File(["plan"], "plan.docx")
     const lock = new File(["owner"], "~$plan.docx")
 
@@ -624,7 +632,7 @@ describe("source tree", () => {
       },
     })
     render(<TreeHarness />)
-    const research = await screen.findByRole("treeitem", { name: "Research" })
+    const research = await rowTakingDrops("Research")
     const a = new File(["a"], "a.md", { type: "text/markdown" })
     const budget = new File(["b"], "budget.xlsx")
     const b = new File(["c"], "b.txt", { type: "text/plain" })
@@ -673,7 +681,7 @@ describe("source tree", () => {
     }
     folderApi({ upload: unanswered, health: unanswered })
     render(<TreeHarness />)
-    const research = await screen.findByRole("treeitem", { name: "Research" })
+    const research = await rowTakingDrops("Research")
 
     dropOn(
       research,
@@ -721,7 +729,7 @@ describe("source tree", () => {
       },
     })
     render(<TreeHarness />)
-    const research = await screen.findByRole("treeitem", { name: "Research" })
+    const research = await rowTakingDrops("Research")
 
     dropOn(
       research,
@@ -771,7 +779,7 @@ describe("source tree", () => {
       health: unanswered,
     })
     render(<TreeHarness />)
-    const research = await screen.findByRole("treeitem", { name: "Research" })
+    const research = await rowTakingDrops("Research")
 
     dropOn(
       research,

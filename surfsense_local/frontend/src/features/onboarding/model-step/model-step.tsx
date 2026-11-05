@@ -30,6 +30,7 @@ import { ConnectionDialog } from "@/features/models/remote/connections/connectio
 import { useConnectionsServing } from "@/features/models/remote/connections/use-connections"
 import { DeleteModelDialog } from "@/features/models/your-models/delete-model-dialog"
 import type { YourModelRow } from "@/features/models/your-models/your-model-row"
+import { ChangeModelsFolder } from "@/features/storage/change-models-folder"
 import { intl } from "@/i18n/intl"
 
 import { OfflineState } from "../offline-state"
@@ -225,6 +226,7 @@ export function ModelStep({
             onCancel={cancel}
             source={copy.search.source}
             note={copy.search.note?.()}
+            aside={<ChangeModelsFolder />}
           />
         </section>
 

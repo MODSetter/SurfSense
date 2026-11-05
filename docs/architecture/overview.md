@@ -149,6 +149,7 @@ The rules that keep the processes out of each other's way:
 - [Docker access](docker-access.md): who can open the Docker image, its password and setup, and sign-in turned off behind a proxy.
 - Local models: [runtime](local-models/runtime.md), [fit](local-models/fit.md), [admission and parallel slots](local-models/admission.md), [catalog](local-models/catalog.md), [selection and onboarding](local-models/selection.md).
 - [Localization](localization.md): the interface in ten languages.
+- [Storage location](storage-location.md): moving the models or all data to another drive, on the desktop only.
 - [Egress](egress.md), [Office pack](office-pack.md), [import](import.md), [license in the app](license/app.md), [license portal](license/portal.md), [updates](updates.md), [usage statistics](usage-statistics.md), [about](about.md), [issue reports](issue-reports.md), [resource usage](resource-usage.md), [packaging](packaging.md), [install channels](install-channels.md).
 - [Contracts](../contracts/README.md) between the trees.
 
