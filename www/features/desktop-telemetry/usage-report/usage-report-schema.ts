@@ -5,7 +5,7 @@ const ISO_WEEK = /^20[0-9]{2}-W(0[1-9]|[1-4][0-9]|5[0-3])$/;
 const TURNS = z.enum(["0", "1-9", "10-49", "50+", "unknown"]);
 
 /**
- * Usage report schema 1, revision 1.1 (docs/contracts/05-desktop-telemetry.md,
+ * Usage report schema 1, revision 1.2 (docs/contracts/05-desktop-telemetry.md,
  * part B). Strict all the way down: every value is an enum, flag or fixed
  * format, so an unknown key or value is refused rather than stored. Which
  * report carries `hardware` and `week` is the app's rule, not the route's.
@@ -17,12 +17,16 @@ export const usageReportSchema = z.strictObject({
 	os: z.string().refine(isDesktopOs),
 	ui_language: z.enum(["en", "ja", "de", "other"]),
 	install_week: z.string().regex(ISO_WEEK),
+	// Revision 1.2, absent before it: UTC days since the first run, in ranges.
+	install_age: z.enum(["0", "1", "2-3", "4-7", "8-14", "15-30", "31-60", "61+"]).optional(),
 	// Absent from 2.2.4, whose every report is a daily one.
 	trigger: z.enum(["daily", "setup"]).optional(),
 	active: z.strictObject({
 		first: z.boolean(),
 		week: z.boolean(),
 		month: z.boolean(),
+		// Revision 1.2: the first daily report in this install_age range.
+		age: z.boolean().optional(),
 	}),
 	hardware: z
 		.strictObject({
@@ -48,6 +52,9 @@ export const usageReportSchema = z.strictObject({
 				"first_answer",
 				"unknown",
 			]),
+			// Revision 1.2: of the 7 and 28 UTC days before the report, how many show use.
+			days_used_7: z.enum(["0", "1", "2-3", "4-6", "7", "unknown"]).optional(),
+			days_used_28: z.enum(["0", "1", "2-3", "4-7", "8-14", "15-28", "unknown"]).optional(),
 		})
 		.nullable(),
 });
