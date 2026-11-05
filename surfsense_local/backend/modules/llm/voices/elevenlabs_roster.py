@@ -7,7 +7,7 @@ import httpx
 
 from modules.llm.providers.elevenlabs.account import voices_for_model
 from modules.llm.providers.elevenlabs.refusal import refusal_message
-from modules.llm.providers.protocols import Voice
+from modules.llm.voices.voice import Voice
 
 __all__ = ["AccountVoices", "VoicesProblem", "elevenlabs_voices"]
 

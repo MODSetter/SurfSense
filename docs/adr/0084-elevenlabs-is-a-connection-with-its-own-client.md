@@ -1,4 +1,4 @@
-# ADR 0083: ElevenLabs is a connection with its own client
+# ADR 0084: ElevenLabs is a connection with its own client
 
 - **Status:** Accepted
 - **Date:** 2026-11-05

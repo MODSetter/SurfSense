@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from api.dependencies import SessionDep
 from modules.artifacts.podcast.brief import PodcastBrief, languages
 from modules.artifacts.podcast.service import open_brief
-from modules.llm.providers.protocols import Voice
+from modules.llm.voices.voice import Voice
 from modules.workspaces.dependencies import WorkspaceDep
 
 router = APIRouter(tags=["studio"])

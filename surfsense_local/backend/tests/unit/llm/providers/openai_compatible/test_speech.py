@@ -270,6 +270,34 @@ def test_pcm_that_states_no_rate_falls_back_to_mp3() -> None:
     assert audio.media_type == "audio/mpeg"
 
 
+@pytest.mark.parametrize(
+    ("content", "media_type"),
+    [(FRAME, "audio/mpeg"), (wav(1000), "audio/wav")],
+    ids=["mp3", "wav"],
+)
+def test_a_pcm_request_answered_in_a_format_that_joins_is_kept_not_asked_again(
+    content: bytes, media_type: str
+) -> None:
+    """Asking again would voice, and bill, the line a second time."""
+    formats: list[str] = []
+
+    def answers(request: httpx.Request) -> httpx.Response:
+        wanted = json.loads(request.content)["response_format"]
+        formats.append(wanted)
+        if wanted == "wav":
+            return httpx.Response(
+                400, json={"error": {"message": "expected one of mp3, pcm"}}
+            )
+        return httpx.Response(
+            200, content=content, headers={"content-type": media_type}
+        )
+
+    audio = speak_to(answers, [SpokenTurn("sarah", "Hi."), SpokenTurn("george", "Yo.")])
+
+    assert formats == ["wav", "pcm", "pcm"]
+    assert audio.media_type == media_type
+
+
 def test_a_later_line_that_states_no_rate_ends_the_episode_and_says_so() -> None:
     """The format was settled on the first line, so asking again would mix two."""
     server = PcmServer(["audio/pcm;rate=24000;channels=1", "audio/pcm"])

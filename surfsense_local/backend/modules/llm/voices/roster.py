@@ -11,10 +11,10 @@ from modules.llm.providers import audiocpp
 from modules.llm.providers.elevenlabs.account import ELEVENLABS
 from modules.llm.providers.openai_compatible.published_voices import published_voices
 from modules.llm.providers.openai_compatible.voice_list import listed_voices
-from modules.llm.providers.protocols import Voice
 from modules.llm.resolution import local_speech, selected_audio, stored_connection
 from modules.llm.voices.elevenlabs_roster import VoicesProblem, elevenlabs_voices
 from modules.llm.voices.saved import saved_voices
+from modules.llm.voices.voice import Voice
 
 __all__ = [
     "ServerRoster",

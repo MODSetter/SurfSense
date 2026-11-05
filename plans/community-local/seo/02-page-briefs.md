@@ -238,11 +238,11 @@ Until then the page stays as it is.
 - **Title:** `SurfSense Pricing — Free App, Business Licence` (46)
 - **Meta:** `The app and its updates are free forever. A Business licence adds the job plugins, priced per person. Compare with NotebookLM's tiers and source limits.` (152)
 - **H1:** `Pricing`
-- **Required content**, from ADR 0080: a Business card, "Solo" for one
-  person, at $60 a year for each person, the first included (revised
-  4 Nov 2026), a
-  founding price locked for early customers; who needs it, anyone who uses a
-  SurfSense job plugin for work; the automatic yearly renewal, stated before
+- **Required content**, from ADR 0080 and ADR 0083: a Business card, "Solo"
+  for one person, at $60 a year for each person, the first included (revised
+  4 Nov 2026), a founding price that can change only at a renewal, after at
+  least 30 days' notice by email; who needs it, anyone who uses a SurfSense job
+  plugin for work; the automatic yearly renewal, stated before
   payment; the 14-day trial of the full job; cancellation and seat changes
   through the emailed Stripe customer-portal link, with no account; and what a
   lapse does: new job runs stop after 30 days, every file stays readable, and

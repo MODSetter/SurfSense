@@ -4,8 +4,8 @@ from typing import Annotated
 from pydantic import BaseModel, Field, StringConstraints, ValidationError
 from sqlalchemy.orm import Session
 
-from modules.llm.providers.protocols import Voice
 from modules.llm.voices.roster import speech_voices
+from modules.llm.voices.voice import Voice
 
 MAX_SPEAKERS = 6
 DEFAULT_LANGUAGE = "en-US"

@@ -5,7 +5,7 @@
 A connection is one named remote endpoint that speaks the OpenAI API: a hosted provider, an organization's gateway, a vLLM server, or a local server such as Ollama or LM Studio. [ElevenLabs](#elevenlabs) is the one exception, with an API of its own. The user adds as many as they need, each with its own URL and optional key, and assigns a model from any of them to a model type, such as `text_gen` for chat or `image_gen` for images. SurfSense configures and selects endpoints; it does not load-balance them, and it never copies an endpoint's model list into the database. The keys are encrypted with a per-install secret that Electron keeps in the OS keychain.
 
 **Code:** [`modules/llm/connections/`](../../surfsense_local/backend/modules/llm/connections/), [`modules/llm/providers/openai_compatible/`](../../surfsense_local/backend/modules/llm/providers/openai_compatible/), [`modules/llm/resolution.py`](../../surfsense_local/backend/modules/llm/resolution.py), [`modules/llm/selection.py`](../../surfsense_local/backend/modules/llm/selection.py), [`shared/secrets.py`](../../surfsense_local/backend/shared/secrets.py), [`electron/src/main/secret.ts`](../../surfsense_local/electron/src/main/secret.ts), [`frontend/src/features/models/remote/`](../../surfsense_local/frontend/src/features/models/remote/)
-**Decisions:** [ADR 0015](../adr/0015-openai-compatible-connections.md), [ADR 0017](../adr/0017-egress-off-by-default.md), [ADR 0018](../adr/0018-keychain-envelope-encryption.md), [ADR 0049](../adr/0049-prompts-grow-at-the-end.md), [ADR 0083](../adr/0083-elevenlabs-is-a-connection-with-its-own-client.md)
+**Decisions:** [ADR 0015](../adr/0015-openai-compatible-connections.md), [ADR 0017](../adr/0017-egress-off-by-default.md), [ADR 0018](../adr/0018-keychain-envelope-encryption.md), [ADR 0049](../adr/0049-prompts-grow-at-the-end.md), [ADR 0084](../adr/0084-elevenlabs-is-a-connection-with-its-own-client.md)
 
 ## Terms
 
@@ -162,7 +162,7 @@ Loading a connection runs the egress check for its host. The bundled sd-server s
 
 ## ElevenLabs
 
-ElevenLabs does not speak the OpenAI API, so it has its own client ([`providers/elevenlabs/`](../../surfsense_local/backend/modules/llm/providers/elevenlabs/)) behind the same connection ([ADR 0083](../adr/0083-elevenlabs-is-a-connection-with-its-own-client.md)). It fills `audio_gen` alone ([`serves.py`](../../surfsense_local/backend/modules/llm/connections/serves.py)). OpenRouter's ElevenLabs models are unrelated to it and stay as any server's.
+ElevenLabs does not speak the OpenAI API, so it has its own client ([`providers/elevenlabs/`](../../surfsense_local/backend/modules/llm/providers/elevenlabs/)) behind the same connection ([ADR 0084](../adr/0084-elevenlabs-is-a-connection-with-its-own-client.md)). It fills `audio_gen` alone ([`serves.py`](../../surfsense_local/backend/modules/llm/connections/serves.py)). OpenRouter's ElevenLabs models are unrelated to it and stay as any server's.
 
 - `GET /llm/connections/elevenlabs` says which slots offer it, and `POST` with `{label, api_key}` creates one at the fixed `https://api.elevenlabs.io`. It reads `GET /v1/models` and `GET /v2/voices` with the key first, which spends no credits: a key that cannot is a `422` with code `elevenlabs_refused` and ElevenLabs' own sentence, which names a missing permission, and nothing is saved. Whether it may voice cannot be checked without voicing a line.
 - `PUT` takes a new name and, when one is sent, a new key, checked the same way; a refused key leaves the old one. The address cannot be edited.

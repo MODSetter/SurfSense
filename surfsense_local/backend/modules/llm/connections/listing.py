@@ -11,13 +11,13 @@ from modules.llm.providers.elevenlabs.account import (
     account_voices,
     text_to_speech_models,
 )
-from modules.llm.providers.protocols import Voice
 from modules.llm.subscriptions.chatgpt.account import CHATGPT
 from modules.llm.subscriptions.chatgpt.plan_models import plan_models
 from modules.llm.subscriptions.claude.account import CLAUDE_PLAN
 from modules.llm.subscriptions.claude.models import claude_models
 from modules.llm.subscriptions.claude.proxy import required_claude_proxy_url
 from modules.llm.subscriptions.claude.usable_claude import usable_claude
+from modules.llm.voices.voice import Voice
 
 
 async def connection_models(

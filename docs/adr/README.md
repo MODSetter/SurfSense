@@ -108,7 +108,8 @@ The Date is the day the decision was first written down. Source links are permal
 | 0077 | [An image edit is the next version of the same document](0077-an-image-edit-is-the-next-version.md) | Accepted |
 | 0078 | [A picture a connected model returns is fetched with its connection](0078-a-picture-a-connected-model-returns-is-fetched-with-its-connection.md) | Accepted |
 | 0079 | [`@` names sources and artifacts, not plugins](0079-at-names-sources-and-artifacts-not-plugins.md) | Accepted |
-| 0080 | [SurfSense sells one paid license, Business, priced per person](0080-surfsense-sells-one-business-license-priced-per-person.md) | Accepted |
+| 0080 | [SurfSense sells one paid license, Business, priced per person](0080-surfsense-sells-one-business-license-priced-per-person.md) | Accepted, amended by 0083 |
 | 0081 | [SurfSense's platform scrapers retire, and reading web pages, YouTube and search move into the app for free](0081-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md) | Accepted |
 | 0082 | [The license server delivers job packs itself, from a private repository's releases, to a license whose jobs list them](0082-the-license-server-delivers-job-packs-from-private-releases.md) | Accepted |
-| 0083 | [ElevenLabs is a connection with its own client](0083-elevenlabs-is-a-connection-with-its-own-client.md) | Accepted |
+| 0083 | [Business's founding price can change at a renewal, after at least 30 days' notice by email](0083-the-founding-price-can-change-at-a-renewal-with-notice.md) | Accepted |
+| 0084 | [ElevenLabs is a connection with its own client](0084-elevenlabs-is-a-connection-with-its-own-client.md) | Accepted |

@@ -5,31 +5,15 @@
 import httpx
 
 from modules.llm.connections.key_headers import key_headers
+from modules.llm.connections.model_voices import voices_of
 
-__all__ = ["published_voices", "voices_of"]
+__all__ = ["published_voices"]
 
 LIST_TIMEOUT = httpx.Timeout(10.0, connect=5.0)
-
-# What a voice test and a podcast brief accept.
-_MAX_VOICE_ID = 100
 
 # Held for the process, never stored: a model gains voices on its own schedule,
 # and the next start asks again. A failed listing is not an answer.
 _answers: dict[tuple[int, str], dict[str, list[str]]] = {}
-
-
-def voices_of(entry: dict) -> list[str]:
-    """The ids one listed model publishes, each once, without what no brief takes."""
-    raw = entry.get("supported_voices")
-    if not isinstance(raw, list):
-        return []
-    return list(
-        dict.fromkeys(
-            voice
-            for voice in raw
-            if isinstance(voice, str) and 0 < len(voice) <= _MAX_VOICE_ID
-        )
-    )
 
 
 def published_voices(

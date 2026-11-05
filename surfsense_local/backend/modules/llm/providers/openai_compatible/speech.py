@@ -7,7 +7,7 @@ import httpx
 
 from modules.llm.connections.key_headers import key_headers
 from modules.llm.providers.openai_compatible.joined_replies import joined_replies
-from modules.llm.providers.openai_compatible.pcm_reply import wav_from_pcm_reply
+from modules.llm.providers.openai_compatible.pcm_reply import line_from_pcm_request
 from modules.llm.providers.protocols import SpokenTurn, SynthesizedAudio
 from shared import cancellation
 
@@ -59,7 +59,7 @@ class RemoteSpeech:
                     # that line's own, not the format's.
                     chosen = "pcm"
                     reply = await self._voice(client, index, len(turns), turn, chosen)
-                    if reply.is_error or wav_from_pcm_reply(reply) is None:
+                    if reply.is_error or line_from_pcm_request(reply) is None:
                         chosen = "mp3"
                         reply = await self._voice(
                             client, index, len(turns), turn, chosen
@@ -70,7 +70,7 @@ class RemoteSpeech:
                         f"{_server_message(reply)}"
                     )
                 voiced.append(
-                    _line_as_wav(reply, index, len(turns))
+                    _pcm_line(reply, index, len(turns))
                     if chosen == "pcm"
                     else reply.content
                 )
@@ -116,14 +116,14 @@ class RemoteSpeech:
             ) from error
 
 
-def _line_as_wav(reply: httpx.Response, index: int, total: int) -> bytes:
-    wav = wav_from_pcm_reply(reply)
-    if wav is None:
+def _pcm_line(reply: httpx.Response, index: int, total: int) -> bytes:
+    line = line_from_pcm_request(reply)
+    if line is None:
         raise NonRetryableSpeechError(
             f"the server could not voice turn {index} of {total}: "
             "its audio did not state a sample rate"
         )
-    return wav
+    return line
 
 
 def _server_message(reply: httpx.Response) -> str:

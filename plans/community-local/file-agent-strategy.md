@@ -273,10 +273,12 @@ The line between an edit and a job stands.
 
 - **Who needs it.** Anyone who uses a SurfSense job plugin for work. It starts
   at one person, shown as "Solo".
-- **Price.** A founding price, locked for early customers and a hypothesis to
-  test: $60 a year for each person, the first included (1 person $60,
-  2 $120, 5 $300, 10 $600, 15 $900), to rise once sales justify it (revised
-  4 Nov 2026). It replaces the
+- **Price.** A founding price, which can change at a renewal after at least
+  30 days' notice
+  ([ADR 0083](../../docs/adr/0083-the-founding-price-can-change-at-a-renewal-with-notice.md)),
+  and a hypothesis to test: $60 a year for each person, the first included
+  (1 person $60, 2 $120, 5 $300, 10 $600, 15 $900), to rise once sales justify
+  it (revised 4 Nov 2026). It replaces the
   earlier plan of $1,200 a year per firm and the Individual license's $60,
   then $120.
 - **Billing.** Business renews automatically every year on the same license
@@ -704,8 +706,8 @@ Each with a recommended answer, except where a question now points to 08.
    ([ADR 0080](../../docs/adr/0080-surfsense-sells-one-business-license-priced-per-person.md)):
    the Individual license stops being sold when the first job plugin ships, and
    business jobs need Business,
-   priced per person, at a founding price locked for early customers and a
-   hypothesis to test: $60 a year for each person, the first included, to
+   priced per person, at a founding price that can change at a renewal with
+   notice, and a hypothesis to test: $60 a year for each person, the first included, to
    rise once sales justify it (revised 4 Nov 2026). It replaces the
    Individual license's $60,
    then $120, and the earlier plan of $1,200 a year per firm.
