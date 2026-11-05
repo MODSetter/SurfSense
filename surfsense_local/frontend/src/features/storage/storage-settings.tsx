@@ -27,7 +27,7 @@ function FolderRow({
 }) {
   const busy = planning !== null
   return (
-    <div className="flex items-start justify-between gap-8 not-first:mt-8">
+    <div className="flex items-start justify-between gap-8">
       <div className="flex min-w-0 flex-col gap-1">
         <h3 className="text-sm font-medium">{title}</h3>
         <p className="text-sm text-pretty text-muted-foreground">{body}</p>
@@ -102,7 +102,7 @@ export function StorageSettings() {
       scrollable="all"
     >
       {state ? (
-        <>
+        <div className="flex flex-col gap-8">
           <FolderRow
             kind="models"
             folder={state.models}
@@ -134,7 +134,7 @@ export function StorageSettings() {
             onChange={flow.choose}
             onUseDefault={flow.useDefault}
           />
-        </>
+        </div>
       ) : null}
       <MoveConfirmDialog
         ready={flow.ready}
