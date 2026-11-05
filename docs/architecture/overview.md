@@ -31,7 +31,8 @@ api ── admission ── HTTP ──> llama-server, remote OpenAI-compatible 
 api ── HTTP ──> api.surfsense.com: a renewed license file, job packs
 worker-studio, opencode ── POST /internal/models/text/generate, /agent/model/v1 ──> api
 worker-studio ── HTTP ──> sd-server, audiocpp, remote image and speech endpoints
-worker-plugins ── HTTP ──> plugins.surfsense.com, the links added from the web
+worker-plugins ── HTTP ──> each site and www.youtube.com, the links added from the web
+api ── HTTP ──> searxng.surfsense.com or the user's SearXNG, each site and www.youtube.com: a search in Add from the web, the agent's web tools
 worker-ingest, worker-studio, worker-plugins ── POST /internal/events ──> api ── SSE /workspaces/{id}/events
 ```
 
@@ -59,7 +60,7 @@ worker-ingest, worker-studio, worker-plugins ── POST /internal/events ──
 | Model catalog, downloads and the hardware probe | `api` |
 | Parse, chunk, embed and index a document | `worker-ingest` |
 | Generate and render an artifact, index its body | `worker-studio` |
-| Pull a link added from the web through SurfSense's plugin | `worker-plugins` ([sources from the web](web-sources.md)) |
+| Read a link added from the web, a page or a video's transcript, on the user's own connection | `worker-plugins` ([sources from the web](web-sources.md)) |
 | Sidecar lifecycle, the keychain secret, updates, opening files natively | Electron main |
 
 The rules that keep the processes out of each other's way:
@@ -134,7 +135,7 @@ The rules that keep the processes out of each other's way:
 - [Embedding model](embedding.md): the model that embeds the library, chosen once at onboarding.
 - [Chat](chat.md): grounding, the stream, runs, citations.
 - [Agent](agent.md): a thread opencode answers in steps, and how it is kept to loopback.
-- [Sources from the web](web-sources.md): links searched or pasted, pulled into sources by SurfSense's own plugins under the license.
+- [Sources from the web](web-sources.md): links searched through SearXNG or pasted, read into sources on the user's own connection, with no license.
 - [Plugins](plugins.md): MCP servers whose tools the agent calls; the [plugin host](plugin-host.md) runs SurfSense's own, and the [plugin registry](plugin-registry.md) lists third-party ones.
 - [Backend](backend.md): the one process on SurfSense's servers: the plugin host and the [license portal](license/portal.md).
 - [Model capabilities](model-capabilities.md): the measured level each chat model gets, and what follows from it.

@@ -402,6 +402,154 @@ describe("egress prompt", () => {
     )
   })
 
+  it("says a site gets a page's address from Add from the web, and asks about every site at once", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json(
+          {
+            detail: {
+              code: "egress_disabled",
+              message: "off",
+              destination: "host:tides.example",
+              host: "tides.example",
+              hosts: ["tides.example", "www.youtube.com"],
+              purpose: "web_page",
+            },
+          },
+          { status: 403 }
+        )
+      )
+    )
+    render(<EgressPrompt />)
+
+    void requestVoid("/workspaces/1/documents/web", { method: "POST" }).catch(
+      () => {}
+    )
+
+    const dialog = await screen.findByRole("alertdialog", {
+      name: "Allow reading pages from tides.example?",
+    })
+    expect(dialog.textContent).toContain(
+      "the page’s address and your IP address"
+    )
+    // The agent writes the address, so it can hold words from the chat.
+    expect(dialog.textContent).toContain(
+      "An address the agent chooses can carry words from your chats or files, such as a search term, but nothing else from them is sent."
+    )
+    expect(dialog.textContent).toContain("www.youtube.com")
+    expect(dialog.textContent).not.toContain("license key")
+  })
+
+  it.each(["wiki.documentfoundation.org", "platform.claude.com"])(
+    "asks about reading pages from %s, not its other errand",
+    async (host) => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () =>
+          Response.json(
+            {
+              detail: {
+                code: "egress_disabled",
+                message: "off",
+                destination: `host:${host}`,
+                host,
+                purpose: "web_page",
+              },
+            },
+            { status: 403 }
+          )
+        )
+      )
+      render(<EgressPrompt />)
+
+      void requestVoid("/workspaces/1/documents/web", {
+        method: "POST",
+      }).catch(() => {})
+
+      expect(
+        await screen.findByRole("alertdialog", {
+          name: `Allow reading pages from ${host}?`,
+        })
+      ).toBeTruthy()
+    }
+  )
+
+  // One row per host: allowing pages there also allows model search, which no
+  // longer asks once the host is on.
+  it.each([
+    { first: "huggingface.co", hosts: ["huggingface.co"] },
+    { first: "tides.example", hosts: ["tides.example", "huggingface.co"] },
+  ])(
+    "says reading pages from huggingface.co also turns on model search, when $first is asked first",
+    async ({ first, hosts }) => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () =>
+          Response.json(
+            {
+              detail: {
+                code: "egress_disabled",
+                message: "off",
+                destination: `host:${first}`,
+                host: first,
+                hosts,
+                purpose: "web_page",
+              },
+            },
+            { status: 403 }
+          )
+        )
+      )
+      render(<EgressPrompt />)
+
+      void requestVoid("/workspaces/1/documents/web", {
+        method: "POST",
+      }).catch(() => {})
+
+      const dialog = await screen.findByRole("alertdialog", {
+        name: `Allow reading pages from ${first}?`,
+      })
+      expect(dialog.textContent).toContain(
+        "Allowing also turns on model search and downloads from huggingface.co: searching sends what you type as you type it."
+      )
+    }
+  )
+
+  it("says a search goes to a SearXNG server, and that SurfSense runs its own", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json(
+          {
+            detail: {
+              code: "egress_disabled",
+              message: "off",
+              destination: "host:searxng.surfsense.com",
+              host: "searxng.surfsense.com",
+              purpose: "web_search",
+            },
+          },
+          { status: 403 }
+        )
+      )
+    )
+    render(<EgressPrompt />)
+
+    void requestVoid("/workspaces/1/documents/web/search", {
+      method: "POST",
+    }).catch(() => {})
+
+    const dialog = await screen.findByRole("alertdialog", {
+      name: "Allow searching with searxng.surfsense.com?",
+    })
+    expect(dialog.textContent).toContain("a SearXNG server")
+    expect(dialog.textContent).toContain(
+      "A search the agent writes can carry words from your chats or files, but nothing else from them is sent."
+    )
+    expect(dialog.textContent).toContain("SurfSense runs this server.")
+  })
+
   it("never mentions a license key to a third-party plugin's host", async () => {
     vi.stubGlobal(
       "fetch",

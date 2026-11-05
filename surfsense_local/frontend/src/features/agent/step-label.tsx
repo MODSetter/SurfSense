@@ -355,6 +355,45 @@ export function stepLabel(
         },
         { kind: text(input.kind) ?? "other" }
       )
+    case "surfsense_search_web": {
+      const query = text(input.query)
+      if (query) {
+        return intl.formatMessage(
+          {
+            id: "agent_steps_search_web_label",
+            defaultMessage: "Searched the web for {query}",
+          },
+          { query: subject(query) }
+        )
+      }
+      break
+    }
+    case "surfsense_read_web_page": {
+      const url = text(input.url)
+      if (url) {
+        return intl.formatMessage(
+          {
+            id: "agent_steps_read_web_page_label",
+            defaultMessage: "Read the web page {url}",
+          },
+          { url: subject(url) }
+        )
+      }
+      break
+    }
+    case "surfsense_read_youtube_transcript": {
+      const url = text(input.url)
+      if (url) {
+        return intl.formatMessage(
+          {
+            id: "agent_steps_read_youtube_transcript_label",
+            defaultMessage: "Read the transcript of {url}",
+          },
+          { url: subject(url) }
+        )
+      }
+      break
+    }
     case "surfsense_pdf_form":
       return intl.formatMessage(
         {

@@ -18,11 +18,16 @@ from modules.agent.tool_endpoint.pdf_form import PDF_FORM
 from modules.agent.tool_endpoint.pdf_pages import PDF_PAGES
 from modules.agent.tool_endpoint.pdf_stamp import PDF_STAMP
 from modules.agent.tool_endpoint.read_document import READ_DOCUMENT
+from modules.agent.tool_endpoint.read_web_page import READ_WEB_PAGE
+from modules.agent.tool_endpoint.read_youtube_transcript import (
+    READ_YOUTUBE_TRANSCRIPT,
+)
 from modules.agent.tool_endpoint.render_document import RENDER_DOCUMENT
 from modules.agent.tool_endpoint.revise_document import REVISE_DOCUMENT
 from modules.agent.tool_endpoint.run_job import RUN_JOB, job_listing
 from modules.agent.tool_endpoint.save_page import SAVE_PAGE
 from modules.agent.tool_endpoint.search_sources import SEARCH_SOURCES
+from modules.agent.tool_endpoint.search_web import SEARCH_WEB
 from modules.agent.tool_endpoint.source_pages import SOURCE_PAGES
 from modules.agent.tool_endpoint.tool import (
     InlineImage,
@@ -56,6 +61,9 @@ TOOLS: dict[str, Tool] = {
         PDF_PAGES,
         PDF_STAMP,
         PDF_FORM,
+        SEARCH_WEB,
+        READ_WEB_PAGE,
+        READ_YOUTUBE_TRANSCRIPT,
         RUN_JOB,
         CONFIRM_JOB,
     )

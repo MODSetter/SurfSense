@@ -62,7 +62,7 @@ The API seeds one workspace, "My Workspace", at startup when none exists. Deleti
 | `content` | the markdown body: extracted text, the note itself, or an artifact's body; null for a link's note until its pull writes it |
 | `content_hash` | SHA-256 of a file's bytes, equal to `dedup_key` for an uploaded or imported file; `0025` copied it from `dedup_key`; null for notes and artifacts |
 | `dedup_key` | SHA-256 of an uploaded or imported file's bytes; null for notes and artifacts |
-| `document_metadata` | JSON: `mime_type`, `size_bytes`, `suffix` for files; import adds `folder_path`, `source` and the hosted ids; a recording's ingest adds `transcription`, `{language, duration_s, model}` once transcribed or `{awaiting: true}` while it waits for a speech model ([`documents.md`](documents.md#recordings)); a link added from the web is a note with `source_url`, `puller`, `plugin_id` and `fetched_at` ([`web-sources.md`](web-sources.md)) |
+| `document_metadata` | JSON: `mime_type`, `size_bytes`, `suffix` for files; import adds `folder_path`, `source` and the hosted ids; a recording's ingest adds `transcription`, `{language, duration_s, model}` once transcribed or `{awaiting: true}` while it waits for a speech model ([`documents.md`](documents.md#recordings)); a link added from the web is a note with `source_url`, `puller` and `fetched_at`, `moved_to` while its page moved to a host not yet allowed, and `plugin_id` on one an earlier version added ([`web-sources.md`](web-sources.md)) |
 | `embedding_index_id` | foreign key to `embedding_indexes`: the index its chunks were embedded into; null until its first ingest |
 | `folder_id` | foreign key to `folders`, `ON DELETE SET NULL`, from `0025`: every `FILE` and `NOTE` is filed; null is an unfiled artifact, or a source the backstop unfiled, which scopes and the tree treat as the top of the Library |
 | `created_at`, `updated_at` | |
@@ -153,12 +153,13 @@ An artifact's searchable body is a `Document` with `document_type = ARTIFACT`; `
 
 Connections are in [`connections.md`](connections.md); selection and onboarding in [`local-models/selection.md`](local-models/selection.md).
 
-### `license_state` and `egress_destinations`
+### `license_state`, `egress_destinations` and `web_search_settings`
 
 | Table | Columns | Notes |
 |---|---|---|
 | `license_state` | `id`, `certificate`, `imported_at`, `clock_watermark` | a singleton; plan and expiry are re-derived from the certificate on every read, and `clock_watermark` is the highest instant ever seen |
 | `egress_destinations` | `destination`, `enabled`, `last_call_at` | one row per host; `enabled` defaults to false |
+| `web_search_settings` | `id`, `searxng_url` | From `0034`. A singleton (`CHECK id = 1`): the SearXNG server Add from the web searches with, or `NULL`, like no row, for SurfSense's own ([`web-sources.md`](web-sources.md#routes)) |
 
 A destination is `host:<hostname>`: `host:huggingface.co` for model search and downloads, and one per remote host, shared by every connection to it; a loopback endpoint needs none. Revision `0027` removes rows under the earlier names `model_download`, `model_search` and `image_model_pull`, carrying a grant to `host:huggingface.co` only where search and a download were both allowed and the host had no answer of its own. See [`license/app.md`](license/app.md) and [`egress.md`](egress.md).
 

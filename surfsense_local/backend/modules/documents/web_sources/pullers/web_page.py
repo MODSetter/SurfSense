@@ -1,50 +1,24 @@
-"""Any link no other puller takes: the page's text, read by Web Crawl."""
+"""Any link no other puller takes: the page's text, read on the user's own connection."""
 
-from urllib.parse import SplitResult
+from urllib.parse import SplitResult, urlsplit
 
-from modules.documents.web_sources.pullers.puller import (
-    Fit,
-    Pulled,
-    Puller,
-    Results,
-    ToolCall,
-)
-
-# Far above an article, so a long page is kept whole; Web Crawl's default is 50,000.
-MAX_CHARACTERS = 1_000_000
+from modules.documents.web_sources.pullers.puller import HostCheck, Pulled, Puller
 
 
-def _fit(_: SplitResult) -> Fit:
-    return Fit.ONE
+def _takes(_: SplitResult) -> bool:
+    return True
 
 
-def _calls(url: str) -> list[ToolCall]:
-    """This page only: no link followed, and a source needs none of its links."""
-    return [
-        ToolCall(
-            "crawl",
-            {
-                "start_urls": [url],
-                "max_crawl_depth": 0,
-                "max_crawl_pages": 1,
-                "max_length": MAX_CHARACTERS,
-                "max_links": 0,
-            },
-        )
-    ]
+def _hosts(url: str) -> list[str]:
+    return [urlsplit(url).hostname or ""]
 
 
-def _written(url: str, results: Results) -> Pulled | None:
-    page = next(iter(results.get("crawl") or []), None)
-    if page is None or page.get("status") != "success":
-        return None
-    markdown = (page.get("markdown") or "").strip()
-    if not markdown:
-        return None
-    title = (page.get("metadata") or {}).get("title") or url
-    return Pulled(title, markdown)
+def _read(url: str, reach: HostCheck) -> Pulled:
+    # Imported where a read runs, the plugins worker: the API routes links and
+    # never loads trafilatura or curl_cffi to do it.
+    from modules.documents.web_sources.page_reading.page_read import read_page
+
+    return read_page(url, reach)
 
 
-PULLER = Puller(
-    id="web_page", plugin_id="web-crawl", fit=_fit, calls=_calls, written=_written
-)
+PULLER = Puller(id="web_page", takes=_takes, hosts=_hosts, read=_read)

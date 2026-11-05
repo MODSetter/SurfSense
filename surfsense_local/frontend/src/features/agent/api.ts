@@ -30,6 +30,9 @@ export type AgentStep = {
   artifact?: RenderedArtifact | null
   /** The plugin whose tools the step loaded for the agent, by its name. */
   loaded_plugin?: string
+  /** A web tool's hosts not allowed yet in Settings › Network, and the
+   *  consent question that allows them. */
+  refused?: { hosts: string[]; purpose: string }
 }
 
 /** The sources an agent turn was allowed to use: those ticked when it was

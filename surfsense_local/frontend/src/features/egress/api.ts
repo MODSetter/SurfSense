@@ -46,6 +46,10 @@ const CLAUDE_SIGN_IN_HOST = "platform.claude.com"
 
 // SurfSense's own plugins: one of the two hosts the license key is sent to.
 const SURFSENSE_PLUGIN_HOST = "plugins.surfsense.com"
+// SurfSense's own SearXNG server, where Add from the web searches by default.
+const SURFSENSE_SEARCH_HOST = "searxng.surfsense.com"
+// HUGGINGFACE's host: a page read there shares model search's row.
+const HUGGINGFACE_HOST = "huggingface.co"
 
 // SurfSense's license server, the other: a renewed license file for the key,
 // and the jobs the license includes.
@@ -70,7 +74,10 @@ export function describeDestination(
   purpose?: string,
   also: string[] = []
 ): DestinationCopy {
-  if (purpose === "claude_plan" || host === CLAUDE_SIGN_IN_HOST)
+  if (
+    purpose === "claude_plan" ||
+    (host === CLAUDE_SIGN_IN_HOST && purpose !== "web_page")
+  )
     return describeClaudePlan([host, ...also])
   const one = describeOne(destination, host, purpose)
   const details = []
@@ -83,6 +90,25 @@ export function describeDestination(
         },
         { hosts: intl.formatList(also, { type: "conjunction" }) }
       )
+    )
+  // One row per host: once a page there is allowed, model search never asks.
+  if (purpose === "web_page" && [host, ...also].includes(HUGGINGFACE_HOST))
+    details.push(
+      intl.formatMessage(
+        {
+          id: "egress_web_page_huggingface_body",
+          defaultMessage:
+            "Allowing also turns on model search and downloads from {host}: searching sends what you type as you type it.",
+        },
+        { host: HUGGINGFACE_HOST }
+      )
+    )
+  if (purpose === "web_search" && host === SURFSENSE_SEARCH_HOST)
+    details.push(
+      intl.formatMessage({
+        id: "egress_web_search_surfsense_body",
+        defaultMessage: "SurfSense runs this server.",
+      })
     )
   // The registry's own copy already says this; a plugin's does not.
   if (purpose === "plugin" && [host, ...also].includes(SURFSENSE_PLUGIN_HOST))
@@ -207,6 +233,28 @@ function describeOne(destination: string, host: string, purpose?: string) {
       body: updatesBody(host, purpose),
     }
   }
+  // Add from the web and the agent read each page from its own site, on the
+  // user's connection. Before the hosts below: any of them can be a page's.
+  if (purpose === "web_page") {
+    return {
+      label: host,
+      title: intl.formatMessage(
+        {
+          id: "egress_web_page_prompt_title",
+          defaultMessage: "Allow reading pages from {host}?",
+        },
+        { host }
+      ),
+      body: intl.formatMessage(
+        {
+          id: "egress_web_page_prompt_body",
+          defaultMessage:
+            "SurfSense reads pages and videos from {host} on your own connection, as your browser would, when you add one from the web or the agent reads one. The site gets the page’s address and your IP address. An address the agent chooses can carry words from your chats or files, such as a search term, but nothing else from them is sent. You can turn this off any time in Settings › Network.",
+        },
+        { host }
+      ),
+    }
+  }
   // Searching, model weights and image weights are three errands to one host,
   // so this asks about the host once and names every errand. Search is the
   // widest of them and is stated first: it sends text as it is typed.
@@ -230,11 +278,9 @@ function describeOne(destination: string, host: string, purpose?: string) {
       ),
     }
   }
-  // Office support's download is the only errand to The Document Foundation.
-  if (
-    host === "documentfoundation.org" ||
-    host.endsWith(".documentfoundation.org")
-  ) {
+  // Office support's download, from the host the Office pack pins (pin.py);
+  // other Document Foundation sites are pages like any other.
+  if (host === "downloadarchive.documentfoundation.org") {
     return {
       label: intl.formatMessage({
         id: "egress_office_download_label",
@@ -249,6 +295,33 @@ function describeOne(destination: string, host: string, purpose?: string) {
           id: "egress_office_download_prompt_body",
           defaultMessage:
             "Turning on Office support downloads LibreOffice from {host}. SurfSense sends your IP address and the file’s name, nothing else.",
+        },
+        { host }
+      ),
+    }
+  }
+  // A search goes to a SearXNG server, which asks search engines in turn.
+  if (purpose === "web_search" || host === SURFSENSE_SEARCH_HOST) {
+    return {
+      label:
+        host === SURFSENSE_SEARCH_HOST
+          ? intl.formatMessage({
+              id: "egress_web_search_label",
+              defaultMessage: "Web search",
+            })
+          : host,
+      title: intl.formatMessage(
+        {
+          id: "egress_web_search_prompt_title",
+          defaultMessage: "Allow searching with {host}?",
+        },
+        { host }
+      ),
+      body: intl.formatMessage(
+        {
+          id: "egress_web_search_prompt_body",
+          defaultMessage:
+            "SurfSense sends what you search for to {host}, a SearXNG server that asks search engines for you. It gets your search and your IP address. A search the agent writes can carry words from your chats or files, but nothing else from them is sent. You can choose another server, or turn this off, in Settings › Network.",
         },
         { host }
       ),

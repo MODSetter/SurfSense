@@ -70,6 +70,7 @@ def import_models() -> None:
     import modules.chat.models
     import modules.chunks.models
     import modules.documents.models
+    import modules.documents.web_sources.web_search.models
     import modules.egress.models
     import modules.embedding.models
     import modules.folders.models

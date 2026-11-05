@@ -93,6 +93,36 @@ describe("network settings", () => {
     ).toBeTruthy()
   })
 
+  it("names only the Office download's host for Office support, another TDF site by its host", async () => {
+    const row = (host: string) => ({
+      destination: `host:${host}`,
+      host,
+      enabled: false,
+      last_call_at: null,
+    })
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json([
+          row("downloadarchive.documentfoundation.org"),
+          row("wiki.documentfoundation.org"),
+        ])
+      )
+    )
+    render(<NetworkSettings />)
+
+    expect(
+      await screen.findByRole("checkbox", {
+        name: "Allow Office support download",
+      })
+    ).toBeTruthy()
+    expect(
+      screen.getByRole("checkbox", {
+        name: "Allow wiki.documentfoundation.org",
+      })
+    ).toBeTruthy()
+  })
+
   it("holds a row a policy locked, and says why", async () => {
     vi.stubGlobal(
       "fetch",
