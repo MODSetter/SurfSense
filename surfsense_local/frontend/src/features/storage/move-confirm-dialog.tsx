@@ -25,7 +25,6 @@ function title({ kind }: MoveReady) {
 }
 
 function body({ kind, adopt, neededBytes, freeBytes }: MoveReady) {
-  const amounts = { needed: neededBytes / 1e9, free: freeBytes / 1e9 }
   if (adopt) {
     return kind === "models"
       ? intl.formatMessage({
@@ -46,7 +45,7 @@ function body({ kind, adopt, neededBytes, freeBytes }: MoveReady) {
           defaultMessage:
             "SurfSense will copy your models here, check the copy and restart, then delete the old copy. This needs {needed, number, ::unit/gigabyte .#} free; the drive has {free, number, ::unit/gigabyte .#}. Local models won’t work while this drive is disconnected.",
         },
-        amounts
+        { needed: neededBytes / 1e9, free: freeBytes / 1e9 }
       )
     : intl.formatMessage(
         {
@@ -54,7 +53,7 @@ function body({ kind, adopt, neededBytes, freeBytes }: MoveReady) {
           defaultMessage:
             "SurfSense will copy your data here, check the copy and restart, then delete the old copy. This needs {needed, number, ::unit/gigabyte .#} free; the drive has {free, number, ::unit/gigabyte .#}. SurfSense won’t start unless this drive is connected.",
         },
-        amounts
+        { needed: neededBytes / 1e9, free: freeBytes / 1e9 }
       )
 }
 
