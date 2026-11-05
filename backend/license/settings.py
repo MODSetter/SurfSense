@@ -55,6 +55,26 @@ class LicenseSettings:
         self.LICENSE_REFRESH_RATE_LIMIT_IP_PER_HOUR = int(
             env.get("LICENSE_REFRESH_RATE_LIMIT_IP_PER_HOUR", "60")
         )
+        # Twice the refresh's: the app asks once per job, at startup, daily and on
+        # the user's action, from every computer a firm's key is on.
+        self.LICENSE_JOB_PACK_RATE_LIMIT_PER_HOUR = int(
+            env.get("LICENSE_JOB_PACK_RATE_LIMIT_PER_HOUR", "60")
+        )
+        self.LICENSE_JOB_PACK_RATE_LIMIT_IP_PER_HOUR = int(
+            env.get("LICENSE_JOB_PACK_RATE_LIMIT_IP_PER_HOUR", "120")
+        )
+        # The one header the proxy in front writes with the caller's address: a
+        # caller can set any other. Empty means the socket's peer.
+        self.LICENSE_CLIENT_IP_HEADER = (
+            env.get("LICENSE_CLIENT_IP_HEADER", "x-real-ip").strip().lower()
+        )
+
+        # Job packs: the releases of a private repository that holds only
+        # releases, or a folder of the same zips, read instead when set.
+        self.JOB_PACKS_GITHUB_REPO = env.get("JOB_PACKS_GITHUB_REPO", "").strip()
+        self.JOB_PACKS_GITHUB_TOKEN = env.get("JOB_PACKS_GITHUB_TOKEN", "").strip()
+        self.JOB_PACKS_DIR = env.get("JOB_PACKS_DIR", "").strip()
+        self.JOB_PACKS_CACHE_SECONDS = int(env.get("JOB_PACKS_CACHE_SECONDS", "600"))
 
         self.STRIPE_SECRET_KEY = env.get("STRIPE_SECRET_KEY")
         self.STRIPE_WEBHOOK_SECRET = env.get("STRIPE_WEBHOOK_SECRET")

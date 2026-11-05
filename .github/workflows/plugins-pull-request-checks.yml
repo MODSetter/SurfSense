@@ -67,6 +67,7 @@ jobs:
               - 'backend/pyproject.toml'
               - 'backend/uv.lock'
               - 'backend/ruff.toml'
+              - 'docs/contracts/job-pack-sample/**'
               - '.github/workflows/plugins-pull-request-checks.yml'
             # What either image copies in: a wrong path fails here, not at Coolify's build.
             images_changed:

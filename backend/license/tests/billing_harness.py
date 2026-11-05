@@ -75,11 +75,20 @@ def billing(monkeypatch: pytest.MonkeyPatch) -> Billing:
     return env
 
 
-async def post_event(payload: bytes, headers: dict[str, str] | None = None):
+async def post_event(
+    payload: bytes,
+    headers: dict[str, str] | None = None,
+    *,
+    raise_app_exceptions: bool = True,
+):
+    """With ``raise_app_exceptions=False``, a failed handler answers as Stripe sees it: a 500."""
     app = FastAPI()
     app.include_router(stripe_webhook.router)
     async with httpx2.AsyncClient(
-        transport=httpx2.ASGITransport(app=app), base_url="http://portal"
+        transport=httpx2.ASGITransport(
+            app=app, raise_app_exceptions=raise_app_exceptions
+        ),
+        base_url="http://portal",
     ) as client:
         return await client.post(
             "/stripe/webhook", content=payload, headers=headers or signed(payload)

@@ -110,3 +110,4 @@ The Date is the day the decision was first written down. Source links are permal
 | 0079 | [`@` names sources and artifacts, not plugins](0079-at-names-sources-and-artifacts-not-plugins.md) | Accepted |
 | 0080 | [SurfSense sells one paid license, Business, priced per person](0080-surfsense-sells-one-business-license-priced-per-person.md) | Accepted |
 | 0081 | [SurfSense's platform scrapers retire, and reading web pages, YouTube and search move into the app for free](0081-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md) | Accepted |
+| 0082 | [The license server delivers job packs itself, from a private repository's releases, to a license whose jobs list them](0082-the-license-server-delivers-job-packs-from-private-releases.md) | Accepted |

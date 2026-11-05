@@ -236,6 +236,18 @@ async def test_live_policies_on_two_products_refuse_before_any_write(
     assert account.writes() == []
 
 
+async def test_an_unset_live_policy_refuses_before_any_call(
+    account: FakeAccount, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The team policy unread could be on another product, which the token would miss."""
+    monkeypatch.setattr(config, "KEYGEN_POLICY_TEAM", "")
+
+    with pytest.raises(SetupError, match="Set KEYGEN_POLICY_TEAM:"):
+        await setup()
+
+    assert account.requests == []
+
+
 async def test_a_strict_business_policy_is_reported_never_edited(
     account: FakeAccount,
 ) -> None:

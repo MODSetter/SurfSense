@@ -99,24 +99,18 @@ async def suspend_disputed(dispute: Any, *, stripe_client: Any = None) -> None:
 async def _suspend_paid_by(
     payment_intent: Any, stripe_client: Any, *, why: str
 ) -> None:
-    try:
-        license_id = await license_paid_by(payment_intent, stripe_client)
-        if license_id is None:
-            # A wrong suspension is silent (resend skips suspended licences), so
-            # money returned that cannot be traced to one licence is left to support.
-            logger.warning(
-                "A %s traces to no single license; not suspending (payment %s)",
-                why,
-                payment_intent if isinstance(payment_intent, str) else "?",
-            )
-            return
-        await keygen.suspend_license(license_id)
-    except Exception:
-        # Swallowed on purpose: a 500 makes Stripe retry, and a retry would
-        # re-run the suspension.
-        logger.exception("Could not suspend the license after a %s", why)
+    """Raises so Stripe retries: a failed suspension leaves the license working."""
+    license_id = await license_paid_by(payment_intent, stripe_client)
+    if license_id is None:
+        # A wrong suspension is silent (resend skips suspended licences), so
+        # money returned that cannot be traced to one licence is left to support.
+        logger.warning(
+            "A %s traces to no single license; not suspending (payment %s)",
+            why,
+            payment_intent if isinstance(payment_intent, str) else "?",
+        )
         return
-
+    await keygen.suspend_license(license_id)
     logger.info("Suspended license %s after a %s", license_id, why)
 
 
