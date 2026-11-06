@@ -17,7 +17,12 @@ from worker.studio.shared import generate
 pytestmark = pytest.mark.integration
 
 MODEL = ResolvedGeneration(
-    type("Selection", (), {"name": "qwen3:8b", "tier": Tier.CAPABLE})(), None
+    type(
+        "Selection",
+        (),
+        {"name": "qwen3:8b", "tier": Tier.CAPABLE, "provider": "openai_compatible"},
+    )(),
+    None
 )
 
 SECRET = "fake-worker-secret-1999"

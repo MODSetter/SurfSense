@@ -120,7 +120,10 @@ def _plan_for(
     once at load and never shrinks. So widening stays inside whichever budget is
     tighter, which is also what keeps the verdict equal to the badge.
     """
-    ceiling = shape.context_length or CONTEXT_FLOOR_TOKENS
+    # Never past the top rung, however roomy the device: nothing in the app needs
+    # more than Agentic's 32,768, and the cache is allocated whole at load. A 1.7B
+    # trained to 40,960 committed 914 MB more there for nothing (fit.md).
+    ceiling = min(shape.context_length or CONTEXT_FLOOR_TOKENS, CONTEXT_RUNGS[-1])
     floor = min(CONTEXT_FLOOR_TOKENS, ceiling)
 
     # The same rule the badge is drawn from, so the screen and the load cannot
