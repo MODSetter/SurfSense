@@ -26,9 +26,8 @@ class Planned:
     op: dict
     point: int | None  # index into the results; None for the summary
     role: str  # "summary", "note", "change" or "person"
-    order: tuple[
-        int, int, int
-    ]  # clause, then text left alone before text changed, then position
+    # The clause, then text left alone before text changed, then the position.
+    order: tuple[int, int, int]
 
 
 def planned_operations(
@@ -56,7 +55,14 @@ def planned_operations(
             # text may read by then.
             others = clauses + [text for n, text in added.items() if n != number]
             planned += _changed(
-                contract, result, number, others, config, explained, dropped
+                contract,
+                result,
+                number,
+                others,
+                config,
+                explained,
+                dropped,
+                _blocked(results, result),
             )
         elif result.verdict == "for_person" and (number, "person") not in dropped:
             planned += _person(contract, result, number, texts, config)
@@ -77,6 +83,7 @@ def _changed(
     config: ClauseConfig,
     explained: bool,
     dropped: set[tuple[int | None, str]],
+    blocked: tuple[tuple[int, int], ...],
 ) -> list[Planned]:
     change = result.change
     assert change is not None
@@ -84,9 +91,10 @@ def _changed(
     if change.kind == "insert_after":
         span = unique_anchor(clause, texts)
     else:
-        span = unique_anchor(clause, texts, change.start, change.end)
+        span = unique_anchor(clause, texts, change.start, change.end, blocked)
     if span is None:
-        result.to_person("ANCHOR_NOT_UNIQUE")
+        free = unique_anchor(clause, texts, change.start, change.end)
+        result.to_person("CHANGES_OVERLAP" if free else "ANCHOR_NOT_UNIQUE")
         return _person(contract, result, number, texts, config)
     start, end = span
     quote = clause.text[start:end]
@@ -133,8 +141,27 @@ def _changed(
             )
     else:
         op.update(comment=note, internal=True)
-    found.append(Planned(op, number, "change", (change.clause, rank, start)))
+    # In the order their spans start, so a change's quote reads when it is made.
+    found.append(Planned(op, number, "change", (change.clause, rank, change.start)))
     return found
+
+
+def _blocked(
+    results: list[PointResult], result: PointResult
+) -> tuple[tuple[int, int], ...]:
+    """The spans of the changes to the same clause's text that come before this one, which are
+    made first: its anchor keeps out of them, and theirs need not keep out of it."""
+    change = result.change
+    assert change is not None
+    own = (change.start, change.end, results.index(result))
+    return tuple(
+        (other.change.start, other.change.end)
+        for number, other in enumerate(results)
+        if other.change is not None
+        and other.change.clause == change.clause
+        and other.change.kind != "insert_after"
+        and (other.change.start, other.change.end, number) < own
+    )
 
 
 def _person(

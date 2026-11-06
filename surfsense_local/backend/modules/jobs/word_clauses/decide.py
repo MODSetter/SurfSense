@@ -14,7 +14,12 @@ from modules.jobs.word_clauses.ask import Draft, PointPrompt, ask_point
 from modules.jobs.word_clauses.check import check_change
 from modules.jobs.word_clauses.config import ClauseConfig, ReviewPoint
 from modules.jobs.word_clauses.contract import Contract
-from modules.jobs.word_clauses.placement import locate, touches_field, typeset
+from modules.jobs.word_clauses.placement import (
+    locate,
+    narrowed,
+    touches_field,
+    typeset,
+)
 
 # What a person reads of each reason a point came to them.
 REASONS = {
@@ -29,6 +34,7 @@ REASONS = {
     "SAME_TEXT": "Its change would leave the text as it is.",
     "NOT_SUPPORTED": "A second check found your playbook does not call for this change.",
     "ANCHOR_NOT_UNIQUE": "The words it would change occur more than once in the contract.",
+    "CHANGES_OVERLAP": "Another point's change, made first, rewrites the same words.",
 }
 _NEEDS_QUOTE = ("meets", "deviates", "missing")
 _NEEDS_CHANGE = ("deviates", "missing")
@@ -265,9 +271,10 @@ def _change(draft: Draft, contract: Contract) -> Change:
     new = _flat(edit.new_text)
     if edit.kind == "delete" or not new:
         return Change("delete", index, start, end, "")
-    return Change(
-        "replace", index, start, end, typeset(new, clause.text[start:end], whole)
+    start, end, new = narrowed(
+        clause.text, start, end, typeset(new, clause.text[start:end], whole)
     )
+    return Change("replace", index, start, end, new)
 
 
 def _described(change: Change, clause: str) -> str:

@@ -26,6 +26,8 @@ _MARKS = str.maketrans(
     }
 )
 _TRAILING = ".;:,"
+# Words, runs of space and single marks, as the engine splits a change to mark only what differs.
+_TOKENS = re.compile(r"\s+|\w+|[^\w\s]")
 _WRAPPING = "\"'" + OPEN_DOUBLE + CLOSE_DOUBLE + OPEN_SINGLE + CLOSE_SINGLE
 # Where a quote mark opens rather than closes.
 _OPENS_AFTER = " ([{-" + chr(0x2014)
@@ -86,23 +88,60 @@ def unique_anchor(
     texts: list[str],
     start: int | None = None,
     end: int | None = None,
+    blocked: tuple[tuple[int, int], ...] = (),
 ) -> tuple[int, int] | None:
     """The span, or the clause's first words, grown a word at a time on either side, clear of
-    fields, until it occurs once among `texts`: the contract's clauses and the text its changes
-    add. None when even the whole clause does not."""
+    fields and of the `blocked` spans other changes to the clause make, until it occurs once
+    among `texts`: the contract's clauses and the text its changes add. A span of no width,
+    where text goes in, starts as the words either side. None when it cannot be placed."""
     text = clause.text
     if start is None or end is None:
         start, end = _first_words(clause)
+    elif start == end:
+        start, end = _word_before(clause, start), _word_after(clause, end)
     start, end = _trimmed(text, start, end)
-    if end <= start or touches_field(clause, start, end):
+    if (
+        end <= start
+        or touches_field(clause, start, end)
+        or _crosses(start, end, blocked)
+    ):
         return None
     while True:
         if occurrences(text[start:end], texts) == 1:
             return start, end
-        wider = _word_before(clause, start), _word_after(clause, end)
-        if wider == (start, end):
+        left = _word_before(clause, start)
+        if _crosses(left, end, blocked):
+            left = start
+        right = _word_after(clause, end)
+        if _crosses(left, right, blocked):
+            right = end
+        if (left, right) == (start, end):
             return None
-        start, end = wider
+        start, end = left, right
+
+
+def narrowed(text: str, start: int, end: int, new: str) -> tuple[int, int, str]:
+    """The span of `text` and its replacement cut to the words that differ, as the engine marks
+    a change, so a change quoting most of a paragraph claims only the words it alters."""
+    before, after = _TOKENS.findall(text[start:end]), _TOKENS.findall(new)
+    shared = min(len(before), len(after))
+    head = 0
+    while head < shared and before[head] == after[head]:
+        head += 1
+    tail = 0
+    while tail < shared - head and before[-1 - tail] == after[-1 - tail]:
+        tail += 1
+    cut_start = start + sum(len(token) for token in before[:head])
+    cut_end = end - sum(len(token) for token in before[len(before) - tail :])
+    return cut_start, cut_end, "".join(after[head : len(after) - tail])
+
+
+def _crosses(start: int, end: int, blocked: tuple[tuple[int, int], ...]) -> bool:
+    """Whether the span takes in a blocked span, or the point where another change puts text."""
+    return any(
+        (first < end and last > start) or (first == last and start < first < end)
+        for first, last in blocked
+    )
 
 
 def occurrences(snippet: str, texts: Iterable[str], most: int = 2) -> int:

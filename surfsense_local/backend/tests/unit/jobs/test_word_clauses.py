@@ -404,9 +404,12 @@ def test_straight_quotes_and_a_list_label_in_old_text_still_place_the_change(
     result = review_contract(contract, [PLAYBOOK], config, model)
 
     assert by_key(result)["oral"].verdict == "changed"
-    assert [i.text for i in applied(contract, result, tmp_path).insertions] == [
-        " or orally"
-    ]
+    revised = applied(contract, result, tmp_path)
+    assert [i.text.strip() for i in revised.insertions] == ["or orally"]
+    assert revised.deletions == []
+    assert revised.paragraphs[1].startswith(
+        "“Confidential Information” means information disclosed in writing or orally and"
+    )
 
 
 def test_the_model_reads_each_clause_with_its_list_number(config, contract):
@@ -459,7 +462,7 @@ def test_of_two_changes_to_the_same_words_the_first_in_the_paragraph_is_made(
     points = by_key(result)
     assert points["compelled-disclosure"].verdict == "changed"
     assert points["use"].verdict == "for_person"
-    assert any(code.startswith("REFUSED_") for code in points["use"].codes)
+    assert points["use"].codes == ["CHANGES_OVERLAP"]
     assert [i.text for i in applied(contract, result, tmp_path).insertions] == [
         "a court orders it"
     ]
@@ -561,3 +564,52 @@ def test_a_contract_with_no_text_is_refused_before_any_call(config, tmp_path):
     with pytest.raises(NoClausesError):
         review_contract(empty, [PLAYBOOK], config, model)
     assert model.asked == []
+
+
+def test_two_changes_to_different_words_of_one_paragraph_are_both_made(
+    config, contract, tmp_path
+):
+    """Each change is narrowed to the words it alters before it is placed, so a model that
+    quotes most of a paragraph does not crowd out another point's change to it."""
+    model = ScriptedModel(
+        settled(
+            **{
+                "Compelled disclosure": [
+                    verdict(
+                        "deviates",
+                        paragraphs=["P4"],
+                        quote=NOTICE,
+                        kind="replace",
+                        paragraph="P4",
+                        old="may disclose Confidential Information when required by law",
+                        new="may disclose Confidential Information when required by law, "
+                        "after prompt written notice",
+                    )
+                ],
+                "Limited use": [
+                    verdict(
+                        "deviates",
+                        paragraphs=["P4"],
+                        quote=USE,
+                        kind="replace",
+                        paragraph="P4",
+                        old="The Receiving Party may disclose Confidential Information",
+                        new="The Receiving Party may only disclose Confidential Information",
+                    )
+                ],
+            }
+        )
+    )
+
+    result = review_contract(contract, [PLAYBOOK], config, model)
+
+    points = by_key(result)
+    assert (points["compelled-disclosure"].verdict, points["use"].verdict) == (
+        "changed",
+        "changed",
+    )
+    revised = applied(contract, result, tmp_path)
+    assert sorted(i.text for i in revised.insertions) == [
+        ", after prompt written notice",
+        "only ",
+    ]
