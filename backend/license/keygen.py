@@ -322,6 +322,31 @@ async def update_license(
         return dict(response.json()["data"])
 
 
+async def change_license_policy(
+    license_id: str,
+    policy_id: str,
+    *,
+    client: httpx2.AsyncClient | None = None,
+) -> dict[str, Any]:
+    """Move a license to another policy, on the same key, and return the moved record.
+
+    Keygen answers 422 for a policy that differs in encryption, pooling or
+    signing scheme, or has a stricter machine or component uniqueness. The new
+    policy's ``transferStrategy`` keeps the expiry (``KEEP_EXPIRY``, Keygen's
+    default) or restarts it with that policy's duration (``RESET_EXPIRY``).
+    Metadata stays, and so does a ``maxUsers`` set on the license; one it
+    inherited now comes from the new policy.
+    """
+    async with _http(client) as http:
+        response = await http.put(
+            _account_url(f"licenses/{license_id}/policy"),
+            headers=_headers(),
+            json={"data": {"type": "policies", "id": policy_id}},
+        )
+        response.raise_for_status()
+        return dict(response.json()["data"])
+
+
 async def account_request(
     method: str,
     path: str,

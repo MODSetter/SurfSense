@@ -35,6 +35,14 @@ META_JOBS = "jobs"
 # misdirect delivery, and storing only the typed form would let a tagged
 # address claim a trial the fold could never find again.
 META_TRIAL_KEY = "trialKey"
+# An Individual license made Business Solo (scripts/convert_individual_licenses.py).
+# ``convertedFrom`` has one value, so a filter finds a license a stopped run left
+# half converted; the rest record the day, the expiry it had, and each later step.
+META_CONVERTED_FROM = "convertedFrom"
+META_CONVERTED_ON = "convertedOn"
+META_EXPIRY_BEFORE_CONVERSION = "expiryBeforeConversion"
+META_MOVED_TO_BUSINESS_ON = "movedToBusinessOn"
+META_CONVERSION_NOTICE_SENT_ON = "conversionNoticeSentOn"
 
 
 class LicenseIssueError(RuntimeError):
@@ -71,3 +79,6 @@ class LicenseRecord:
     metadata: dict[str, str]
     max_users: int | None = None
     expiry: str | None = None
+    policy: str | None = None
+    status: str | None = None
+    created: str | None = None

@@ -12,6 +12,7 @@ messages it builds instead of the sender object carrying one.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date
 from typing import Literal
 
 from license.models import IssuedLicense
@@ -20,7 +21,7 @@ from license.settings import config
 from mailer.protocol import Attachment, OutboundEmail
 from mailer.settings import config as mail_config
 
-LicenseEmailKind = Literal["purchase", "resend", "trial", "renewal"]
+LicenseEmailKind = Literal["purchase", "resend", "trial", "renewal", "conversion"]
 
 LICENSE_FILENAME = "surfsense.lic"
 
@@ -29,15 +30,17 @@ LICENSE_FILENAME = "surfsense.lic"
 # wants no detour, and the page for one who is stuck on a step.
 ACTIVATION_GUIDE_URL = "https://www.surfsense.com/license/activate"
 
-# Business purchase and trial only: the license is for jobs, so the steps go on to one. It names
-# the app's labels as they read: Allow, Sources, Jobs, Run, Security questionnaire.
+# Business purchase, trial and conversion: the license is for jobs, so the steps go on to one.
+# It names the app's labels as they read: Allow, Sources, Jobs, Run, Security questionnaire.
 _FIRST_JOB_STEP = (
     "5. Run your first job. When SurfSense asks to reach its license server, choose Allow, "
     "and it downloads the job.\n"
     "   Then upload a questionnaire (.xlsx) and your policies to Sources, click Jobs in the "
     "left sidebar, and press Run beside Security questionnaire.\n"
 )
-_FIRST_JOB_KINDS: frozenset[LicenseEmailKind] = frozenset({"purchase", "trial"})
+_FIRST_JOB_KINDS: frozenset[LicenseEmailKind] = frozenset(
+    {"purchase", "trial", "conversion"}
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,6 +55,13 @@ class BusinessCopy:
     people: int | None = None
     # A paid license has a subscription to change or cancel; a trial has none.
     paid: bool = False
+    # A converted license that renews: the day it next does.
+    renews_on: date | None = None
+    # A converted license that does not renew: the day it ends.
+    ends_on: date | None = None
+    # Set to cancel: its period's end, until which Stripe's portal lets its buyer
+    # renew it. Not ``ends_on``, which adds Business's 30 days of grace.
+    resumable_until: date | None = None
 
     @classmethod
     def of(cls, issued: IssuedLicense) -> BusinessCopy | None:
@@ -120,6 +130,7 @@ _BUSINESS_SUBJECTS: dict[LicenseEmailKind, str] = {
     "resend": "Your SurfSense license (resent)",
     "trial": "Your SurfSense Business {days}-day trial license",
     "renewal": "Your SurfSense Business license has renewed",
+    "conversion": "Your SurfSense license is now Business Solo",
 }
 
 _BUSINESS_INTROS: dict[LicenseEmailKind, str] = {
@@ -149,7 +160,46 @@ _BUSINESS_INTROS: dict[LicenseEmailKind, str] = {
         "go online. On a computer that stays offline, import this file in "
         "Settings -> License; it replaces the old one."
     ),
+    # Sent once, when an Individual license already sold becomes Business Solo
+    # (ADR 0080); its subscription is left as it was bought.
+    "conversion": (
+        "Your SurfSense Individual license is now Business Solo, the Business "
+        "license for one person, on the same key.\n\n"
+        "The attached file replaces the old one: import it in Settings -> "
+        "License on each computer you use SurfSense on, or choose Check for "
+        "renewal on the Jobs screen, which fetches it.\n\n"
+        "Business unlocks SurfSense's job plugins, starting with the security "
+        "questionnaire. The scraper plugins your Individual license included "
+        "have retired; reading web pages, YouTube and web search are now built "
+        "into SurfSense, free.\n\n"
+        "{term}"
+    ),
 }
+
+
+def _term(business: BusinessCopy) -> str:
+    """When a converted license renews or ends: Stripe's subscription decides.
+
+    The renewing one names its day, since its buyer may never have read that it
+    renews at all.
+    """
+    if business.renews_on is not None:
+        return (
+            "Your purchase is a yearly subscription: it renews automatically on "
+            f"{_long_day(business.renews_on)}, and every year after, at the price "
+            "you paid, on the same key, until you cancel."
+        )
+    if business.ends_on is not None:
+        return (
+            f"It ends on {_long_day(business.ends_on)} and does not renew. After "
+            "that, SurfSense keeps working and everything you made stays readable; "
+            "only new job runs stop."
+        )
+    raise ValueError("A conversion notice names the day the license renews or ends")
+
+
+def _long_day(day: date) -> str:
+    return f"{day.day} {day:%B %Y}"
 
 
 def _manage_line() -> str:
@@ -160,6 +210,28 @@ def _manage_line() -> str:
             f"To add or remove people, or to cancel, use the billing portal: {portal}"
         )
     return "To add or remove people, or to cancel, reply to this email."
+
+
+def _resume_line(until: date) -> str:
+    """How a buyer whose subscription is set to cancel keeps the license, and by when."""
+    portal = config.STRIPE_CUSTOMER_PORTAL_URL
+    if portal:
+        return (
+            f"To keep it, renew it in the billing portal before {_long_day(until)}: "
+            f"{portal}"
+        )
+    return f"To keep it, reply to this email before {_long_day(until)}."
+
+
+def _closing_line(business: BusinessCopy) -> str | None:
+    """What a paid license's holder can change; nothing for one that has ended."""
+    if not business.paid:
+        return None
+    if business.ends_on is None:
+        return _manage_line()
+    if business.resumable_until is None:
+        return None
+    return _resume_line(business.resumable_until)
 
 
 def _business_intro(kind: LicenseEmailKind, business: BusinessCopy, days: int) -> str:
@@ -174,8 +246,10 @@ def _business_intro(kind: LicenseEmailKind, business: BusinessCopy, days: int) -
         days=days,
         for_firm=f" for {business.firm}" if business.firm else "",
         covers=covers,
+        term=_term(business) if kind == "conversion" else "",
     )
-    return f"{intro}\n\n{_manage_line()}" if business.paid else intro
+    closing = _closing_line(business)
+    return f"{intro}\n\n{closing}" if closing else intro
 
 
 def build_license_email(
@@ -207,6 +281,8 @@ def build_license_email(
     )
 
     days = config.LICENSE_TRIAL_DAYS
+    if business is None and kind not in _SUBJECTS:
+        raise ValueError(f"A {kind} mail has only the Business copy")
     if business is None:
         subject = _SUBJECTS[kind].format(days=days)
         intro = _INTROS[kind].format(days=days)
