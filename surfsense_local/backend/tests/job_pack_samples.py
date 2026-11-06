@@ -169,3 +169,78 @@ def sign_pack(folder: Path, *keys: Ed25519PrivateKey) -> None:
     payload = signed_payload(manifest)
     lines = [base64.b64encode(key.sign(payload)) for key in keys or (TEST_PACK_KEY,)]
     (folder / SIGNATURE).write_bytes(b"\n".join(lines) + b"\n")
+
+
+REDLINE_PACK_ID = "test-redline"
+REDLINE_JOB = "test-redline"
+REDLINE_ENTITLEMENT = "JOB_TEST_REDLINE"
+REDLINE_SKILL = "surfsense-job-test-redline"
+# Review points the test redline checks, by key and title.
+REDLINE_POINTS = {
+    "compelled-disclosure": "Compelled disclosure",
+    "term": "Term",
+}
+
+
+def write_contract_pack(folder: Path, *, version: str = "1.0.0") -> Path:
+    """A sealed, signed pack in `folder` with one word-clauses job, the redline's shape with
+    stand-in prompts."""
+    files = {
+        "LICENSE.md": "Test pack.",
+        f"jobs/{REDLINE_JOB}/prompts/system.md": "Review one point. Verdicts: $verdicts.",
+        f"jobs/{REDLINE_JOB}/prompts/point.md": "$outline\n\n$passages\n\nPoint: $point",
+        f"jobs/{REDLINE_JOB}/prompts/repair.md": "$problem",
+        f"jobs/{REDLINE_JOB}/job.json": json.dumps(
+            {
+                "points": [
+                    {"key": key, "title": title, "covers": title, "queries": [title]}
+                    for key, title in REDLINE_POINTS.items()
+                ],
+                "prompts": {
+                    "system": "prompts/system.md",
+                    "point": "prompts/point.md",
+                    "repair": "prompts/repair.md",
+                },
+                "settings": [
+                    {
+                        "key": "external_comments",
+                        "label": "Explain each change to the other side",
+                        "default": True,
+                    }
+                ],
+            }
+        ),
+        f"skills/{REDLINE_SKILL}/SKILL.md": (
+            f"---\nname: {REDLINE_SKILL}\ndescription: Test.\n---\nRun it."
+        ),
+    }
+    for relative, text in files.items():
+        path = folder / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+    manifest = {
+        "schema": "surfsense-job-pack/1",
+        "id": REDLINE_PACK_ID,
+        "version": version,
+        "name": "Test redline",
+        "publisher": "Tests",
+        "description": "A test pack.",
+        "access": "paid",
+        "license_file": "LICENSE.md",
+        "jobs": [
+            {
+                "key": REDLINE_JOB,
+                "name": "Test redline",
+                "description": "Review a test contract (.docx) against a playbook.",
+                "runner": "word-clauses/1",
+                "config": f"jobs/{REDLINE_JOB}/job.json",
+                "skill": f"skills/{REDLINE_SKILL}",
+                "entitlement": REDLINE_ENTITLEMENT,
+            }
+        ],
+        "files": {"LICENSE.md": "0" * 64},
+    }
+    (folder / "job-pack.json").write_text(json.dumps(manifest), encoding="utf-8")
+    seal_pack(folder)
+    sign_pack(folder)
+    return folder

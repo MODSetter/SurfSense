@@ -18,23 +18,17 @@ from worker.ingestion.word_markdown.inline import (
     shape_text,
     textboxes_in,
 )
+from worker.ingestion.word_markdown.list_level import list_level
 from worker.ingestion.word_markdown.notes import Notes
 from worker.ingestion.word_markdown.numbering import BULLET, ListNumbering
 from worker.ingestion.word_markdown.ooxml_names import (
     BODY,
     CUSTOM_XML,
-    ILVL,
     MC_ALTERNATE_CONTENT,
-    NUM_ID,
-    NUM_PR,
-    P_PR,
-    P_STYLE,
     SDT,
     SDT_CONTENT,
     TBL,
-    VAL,
     P,
-    w,
 )
 from worker.ingestion.word_markdown.styles import ParagraphStyles
 from worker.ingestion.word_markdown.tables import (
@@ -45,8 +39,6 @@ from worker.ingestion.word_markdown.tables import (
 )
 
 _ORDERED_MARKER = re.compile(r"\d{1,9}\.")  # CommonMark's longest list number
-_MARK_PROPERTIES = w("rPr")
-_REMOVED = frozenset({w("del"), w("moveFrom")})
 _LIST_INDENT = "    "
 _MOST_HASHES = 6
 # A link elsewhere in the file, or to a path on its author's disk, keeps only its words.
@@ -130,7 +122,7 @@ class _Reader:
             out.append(_Block("text", drawn))
 
         text = inline_text(paragraph, self._link_target, self._notes.mark)
-        style_id, numbered = self._properties(paragraph)
+        style_id, numbered = list_level(paragraph, self._styles, self._numbering)
         role = self._styles.role(style_id)
         # Counted even when empty: Word numbers an empty list paragraph too.
         marker = self._numbering.next_marker(*numbered) if numbered else None
@@ -152,38 +144,6 @@ class _Reader:
             hashes = 1 if role.kind == "title" else min(role.level + 1, _MOST_HASHES)
             line = f"{'#' * hashes} {line}"
         out.append(_Block("heading", line))
-
-    def _properties(self, paragraph: Any) -> tuple[str | None, tuple[str, int] | None]:
-        """The paragraph's w:pStyle, and its list and level if it is numbered."""
-        properties = paragraph.find(P_PR)
-        style_id = num_id = None
-        ilvl: int | None = None
-        if properties is not None:
-            style = properties.find(P_STYLE)
-            style_id = None if style is None else style.get(VAL)
-            mark = properties.find(_MARK_PROPERTIES)
-            if mark is not None and any(c.tag in _REMOVED for c in mark):
-                # A tracked deletion of the paragraph itself: Word, accepting
-                # the change, neither shows nor counts its number.
-                return style_id, None
-            num_pr = properties.find(NUM_PR)
-            if num_pr is not None:
-                num_id = _val(num_pr.find(NUM_ID))
-                ilvl = _int(_val(num_pr.find(ILVL)))
-        from_style = self._styles.numbering(style_id)
-        if num_id is None:
-            num_id = from_style.num_id
-        if num_id is None or num_id == "0" or not self._numbering.exists(num_id):
-            return style_id, None
-        if ilvl is None:
-            ilvl = from_style.ilvl
-        if ilvl is None:
-            # Word numbers such a paragraph at level 0 only when that level is
-            # not tied to another style: Heading 3 on Heading 1's level shows none.
-            tied = self._numbering.style_of_level(num_id, 0)
-            if tied is not None and tied != self._styles.resolved_id(style_id):
-                return style_id, None
-        return style_id, (num_id, ilvl or 0)
 
     def _table(self, table: Any, out: list[_Block], in_cell: bool) -> None:
         rows = rows_of(table)
@@ -258,14 +218,3 @@ def _related(part: Any, relationship_type: str) -> tuple[Any, Any] | None:
 def _related_root(part: Any, relationship_type: str) -> Any | None:
     found = _related(part, relationship_type)
     return None if found is None else found[0]
-
-
-def _val(element: Any | None) -> str | None:
-    return None if element is None else element.get(VAL)
-
-
-def _int(text: str | None) -> int | None:
-    try:
-        return int(text) if text is not None else None
-    except ValueError:
-        return None
