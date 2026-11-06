@@ -66,7 +66,7 @@ forums and Upwork, and is cited inline. The product facts were checked against
    ships: the Excel revise engine edits sheet XML and keeps charts, pivots and
    macros byte for byte
    ([`excel.py`](../../../surfsense_local/backend/modules/artifacts/revised_copies/engines/excel.py)).
-2. **It ships before the contract redline.** The redline's edge went in
+2. **It ships before the contract redline.** (**Revised 5 Nov 2026:** the contract redline now ships beside the questionnaire in the Business switch release, as an app runner on the shipped Word engine, without the `docxkit`/`crlib` fix: [ADR 0086](../../../docs/adr/0086-the-contract-redline-ships-with-the-business-switch-on-the-word-engine.md).) The redline's edge went in
    October: Microsoft's Copilot for Legal reviews against a playbook and writes
    native tracked changes in Word
    ([MC1388706](https://mc.merill.net/message/MC1388706), 7 Oct), Clio added

@@ -65,7 +65,7 @@ measured on any model yet
    place), so the claim is the combination, never "nobody else". Editing stays the free capability every job
    writes through; the job is what is sold (item 3).
 2. **The security questionnaire ships first, then RFPs from the same library;
-   the contract redline waits.** This plan's own trigger has fired: "a measured
+   the contract redline waits.** (**Revised 5 Nov 2026:** the contract redline now ships beside the questionnaire in the Business switch release, as an app runner on the shipped Word engine, without the `docxkit`/`crlib` fix: [ADR 0086](../../docs/adr/0086-the-contract-redline-ships-with-the-business-switch-on-the-word-engine.md).) This plan's own trigger has fired: "a measured
    questionnaire engine in less time than the redline's remaining work". The
    byte-preserving Excel revise engine shipped in 2.2.0, so the remaining
    questionnaire work is roughly 8 to 16 weeks of S and M items (an estimate), while the redline still needs the clean-room
