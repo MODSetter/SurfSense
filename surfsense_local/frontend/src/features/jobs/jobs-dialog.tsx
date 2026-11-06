@@ -14,10 +14,14 @@ import type { WorkspaceDocument } from "@/features/sources/api"
 import { useOpenArtifact } from "@/features/studio/open-artifact"
 import { intl } from "@/i18n/intl"
 
+import { jobRunnerOfKey } from "./catalog"
 import { JobList } from "./job-list"
+import { ContractRunForm } from "./run/contract-run-form"
 import { JobRunForm } from "./run/job-run-form"
 import { JobRunProgress } from "./run/job-run-progress"
+import { WORD_CLAUSES } from "./runners"
 import { JobSettingsForm } from "./settings/job-settings-form"
+import { useJobPacks } from "./use-job-packs"
 
 export type JobsView =
   | { name: "list" }
@@ -94,6 +98,7 @@ export const JobsDialog = memo(function JobsDialog({
 }: JobsDialogProps) {
   const [view, setView] = useState<JobsView>(LIST)
   const openArtifact = useOpenArtifact()
+  const packs = useJobPacks().data
   // Jobs closes first, so two modal roots never stack.
   const leaveFor = (next: () => void) => {
     onOpenChange(false)
@@ -114,9 +119,14 @@ export const JobsDialog = memo(function JobsDialog({
         />
       )
       break
-    case "run":
+    case "run": {
+      // Each runner works on its own kind of file, so has its own form.
+      const RunForm =
+        jobRunnerOfKey(view.job, packs) === WORD_CLAUSES
+          ? ContractRunForm
+          : JobRunForm
       content = (
-        <JobRunForm
+        <RunForm
           key={view.job}
           workspaceId={workspaceId}
           job={view.job}
@@ -134,6 +144,7 @@ export const JobsDialog = memo(function JobsDialog({
         />
       )
       break
+    }
     case "progress":
       content = (
         <JobRunProgress
@@ -143,9 +154,7 @@ export const JobsDialog = memo(function JobsDialog({
           onOpenInStudio={(artifactId) =>
             leaveFor(() => openArtifact?.(artifactId))
           }
-          onChooseWorkbook={(job, title) =>
-            setView({ name: "run", job, title })
-          }
+          onChooseFile={(job, title) => setView({ name: "run", job, title })}
           onBack={toList}
         />
       )

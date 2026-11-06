@@ -5,10 +5,44 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { intl } from "@/i18n/intl"
 
 import type { JobRunSummary, PackInfo } from "../api"
-import { jobTitleOfKey } from "../catalog"
+import { jobRunnerOfKey, jobTitleOfKey } from "../catalog"
+import { WORD_CLAUSES } from "../runners"
 import { runStage } from "../run/run-stage"
 
 import { RUNS_SHOWN, useJobRuns } from "./use-job-runs"
+
+// A contract review counts review points where a questionnaire counts questions.
+function contractStatusLine(run: JobRunSummary): string {
+  const stage = runStage(run.status, run.progress)
+  switch (stage.name) {
+    case "answering":
+      return intl.formatMessage(
+        {
+          id: "jobs_runs_points_status",
+          defaultMessage: "{done, number} of {total, number} review points",
+        },
+        { done: stage.done, total: stage.total }
+      )
+    case "writing":
+      return intl.formatMessage({
+        id: "jobs_runs_marking_up_status",
+        defaultMessage: "Marking up the contract",
+      })
+    case "ready":
+      if (run.tally)
+        return intl.formatMessage(
+          {
+            id: "jobs_runs_done_points_status",
+            defaultMessage:
+              "Done, {count, plural, one {# review point} other {# review points}}",
+          },
+          { count: run.tally.questions }
+        )
+      return statusLine(run)
+    default:
+      return statusLine(run)
+  }
+}
 
 function statusLine(run: JobRunSummary): string {
   const stage = runStage(run.status, run.progress)
@@ -18,7 +52,7 @@ function statusLine(run: JobRunSummary): string {
         id: "jobs_runs_waiting_status",
         defaultMessage: "Waiting to start",
       })
-    case "reading_workbook":
+    case "reading_file":
     case "reading":
       return intl.formatMessage({
         id: "jobs_runs_reading_status",
@@ -147,7 +181,9 @@ export function JobRunsList({
                 </span>
                 <span className="flex shrink-0 flex-col items-end gap-1">
                   <span className="text-xs text-muted-foreground tabular-nums">
-                    {statusLine(run)}
+                    {jobRunnerOfKey(run.job, packs) === WORD_CLAUSES
+                      ? contractStatusLine(run)
+                      : statusLine(run)}
                   </span>
                   {run.open_suggestion_count > 0 ? (
                     <Badge variant="secondary">

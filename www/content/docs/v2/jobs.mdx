@@ -1,14 +1,17 @@
 ---
 title: Jobs
-description: Run a job, such as filling in a security questionnaire from your policies, then check and confirm what it wrote
+description: Run a job, such as filling in a security questionnaire from your policies or reviewing a contract against your playbook, then check what it wrote
 icon: ClipboardCheck
 ---
 
 import { Step, Steps } from 'fumadocs-ui/components/steps';
 
-A job fills in paperwork from your firm's own documents. The first is **Security questionnaire**: it fills in a questionnaire a customer sent you, as an Excel workbook, from your policies, with the source of each answer. What it can't back with a quote is left for a person to check.
+A job does paperwork from your firm's own documents:
 
-Each run makes a revised copy of the workbook in [Studio](/docs/v2/studio). Your own file is never changed.
+- **Security questionnaire** fills in a questionnaire a customer sent you, as an Excel workbook, from your policies, with the source of each answer. What it can't back with a quote is left for a person to check.
+- **Contract redline** reviews a contract you received, as a Word file, against your firm's playbook, and marks up a copy with tracked changes and comments. See [Review a contract](#review-a-contract).
+
+Each run makes a revised copy of your file in [Studio](/docs/v2/studio). Your own file is never changed.
 
 ## What you need
 
@@ -95,6 +98,43 @@ Some answers are suggestions: SurfSense found passages that may back them, but l
 
 Once you've checked them, choose "Confirm 3 suggested answers", with your own count, in Jobs when the run is done, or over the copy's newest version in Studio. SurfSense lists them and asks first. Choose **Confirm**: each one is written into its cell in a new version of the copy, and the exceptions sheet notes that a person confirmed it. Earlier versions stay under **Versions** in Studio.
 
+## Review a contract
+
+**Contract redline** checks a contract you received against your firm's playbook, one review point at a time, and marks up a copy where the contract departs from it. Its review points are those of a non-disclosure agreement, such as what counts as confidential, notice of a compelled disclosure, return or destruction, and survival.
+
+Your playbook is your firm's written positions, its own standard agreement, or both, added to **Sources** like any other document. SurfSense never makes up a position: where your playbook says nothing on a point, the contract is left as it is there.
+
+<Steps>
+  <Step>
+    Add the contract, as a Word file (`.docx`), and your playbook to **Sources**, and wait until they're ready. Save an older Word file (`.doc`) as `.docx` first.
+  </Step>
+  <Step>
+    In **Jobs**, choose **Run** beside **Contract redline**.
+  </Step>
+  <Step>
+    Under **Contract to review**, pick the contract: each run reviews one. **Add a contract** adds another.
+  </Step>
+  <Step>
+    Under **Your firmâ€™s playbook**, tick your playbook's documents. The sources ticked in **Sources** start ticked, another Word file too, since it may be your own standard agreement. **Add playbook documents** adds more.
+  </Step>
+  <Step>
+    Choose **Start**.
+  </Step>
+</Steps>
+
+Jobs counts review points as the run goes, such as "3 of 17 review points". When it's done, it says how many points were changed, how many meet your playbook, how many are not in it, and which need a person.
+
+In the copy, each change is a tracked change by SurfSense, which you accept or reject in Studio or in Word:
+
+- where a clause departs from your playbook, SurfSense rewrites it, and only the words that change are marked;
+- a term your playbook asks for and the contract lacks is added as a new paragraph;
+- each change carries a comment the other side can read, giving its reason;
+- SurfSense's reasoning, with the words of your playbook it rests on, is an internal comment. Internal comments stay in Studio: every download leaves them out.
+
+A point SurfSense can't settle, or whose change it can't place in the contract, is left for a person, with an internal comment saying why. SurfSense reviews and changes the body of the contract only, never its headers, footers or footnotes, and reviews a contract that already holds tracked changes as it reads with them.
+
+Download the copy in Studio with **With changes**. In the job's **Settings**, "Explain each change to the other side" is on to start with; turn it off and every comment SurfSense writes stays internal.
+
 ## Recent runs
 
 **Recent runs** in Jobs lists your latest runs, newest first, each with when it started, how far it got, and how many suggestions wait to be confirmed. Choose one to open it. Older runs are in Studio.
@@ -113,6 +153,8 @@ If you **Disconnect** the provider of the **Second check** model, in Settings â€
 ## In a chat
 
 In an [Agentic](/docs/v2/chat#two-modes) chat, tick the workbook and your policies in **Sources**, and ask the agent to fill in the questionnaire. Its step reads "Filled in" with the workbook's name, and opens the copy in Studio. Once you've checked the suggested answers, ask the agent to confirm them.
+
+For a contract, tick it and your playbook, and ask the agent to review the contract against your playbook. Its step reads "Reviewed" with the contract's name.
 
 A **Basic (Q&A)** chat can't run jobs. Use **Jobs** in the sidebar instead.
 

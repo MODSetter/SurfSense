@@ -142,7 +142,7 @@ export type JobReport = {
   model: string
   checker: string | null
   // A workbook's answer words as the pack writes them, plus "blank" and
-  // "skipped"; a contract's verdicts (meets, deviates, missing, not_covered,
+  // "skipped"; a contract's outcomes (changed, meets, not_covered,
   // for_person), plus "skipped".
   counts: Record<string, number>
   // The two sheets a workbook's run adds; a contract's report has none.
