@@ -89,7 +89,9 @@ Choosing a `llamacpp` model also starts loading it, as a background task that
 runs after the response, because the load blocks until the weights are resident
 and choosing a model is when the user has said they are about to use it
 ([`runtime.md`](runtime.md#warming-listed-is-not-loaded)). Any other provider
-loads nothing.
+loads nothing, and choosing one for chat unloads a local chat model the runtime
+still holds, once what it is generating has finished
+([`runtime.md`](runtime.md#sidecar-flags)).
 
 Choosing a `speech_to_text` model, through the route or an install with
 `select: true`, queues again every recording that failed for want of one, at

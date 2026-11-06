@@ -311,6 +311,27 @@ def test_the_prompt_cache_takes_a_quarter_of_ram_up_to_llama_cpps_own_size(
     assert "cache-ram = 8192" in (tmp_path / PRESET_FILE).read_text()
 
 
+def test_a_model_held_whole_on_a_graphics_card_keeps_no_prompts_in_ram(
+    tmp_path: Path,
+) -> None:
+    """The card reads a prompt again in about a second; the saved prompts took
+    2 GB of the host's memory in one session."""
+    a_model(tmp_path / "Qwen3-8B-Q4_K_M.gguf")
+    installed = scan(tmp_path, {})
+    card = HardwareBudget(
+        device_free_bytes=24 * 1024**3,
+        device_total_bytes=24 * 1024**3,
+        fit_reserve_bytes=1024**3,
+        ram_available_bytes=14 * 1024**3,
+        uma=False,
+        has_gpu=True,
+    )
+
+    write_preset(tmp_path, installed, card, card)
+
+    assert "cache-ram = 0" in (tmp_path / PRESET_FILE).read_text()
+
+
 def a_budget(*, ram_gib: int) -> HardwareBudget:
     """A machine with no graphics card and this much memory to give a model."""
     return HardwareBudget(
