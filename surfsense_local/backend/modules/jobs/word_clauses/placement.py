@@ -93,12 +93,16 @@ def unique_anchor(
     """The span, or the clause's first words, grown a word at a time on either side, clear of
     fields and of the `blocked` spans other changes to the clause make, until it occurs once
     among `texts`: the contract's clauses and the text its changes add. A span of no width,
-    where text goes in, starts as the words either side. None when it cannot be placed."""
+    where text goes in, starts as the words either side, else the words after it or before it,
+    whichever keeps clear of another change. None when it cannot be placed."""
     text = clause.text
     if start is None or end is None:
         start, end = _first_words(clause)
     elif start == end:
-        start, end = _word_before(clause, start), _word_after(clause, end)
+        seed = _seed_around(clause, start, blocked)
+        if seed is None:
+            return None
+        start, end = seed
     start, end = _trimmed(text, start, end)
     if (
         end <= start
@@ -134,6 +138,23 @@ def narrowed(text: str, start: int, end: int, new: str) -> tuple[int, int, str]:
     cut_start = start + sum(len(token) for token in before[:head])
     cut_end = end - sum(len(token) for token in before[len(before) - tail :])
     return cut_start, cut_end, "".join(after[head : len(after) - tail])
+
+
+def _seed_around(
+    clause: Clause, point: int, blocked: tuple[tuple[int, int], ...]
+) -> tuple[int, int] | None:
+    """Words that hold the point where text goes in, clear of fields and other changes."""
+    before, after = _word_before(clause, point), _word_after(clause, point)
+    for seed in ((before, after), (point, after), (before, point)):
+        start, end = _trimmed(clause.text, *seed)
+        if (
+            start < end
+            and start <= point <= end
+            and not touches_field(clause, start, end)
+            and not _crosses(start, end, blocked)
+        ):
+            return start, end
+    return None
 
 
 def _crosses(start: int, end: int, blocked: tuple[tuple[int, int], ...]) -> bool:

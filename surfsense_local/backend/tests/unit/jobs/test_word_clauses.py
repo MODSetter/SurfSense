@@ -613,3 +613,49 @@ def test_two_changes_to_different_words_of_one_paragraph_are_both_made(
         ", after prompt written notice",
         "only ",
     ]
+
+
+def test_text_put_in_beside_a_word_another_point_changes_is_still_placed(
+    config, contract, tmp_path
+):
+    """An insertion right after a word another point rewrites anchors on the words after it,
+    so neither change crowds out the other."""
+    model = ScriptedModel(
+        settled(
+            **{
+                "Compelled disclosure": [
+                    verdict(
+                        "deviates",
+                        paragraphs=["P4"],
+                        quote=NOTICE,
+                        kind="replace",
+                        paragraph="P4",
+                        old="The Receiving Party may disclose",
+                        new="The Receiving Party shall disclose",
+                    )
+                ],
+                "Limited use": [
+                    verdict(
+                        "deviates",
+                        paragraphs=["P4"],
+                        quote=USE,
+                        kind="replace",
+                        paragraph="P4",
+                        old="may disclose Confidential Information",
+                        new="may only disclose Confidential Information",
+                    )
+                ],
+            }
+        )
+    )
+
+    result = review_contract(contract, [PLAYBOOK], config, model)
+
+    points = by_key(result)
+    assert (points["compelled-disclosure"].verdict, points["use"].verdict) == (
+        "changed",
+        "changed",
+    )
+    assert applied(contract, result, tmp_path).paragraphs[3] == (
+        "The Receiving Party shall only disclose Confidential Information when required by law."
+    )
