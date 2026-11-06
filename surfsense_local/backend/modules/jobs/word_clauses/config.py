@@ -52,10 +52,11 @@ class ClauseConfig:
     )
     min_quote_chars: int = 15
     passages_per_point: int = 6
-    # Shares of the model's window the playbook and the contract may fill in every call.
-    sources_share: float = 0.3
+    # Shares of the model's window the playbook and the contract may fill in every call: together
+    # 60%, so a 32K local window keeps room for the instructions and a thinking model's reply.
+    sources_share: float = 0.25
     max_sources_chars: int = 60_000
-    contract_share: float = 0.4
+    contract_share: float = 0.35
     max_contract_chars: int = 160_000
     # Clauses a call is shown when the whole contract does not fit.
     clauses_per_point: int = 16
@@ -82,9 +83,9 @@ def load_config(config_file: Path) -> ClauseConfig:
             templates={**DEFAULT_TEMPLATES, **_templates(raw.get("templates", {}))},
             min_quote_chars=int(raw.get("min_quote_chars", 15)),
             passages_per_point=int(raw.get("passages_per_point", 6)),
-            sources_share=_share(raw.get("sources_share", 0.3)),
+            sources_share=_share(raw.get("sources_share", 0.25)),
             max_sources_chars=int(raw.get("max_sources_chars", 60_000)),
-            contract_share=_share(raw.get("contract_share", 0.4)),
+            contract_share=_share(raw.get("contract_share", 0.35)),
             max_contract_chars=int(raw.get("max_contract_chars", 160_000)),
             clauses_per_point=int(raw.get("clauses_per_point", 16)),
             settings=declared_settings(raw.get("settings", ())),
