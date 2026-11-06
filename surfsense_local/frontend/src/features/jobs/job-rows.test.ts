@@ -36,6 +36,16 @@ describe("job rows", () => {
     })
   })
 
+  it("sells the contract redline after the security questionnaire", () => {
+    const rows = jobRows([], NO_LICENSE)
+
+    expect(rows.map((row) => [row.key, row.name, row.kind])).toEqual([
+      ["JOB_QUESTIONNAIRE", "Security questionnaire", "locked_none"],
+      ["JOB_CONTRACT_REDLINE", "Contract redline", "locked_none"],
+    ])
+    expect(rows[1].description).toContain("contract you received (.docx)")
+  })
+
   it("tells a trial license without the job that Business includes it", () => {
     expect(jobRows([], TRIAL)[0].kind).toBe("locked_trial")
     expect(jobRows([lockedPack("not_included")], TRIAL)[0].kind).toBe(
@@ -75,6 +85,8 @@ describe("job rows", () => {
         version: "0.4.3",
         kind: "available",
       }),
+      // A job the license does not carry stays the catalog's row.
+      expect.objectContaining({ key: "JOB_CONTRACT_REDLINE", job: null }),
     ])
   })
 
@@ -100,6 +112,7 @@ describe("job rows", () => {
         key: "JOB_QUESTIONNAIRE",
         kind: "not_downloaded",
       }),
+      expect.objectContaining({ key: "JOB_CONTRACT_REDLINE" }),
       expect.objectContaining({
         key: "job:test-questionnaire",
         entitlement: null,
@@ -137,10 +150,11 @@ describe("job rows", () => {
 
     expect(rows.map((row) => row.name)).toEqual([
       "Security questionnaire",
+      "Contract redline",
       "Audit letter",
       "Zebra review",
     ])
-    expect(rows[1]).toMatchObject({
+    expect(rows[2]).toMatchObject({
       key: "JOB_AUDIT",
       job: "aa-job",
       description: "Writes audit letters.",
@@ -155,8 +169,8 @@ describe("job rows", () => {
       jobs: ["JOB_QUESTIONNAIRE", "JOB_NEW", "JOB_NEW"],
     })
 
-    expect(rows).toHaveLength(2)
-    expect(rows[1]).toMatchObject({
+    expect(rows).toHaveLength(3)
+    expect(rows[2]).toMatchObject({
       key: "JOB_NEW",
       entitlement: "JOB_NEW",
       name: "JOB_NEW",

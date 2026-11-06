@@ -14,6 +14,9 @@ export type JobInfo = {
   description: string
   // The license entitlement that unlocks it, for a paid pack's job.
   entitlement: string | null
+  // What runs it, as the pack names it ("workbook-rows/1", "word-clauses/1"),
+  // which picks the form and the wording of its runs.
+  runner: string
   unlocked: boolean
   locked_reason: string
   locked_code: LockedCode | null
@@ -128,13 +131,23 @@ export type JobRunSummary = {
   running: boolean
 }
 
+/** One thing a run left for a person: a workbook's [sheet, cell, question,
+ *  answer, why], a contract's [where, anchor, point, verdict, why]. */
+export type ReportException = [string, string, string, string, string]
+
 /** The stored report: only what the screens read is typed. */
 export type JobReport = {
+  // The runner that wrote it; an older workbook's report names none.
+  runner?: string
   model: string
   checker: string | null
-  // Answer words as the pack writes them, plus "blank" and "skipped".
+  // A workbook's answer words as the pack writes them, plus "blank" and
+  // "skipped"; a contract's verdicts (meets, deviates, missing, not_covered,
+  // for_person), plus "skipped".
   counts: Record<string, number>
-  sheets: { answers: string; exceptions: string }
+  // The two sheets a workbook's run adds; a contract's report has none.
+  sheets?: { answers: string; exceptions: string }
+  exceptions?: ReportException[]
 }
 
 export type OpenSuggestion = {

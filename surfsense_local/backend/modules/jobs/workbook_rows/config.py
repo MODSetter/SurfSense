@@ -13,6 +13,11 @@ from pathlib import Path
 
 from modules.artifacts.revised_copies.engines.excel_new_sheet import name_problem
 from modules.jobs.packs.manifest import PackRefusedError, safe_path
+from modules.jobs.settings.declared import (
+    JobSetting,
+    declared_settings,
+    setting_values,
+)
 
 
 @dataclass(frozen=True)
@@ -75,16 +80,6 @@ class StatementGate:
 
 
 @dataclass(frozen=True)
-class JobSetting:
-    """A choice the firm makes once for every run of the job, off unless it says otherwise."""
-
-    key: str
-    label: str
-    description: str = ""
-    default: bool = False
-
-
-@dataclass(frozen=True)
 class JobConfig:
     answers: tuple[AnswerChoice, ...]
     layout: LayoutWords
@@ -129,17 +124,7 @@ class JobConfig:
 
     def setting_values(self, chosen: Mapping[str, object] | None) -> dict[str, bool]:
         """Every setting the job declares, as the firm chose it or at its default."""
-        chosen = dict(chosen or {})
-        unknown = sorted(set(chosen) - {s.key for s in self.settings})
-        if unknown:
-            raise ValueError(f"The job has no setting {', '.join(unknown)}.")
-        values = {}
-        for setting in self.settings:
-            value = chosen.get(setting.key, setting.default)
-            if not isinstance(value, bool):
-                raise ValueError(f"{setting.key} is true or false.")
-            values[setting.key] = value
-        return values
+        return setting_values(self.settings, chosen)
 
 
 def load_config(config_file: Path) -> JobConfig:
@@ -204,15 +189,7 @@ def load_config(config_file: Path) -> JobConfig:
                 str(a) for a in raw.get("second_look", {}).get("answers", ())
             ),
             statement_gate=_gate(folder, raw.get("statement_gate", {})),
-            settings=tuple(
-                JobSetting(
-                    key=str(item["key"]),
-                    label=str(item["label"]),
-                    description=str(item.get("description", "")),
-                    default=_flag(item.get("default", False)),
-                )
-                for item in raw.get("settings", ())
-            ),
+            settings=declared_settings(raw.get("settings", ())),
         )
     except (
         OSError,
@@ -270,12 +247,6 @@ def _gate(folder: Path, raw: dict) -> StatementGate:
         provider_setting=str(raw.get("provider_setting", "")),
         check_prompt=_prompt(folder, raw["check"]) if raw.get("check") else "",
     )
-
-
-def _flag(value: object) -> bool:
-    if not isinstance(value, bool):
-        raise ValueError("A setting's default is true or false.")
-    return value
 
 
 def _lowered(words: object) -> tuple[str, ...]:

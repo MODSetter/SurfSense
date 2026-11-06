@@ -14,6 +14,7 @@ import type {
   PackOutcome,
   PackOutcomeCode,
 } from "./api"
+import { DOCX_MIME } from "./run/contract-sources"
 import { XLSX_MIME } from "./run/run-sources"
 
 // Stand-ins for the app backend's job routes, typed by api.ts. Nothing here is
@@ -24,6 +25,19 @@ export const TEST_JOB: JobInfo = {
   name: "Test questionnaire",
   description: "A stand-in job.",
   entitlement: "JOB_QUESTIONNAIRE",
+  runner: "workbook-rows/1",
+  unlocked: true,
+  locked_reason: "",
+  locked_code: null,
+}
+
+/** A stand-in for the contract redline, under the code the catalog sells. */
+export const TEST_REDLINE_JOB: JobInfo = {
+  key: "test-redline",
+  name: "Test redline",
+  description: "A stand-in redline.",
+  entitlement: "JOB_CONTRACT_REDLINE",
+  runner: "word-clauses/1",
   unlocked: true,
   locked_reason: "",
   locked_code: null,
@@ -39,6 +53,14 @@ export const TEST_PACK: PackInfo = {
   locked_reason: "",
   locked_code: null,
   jobs: [TEST_JOB],
+}
+
+export const TEST_REDLINE_PACK: PackInfo = {
+  ...TEST_PACK,
+  id: "test-redline-pack",
+  version: "0.1.0",
+  name: "Test redline pack",
+  jobs: [TEST_REDLINE_JOB],
 }
 
 /** What a download came to for the stand-in job, in the backend's shape;
@@ -155,6 +177,14 @@ export function workbook(
   return source(id, title, { mime_type: XLSX_MIME, ...overrides })
 }
 
+export function contract(
+  id: number,
+  title: string,
+  overrides: Partial<WorkspaceDocument> = {}
+): WorkspaceDocument {
+  return source(id, title, { mime_type: DOCX_MIME, ...overrides })
+}
+
 export function runSummary(
   overrides: Partial<JobRunSummary> = {}
 ): JobRunSummary {
@@ -215,6 +245,73 @@ export function runRead(overrides: Partial<JobRunRead> = {}): JobRunRead {
         comment: "Only one person works here.",
       },
     ],
+    confirmed: [],
+    ...overrides,
+  }
+}
+
+/** A finished redline of a contract against the stand-in playbook. */
+export function redlineRunSummary(
+  overrides: Partial<JobRunSummary> = {}
+): JobRunSummary {
+  return runSummary({
+    artifact_id: 51,
+    title: "Acme NDA (revised)",
+    job: "test-redline",
+    pack_id: "test-redline-pack",
+    pack_version: "0.1.0",
+    progress: { done: 17, total: 17 },
+    // The backend's tally counts points where a workbook's counts questions.
+    tally: {
+      questions: 17,
+      answered: 15,
+      for_person: 2,
+      suggested: 0,
+      skipped: 0,
+    },
+    open_suggestion_count: 0,
+    newest_version_id: 51,
+    newest_ready_version_id: 51,
+    ...overrides,
+  })
+}
+
+export function redlineRunRead(
+  overrides: Partial<JobRunRead> = {}
+): JobRunRead {
+  return {
+    ...redlineRunSummary(),
+    pack: "test-redline-pack 0.1.0",
+    report: {
+      runner: "word-clauses/1",
+      model: "qwen3-4b.gguf",
+      checker: null,
+      counts: {
+        meets: 8,
+        deviates: 3,
+        missing: 2,
+        not_covered: 2,
+        for_person: 2,
+        skipped: 0,
+      },
+      exceptions: [
+        [
+          "4.2",
+          "The Receiving Party shall keep",
+          "Term of confidentiality",
+          "for_person",
+          "The playbook’s quote was not found word for word.",
+        ],
+        [
+          "",
+          "",
+          "Governing law",
+          "for_person",
+          "The change could not be placed in the contract.",
+        ],
+      ],
+    },
+    open_suggestions: [],
     confirmed: [],
     ...overrides,
   }
@@ -297,6 +394,10 @@ export function dialogRoutes({
     "GET /workspaces/1/job-runs?limit=11": runs,
     "GET /workspaces/1/artifacts": [],
     "GET /job-packs/jobs/test-questionnaire/settings": jobSettings(),
+    "GET /job-packs/jobs/test-redline/settings": jobSettings({
+      job: "test-redline",
+      settings: [],
+    }),
     ...CHAT_CANDIDATE_ROUTES,
   }
 }
