@@ -6,6 +6,7 @@ import {
 	FAQ_CANCEL_OR_CHANGE,
 	FAQ_WHAT_BUSINESS_ADDS,
 	FAQ_WHO_NEEDS_BUSINESS,
+	WHAT_EACH_JOB_DOES,
 } from "@/app/(home)/pricing/business-pricing-content";
 import type { PricingQuestion } from "@/app/(home)/pricing/pricing-content";
 import { EMAIL } from "@/components/site/site-content";
@@ -41,7 +42,7 @@ export type Benefit = { title: string; body: string; icon: Icon };
 export const BENEFITS: Benefit[] = [
 	{
 		title: "The job plugins",
-		body: "The security questionnaire first: it answers a customer's security questionnaire in their own spreadsheet from your firm's policies, gives the source of each answer, and lists what needs a person's review. Further jobs join Business as they ship.",
+		body: `${WHAT_EACH_JOB_DOES} Further jobs join Business as they ship.`,
 		icon: ClipboardCheckIcon,
 	},
 	{

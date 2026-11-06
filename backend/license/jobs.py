@@ -12,9 +12,11 @@ from collections.abc import Mapping
 from license.models import META_JOBS
 
 # Every job is in Business (ADR 0080, open question a); a new one is added here
-# and the setup script is run again.
+# and the setup script is run again. A license keeps the list it was issued with,
+# so a job added once Business is on sale reaches no license sold before it.
 JOBS: dict[str, str] = {
     "JOB_QUESTIONNAIRE": "Security questionnaire",
+    "JOB_CONTRACT_REDLINE": "Contract redline",
 }
 
 

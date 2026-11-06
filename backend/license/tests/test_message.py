@@ -7,6 +7,7 @@ from datetime import date
 import pytest
 
 from license.email.message import ACTIVATION_GUIDE_URL, build_license_email
+from license.jobs import JOBS
 
 pytestmark = pytest.mark.unit
 
@@ -199,6 +200,23 @@ def test_the_business_trial_says_what_stops_and_names_no_portal(monkeypatch):
     assert "https://portal.test/p" not in message.text_body
 
 
+@pytest.mark.parametrize("kind", ["trial", "conversion"])
+def test_the_business_trial_and_the_conversion_notice_name_every_job(kind):
+    """Each says what the license unlocks, and its `jobs` lists every job Business sells."""
+    term = {"renews_on": date(2027, 10, 26)} if kind == "conversion" else {}
+    body = build_license_email(
+        kind,
+        to="a@b.test",
+        certificates=("CERT",),
+        business=business(people=1, **term),
+    ).text_body
+
+    # The intro, not the first-job step, which names only the questionnaire.
+    intro = body.split("1. Install SurfSense", 1)[0].lower()
+    for name in JOBS.values():
+        assert name.lower() in intro
+
+
 def test_only_a_paid_business_license_resent_names_the_portal(monkeypatch):
     """Resend takes a trial's copy when the address holds no paid license, and a trial
     has no subscription to change or cancel."""
@@ -235,7 +253,8 @@ def test_a_business_purchase_trial_or_conversion_ends_with_the_first_job(kind):
 
     for words in (
         "5. Run your first job.",
-        "choose Allow",
+        # Allowing downloads every job the license lists, not only the one run here.
+        "choose Allow, and it downloads your jobs.",
         "click Jobs in the left sidebar",
         "press Run beside Security questionnaire",
     ):
@@ -326,8 +345,8 @@ def test_the_conversion_notice_says_what_changed_and_what_stays(monkeypatch):
         "The attached file replaces the old one: import it in Settings -> License "
         "on each computer you use SurfSense on, or choose Check for renewal on the "
         "Jobs screen, which fetches it.",
-        "Business unlocks SurfSense's job plugins, starting with the security "
-        "questionnaire.",
+        "Business unlocks SurfSense's job plugins: the security questionnaire and "
+        "the contract redline.",
         "The scraper plugins your Individual license included have retired; reading "
         "web pages, YouTube and web search are now built into SurfSense, free.",
         # Its buyer may never have read that it renews: the notice names the day.

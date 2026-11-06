@@ -9,6 +9,7 @@ from __future__ import annotations
 import pytest
 
 from license.email import deliver
+from license.jobs import jobs_metadata
 from license.settings import config
 from license.tests.billing_harness import PORTAL, SentMail
 from license.tests.test_license_routes import FakeKeygen, keygen_store, mailer, post
@@ -66,7 +67,7 @@ async def test_with_the_switch_on_the_trial_is_businesss(
     assert record["policy"] == "policy-business-trial"
     # Still a trial to the app and to the cohort report; the jobs say what it unlocks.
     assert record["attributes"]["metadata"]["plan"] == "trial"
-    assert record["attributes"]["metadata"]["jobs"] == "JOB_QUESTIONNAIRE"
+    assert record["attributes"]["metadata"]["jobs"] == jobs_metadata()
     (mail,) = sent
     assert mail.subject == "Your SurfSense Business 14-day trial license"
     assert "security questionnaire" in mail.text_body

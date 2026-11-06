@@ -15,11 +15,11 @@ import { AllReleasesLink, OSDownloadGrid } from "./download-panels";
  */
 
 /**
- * From Business on, the emailed trial is the paid job's, which most visitors to this page do
+ * From Business on, the emailed trial is the paid jobs', which most visitors to this page do
  * not need, so the form says what it sends. Until then it needs no note.
  */
 const TRIAL_NOTE = BUSINESS_LAUNCHED
-	? "Your email gets a 14-day trial of the paid security questionnaire job, one per address. The app itself needs no license."
+	? "Your email gets a 14-day trial of the paid security questionnaire and contract redline jobs, one per address. The app itself needs no license."
 	: "";
 
 export const metadata: Metadata = {
