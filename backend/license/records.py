@@ -151,4 +151,14 @@ def license_record(record: dict[str, Any]) -> LicenseRecord:
         metadata=dict(attributes.get("metadata") or {}),
         max_users=attributes.get("maxUsers"),
         expiry=attributes.get("expiry"),
+        policy=_policy_id(record),
+        status=attributes.get("status"),
+        created=attributes.get("created"),
     )
+
+
+def _policy_id(record: dict[str, Any]) -> str | None:
+    policy = ((record.get("relationships") or {}).get("policy") or {}).get("data")
+    if not isinstance(policy, dict):
+        return None
+    return str(policy.get("id") or "") or None

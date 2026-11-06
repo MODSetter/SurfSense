@@ -36,7 +36,8 @@ class FakeKeygen:
     """The license endpoints the portal calls, over an in-memory store.
 
     Validation answers as Keygen's does for a user-less, non-strict license:
-    BANNED, SUSPENDED, EXPIRED or VALID, and NOT_FOUND with no license.
+    BANNED, SUSPENDED, EXPIRED or VALID, and NOT_FOUND with no license. A
+    license is answered as JSON:API, its policy under ``relationships``.
     """
 
     def __init__(self) -> None:
@@ -47,6 +48,11 @@ class FakeKeygen:
         self.codeless = False
         # Suspensions answer 503 while every other call works.
         self.refuse_suspend = False
+        # License id -> the status its policy change answers: 422 as Keygen
+        # refuses an incompatible policy, anything else bare.
+        self.refuse_policy_change: dict[str, int] = {}
+        # Policy id -> its attributes, as GET /policies/<id> answers them.
+        self.policies: dict[str, dict] = {}
 
     def add(
         self,
@@ -56,6 +62,7 @@ class FakeKeygen:
         policy: str | None = None,
         expiry: str | None = None,
         max_users: int | None = None,
+        created: str | None = None,
         **metadata: str,
     ) -> None:
         self.licenses[license_id] = {
@@ -66,23 +73,29 @@ class FakeKeygen:
                 "status": status,
                 "expiry": expiry,
                 "maxUsers": max_users,
+                **({"created": created} if created else {}),
             },
             "policy": policy,
         }
 
     def writes(self, license_id: str) -> list[httpx2.Request]:
-        """Every request that changed this license: an update, a suspension."""
+        """Every request that changed this license: an update, a policy change, a suspension."""
         return [
             request
             for request in self.requests
             if license_id in request.url.path
-            and (request.method == "PATCH" or request.url.path.endswith("/suspend"))
+            and (
+                request.method in {"PATCH", "PUT"}
+                or request.url.path.endswith("/suspend")
+            )
         ]
 
     def handle(self, request: httpx2.Request) -> httpx2.Response:
         self.requests.append(request)
         if self.down:
             return httpx2.Response(503)
+        if "/policies/" in request.url.path and request.method == "GET":
+            return self._policy(request.url.path.rsplit("/", 1)[1])
         rest = request.url.path.split("/licenses", 1)[1]
         if rest == "" and request.method == "GET":
             return self._list(request)
@@ -111,6 +124,8 @@ class FakeKeygen:
             )
         if action == "actions/validate":
             return self._validation(record)
+        if action == "policy" and request.method == "PUT":
+            return self._change_policy(record, json.loads(request.content)["data"])
         if action == "actions/suspend":
             if self.refuse_suspend:
                 return httpx2.Response(503)
@@ -125,7 +140,52 @@ class FakeKeygen:
             record["attributes"].update(
                 json.loads(request.content)["data"]["attributes"]
             )
-        return httpx2.Response(200, json={"data": record})
+        return httpx2.Response(200, json={"data": self._answer(record)})
+
+    @staticmethod
+    def _answer(record: dict) -> dict:
+        """A license as Keygen answers it: JSON:API, its policy a relationship."""
+        return {
+            "id": record["id"],
+            "type": "licenses",
+            "attributes": record["attributes"],
+            "relationships": {
+                "policy": {"data": {"type": "policies", "id": record["policy"]}}
+            },
+        }
+
+    def _change_policy(self, record: dict, policy: dict) -> httpx2.Response:
+        refusal = self.refuse_policy_change.get(record["id"])
+        if refusal == 422:
+            return httpx2.Response(
+                422,
+                json={
+                    "errors": [
+                        {
+                            "title": "Unprocessable resource",
+                            "detail": "cannot change to a policy with a different scheme",
+                            "code": "POLICY_NOT_COMPATIBLE",
+                            "source": {"pointer": "/data/relationships/policy"},
+                        }
+                    ]
+                },
+            )
+        if refusal is not None:
+            return httpx2.Response(refusal)
+        # The move keeps the expiry, as transferStrategy KEEP_EXPIRY does.
+        record["policy"] = policy["id"]
+        return httpx2.Response(200, json={"data": self._answer(record)})
+
+    def _policy(self, policy_id: str) -> httpx2.Response:
+        attributes = self.policies.get(policy_id)
+        if attributes is None:
+            return httpx2.Response(404)
+        return httpx2.Response(
+            200,
+            json={
+                "data": {"id": policy_id, "type": "policies", "attributes": attributes}
+            },
+        )
 
     def _validation(self, record: dict | None) -> httpx2.Response:
         if record is None:
@@ -141,7 +201,8 @@ class FakeKeygen:
         meta = {"valid": code == "VALID", "code": code}
         if self.codeless:
             del meta["code"]
-        return httpx2.Response(200, json={"data": record, "meta": meta})
+        data = None if record is None else self._answer(record)
+        return httpx2.Response(200, json={"data": data, "meta": meta})
 
     def _list(self, request: httpx2.Request) -> httpx2.Response:
         params = request.url.params
@@ -164,7 +225,13 @@ class FakeKeygen:
             and (policy is None or record["policy"] == policy)
         ]
         return httpx2.Response(
-            200, json={"data": found[: int(params.get("limit", 100))]}
+            200,
+            json={
+                "data": [
+                    self._answer(record)
+                    for record in found[: int(params.get("limit", 100))]
+                ]
+            },
         )
 
     def _create(self, data: dict) -> httpx2.Response:
@@ -178,13 +245,16 @@ class FakeKeygen:
             **data["attributes"],
             "key": f"KEY-{license_id}",
             "status": "ACTIVE",
+            "created": datetime.now(UTC).isoformat(),
         }
         self.licenses[license_id] = {
             "id": license_id,
             "attributes": attributes,
             "policy": policy,
         }
-        return httpx2.Response(201, json={"data": self.licenses[license_id]})
+        return httpx2.Response(
+            201, json={"data": self._answer(self.licenses[license_id])}
+        )
 
 
 class Mailer:
