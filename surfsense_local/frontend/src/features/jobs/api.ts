@@ -85,6 +85,8 @@ export type JobSetting = {
 export type JobSettings = {
   job: string
   settings: JobSetting[]
+  // Whether the job checks its answers a second time; a checker is used only when it does.
+  checks: boolean
   // The model that makes the second checks; null checks on the answering model.
   checker: ModelRef | null
 }

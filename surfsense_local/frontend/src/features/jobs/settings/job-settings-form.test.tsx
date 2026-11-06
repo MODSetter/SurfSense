@@ -158,6 +158,16 @@ describe("job settings form", () => {
     )
   })
 
+  it("offers no checker for a job that makes no second check", async () => {
+    stubSettings({ [SETTINGS]: jobSettings({ checks: false }) })
+    await openSettings()
+
+    expect(
+      await screen.findByRole("switch", { name: /Quote every Yes/ })
+    ).toBeTruthy()
+    expect(screen.queryByRole("combobox", { name: "Second check" })).toBeNull()
+  })
+
   it("says the job is no longer on this computer", async () => {
     stubSettings({
       [SETTINGS]: refusal(

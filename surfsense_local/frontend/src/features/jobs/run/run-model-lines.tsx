@@ -38,7 +38,9 @@ export function RunModelLines({
   text: RunModelText
 }) {
   const candidates = useChatCandidates().data
-  const checker = useJobSettings(job).data?.checker ?? null
+  // A job that makes no second check never uses a checker it was once given.
+  const settings = useJobSettings(job).data
+  const checker = settings?.checks ? settings.checker : null
   const usable = selection !== null && providerAvailable
   const remote =
     (usable && selection.provider !== LOCAL_RUNTIME) ||

@@ -62,6 +62,10 @@ class ClauseConfig:
     clauses_per_point: int = 16
     settings: tuple[JobSetting, ...] = ()
 
+    @property
+    def checks(self) -> bool:
+        return bool(self.check_prompt)
+
     def setting_values(self, chosen: Mapping[str, object] | None) -> dict[str, bool]:
         """Every setting the job declares, as the firm chose it or at its default."""
         return setting_values(self.settings, chosen)

@@ -224,3 +224,14 @@ async def test_the_listing_names_each_jobs_runner(
     assert [(j["key"], j["runner"]) for p in listed for j in p["jobs"]] == [
         (REDLINE_JOB, "word-clauses/1")
     ]
+
+
+async def test_a_redline_without_a_second_check_says_so_in_its_settings(
+    client: AsyncClient, pack: None
+) -> None:
+    """A job whose pack makes no second check says so, so no screen offers a checker it
+    would never use."""
+    read = (await client.get(f"/job-packs/jobs/{REDLINE_JOB}/settings")).json()
+
+    assert read["checks"] is False
+    assert [s["key"] for s in read["settings"]] == ["external_comments"]

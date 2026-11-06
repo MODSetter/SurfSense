@@ -122,6 +122,10 @@ class JobConfig:
     def choice(self, answer: str) -> AnswerChoice | None:
         return next((c for c in self.answers if c.answer == answer), None)
 
+    @property
+    def checks(self) -> bool:
+        return bool(self.verify_answers)
+
     def setting_values(self, chosen: Mapping[str, object] | None) -> dict[str, bool]:
         """Every setting the job declares, as the firm chose it or at its default."""
         return setting_values(self.settings, chosen)

@@ -329,6 +329,7 @@ export function jobSettings(overrides: Partial<JobSettings> = {}): JobSettings {
         value: false,
       },
     ],
+    checks: true,
     checker: null,
     ...overrides,
   }

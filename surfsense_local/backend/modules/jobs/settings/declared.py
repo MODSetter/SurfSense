@@ -23,6 +23,11 @@ class DeclaresSettings(Protocol):
 
     settings: tuple[JobSetting, ...]
 
+    @property
+    def checks(self) -> bool:
+        """Whether the job checks its answers a second time, on the firm's checker model."""
+        ...
+
     def setting_values(
         self, chosen: Mapping[str, object] | None
     ) -> dict[str, bool]: ...

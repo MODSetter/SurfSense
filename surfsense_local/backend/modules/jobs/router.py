@@ -65,6 +65,8 @@ class JobSettingInfo(BaseModel):
 class JobSettingsRead(BaseModel):
     job: str
     settings: list[JobSettingInfo]
+    # Whether the job checks its answers a second time; a checker is used only when it does.
+    checks: bool
     # The model that makes the second checks; null checks on the answering model.
     checker: ModelRef | None
 
@@ -199,6 +201,7 @@ def _settings_read(
             )
             for s in config.settings
         ],
+        checks=config.checks,
         checker=chosen.checker,
     )
 
