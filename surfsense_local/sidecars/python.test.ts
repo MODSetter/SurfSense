@@ -6,7 +6,13 @@ import test from "node:test"
 
 import { audiocppSpec, SERVER_CONFIG } from "./audiocpp.ts"
 import { exe, isWindows } from "./platform.ts"
-import { apiSpec, BACKEND_BINARY, WORKER_QUEUES, workerSpec } from "./python.ts"
+import {
+  apiSpec,
+  BACKEND_BINARY,
+  FRESH_START_EXIT_CODE,
+  WORKER_QUEUES,
+  workerSpec,
+} from "./python.ts"
 import type { SidecarContext } from "./types.ts"
 
 /** A packaged build with audio.cpp staged and the API's config written. */
@@ -54,6 +60,31 @@ test("the API is told the shell's pid, the root of what counts as the app", () =
   const api = apiSpec(withAudio()).env
 
   assert.equal(api.SURFSENSE_LOCAL_SHELL_PID, String(process.pid))
+})
+
+test("a worker that exits to free its memory is started again; the API never is", () => {
+  const ctx = withAudio()
+  for (const queue of WORKER_QUEUES) {
+    assert.equal(workerSpec(ctx, queue).freshStartExitCode, FRESH_START_EXIT_CODE)
+  }
+  // backend/worker/fresh_start.py exits with the same number.
+  assert.equal(FRESH_START_EXIT_CODE, 75)
+  assert.equal(apiSpec(ctx).freshStartExitCode, undefined)
+})
+
+test("every Python sidecar runs numpy's OpenBLAS on one thread unless the user chose a count", () => {
+  const ctx = withAudio()
+  const specs = () => [apiSpec(ctx), ...WORKER_QUEUES.map((queue) => workerSpec(ctx, queue))]
+  const before = process.env.OPENBLAS_NUM_THREADS
+  try {
+    delete process.env.OPENBLAS_NUM_THREADS
+    for (const spec of specs()) assert.equal(spec.env.OPENBLAS_NUM_THREADS, "1")
+    process.env.OPENBLAS_NUM_THREADS = "4"
+    for (const spec of specs()) assert.equal(spec.env.OPENBLAS_NUM_THREADS, "4")
+  } finally {
+    if (before === undefined) delete process.env.OPENBLAS_NUM_THREADS
+    else process.env.OPENBLAS_NUM_THREADS = before
+  }
 })
 
 test("under pnpm dev a worker is the app's own child, so it dies with the app", () => {

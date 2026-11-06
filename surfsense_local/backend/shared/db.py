@@ -110,6 +110,9 @@ def _apply_pragmas(dbapi_connection: Any, _record: Any) -> None:
     # First, so what follows waits for a concurrent writer instead of failing.
     cursor.execute("PRAGMA busy_timeout = 5000")
     cursor.execute("PRAGMA foreign_keys = ON")
+    # A checkpoint resets the log but never shrinks the file, and a sidecar
+    # killed on Windows never deletes it: past this a reset truncates it.
+    cursor.execute("PRAGMA journal_size_limit = 67108864")
     cursor.close()
     enable_wal(dbapi_connection)
 

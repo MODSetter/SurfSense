@@ -41,7 +41,9 @@ export async function waitForHealth(
     while (Date.now() < deadline) {
       if (exited) throw new Error("sidecar exited during startup")
       if (await pingHealth(host, port)) return
-      await delay(300)
+      // The window waits on this: a refused ping returns in about a
+      // millisecond, so a short pause finds the API up to 250 ms sooner.
+      await delay(50)
     }
     throw new Error(`API on ${host}:${port} was not healthy within ${timeoutMs}ms`)
   } finally {

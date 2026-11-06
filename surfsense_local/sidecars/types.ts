@@ -8,6 +8,8 @@ export interface SidecarSpec {
   env: Record<string, string>
   /** False: the child gets `env` alone, for one that must not see Electron's secrets. */
   inheritEnv?: boolean
+  /** An exit with this code asks for a fresh process: it is started again, not reported as a crash. */
+  freshStartExitCode?: number
 }
 
 /** Called when a sidecar exits without us asking it to. */
