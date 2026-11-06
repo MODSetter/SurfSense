@@ -1,5 +1,6 @@
 ---
-status: accepted
+status: in-progress
+tracking: https://github.com/MODSetter/SurfSense/issues/2414
 code:
   - surfsense_local/backend/modules/jobs/
   - surfsense_local/backend/worker/studio/job_run/
@@ -41,6 +42,13 @@ The runner `word-clauses/1` lives in the app beside `workbook-rows/1` and writes
    - A change that fails any check goes to a person.
 5. **Pre-flight.** The runner applies every change to a scratch copy with the engine's partial mode, so one bad anchor sends one point to a person instead of failing the run. One internal summary comment always applies, so a contract that already meets the playbook still saves a version.
 
+## The runner's contract
+
+- **Entry point.** One pure function with `fill_workbook`'s keyword arguments (`on_row`, `stop`, `embed`, `checker`, `settings`, `take_turns`), so the Studio worker and the eval harness call the same code. The pieces both runners need already sit outside `workbook_rows` on the work's branch (`modules/jobs/asking/`).
+- **Config** (`job.json`, loaded by `word_clauses/config.py`, `BAD_JOB_CONFIG` on anything wrong): prompts (system, point, repair, check), review points (key, title, what a position covers, playbook queries, contract hints), verdicts, retrieval settings, `points_per_call`, and the firm settings the job declares.
+- **Report:** `runner`, `model`, `checker`, `settings`, `seconds`, `points`, counts by verdict plus `skipped`, one `answers` entry per point (verdict, paragraphs, whether it changed, codes, playbook quote), and `exceptions` as five-item rows. It has no `sheets` and no confirm entries: tracked changes are already proposals.
+- **Ops:** only the Word engine's `replace_text`, `insert_paragraphs`, `delete_paragraphs` and `add_comment`, in document order. When two points change one paragraph, the first keeps the change and the second goes to a person.
+
 ## The pack
 
 The pack `surfsense-contract-redline` is private, signed and data only. It holds:
@@ -54,8 +62,8 @@ v1's review points are those of a non-disclosure agreement: what counts as confi
 
 Every case is a real document. Each file's source, licence, retrieval date and sha256 are recorded in the private eval folder, beside the questionnaire's.
 
-- **Contracts:** real NDAs whose clauses experts labelled against fixed statements of position, put into a `.docx` container without changing their text. Real standard agreements as published `.docx` files test the engine on real Word structure.
-- **The firm's playbook:** a real published standard agreement. The firm's stance on each review point is read from its text by hand, recorded with the clause it rests on, and checked by the maintainer before any number is quoted.
+- **Contracts:** real NDAs whose clauses experts labelled against fixed statements of position (ContractNLI, CC BY 4.0; CUAD v1, CC BY 4.0, for later contract types), put into a `.docx` container without changing their text. Real standard agreements as published `.docx` files test the engine on real Word structure.
+- **The firm's playbook:** a real published standard agreement and playbook: the Bonterms Mutual NDA (CC BY 4.0) with its Playbook of Additional Terms (CC0), the strongest candidate found. The firm's stance on each review point is read from its text by hand, recorded with the clause it rests on, and checked by the maintainer before any number is quoted.
 - **Gold:** each (contract, point) pair, from the experts' label and the firm's stance. For example, a point the firm requires that the contract contradicts is a change; one the contract does not mention is a missing term.
 - **Scores:**
   - verdict accuracy;
