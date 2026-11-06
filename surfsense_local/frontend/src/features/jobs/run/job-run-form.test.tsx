@@ -100,6 +100,74 @@ describe("job run form", () => {
     ).toBe(true)
   })
 
+  it("shows a lone workbook as the one the run fills in, with no choice to undo", async () => {
+    const calls = stubJobsApi({
+      ...dialogRoutes(),
+      "POST /workspaces/1/job-runs": () =>
+        Response.json({ artifact_id: 41 }, { status: 201 }),
+      "GET /workspaces/1/job-runs/41": runRead({
+        status: "pending",
+        progress: null,
+        tally: null,
+        report: null,
+        open_suggestions: [],
+        open_suggestion_count: 0,
+        newest_ready_version_id: null,
+        running: true,
+      }),
+    })
+    const user = userEvent.setup()
+    await openRunForm({
+      documents: [
+        workbook(7, "Vendor questionnaire.xlsx"),
+        source(3, "Security policy.pdf"),
+      ],
+      includedDocumentIds: [3],
+    })
+
+    expect(
+      screen.getByText(
+        "The questionnaire you received, as an Excel file (.xlsx). Each run fills in one workbook: SurfSense fills in a copy and leaves your file as it is."
+      )
+    ).toBeTruthy()
+    const filled = screen.getByRole("group", { name: "Workbook to fill in" })
+    expect(within(filled).getByText("Vendor questionnaire.xlsx")).toBeTruthy()
+    // A lone workbook is no choice, so nothing looks like one the user could clear.
+    expect(screen.queryByRole("radio")).toBeNull()
+
+    await user.click(screen.getByRole("button", { name: "Start" }))
+
+    await screen.findByText("Waiting to start…")
+    const [sent] = calls.filter(
+      (call) => call.method === "POST" && call.path === "/workspaces/1/job-runs"
+    )
+    expect(JSON.parse(String(sent.body))).toMatchObject({ document_id: 7 })
+  })
+
+  it("adds another workbook beside the one there is", async () => {
+    stubJobsApi(dialogRoutes())
+    const user = userEvent.setup()
+    const { props } = await openRunForm({
+      documents: [
+        workbook(7, "Vendor questionnaire.xlsx"),
+        source(3, "Security policy.pdf"),
+      ],
+      includedDocumentIds: [3],
+    })
+    const file = new File(["xlsx"], "Second questionnaire.xlsx", {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    })
+    const input = screen.getByLabelText("Choose a workbook to add")
+    // jsdom opens no file chooser: the button's click on the input stands for it.
+    const chooser = vi.spyOn(input, "click")
+
+    await user.click(screen.getByRole("button", { name: "Add a workbook" }))
+    expect(chooser).toHaveBeenCalledOnce()
+    await user.upload(input, file)
+
+    expect(props.onUploadSources).toHaveBeenCalledWith([file])
+  })
+
   it("names the model that will answer as the model picker does, and says a local one leaves more to a person", async () => {
     stubJobsApi(dialogRoutes())
     await openRunForm({ documents: DOCUMENTS, includedDocumentIds: [3] })

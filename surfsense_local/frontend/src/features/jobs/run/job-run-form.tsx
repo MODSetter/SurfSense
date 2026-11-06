@@ -158,20 +158,39 @@ export function JobRunForm({
       </div>
 
       <section className="flex flex-col gap-2">
-        <div className="flex flex-col gap-1">
-          <h4 id={workbookLabel} className="text-sm font-medium">
-            {intl.formatMessage({
-              id: "jobs_run_workbook_label",
-              defaultMessage: "Workbook to fill in",
-            })}
-          </h4>
-          <p className="text-sm text-pretty text-muted-foreground">
-            {intl.formatMessage({
-              id: "jobs_run_workbook_body",
-              defaultMessage:
-                "The questionnaire you received, as an Excel file (.xlsx). SurfSense fills in a copy and leaves your file as it is.",
-            })}
-          </p>
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex flex-col gap-1">
+            <h4 id={workbookLabel} className="text-sm font-medium">
+              {intl.formatMessage({
+                id: "jobs_run_workbook_label",
+                defaultMessage: "Workbook to fill in",
+              })}
+            </h4>
+            <p className="text-sm text-pretty text-muted-foreground">
+              {intl.formatMessage({
+                id: "jobs_run_workbook_body",
+                defaultMessage:
+                  "The questionnaire you received, as an Excel file (.xlsx). Each run fills in one workbook: SurfSense fills in a copy and leaves your file as it is.",
+              })}
+            </p>
+          </div>
+          {/* With none, the empty state below carries its own button. */}
+          {workbooks.length > 0 ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              className="shrink-0 text-muted-foreground"
+              disabled={busy}
+              onClick={() => workbookInput.current?.click()}
+            >
+              <PlusIcon data-icon="inline-start" />
+              {intl.formatMessage({
+                id: "jobs_run_workbook_add_another_button",
+                defaultMessage: "Add a workbook",
+              })}
+            </Button>
+          ) : null}
         </div>
         <Input
           ref={workbookInput}

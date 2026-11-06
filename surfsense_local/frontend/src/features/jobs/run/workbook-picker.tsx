@@ -5,7 +5,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import type { WorkspaceDocument } from "@/features/sources/api"
 import { cn } from "@/lib/utils"
 
-/** The one workbook a run fills in a copy of. */
+/** The one workbook a run fills in a copy of, a choice only among several. */
 export function WorkbookPicker({
   labelledBy,
   workbooks,
@@ -20,6 +20,17 @@ export function WorkbookPicker({
   disabled?: boolean
 }) {
   const baseId = useId()
+  const [only] = workbooks
+  if (workbooks.length === 1 && only) {
+    // A lone radio reads as a choice the user could clear; one workbook is no choice.
+    return (
+      <div role="group" aria-labelledby={labelledBy}>
+        <p className="rounded-md border border-primary bg-primary/5 px-2.5 py-2 text-sm wrap-anywhere">
+          {only.title}
+        </p>
+      </div>
+    )
+  }
   return (
     <RadioGroup
       aria-labelledby={labelledBy}
