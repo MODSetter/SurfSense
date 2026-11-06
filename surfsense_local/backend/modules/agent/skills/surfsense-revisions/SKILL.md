@@ -11,6 +11,7 @@ description: Edit the user's own Word (.docx), Excel (.xlsx, .xlsm) or PowerPoin
 
 - **Revise** when the user wants *their* file back changed: "fix the dates in this contract", "redline clause 7", "comment on the risks", "update the Q3 numbers in my workbook", "change the title on slide 1". Their layout, styles, headers, charts and everything you do not touch stay exactly as they were.
 - **Make a new document** with `surfsense_render_document` (load surfsense-documents) when the user wants something that does not exist yet: a summary, a report from several sources, a fresh deck. Also when the change is so large that almost nothing of the original survives.
+- **Run a job** when one is installed for the request and its skill is listed: a contract reviewed against the firm's playbook, or a security questionnaire filled in from its policies. Load that job's skill instead; it checks every change or answer against the firm's documents. Edits the user directs themselves stay here.
 - When unsure, ask the user which they want.
 
 ## Before you edit
