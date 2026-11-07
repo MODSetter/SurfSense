@@ -493,8 +493,9 @@ runtime:
   `modules/llm/catalog/local/manifest`. The manifest is read by path, so the analyser cannot see
   it, and a packaging test asserts it is bundled.
 - Release CI stages the runtime with `node ../runtimes/fetch-llamacpp.mjs`, and on
-  Linux runs the packaged `llama-server --list-devices` from
-  `resources/llamacpp/`.
+  every platform runs the packaged `llama-server --list-devices` from the `llamacpp`
+  directory `electron-builder` wrote: `resources/llamacpp/` on Linux and Windows,
+  `Contents/Resources/llamacpp/` inside the macOS `.app`. It does not load a model.
 
 The rest of the installer is in [`../packaging.md`](../packaging.md).
 
@@ -558,5 +559,3 @@ layer count, of `--reasoning-budget` and of `--sleep-idle-seconds`.
 
 - Context checkpoints are left at llama.cpp's own 32 per slot. A hybrid model such as Qwen3.5 or Qwen3-Next keeps its whole recurrent state in each, in host memory, and nothing budgets them, because the fit calculation does not size that state.
 - On Windows with a model wholly on a discrete graphics card, saving prompts and checkpoints in host memory crosses the PCI-E bus on every switch of caller, which may cost more than reading the prompt again. Not measured on this build.
-
-- Release CI runs the packaged `llama-server --list-devices` on Linux only; the macOS and Windows builds are checked only in the staging directory by `fetch-llamacpp.mjs`.
