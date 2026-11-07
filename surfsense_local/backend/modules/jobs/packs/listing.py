@@ -14,6 +14,8 @@ class JobInfo(BaseModel):
     key: str
     name: str
     description: str
+    # Which of the app's runners does it, and so what file it works on.
+    runner: str
     # The licence entitlement that unlocks it, for a paid pack's job.
     entitlement: str | None
     unlocked: bool
@@ -59,6 +61,7 @@ def pack_listing(session: Session) -> list[PackInfo]:
                         key=job.key,
                         name=job.name,
                         description=job.description,
+                        runner=job.runner,
                         entitlement=job.entitlement,
                         unlocked=access.allowed,
                         locked_reason=access.reason,

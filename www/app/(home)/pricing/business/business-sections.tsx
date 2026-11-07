@@ -37,9 +37,9 @@ export function BusinessHero() {
 			<HomeBadge>Business licence</HomeBadge>
 			<h1 className={cn(siteText.display, "mt-4")}>SurfSense Business</h1>
 			<p className={cn(siteText.lede, "mx-auto mt-8 max-w-2xl")}>
-				SurfSense's job plugins for your firm, starting with the security questionnaire, priced per
-				person. The app itself is <span className="text-primary">free either way</span>, and stays
-				free.
+				SurfSense's job plugins for your firm, the security questionnaire and the contract redline,
+				priced per person. The app itself is <span className="text-primary">free either way</span>,
+				and stays free.
 			</p>
 		</section>
 	);
@@ -275,8 +275,8 @@ export function ClosingCheckout() {
 					<ContinueToCheckout buyUrl={BUY_BUSINESS_URL} plan="business" />
 				</div>
 				<p className={cn(siteText.body, "mt-6 text-sm")}>
-					Want to try the job first? The free app comes with a 14-day trial of the job and needs no
-					card.{" "}
+					Want to try the security questionnaire and the contract redline first? The free app comes
+					with a 14-day trial of both and needs no card.{" "}
 					<Link className={siteText.link} href={DOWNLOADS_URL}>
 						Get it on the download page
 					</Link>

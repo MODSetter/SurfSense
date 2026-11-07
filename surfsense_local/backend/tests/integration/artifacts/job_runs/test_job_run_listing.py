@@ -79,6 +79,7 @@ JOB_KEYS = {
     "key",
     "name",
     "description",
+    "runner",
     "entitlement",
     "unlocked",
     "locked_reason",

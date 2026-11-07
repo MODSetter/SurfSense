@@ -172,6 +172,8 @@ async def test_a_job_s_settings_are_read_and_set_whole(
     first = (await client.get(path)).json()
     assert first["settings"][0]["key"] == "provider_na"
     assert not first["settings"][0]["value"] and first["checker"] is None
+    # The questionnaire checks its answers, so the firm may name the model that does.
+    assert first["checks"] is True
 
     put = await client.put(
         path, json={"settings": {"provider_na": True}, "checker": CHECKER}

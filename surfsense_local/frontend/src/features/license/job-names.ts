@@ -8,6 +8,11 @@ const jobNames: Record<string, () => string> = {
       id: "license_jobs_questionnaire_label",
       defaultMessage: "Security questionnaire",
     }),
+  JOB_CONTRACT_REDLINE: () =>
+    intl.formatMessage({
+      id: "license_jobs_contract_redline_label",
+      defaultMessage: "Contract redline",
+    }),
 }
 
 export function jobName(code: string): string {

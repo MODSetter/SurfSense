@@ -29,7 +29,7 @@ const FIRST = yearlyPriceLabel(FIRST_PERSON_PRICE);
 const FURTHER = yearlyPriceLabel(FURTHER_PERSON_PRICE);
 
 const metaTitle = `SurfSense Business Licence: Job Plugins From ${FIRST} a Year`;
-const metaDescription = `SurfSense's job plugins for firms, the security questionnaire first. ${FIRST} a year for the first person, ${FURTHER} for each further one. No account, 30-day refund.`;
+const metaDescription = `SurfSense's job plugins for firms: the security questionnaire and the contract redline. ${FIRST} a year for the first person, ${FURTHER} for each further one. No account, 30-day refund.`;
 
 export const metadata: Metadata = BUSINESS_LAUNCHED
 	? {
@@ -39,6 +39,7 @@ export const metadata: Metadata = BUSINESS_LAUNCHED
 				"surfsense business",
 				"surfsense licence",
 				"security questionnaire software",
+				"contract redline software",
 				"buy surfsense",
 				"private ai for firms",
 			],
@@ -68,7 +69,7 @@ const BUSINESS_SCHEMA = {
 	"@type": "Product",
 	name: "SurfSense Business licence",
 	description:
-		"SurfSense's job plugins, starting with the security questionnaire, priced per person, with priority support and one feature build request a year.",
+		"SurfSense's security questionnaire and contract redline job plugins, priced per person, with priority support and one feature build request a year.",
 	url: canonicalUrl,
 	brand: { "@type": "Brand", name: "SurfSense" },
 	offers: {

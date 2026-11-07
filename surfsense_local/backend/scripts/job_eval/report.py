@@ -6,12 +6,16 @@ import json
 from collections import defaultdict
 from pathlib import Path
 
+from job_eval.contract_report import contract_report
+
 
 def report(out: Path) -> str:
     runs = [
         json.loads(p.read_text(encoding="utf-8"))
         for p in sorted(out.glob("*/run.json"))
     ]
+    if runs and all(r.get("kind") == "contract" for r in runs):
+        return contract_report(runs)
     grouped: dict[tuple[str, str], list[dict]] = defaultdict(list)
     for record in runs:
         grouped[(record["case"], _model(record))].append(record)

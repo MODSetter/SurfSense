@@ -32,8 +32,8 @@ from modules.artifacts.studio_documents.recipe import (
     renders_as_stored,
 )
 from modules.documents.models import Document, DocumentStatus
+from modules.jobs.asking.stopped import FillStoppedError
 from modules.jobs.runs.record import job_run_of
-from modules.jobs.workbook_rows.fill import FillStoppedError
 from modules.llm.model_route.client import resolve_routed_generation
 from modules.llm.model_type import ModelType
 from modules.llm.providers.audiocpp.memory import NotEnoughMemoryError
