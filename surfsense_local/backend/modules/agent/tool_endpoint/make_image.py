@@ -43,8 +43,9 @@ from shared.config import get_storage_settings
 
 TOOL_NAME = "make_image"
 
-# Studio's own cap on a request's instructions (StudioJobCreate.prompt).
-PROMPT_CHARS = 2000
+# Only for a runaway model: as in Studio, length is the prompt's to keep and a
+# model's own refusal comes back as a failed picture. No real prompt comes near it.
+PROMPT_CHARS = 32_000
 # A remote picture answers well inside this; a local one on a processor takes
 # minutes, past the tool call's hard limit, so the call answers without it.
 WAIT_SECONDS = 150
@@ -59,7 +60,8 @@ LISTING: dict[str, Any] = {
         "making more than one. Read any sources first and write the whole prompt "
         "yourself. Draw no data chart: numbers belong in a real chart. Words that "
         "must be exact belong in the document around the picture, since image models "
-        "garble lettering. Returns the picture's name, to place it in a document or "
+        "garble lettering. Write one self-contained prompt, as short as it can be "
+        "while still saying what to draw. Returns the picture's name, to place it in a document or "
         "a web page, and the picture itself to check."
     ),
     "inputSchema": {
@@ -69,7 +71,7 @@ LISTING: dict[str, Any] = {
                 "type": "string",
                 "description": (
                     "What to draw, or how to change the picture. Goes to the image "
-                    f"model as written. At most {PROMPT_CHARS:,} characters."
+                    "model as written."
                 ),
             },
             "title": {
@@ -158,7 +160,10 @@ def _request(arguments: dict[str, Any]) -> _Request:
     if not isinstance(prompt, str) or not prompt.strip():
         raise ToolCallError("Give the prompt: what to draw, or how to change it.")
     if len(prompt.strip()) > PROMPT_CHARS:
-        raise ToolCallError(f"Give a prompt of at most {PROMPT_CHARS:,} characters.")
+        raise ToolCallError(
+            f"The prompt is {len(prompt.strip()):,} characters; the limit is "
+            f"{PROMPT_CHARS:,}. Shorten it and call this tool again."
+        )
     if style not in EDITABLE_FORMATS:
         raise ToolCallError(
             f"style must be one of: {', '.join(sorted(EDITABLE_FORMATS))}."
@@ -250,12 +255,16 @@ def _shown(
     placeable = has_picture(artifact)
     primary = next(f for f in artifact.files if f.role is ArtifactFileRole.PRIMARY)
     storage_key = primary.storage_key
+    editable = _edit_model_chosen(session)
     session.commit()
-    lines = [first_line(made), _how_to_use(made.id) if placeable else _NOT_PLACEABLE]
+    lines = [
+        first_line(made),
+        _how_to_use(made.id, editable) if placeable else _NOT_PLACEABLE,
+    ]
     images: tuple[InlineImage, ...] = ()
     if placeable:
         if scope.reads_images():
-            images = _picture(storage_key, lines)
+            images = _picture(storage_key, editable, lines)
         else:
             lines.append(_UNSEEN)
     text = "\n".join(lines)
@@ -266,22 +275,41 @@ _NOT_PLACEABLE = (
     "The image model gave a format documents cannot place. It is in Studio for the "
     "user to open: tell them so."
 )
+# A redraw would bill another picture the user did not ask for.
+_NO_EDIT_MODEL = (
+    "No image editing model is chosen, so you cannot alter this picture: do not draw "
+    "it again unless the user asks. If it is wrong, tell the user what is wrong, and "
+    "that they can choose a model in Settings > Image edit."
+)
 _UNSEEN = (
     "You cannot see it: the selected model cannot read images. Do not describe it "
     "beyond what you asked for."
 )
 
 
-def _how_to_use(artifact_id: int) -> str:
+def _edit_model_chosen(session: Session) -> bool:
+    """Whether an edit could run: one offered without a model could only be refused."""
+    try:
+        require_image_edit_model(session)
+    except HTTPException:
+        return False
+    return True
+
+
+def _how_to_use(artifact_id: int, editable: bool) -> str:
     name = image_name(artifact_id)
-    return (
+    place = (
         f"Its name is {name}. To place it, pass {name} in a render's images, or in "
-        f'a web page write src="surfsense-image:{name}". To change it, call this '
-        f"tool again with artifact_id {artifact_id}."
+        f'a web page write src="surfsense-image:{name}".'
     )
+    if editable:
+        return f"{place} To change it, call this tool again with artifact_id {artifact_id}."
+    return f"{place} {_NO_EDIT_MODEL}"
 
 
-def _picture(storage_key: str, lines: list[str]) -> tuple[InlineImage, ...]:
+def _picture(
+    storage_key: str, editable: bool, lines: list[str]
+) -> tuple[InlineImage, ...]:
     path = get_storage_settings().data_dir / storage_key
     try:
         shown = inline_image(path)
@@ -290,7 +318,12 @@ def _picture(storage_key: str, lines: list[str]) -> tuple[InlineImage, ...]:
         return ()
     lines.append(
         "Look at it before you answer: image models get lettering, hands and counts "
-        "wrong. If it is wrong, change it or tell the user."
+        "wrong. "
+        + (
+            "If it is wrong, change it or tell the user."
+            if editable
+            else "If it is wrong, tell the user, as above."
+        )
     )
     return (shown,)
 

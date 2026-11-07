@@ -6,7 +6,6 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from modules.agent.thread_folder.layout import SOURCES
-from modules.agent.tool_endpoint.make_image import TOOL_NAME as IMAGE_TOOL
 from modules.agent.tool_endpoint.refusal_sentence import refusal_sentence
 from modules.agent.tool_endpoint.registration import SERVER
 from modules.agent.tool_endpoint.rendered_label import TOOL_NAME as RENDER_TOOL
@@ -82,11 +81,6 @@ def start(session: Session, scope: TurnScope, arguments: dict[str, Any]) -> str:
         raise ToolCallError(
             f"Write a web page yourself and keep it with {SERVER}_{SAVE_TOOL}, "
             "after loading the surfsense-html skill."
-        )
-    if key in EDITABLE_FORMATS:
-        raise ToolCallError(
-            f"Make a picture or an infographic with {SERVER}_{IMAGE_TOOL}: read the "
-            "sources it draws on, then write its prompt yourself."
         )
     fmt = FORMATS_BY_KEY.get(key) if key in _KEYS else None
     if fmt is None:

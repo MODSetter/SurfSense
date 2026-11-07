@@ -18,7 +18,11 @@ from modules.llm.model_type import ModelType
 from modules.llm.models import SelectedModel
 from modules.llm.providers.openai_compatible import NonRetryableImageError
 from modules.llm.providers.protocols import GeneratedImage
-from modules.llm.resolution import ResolvedImageEdit, ResolvedImageGeneration
+from modules.llm.resolution import (
+    ModelResolutionError,
+    ResolvedImageEdit,
+    ResolvedImageGeneration,
+)
 from modules.source_scope.schemas import SourceScope
 from shared.config import get_storage_settings
 from shared.db import create_session_factory
@@ -253,7 +257,10 @@ async def test_the_same_title_again_is_refused_so_a_retry_does_not_bill_twice(
     [
         ({"title": "Boat"}, "Give the prompt"),
         ({"prompt": "A boat"}, "Give the picture a title"),
-        ({"prompt": "x" * 2001, "title": "Boat"}, "at most 2,000 characters"),
+        (
+            {"prompt": "x" * 32_001, "title": "Boat"},
+            "The prompt is 32,001 characters; the limit is 32,000. Shorten it",
+        ),
         ({"prompt": "A boat", "title": "Boat", "style": "mural"}, "style must be"),
     ],
 )
@@ -350,9 +357,7 @@ async def test_regenerating_paints_the_same_prompt_with_no_chat_model(
     assert painter.prompts == ["A boat", "A boat"]
 
 
-async def test_the_studio_tool_sends_a_picture_to_the_image_tool(
-    tools: ToolEndpoint,
-) -> None:
+async def test_the_studio_tool_does_not_offer_a_picture(tools: ToolEndpoint) -> None:
     """One way to make a picture: Studio's draft takes sources, and hands nothing back."""
     workspace_id = await tools.workspace()
 
@@ -364,11 +369,66 @@ async def test_the_studio_tool_sends_a_picture_to_the_image_tool(
         workspace_id, "create_artifact", {"format": "image", "source_ids": [1]}
     )
 
-    assert not {"image", "infographic"} & set(
-        studio["inputSchema"]["properties"]["format"]["enum"]
-    )
+    offered = studio["inputSchema"]["properties"]["format"]["enum"]
+    assert not {"image", "infographic"} & set(offered)
     assert is_error is True
-    assert "surfsense_make_image" in text
+    assert text.startswith("Name a format, one of:")
+
+
+async def test_a_long_prompt_reaches_the_image_model_as_written(
+    tools: ToolEndpoint, studio_worker: None, painter: Painter
+) -> None:
+    """As Studio's does: no limit per model. A comic's prompt ran to 2,469 characters."""
+    prompt = "Panel by panel, in bold ink: " + "a hatter pours tea. " * 150
+    workspace_id = await tools.workspace()
+
+    text, is_error = await tools.call(
+        workspace_id, "make_image", {"prompt": prompt, "title": "Comic"}
+    )
+
+    assert is_error is False, text
+    assert painter.prompts == [prompt.strip()]
+
+
+async def test_with_an_edit_model_the_picture_can_be_changed(
+    tools: ToolEndpoint, studio_worker: None, painter: Painter
+) -> None:
+    """The result says how, since the agent looks at each picture it draws."""
+    workspace_id = await tools.workspace()
+
+    text, _ = await tools.call(
+        workspace_id, "make_image", {"prompt": "A boat", "title": "Boat"}
+    )
+
+    assert f"call this tool again with artifact_id {_artifact_id(text)}" in text
+    assert "change it or tell the user" in text
+
+
+async def test_with_no_edit_model_the_agent_is_not_sent_to_change_the_picture(
+    tools: ToolEndpoint,
+    studio_worker: None,
+    painter: Painter,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A call to edit could only be refused, and a redraw would bill another picture."""
+
+    def none_chosen(_session: object) -> None:
+        raise ModelResolutionError("no image editing model selected")
+
+    monkeypatch.setattr(
+        "modules.artifacts.image_edits.model.resolve_image_edit", none_chosen
+    )
+    workspace_id = await tools.workspace()
+
+    text, is_error = await tools.call(
+        workspace_id, "make_image", {"prompt": "A boat", "title": "Boat"}
+    )
+
+    assert is_error is False, text
+    assert "image-" in text
+    assert "artifact_id" not in text
+    assert "change it" not in text
+    assert "Settings > Image edit" in text
 
 
 # Fails unless what it is handed is really a PNG, as IMAGES_DIR promises.
