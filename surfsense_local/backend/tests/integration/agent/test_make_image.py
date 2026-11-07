@@ -19,9 +19,11 @@ from modules.llm.models import SelectedModel
 from modules.llm.providers.openai_compatible import NonRetryableImageError
 from modules.llm.providers.protocols import GeneratedImage
 from modules.llm.resolution import ResolvedImageEdit, ResolvedImageGeneration
+from modules.source_scope.schemas import SourceScope
 from shared.config import get_storage_settings
 from shared.db import create_session_factory
 from tests.integration.agent.conftest import declare_image_input
+from tests.integration.agent.test_document_tools import _logo_source
 from tests.integration.agent.tool_endpoint_client import ToolEndpoint
 from tests.integration.worker.conftest import stub_model  # noqa: F401
 
@@ -523,6 +525,155 @@ async def test_a_format_a_document_cannot_place_says_so_and_gives_no_name(
     assert "Its name is" not in drawn
     assert placed_error is True
     assert "This chat has no picture named" in placed
+
+
+PAGE = """\
+<!doctype html>
+<html lang="en">
+<head><title>Boat</title></head>
+<body><h1>A boat</h1><img src="surfsense-image:{name}" alt="A boat"></body>
+</html>
+"""
+
+
+def _page_file(tools: ToolEndpoint, workspace_id: int, page: str) -> str:
+    path = tools.folder(workspace_id) / "outputs" / "boat.html"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(page, encoding="utf-8")
+    return "outputs/boat.html"
+
+
+def _picture_in_page(page: str) -> Image.Image:
+    start = page.index("data:image/jpeg;base64,") + len("data:image/jpeg;base64,")
+    data = page[start : page.index('"', start)]
+    return Image.open(io.BytesIO(base64.b64decode(data)))
+
+
+async def test_a_page_carries_a_picture_inline_and_its_working_file_stays_small(
+    tools: ToolEndpoint, studio_worker: None, painter: Painter, engine: Engine
+) -> None:
+    """The agent has no shell to encode one, and the viewer gives a page no network."""
+    workspace_id = await tools.workspace()
+    drawn, _ = await tools.call(
+        workspace_id, "make_image", {"prompt": "A boat", "title": "Boat"}
+    )
+    written = PAGE.format(name=f"image-{_artifact_id(drawn)}")
+    path = _page_file(tools, workspace_id, written)
+
+    text, is_error = await tools.call(
+        workspace_id, "save_page", {"path": path, "title": "Boat page"}
+    )
+
+    assert is_error is False, text
+    stored = _stored(engine, _artifact_id(text)).decode("utf-8")
+    assert "surfsense-image:" not in stored
+    assert _picture_in_page(stored).size == (64, 48)
+    # Nothing the viewer would block, and no base64 in what the model reads.
+    assert "will not load" not in text
+    assert "base64" not in text
+    assert (tools.folder(workspace_id) / path).read_text(encoding="utf-8") == written
+
+
+async def test_a_page_measured_with_its_pictures_can_be_too_large(
+    tools: ToolEndpoint,
+    studio_worker: None,
+    painter: Painter,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The limit is on what is kept, which the working file's size says nothing of."""
+    workspace_id = await tools.workspace()
+    drawn, _ = await tools.call(
+        workspace_id, "make_image", {"prompt": "A boat", "title": "Boat"}
+    )
+    page = PAGE.format(name=f"image-{_artifact_id(drawn)}")
+    path = _page_file(tools, workspace_id, page)
+    monkeypatch.setattr(
+        "modules.agent.tool_endpoint.save_page.PAGE_BYTES", len(page.encode()) + 10
+    )
+
+    text, is_error = await tools.call(
+        workspace_id, "save_page", {"path": path, "title": "Boat page"}
+    )
+
+    assert is_error is True
+    assert "larger than" in text
+
+
+async def test_a_page_naming_a_picture_still_being_drawn_is_refused_saying_so(
+    tools: ToolEndpoint,
+    studio_worker: None,
+    painter: Painter,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A page cannot hold a picture that does not exist yet."""
+    monkeypatch.setattr("modules.agent.tool_endpoint.make_image.WAIT_SECONDS", 0.2)
+    painter.hold = threading.Event()
+    workspace_id = await tools.workspace()
+    queued, _ = await tools.call(
+        workspace_id, "make_image", {"prompt": "A boat", "title": "Boat"}
+    )
+    path = _page_file(
+        tools, workspace_id, PAGE.format(name=f"image-{_artifact_id(queued)}")
+    )
+
+    text, is_error = await tools.call(
+        workspace_id, "save_page", {"path": path, "title": "Boat page"}
+    )
+
+    assert is_error is True
+    assert "still being drawn" in text
+
+
+async def test_a_page_naming_no_such_image_is_refused(tools: ToolEndpoint) -> None:
+    """A name that resolves to nothing would otherwise be a broken image in the page."""
+    workspace_id = await tools.workspace()
+    path = _page_file(tools, workspace_id, PAGE.format(name="image-999"))
+
+    text, is_error = await tools.call(
+        workspace_id, "save_page", {"path": path, "title": "Boat page"}
+    )
+
+    assert is_error is True
+    assert '"image-999"' in text
+
+
+async def test_a_page_can_carry_a_selected_sources_image_but_not_an_unselected_ones(
+    tools: ToolEndpoint, studio_worker: None, engine: Engine
+) -> None:
+    """A source's figure is its source's content, held to the turn's ticks as a render is."""
+    workspace_id = await tools.workspace()
+    logo = _logo_source(engine, workspace_id)
+    other = _logo_source(engine, workspace_id)
+    thread = tools.thread(workspace_id, SourceScope(document_ids=[logo]))
+    outputs = tools.folder(workspace_id, thread) / "outputs"
+    outputs.mkdir(parents=True, exist_ok=True)
+    (outputs / "logo.html").write_text(PAGE.format(name=f"{logo}-1"), encoding="utf-8")
+    (outputs / "other.html").write_text(
+        PAGE.format(name=f"{other}-1"), encoding="utf-8"
+    )
+
+    kept, kept_error = await tools.call(
+        workspace_id,
+        "save_page",
+        {"path": "outputs/logo.html", "title": "Logo"},
+        thread=thread,
+    )
+    refused, refused_error = await tools.call(
+        workspace_id,
+        "save_page",
+        {"path": "outputs/other.html", "title": "Other"},
+        thread=thread,
+    )
+
+    assert kept_error is False, kept
+    assert _picture_in_page(
+        _stored(engine, _artifact_id(kept)).decode("utf-8")
+    ).size == (
+        40,
+        20,
+    )
+    assert refused_error is True
+    assert "not selected" in refused
 
 
 async def test_a_picture_being_drawn_asks_for_the_local_image_server(

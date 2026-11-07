@@ -27,7 +27,8 @@ You write the page yourself, as one HTML file under `outputs/`, and keep it with
 ## The contract
 
 - One complete HTML document: `<!doctype html>`, `<html lang>`, `<head>` with `<meta charset="utf-8">`, `<meta name="viewport" content="width=device-width, initial-scale=1">` and a `<title>`, then `<body>`.
-- Everything inline: CSS in `<style>`, code in `<script>`, images as `data:` URLs or inline SVG.
+- Everything inline: CSS in `<style>`, code in `<script>`, drawn graphics as inline SVG.
+- For an image from `surfsense_make_image`, `surfsense_list_images` or `surfsense_analyze_data`, write `<img src="surfsense-image:<name>" alt="…">`. Saving makes it inline; never type base64 yourself. A page with its images must still fit the size limit, so use few.
 - **The page has no network.** The viewer blocks every request: no CDN, no web font, no `fetch`, no image from a URL, no form that submits. Use system fonts, draw charts as SVG, and write the data into the page. A save lists anything the page asks to load, so you can take it out.
 - No `eval` or `new Function`; they are blocked too.
 - At most 5 MB. A page is usually 10 to 80 KB.
