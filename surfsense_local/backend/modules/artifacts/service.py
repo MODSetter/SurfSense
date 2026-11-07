@@ -4,6 +4,8 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from modules.artifacts.drawn_images.model import require_image_model
+from modules.artifacts.drawn_images.recipe import image_drawing_of
 from modules.artifacts.formats import FORMATS, FORMATS_BY_KEY, Format
 from modules.artifacts.image_edits.model import require_image_edit_model
 from modules.artifacts.image_edits.recipe import image_edit_of
@@ -114,6 +116,9 @@ def regenerate_artifact(session: Session, artifact: Artifact) -> Artifact:
     # An edit asks only the edit model, and starts from its base, not the sources.
     if image_edit_of(meta) is not None:
         require_image_edit_model(session)
+    # A drawing asks only the image model, and paints its prompt, with no sources.
+    elif image_drawing_of(meta) is not None:
+        require_image_model(session)
     # A document script runs as stored: its format's models are never asked.
     elif not renders_as_stored(meta):
         _require_available(session, FORMATS_BY_KEY[artifact.format])

@@ -5,6 +5,7 @@ from typing import Any
 
 from modules.agent.tool_endpoint.confirm_job import TOOL_NAME as CONFIRM_JOB_TOOL
 from modules.agent.tool_endpoint.convert_document import TOOL_NAME as CONVERT_TOOL
+from modules.agent.tool_endpoint.make_image import TOOL_NAME as MAKE_IMAGE_TOOL
 from modules.agent.tool_endpoint.registration import SERVER
 from modules.agent.tool_endpoint.rendered_label import TOOL_NAME, rendered_artifact
 from modules.agent.tool_endpoint.revise_document import TOOL_NAME as REVISE_TOOL
@@ -29,6 +30,8 @@ REVISE_STEP = f"{SERVER}_{REVISE_TOOL}"
 CONVERT_STEP = f"{SERVER}_{CONVERT_TOOL}"
 # A saved page's result opens as a render's does.
 SAVE_PAGE_STEP = f"{SERVER}_{SAVE_PAGE_TOOL}"
+# So does a picture's.
+MAKE_IMAGE_STEP = f"{SERVER}_{MAKE_IMAGE_TOOL}"
 # A job run opens the revised copy it filled in, and a confirmation the version it made.
 RUN_JOB_STEP = f"{SERVER}_{RUN_JOB_TOOL}"
 CONFIRM_JOB_STEP = f"{SERVER}_{CONFIRM_JOB_TOOL}"
@@ -37,6 +40,7 @@ VERSION_STEPS = (
     REVISE_STEP,
     CONVERT_STEP,
     SAVE_PAGE_STEP,
+    MAKE_IMAGE_STEP,
     RUN_JOB_STEP,
     CONFIRM_JOB_STEP,
 )

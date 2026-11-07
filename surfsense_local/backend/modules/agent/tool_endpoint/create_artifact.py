@@ -6,12 +6,15 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from modules.agent.thread_folder.layout import SOURCES
+from modules.agent.tool_endpoint.make_image import TOOL_NAME as IMAGE_TOOL
+from modules.agent.tool_endpoint.refusal_sentence import refusal_sentence
 from modules.agent.tool_endpoint.registration import SERVER
 from modules.agent.tool_endpoint.rendered_label import TOOL_NAME as RENDER_TOOL
 from modules.agent.tool_endpoint.save_page import TOOL_NAME as SAVE_TOOL
 from modules.agent.tool_endpoint.tool import Tool, ToolCallError
 from modules.agent.tool_endpoint.turn_scope import TurnScope
 from modules.artifacts.formats import FORMATS, FORMATS_BY_KEY
+from modules.artifacts.image_edits.editable import EDITABLE_FORMATS
 from modules.artifacts.schemas import StudioJobCreate
 from modules.artifacts.script_documents.spec import DOCUMENT_FORMATS
 from modules.artifacts.service import create_artifact_job
@@ -22,8 +25,13 @@ from modules.workspaces.models import Workspace
 INSTRUCTIONS_CHARS = 2000
 
 # Office files and PDFs are scripts the agent renders, and a web page it writes
-# itself (ADR 0066): Studio's draft keeps none to edit.
-_KEYS = [fmt.key for fmt in FORMATS if fmt.key not in (*DOCUMENT_FORMATS, "html")]
+# itself (ADR 0066): Studio's draft keeps none to edit. A picture has its own tool,
+# since a draft hands the agent nothing to look at or place.
+_KEYS = [
+    fmt.key
+    for fmt in FORMATS
+    if fmt.key not in (*DOCUMENT_FORMATS, "html", *EDITABLE_FORMATS)
+]
 
 # Written out flat, and the same on every turn, so a local model's prompt cache holds.
 LISTING: dict[str, Any] = {
@@ -75,6 +83,11 @@ def start(session: Session, scope: TurnScope, arguments: dict[str, Any]) -> str:
             f"Write a web page yourself and keep it with {SERVER}_{SAVE_TOOL}, "
             "after loading the surfsense-html skill."
         )
+    if key in EDITABLE_FORMATS:
+        raise ToolCallError(
+            f"Make a picture or an infographic with {SERVER}_{IMAGE_TOOL}: read the "
+            "sources it draws on, then write its prompt yourself."
+        )
     fmt = FORMATS_BY_KEY.get(key) if key in _KEYS else None
     if fmt is None:
         raise ToolCallError(f"Name a format, one of: {', '.join(_KEYS)}.")
@@ -114,7 +127,7 @@ def start(session: Session, scope: TurnScope, arguments: dict[str, Any]) -> str:
         create_artifact_job(session, workspace, payload)
     except HTTPException as refused:
         raise ToolCallError(
-            f'Studio could not start "{fmt.label}": {_sentence(refused.detail)}'
+            f'Studio could not start "{fmt.label}": {refusal_sentence(refused.detail)}'
         ) from refused
     count = len(set(source_ids))
     sources = "source" if count == 1 else "sources"
@@ -122,17 +135,6 @@ def start(session: Session, scope: TurnScope, arguments: dict[str, Any]) -> str:
         f'Studio started "{fmt.label}" from {count} {sources}. It appears in Studio '
         "when it is ready."
     )
-
-
-def _sentence(detail: object) -> str:
-    """Studio's reason, ended as a sentence.
-
-    A refusal the interface translates carries its reason as
-    ``{"message", "code"}``; the model reads the message."""
-    if isinstance(detail, dict) and isinstance(detail.get("message"), str):
-        detail = detail["message"]
-    text = str(detail).strip()
-    return text if text.endswith(".") else f"{text}."
 
 
 CREATE_ARTIFACT = Tool(listing=LISTING, run=start)

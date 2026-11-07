@@ -14,6 +14,7 @@ from modules.agent.tool_endpoint.confirm_job import CONFIRM_JOB, confirm_listing
 from modules.agent.tool_endpoint.convert_document import CONVERT_DOCUMENT
 from modules.agent.tool_endpoint.create_artifact import CREATE_ARTIFACT
 from modules.agent.tool_endpoint.list_images import LIST_IMAGES
+from modules.agent.tool_endpoint.make_image import MAKE_IMAGE
 from modules.agent.tool_endpoint.pdf_form import PDF_FORM
 from modules.agent.tool_endpoint.pdf_pages import PDF_PAGES
 from modules.agent.tool_endpoint.pdf_stamp import PDF_STAMP
@@ -52,6 +53,7 @@ TOOLS: dict[str, Tool] = {
         CREATE_ARTIFACT,
         RENDER_DOCUMENT,
         SAVE_PAGE,
+        MAKE_IMAGE,
         READ_DOCUMENT,
         LIST_IMAGES,
         SOURCE_PAGES,

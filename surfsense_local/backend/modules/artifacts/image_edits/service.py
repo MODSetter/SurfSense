@@ -57,12 +57,17 @@ def _not_editable() -> HTTPException:
 
 
 def create_image_edit_version(
-    session: Session, artifact_id: int, instruction: str
+    session: Session,
+    artifact_id: int,
+    instruction: str,
+    *,
+    chat_thread_id: int | None = None,
 ) -> Artifact:
     """The base's next version, pending until Studio's job edits its picture.
 
     An image drawn before versions were kept becomes v1 here. Commits before
-    enqueueing: the worker is another process and must find the row.
+    enqueueing: the worker is another process and must find the row. A chat's
+    edit names its thread, so that chat can place the new version.
     """
     base = editable_base(session, artifact_id)
     base_version = version_of(base.artifact_metadata) or ArtifactVersion(
@@ -81,7 +86,10 @@ def create_image_edit_version(
     session.add(document)
     session.flush()
     artifact = Artifact(
-        document_id=document.id, workspace_id=base.workspace_id, format=base.format
+        document_id=document.id,
+        workspace_id=base.workspace_id,
+        format=base.format,
+        chat_thread_id=chat_thread_id,
     )
     session.add(artifact)
     session.flush()

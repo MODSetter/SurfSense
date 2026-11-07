@@ -36,6 +36,7 @@ class Runs:
 RENDERS = Runs("render", "renders", "renders or revisions")
 REVISIONS = Runs("revision", "revisions", "renders or revisions")
 ANALYSES = Runs("analysis run", "analysis runs", "analysis runs")
+IMAGES = Runs("picture", "pictures", "pictures")
 
 _guard = threading.Condition()
 
