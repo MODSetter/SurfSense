@@ -1,4 +1,5 @@
 from contextlib import AsyncExitStack
+from dataclasses import replace
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Body, Depends, Header, HTTPException, Request, Response
@@ -6,13 +7,17 @@ from fastapi import APIRouter, Body, Depends, Header, HTTPException, Request, Re
 from api.dependencies import SessionDep, transact
 from modules.agent.launch_key import require_launch_key
 from modules.agent.model_endpoint.admission_messages import admission_messages
+from modules.agent.model_endpoint.console_refusal import refusal_for
 from modules.agent.model_endpoint.error_replies import error_reply
 from modules.agent.model_endpoint.model_address import (
     WrongRouteError,
     address_selected_model,
 )
 from modules.agent.model_endpoint.relay import relay
-from modules.agent.model_endpoint.request_shaping import shaped_request
+from modules.agent.model_endpoint.request_shaping import (
+    shaped_headers,
+    shaped_request,
+)
 from modules.egress.service import EgressDeniedError
 from modules.llm.activity import ModelBusyError, model_activity
 from modules.llm.admission.pool import LineFullError, Priority
@@ -79,7 +84,12 @@ async def complete_chat(
         await held.aclose()
         await model_activity.release_use(address.activity_key)
 
-    return await relay(address, body, done)
+    return await relay(
+        replace(address, headers=shaped_headers(address, affinity)),
+        body,
+        done,
+        refusal=refusal_for(address.url),
+    )
 
 
 def _max_tokens(payload: dict[str, Any]) -> int | None:

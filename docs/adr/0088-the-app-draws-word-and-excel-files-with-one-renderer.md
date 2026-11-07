@@ -1,4 +1,4 @@
-# ADR 0086: The app draws Word and Excel files with one renderer
+# ADR 0088: The app draws Word and Excel files with one renderer
 
 - **Status:** Proposed
 - **Date:** 2026-11-05

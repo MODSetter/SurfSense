@@ -64,6 +64,8 @@ function Harness({
   )
 }
 
+const dictations: Dictation[] = []
+
 function setUp(
   options: Parameters<typeof fakeDictationApi>[0] = {},
   other: (path: string) => Response | null = () => null
@@ -80,6 +82,7 @@ function setUp(
   )
   const mic = fakeMicrophone()
   const dictation = createDictation({ openMicrophone: mic.open })
+  dictations.push(dictation)
   const user = userEvent.setup()
   const box = () => screen.getByRole("textbox", { name: "Message" })
   const listening = () => waitFor(() => expect(mic.state.open).toBe(true))
@@ -90,6 +93,9 @@ const startButton = () =>
   screen.findByRole("button", { name: "Start voice input" })
 
 afterEach(() => {
+  // `fetch` is global: a recording still running would send its phrase to the next
+  // test's fake API and take the answer that test is waiting for.
+  for (const dictation of dictations.splice(0)) dictation.cancel()
   // Sonner keeps its toasts across tests; one left over would show in the next Toaster.
   toast.dismiss()
   cleanup()

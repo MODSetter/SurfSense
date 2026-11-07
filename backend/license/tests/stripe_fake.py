@@ -92,6 +92,7 @@ class FakeStripe(HTTPClient):
         self.invoices: dict[str, dict[str, Any]] = {}
         # payment intent -> the invoice it paid
         self.invoice_paid_by: dict[str, str] = {}
+        self.charges: dict[str, dict[str, Any]] = {}
         self.calls: list[tuple[str, str]] = []
 
     def client(self) -> StripeClient:
@@ -137,26 +138,65 @@ class FakeStripe(HTTPClient):
             found = self.subscriptions.get(segments[1])
             return (200, found) if found else (404, _missing())
         if segments[0] == "invoice_payments":
-            invoice_id = self.invoice_paid_by.get(
-                (query.get("payment[payment_intent]") or [""])[0]
-            )
-            payments = []
-            if invoice_id:
-                paid = self.invoices[invoice_id]
-                payments.append(
-                    {
-                        "id": f"inpay_{invoice_id}",
-                        "object": "invoice_payment",
-                        "invoice": paid if "data.invoice" in expand else invoice_id,
-                    }
-                )
+            by_intent = (query.get("payment[payment_intent]") or [""])[0]
+            of_invoice = (query.get("invoice") or [""])[0]
+            payments = [
+                {
+                    "id": f"inpay_{intent}",
+                    "object": "invoice_payment",
+                    "invoice": (
+                        self.invoices[invoice_id]
+                        if "data.invoice" in expand
+                        else invoice_id
+                    ),
+                    "status": "paid",
+                    "payment": {"type": "payment_intent", "payment_intent": intent},
+                }
+                for intent, invoice_id in self.invoice_paid_by.items()
+                if (by_intent and intent == by_intent)
+                or (of_invoice and invoice_id == of_invoice)
+            ]
             return 200, stripe_list(payments, "/v1/invoice_payments")
+        if segments == ["invoices"]:
+            # Newest first, as Stripe lists them.
+            found = [
+                held
+                for held in reversed(self.invoices.values())
+                if all(
+                    _invoice_field(held, field) == values[0]
+                    for field, values in query.items()
+                    if field in {"subscription", "status"}
+                )
+            ]
+            return 200, stripe_list(found, "/v1/invoices")
         if segments[0] == "invoices" and len(segments) == 2:
             found = self.invoices.get(segments[1])
+            return (200, found) if found else (404, _missing())
+        if segments == ["charges"]:
+            found = [
+                charge
+                for charge in self.charges.values()
+                if all(
+                    charge.get(field) == values[0]
+                    for field, values in query.items()
+                    if field == "payment_intent"
+                )
+            ]
+            return 200, stripe_list(found, "/v1/charges")
+        if segments[0] == "charges" and len(segments) == 2:
+            found = self.charges.get(segments[1])
             return (200, found) if found else (404, _missing())
         if segments[0] == "customers" and method == "POST":
             return 200, {"id": segments[1], "object": "customer"}
         return 404, _missing()
+
+
+def _invoice_field(held: dict[str, Any], field: str) -> Any:
+    """An invoice's status, or the subscription it bills, under ``parent`` as since API 2025-03-31."""
+    if field == "subscription":
+        details = (held.get("parent") or {}).get("subscription_details") or {}
+        return details.get("subscription")
+    return held.get(field)
 
 
 def _missing() -> dict[str, Any]:

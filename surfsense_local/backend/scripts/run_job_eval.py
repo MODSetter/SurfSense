@@ -8,8 +8,8 @@ environment: ANTHROPIC_API_KEY for anthropic:<id>, OPENROUTER_API_KEY for openro
     python scripts/run_job_eval.py report <dir>
 
 `--checker <model>` makes the second checks on another model; `--setting key=true` turns on one
-of the job's firm settings. Each run writes its filled workbook and a JSON record; `report`
-rolls them up per model.
+of the job's firm settings. Each run writes its filled workbook, or a contract job's redlined
+copy, and a JSON record; `report` rolls them up per model.
 """
 
 import argparse
@@ -21,6 +21,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from job_eval.cases import Case, load_cases
+from job_eval.contract_cases import load_contract_cases
+from job_eval.contract_run import run_contract_case
 from job_eval.models import model_for
 from job_eval.report import report
 from job_eval.score import score_case
@@ -31,12 +33,17 @@ from modules.artifacts.revised_copies.engines import excel
 from modules.jobs.evidence.retrieval import Embed
 from modules.jobs.evidence.vectors import remembered
 from modules.jobs.packs.manifest import read_manifest
+from modules.jobs.word_clauses.config import load_config as load_clause_config
+from modules.jobs.word_clauses.report import RUNNER as CLAUSES_RUNNER
 from modules.jobs.workbook_rows.config import load_config
 from modules.jobs.workbook_rows.fill import fill_workbook
 
 
 def run(args: argparse.Namespace) -> None:
     manifest = read_manifest(args.pack)
+    if any(job.runner == CLAUSES_RUNNER for job in manifest.jobs):
+        _run_contracts(args, manifest)
+        return
     cases = load_cases(args.eval, args.case or None)
     if not cases:
         raise SystemExit("No case matched.")
@@ -47,6 +54,43 @@ def run(args: argparse.Namespace) -> None:
             config = load_config(args.pack / job.config)
             for number in range(1, args.runs + 1):
                 _one_run(args, spec, case, config, number, embed)
+
+
+def _run_contracts(args: argparse.Namespace, manifest) -> None:
+    cases = load_contract_cases(args.eval, args.case or None)
+    if not cases:
+        raise SystemExit("No case matched.")
+    embed = _embedder(args.embedder)
+    options = {
+        "effort": args.effort,
+        "reasoning": args.reasoning,
+        "embedder": args.embedder,
+        "checker": args.checker,
+    }
+    for spec in args.model:
+        for case in cases:
+            job = next(j for j in manifest.jobs if j.key == case.job)
+            config = load_clause_config(args.pack / job.config)
+            settings = config.setting_values(_settings(args.setting))
+            for number in range(1, args.runs + 1):
+                run_contract_case(
+                    args.out,
+                    spec,
+                    case,
+                    config,
+                    number,
+                    model=_model(args, spec),
+                    checker=_model(args, args.checker) if args.checker else None,
+                    settings=settings,
+                    embed=embed,
+                    options=options,
+                )
+
+
+def _model(args: argparse.Namespace, spec: str):
+    return model_for(
+        spec, concurrency=args.concurrency, effort=args.effort, reasoning=args.reasoning
+    )
 
 
 def _embedder(name: str) -> Embed | None:

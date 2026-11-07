@@ -17,6 +17,7 @@ from fastapi import FastAPI
 
 from license import token_bucket
 from license.job_packs import catalog
+from license.jobs import jobs_metadata
 from license.portal import license_portal
 from license.settings import config
 from license.tests.github_fake import FakeGitHub
@@ -28,6 +29,7 @@ pytestmark = pytest.mark.unit
 FIRM = "lic-firm"
 KEY = f"KEY-{FIRM}"
 DDQ = ("sample-ddq", "workbook-rows/1", "JOB_DDQ")
+REDLINE = ("contract-redline", "word-clauses/1", "JOB_CONTRACT_REDLINE")
 UNAVAILABLE = "Jobs cannot be downloaded right now. Try again later."
 
 
@@ -89,6 +91,22 @@ async def test_a_business_trial_gets_the_pack(
     reply = await pack_portal.ask("KEY-lic-trial")
 
     assert reply.status_code == 200
+
+
+async def test_a_business_license_gets_the_contract_redline_from_its_own_pack(
+    pack_portal: PackPortal, trusted_pack_key
+) -> None:
+    """Business sells it beside the questionnaire, and every Business license lists both."""
+    licensed(pack_portal, jobs=jobs_metadata())
+    write_pack(pack_portal.packs)
+    write_pack(pack_portal.packs, pack_id="surfsense-contract-redline", jobs=(REDLINE,))
+
+    reply = await pack_portal.ask(
+        KEY, "JOB_CONTRACT_REDLINE", runners=("workbook-rows/1", "word-clauses/1")
+    )
+
+    assert reply.status_code == 200
+    assert reply.headers["x-job-pack-id"] == "surfsense-contract-redline"
 
 
 async def test_jobs_written_with_spaces_still_match(

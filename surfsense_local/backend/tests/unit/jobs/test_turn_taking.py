@@ -188,7 +188,7 @@ def test_a_question_whose_call_fails_does_not_hold_up_the_turns(workbook, config
 def test_a_cancel_stops_questions_waiting_for_their_turn(workbook, config, monkeypatch):
     """A cancel is read on the run's own thread while the questions are under way, and stops
     every call not yet made: no check is asked."""
-    monkeypatch.setattr("modules.jobs.workbook_rows.fill.STOP_POLL_SECONDS", 0.01)
+    monkeypatch.setattr("modules.jobs.asking.answer_all.STOP_POLL_SECONDS", 0.01)
     log, answering, checking = _pair()
     asked = answering.ask
     cancel = threading.Event()

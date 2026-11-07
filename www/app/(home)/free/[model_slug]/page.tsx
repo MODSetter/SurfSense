@@ -161,9 +161,9 @@ export default async function FreeModelPage({ params }: PageProps) {
 		},
 		{
 			question: "Is the SurfSense desktop app free?",
-			// From Business on, the trial is the job's and the scrapers are retired.
+			// From Business on, the trial is the paid jobs' and the scrapers are retired.
 			answer: BUSINESS_LAUNCHED
-				? "Yes. The app and every update are free forever on Windows, macOS and Linux, reading web pages, YouTube and web search included, and a 14-day trial of the paid security questionnaire job comes with it. There is no account to create and no trial clock on the app itself."
+				? "Yes. The app and every update are free forever on Windows, macOS and Linux, reading web pages, YouTube and web search included, and a 14-day trial of the paid security questionnaire and contract redline jobs comes with it. There is no account to create and no trial clock on the app itself."
 				: "Yes. The app and every update are free forever on Windows, macOS and Linux, and a 14-day licence for the scraper plugins comes with it. There is no account to create and no trial clock on the app itself.",
 		},
 		{

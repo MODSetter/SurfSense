@@ -232,3 +232,25 @@ def test_a_saved_page_links_the_version_it_made() -> None:
     )
 
     assert done["artifact"] == {"id": 52, "title": "Q3 revenue", "version": 2}
+
+
+def test_a_picture_step_links_its_version_once_ready() -> None:
+    """So the thread opens it, as a render does; still being drawn links nothing."""
+    (ready, queued) = _steps(
+        _tool_part(
+            "surfsense_make_image",
+            "completed",
+            "Rendered artifact 61, version 1: Boat\nIts name is image-61.",
+        ),
+        {
+            **_tool_part(
+                "surfsense_make_image",
+                "completed",
+                "Queued artifact 62, version 1: Ship\nStill being made.",
+            ),
+            "id": "call_2",
+        },
+    )
+
+    assert ready["artifact"] == {"id": 61, "title": "Boat", "version": 1}
+    assert queued["artifact"] is None

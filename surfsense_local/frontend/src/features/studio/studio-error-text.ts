@@ -74,6 +74,12 @@ const studioErrorText: Record<string, (detail: Detail) => string | null> = {
       defaultMessage:
         "A later version is edited from this one: delete the whole document.",
     }),
+  placed_in_document: () =>
+    intl.formatMessage({
+      id: "studio_error_placed_in_document",
+      defaultMessage:
+        "A document places this picture: delete that document first.",
+    }),
   // The sentence's name and numbers arrive raw beside the code.
   rewrite_too_long: ({ model, spec_tokens, needed_tokens, window_tokens }) =>
     typeof model === "string" &&

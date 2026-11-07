@@ -21,6 +21,10 @@ from shared.config import get_storage_settings
 
 logger = logging.getLogger(__name__)
 
+# Reads of one pack's folder while its versions move: each install puts its version in place
+# before the old one goes, so a read between two installs sees one stay.
+_READS = 5
+
 
 @dataclass(frozen=True)
 class InstalledPack:
@@ -79,10 +83,13 @@ def find_job(
 
 def _verified_versions(folder: Path) -> list[InstalledPack]:
     """Every version of one pack that passes its checks. A version moved away while it was read
-    gave way to a newer one, put in place first, so the folder is listed once more."""
+    gave way to another, put in place first, so the folder is listed again until a read sees
+    none go: installs one after another can each move the version the last read found."""
     found, vanished = _read_versions(folder)
-    if vanished:
-        found, _ = _read_versions(folder)
+    for _ in range(_READS - 1):
+        if not vanished:
+            break
+        found, vanished = _read_versions(folder)
     return found
 
 

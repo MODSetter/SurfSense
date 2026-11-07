@@ -1,5 +1,13 @@
 import type { WorkspaceDocument } from "@/features/sources/api"
 
+import {
+  filesReading,
+  newestTicked,
+  otherReadySources,
+  otherSourcesReading,
+  readyFiles,
+} from "./run-choices"
+
 // The stored type of an uploaded .xlsx (the backend's UPLOAD_MIME_BY_SUFFIX),
 // so a renamed file still counts. An .xlsm is no source yet.
 export const XLSX_MIME =
@@ -9,52 +17,27 @@ export function isWorkbook(document: WorkspaceDocument): boolean {
   return document.document_type === "FILE" && document.mime_type === XLSX_MIME
 }
 
-const isReading = (document: WorkspaceDocument) =>
-  document.status === "pending" || document.status === "processing"
-
-const newestFirst = (a: WorkspaceDocument, b: WorkspaceDocument) =>
-  Date.parse(b.created_at) - Date.parse(a.created_at) || b.id - a.id
-
 export function workbookChoices(
   documents: readonly WorkspaceDocument[]
 ): WorkspaceDocument[] {
-  return documents
-    .filter((document) => isWorkbook(document) && document.status === "ready")
-    .toSorted(newestFirst)
+  return readyFiles(documents, isWorkbook)
 }
 
 export function workbooksReading(
   documents: readonly WorkspaceDocument[]
 ): number {
-  return documents.filter(
-    (document) => isWorkbook(document) && isReading(document)
-  ).length
+  return filesReading(documents, isWorkbook)
 }
 
 /** The newest workbook ticked in the sidebar, else the newest; null when there is none. */
-export function defaultWorkbook(
-  choices: readonly WorkspaceDocument[],
-  includedIds: readonly number[]
-): number | null {
-  const ticked = choices.find((choice) => includedIds.includes(choice.id))
-  return (ticked ?? choices[0])?.id ?? null
-}
+export const defaultWorkbook = newestTicked
 
-export function policyChoices(
-  documents: readonly WorkspaceDocument[],
-  workbookId: number | null
-): WorkspaceDocument[] {
-  return documents.filter(
-    (document) => document.status === "ready" && document.id !== workbookId
-  )
-}
+export const policyChoices = otherReadySources
 
 export function sourcesReading(
   documents: readonly WorkspaceDocument[]
 ): number {
-  return documents.filter(
-    (document) => !isWorkbook(document) && isReading(document)
-  ).length
+  return otherSourcesReading(documents, isWorkbook)
 }
 
 /** A source the user ticked or unticked here keeps that. Any other starts as

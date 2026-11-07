@@ -90,8 +90,12 @@ directory.
   frees the model and its context rather than parking them. An earlier
   measurement recorded a self-eviction after about 30 s without the flag; it did
   not reproduce on either backend and was withdrawn. The cost is that a local
-  model, once loaded, stays resident while the app runs, even after the user
-  switches to a remote connection. Two things call `RouterClient.unload()`.
+  model, once loaded, stays resident while the app runs and chat stays on it.
+  Three things call `RouterClient.unload()`. Choosing another provider for chat
+  does, as a background task after the response that waits for local text still
+  generating, as an image's hold does ([`residency.py`](../../../surfsense_local/backend/modules/llm/residency.py)):
+  a 1.7B held 1.5 GB of RAM and 6.1 GB of graphics memory, which Windows counts
+  against the page file, for a runtime no one was using.
   Studio does before a local image, which shares the graphics card, and before
   voicing a podcast, which needs its memory ([`studio.md`](../studio.md)); the
   next request reloads it. And `DELETE /llm/models/{name}` unloads a chat model
@@ -176,7 +180,7 @@ parallel = 4
 kv-unified = on                                ; only above one slot
 fit-target = 1024
 fit-ctx = 16384
-cache-ram = 3584
+cache-ram = 3584                               ; 0 when it fits a discrete card
 mmproj = /Users/…/models/mmproj-Qwen3-8B-Q4_K_M.gguf ; only with a projector
 cache-type-k = q8_0                            ; only at q8_0
 cache-type-v = q8_0
@@ -203,8 +207,14 @@ flash-attn = on
   the memory the capacity budget gives a model, at most llama.cpp's own
   8,192 ([`fit/prompt_cache.py`](../../../surfsense_local/backend/modules/llm/fit/prompt_cache.py)),
   and pinned because that default, unbudgeted, let a 1.7B model's server grow
-  to 7.4 GB. The router hands it on: measured at `b11050`, `GET /models` lists
-  `--cache-ram` in the worker's `status.args`.
+  to 7.4 GB. A model the plan keeps whole on a discrete card gets `0`, which
+  turns the cache off: the card reads a prompt again at thousands of tokens a
+  second (Qwen3 1.7B on an RTX 3080, 6,000 tokens in 0.8 s), while the saved
+  prompts grew that server by 2 GB of RAM in one session of chat, Studio and the
+  agent. A model that spills, unified memory and the CPU keep the quarter, since
+  there a prompt read again costs tens of seconds. The router hands it on:
+  measured at `b11050`, `GET /models` lists `--cache-ram` in the worker's
+  `status.args`.
 - The `q8_0` lines are written as a group. Set one cache type without the other
   and the fused flash-attention kernel is skipped, after which attention falls
   back to the CPU silently. An `f16` plan writes none of them.

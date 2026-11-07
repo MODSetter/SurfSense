@@ -17,7 +17,7 @@ MANIFEST = "job-pack.json"
 SIGNATURE = "job-pack.sig"
 SCHEMA = "surfsense-job-pack/1"
 # The runners this app ships; a pack naming another needs a newer app.
-RUNNERS = ("workbook-rows/1",)
+RUNNERS = ("workbook-rows/1", "word-clauses/1")
 # Contract 6's runner, a name and a version, as the licence server holds a pack to it: one
 # named otherwise is no runner a newer app could have.
 _RUNNER = re.compile(r"^[a-z][a-z0-9-]{0,63}/[1-9][0-9]{0,5}$")

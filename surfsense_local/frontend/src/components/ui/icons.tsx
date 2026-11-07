@@ -29,7 +29,6 @@ import {
   CheckmarkCircle02Icon,
   ChevronDownIcon as ChevronDownIconData,
   ChevronRightIcon as ChevronRightIconData,
-  ClipboardCheckIcon as ClipboardCheckIconData,
   Clock01Icon as Clock01IconData,
   CircleArrowUp02Icon as CircleArrowUp02IconData,
   ComputerEthernetIcon as ComputerEthernetIconData,
@@ -93,6 +92,7 @@ import {
   SquareDashedMousePointerIcon as SquareDashedMousePointerIconData,
   StopCircleIcon,
   Sun03Icon as Sun03IconData,
+  Task01Icon as Task01IconData,
   ThoughtBubbleIcon as ThoughtBubbleIconData,
   UnplugIcon as UnplugIconData,
   Upload01Icon as Upload01IconData,
@@ -165,8 +165,6 @@ export const CheckIcon = createIcon(CheckIconData)
 export const CheckmarkBadgeIcon = createIcon(CheckmarkBadge02IconData)
 export const ChevronDownIcon = createIcon(ChevronDownIconData)
 export const ChevronRightIcon = createIcon(ChevronRightIconData)
-// Jobs: the same icon the docs show beside Jobs.
-export const ClipboardCheckIcon = createIcon(ClipboardCheckIconData)
 export const ClockIcon = createIcon(Clock01IconData)
 export const CircleArrowUp02Icon = createIcon(CircleArrowUp02IconData)
 export const ComputerEthernetIcon = createIcon(ComputerEthernetIconData)
@@ -235,6 +233,8 @@ export const LibraryBigIcon = createIcon(LibraryBigIconData)
 export const Shapes01Icon = createIcon(Shapes01IconData)
 export const StarAward02Icon = createIcon(StarAward02IconData)
 export const SunIcon = createIcon(Sun03IconData)
+// Jobs: the same icon the docs show beside Jobs.
+export const Task01Icon = createIcon(Task01IconData)
 export const UnplugIcon = createIcon(UnplugIconData)
 export const Upload01Icon = createIcon(Upload01IconData)
 export const Video01Icon = createIcon(Video01IconData)

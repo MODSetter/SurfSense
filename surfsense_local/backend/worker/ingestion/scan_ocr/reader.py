@@ -5,11 +5,14 @@ import logging
 import sys
 from collections.abc import Iterable, Iterator
 from functools import lru_cache
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
 from worker.ingestion.scan_ocr.frames import Frame
 from worker.ingestion.scan_ocr.page import OcrPage
 from worker.ingestion.scan_ocr.switch import ScanOcr, scan_ocr_choice
+
+if TYPE_CHECKING:
+    from worker.ingestion.scan_ocr.vision import VisionOcr
 
 log = logging.getLogger(__name__)
 
@@ -29,7 +32,9 @@ def page_reader() -> PageReader | None:
     if choice is ScanOcr.OFF:
         return None
     if choice is ScanOcr.AUTO and sys.platform == "darwin":
-        return vision_reader() or rapid_reader()
+        vision = vision_reader()
+        if vision is not None and not vision.stuck:
+            return vision
     return rapid_reader()
 
 
@@ -42,7 +47,7 @@ def rapid_reader() -> PageReader | None:
 
 
 @lru_cache(maxsize=1)
-def vision_reader() -> PageReader | None:
+def vision_reader() -> "VisionOcr | None":
     """Apple's Vision: on the corpus's real pages as good as RapidOCR but on
     forms, and the only reader of camera photos taken at an angle."""
     from worker.ingestion.scan_ocr.vision import VisionOcr
@@ -50,7 +55,7 @@ def vision_reader() -> PageReader | None:
     return _announced(VisionOcr.create(), VisionOcr.name)
 
 
-def _announced(reader: PageReader | None, name: str) -> PageReader | None:
+def _announced[R: PageReader](reader: R | None, name: str) -> R | None:
     if reader is None:
         log.info("%s cannot read scans here", name)
     else:

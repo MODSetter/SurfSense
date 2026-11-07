@@ -16,6 +16,7 @@ from modules.agent.tool_endpoint.rendered_label import (
     first_line,
     queued_line,
 )
+from modules.agent.tool_endpoint.review_summary import review_summary
 from modules.agent.tool_endpoint.tool import Tool, ToolCallError
 from modules.agent.tool_endpoint.turn_scope import TurnScope
 from modules.artifacts.models import Artifact
@@ -24,6 +25,7 @@ from modules.jobs.packs.installed import installed_packs
 from modules.jobs.runs.record import job_run_of
 from modules.jobs.runs.run_tally import run_tally
 from modules.jobs.runs.start import JobRunRefusedError, start_job_run
+from modules.jobs.word_clauses.report import RUNNER as REVIEW_RUNNER
 
 TOOL_NAME = "run_job"
 # Exceptions named in the reply; the rest are on the workbook's exceptions sheet.
@@ -45,8 +47,8 @@ def job_listing() -> dict[str, Any] | None:
         "description": (
             "Run an installed SurfSense job on the selected sources. Load the job's "
             f"skill first. Jobs: {named}. The job makes a revised copy in Studio; the "
-            "user's file is never changed. Returns the copy's artifact id, the answer "
-            "counts and the exceptions a person must look at, or that it is still running."
+            "user's file is never changed. Returns the copy's artifact id, the counts "
+            "and the exceptions a person must look at, or that it is still running."
         ),
         "inputSchema": {
             "type": "object",
@@ -54,12 +56,12 @@ def job_listing() -> dict[str, Any] | None:
                 "job": {"type": "string", "enum": [key for key, _ in jobs]},
                 "document_id": {
                     "type": "integer",
-                    "description": "The workbook to fill in, by the number at the end of its file name.",
+                    "description": "The file the job works on, such as the workbook a questionnaire fills in or the contract a redline reviews, by the number at the end of its file name.",
                 },
                 "source_ids": {
                     "type": "array",
                     "items": {"type": "integer"},
-                    "description": "The documents to answer from; leave out to use every other selected source.",
+                    "description": "The documents the job reads, such as the firm's policies or its playbook; leave out to use every other selected source.",
                 },
             },
             "required": ["job", "document_id"],
@@ -76,7 +78,7 @@ def run(session: Session, scope: TurnScope, arguments: dict[str, Any]) -> str:
         or isinstance(document_id, bool)
     ):
         raise ToolCallError(
-            "Give job, by its name, and document_id, the workbook's number."
+            "Give job, by its name, and document_id, the number of the file it works on."
         )
     source_ids = arguments.get("source_ids")
     if source_ids is None:
@@ -91,7 +93,7 @@ def run(session: Session, scope: TurnScope, arguments: dict[str, Any]) -> str:
             session,
             scope.workspace_id,
             job=job,
-            workbook_document_id=document_id,
+            document_id=document_id,
             source_document_ids=source_ids,
             chat_thread_id=scope.thread_id if scope.known else None,
         )
@@ -128,6 +130,8 @@ def run(session: Session, scope: TurnScope, arguments: dict[str, Any]) -> str:
 def summary(artifact_id: int, report: dict[str, Any]) -> str:
     """The counts the Jobs screen shows, and where a person finds each answer's source and the
     exceptions, by the sheet names the run's pack gave them."""
+    if report.get("runner") == REVIEW_RUNNER:
+        return review_summary(artifact_id, report)
     counts = report.get("counts") or {}
     tally = run_tally(report)
     kinds = ", ".join(

@@ -64,6 +64,16 @@ function approval() {
   return screen.findByRole("group", { name: "Approval needed" })
 }
 
+/** A request can show before its step does, then moves onto the step as a new
+ *  element, so only one already there can be held on to or clicked. */
+function approvalOnItsStep(label: string) {
+  return waitFor(() => {
+    const waiting = screen.getByRole("group", { name: "Approval needed" })
+    expect(waiting.closest("li")?.textContent).toContain(label)
+    return waiting
+  })
+}
+
 const sse = (frames: unknown[]) =>
   frames.map((frame) => `data: ${JSON.stringify(frame)}\n\n`).join("")
 
@@ -281,10 +291,9 @@ describe("an agent thread", () => {
     renderAgentThread()
     const user = await ask("Run it")
 
-    const waiting = await approval()
-    expect(within(waiting).getByText("echo hi")).toBeTruthy()
     // On the step it holds back, in the reply, not over the thread.
-    expect(waiting.closest("li")?.textContent).toContain("Ran")
+    const waiting = await approvalOnItsStep("Ran")
+    expect(within(waiting).getByText("echo hi")).toBeTruthy()
     expect(screen.queryByRole("alertdialog")).toBeNull()
     await user.click(
       within(waiting).getByRole("button", { name: "Allow once" })
@@ -314,7 +323,9 @@ describe("an agent thread", () => {
     const user = await ask("Run it")
 
     await user.click(
-      within(await approval()).getByRole("button", { name: "Deny" })
+      within(await approvalOnItsStep("Ran")).getByRole("button", {
+        name: "Deny",
+      })
     )
 
     await waitFor(() => {

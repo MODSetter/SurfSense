@@ -1508,11 +1508,12 @@ describe("dashboard chat", () => {
     await user.click(jobs)
 
     const dialog = await screen.findByRole("dialog", { name: "Jobs" })
+    // One row for each job SurfSense sells: the questionnaire and the redline.
     expect(
-      await within(dialog).findByText(
+      await within(dialog).findAllByText(
         "Comes with a SurfSense Business license. Try it free for 14 days."
       )
-    ).toBeTruthy()
+    ).toHaveLength(2)
   })
 
   it("closes Jobs and opens Settings › License for a job’s Add license", async () => {
@@ -1539,9 +1540,10 @@ describe("dashboard chat", () => {
 
     await user.click(screen.getByRole("button", { name: /^Jobs/ }))
     const dialog = await screen.findByRole("dialog", { name: "Jobs" })
-    await user.click(
-      await within(dialog).findByRole("button", { name: "Add license" })
-    )
+    const [addLicense] = await within(dialog).findAllByRole("button", {
+      name: "Add license",
+    })
+    await user.click(addLicense)
 
     expect(
       await screen.findByRole("heading", { level: 2, name: "License" })

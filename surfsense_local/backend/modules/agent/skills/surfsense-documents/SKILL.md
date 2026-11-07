@@ -13,6 +13,7 @@ You make a file by writing a Python script and passing it to `surfsense_render_d
 - Use only Python's standard library, python-docx (Word), ReportLab (PDF), python-pptx (PowerPoint), xlsxwriter or openpyxl (Excel), matplotlib (charts), Pillow and numpy. Do not use the network.
 - The script runs alone, from an empty folder, for at most 120 seconds. It cannot read the user's sources: write the content into the script, from what you found in them.
 - To place an image from the sources, find its name with `surfsense_list_images`, list every name you use in the call's `images`, and open it at `os.path.join(os.environ["IMAGES_DIR"], name + ".png")`.
+- A picture from `surfsense_make_image` goes the same way: list the name it gave, `image-<id>`, in `images`, and open it at the same path. If the render says it is still being drawn, tell the user and stop. Draw one only when the user asks for a picture, never for data: a chart stays matplotlib or a native chart.
 - To look at a source image yourself, open the copy `surfsense_list_images` names, `sources/figures/<name>.png`, with `read`. These copies are read-only.
 - With `template_source_id`, a copy of that source's file is at `os.environ["TEMPLATE_PATH"]` (see [Starting from the user's own file](#starting-from-the-users-own-file)).
 - Save a chart or any other intermediate file in the working folder, then place it.

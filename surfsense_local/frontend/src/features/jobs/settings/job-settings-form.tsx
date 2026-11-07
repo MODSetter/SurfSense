@@ -97,27 +97,29 @@ export function JobSettingsForm({
             ))}
           </ul>
         ) : null}
-        <section className="flex flex-col gap-2">
-          <FieldLabel htmlFor={checkerId}>
-            {intl.formatMessage({
-              id: "jobs_settings_checker_label",
-              defaultMessage: "Second check",
-            })}
-          </FieldLabel>
-          <p className="text-sm text-pretty text-muted-foreground">
-            {intl.formatMessage({
-              id: "jobs_settings_checker_body",
-              defaultMessage:
-                "SurfSense checks each answer a second time before writing it. Another model can make that check; one that doesn’t run on this computer receives each question and its passages.",
-            })}
-          </p>
-          <CheckerModelSelect
-            id={checkerId}
-            value={shown.checker}
-            disabled={save.isPending}
-            onChange={(checker) => edit({ ...shown, checker })}
-          />
-        </section>
+        {read.data.checks ? (
+          <section className="flex flex-col gap-2">
+            <FieldLabel htmlFor={checkerId}>
+              {intl.formatMessage({
+                id: "jobs_settings_checker_label",
+                defaultMessage: "Second check",
+              })}
+            </FieldLabel>
+            <p className="text-sm text-pretty text-muted-foreground">
+              {intl.formatMessage({
+                id: "jobs_settings_checker_body",
+                defaultMessage:
+                  "SurfSense checks each answer a second time before writing it. Another model can make that check; one that doesn’t run on this computer receives each question and its passages.",
+              })}
+            </p>
+            <CheckerModelSelect
+              id={checkerId}
+              value={shown.checker}
+              disabled={save.isPending}
+              onChange={(checker) => edit({ ...shown, checker })}
+            />
+          </section>
+        ) : null}
         {save.error ? (
           <p role="alert" className="text-sm text-pretty text-destructive">
             {jobsErrorText(save.error)}

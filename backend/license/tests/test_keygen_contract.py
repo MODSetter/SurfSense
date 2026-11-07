@@ -10,7 +10,8 @@ this test exists to catch.
 
 Run it against a Keygen CE account (images in ``docker/keygen/``) with the
 usual ``KEYGEN_ACCOUNT_ID``, ``KEYGEN_API_TOKEN`` and ``KEYGEN_POLICY_INDIVIDUAL``
-set, plus ``KEYGEN_API_URL``/``KEYGEN_HOST`` for a self-hosted one, from ``backend/``:
+set, plus ``KEYGEN_API_URL``/``KEYGEN_HOST`` for a self-hosted one, and
+``KEYGEN_POLICY_BUSINESS`` for the move to Business, from ``backend/``:
 
     KEYGEN_INTEGRATION=1 uv run pytest license/tests/test_keygen_contract.py
 
@@ -27,6 +28,7 @@ from uuid import uuid4
 import pytest
 
 from license import keygen
+from license.individual_conversion.business_policy import checked_business_policy
 from license.job_packs.verdict import LicenseVerdict, license_verdict
 from license.jobs import JOBS, jobs_metadata
 from license.models import (
@@ -36,6 +38,7 @@ from license.models import (
     META_SESSION,
     META_SUBSCRIPTION,
 )
+from license.settings import config
 
 pytestmark = pytest.mark.integration
 
@@ -138,6 +141,34 @@ async def test_a_renewal_moves_the_expiry_on_the_same_key(license_on_keygen) -> 
     assert by_key.record is not None
     assert by_key.record["id"] == license_id
     assert datetime.fromisoformat(by_key.record["attributes"]["expiry"]) == renewed_to
+
+
+async def test_an_individual_license_moves_to_the_business_policy_on_the_same_key(
+    license_on_keygen,
+) -> None:
+    """What the conversion to Business Solo does: a 422 here means the two policies
+    differ in a way Keygen refuses, and every license the script moves would be refused."""
+    if not config.KEYGEN_POLICY_BUSINESS:
+        pytest.skip("KEYGEN_POLICY_BUSINESS is not set")
+    license_id, _, _ = license_on_keygen
+    before = await keygen.get_license(license_id)
+    assert before is not None
+    # The script's own check, over the policy attributes as Keygen answers them.
+    await checked_business_policy(
+        individual=config.KEYGEN_POLICY_INDIVIDUAL,
+        business=config.KEYGEN_POLICY_BUSINESS,
+    )
+
+    moved = await keygen.change_license_policy(
+        license_id, config.KEYGEN_POLICY_BUSINESS
+    )
+
+    assert (
+        moved["relationships"]["policy"]["data"]["id"] == config.KEYGEN_POLICY_BUSINESS
+    )
+    for kept in ("key", "metadata", "expiry"):
+        # The expiry stays because the setup script leaves transferStrategy at KEEP_EXPIRY.
+        assert moved["attributes"][kept] == before["attributes"][kept], kept
 
 
 async def test_validate_key_answers_the_license_jobs() -> None:

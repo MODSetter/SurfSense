@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 import pytest
 
 from license.email.message import ACTIVATION_GUIDE_URL, build_license_email
+from license.jobs import JOBS
 
 pytestmark = pytest.mark.unit
 
@@ -123,12 +126,18 @@ def business(**fields):
     return BusinessCopy(**fields)
 
 
-@pytest.mark.parametrize("kind", ["purchase", "resend", "trial", "renewal"])
+@pytest.mark.parametrize(
+    "kind", ["purchase", "resend", "trial", "renewal", "conversion"]
+)
 def test_no_business_mail_makes_the_individual_promises(kind):
     """The app reaches the license server by itself for a Business license's jobs and its
     renewed file, and Business counts people, not machines."""
+    term = {"renews_on": date(2027, 10, 26)} if kind == "conversion" else {}
     message = build_license_email(
-        kind, to="a@b.test", certificates=("CERT",), business=business(people=4)
+        kind,
+        to="a@b.test",
+        certificates=("CERT",),
+        business=business(people=4, **term),
     )
 
     for promise in INDIVIDUAL_PROMISES:
@@ -191,6 +200,23 @@ def test_the_business_trial_says_what_stops_and_names_no_portal(monkeypatch):
     assert "https://portal.test/p" not in message.text_body
 
 
+@pytest.mark.parametrize("kind", ["trial", "conversion"])
+def test_the_business_trial_and_the_conversion_notice_name_every_job(kind):
+    """Each says what the license unlocks, and its `jobs` lists every job Business sells."""
+    term = {"renews_on": date(2027, 10, 26)} if kind == "conversion" else {}
+    body = build_license_email(
+        kind,
+        to="a@b.test",
+        certificates=("CERT",),
+        business=business(people=1, **term),
+    ).text_body
+
+    # The intro, not the first-job step, which names only the questionnaire.
+    intro = body.split("1. Install SurfSense", 1)[0].lower()
+    for name in JOBS.values():
+        assert name.lower() in intro
+
+
 def test_only_a_paid_business_license_resent_names_the_portal(monkeypatch):
     """Resend takes a trial's copy when the address holds no paid license, and a trial
     has no subscription to change or cancel."""
@@ -210,16 +236,25 @@ def test_only_a_paid_business_license_resent_names_the_portal(monkeypatch):
     assert "https://portal.test/p" in paid
 
 
-@pytest.mark.parametrize("kind", ["purchase", "trial"])
-def test_a_business_purchase_or_trial_ends_with_the_first_job(kind):
-    """The license is for jobs, so its first mail goes on to one, in the app's own labels."""
+@pytest.mark.parametrize("kind", ["purchase", "trial", "conversion"])
+def test_a_business_purchase_trial_or_conversion_ends_with_the_first_job(kind):
+    """The license is for jobs, so its first mail goes on to one, in the app's own labels.
+
+    A converted Individual buyer has the app, but has never run a job, and was told
+    the app never contacts a license server, so the Allow step is new to them too.
+    """
+    term = {"renews_on": date(2027, 10, 26)} if kind == "conversion" else {}
     body = build_license_email(
-        kind, to="a@b.test", certificates=("CERT",), business=business(people=4)
+        kind,
+        to="a@b.test",
+        certificates=("CERT",),
+        business=business(people=4, **term),
     ).text_body
 
     for words in (
         "5. Run your first job.",
-        "choose Allow",
+        # Allowing downloads every job the license lists, not only the one run here.
+        "choose Allow, and it downloads your jobs.",
         "click Jobs in the left sidebar",
         "press Run beside Security questionnaire",
     ):
@@ -275,6 +310,138 @@ def test_an_individual_renewal_asks_for_the_file_to_be_imported():
     assert message.subject == "Your SurfSense license has renewed"
     assert "replaces the old file" in message.text_body
     assert "Business" not in message.text_body
+
+
+# conversion -------------------------------------------------------------------
+
+
+RENEWS_ON = date(2027, 10, 26)
+
+
+def converted(**fields):
+    term = fields if fields else {"renews_on": RENEWS_ON}
+    return build_license_email(
+        "conversion",
+        to="a@b.test",
+        certificates=("CERT",),
+        business=business(people=1, paid=True, **term),
+    )
+
+
+def test_the_conversion_notice_says_what_changed_and_what_stays(monkeypatch):
+    from license.settings import config
+
+    monkeypatch.setattr(config, "STRIPE_CUSTOMER_PORTAL_URL", "https://portal.test/p")
+
+    message = converted()
+
+    assert message.subject == "Your SurfSense license is now Business Solo"
+    assert message.attachments[0].filename == "surfsense.lic"
+    assert message.attachments[0].content == b"CERT"
+    body = message.text_body
+    for words in (
+        "Your SurfSense Individual license is now Business Solo, the Business "
+        "license for one person, on the same key.",
+        "The attached file replaces the old one: import it in Settings -> License "
+        "on each computer you use SurfSense on, or choose Check for renewal on the "
+        "Jobs screen, which fetches it.",
+        "Business unlocks SurfSense's job plugins: the security questionnaire and "
+        "the contract redline.",
+        "The scraper plugins your Individual license included have retired; reading "
+        "web pages, YouTube and web search are now built into SurfSense, free.",
+        # Its buyer may never have read that it renews: the notice names the day.
+        "Your purchase is a yearly subscription: it renews automatically on 26 "
+        "October 2027, and every year after, at the price you paid, on the same key, "
+        "until you cancel.",
+        "use the billing portal: https://portal.test/p",
+    ):
+        assert words in body
+    # The steps to import it follow, as in every license mail.
+    assert body.index("until you cancel") < body.index("1. Install SurfSense")
+    assert ACTIVATION_GUIDE_URL in body
+
+
+def test_the_conversion_notice_names_no_price_and_no_reminder():
+    """The price is whatever Stripe charges, and nothing sends a reminder yet."""
+    body = converted().text_body
+
+    assert "$" not in body
+    assert "remind" not in body.lower()
+
+
+def test_a_conversion_notice_for_a_license_that_has_ended_says_when_and_nothing_more(
+    monkeypatch,
+):
+    """Cancelled or paid once: no renewal to promise, nothing to change or keep."""
+    from license.settings import config
+
+    monkeypatch.setattr(config, "STRIPE_CUSTOMER_PORTAL_URL", "https://portal.test/p")
+
+    body = converted(ends_on=date(2027, 11, 29)).text_body
+
+    assert (
+        "It ends on 29 November 2027 and does not renew. After that, SurfSense keeps "
+        "working and everything you made stays readable; only new job runs stop."
+    ) in body
+    assert "renews automatically" not in body
+    assert "billing portal" not in body
+    assert "reply to this email" not in body
+    assert "is now Business Solo, the Business license for one person" in body
+
+
+@pytest.mark.parametrize(
+    ("portal", "said"),
+    [
+        (
+            "https://portal.test/p",
+            "To keep it, renew it in the billing portal before 30 October 2027: "
+            "https://portal.test/p",
+        ),
+        ("", "To keep it, reply to this email before 30 October 2027."),
+    ],
+)
+def test_a_conversion_notice_for_one_set_to_cancel_says_how_to_keep_it(
+    monkeypatch, portal, said
+):
+    """Stripe's portal lets a buyer renew a subscription set to cancel until its period
+    ends, which comes before the license's last day of grace: the line names it."""
+    from license.settings import config
+
+    monkeypatch.setattr(config, "STRIPE_CUSTOMER_PORTAL_URL", portal)
+
+    body = converted(
+        ends_on=date(2027, 11, 29), resumable_until=date(2027, 10, 30)
+    ).text_body
+
+    assert "It ends on 29 November 2027 and does not renew." in body
+    assert said in body
+    assert "before then" not in body
+    assert "To add or remove people" not in body
+
+
+def test_without_a_portal_the_conversion_notice_says_to_reply(monkeypatch):
+    from license.settings import config
+
+    monkeypatch.setattr(config, "STRIPE_CUSTOMER_PORTAL_URL", "")
+
+    assert "or to cancel, reply to this email." in converted().text_body
+
+
+def test_the_conversion_notice_has_no_individual_copy():
+    """It tells an Individual buyer their license is now Business; there is nothing else to say."""
+    with pytest.raises(ValueError, match="only the Business copy"):
+        build_license_email("conversion", to="a@b.test", certificates=("CERT",))
+
+
+def test_a_conversion_notice_names_the_day_it_renews_or_ends():
+    """Without either it would promise nothing true about what Stripe does next."""
+    with pytest.raises(ValueError, match="renews or ends"):
+        build_license_email(
+            "conversion",
+            to="a@b.test",
+            certificates=("CERT",),
+            business=business(people=1, paid=True),
+        )
 
 
 def test_a_business_copy_is_only_for_licenses_that_unlock_jobs():
