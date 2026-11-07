@@ -182,6 +182,48 @@ export function stepLabel(
       }
       break
     }
+    case "surfsense_make_image": {
+      const made = step.artifact
+      if (made) {
+        return (made.created ?? made.version === 1)
+          ? intl.formatMessage(
+              {
+                id: "agent_steps_make_image_created_label",
+                defaultMessage: "Created <doc>{title}</doc> v{version, number}",
+              },
+              { title: made.title, version: made.version, doc: documentTitle }
+            )
+          : intl.formatMessage(
+              {
+                id: "agent_steps_make_image_updated_label",
+                defaultMessage:
+                  "Updated <doc>{title}</doc> to v{version, number}",
+              },
+              { title: made.title, version: made.version, doc: documentTitle }
+            )
+      }
+      // Running, still being drawn, refused or failed: what it was asked for.
+      const title = text(input.title)
+      if (title) {
+        return intl.formatMessage(
+          {
+            id: "agent_steps_make_image_label",
+            defaultMessage: "Asked for the picture <doc>{title}</doc>",
+          },
+          { title, doc: documentTitle }
+        )
+      }
+      // While its input streams, a new picture has neither yet.
+      return input.artifact_id
+        ? intl.formatMessage({
+            id: "agent_steps_make_image_edit_label",
+            defaultMessage: "Asked to change a picture",
+          })
+        : intl.formatMessage({
+            id: "agent_steps_make_image_unnamed_label",
+            defaultMessage: "Asked for a picture",
+          })
+    }
     case "surfsense_convert_document": {
       const made = step.artifact
       return made

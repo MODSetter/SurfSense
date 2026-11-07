@@ -3,10 +3,10 @@ import { AgentApprovalsProvider } from "@/features/agent/agent-approvals"
 import { IN_CONTAINER } from "@/app/in-container"
 import {
   CircleAlertIcon,
-  ClipboardCheckIcon,
   LayoutGridIcon,
   PlusIcon,
   PlugIcon,
+  Task01Icon,
   XIcon,
 } from "@/components/ui/icons"
 
@@ -344,7 +344,6 @@ function WorkspaceDashboard({
           defaultMessage: "Plugins",
         }),
         icon: PlugIcon,
-        badge: <FeatureBadge stage="new" />,
         onClick: () => onOpenPlugins(),
       },
       {
@@ -353,7 +352,7 @@ function WorkspaceDashboard({
           id: "dashboard_sidebar_jobs_button",
           defaultMessage: "Jobs",
         }),
-        icon: ClipboardCheckIcon,
+        icon: Task01Icon,
         badge: <FeatureBadge stage="new" />,
         onClick: openJobs,
       },

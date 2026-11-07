@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from modules.agent.tool_endpoint.tool import ToolCallError
+from modules.artifacts.image_edits.editable import EDITABLE_FORMATS
 from modules.artifacts.models import Artifact
 from modules.artifacts.script_documents.spec import DOCUMENT_FORMATS
 from modules.documents.models import Document, DocumentStatus
@@ -21,7 +22,7 @@ def refuse_same_title(
     session: Session, thread_id: int, title: str, format: object
 ) -> None:
     """Refuse a new document whose title and format match one the thread rendered."""
-    if format not in (*DOCUMENT_FORMATS, "html"):
+    if format not in (*DOCUMENT_FORMATS, "html", *EDITABLE_FORMATS):
         return  # the service refuses it, naming the formats
     wanted = _key(title)
     rendered = session.execute(

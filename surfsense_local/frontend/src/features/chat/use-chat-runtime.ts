@@ -48,6 +48,7 @@ import {
 } from "./mentions/mention-text"
 import { isClaudeCodeRefusal } from "./claude-code-refusal"
 import { chatKeys } from "./query-keys"
+import { useRefreshQueuedVersions } from "./use-refresh-queued-versions"
 import type { LivePair } from "./runs/apply-frame"
 import {
   beginRun,
@@ -292,6 +293,7 @@ export function useChatRuntime({
   const activeRun =
     activeThreadId === null ? null : (runs[activeThreadId] ?? null)
   const isRunning = activeRun !== null && !activeRun.ended
+  useRefreshQueuedVersions(workspaceId, activeThreadId, isRunning)
 
   const createThreadMutation = useMutation({
     mutationFn: ({

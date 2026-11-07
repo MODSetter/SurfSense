@@ -39,6 +39,10 @@ describe("a refused Studio job", () => {
       "edited_from",
       "A later version is edited from this one: delete the whole document.",
     ],
+    [
+      "placed_in_document",
+      "A document places this picture: delete that document first.",
+    ],
   ])("has its own line for %s", (code, line) => {
     const refusal = new ApiError(409, "backend prose, never shown", code)
 

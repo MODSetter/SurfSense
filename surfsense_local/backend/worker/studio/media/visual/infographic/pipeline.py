@@ -10,6 +10,7 @@ from modules.llm import prompting
 from modules.llm.profile import Tier
 from modules.llm.resolution import ResolvedGeneration, ResolvedImageGeneration
 from worker.studio.media.visual import EXTENSIONS
+from worker.studio.media.visual.infographic.style import in_infographic_style
 from worker.studio.shared import generate
 from worker.studio.shared.artifact import Built, Source, fallback_title
 from worker.studio.shared.text import as_list, as_text, parse_json, slug
@@ -17,22 +18,6 @@ from worker.studio.shared.text import as_list, as_text, parse_json, slug
 # The frontier prompt leaves the count to the material, so the ceiling is kept
 # here: past this a drawn panel stops being readable.
 SECTIONS = 8
-_TASK = (
-    "Create a polished, complete infographic from the supplied factual source. "
-    "Choose the clearest visual hierarchy and composition. Summarize or omit "
-    "secondary detail when necessary for readability. Keep all important content "
-    "fully visible within the canvas, preserve factual accuracy, and follow the "
-    "selected visual style."
-)
-# ponytail: one style for now. A picker rides on the job's `options` once the
-# panel offers one.
-_STYLE = (
-    "Use a hand-drawn editorial sketchnote style with mostly black ink on a warm "
-    "white background, one restrained accent color, simple icons, arrows, "
-    "connectors, loose organic lines, generous whitespace, short hand-lettered "
-    "headings, and highly legible labels. Avoid photorealism, dense paragraphs, "
-    "decorative illegible handwriting, and watermarks."
-)
 
 
 def render(
@@ -90,8 +75,7 @@ def _image_prompt(brief: Brief) -> str:
     facts = "\n".join(
         f"- {label}: {value}. {detail}" for label, value, detail in sections
     )
-    content = f"{title}\n{summary}\n{facts}"
-    return f"{_TASK}\n\nCONTENT\n{content}\n\nVISUAL STYLE\n{_STYLE}"
+    return in_infographic_style(f"{title}\n{summary}\n{facts}")
 
 
 def _markdown(brief: Brief) -> str:

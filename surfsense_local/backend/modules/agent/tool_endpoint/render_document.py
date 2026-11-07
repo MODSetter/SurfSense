@@ -28,6 +28,7 @@ from modules.agent.tool_endpoint.rendered_label import (
     queued_line,
 )
 from modules.agent.tool_endpoint.same_title_documents import refuse_same_title
+from modules.agent.tool_endpoint.selected_images import refuse_unselected_images
 from modules.agent.tool_endpoint.tool import (
     InlineImage,
     Tool,
@@ -46,7 +47,6 @@ from modules.artifacts.script_documents.service import (
 from modules.artifacts.script_documents.spec import DOCUMENT_FORMATS, FORMAT_NAMES
 from modules.artifacts.script_documents.version import version_of
 from modules.documents.models import DocumentStatus
-from modules.documents.source_figures import parse_figure_name
 from modules.workspaces.models import Workspace
 
 logger = logging.getLogger(__name__)
@@ -112,8 +112,9 @@ LISTING: dict[str, Any] = {
                 "items": {"type": "string"},
                 "description": (
                     "Names of the images the script places: source images from "
-                    "surfsense_list_images, or charts from surfsense_analyze_data; "
-                    "each is at IMAGES_DIR/<name>.png."
+                    "surfsense_list_images, charts from surfsense_analyze_data, or "
+                    "pictures from surfsense_make_image; each is at "
+                    "IMAGES_DIR/<name>.png."
                 ),
             },
             "template_source_id": {
@@ -160,7 +161,7 @@ def render(
     began = time.monotonic()
     deadline = began + CALL_SECONDS
     request = _request(arguments)
-    _refuse_unselected_images(scope, request.images)
+    refuse_unselected_images(scope, request.images)
     _refuse_unselected_template(session, scope, request)
     if request.base_artifact_id is None and scope.known:
         refuse_same_title(session, scope.thread_id, request.title, request.format)
@@ -221,22 +222,6 @@ def _request(arguments: dict[str, Any]) -> _Request:
             "name, or left out."
         )
     return _Request(title, arguments.get("format"), script, base, images, template)
-
-
-def _refuse_unselected_images(scope: TurnScope, images: list[str]) -> None:
-    """An image is its source's content: one from a source the turn may not use is refused."""
-    if not images:
-        return
-    selected = scope.selected()
-    for name in images:
-        parsed = parse_figure_name(name)
-        # A name no source has is the service's to refuse, as before.
-        if parsed is not None and parsed[0] not in selected:
-            raise ToolCallError(
-                f'Image "{name}" comes from source {parsed[0]}, which is not '
-                "selected for this request. Place only images from the selected "
-                "sources, or ask the user to select that one."
-            )
 
 
 def _refuse_unselected_template(
