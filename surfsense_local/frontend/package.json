@@ -66,7 +66,7 @@
     "@eslint/js": "^10",
     "@formatjs/cli": "6.16.32",
     "@formatjs/unplugin": "1.2.12",
-    "@napi-rs/canvas": "0.1.65",
+    "@napi-rs/canvas": "1.1.0",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.7",
     "@types/node": "^24",
