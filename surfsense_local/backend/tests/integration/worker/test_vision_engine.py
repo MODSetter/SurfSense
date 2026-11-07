@@ -104,7 +104,10 @@ def test_an_uploaded_scan_is_read_by_vision_without_docling(
     scan = tmp_path / "scan.png"
     a_page().save(scan)
 
-    markdown = image_markdown(scan)
+    try:
+        markdown = image_markdown(scan)
+    finally:
+        reader.vision_reader.cache_clear()
 
     assert markdown is not None
     assert "harbour board met on Tuesday" in markdown
@@ -153,7 +156,7 @@ def test_a_vision_that_sticks_on_its_first_read_is_never_chosen(
         released.wait()
 
     monkeypatch.setenv("SURFSENSE_LOCAL_SCAN_OCR", "auto")
-    monkeypatch.setattr("worker.ingestion.scan_ocr.vision.READ_SECONDS", 0.2)
+    monkeypatch.setattr("worker.ingestion.scan_ocr.vision.START_SECONDS", 0.2)
     monkeypatch.setattr("worker.ingestion.scan_ocr.vision._recognise", stuck)
     reader.vision_reader.cache_clear()
     try:
@@ -163,3 +166,22 @@ def test_a_vision_that_sticks_on_its_first_read_is_never_chosen(
         reader.vision_reader.cache_clear()
 
     assert chosen is not None and chosen.name == "RapidOCR"
+
+
+@pytest.mark.usefixtures("vision_hangs")
+def test_a_reader_marked_stuck_starts_no_more_reads(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Pages already queued behind the stuck one would each leave another thread behind."""
+    vision = reader.vision_reader()
+    assert vision is not None
+    frame = Frame(1, a_page(), 0.05)
+    with pytest.raises(TimeoutError):
+        list(vision.read([frame]))
+    started = []
+    monkeypatch.setattr("worker.ingestion.scan_ocr.vision._recognise", started.append)
+
+    with pytest.raises(TimeoutError):
+        list(vision.read([frame]))
+
+    assert started == []

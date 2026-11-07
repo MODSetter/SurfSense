@@ -31,6 +31,9 @@ _BLANK_PAGE = (64, 64)
 # Fifty times the 2.4 s a page of the slowest Mac measured, above; a read past it
 # is stuck inside Apple's call, as one was once on macOS 27.
 READ_SECONDS = 120.0
+# The first read of a blank page, 0.35 s where measured: long enough for a slow Mac to
+# load Vision's models, and it holds up only the document that starts the reader.
+START_SECONDS = 60.0
 
 
 class VisionOcr:
@@ -48,7 +51,9 @@ class VisionOcr:
     def create(cls) -> "VisionOcr | None":
         try:
             # A real read: on macOS 27 a request could be made while every page failed.
-            _within_limit(Frame(1, Image.new("L", _BLANK_PAGE, 255), 0.0))
+            _within_limit(
+                Frame(1, Image.new("L", _BLANK_PAGE, 255), 0.0), START_SECONDS
+            )
         except Exception:
             log.info("Vision is not available", exc_info=True)
             return None
@@ -58,14 +63,17 @@ class VisionOcr:
         return self._pages.read(frames)
 
     def _read_within_limit(self, frame: Frame) -> OcrPage:
+        # A page queued behind a stuck one would leave another thread behind.
+        if self.stuck:
+            raise TimeoutError("an earlier Vision read is stuck")
         try:
-            return _within_limit(frame)
+            return _within_limit(frame, READ_SECONDS)
         except TimeoutError:
             self.stuck = True
             raise
 
 
-def _within_limit(frame: Frame) -> OcrPage:
+def _within_limit(frame: Frame, seconds: float) -> OcrPage:
     """On a thread of its own: a stuck native call cannot be killed, and a pool's
     thread would hold its pool open. Left behind, it ends with the process."""
     outcome: Future[OcrPage] = Future()
@@ -77,7 +85,7 @@ def _within_limit(frame: Frame) -> OcrPage:
             outcome.set_exception(error)
 
     threading.Thread(target=read, name="vision-read", daemon=True).start()
-    return outcome.result(timeout=READ_SECONDS)
+    return outcome.result(timeout=seconds)
 
 
 def _recognise(frame: Frame) -> OcrPage:
