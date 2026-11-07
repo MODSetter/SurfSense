@@ -5,6 +5,7 @@ import { SlideRail } from "@/components/ui/slide-rail"
 import { cn } from "@/lib/utils"
 
 import { useColumnWidths } from "./use-column-widths"
+import { useSidebarPeek } from "./use-sidebar-peek"
 
 type Columns = ReturnType<typeof useColumnWidths>
 
@@ -22,11 +23,13 @@ function useColumns(): Columns {
  * an edge renders the edges and the column boxes, never what is inside them.
  */
 export function DashboardColumns({
+  sidebarOpen,
   sidebarWide,
   rightPanelOpen,
   rightPanelWide,
   children,
 }: {
+  sidebarOpen: boolean
   // Showing a source preview.
   sidebarWide: boolean
   rightPanelOpen: boolean
@@ -36,6 +39,7 @@ export function DashboardColumns({
 }) {
   const sectionRef = useRef<HTMLElement>(null)
   const columns = useColumnWidths(sectionRef, {
+    sidebarOpen,
     sidebarWide,
     rightPanelOpen,
     rightPanelWide,
@@ -43,7 +47,7 @@ export function DashboardColumns({
   return (
     <section
       ref={sectionRef}
-      className="my-(--columns-gap) mr-2 flex min-h-0 min-w-0 overflow-hidden rounded-[16px] border bg-background shadow-sm"
+      className="relative my-(--columns-gap) mr-2 flex min-h-0 min-w-0 overflow-hidden rounded-[16px] border bg-background shadow-sm"
     >
       <ColumnsContext.Provider value={columns}>
         {children}
@@ -55,22 +59,51 @@ export function DashboardColumns({
 /** The left column's box, as wide as the sidebar is now. */
 export function SidebarColumn({
   id,
+  peekable = false,
   children,
 }: {
   id: string
+  // Hidden, it floats in at the left edge. The startup frame has nothing to press.
+  peekable?: boolean
   children: ReactNode
 }) {
   const columns = useColumns()
+  const { open, width } = columns.sidebar
+  const panelRef = useRef<HTMLDivElement>(null)
+  const { peeking, edgeProps } = useSidebarPeek(panelRef, !open && peekable)
   return (
     <div
       id={id}
       className={cn(
-        "flex h-full min-h-0 min-w-68 flex-col transition-[width] duration-240 ease-in-out motion-reduce:transition-none",
+        "flex h-full min-h-0 flex-col transition-[width,min-width] duration-240 ease-in-out motion-reduce:transition-none",
+        open ? "min-w-68" : "min-w-0",
         !columns.animate && "transition-none"
       )}
-      style={{ width: columns.sidebar.width }}
+      style={{ width: open ? width : 0 }}
     >
-      {children}
+      {/* One box in every state, so the sidebar inside keeps its scroll and dialogs. */}
+      <div
+        ref={panelRef}
+        inert={(!open && !peeking) || undefined}
+        className={cn(
+          "flex min-h-0 flex-col",
+          open
+            ? "h-full"
+            : // The section's own 16 px corners; dark needs a deeper shadow to show.
+              "absolute inset-y-2 left-2 z-30 overflow-hidden rounded-[16px] border bg-background shadow-lg shadow-black/10 transition-transform duration-200 ease-out motion-reduce:transition-none dark:shadow-black/50 [&_aside]:border-r-0",
+          !open && !peeking && "-translate-x-[calc(100%+1rem)]"
+        )}
+        style={open ? undefined : { width }}
+      >
+        {children}
+      </div>
+      {!open && peekable ? (
+        <>
+          {/* The chat's left edge, and the window's: the far side of the rail. */}
+          <div {...edgeProps} className="absolute inset-y-0 left-0 z-20 w-2" />
+          <div {...edgeProps} className="fixed inset-y-0 left-0 z-20 w-2" />
+        </>
+      ) : null}
     </div>
   )
 }

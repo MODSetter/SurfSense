@@ -175,6 +175,7 @@ export function ThreadPanel({
   onOpenPlugins,
   dictation,
   onOpenSpeechSettings,
+  headerStart,
   headerEnd,
   mentionables,
 }: {
@@ -207,6 +208,7 @@ export function ThreadPanel({
   // Opens Settings › Speech recognition, from the mic's set-up.
   onOpenSpeechSettings?: () => void
   // At the header's end: the right panel's toggle while the panel is hidden.
+  headerStart?: ReactNode
   headerEnd?: ReactNode
   // What the composer's `@` can name.
   mentionables?: Mentionables
@@ -309,6 +311,7 @@ export function ThreadPanel({
         headerProps={reveal}
         header={
           <>
+            {headerStart}
             {thread == null ? null : editing ? (
               <Input
                 ref={titleInputRef}

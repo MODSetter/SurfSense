@@ -82,6 +82,7 @@ import {
   Search01Icon,
   ServerIcon as ServerIconData,
   ServerOffIcon as ServerOffIconData,
+  LayoutAlignLeftIcon as LayoutAlignLeftIconData,
   LayoutAlignRightIcon as LayoutAlignRightIconData,
   Settings02Icon,
   ShuffleIcon as ShuffleIconData,
@@ -225,6 +226,7 @@ export const EmbeddingIcon = createIcon(ChartScatterIconData)
 export const ServerIcon = createIcon(ServerIconData)
 export const ServerOffIcon = createIcon(ServerOffIconData)
 export const DownloadCircle02Icon = createIcon(DownloadCircle02IconData)
+export const LayoutAlignLeftIcon = createIcon(LayoutAlignLeftIconData)
 export const LayoutAlignRightIcon = createIcon(LayoutAlignRightIconData)
 export const Settings2Icon = createIcon(Settings02Icon)
 export const ShuffleIcon = createIcon(ShuffleIconData)

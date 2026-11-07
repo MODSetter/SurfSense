@@ -31,10 +31,12 @@ const LIMITS: Record<ResizableColumn, ColumnLimits> = {
 export function useColumnWidths(
   sectionRef: RefObject<HTMLElement | null>,
   {
+    sidebarOpen,
     sidebarWide,
     rightPanelOpen,
     rightPanelWide,
   }: {
+    sidebarOpen: boolean
     // Showing a source preview.
     sidebarWide: boolean
     rightPanelOpen: boolean
@@ -79,10 +81,11 @@ export function useColumnWidths(
     sidebar: sidebarWide,
     rightPanel: rightPanelWide,
   }
+  const sidebarAsked = askedWidth(widths.sidebar, sidebarWide)
   const rightPanelAsked = askedWidth(widths.rightPanel, rightPanelWide)
   const shown = fitColumns(
     sectionWidth,
-    askedWidth(widths.sidebar, sidebarWide),
+    sidebarOpen ? sidebarAsked : 0,
     rightPanelOpen ? rightPanelAsked : 0
   )
 
@@ -119,7 +122,9 @@ export function useColumnWidths(
     // Off while an edge is dragged, so the column follows the pointer.
     animate: settled && !dragging,
     sidebar: {
-      width: shown.sidebar,
+      open: sidebarOpen,
+      // Closed, the sidebar keeps the width it floats and opens at.
+      width: sidebarOpen ? shown.sidebar : sidebarAsked,
       edge: edge("sidebar", shown.rightPanel),
     },
     rightPanel: {
