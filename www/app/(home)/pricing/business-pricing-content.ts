@@ -43,21 +43,21 @@ export const BUSINESS_PRICING_LEDE: PricingLede = {
 	before: "The app and every update are ",
 	highlight: "free, forever",
 	after:
-		", with no account, no trial clock and no usage cap, and reading web pages, YouTube and web search are free too. A Business licence adds the job plugins, priced per person, and a 14-day trial of the job comes with the app.",
+		", with no account, no trial clock and no usage cap, and reading web pages, YouTube and web search are free too. A Business licence adds the job plugins, priced per person, and a 14-day trial of them comes with the app.",
 };
 
 export const BUSINESS_PLANS: Plan[] = [
 	{
 		name: "Free",
 		price: "$0",
-		note: "Includes a 14-day trial of the job, no card",
+		note: "Includes a 14-day trial of the jobs, no card",
 		summary: "The app and every update, forever. No account, no expiry.",
 		features: [
 			"The full app on Windows, macOS and Linux",
 			"Runs offline; your sources stay on your disk",
 			"Bring your own model keys, or run a local model",
 			"Web pages, YouTube videos and web search as sources",
-			"A 14-day trial of the security questionnaire job, by email",
+			"A 14-day trial of the security questionnaire and contract redline jobs, by email",
 			"Open source, so you can build it yourself",
 		],
 		action: [{ label: "Download", href: DOWNLOADS_URL }],
@@ -70,7 +70,7 @@ export const BUSINESS_PLANS: Plan[] = [
 		summary: "SurfSense's job plugins for your firm, at a founding price per person.",
 		features: [
 			"Everything in Free",
-			"The job plugins, starting with the security questionnaire",
+			"The job plugins: the security questionnaire and the contract redline",
 			`Counted in people, not devices: 5 people are ${priceFor(5)} a year`,
 			"Renews every year on the same licence until you cancel",
 			"Cancel or change the number of people from an emailed link",
@@ -106,10 +106,13 @@ const FAQ_IS_IT_FREE: PricingQuestion = {
 		"Yes. The app and all of its updates are free forever, with no account, no trial clock and no usage cap, and reading web pages, YouTube videos and web search come with it. You download it, install it, and use it. A Business licence is needed only to use SurfSense's job plugins for work; everything the app itself does stays free.",
 };
 
+/** Each job plugin in a sentence, so `/pricing` and `/pricing/business` describe them alike. */
+export const WHAT_EACH_JOB_DOES =
+	"The security questionnaire answers a customer's security questionnaire in their own spreadsheet from your firm's policies, gives the source of each answer, and lists what needs a person's review. The contract redline reviews a Word (.docx) contract against your firm's own playbook and returns a revised copy with tracked changes and comments.";
+
 export const FAQ_WHAT_BUSINESS_ADDS: PricingQuestion = {
 	question: "What does a Business licence add?",
-	answer:
-		"SurfSense's job plugins, which turn your firm's own files into a finished piece of client work, in the app on your own computer and with the model you choose. The first is the security questionnaire: it answers a customer's security questionnaire in their own spreadsheet from your firm's policies, gives the source of each answer, and lists what needs a person's review. Further jobs join Business as they ship. Business also includes priority support and one feature build request a year. The licence does not lock any of the app's own features, and third-party plugins and MCP servers you add yourself need no licence.",
+	answer: `SurfSense's job plugins, which turn your firm's own files into a finished piece of client work, in the app on your own computer and with the model you choose. ${WHAT_EACH_JOB_DOES} Further jobs join Business as they ship. Business also includes priority support and one feature build request a year. The licence does not lock any of the app's own features, and third-party plugins and MCP servers you add yourself need no licence.`,
 };
 
 export const FAQ_WHO_NEEDS_BUSINESS: PricingQuestion = {
@@ -126,7 +129,7 @@ const FAQ_BUSINESS_PRICE: PricingQuestion = {
 export const FAQ_BUSINESS_TRIAL: PricingQuestion = {
 	question: "Is there a free trial?",
 	answer:
-		"Yes, one. A 14-day trial of the full job comes with the free app and needs only an email address, with no card and no account. You enter your email on the download page, receive a licence file, import it in Settings › License, and the job plugins are unlocked for 14 days. Each email address gets one trial.",
+		"Yes, one. A 14-day trial of the full security questionnaire and contract redline jobs comes with the free app and needs only an email address, with no card and no account. You enter your email on the download page, receive a licence file, import it in Settings › License, and the job plugins are unlocked for 14 days. Each email address gets one trial.",
 };
 
 export const FAQ_BUSINESS_RENEWAL: PricingQuestion = {
@@ -201,7 +204,7 @@ export const BUSINESS_PRICING_SCHEMA = {
 			price: 0,
 			priceCurrency: "USD",
 			description:
-				"The full app and every update on Windows, macOS and Linux, forever, with web pages, YouTube and web search as sources and a 14-day trial of the job. No account, runs offline, bring your own model keys.",
+				"The full app and every update on Windows, macOS and Linux, forever, with web pages, YouTube and web search as sources and a 14-day trial of the security questionnaire and contract redline jobs. No account, runs offline, bring your own model keys.",
 		},
 		{
 			"@type": "Offer",
@@ -209,7 +212,7 @@ export const BUSINESS_PRICING_SCHEMA = {
 			price: FIRST_PERSON_PRICE,
 			priceCurrency: "USD",
 			url: `https://www.surfsense.com${BUSINESS_CHECKOUT_URL}`,
-			description: `The job plugins, starting with the security questionnaire, for the first person for a year; each further person is ${FURTHER} a year. Renews yearly until cancelled, at a founding price that can change only at renewal, after at least 30 days' notice by email.`,
+			description: `The security questionnaire and contract redline job plugins for the first person for a year; each further person is ${FURTHER} a year. Renews yearly until cancelled, at a founding price that can change only at renewal, after at least 30 days' notice by email.`,
 		},
 	],
 };

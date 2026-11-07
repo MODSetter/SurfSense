@@ -34,7 +34,7 @@ ACTIVATION_GUIDE_URL = "https://www.surfsense.com/license/activate"
 # It names the app's labels as they read: Allow, Sources, Jobs, Run, Security questionnaire.
 _FIRST_JOB_STEP = (
     "5. Run your first job. When SurfSense asks to reach its license server, choose Allow, "
-    "and it downloads the job.\n"
+    "and it downloads your jobs.\n"
     "   Then upload a questionnaire (.xlsx) and your policies to Sources, click Jobs in the "
     "left sidebar, and press Run beside Security questionnaire.\n"
 )
@@ -149,7 +149,8 @@ _BUSINESS_INTROS: dict[LicenseEmailKind, str] = {
     ),
     "trial": (
         "Your {days}-day SurfSense Business trial license is attached. It "
-        "unlocks the job plugins, starting with the security questionnaire.\n\n"
+        "unlocks the job plugins: the security questionnaire and the contract "
+        "redline.\n\n"
         "When it expires, SurfSense keeps working and everything you made stays "
         "readable; only new job runs stop."
     ),
@@ -168,10 +169,10 @@ _BUSINESS_INTROS: dict[LicenseEmailKind, str] = {
         "The attached file replaces the old one: import it in Settings -> "
         "License on each computer you use SurfSense on, or choose Check for "
         "renewal on the Jobs screen, which fetches it.\n\n"
-        "Business unlocks SurfSense's job plugins, starting with the security "
-        "questionnaire. The scraper plugins your Individual license included "
-        "have retired; reading web pages, YouTube and web search are now built "
-        "into SurfSense, free.\n\n"
+        "Business unlocks SurfSense's job plugins: the security questionnaire "
+        "and the contract redline. The scraper plugins your Individual license "
+        "included have retired; reading web pages, YouTube and web search are "
+        "now built into SurfSense, free.\n\n"
         "{term}"
     ),
 }

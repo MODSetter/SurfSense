@@ -14,6 +14,7 @@ import httpx2
 import pytest
 
 from license import keygen
+from license.jobs import JOBS
 from license.scripts.setup_business_policies import SetupError, setup
 from license.settings import config
 
@@ -150,17 +151,20 @@ def business_policies(account: FakeAccount) -> dict[str, dict]:
     }
 
 
-async def test_a_first_run_creates_both_policies_and_the_job_on_each(
+async def test_a_first_run_creates_both_policies_and_every_job_on_each(
     account: FakeAccount,
 ) -> None:
     lines = await setup()
 
     ours = business_policies(account)
     assert set(ours) == {"business", "business-trial"}
-    (job,) = account.entitlements.values()
-    assert job["attributes"]["code"] == "JOB_QUESTIONNAIRE"
+    created = {
+        entitlement["attributes"]["code"]: entitlement["attributes"]["name"]
+        for entitlement in account.entitlements.values()
+    }
+    assert created == JOBS
     for policy in ours.values():
-        assert account.attached[policy["id"]] == {next(iter(account.entitlements))}
+        assert account.attached[policy["id"]] == set(account.entitlements)
     assert lines == [
         f"KEYGEN_POLICY_BUSINESS={ours['business']['id']}",
         f"KEYGEN_POLICY_BUSINESS_TRIAL={ours['business-trial']['id']}",
@@ -201,17 +205,16 @@ async def test_a_second_run_creates_nothing(account: FakeAccount) -> None:
 async def test_a_new_job_is_created_and_attached_on_a_rerun(
     account: FakeAccount, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from license import jobs
-
     await setup()
-    monkeypatch.setitem(jobs.JOBS, "JOB_RFP", "RFP responses")
+    sold = set(JOBS)
+    monkeypatch.setitem(JOBS, "JOB_RFP", "RFP responses")
 
     await setup()
 
     codes = {e["attributes"]["code"] for e in account.entitlements.values()}
-    assert codes == {"JOB_QUESTIONNAIRE", "JOB_RFP"}
+    assert codes == sold | {"JOB_RFP"}
     for policy in business_policies(account).values():
-        assert len(account.attached[policy["id"]]) == 2
+        assert len(account.attached[policy["id"]]) == len(sold) + 1
 
 
 async def test_the_live_policies_are_only_read(account: FakeAccount) -> None:

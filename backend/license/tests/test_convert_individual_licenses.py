@@ -749,7 +749,7 @@ async def test_apply_makes_the_license_business_solo_and_mails_one_notice(
         "stripeCustomerId": "cus_lic-solo",
         "trialKey": "solo@example.com",
         "note": "kept by support",
-        "jobs": "JOB_QUESTIONNAIRE",
+        "jobs": jobs.jobs_metadata(),
         # Found through its checkout, and written, as every Business license carries it.
         "stripeSubscriptionId": "sub_lic-solo",
         "convertedFrom": "individual",
@@ -1590,7 +1590,7 @@ async def test_a_refund_of_its_first_year_suspends_a_converted_license(
     assert held(env)["attributes"]["status"] == "SUSPENDED"
 
 
-async def test_a_converted_license_gets_its_job_and_resends_as_business(
+async def test_a_converted_license_gets_every_job_and_resends_as_business(
     env: Billing,
 ) -> None:
     individual_buyer(env)
@@ -1599,7 +1599,7 @@ async def test_a_converted_license_gets_its_job_and_resends_as_business(
     verdict = await license_verdict("KEY-lic-solo")
     (resent,) = await licenses_for_email("solo@example.com")
 
-    assert verdict == LicenseVerdict("VALID", ("JOB_QUESTIONNAIRE",))
+    assert verdict == LicenseVerdict("VALID", tuple(jobs.JOBS))
     assert BusinessCopy.of(resent) == BusinessCopy(people=1, paid=True)
 
 

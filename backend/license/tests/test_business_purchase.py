@@ -10,6 +10,7 @@ import pytest
 from fastapi import FastAPI
 
 from license import router as license_router
+from license.jobs import jobs_metadata
 from license.tests.billing_harness import (
     BUSINESS_PRICE,
     PORTAL,
@@ -99,7 +100,7 @@ async def test_a_business_checkout_creates_one_license_with_the_people_and_the_j
         "plan": "business",
         "email": "partner@acme.example",
         "firm": "Acme Accounting LLP",
-        "jobs": "JOB_QUESTIONNAIRE",
+        "jobs": jobs_metadata(),
         "stripeSubscriptionId": "sub_firm",
         "checkoutSessionId": "cs_business",
         "stripeCustomerId": "cus_firm",
