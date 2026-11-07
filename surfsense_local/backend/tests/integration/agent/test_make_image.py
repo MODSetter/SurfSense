@@ -4,6 +4,7 @@ import asyncio
 import base64
 import io
 import threading
+import zipfile
 from collections.abc import Iterator
 from datetime import UTC, datetime
 
@@ -366,6 +367,162 @@ async def test_the_studio_tool_sends_a_picture_to_the_image_tool(
     )
     assert is_error is True
     assert "surfsense_make_image" in text
+
+
+# Fails unless what it is handed is really a PNG, as IMAGES_DIR promises.
+WORD_WITH_PICTURE = """\
+import os
+from docx import Document
+from PIL import Image
+
+path = os.path.join(os.environ["IMAGES_DIR"], "{name}.png")
+assert Image.open(path).format == "PNG"
+document = Document()
+document.add_paragraph("With a picture.")
+document.add_picture(path)
+document.save(os.environ["OUTPUT_PATH"])
+"""
+
+
+def _placing(name: str) -> dict[str, object]:
+    return {
+        "title": "Report",
+        "format": "docx",
+        "script": WORD_WITH_PICTURE.format(name=name),
+        "images": [name],
+    }
+
+
+def _pictures_in_word(engine: Engine, artifact_id: int) -> list[bytes]:
+    with zipfile.ZipFile(io.BytesIO(_stored(engine, artifact_id))) as word:
+        return [
+            word.read(name)
+            for name in word.namelist()
+            if name.startswith("word/media/")
+        ]
+
+
+async def test_a_document_places_a_picture_by_its_name(
+    tools: ToolEndpoint, studio_worker: None, painter: Painter, engine: Engine
+) -> None:
+    """Named as the tool gave it, the picture lands in the Word file byte for byte."""
+    workspace_id = await tools.workspace()
+    drawn, _ = await tools.call(
+        workspace_id, "make_image", {"prompt": "A boat", "title": "Boat"}
+    )
+
+    text, is_error = await tools.call(
+        workspace_id, "render_document", _placing(f"image-{_artifact_id(drawn)}")
+    )
+
+    assert is_error is False, text
+    assert _pictures_in_word(engine, _artifact_id(text)) == [_png()]
+
+
+async def test_a_picture_the_model_gave_as_jpeg_is_placed_as_a_png(
+    tools: ToolEndpoint, studio_worker: None, painter: Painter, engine: Engine
+) -> None:
+    """Remote models answer in other formats; a script is promised `<name>.png`."""
+    out = io.BytesIO()
+    Image.new("RGB", (64, 48), "teal").save(out, "JPEG")
+    painter.gives = GeneratedImage(out.getvalue(), "image/jpeg")
+    workspace_id = await tools.workspace()
+    drawn, _ = await tools.call(
+        workspace_id, "make_image", {"prompt": "A boat", "title": "Boat"}
+    )
+
+    text, is_error = await tools.call(
+        workspace_id, "render_document", _placing(f"image-{_artifact_id(drawn)}")
+    )
+
+    assert is_error is False, text
+    (placed,) = _pictures_in_word(engine, _artifact_id(text))
+    assert Image.open(io.BytesIO(placed)).format == "PNG"
+
+
+async def test_a_copy_the_agent_overwrote_is_not_what_gets_placed(
+    tools: ToolEndpoint, studio_worker: None, painter: Painter, engine: Engine
+) -> None:
+    """Its outputs folder is the agent's to write; the kept picture is the truth."""
+    workspace_id = await tools.workspace()
+    drawn, _ = await tools.call(
+        workspace_id, "make_image", {"prompt": "A boat", "title": "Boat"}
+    )
+    name = f"image-{_artifact_id(drawn)}"
+    await tools.call(workspace_id, "render_document", _placing(name))
+    copy = tools.folder(workspace_id) / "outputs" / "images" / f"{name}.png"
+    assert copy.read_bytes() == _png()
+    copy.write_bytes(_png("red"))
+
+    text, is_error = await tools.call(
+        workspace_id, "render_document", {**_placing(name), "title": "Second"}
+    )
+
+    assert is_error is False, text
+    assert _pictures_in_word(engine, _artifact_id(text)) == [_png()]
+
+
+async def test_a_picture_still_being_drawn_is_refused_saying_so(
+    tools: ToolEndpoint,
+    studio_worker: None,
+    painter: Painter,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The agent tells the user, rather than reading it as a wrong name."""
+    monkeypatch.setattr("modules.agent.tool_endpoint.make_image.WAIT_SECONDS", 0.2)
+    painter.hold = threading.Event()
+    workspace_id = await tools.workspace()
+    queued, _ = await tools.call(
+        workspace_id, "make_image", {"prompt": "A boat", "title": "Boat"}
+    )
+
+    text, is_error = await tools.call(
+        workspace_id, "render_document", _placing(f"image-{_artifact_id(queued)}")
+    )
+
+    assert is_error is True
+    assert "still being drawn" in text
+
+
+async def test_another_chats_picture_cannot_be_placed(
+    tools: ToolEndpoint, studio_worker: None, painter: Painter
+) -> None:
+    """As a chart's name is, a picture's is its own chat's."""
+    workspace_id = await tools.workspace()
+    drawn, _ = await tools.call(
+        workspace_id, "make_image", {"prompt": "A boat", "title": "Boat"}
+    )
+
+    text, is_error = await tools.call(
+        workspace_id,
+        "render_document",
+        _placing(f"image-{_artifact_id(drawn)}"),
+        thread=tools.thread(workspace_id),
+    )
+
+    assert is_error is True
+    assert "This chat has no picture named" in text
+
+
+async def test_a_format_a_document_cannot_place_says_so_and_gives_no_name(
+    tools: ToolEndpoint, studio_worker: None, painter: Painter
+) -> None:
+    """A remote model may answer in SVG, which a script is not promised."""
+    painter.gives = GeneratedImage(b"<svg/>", "image/svg+xml")
+    workspace_id = await tools.workspace()
+
+    drawn, is_error = await tools.call(
+        workspace_id, "make_image", {"prompt": "A boat", "title": "Boat"}
+    )
+    placed, placed_error = await tools.call(
+        workspace_id, "render_document", _placing(f"image-{_artifact_id(drawn)}")
+    )
+
+    assert is_error is False, drawn
+    assert "documents cannot place" in drawn
+    assert "Its name is" not in drawn
+    assert placed_error is True
+    assert "This chat has no picture named" in placed
 
 
 async def test_a_picture_being_drawn_asks_for_the_local_image_server(

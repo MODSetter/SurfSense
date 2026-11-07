@@ -5,6 +5,10 @@ import logging
 from sqlalchemy.orm import Session
 
 from modules.agent.data_analysis.chart_names import is_chart_name
+from modules.artifacts.drawn_images.names import (
+    ImageStillDrawingError,
+    is_image_name,
+)
 from modules.artifacts.models import Artifact
 from modules.artifacts.queued_job import queue_job
 from modules.artifacts.script_documents.script_images import script_image_file
@@ -151,6 +155,11 @@ def _image_sources(
     for name in names:
         try:
             script_image_file(session, workspace_id, chat_thread_id, name)
+        except ImageStillDrawingError as error:
+            raise ScriptDocumentRefusedError(
+                f'The picture "{name}" is still being drawn. Tell the user it will be '
+                "placed once it appears in Studio, and stop."
+            ) from error
         except LookupError as error:
             raise ScriptDocumentRefusedError(_no_image(name)) from error
     figures = [parse_figure_name(name) for name in names if not is_chart_name(name)]
@@ -163,6 +172,11 @@ def _no_image(name: str) -> str:
         return (
             f'This chat has no analysis chart named "{name}": use a name '
             "surfsense_analyze_data gave in this chat."
+        )
+    if is_image_name(name):
+        return (
+            f'This chat has no picture named "{name}" to place: use a name '
+            "surfsense_make_image gave in this chat."
         )
     return f'No source in this workspace has an image named "{name}".'
 
