@@ -115,3 +115,4 @@ The Date is the day the decision was first written down. Source links are permal
 | 0084 | [ElevenLabs is a connection with its own client](0084-elevenlabs-is-a-connection-with-its-own-client.md) | Accepted |
 | 0085 | [A user can move models or all data to another drive, and Electron's settings stay behind](0085-the-data-folder-moves-and-electrons-settings-stay.md) | Accepted |
 | 0086 | [The contract redline ships with the Business switch, as an app runner on SurfSense's own Word engine](0086-the-contract-redline-ships-with-the-business-switch-on-the-word-engine.md) | Accepted |
+| 0087 | [The agent makes pictures with its own SurfSense tool, not opencode's](0087-the-agent-makes-pictures-with-its-own-surfsense-tool.md) | Accepted |
