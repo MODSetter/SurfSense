@@ -215,6 +215,23 @@ describe("agent steps", () => {
     expect(screen.getByText("Asked to change a picture")).toBeTruthy()
   })
 
+  it("calls a picture with no title and no artifact a picture, not an edit", () => {
+    render(
+      <AgentSteps
+        steps={[
+          rendered({
+            tool: "surfsense_make_image",
+            status: "running",
+            input: { prompt: "A boat" },
+            artifact: undefined,
+          }),
+        ]}
+      />
+    )
+
+    expect(screen.getByText("Asked for a picture")).toBeTruthy()
+  })
+
   it("names reading a document’s script and listing source images", () => {
     render(
       <AgentSteps

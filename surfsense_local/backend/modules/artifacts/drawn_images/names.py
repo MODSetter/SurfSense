@@ -5,6 +5,7 @@ An artifact is one version, so a name keeps meaning the same picture as edits ar
 
 import re
 import uuid
+from dataclasses import dataclass
 from pathlib import Path
 
 from sqlalchemy.orm import Session
@@ -32,15 +33,19 @@ def is_image_name(name: str) -> bool:
     return _NAME.fullmatch(name) is not None
 
 
-def image_file(
-    session: Session, workspace_id: int, thread_id: int, thread_folder: Path, name: str
-) -> Path:
-    """The picture as a PNG in its chat's outputs, for the agent to open too.
+@dataclass(frozen=True)
+class KeptPicture:
+    """A picture found in its chat, with no file touched yet."""
 
-    Written afresh from the kept file on every call: the agent can write to its
-    outputs, and what a document places must be what the user's model drew.
-    LookupError when this chat has no picture by that name to place.
-    """
+    name: str
+    path: Path
+    mime_type: str
+
+
+def kept_picture(
+    session: Session, workspace_id: int, thread_id: int, name: str
+) -> KeptPicture:
+    """LookupError when this chat has no picture by that name to place."""
     match = _NAME.fullmatch(name)
     if match is None:
         raise LookupError(f"{name!r} is not a picture's name")
@@ -58,12 +63,26 @@ def image_file(
     ):
         raise LookupError(f"no picture {name} to place in this chat")
     primary = next(f for f in artifact.files if f.role is ArtifactFileRole.PRIMARY)
-    kept = get_storage_settings().data_dir / primary.storage_key
+    return KeptPicture(
+        name,
+        get_storage_settings().data_dir / primary.storage_key,
+        primary.mime_type,
+    )
+
+
+def picture_png(picture: KeptPicture, thread_folder: Path) -> Path:
+    """The picture as a PNG in its chat's outputs, for the agent to open too.
+
+    Written afresh on every call: the agent can write to its outputs, and what a
+    document places must be what the user's model drew. Runs outside a
+    transaction, since each one holds SQLite's one write lock. LookupError when
+    the kept file cannot be read.
+    """
     try:
-        png = as_png(kept.read_bytes(), primary.mime_type)
+        png = as_png(picture.path.read_bytes(), picture.mime_type)
     except (OSError, ValueError) as error:
-        raise LookupError(f"picture {name} cannot be read: {error}") from error
-    copy = _copy_path(thread_folder, name)
+        raise LookupError(f"picture {picture.name} cannot be read: {error}") from error
+    copy = _copy_path(thread_folder, picture.name)
     copy.parent.mkdir(parents=True, exist_ok=True)
     # Replaced whole: the API and the worker both write it, and a link on the path goes.
     written = copy.with_name(f"{copy.name}.{uuid.uuid4().hex[:8]}.tmp")

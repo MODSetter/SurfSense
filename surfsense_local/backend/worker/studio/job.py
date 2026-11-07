@@ -268,10 +268,12 @@ def _run_script(
     # The script may run for two minutes; the write lock must not be held across it.
     session.commit()
     raise_if_cancelled(session, document)
+    # Past the commit: a picture may be converted, with no write lock to hold up others.
+    files = script_document.image_files(images)
 
     # A cancel kills the script and everything it started.
     with cancellation.watching(lambda: _check_cancelled(session, document)):
-        return script_document.render(title, script, images, template)
+        return script_document.render(title, script, files, template)
 
 
 def _convert(

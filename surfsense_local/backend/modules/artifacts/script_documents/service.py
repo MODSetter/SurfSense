@@ -11,7 +11,7 @@ from modules.artifacts.drawn_images.names import (
 )
 from modules.artifacts.models import Artifact
 from modules.artifacts.queued_job import queue_job
-from modules.artifacts.script_documents.script_images import script_image_file
+from modules.artifacts.script_documents.script_images import script_image
 from modules.artifacts.script_documents.spec import (
     DOCUMENT_FORMATS,
     FORMAT_NAMES,
@@ -154,7 +154,7 @@ def _image_sources(
     the chat's analyses, has. A chart is the chat's own output, made from no one source."""
     for name in names:
         try:
-            script_image_file(session, workspace_id, chat_thread_id, name)
+            script_image(session, workspace_id, chat_thread_id, name)
         except ImageStillDrawingError as error:
             raise ScriptDocumentRefusedError(
                 f'The picture "{name}" is still being drawn. Tell the user it will be '
@@ -163,7 +163,7 @@ def _image_sources(
         except LookupError as error:
             raise ScriptDocumentRefusedError(_no_image(name)) from error
     figures = [parse_figure_name(name) for name in names if not is_chart_name(name)]
-    # script_image_file accepted each name, so each figure's parses.
+    # script_image accepted each name, so each figure's parses.
     return list(dict.fromkeys(parsed[0] for parsed in figures if parsed is not None))
 
 

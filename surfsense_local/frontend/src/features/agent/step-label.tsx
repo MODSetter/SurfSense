@@ -204,17 +204,24 @@ export function stepLabel(
       }
       // Running, still being drawn, refused or failed: what it was asked for.
       const title = text(input.title)
-      return title
-        ? intl.formatMessage(
-            {
-              id: "agent_steps_make_image_label",
-              defaultMessage: "Asked for the picture <doc>{title}</doc>",
-            },
-            { title, doc: documentTitle }
-          )
-        : intl.formatMessage({
+      if (title) {
+        return intl.formatMessage(
+          {
+            id: "agent_steps_make_image_label",
+            defaultMessage: "Asked for the picture <doc>{title}</doc>",
+          },
+          { title, doc: documentTitle }
+        )
+      }
+      // While its input streams, a new picture has neither yet.
+      return input.artifact_id
+        ? intl.formatMessage({
             id: "agent_steps_make_image_edit_label",
             defaultMessage: "Asked to change a picture",
+          })
+        : intl.formatMessage({
+            id: "agent_steps_make_image_unnamed_label",
+            defaultMessage: "Asked for a picture",
           })
     }
     case "surfsense_convert_document": {

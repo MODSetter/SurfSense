@@ -114,7 +114,7 @@ def save(
     deadline = time.monotonic() + CALL_SECONDS
     request = _request(arguments)
     file = _working_file(scope.folder, request.path)
-    page = _with_images(session, scope, _page(file))
+    page = with_placed_images(session, scope, _page(file), PAGE_BYTES)
     notes = _blocked(page)
     if request.base_artifact_id is None and scope.known:
         refuse_same_title(session, scope.thread_id, request.title, "html")
@@ -203,15 +203,6 @@ def _page(file: Path) -> str:
         return checked_page(file.read_bytes(), PAGE_BYTES)
     except PageCheckError as refused:
         raise ToolCallError(str(refused)) from refused
-
-
-def _with_images(session: Session, scope: TurnScope, page: str) -> str:
-    """The page as it will be kept, its images inline; the limit is on that."""
-    placed = with_placed_images(session, scope, page)
-    size = len(placed.encode("utf-8"))
-    if size > PAGE_BYTES:
-        raise ToolCallError(str(too_large(size, PAGE_BYTES)))
-    return placed
 
 
 def _blocked(page: str) -> list[str]:

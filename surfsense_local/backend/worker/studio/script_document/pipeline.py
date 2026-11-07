@@ -11,7 +11,10 @@ from sqlalchemy.orm import Session
 
 from modules.agent.data_analysis.chart_names import is_chart_name
 from modules.artifacts.drawn_images.names import is_image_name
-from modules.artifacts.script_documents.script_images import script_image_file
+from modules.artifacts.script_documents.script_images import (
+    ScriptImage,
+    script_image,
+)
 from modules.artifacts.script_documents.spec import DocumentScript
 from modules.artifacts.script_documents.template_source import (
     TemplateRefusedError,
@@ -71,22 +74,35 @@ class ScriptRunFailedError(RuntimeError):
 
 def images_for(
     session: Session, workspace_id: int, thread_id: int | None, script: DocumentScript
-) -> dict[str, Path]:
-    """The PNG of every image the script names, a source's figure or its chat's
-    analysis chart or picture, to copy beside it."""
-    images: dict[str, Path] = {}
+) -> dict[str, ScriptImage]:
+    """Every image the script names, a source's figure or its chat's analysis chart
+    or picture, found but not yet copied or converted."""
+    images: dict[str, ScriptImage] = {}
     for name in script.images:
         try:
-            images[name] = script_image_file(session, workspace_id, thread_id, name)
+            images[name] = script_image(session, workspace_id, thread_id, name)
         except LookupError as error:
-            if is_chart_name(name):
-                gone = f'the analysis chart "{name}" is no longer in its chat'
-            elif is_image_name(name):
-                gone = f'the picture "{name}" is no longer in its chat'
-            else:
-                gone = f'the source image "{name}" is no longer in this workspace'
-            raise ScriptRunFailedError(gone) from error
+            raise ScriptRunFailedError(_gone(name)) from error
     return images
+
+
+def image_files(images: dict[str, ScriptImage]) -> dict[str, Path]:
+    """The PNG of each image, to copy beside the script; outside any transaction."""
+    files: dict[str, Path] = {}
+    for name, image in images.items():
+        try:
+            files[name] = image()
+        except LookupError as error:
+            raise ScriptRunFailedError(_gone(name)) from error
+    return files
+
+
+def _gone(name: str) -> str:
+    if is_chart_name(name):
+        return f'the analysis chart "{name}" is no longer in its chat'
+    if is_image_name(name):
+        return f'the picture "{name}" is no longer in its chat, or cannot be read'
+    return f'the source image "{name}" is no longer in this workspace'
 
 
 def template_for(

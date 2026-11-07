@@ -4,14 +4,18 @@ import asyncio
 import base64
 import io
 import threading
+import time
 import zipfile
 from collections.abc import Iterator
 from datetime import UTC, datetime
 
 import pytest
 from PIL import Image
-from sqlalchemy import Engine
+from sqlalchemy import Engine, update
+from sqlalchemy.exc import OperationalError
 
+from modules.agent.tool_endpoint import make_image
+from modules.artifacts.drawn_images import names
 from modules.artifacts.local_image_demand import local_image_demand
 from modules.artifacts.models import Artifact, ArtifactFileRole
 from modules.llm.model_type import ModelType
@@ -24,6 +28,7 @@ from modules.llm.resolution import (
     ResolvedImageGeneration,
 )
 from modules.source_scope.schemas import SourceScope
+from modules.workspaces.models import Workspace
 from shared.config import get_storage_settings
 from shared.db import create_session_factory
 from tests.integration.agent.conftest import declare_image_input
@@ -56,10 +61,10 @@ class Painter:
 
     async def generate(self, _model: str, prompt: str) -> GeneratedImage:
         self.prompts.append(prompt)
-        if self.fail_with is not None:
-            raise self.fail_with
         if self.hold is not None:
             await asyncio.to_thread(self.hold.wait)
+        if self.fail_with is not None:
+            raise self.fail_with
         return self.gives
 
     async def edit(
@@ -752,3 +757,231 @@ async def test_a_picture_being_drawn_asks_for_the_local_image_server(
 
     with create_session_factory(engine)() as session:
         assert local_image_demand(session, datetime.now(UTC)) is ModelType.IMAGE_GEN
+
+
+async def test_two_calls_at_once_with_one_title_draw_one_picture(
+    tools: ToolEndpoint,
+    studio_worker: None,
+    painter: Painter,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """opencode runs a step's calls together; the second would bill a second picture."""
+    checked = make_image.refuse_same_title
+
+    def slowly(*args: object) -> None:
+        checked(*args)
+        time.sleep(0.3)  # both calls past the check, were they not held apart
+
+    monkeypatch.setattr(make_image, "refuse_same_title", slowly)
+    workspace_id = await tools.workspace()
+    tools.default_thread(workspace_id)
+    call = {"prompt": "A boat", "title": "Boat"}
+
+    results = await asyncio.gather(
+        tools.call(workspace_id, "make_image", call),
+        tools.call(workspace_id, "make_image", call),
+    )
+
+    assert sorted(is_error for _, is_error in results) == [False, True]
+    assert painter.prompts == ["A boat"]
+
+
+async def test_pictures_that_failed_after_their_call_answered_count_toward_the_stop(
+    tools: ToolEndpoint,
+    studio_worker: None,
+    painter: Painter,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A queued picture fails with no call waiting on it, and each try may be billed."""
+    monkeypatch.setattr("modules.agent.tool_endpoint.make_image.WAIT_SECONDS", 0.1)
+    painter.hold = threading.Event()
+    painter.fail_with = NonRetryableImageError("HTTP 500")
+    workspace_id = await tools.workspace()
+    for title in ("One", "Two", "Three"):
+        text, is_error = await tools.call(
+            workspace_id, "make_image", {"prompt": title, "title": title}
+        )
+        assert is_error is False, text
+    painter.hold.set()
+    for _ in range(100):
+        listed = await tools.client.get(f"/workspaces/{workspace_id}/artifacts")
+        if all(item["status"] == "failed" for item in listed.json()):
+            break
+        await asyncio.sleep(0.05)
+
+    text, is_error = await tools.call(
+        workspace_id, "make_image", {"prompt": "Four", "title": "Four"}
+    )
+
+    assert is_error is True
+    assert "3 pictures failed" in text
+    assert "Four" not in painter.prompts
+
+
+async def test_a_page_repeating_a_picture_past_the_limit_is_refused(
+    tools: ToolEndpoint, studio_worker: None, painter: Painter
+) -> None:
+    """A small file can name one picture thousands of times; each is a whole data URL."""
+    workspace_id = await tools.workspace()
+    drawn, _ = await tools.call(
+        workspace_id, "make_image", {"prompt": "A boat", "title": "Boat"}
+    )
+    tag = f'<img src="surfsense-image:image-{_artifact_id(drawn)}">'
+    page = f"<!doctype html><html><body>{tag * 20_000}</body></html>"
+    path = _page_file(tools, workspace_id, page)
+
+    text, is_error = await tools.call(
+        workspace_id, "save_page", {"path": path, "title": "Boats"}
+    )
+
+    assert is_error is True
+    assert "larger than" in text
+
+
+async def test_a_picture_too_large_to_open_is_not_placed_even_as_a_png(
+    tools: ToolEndpoint,
+    studio_worker: None,
+    painter: Painter,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A document script would decode it, into hundreds of megabytes."""
+    monkeypatch.setattr("modules.artifacts.drawn_images.as_png.MOST_PIXELS", 100)
+    workspace_id = await tools.workspace()
+    drawn, _ = await tools.call(
+        workspace_id, "make_image", {"prompt": "A boat", "title": "Boat"}
+    )
+
+    text, is_error = await tools.call(
+        workspace_id, "render_document", _placing(f"image-{_artifact_id(drawn)}")
+    )
+
+    assert is_error is True
+    assert "cannot be read" in text
+
+
+async def test_a_cmyk_picture_is_placed(
+    tools: ToolEndpoint, studio_worker: None, painter: Painter, engine: Engine
+) -> None:
+    """A print-minded model may answer in CMYK, which a PNG cannot hold."""
+    out = io.BytesIO()
+    Image.new("CMYK", (64, 48), (10, 20, 30, 0)).save(out, "JPEG")
+    painter.gives = GeneratedImage(out.getvalue(), "image/jpeg")
+    workspace_id = await tools.workspace()
+    drawn, _ = await tools.call(
+        workspace_id, "make_image", {"prompt": "A boat", "title": "Boat"}
+    )
+
+    text, is_error = await tools.call(
+        workspace_id, "render_document", _placing(f"image-{_artifact_id(drawn)}")
+    )
+
+    assert is_error is False, text
+    (placed,) = _pictures_in_word(engine, _artifact_id(text))
+    assert Image.open(io.BytesIO(placed)).mode == "RGB"
+
+
+async def test_rendering_does_no_file_work_inside_its_transaction(
+    tools: ToolEndpoint,
+    studio_worker: None,
+    painter: Painter,
+    engine: Engine,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Every transaction holds SQLite's one write lock, and other jobs wait on it."""
+    workspace_id = await tools.workspace()
+    drawn, _ = await tools.call(
+        workspace_id, "make_image", {"prompt": "A boat", "title": "Boat"}
+    )
+    converted = names.as_png
+    seen: list[bool] = []
+
+    def noting_the_lock(data: bytes, mime_type: str) -> bytes:
+        with create_session_factory(engine)() as other:
+            other.connection().exec_driver_sql("PRAGMA busy_timeout = 0")
+            try:
+                other.execute(update(Workspace).values(name=Workspace.name))
+                other.rollback()
+                seen.append(True)
+            except OperationalError:
+                seen.append(False)
+        return converted(data, mime_type)
+
+    monkeypatch.setattr(names, "as_png", noting_the_lock)
+
+    text, is_error = await tools.call(
+        workspace_id, "render_document", _placing(f"image-{_artifact_id(drawn)}")
+    )
+
+    assert is_error is False, text
+    assert seen
+    assert all(seen)
+
+
+async def test_a_studio_edit_of_a_chats_picture_stays_in_that_chat(
+    tools: ToolEndpoint, studio_worker: None, painter: Painter, engine: Engine
+) -> None:
+    """The chat can still place and edit the version the user made in Studio's box."""
+    workspace_id = await tools.workspace()
+    drawn, _ = await tools.call(
+        workspace_id, "make_image", {"prompt": "A boat", "title": "Boat"}
+    )
+
+    edited = await tools.client.post(
+        f"/artifacts/{_artifact_id(drawn)}/image-edit",
+        json={"instruction": "Make it night"},
+    )
+    assert edited.status_code == 202, edited.text
+    version = edited.json()["id"]
+    for _ in range(100):
+        if (
+            painter.edits
+            and (await tools.client.get(f"/artifacts/{version}")).json()["status"]
+            == "ready"
+        ):
+            break
+        await asyncio.sleep(0.05)
+
+    text, is_error = await tools.call(
+        workspace_id, "render_document", _placing(f"image-{version}")
+    )
+
+    assert is_error is False, text
+    assert _pictures_in_word(engine, _artifact_id(text)) == [_png("navy")]
+
+
+async def test_a_picture_a_document_places_cannot_be_deleted(
+    tools: ToolEndpoint, studio_worker: None, painter: Painter
+) -> None:
+    """Its script names the picture rather than copying it, so a Retry would have none."""
+    workspace_id = await tools.workspace()
+    drawn, _ = await tools.call(
+        workspace_id, "make_image", {"prompt": "A boat", "title": "Boat"}
+    )
+    picture = _artifact_id(drawn)
+    placed, _ = await tools.call(
+        workspace_id, "render_document", _placing(f"image-{picture}")
+    )
+
+    refused = await tools.client.delete(f"/artifacts/{picture}")
+
+    assert refused.status_code == 409
+    assert refused.json()["detail"]["code"] == "placed_in_document"
+    # Once the document is gone, so is the reason.
+    assert (
+        await tools.client.delete(f"/artifacts/{_artifact_id(placed)}")
+    ).status_code == 204
+    assert (await tools.client.delete(f"/artifacts/{picture}")).status_code == 204
+
+
+async def test_a_picture_no_document_places_can_be_deleted(
+    tools: ToolEndpoint, studio_worker: None, painter: Painter
+) -> None:
+    """The refusal is only for what a script still names."""
+    workspace_id = await tools.workspace()
+    drawn, _ = await tools.call(
+        workspace_id, "make_image", {"prompt": "A boat", "title": "Boat"}
+    )
+
+    gone = await tools.client.delete(f"/artifacts/{_artifact_id(drawn)}")
+
+    assert gone.status_code == 204

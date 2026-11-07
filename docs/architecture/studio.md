@@ -324,7 +324,7 @@ Every pipeline returns a `Built`: a `title`, the `markdown` that is always the i
 
 `surfsense_make_image` ([agent](agent.md#pictures-the-agent-makes)) creates an `image` or `infographic` with no sources, the chat's `chat_thread_id` and the recipe `{"kind": "image_drawn", "prompt"}` ([`drawn_images/`](../../surfsense_local/backend/modules/artifacts/drawn_images/), [ADR 0087](../adr/0087-the-agent-makes-pictures-with-its-own-surfsense-tool.md)). The job paints the prompt as written, asking no chat model; an infographic adds Studio's sketchnote style around it ([`media/visual/drawn/`](../../surfsense_local/backend/worker/studio/media/visual/drawn/)). The body is the title and the prompt, so it can be found by what it shows.
 
-It needs only `image_gen`, its Regenerate paints the same prompt, and Huey never retries it, since each try may be billed. It is v1 of its own document and takes Studio's Edit box like any picture. An edit the agent asks for records the chat too, through the same `create_image_edit_version`, so that chat can place it.
+It needs only `image_gen`, its Regenerate paints the same prompt, and Huey never retries it, since each try may be billed. It is v1 of its own document and takes Studio's Edit box like any picture. Every edit keeps its base's chat, from either box, so that chat can still place it. While a script of its chat names a picture, deleting that picture is refused with `placed_in_document`, since the script names it rather than copying it ([`placed_in.py`](../../surfsense_local/backend/modules/artifacts/drawn_images/placed_in.py)).
 
 ### Editing a picture
 

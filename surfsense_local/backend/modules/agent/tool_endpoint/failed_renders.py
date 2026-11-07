@@ -50,6 +50,8 @@ class _Turn:
     failed: list[Runs] = field(default_factory=list)
     # Runs under way, each of which may yet fail.
     running: int = 0
+    # Artifacts still being made when their call answered: no call sees them fail.
+    queued: set[int] = field(default_factory=set)
 
 
 # A new turn drops the thread's entries, so a run still going from the last one
@@ -66,6 +68,30 @@ def begin_turn(thread_id: int) -> None:
     with _guard:
         for key in [key for key in _turns if key[1] == thread_id]:
             del _turns[key]
+        _guard.notify_all()
+
+
+def note_queued(runs: Runs, thread_id: int, artifact_id: int) -> None:
+    """A run whose call answered before it ended, to settle with `settle_queued`."""
+    with _guard:
+        _turns.setdefault((runs.limit, thread_id), _Turn()).queued.add(artifact_id)
+
+
+def queued_runs(runs: Runs, thread_id: int) -> frozenset[int]:
+    with _guard:
+        turn = _turns.get((runs.limit, thread_id))
+        return frozenset(turn.queued) if turn is not None else frozenset()
+
+
+def settle_queued(runs: Runs, thread_id: int, artifact_id: int, failed: bool) -> None:
+    """A queued run has ended; one that failed counts as if its call had seen it."""
+    with _guard:
+        turn = _turns.get((runs.limit, thread_id))
+        if turn is None or artifact_id not in turn.queued:
+            return
+        turn.queued.discard(artifact_id)
+        if failed:
+            turn.failed.append(runs)
         _guard.notify_all()
 
 

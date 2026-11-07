@@ -1,16 +1,22 @@
 """Draw or edit a picture for the agent, kept in Studio under a name documents can place."""
 
+import threading
 import time
 from dataclasses import dataclass
 from typing import Any
 
 from fastapi import HTTPException
+from PIL import Image
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from modules.agent.previews.inline_images import inline_image
 from modules.agent.tool_endpoint.failed_renders import (
     IMAGES,
     FailedRunError,
+    note_queued,
+    queued_runs,
+    settle_queued,
     stop_after_three_failures,
 )
 from modules.agent.tool_endpoint.job_outcome import wait_for_outcome
@@ -37,7 +43,7 @@ from modules.artifacts.image_edits.model import require_image_edit_model
 from modules.artifacts.image_edits.service import create_image_edit_version
 from modules.artifacts.models import Artifact, ArtifactFileRole
 from modules.artifacts.script_documents.version import version_of
-from modules.documents.models import DocumentStatus
+from modules.documents.models import Document, DocumentStatus
 from modules.embedding.active import EmbeddingNotChosenError
 from shared.config import get_storage_settings
 
@@ -50,6 +56,9 @@ PROMPT_CHARS = 32_000
 # minutes, past the tool call's hard limit, so the call answers without it.
 WAIT_SECONDS = 150
 CALL_SECONDS = TOOL_CALL_SECONDS - 10
+_ENDED = (DocumentStatus.READY, DocumentStatus.FAILED, DocumentStatus.CANCELLED)
+
+_starting = threading.Lock()
 
 LISTING: dict[str, Any] = {
     "name": TOOL_NAME,
@@ -117,10 +126,13 @@ def make(
     deadline = began + CALL_SECONDS
     scope.require_known()
     request = _request(arguments)
-    if request.base_artifact_id is None:
-        assert request.title is not None  # _request asked for it
-        refuse_same_title(session, scope.thread_id, request.title, request.style)
-    made = _start(session, scope, request)
+    # opencode runs a step's calls together: each must see the row the last one made,
+    # or two with one title would bill two pictures.
+    with _starting:
+        if request.base_artifact_id is None:
+            assert request.title is not None  # _request asked for it
+            refuse_same_title(session, scope.thread_id, request.title, request.style)
+        made = _start(session, scope, request)
 
     outcome = wait_for_outcome(
         session, made.id, min(WAIT_SECONDS, deadline - time.monotonic())
@@ -141,6 +153,7 @@ def make(
             f"Artifact {made.id} was cancelled in Studio. Ask the user before making "
             "it again."
         )
+    note_queued(IMAGES, scope.thread_id, made.id)
     name = image_name(made.id)
     return (
         f"{queued_line(made)}\n"
@@ -237,9 +250,7 @@ def _edited_picture(
             f"{TOOL_NAME} gave in this chat."
         )
     require_image_edit_model(session)
-    return create_image_edit_version(
-        session, base_id, instruction, chat_thread_id=scope.thread_id
-    )
+    return create_image_edit_version(session, base_id, instruction)
 
 
 def _shown(
@@ -313,7 +324,7 @@ def _picture(
     path = get_storage_settings().data_dir / storage_key
     try:
         shown = inline_image(path)
-    except (OSError, ValueError):
+    except (OSError, ValueError, Image.DecompressionBombError):
         lines.append("It could not be shown to you, though it is in Studio.")
         return ()
     lines.append(
@@ -328,6 +339,38 @@ def _picture(
     return (shown,)
 
 
-MAKE_IMAGE = Tool(
-    listing=LISTING, run=stop_after_three_failures(make, IMAGES), waits=True
-)
+_stopped_after_three = stop_after_three_failures(make, IMAGES)
+
+
+def _make_counting_late_failures(
+    session: Session, scope: TurnScope, arguments: dict[str, Any]
+) -> str | ToolResult:
+    """A picture that failed after its call answered counts before the next starts."""
+    _settle_queued_pictures(session, scope.thread_id)
+    return _stopped_after_three(session, scope, arguments)
+
+
+def _settle_queued_pictures(session: Session, thread_id: int) -> None:
+    queued = queued_runs(IMAGES, thread_id)
+    if not queued:
+        return
+    statuses = dict(
+        session.execute(
+            select(Artifact.id, Document.status)
+            .join(Document, Artifact.document_id == Document.id)
+            .where(Artifact.id.in_(queued))
+        )
+        .tuples()
+        .all()
+    )
+    session.commit()
+    for artifact_id in queued:
+        status = statuses.get(artifact_id)
+        # A deleted one has ended too, and no one saw it fail.
+        if status is None or status in _ENDED:
+            settle_queued(
+                IMAGES, thread_id, artifact_id, status is DocumentStatus.FAILED
+            )
+
+
+MAKE_IMAGE = Tool(listing=LISTING, run=_make_counting_late_failures, waits=True)

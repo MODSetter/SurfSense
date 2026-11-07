@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from api.dependencies import SessionDep, transact
 from modules.artifacts.dependencies import ArtifactDep, get_artifact
+from modules.artifacts.drawn_images.placed_in import refuse_deleting_a_placed_picture
 from modules.artifacts.flashcard_progress import (
     apply_flashcard_mark,
     apply_flashcard_order,
@@ -394,6 +395,7 @@ def reorder_flashcards(
 )
 def delete_artifact(artifact: ArtifactDep, session: SessionDep) -> Response:
     refuse_deleting_a_base(session, artifact.id)
+    refuse_deleting_a_placed_picture(session, artifact)
     # The ARTIFACT document is the root: deleting it cascades the sidecar, its
     # files and its chunks. Only the blobs live beyond the database.
     directory = get_storage_settings().artifact_dir(artifact.workspace_id, artifact.id)
