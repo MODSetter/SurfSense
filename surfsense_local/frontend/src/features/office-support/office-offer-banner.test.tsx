@@ -157,8 +157,7 @@ function renderThread() {
   )
 }
 
-const OFFERED =
-  /Let the agent check its work on pages laid out by LibreOffice/
+const OFFERED = /Let the agent check its work on pages laid out by LibreOffice/
 
 beforeEach(() => {
   localStorage.clear()

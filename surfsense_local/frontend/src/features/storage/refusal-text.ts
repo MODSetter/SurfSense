@@ -1,6 +1,10 @@
 import { intl } from "@/i18n/intl"
 
-import type { MoveFailureReason, PlanResult, StorageRefusalCode } from "./storage-types"
+import type {
+  MoveFailureReason,
+  PlanResult,
+  StorageRefusalCode,
+} from "./storage-types"
 
 const REFUSALS: Record<StorageRefusalCode, () => string> = {
   same_folder: () =>
@@ -59,7 +63,11 @@ export function refusalText(
   refusal: Extract<PlanResult, { status: "refused" }>
 ): string {
   const { code, neededBytes, freeBytes } = refusal
-  if (code === "not_enough_room" && neededBytes !== undefined && freeBytes !== undefined) {
+  if (
+    code === "not_enough_room" &&
+    neededBytes !== undefined &&
+    freeBytes !== undefined
+  ) {
     return intl.formatMessage(
       {
         id: "storage_refusal_not_enough_room_amounts_error",

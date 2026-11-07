@@ -98,7 +98,9 @@ describe("SettingsDialog", () => {
   it("offers Storage only where main can move folders", () => {
     const nav = () =>
       Array.from(
-        screen.getByRole("navigation", { name: "System" }).querySelectorAll("button"),
+        screen
+          .getByRole("navigation", { name: "System" })
+          .querySelectorAll("button"),
         (b) => b.textContent
       )
 

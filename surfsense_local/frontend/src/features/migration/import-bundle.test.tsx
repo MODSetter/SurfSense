@@ -175,7 +175,9 @@ describe("importing a SurfSense cloud export", () => {
     ).toBeTruthy()
     expect(screen.getByRole("button", { name: "Upload" })).toBeTruthy()
     // The hosted service and its export page are gone; only the upload stays.
-    expect(screen.queryByRole("link", { name: "Open SurfSense cloud" })).toBeNull()
+    expect(
+      screen.queryByRole("link", { name: "Open SurfSense cloud" })
+    ).toBeNull()
 
     await user.upload(
       screen.getByLabelText("Import from SurfSense cloud"),

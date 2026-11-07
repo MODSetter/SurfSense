@@ -178,7 +178,11 @@ export function ThemeProvider({
       }
 
       // Cmd/Ctrl+Shift+D, so a bare "d" while typing never flips the theme.
-      if (!(event.metaKey || event.ctrlKey) || !event.shiftKey || event.altKey) {
+      if (
+        !(event.metaKey || event.ctrlKey) ||
+        !event.shiftKey ||
+        event.altKey
+      ) {
         return
       }
 
