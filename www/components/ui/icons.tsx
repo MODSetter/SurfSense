@@ -48,6 +48,7 @@ import {
 	SecurityCheckIcon as SecurityCheckIconData,
 	ServerStack01Icon as ServerStack01IconData,
 	SourceCodeIcon as SourceCodeIconData,
+	Task01Icon as Task01IconData,
 	UnplugIcon as UnplugIconData,
 	UserCircleIcon as UserCircleIconData,
 	WifiOffIcon as WifiOffIconData,
@@ -138,6 +139,7 @@ export const Search01Icon = createIcon(Search01IconData);
 export const SecurityCheckIcon = createIcon(SecurityCheckIconData);
 export const ServerStack01Icon = createIcon(ServerStack01IconData);
 export const SourceCodeIcon = createIcon(SourceCodeIconData);
+export const Task01Icon = createIcon(Task01IconData);
 export const UnplugIcon = createIcon(UnplugIconData);
 export const UserCircleIcon = createIcon(UserCircleIconData);
 export const WifiOffIcon = createIcon(WifiOffIconData);
