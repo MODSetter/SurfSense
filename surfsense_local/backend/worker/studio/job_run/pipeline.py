@@ -1,6 +1,6 @@
 """A job run's answers, worked out before its revised copy is made: the pack's runner over the
-workbook and the run's sources, on the model the user selected, checked on the firm's checker
-model when it chose one, with the firm's settings as they were when the run started.
+run's file and its sources, on the model the user selected, checked on the firm's checker model
+when it chose one, with the firm's settings as they were when the run started.
 
 The write lock is let go while the model answers, which takes minutes; the revise
 engine then writes the answers as it writes any other revised copy.
@@ -24,24 +24,29 @@ from sqlalchemy.orm import Session
 
 from modules.agent.model_window import selected_model_window
 from modules.artifacts.models import Artifact
+from modules.artifacts.revised_copies.engines.package import PackageRefusedError
 from modules.artifacts.revised_copies.revision import REVISION_KEY, revision_of
 from modules.documents.models import Document
 from modules.documents.original_file import original_path
 from modules.embedding import encoder
 from modules.embedding.active import active_index
+from modules.jobs.asking.model import ModelReply
 from modules.jobs.evidence.passages import SourceText
 from modules.jobs.evidence.retrieval import Embed
 from modules.jobs.evidence.vectors import remembered
 from modules.jobs.packs.access import job_access
 from modules.jobs.packs.installed import find_job
+from modules.jobs.runners import runner_of
 from modules.jobs.runs.record import JOB_RUN_KEY, PROGRESS_KEY, job_run_of
 from modules.jobs.settings.service import (
     CHECKER_GONE,
     JobSettingsRefusedError,
     check_checker,
 )
-from modules.jobs.workbook_rows.ask import ModelReply
-from modules.jobs.workbook_rows.config import JobConfig, load_config
+from modules.jobs.word_clauses.report import RUNNER as CLAUSES_RUNNER
+from modules.jobs.word_clauses.report import report_of as review_report
+from modules.jobs.word_clauses.review import NoClausesError, review_contract
+from modules.jobs.workbook_rows.config import JobConfig
 from modules.jobs.workbook_rows.fill import FillResult, NoQuestionsError, fill_workbook
 from modules.jobs.workbook_rows.operations import confirmation, sheet_lines
 from modules.llm.model_route.api_address import ApiNotRunningError, api_url
@@ -200,11 +205,11 @@ def work_out(
         # A retry after an update reads the newer version: the record names what answered.
         run = {**run, "pack_version": pack.manifest.version}
         artifact.artifact_metadata = {**meta, JOB_RUN_KEY: run}
-    config = load_config(pack.path(job.config))
-    workbook = session.get(Document, revision["derived_from_document_id"])
-    path = original_path(workbook) if workbook is not None else None
+    config = runner_of(job).load_config(pack.path(job.config))
+    worked_on = session.get(Document, revision["derived_from_document_id"])
+    path = original_path(worked_on) if worked_on is not None else None
     if path is None:
-        raise JobRunFailedError("The questionnaire's file is no longer on disk.")
+        raise JobRunFailedError("The run's file is no longer on disk.")
     sources = []
     for document_id in run["source_document_ids"]:
         document = session.get(Document, document_id)
@@ -232,34 +237,31 @@ def work_out(
         len(sources),
         window,
     )
+    names = (model.selection.name, checker.selection.name if checker else None)
+    options: dict[str, Any] = {
+        "on_row": progress.on_row,
+        "stop": cancelled,
+        "embed": embed,
+        "checker": SelectedModel(checker, None) if checker else None,
+        "settings": settings,
+        "take_turns": _one_at_a_time(model, checker),
+    }
+    answering = SelectedModel(model, window)
     try:
-        filled = fill_workbook(
-            path,
-            sources,
-            config,
-            SelectedModel(model, window),
-            on_row=progress.on_row,
-            stop=cancelled,
-            embed=embed,
-            checker=SelectedModel(checker, None) if checker else None,
-            settings=settings,
-            take_turns=_one_at_a_time(model, checker),
-        )
-    except NoQuestionsError as none:
+        if job.runner == CLAUSES_RUNNER:
+            review = review_contract(path, sources, config, answering, **options)
+            operations, report = review.operations, review_report(review, *names)
+        else:
+            filled = fill_workbook(path, sources, config, answering, **options)
+            operations, report = filled.operations, report_of(filled, config, *names)
+    except (NoQuestionsError, NoClausesError) as none:
         raise JobRunFailedError(str(none)) from none
+    except PackageRefusedError as refused:
+        raise JobRunFailedError(refused.message) from refused
     session.refresh(artifact)
     meta = dict(artifact.artifact_metadata or {})
-    meta[REVISION_KEY] = {**revision, "operations": filled.operations}
-    meta[JOB_RUN_KEY] = {
-        **run,
-        PROGRESS_KEY: progress.last,
-        "report": report_of(
-            filled,
-            config,
-            model.selection.name,
-            checker.selection.name if checker else None,
-        ),
-    }
+    meta[REVISION_KEY] = {**revision, "operations": operations}
+    meta[JOB_RUN_KEY] = {**run, PROGRESS_KEY: progress.last, "report": report}
     artifact.artifact_metadata = meta
     session.commit()
 

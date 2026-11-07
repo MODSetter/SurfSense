@@ -18,6 +18,7 @@ from modules.jobs.packs.install import install_pack, remove_pack
 from modules.jobs.packs.installed import find_job, packs_dir
 from modules.jobs.packs.listing import PackInfo, pack_listing
 from modules.jobs.packs.manifest import PackRefusedError
+from modules.jobs.runners import runner_of
 from modules.jobs.runs.confirm import confirm_suggestions
 from modules.jobs.runs.run_read import (
     JobRunRead,
@@ -26,13 +27,13 @@ from modules.jobs.runs.run_read import (
     run_summaries,
 )
 from modules.jobs.runs.start import JobRunRefusedError, start_job_run
+from modules.jobs.settings.declared import DeclaresSettings
 from modules.jobs.settings.service import (
     ChosenSettings,
     JobSettingsRefusedError,
     job_settings,
     save_job_settings,
 )
-from modules.jobs.workbook_rows.config import JobConfig, load_config
 from modules.llm.model_route.schemas import ModelRef
 
 router = APIRouter(tags=["jobs"])
@@ -64,6 +65,8 @@ class JobSettingInfo(BaseModel):
 class JobSettingsRead(BaseModel):
     job: str
     settings: list[JobSettingInfo]
+    # Whether the job checks its answers a second time; a checker is used only when it does.
+    checks: bool
     # The model that makes the second checks; null checks on the answering model.
     checker: ModelRef | None
 
@@ -166,7 +169,7 @@ def write_settings(
     return _settings_read(job, config, chosen)
 
 
-def _job_config(job: str) -> JobConfig:
+def _job_config(job: str) -> DeclaresSettings:
     found = find_job(job)
     if found is None:
         raise HTTPException(
@@ -175,7 +178,7 @@ def _job_config(job: str) -> JobConfig:
         )
     pack, pack_job = found
     try:
-        return load_config(pack.path(pack_job.config))
+        return runner_of(pack_job).load_config(pack.path(pack_job.config))
     except PackRefusedError as refused:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -184,7 +187,7 @@ def _job_config(job: str) -> JobConfig:
 
 
 def _settings_read(
-    job: str, config: JobConfig, chosen: ChosenSettings
+    job: str, config: DeclaresSettings, chosen: ChosenSettings
 ) -> JobSettingsRead:
     return JobSettingsRead(
         job=job,
@@ -198,6 +201,7 @@ def _settings_read(
             )
             for s in config.settings
         ],
+        checks=config.checks,
         checker=chosen.checker,
     )
 
@@ -216,7 +220,7 @@ def start(
             session,
             workspace_id,
             job=payload.job,
-            workbook_document_id=payload.document_id,
+            document_id=payload.document_id,
             source_document_ids=payload.source_ids,
             chat_thread_id=payload.chat_thread_id,
         )

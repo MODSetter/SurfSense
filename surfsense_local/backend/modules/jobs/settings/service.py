@@ -9,8 +9,8 @@ from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
 
+from modules.jobs.settings.declared import DeclaresSettings
 from modules.jobs.settings.models import JobSettings
-from modules.jobs.workbook_rows.config import JobConfig
 from modules.llm.model_route.schemas import ModelRef
 from modules.llm.models import ProviderConnection
 from modules.llm.providers import llamacpp
@@ -34,7 +34,9 @@ class ChosenSettings:
     checker: ModelRef | None  # None checks on the answering model
 
 
-def job_settings(session: Session, job: str, config: JobConfig) -> ChosenSettings:
+def job_settings(
+    session: Session, job: str, config: DeclaresSettings
+) -> ChosenSettings:
     """The firm's settings for `job`, each one the pack no longer declares left out."""
     row = session.get(JobSettings, job)
     stored = dict(row.settings or {}) if row is not None else {}
@@ -56,7 +58,7 @@ def job_settings(session: Session, job: str, config: JobConfig) -> ChosenSetting
 def save_job_settings(
     session: Session,
     job: str,
-    config: JobConfig,
+    config: DeclaresSettings,
     settings: dict[str, object],
     checker: ModelRef | None,
 ) -> ChosenSettings:

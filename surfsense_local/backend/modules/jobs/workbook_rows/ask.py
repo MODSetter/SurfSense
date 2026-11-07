@@ -10,38 +10,18 @@ import json
 import re
 from dataclasses import dataclass
 from string import Template
-from typing import Protocol
 
-from modules.jobs.evidence.passages import Passage
+# ModelReply and passages_block are shared by every runner; kept importable from here, where
+# the eval harness and the tests find them.
+from modules.jobs.asking.model import AnswerModel
+from modules.jobs.asking.model import ModelReply as ModelReply
+from modules.jobs.evidence.passages_block import passages_block as passages_block
 from modules.jobs.workbook_rows.config import JobConfig
 from modules.jobs.workbook_rows.layout import QuestionRow
 
 CONFIDENCE = ("high", "medium", "low")
 # Enough for a quote and a two-sentence comment; a reply this long has lost its way.
 MAX_REPLY_TOKENS = 700
-
-
-@dataclass(frozen=True)
-class ModelReply:
-    text: str
-    input_tokens: int | None = None
-    output_tokens: int | None = None
-
-
-class AnswerModel(Protocol):
-    """The model a job runs on; the app's selected model in Studio, a fixed one in an eval.
-
-    `shared` is how many leading characters of the first turn every question repeats:
-    a provider that caches by marked blocks marks that much.
-    """
-
-    name: str
-    window: int | None  # tokens it reads at once; None when it is not known
-    concurrency: int  # questions it may take at once
-
-    def ask(
-        self, system: str, turns: list[tuple[str, str]], schema: dict, shared: int
-    ) -> ModelReply: ...
 
 
 @dataclass(frozen=True)
@@ -96,37 +76,6 @@ def answer_schema(config: JobConfig) -> dict:
         "required": ["quotes", "answer", "comment", "confidence"],
         "additionalProperties": False,
     }
-
-
-def passages_block(
-    passages: list[Passage],
-    shown: list[int],
-    standing: list[int] | None = None,
-    labels: tuple[str, str] = ("", ""),
-) -> str:
-    """The passages as the model reads them, in the sources' order; with the pack's labels,
-    those every question is shown come first under theirs, so the model knows which apply
-    to all the firm's policies."""
-    pinned = [i for i in standing or () if i in shown]
-    if not pinned or not any(labels):
-        return _listed(passages, shown)
-    own = [i for i in shown if i not in pinned]
-    parts = [labels[0], _listed(passages, pinned)]
-    if own:
-        parts += [labels[1], _listed(passages, own)]
-    return "\n\n".join(part for part in parts if part)
-
-
-def _listed(passages: list[Passage], shown: list[int]) -> str:
-    blocks = []
-    for index in shown:
-        passage = passages[index]
-        where = f" — {passage.section}" if passage.section else ""
-        blocks.append(
-            f"[{index + 1}] {passage.title}{where} (lines {passage.first_line}-{passage.last_line})\n"
-            f"{passage.text}"
-        )
-    return "\n\n".join(blocks)
 
 
 def ask_row(

@@ -15,18 +15,55 @@ import { intl } from "@/i18n/intl"
 
 import { AllJobsButton } from "../all-jobs-button"
 import type { JobRunRead } from "../api"
-import { jobTitleOfKey } from "../catalog"
+import { jobRunnerOfKey, jobTitleOfKey } from "../catalog"
 import { ConfirmSuggestionsButton } from "../confirm/confirm-suggestions-button"
 import { jobsErrorText } from "../job-error-text"
 import { jobsKeys } from "../query-keys"
+import { WORD_CLAUSES } from "../runners"
 import { useJobPacks } from "../use-job-packs"
 
+import { ContractDone } from "./contract-done"
 import { displayModelName } from "./model-display-name"
 import { isRunning, runStage, type RunStage } from "./run-stage"
 import { useJobRun } from "./use-job-run"
 
 // The pack's own counts of rows it left alone, not answer words.
 const NOT_ANSWER_WORDS = new Set(["blank", "skipped"])
+
+// A contract review counts review points where a questionnaire counts questions.
+function contractStageText(stage: RunStage): string | null {
+  switch (stage.name) {
+    case "reading_file":
+      return intl.formatMessage({
+        id: "jobs_progress_reading_contract_status",
+        defaultMessage: "Reading the contract…",
+      })
+    case "reading":
+      return intl.formatMessage(
+        {
+          id: "jobs_progress_reading_playbook_status",
+          defaultMessage:
+            "Reading your playbook, then {total, plural, one {# review point} other {# review points}}…",
+        },
+        { total: stage.total }
+      )
+    case "answering":
+      return intl.formatMessage(
+        {
+          id: "jobs_progress_points_status",
+          defaultMessage: "{done, number} of {total, number} review points",
+        },
+        { done: stage.done, total: stage.total }
+      )
+    case "writing":
+      return intl.formatMessage({
+        id: "jobs_progress_marking_up_status",
+        defaultMessage: "Marking up a copy of your contract…",
+      })
+    default:
+      return stageText(stage)
+  }
+}
 
 function stageText(stage: RunStage): string | null {
   switch (stage.name) {
@@ -35,7 +72,7 @@ function stageText(stage: RunStage): string | null {
         id: "jobs_progress_waiting_status",
         defaultMessage: "Waiting to start…",
       })
-    case "reading_workbook":
+    case "reading_file":
       return intl.formatMessage({
         id: "jobs_progress_reading_workbook_status",
         defaultMessage: "Reading the workbook…",
@@ -138,23 +175,32 @@ type RunAction = ReturnType<typeof useRunAction>
 function Going({
   run,
   stage,
+  contract,
   cancel,
 }: {
   run: JobRunRead
   stage: RunStage
+  contract: boolean
   cancel: RunAction
 }) {
   return (
     <div className="flex flex-col gap-3">
       <p role="status" className="text-sm tabular-nums">
-        {stageText(stage)}
+        {contract ? contractStageText(stage) : stageText(stage)}
       </p>
       <Progress
         value={progressValue(stage)}
-        aria-label={intl.formatMessage({
-          id: "jobs_progress_aria",
-          defaultMessage: "Questions answered",
-        })}
+        aria-label={
+          contract
+            ? intl.formatMessage({
+                id: "jobs_progress_points_aria",
+                defaultMessage: "Review points checked",
+              })
+            : intl.formatMessage({
+                id: "jobs_progress_aria",
+                defaultMessage: "Questions answered",
+              })
+        }
       />
       <p className="text-sm text-pretty text-muted-foreground">
         {intl.formatMessage({
@@ -254,7 +300,7 @@ function Done({
               defaultMessage:
                 "{count, plural, one {# question needs} other {# questions need}} a person: see the sheet “{sheet}”.",
             },
-            { count: tally.for_person, sheet: report.sheets.exceptions }
+            { count: tally.for_person, sheet: report.sheets?.exceptions ?? "" }
           )}
         </p>
       ) : null}
@@ -291,8 +337,8 @@ function Done({
                 "Before you send the copy, check the sheets “{answers}” and “{exceptions}”, and delete them if the recipient shouldn’t see them.",
             },
             {
-              answers: report.sheets.answers,
-              exceptions: report.sheets.exceptions,
+              answers: report.sheets?.answers ?? "",
+              exceptions: report.sheets?.exceptions ?? "",
             }
           )}
         </p>
@@ -322,16 +368,42 @@ function Done({
   )
 }
 
+function stoppedText(failed: boolean, contract: boolean): string {
+  if (contract)
+    return failed
+      ? intl.formatMessage({
+          id: "jobs_progress_contract_failed_body",
+          defaultMessage: "It didn’t finish, so nothing was changed.",
+        })
+      : intl.formatMessage({
+          id: "jobs_progress_contract_cancelled_body",
+          defaultMessage:
+            "Nothing was changed. Running it again starts from the first review point.",
+        })
+  return failed
+    ? intl.formatMessage({
+        id: "jobs_progress_failed_body",
+        defaultMessage: "It didn’t finish, so no answers were written.",
+      })
+    : intl.formatMessage({
+        id: "jobs_progress_cancelled_body",
+        defaultMessage:
+          "Nothing was written. Running it again starts from the first question.",
+      })
+}
+
 function Stopped({
   run,
   again,
   jobName,
-  onChooseWorkbook,
+  contract,
+  onChooseFile,
 }: {
   run: JobRunRead
   again: RunAction
   jobName: string
-  onChooseWorkbook: (job: string, title: string) => void
+  contract: boolean
+  onChooseFile: (job: string, title: string) => void
 }) {
   const failed = run.status === "failed"
   return (
@@ -339,18 +411,7 @@ function Stopped({
       <h4 className="font-medium">
         {endedTitle(failed ? "failed" : "cancelled")}
       </h4>
-      <p className="text-pretty">
-        {failed
-          ? intl.formatMessage({
-              id: "jobs_progress_failed_body",
-              defaultMessage: "It didn’t finish, so no answers were written.",
-            })
-          : intl.formatMessage({
-              id: "jobs_progress_cancelled_body",
-              defaultMessage:
-                "Nothing was written. Running it again starts from the first question.",
-            })}
-      </p>
+      <p className="text-pretty">{stoppedText(failed, contract)}</p>
       {failed && run.error ? (
         <p className="line-clamp-4 whitespace-pre-wrap text-muted-foreground">
           {run.error}
@@ -373,12 +434,17 @@ function Stopped({
             type="button"
             variant="outline"
             disabled={again.isPending}
-            onClick={() => onChooseWorkbook(run.job, jobName)}
+            onClick={() => onChooseFile(run.job, jobName)}
           >
-            {intl.formatMessage({
-              id: "jobs_progress_choose_workbook_button",
-              defaultMessage: "Choose another workbook",
-            })}
+            {contract
+              ? intl.formatMessage({
+                  id: "jobs_progress_choose_contract_button",
+                  defaultMessage: "Choose another contract",
+                })
+              : intl.formatMessage({
+                  id: "jobs_progress_choose_workbook_button",
+                  defaultMessage: "Choose another workbook",
+                })}
           </Button>
         ) : null}
       </div>
@@ -396,13 +462,13 @@ export function JobRunProgress({
   workspaceId,
   runId,
   onOpenInStudio,
-  onChooseWorkbook,
+  onChooseFile,
   onBack,
 }: {
   workspaceId: number
   runId: number
   onOpenInStudio: (artifactId: number) => void
-  onChooseWorkbook: (job: string, title: string) => void
+  onChooseFile: (job: string, title: string) => void
   onBack: () => void
 }) {
   const read = useJobRun(workspaceId, runId, { poll: true })
@@ -439,6 +505,8 @@ export function JobRunProgress({
     )
   } else {
     const jobName = jobTitleOfKey(run.job, packs)
+    const contract =
+      (run.report?.runner ?? jobRunnerOfKey(run.job, packs)) === WORD_CLAUSES
     const stage = runStage(run.status, run.progress)
     body = (
       <div className="flex flex-col gap-4">
@@ -463,7 +531,9 @@ export function JobRunProgress({
           </p>
         </div>
         {isRunning(run.status) ? (
-          <Going run={run} stage={stage} cancel={cancel} />
+          <Going run={run} stage={stage} contract={contract} cancel={cancel} />
+        ) : run.status === "ready" && contract ? (
+          <ContractDone run={run} onOpenInStudio={onOpenInStudio} />
         ) : run.status === "ready" ? (
           <Done
             run={run}
@@ -475,7 +545,8 @@ export function JobRunProgress({
             run={run}
             again={again}
             jobName={jobName}
-            onChooseWorkbook={onChooseWorkbook}
+            contract={contract}
+            onChooseFile={onChooseFile}
           />
         )}
       </div>

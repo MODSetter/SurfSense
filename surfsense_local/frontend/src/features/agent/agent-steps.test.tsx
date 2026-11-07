@@ -461,6 +461,33 @@ describe("agent steps", () => {
     ])
   })
 
+  it("says a redline reviewed the contract it was given, or started to", () => {
+    render(
+      <AgentSteps
+        steps={[
+          rendered({
+            tool: "surfsense_run_job",
+            input: { job: "contract-redline", document_id: 7 },
+            artifact: { id: 51, title: "Acme NDA (revised)", version: 1 },
+          }),
+          rendered({
+            id: "prt_2",
+            tool: "surfsense_run_job",
+            status: "running",
+            input: { job: "contract-redline", document_id: 7 },
+            output: undefined,
+            artifact: null,
+          }),
+        ]}
+        scope={{ document_ids: [7], titles: ["Acme NDA.docx"] }}
+      />
+    )
+
+    expect(
+      screen.getAllByRole("listitem").map((item) => item.textContent)
+    ).toEqual(["Reviewed Acme NDA.docx", "Started reviewing Acme NDA.docx"])
+  })
+
   it("names the copy whose suggested answers were confirmed and opens that version", async () => {
     const openArtifact = vi.fn()
     const user = userEvent.setup()

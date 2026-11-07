@@ -36,7 +36,7 @@ pytestmark = pytest.mark.integration
 
 # The Business sample, holding the test pack's job.
 LICENSE = business_license(jobs=ENTITLEMENT)
-RUNNERS = ["workbook-rows/1"]
+RUNNERS = ["workbook-rows/1", "word-clauses/1"]
 CURRENT = "The newest version of this job is installed."
 UNAVAILABLE = "SurfSense's license server could not send the job; try again later."
 NOT_WRITTEN = "The pack could not be written to this computer's disk."
