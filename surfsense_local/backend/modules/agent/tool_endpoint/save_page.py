@@ -17,6 +17,7 @@ from modules.agent.tool_endpoint.failed_renders import (
     stop_after_three_failures,
 )
 from modules.agent.tool_endpoint.job_outcome import wait_for_outcome
+from modules.agent.tool_endpoint.page_images import with_placed_images
 from modules.agent.tool_endpoint.ready_version import read_ready
 from modules.agent.tool_endpoint.registration import TOOL_CALL_SECONDS
 from modules.agent.tool_endpoint.rendered_label import (
@@ -113,7 +114,7 @@ def save(
     deadline = time.monotonic() + CALL_SECONDS
     request = _request(arguments)
     file = _working_file(scope.folder, request.path)
-    page = _page(file)
+    page = with_placed_images(session, scope, _page(file), PAGE_BYTES)
     notes = _blocked(page)
     if request.base_artifact_id is None and scope.known:
         refuse_same_title(session, scope.thread_id, request.title, "html")

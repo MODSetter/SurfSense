@@ -22,6 +22,7 @@ from api.notify import (
     notify_document_deleted,
     notify_document_updates,
 )
+from modules.artifacts.drawn_images.placed_in import refuse_deleting_a_placed_picture
 from modules.artifacts.image_edits.edited_from import refuse_deleting_a_base
 from modules.chunks.models import Chunk
 from modules.documents.dependencies import DocumentDep
@@ -516,6 +517,7 @@ def delete_document(
     # A Studio output keeps its rendered blobs under its artifact's own id.
     if document.artifact is not None:
         refuse_deleting_a_base(session, document.artifact.id)
+        refuse_deleting_a_placed_picture(session, document.artifact)
         directories.append(
             storage.artifact_dir(document.workspace_id, document.artifact.id)
         )

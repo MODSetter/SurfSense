@@ -159,6 +159,79 @@ describe("agent steps", () => {
     )
   })
 
+  it("opens the picture a make_image step made", async () => {
+    const openArtifact = vi.fn()
+    const user = userEvent.setup()
+    render(
+      <OpenArtifactContext.Provider value={openArtifact}>
+        <AgentSteps
+          steps={[
+            rendered({
+              tool: "surfsense_make_image",
+              input: { prompt: "A boat", title: "Boat" },
+              artifact: { id: 61, title: "Boat", version: 1 },
+            }),
+          ]}
+        />
+      </OpenArtifactContext.Provider>
+    )
+
+    await user.click(screen.getByRole("button", { name: "Created Boat v1" }))
+    expect(openArtifact).toHaveBeenCalledExactlyOnceWith(61)
+  })
+
+  it("names a picture still being drawn by what was asked for", () => {
+    render(
+      <AgentSteps
+        steps={[
+          rendered({
+            tool: "surfsense_make_image",
+            input: { prompt: "A boat", title: "Boat" },
+            artifact: undefined,
+            output: "Queued artifact 61, version 1: Boat",
+          }),
+        ]}
+      />
+    )
+
+    expect(screen.getByText(/Asked for the picture/).textContent).toBe(
+      "Asked for the picture Boat"
+    )
+  })
+
+  it("names an edit of a picture, which carries no title", () => {
+    render(
+      <AgentSteps
+        steps={[
+          rendered({
+            tool: "surfsense_make_image",
+            input: { prompt: "Make it night", artifact_id: 61 },
+            artifact: undefined,
+          }),
+        ]}
+      />
+    )
+
+    expect(screen.getByText("Asked to change a picture")).toBeTruthy()
+  })
+
+  it("calls a picture with no title and no artifact a picture, not an edit", () => {
+    render(
+      <AgentSteps
+        steps={[
+          rendered({
+            tool: "surfsense_make_image",
+            status: "running",
+            input: { prompt: "A boat" },
+            artifact: undefined,
+          }),
+        ]}
+      />
+    )
+
+    expect(screen.getByText("Asked for a picture")).toBeTruthy()
+  })
+
   it("names reading a document’s script and listing source images", () => {
     render(
       <AgentSteps
