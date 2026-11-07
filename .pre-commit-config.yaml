@@ -100,6 +100,14 @@ repos:
   # in surfsense_local/frontend/package.json.
   - repo: local
     hooks:
+      # The desktop frontend's lint, on the files a commit changes: CI runs it
+      # before the tests, so a lint error there means no tests ran at all.
+      - id: eslint-desktop-frontend
+        name: eslint-desktop-frontend
+        entry: bash -c 'cd surfsense_local/frontend && pnpm exec eslint "${@#surfsense_local/frontend/}"' --
+        language: system
+        files: ^surfsense_local/frontend/src/.*\.(ts|tsx)$
+        stages: [pre-commit]
       - id: formatjs-extract
         name: formatjs-extract
         entry: pnpm --dir surfsense_local/frontend translations:extract

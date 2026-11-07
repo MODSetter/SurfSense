@@ -10,7 +10,7 @@ import { chatKeys } from "./query-keys"
 import { useRefreshQueuedVersions } from "./use-refresh-queued-versions"
 
 const change = vi.hoisted(() => ({
-  fire: (_change?: WorkspaceChange) => {},
+  fire: undefined as ((change?: WorkspaceChange) => void) | undefined,
 }))
 
 vi.mock("@/features/workspaces/use-workspace-changes", () => ({
@@ -52,7 +52,7 @@ function refreshed(messages: ChatMessage[], event = READY, running = false) {
     <QueryClientProvider client={client}>{children}</QueryClientProvider>
   )
   renderHook(() => useRefreshQueuedVersions(1, 10, running), { wrapper })
-  change.fire(event)
+  change.fire?.(event)
   return client.getQueryState(chatKeys.messages(10))?.isInvalidated
 }
 
