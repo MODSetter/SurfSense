@@ -18,7 +18,7 @@ export function SidebarFrame({
   return (
     <aside className="flex h-full min-w-0 flex-col border-r bg-background select-none">
       <header>
-        <ColumnHeader>
+        <ColumnHeader className="gap-1">
           {headerStart}
           <h2 className="truncate px-1 brand-wordmark text-xl text-foreground select-none">
             SurfSense

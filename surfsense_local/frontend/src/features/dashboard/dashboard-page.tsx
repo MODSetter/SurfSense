@@ -85,6 +85,7 @@ import {
 } from "./dashboard-columns"
 import { LeftSidebar, type SidebarNavAction } from "./left-sidebar"
 import { RightPanel } from "./right-panel"
+import { CornerToggle, CornerToggleSlot } from "./corner-toggle"
 import { RightPanelToggle } from "./right-panel-toggle"
 import { DashboardShell } from "./dashboard-shell"
 import { SidebarFooter } from "./sidebar-footer"
@@ -391,16 +392,20 @@ function WorkspaceDashboard({
     setSidebar(!sidebarOpen)
   })
   useSidebarShortcut(toggleSidebar)
+  // Docker's toggle sits in the columns' corner: shown, the logo keeps its
+  // room; floated in, the sidebar covers that corner and carries its own.
   const sidebarHeaderStart = useMemo(
     () =>
-      IN_CONTAINER ? (
+      !IN_CONTAINER ? null : sidebarOpen ? (
+        <CornerToggleSlot className="-ml-1" />
+      ) : (
         <SidebarToggle
-          open={sidebarOpen}
+          open={false}
           controls={LEFT_COLUMN_ID}
           onToggle={toggleSidebar}
           className="-ml-1"
         />
-      ) : null,
+      ),
     [sidebarOpen, toggleSidebar]
   )
   const toggleRightPanel = () => {
@@ -488,6 +493,22 @@ function WorkspaceDashboard({
           rightPanelOpen={rightPanelOpen}
           rightPanelWide={inspect !== null}
         >
+          {/* Docker's browser has no title bar: one toggle pinned to the
+            columns' corner, so it never moves as the panel slides. An
+            inspected citation or artifact has its own close button there. */}
+          {IN_CONTAINER && !(rightPanelOpen && inspect !== null) ? (
+            <CornerToggle side="end">{rightPanelToggle()}</CornerToggle>
+          ) : null}
+          {/* The same on the left; a source preview's header has its own close. */}
+          {IN_CONTAINER && !sourcePreviewOpen ? (
+            <CornerToggle side="start">
+              <SidebarToggle
+                open={sidebarOpen}
+                controls={LEFT_COLUMN_ID}
+                onToggle={toggleSidebar}
+              />
+            </CornerToggle>
+          ) : null}
           {/* A preview takes over the left column and widens it, as an
             inspected artifact does the right one; the right panel stays put.
             On a narrow window it gives way first, down to the sidebar's
@@ -543,19 +564,18 @@ function WorkspaceDashboard({
               answer={chat.answerApproval}
             >
               <ThreadPanel
-                // Hidden, the sidebar's heading is gone, and a touch screen cannot hover.
+                // Hidden, the chat's header runs under the corner toggle: keep its
+                // slot. -ml-3 undoes the 12 px of its px-5 over the corner's 8.
                 headerStart={
                   IN_CONTAINER && !sidebarOpen ? (
-                    <SidebarToggle
-                      open={false}
-                      controls={LEFT_COLUMN_ID}
-                      onToggle={toggleSidebar}
-                    />
+                    <CornerToggleSlot className="-ml-3" />
                   ) : null
                 }
-                // Hidden, the panel's heading is gone: the chat's holds the toggle.
+                // Hidden, the chat's header runs under the corner toggle: keep its slot.
                 headerEnd={
-                  IN_CONTAINER && !rightPanelOpen ? rightPanelToggle() : null
+                  IN_CONTAINER && !rightPanelOpen ? (
+                    <CornerToggleSlot className="-mr-1" />
+                  ) : null
                 }
                 live={chat.liveThread}
                 thread={chat.activeThread}
@@ -615,7 +635,9 @@ function WorkspaceDashboard({
           <RightPanelRail open={rightPanelOpen}>
             <div id={RIGHT_PANEL_ID} className="h-full min-h-0">
               <RightPanel
-                toggle={IN_CONTAINER ? rightPanelToggle() : null}
+                toggle={
+                  IN_CONTAINER ? <CornerToggleSlot className="-mr-1" /> : null
+                }
                 inspect={
                   inspect?.kind === "citation" ? (
                     <CitationPanel

@@ -191,24 +191,27 @@ describe("hiding the left sidebar", () => {
   })
 
   describe("in the Docker image", { tags: ["docker"] }, () => {
-    it("puts the toggle before the logo, and on the chat's heading while hidden", async () => {
+    it("keeps one toggle in the columns' corner, shown or hidden", async () => {
       const user = userEvent.setup()
       renderDashboard()
 
       const hide = await screen.findByRole("button", { name: "Hide sidebar" })
       expect(hide.closest(".titlebar-controls")).toBeNull()
-      const logo = screen.getByRole("heading", { name: "SurfSense" })
-      expect(hide.nextElementSibling).toBe(logo)
+      // Pinned outside the sidebar, so it stays put while the column slides.
+      expect(
+        within(
+          screen.getByRole("heading", { name: "SurfSense" }).closest("aside")!
+        ).queryAllByRole("button", { name: "Hide sidebar" })
+      ).toHaveLength(0)
 
       await user.click(hide)
-      const show = screen.getAllByRole("button", { name: "Show sidebar" })
+      expect(hide.isConnected).toBe(true)
+      expect(hide.getAttribute("aria-label")).toBe("Show sidebar")
       expect(
-        show.some((button) =>
-          within(screen.getByRole("region", { name: "Conversation" }))
-            .queryAllByRole("button")
-            .includes(button)
-        )
-      ).toBe(true)
+        within(
+          screen.getByRole("region", { name: "Conversation" })
+        ).queryAllByRole("button", { name: "Show sidebar" })
+      ).toHaveLength(0)
     })
   })
 })
