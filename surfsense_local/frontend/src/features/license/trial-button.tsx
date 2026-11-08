@@ -34,6 +34,7 @@ export function TrialButton({
       target="_blank"
       rel="noreferrer"
       onClick={onClick}
+      data-slot="button"
       className={buttonVariants({ variant, size })}
     >
       {label ??

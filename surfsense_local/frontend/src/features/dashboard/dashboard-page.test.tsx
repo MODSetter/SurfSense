@@ -1508,12 +1508,18 @@ describe("dashboard chat", () => {
     await user.click(jobs)
 
     const dialog = await screen.findByRole("dialog", { name: "Jobs" })
-    // One row for each job SurfSense sells: the questionnaire and the redline.
+    // One row for each job SurfSense sells, under one offer of a trial.
     expect(
       await within(dialog).findAllByText(
-        "Comes with a SurfSense Business license. Try it free for 14 days."
+        "Jobs come with a SurfSense Business license. Try it free for 14 days."
       )
-    ).toHaveLength(2)
+    ).toHaveLength(1)
+    expect(
+      within(dialog).getByRole("heading", { name: "Security questionnaire" })
+    ).toBeTruthy()
+    expect(
+      within(dialog).getByRole("heading", { name: "Contract redline" })
+    ).toBeTruthy()
   })
 
   it("closes Jobs and opens Settings › License for a job’s Add license", async () => {
