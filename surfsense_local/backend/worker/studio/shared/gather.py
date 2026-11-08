@@ -8,9 +8,8 @@ from modules.documents.models import Document
 from shared import search
 from worker.studio.shared.artifact import Source
 
-# One job's grounding budget in characters, unless the model's profile sets one.
-# ponytail: a flat cap, not tokens. Ceiling: fine while one window holds it;
-# count tokens if prompts start to overflow.
+# The most characters of sources one job sends, however large the window; a
+# smaller window passes a smaller budget (window_budget.py).
 BUDGET_CHARS = 24_000
 
 # Below this even share a document says nothing, so the scope's best passages

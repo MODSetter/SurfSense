@@ -43,6 +43,16 @@ class LocalAdmission:
                 for pool in self._pools.values():
                     pool.resume()
 
+    @property
+    def held(self) -> bool:
+        """Whether the runtime is held free of text, so nothing may load a text model."""
+        return self._given_up > 0
+
+    def last_window(self, model: str) -> int | None:
+        """The window llama-server last reported for the model, read as a request was seated."""
+        pool = self._pools.get(model)
+        return pool.budget if pool is not None else None
+
     @asynccontextmanager
     async def admitted(
         self,

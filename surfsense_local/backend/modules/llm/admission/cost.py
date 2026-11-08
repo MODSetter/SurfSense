@@ -36,13 +36,13 @@ def request_cost(
 
 def _message_tokens(message: Message) -> int:
     return (
-        _text_tokens(message.content)
+        text_tokens(message.content)
         + IMAGE_TOKENS * len(message.images)
         + MESSAGE_OVERHEAD_TOKENS
     )
 
 
-def _text_tokens(text: str) -> int:
+def text_tokens(text: str) -> int:
     """Denser than the chat budget's four characters a token: Latin text runs
     near four, but Chinese, Japanese and Korean run near one a character, and
     pricing those at a quarter would admit requests the cache cannot hold."""

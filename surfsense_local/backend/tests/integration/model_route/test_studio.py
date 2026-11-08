@@ -13,15 +13,31 @@ from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
 from api.main import create_app
-from modules.documents.models import DocumentStatus
+from modules.artifacts.models import Artifact
+from modules.documents.models import Document, DocumentStatus, DocumentType
+from modules.documents.source_figures.layout import (
+    figure_png,
+    figures_dir,
+    write_index,
+)
 from modules.llm.model_type import ModelType
 from modules.llm.models import SelectedModel
+from shared.config import get_storage_settings
 from shared.db import create_session_factory
-from tests.integration.model_route.conftest import LOCAL_MODEL, Runtime
+from tests.integration.model_route.conftest import (
+    LOCAL_MODEL,
+    Runtime,
+    request_tokens,
+)
 from tests.integration.worker.test_studio import make_artifact
 from worker.studio import run
 
 pytestmark = pytest.mark.integration
+
+# A source far longer than any window here: about 40,000 characters.
+REPORT = "\n".join(
+    f"Ring {n} of Saturn holds ice and dust at its own distance." for n in range(700)
+)
 
 
 @pytest.fixture
@@ -99,6 +115,131 @@ def test_a_summary_on_the_local_runtime_is_written_through_the_route(
     sent = runtime.requests[0]
     assert sent["model"] == LOCAL_MODEL
     assert sent["messages"][0]["role"] == "system"
+
+
+def test_sources_longer_than_a_small_local_window_are_cut_to_fit_it(
+    session: Session, runtime: Runtime, api_for_the_worker: None, no_embedder: None
+) -> None:
+    """#2421: a model loaded at the 8,192-token floor was sent 24,000 characters
+    of sources and refused them; they are cut to the window instead."""
+    runtime.window = 8_192
+    _select(session, "llamacpp", LOCAL_MODEL, None)
+    artifact = make_artifact(session, source=REPORT, fmt="summary")
+
+    run(artifact.id)
+
+    session.expire_all()
+    assert artifact.document.status is DocumentStatus.READY, (
+        artifact.document.error_message
+    )
+    assert len(runtime.requests) == 1
+    # Cut, not dropped: the sources still fill a good part of the window.
+    assert len(runtime.requests[0]["messages"][1]["content"]) > 8_192
+
+
+DOES_NOT_FIT = (
+    "The selected sources don't fit the model's context window. Select fewer "
+    "sources, or choose a model with a larger context window."
+)
+
+
+def test_sources_the_runtime_refuses_as_too_long_fail_with_why_and_no_retry(
+    session: Session, runtime: Runtime, api_for_the_worker: None, no_embedder: None
+) -> None:
+    """A window the runtime does not state cannot be budgeted for. Its refusal is
+    no unreachable model, and the same request would be refused again."""
+    runtime.window = 8_192
+    runtime.states_window = False
+    _select(session, "llamacpp", LOCAL_MODEL, None)
+    artifact = make_artifact(session, source=REPORT, fmt="summary")
+
+    run(artifact.id)  # returning, not raising, is what spares a Huey retry
+
+    session.expire_all()
+    assert artifact.document.status is DocumentStatus.FAILED
+    assert artifact.document.error_message == DOES_NOT_FIT
+
+
+def test_a_word_drafts_figure_list_leaves_its_reply_room(
+    session: Session, runtime: Runtime, api_for_the_worker: None, no_embedder: None
+) -> None:
+    """A Word or PDF draft lists every figure of its sources in the prompt, so
+    the text gives way to that list, not the reply."""
+    runtime.window = 8_192
+    _select(session, "llamacpp", LOCAL_MODEL, None)
+    artifact = make_artifact(session, source=REPORT, fmt="docx")
+    _keep_figures(session, artifact, 40)
+
+    run(artifact.id)
+
+    session.expire_all()
+    assert artifact.document.status is DocumentStatus.READY, (
+        artifact.document.error_message
+    )
+    (sent,) = runtime.requests
+    assert "Figures you may place" in sent["messages"][0]["content"]
+    # A quarter of the window is the reply's, as the budget keeps it.
+    assert request_tokens(sent) <= 8_192 * 3 // 4
+
+
+def _keep_figures(session: Session, artifact: Artifact, count: int) -> None:
+    """The artifact's source becomes a file whose figures were kept, each captioned."""
+    source = session.get(Document, artifact.artifact_metadata["source_document_ids"][0])
+    source.document_type = DocumentType.FILE
+    session.commit()
+    folder = figures_dir(
+        get_storage_settings().document_dir(source.workspace_id, source.id)
+    )
+    folder.mkdir(parents=True)
+    caption = ("Freight volume by depot and quarter, " * 6)[:200]
+    for n in range(1, count + 1):
+        figure_png(folder, n).write_bytes(b"\x89PNG\r\n\x1a\n")
+    write_index(
+        folder,
+        [
+            {"n": n, "width": 40, "height": 20, "page": 1, "caption": caption}
+            for n in range(1, count + 1)
+        ],
+        None,
+    )
+
+
+def test_a_window_too_small_for_any_sources_fails_before_the_model_is_asked(
+    session: Session, runtime: Runtime, api_for_the_worker: None, no_embedder: None
+) -> None:
+    """What the prompt and the reply need leaves no room for even a passage."""
+    runtime.window = 2_048
+    _select(session, "llamacpp", LOCAL_MODEL, None)
+    artifact = make_artifact(session, source=REPORT, fmt="summary")
+
+    run(artifact.id)  # returning, not raising, is what spares a Huey retry
+
+    session.expire_all()
+    assert artifact.document.status is DocumentStatus.FAILED
+    assert artifact.document.error_message == (
+        "The model's context window, 2,048 tokens, is too small to hold any of "
+        "the sources. Choose a model with a larger context window."
+    )
+    assert runtime.requests == []
+
+
+def test_a_remote_models_context_length_refusal_reads_the_same(
+    session: Session,
+    runtime: Runtime,
+    remote_over_its_window: int,
+    api_for_the_worker: None,
+    no_embedder: None,
+) -> None:
+    """OpenAI's `context_length_exceeded`, which compatible servers copy, is the
+    same refusal as llama-server's."""
+    _select(session, "openai_compatible", "remote-model", remote_over_its_window)
+    artifact = make_artifact(session, source=REPORT, fmt="summary")
+
+    run(artifact.id)  # returning, not raising, is what spares a Huey retry
+
+    session.expire_all()
+    assert artifact.document.status is DocumentStatus.FAILED
+    assert artifact.document.error_message == DOES_NOT_FIT
 
 
 def test_a_summary_on_a_remote_model_is_written_through_the_same_route(
