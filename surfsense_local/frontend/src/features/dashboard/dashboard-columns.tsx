@@ -47,7 +47,9 @@ export function DashboardColumns({
   return (
     <section
       ref={sectionRef}
-      className="relative my-(--columns-gap) mr-2 flex min-h-0 min-w-0 overflow-hidden rounded-[16px] border bg-background shadow-sm"
+      // Clip, not hidden: a hidden box can still be scrolled from code, and
+      // PDF.js scrolls the nearest positioned box when its page fits.
+      className="relative my-(--columns-gap) mr-2 flex min-h-0 min-w-0 overflow-clip rounded-[16px] border bg-background shadow-sm"
     >
       <ColumnsContext.Provider value={columns}>
         {children}
