@@ -37,11 +37,16 @@ const BLACK_PIXEL = Uint8Array.from(
 
 /**
  * A one-page Word file whose header holds `vml`: at `word/<headerPart>`, with
- * VML under `vmlPrefix`, which `vml` must use too.
+ * VML under `vmlPrefix`, which `vml` must use too; the document's
+ * relationships under a `pr:` prefix when `prefixedRelationships`.
  */
 export function wordFileWithHeader(
   vml: string,
-  { headerPart = "header1.xml", vmlPrefix = "v" } = {}
+  {
+    headerPart = "header1.xml",
+    vmlPrefix = "v",
+    prefixedRelationships = false,
+  } = {}
 ): ArrayBuffer {
   const NAMESPACES = namespaces(vmlPrefix)
   const slash = headerPart.lastIndexOf("/")
@@ -59,7 +64,9 @@ export function wordFileWithHeader(
       `<?xml version="1.0" encoding="UTF-8"?><w:document ${NAMESPACES}><w:body><w:p><w:r><w:t>Body text</w:t></w:r></w:p><w:sectPr><w:headerReference w:type="default" r:id="rId1"/><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr></w:body></w:document>`
     ),
     "word/_rels/document.xml.rels": utf8(
-      `<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="${headerPart}"/></Relationships>`
+      prefixedRelationships
+        ? `<?xml version="1.0" encoding="UTF-8"?><pr:Relationships xmlns:pr="http://schemas.openxmlformats.org/package/2006/relationships"><pr:Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="${headerPart}"/></pr:Relationships>`
+        : `<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="${headerPart}"/></Relationships>`
     ),
     [`word/${headerPart}`]: utf8(
       `<?xml version="1.0" encoding="UTF-8"?><w:hdr ${NAMESPACES}><w:p><w:r><w:pict>${vml}</w:pict></w:r></w:p></w:hdr>`

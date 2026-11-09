@@ -14,6 +14,10 @@ function pointsOf(size: string): number {
   return value
 }
 
+// VML's spellings of false.
+const VML_FALSE = new Set(["f", "false", "0"])
+const isFalse = (value: string) => VML_FALSE.has(value.trim().toLowerCase())
+
 /** Whether text is fitted to its shape: the shape's own say, else its shape type's. */
 function fitsShape(
   header: Document,
@@ -21,7 +25,7 @@ function fitsShape(
   owner: Element
 ): boolean {
   const own = textPath.getAttribute("fitshape")
-  if (own) return own !== "f"
+  if (own) return !isFalse(own)
   const typeId = owner.getAttribute("type")?.replace(/^#/, "")
   const type = [...header.getElementsByTagNameNS(VML, "shapetype")].find(
     (candidate) => candidate.getAttribute("id") === typeId
@@ -29,7 +33,7 @@ function fitsShape(
   const inherited = type
     ?.getElementsByTagNameNS(VML, "textpath")[0]
     ?.getAttribute("fitshape")
-  return inherited !== "f"
+  return !inherited || !isFalse(inherited)
 }
 
 /** Fix every text watermark in a header; true if any changed. */

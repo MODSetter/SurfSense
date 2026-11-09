@@ -133,6 +133,28 @@ describe("a Word file's watermarks", () => {
     expect(headerOf(drawn(vml))).toContain("font-size:8pt")
   })
 
+  it.each(["false", "0"])(
+    "leaves a small size alone when the shape type says %s to fitting",
+    (spelling) => {
+      const fixed = WORD_TEXT_SHAPE_TYPE.replace(
+        'fitshape="t"',
+        `fitshape="${spelling}"`
+      )
+      const vml = fixed + textWatermark({ fontSize: "8pt" })
+      expect(headerOf(drawn(vml))).toContain("font-size:8pt")
+    }
+  )
+
+  it("finds a header the document names with prefixed relationships", () => {
+    const file = wordFileWithHeader(WASHED_OUT_PICTURE, {
+      headerPart: "headers/letterhead.xml",
+      prefixedRelationships: true,
+    })
+    expect(
+      headerOf(withDrawableWatermarks(file), "word/headers/letterhead.xml")
+    ).toContain("a:lum")
+  })
+
   it("keeps a washed-out picture's crop", () => {
     const cropped = WASHED_OUT_PICTURE.replace(
       'gain="19661f"',

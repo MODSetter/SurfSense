@@ -6,6 +6,8 @@ import { drawableTextWatermarks } from "./text-watermark"
 // Word's own names, for a file whose relationships cannot be read.
 const HEADER_PART = /^word\/header\d*\.xml$/
 const DOCUMENT_RELS = "word/_rels/document.xml.rels"
+const RELATIONSHIPS =
+  "http://schemas.openxmlformats.org/package/2006/relationships"
 const HEADER_TYPE =
   "http://schemas.openxmlformats.org/officeDocument/2006/relationships/header"
 // Beyond these a file is not worth inflating here: it opens with its watermarks
@@ -72,7 +74,10 @@ function headerPartsOf(rels: Uint8Array | undefined): Set<string> | null {
   )
   if (parsed.querySelector("parsererror")) return null
   const parts = new Set<string>()
-  for (const relationship of parsed.getElementsByTagName("Relationship")) {
+  for (const relationship of parsed.getElementsByTagNameNS(
+    RELATIONSHIPS,
+    "Relationship"
+  )) {
     const target = relationship.getAttribute("Target")
     if (relationship.getAttribute("Type") !== HEADER_TYPE || !target) continue
     if (relationship.getAttribute("TargetMode") === "External") continue
