@@ -470,6 +470,53 @@ def test_a_version_moved_between_listing_and_reading_it_is_read_again(
     assert _versions(root) == ["1.1.0"]
 
 
+def test_a_version_moved_while_its_entry_is_looked_at_is_read_again(
+    tmp_path, monkeypatch
+):
+    """The move can also land while the listing asks whether an entry is a folder."""
+    root = tmp_path / "installed"
+    install_pack(write_pack(tmp_path / "v1"), root)
+    elsewhere = tmp_path / "elsewhere"
+    install_pack(write_pack(tmp_path / "v2", version="1.1.0"), elsewhere)
+    pack = root / "acme-jobs"
+    old = pack / "1.0.0"
+    is_dir = Path.is_dir
+    moved: list[bool] = []
+
+    def moved_when_asked(self: Path, *args, **kwargs) -> bool:
+        if self == old and not moved:
+            moved.append(True)
+            (elsewhere / "acme-jobs" / "1.1.0").rename(pack / "1.1.0")
+            old.rename(root / ".replaced-old")
+        return is_dir(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "is_dir", moved_when_asked)
+
+    assert _versions(root) == ["1.1.0"]
+
+
+def test_a_dangling_link_in_a_pack_does_not_wait_for_installs(tmp_path):
+    """Only an entry gone from the folder means an install moved it; a link that points
+    nowhere stays, so reading again under the install lock would only delay installs."""
+    root = tmp_path / "installed"
+    install_pack(write_pack(tmp_path / "v1"), root)
+    try:
+        os.symlink(tmp_path / "nowhere", root / "acme-jobs" / "0.9.0")
+    except OSError:
+        pytest.skip("this system does not let the tests make a link")
+    listed: list[list[str]] = []
+
+    with INSTALLING:
+        reader = threading.Thread(target=lambda: listed.append(_versions(root)))
+        reader.start()
+        reader.join(timeout=5)
+        waited = reader.is_alive()
+
+    reader.join()
+    assert not waited
+    assert listed == [["1.0.0"]]
+
+
 def test_an_old_version_that_cannot_be_moved_stays_and_the_newest_is_listed(
     tmp_path, monkeypatch, caplog
 ):

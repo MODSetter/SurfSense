@@ -4,6 +4,7 @@ signature and its manifest when read."""
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -97,9 +98,15 @@ def _read_versions(folder: Path) -> tuple[list[InstalledPack], bool]:
     except OSError:
         return [], False
     found: list[InstalledPack] = []
-    # A version listed but gone before it was looked at was moved by an install, too.
-    vanished = any(not entry.exists() for entry in listed)
-    for version in (entry for entry in listed if entry.is_dir()):
+    vanished = False
+    versions: list[Path] = []
+    for entry in listed:
+        if entry.is_dir():
+            versions.append(entry)
+        # Gone, not a dangling link, since it was listed: an install moved it.
+        elif not os.path.lexists(entry):
+            vanished = True
+    for version in versions:
         try:
             raw = read_raw_manifest(version)
             manifest = parse_manifest(raw)
