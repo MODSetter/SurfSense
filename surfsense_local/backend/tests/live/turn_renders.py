@@ -70,7 +70,9 @@ def previews_opened(frames: list[dict[str, Any]]) -> set[tuple[int, int, int]]:
     for step in steps(frames, "read"):
         if step["status"] != "completed":
             continue
-        match = _PREVIEW.search(str((step.get("input") or {}).get("filePath", "")))
+        given = step.get("input") or {}
+        # opencode 1.x named it filePath; 2.x and Claude Code's steps, path.
+        match = _PREVIEW.search(str(given.get("path") or given.get("filePath") or ""))
         if match:
             opened.add((int(match[1]), int(match[2]), int(match[3])))
     return opened

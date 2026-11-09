@@ -5,6 +5,7 @@ import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import time
 from collections import Counter
 from collections.abc import Callable, Iterator
@@ -41,6 +42,11 @@ def go() -> None:
     time.sleep(3)
 """
 
+# A cold worker on a busy Windows runner took over 30 s to start; a pass returns at once.
+WAIT_SECONDS = 120
+# Each worker's stderr, so a wait that times out can say what the worker was doing.
+_STDERR: dict[int, Path] = {}
+
 
 @pytest.fixture
 def engine(monkeypatch: pytest.MonkeyPatch) -> Engine:
@@ -60,13 +66,26 @@ def engine(monkeypatch: pytest.MonkeyPatch) -> Engine:
 
 def start_worker() -> subprocess.Popen:
     """`worker.py plugins` in a process group of its own, as Electron starts it."""
-    return subprocess.Popen(
-        [sys.executable, "worker.py", "plugins"],
-        cwd=BACKEND,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        start_new_session=True,
-    )
+    handle, name = tempfile.mkstemp(prefix="plugins-worker-", suffix=".log")
+    with os.fdopen(handle, "wb") as stderr:
+        process = subprocess.Popen(
+            [sys.executable, "worker.py", "plugins"],
+            cwd=BACKEND,
+            stdout=subprocess.DEVNULL,
+            stderr=stderr,
+            start_new_session=True,
+        )
+    _STDERR[process.pid] = Path(name)
+    return process
+
+
+def stderr_tail(worker: subprocess.Popen, lines: int = 30) -> str:
+    """The worker's last stderr lines, for a failure message."""
+    log = _STDERR.get(worker.pid)
+    if log is None or not log.exists():
+        return "(no stderr)"
+    text = log.read_text(encoding="utf-8", errors="replace").splitlines()
+    return "\n".join(text[-lines:]) or "(no stderr)"
 
 
 @pytest.fixture
@@ -88,13 +107,17 @@ def wait_until(
     worker: subprocess.Popen, reached: Callable[[], bool], what: str
 ) -> None:
     """Block until the worker got there, or fail saying what never happened."""
-    deadline = time.monotonic() + 30
+    deadline = time.monotonic() + WAIT_SECONDS
     while time.monotonic() < deadline:
         if reached():
             return
-        assert worker.poll() is None, "the plugins worker stopped"
+        assert worker.poll() is None, (
+            f"the plugins worker stopped; its stderr:\n{stderr_tail(worker)}"
+        )
         time.sleep(0.1)
-    raise AssertionError(f"the plugins worker never had {what}")
+    raise AssertionError(
+        f"the plugins worker never had {what}; its stderr:\n{stderr_tail(worker)}"
+    )
 
 
 def test_the_plugins_worker_runs_four_at_a_time_and_the_fifth_waits(

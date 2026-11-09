@@ -73,16 +73,16 @@ async def test_an_ask_waits_for_the_user_and_the_thread_sees_both_ends(
     )
     asked = await asyncio.wait_for(events.get(), 1)
     assert asked.type == "permission.asked"
-    assert asked.properties["tool"]["callID"] == "toolu_3"
-    assert asked.properties["permission"] == "notion_create_page"
+    assert asked.data["source"]["id"] == "toolu_3"
+    assert asked.data["action"] == "notion_create_page"
     assert not asking.done()
 
-    assert approvals.answer(THREAD, asked.properties["id"], "once")
+    assert approvals.answer(THREAD, asked.data["id"], "once")
 
     assert isinstance(await asking, PermissionResultAllow)
     replied = await events.get()
     assert replied.type == "permission.replied"
-    assert replied.properties["reply"] == "once"
+    assert replied.data["reply"] == "once"
 
 
 async def test_a_rejected_ask_never_runs(tmp_path: Path) -> None:
@@ -93,7 +93,7 @@ async def test_a_rejected_ask_never_runs(tmp_path: Path) -> None:
         link.can_use_tool("mcp__notion__create_page", {}, {"tool_use_id": "toolu_3"})
     )
     asked = await events.get()
-    approvals.answer(THREAD, asked.properties["id"], "reject")
+    approvals.answer(THREAD, asked.data["id"], "reject")
 
     refused = await asking
     assert isinstance(refused, PermissionResultDeny)

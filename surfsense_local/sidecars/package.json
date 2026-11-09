@@ -1,0 +1,5 @@
+{
+  "name": "surfsense-local-sidecars",
+  "private": true,
+  "type": "module"
+}

@@ -22,6 +22,8 @@ from api.notify import (
     notify_document_deleted,
     notify_document_updates,
 )
+from modules.artifacts.drawn_images.placed_in import refuse_deleting_a_placed_picture
+from modules.artifacts.image_edits.edited_from import refuse_deleting_a_base
 from modules.chunks.models import Chunk
 from modules.documents.dependencies import DocumentDep
 from modules.documents.docling_batches import ended_in_queue as docling_batches
@@ -57,6 +59,9 @@ from modules.documents.tasks import (
     ingest_document,
 )
 from modules.documents.upload_order import cheapest_first
+from modules.documents.web_sources.background_pull.pull_task import pull_web_source
+from modules.documents.web_sources.background_pull.source_link import awaiting_pull
+from modules.documents.web_sources.link_consent import refused_pull_hosts
 from modules.embedding.dependencies import EMBEDDER_CHOSEN
 from modules.events.dependencies import EventBrokerDep
 from modules.events.schemas import EventKind
@@ -68,6 +73,7 @@ from modules.source_roots.managed_root import ensure_managed_root
 from modules.workspaces.dependencies import WorkspaceDep
 from modules.workspaces.models import Workspace
 from shared.config import get_storage_settings
+from shared.queue import plugins_queue, revoke_pending
 from worker.jobs import cancel_ingest_job
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/documents", tags=["documents"])
@@ -436,12 +442,21 @@ def retry_document(
             status.HTTP_409_CONFLICT,
             "only a failed or cancelled document can be retried",
         )
+    # Retry is the click a pull's hosts are asked about on, the host a site
+    # moved the page to included.
+    if awaiting_pull(document) and (refusal := refused_pull_hosts(session, document)):
+        session.commit()
+        raise refusal
 
     document.status = DocumentStatus.PENDING
     document.error_message = None
     session.commit()
 
-    ingest_document(document.id)
+    # A link's source with no text yet is pulled again; indexing alone has nothing to read.
+    if awaiting_pull(document):
+        pull_web_source(document.id)
+    else:
+        ingest_document(document.id)
     notify_document_updates(broker, document)
     return document
 
@@ -457,6 +472,8 @@ def cancel_ingest(
     was = document.status
     if not cancel_ingest_job(session, document):
         raise HTTPException(status.HTTP_409_CONFLICT, "nothing is running")
+    if awaiting_pull(document):
+        revoke_pending(plugins_queue, "pull_web_source", document.id)
     drop_when_cancelled_in_queue(document, was)
     docling_batches.drop_when_cancelled_in_queue(document, was)
     notify_document_updates(broker, document)
@@ -499,6 +516,8 @@ def delete_document(
     directories = [storage.document_dir(workspace_id, document_id)]
     # A Studio output keeps its rendered blobs under its artifact's own id.
     if document.artifact is not None:
+        refuse_deleting_a_base(session, document.artifact.id)
+        refuse_deleting_a_placed_picture(session, document.artifact)
         directories.append(
             storage.artifact_dir(document.workspace_id, document.artifact.id)
         )

@@ -81,6 +81,19 @@ export function cancelSignIn(flowId: string): Promise<void> {
   })
 }
 
+/**
+ * Finishes a sign-in from another device than the Docker host: OpenAI sends the
+ * browser to 127.0.0.1, where nothing answers, and the address it shows carries
+ * the code. The API finishes with the verifier it kept.
+ */
+export function pasteCallback(flowId: string, address: string): Promise<void> {
+  return requestVoid(`/llm/connections/chatgpt/sign-in/${flowId}/callback`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ address }),
+  })
+}
+
 export function signOut(connectionId: number): Promise<void> {
   return requestVoid(`/llm/connections/${connectionId}/sign-in`, {
     method: "DELETE",

@@ -28,9 +28,9 @@ def test_a_plugin_tool_is_named_as_claude_code_names_it() -> None:
 
 
 def test_a_steps_input_uses_opencodes_keys() -> None:
-    """The label reads `filePath`; Claude Code's file tools send `file_path`."""
+    """The label reads `path`; Claude Code's file tools send `file_path`."""
     assert step_input("Edit", {"file_path": "outputs/a.md", "old_string": "x"}) == {
-        "filePath": "outputs/a.md",
+        "path": "outputs/a.md",
         "oldString": "x",
     }
     assert step_input("mcp__surfsense__search_sources", {"query_text": "q"}) == {

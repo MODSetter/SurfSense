@@ -182,6 +182,35 @@ def test_each_numbered_list_in_word_counts_from_one() -> None:
     }
 
 
+def test_a_list_nested_past_the_third_level_leaves_its_parents_count_alone() -> None:
+    """A fourth level reuses the third level's style, but not its count."""
+    markdown = (
+        "1. Alpha\n"
+        "   1. Bravo\n"
+        "      1. Charlie\n"
+        "         1. Delta\n"
+        "         2. Echo\n"
+        "            1. Foxtrot\n"
+        "         3. Golf\n"
+        "      2. Hotel\n"
+        "      3. India\n"
+    )
+
+    shown = _shown_numbers(_word(markdown_to_word(markdown, {})))
+
+    assert shown == {
+        "Alpha": 1,
+        "Bravo": 1,
+        "Charlie": 1,
+        "Delta": 1,
+        "Echo": 2,
+        "Foxtrot": 1,
+        "Golf": 3,
+        "Hotel": 2,
+        "India": 3,
+    }
+
+
 def test_a_known_source_figure_is_placed_in_both_formats(tmp_path: Path) -> None:
     """An image: reference to a figure on the shelf places its PNG."""
     markdown = "# Logo\n\n![Halvorsen logo](image:12-1)\n"

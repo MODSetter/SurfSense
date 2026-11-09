@@ -147,6 +147,31 @@ async def test_an_untested_model_starts_basic_and_is_offered_agentic(
     }
 
 
+@pytest.mark.parametrize(
+    ("name", "catalog_provider", "base_url", "studio"),
+    [
+        ("anthropic/claude-haiku-4.5", "openrouter", OPENROUTER, "full"),
+        # Measured below the bar: remote, and still the simple path.
+        ("google/gemma-4-31b-it", "openrouter", OPENROUTER, "simple"),
+        # Not measured: remote writes its own files, one on this computer does not.
+        ("gpt-99-mini", "openai", OPENAI, "full"),
+        ("gpt-99-mini", "openai", "http://127.0.0.1:1234/v1", "simple"),
+    ],
+)
+async def test_each_model_says_which_studio_path_it_takes(
+    client: AsyncClient,
+    engine: Engine,
+    name: str,
+    catalog_provider: str,
+    base_url: str,
+    studio: str,
+) -> None:
+    """The same rule Studio applies, so Settings never promises another path."""
+    _select(engine, name, catalog_provider, base_url)
+
+    assert (await _capability(client))["studio"] == studio
+
+
 async def test_a_model_that_cannot_call_tools_is_not_offered_agentic(
     client: AsyncClient, engine: Engine
 ) -> None:
@@ -202,12 +227,16 @@ async def test_a_model_s_remembered_mode_waits_while_the_slot_holds_another(
         return chosen.json()["capability"]["modes"]
 
     await select("Qwen3-4B-Q4_K_M")
-    workspace = (await client.post("/workspaces", json={"name": "Research"})).json()
-    opened = await client.post(
-        f"/workspaces/{workspace['id']}/chat/threads",
-        json={"title": "New chat", "mode": "basic", "remember": True},
+    picked = await client.put(
+        "/llm/selection/text_gen/mode",
+        json={
+            "mode": "basic",
+            "provider": "llamacpp",
+            "connection_id": None,
+            "name": "Qwen3-4B-Q4_K_M",
+        },
     )
-    assert opened.status_code == 201, opened.text
+    assert picked.status_code == 200, picked.text
 
     other = await select("Qwen3-1.7B-Q4_K_M")
     back = await select("Qwen3-4B-Q4_K_M")

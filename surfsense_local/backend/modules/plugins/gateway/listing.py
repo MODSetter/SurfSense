@@ -15,6 +15,7 @@ from modules.plugins.installed.models import (
 from modules.plugins.installed.plugin_hosts import hosts_not_allowed
 from modules.plugins.installed.third_party import third_party_on
 from modules.plugins.lists.registry.delisted import delisted_reason, delisted_reasons
+from modules.plugins.remote.mcp_client.transports import recorded_on_sse
 from modules.plugins.remote.sign_in.oauth.oauth_credential import OAUTH
 
 
@@ -32,6 +33,8 @@ def list_tools(session: Session) -> list[ReadyTool]:
                 and not _signed_out(plugin)
                 # The plugin host refused the license: a call would only be refused.
                 and plugin.check_failure not in LICENSE_FAILURES
+                # Neither engine speaks the older SSE transport.
+                and not recorded_on_sse(plugin.entry)
             )
         return ready[plugin.id]
 

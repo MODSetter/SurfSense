@@ -1,9 +1,10 @@
-"""Word documents and PowerPoint decks waiting for Electron to print them to PDF.
+"""Word documents, decks and web pages waiting for Electron to draw them.
 
 The app has no Office converter. Electron lays the file out with the in-app
-viewer's library (docx-preview, or pptx-renderer for a deck) and prints it; it
-polls for requests as it polls for the image runtime, so the API needs no way
-to reach it. The name is the routes', kept from when only Word was printed.
+viewer's library (docx-preview, or pptx-renderer for a deck) and prints it to
+PDF; a web page it loads as it is and captures as a PNG. It polls for requests
+as it polls for the image runtime, so the API needs no way to reach it. The
+name is the routes', kept from when only Word was printed.
 """
 
 import threading
@@ -20,17 +21,18 @@ PRESENCE_SECONDS = 60
 # printToPDF's pageRanges: a version's previews are its first four pages.
 FIRST_PAGES = "1-4"
 
-SnapshotFormat = Literal["docx", "pptx"]
+SnapshotFormat = Literal["docx", "pptx", "html"]
 
 # What the model is told failed to print.
 _PRINTED: dict[str, tuple[str, str]] = {
     "docx": ("Word pages", "Word preview"),
     "pptx": ("PowerPoint slides", "PowerPoint preview"),
+    "html": ("Web page screenshots", "web page screenshot"),
 }
 
 
 class SnapshotUnavailableError(Exception):
-    """No PDF came back, said in a sentence the model can read."""
+    """No PDF or capture came back, said in a sentence the model can read."""
 
 
 @dataclass(frozen=True)
@@ -53,7 +55,7 @@ class _Pending:
     request: SnapshotRequest
     claimed: bool = False
     answered: threading.Event = field(default_factory=threading.Event)
-    pdf: bytes | None = None
+    drawn: bytes | None = None  # a PDF, or a web page's PNG
     failure: str | None = None
 
 
@@ -75,7 +77,7 @@ class DocxSnapshots:
         source_file: Path | None = None,
         pages: str = FIRST_PAGES,
     ) -> bytes:
-        """Block until Electron sends those pages of the file as a PDF, in page order."""
+        """Block until Electron sends those pages of the file as a PDF, in page order; a web page as a PNG."""
         if (artifact_id is None) == (source_file is None):
             raise ValueError("print either an artifact or a source's file")
         printed, preview = _PRINTED[format]
@@ -99,9 +101,9 @@ class DocxSnapshots:
             raise SnapshotUnavailableError(
                 f"The {preview} did not finish within {timeout:g} s."
             )
-        if pending.pdf is None:
+        if pending.drawn is None:
             raise SnapshotUnavailableError(f"The {preview} failed: {pending.failure}")
-        return pending.pdf
+        return pending.drawn
 
     def next_request(self) -> SnapshotRequest | None:
         """Electron's poll: the oldest request no one has taken, now taken."""
@@ -121,22 +123,22 @@ class DocxSnapshots:
                 return None
             return pending.request.source_file
 
-    def deliver(self, request_id: str, pdf: bytes) -> bool:
-        """Hand the waiter its PDF; False when no one waits for it any more."""
-        return self._answer(request_id, pdf=pdf)
+    def deliver(self, request_id: str, drawn: bytes) -> bool:
+        """Hand the waiter its PDF or PNG; False when no one waits for it any more."""
+        return self._answer(request_id, drawn=drawn)
 
     def fail(self, request_id: str, reason: str) -> bool:
-        """Tell the waiter why there is no PDF; False when no one waits any more."""
+        """Tell the waiter why nothing was drawn; False when no one waits any more."""
         return self._answer(request_id, failure=reason)
 
     def _answer(
-        self, request_id: str, *, pdf: bytes | None = None, failure: str | None = None
+        self, request_id: str, *, drawn: bytes | None = None, failure: str | None = None
     ) -> bool:
         with self._lock:
             pending = self._pending.get(request_id)
             if pending is None or pending.answered.is_set():
                 return False
-            pending.pdf, pending.failure = pdf, failure
+            pending.drawn, pending.failure = drawn, failure
             pending.answered.set()
             return True
 

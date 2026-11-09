@@ -1,0 +1,545 @@
+"""Orchestrator for the Instagram scraper.
+
+The core is the async generator :func:`iter_instagram` (unbounded);
+:func:`scrape_instagram` is a thin collector with a caller-supplied ``limit``
+guard. Any cap is caller policy, never baked into flow logic.
+
+Independent targets (one per ``directUrl`` / discovered entity) fan out
+concurrently on a pool of warm sessions (sticky IPs); each target's own paging
+stays sequential. ``fan_out`` is ported from the Reddit plugin's ``scraper.py`` but bound
+to *this* module's proxy holders so every worker warms its own session once and
+reuses it.
+
+Anonymous-only. Every surface here is reachable without a login: a profile's
+page and its embed, its reels tab, single-post/reel pages, and Google-backed
+handle discovery. Login-walled surfaces (``web_profile_info``, hashtag/place
+feeds, comment threads, IG's native keyword search) are deliberately absent.
+
+Flows are selected by ``resultsType``:
+- ``posts`` / ``reels`` -> media items (profile feed, or a single
+  ``/p/``/``/reel/`` page, or discovery search)
+- ``details`` -> profile metadata (by URL or discovery search)
+
+A profile's grid stops at its first page, 12 posts and 12 reels: the logged-out
+page's own next-page query answers ``null`` (probe 2026-10-22), as Instagram
+shows a logged-out visitor no more.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+import re
+from collections.abc import AsyncIterator, Awaitable, Callable
+from contextlib import aclosing
+from datetime import UTC, datetime, timedelta
+from typing import Any
+
+from pydantic import ValidationError
+
+from proprietary.google_search.schemas import GoogleSearchScrapeInput
+from proprietary.google_search.scraper import scrape_serps
+from proprietary.scraping.logged_host import logged_host
+
+from .fetch import (
+    InstagramAccessBlockedError,
+    InstagramLoginRequiredError,
+    bind_proxy_holder,
+    fetch_html,
+    now_iso,
+    open_proxy_holder,
+)
+from .pages.embed import embed_context, embed_media
+from .pages.profile_page import GridPost, clips, profile_user, timeline
+from .pages.web_profile_info import profile_info
+from .parsers import parse_media, parse_post, parse_profile
+from .schemas import InstagramMediaItem, InstagramProfile, InstagramScrapeInput
+from .url_resolver import ResolvedUrl, resolve_url
+
+logger = logging.getLogger(__name__)
+
+__all__ = [
+    "InstagramAccessBlockedError",
+    "iter_instagram",
+    "scrape_instagram",
+]
+
+# Independent jobs run concurrently on a pool of warm proxy sessions. Anonymous
+# Instagram is the most hostile platform, so this stays low to avoid burning the
+# residential pool with parallel login walls.
+_FANOUT_CONCURRENCY = 8
+# Exits one profile's post pages are read on at once. Six pages took 16.8s on
+# one exit and 7.8s on three (2026-10-23); with fan_out, at most 8 x 3 sessions.
+_PAGE_LANES = 3
+
+# Instagram usernames: 1-30 chars of letters/digits/period/underscore. Used to
+# treat a profile/user discovery query as a direct (anonymous) handle lookup.
+_HANDLE_RE = re.compile(r"[A-Za-z0-9._]{1,30}\Z")
+
+
+def _parse_newer_than(value: str | None) -> datetime | None:
+    """Parse ``onlyPostsNewerThan`` (ISO, YYYY-MM-DD, or relative) to UTC.
+
+    Relative forms: ``"<n> <unit>"`` where unit is minute/hour/day/week/month/
+    year (singular or plural). Anything unparseable returns ``None`` (no filter).
+    """
+    if not value:
+        return None
+    text = value.strip().lower()
+    parts = text.split()
+    if len(parts) == 2 and parts[0].isdigit():
+        n = int(parts[0])
+        unit = parts[1].rstrip("s")
+        days = {
+            "minute": n / 1440,
+            "hour": n / 24,
+            "day": n,
+            "week": n * 7,
+            "month": n * 30,
+            "year": n * 365,
+        }.get(unit)
+        if days is None:
+            return None
+        return datetime.now(UTC) - timedelta(days=days)
+    try:
+        dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if dt.tzinfo:
+            return dt
+        return dt.replace(tzinfo=UTC)
+    except ValueError:
+        return None
+
+
+def _is_after(timestamp: str | None, cutoff: datetime | None) -> bool:
+    """True if the item ``timestamp`` (ISO) is at/after the cutoff (or no cutoff)."""
+    if cutoff is None:
+        return True
+    if not timestamp:
+        return True
+    try:
+        dt = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+        return dt >= cutoff
+    except ValueError:
+        return True
+
+
+async def fan_out(
+    jobs: list[AsyncIterator[dict[str, Any]]], *, concurrency: int = _FANOUT_CONCURRENCY
+) -> AsyncIterator[dict[str, Any]]:
+    """Stream items from independent async-iterator jobs via a warm worker pool.
+
+    Each worker opens ONE proxy session and reuses it across the sequential jobs
+    it pulls, so only the first job per worker pays the proxy handshake + the
+    cookie warm-up. Partial results (matches the reddit sibling): one blocked or
+    failed target yields nothing rather than aborting the batch — Instagram is
+    an aggregation, not an atomic transaction, so 4/5 good targets beat 0/5. But
+    if EVERY target was refused (zero items AND a hard block seen), the whole run
+    couldn't reach anonymous data, so we re-raise the refusal (a login wall in
+    preference, since it says what still works) as the tool's error instead of a
+    misleading empty success. Workers are cancelled and their sessions closed if
+    the consumer stops early.
+    """
+    if not jobs:
+        return
+    job_queue: asyncio.Queue[AsyncIterator[dict[str, Any]]] = asyncio.Queue()
+    for job in jobs:
+        job_queue.put_nowait(job)
+    results: asyncio.Queue[list[dict[str, Any]]] = asyncio.Queue()
+    blocked: InstagramAccessBlockedError | None = None  # a hard login/auth wall
+
+    async def worker() -> None:
+        nonlocal blocked
+        holder = None
+        try:
+            holder = await open_proxy_holder()
+        except Exception as e:  # no session: jobs still run via one-shot fetches
+            logger.warning("[instagram] proxy session open failed: %s", e)
+        try:
+            while True:
+                try:
+                    job = job_queue.get_nowait()
+                except asyncio.QueueEmpty:
+                    return
+                items: list[dict[str, Any]] = []
+                try:
+                    if holder is not None:
+                        async with bind_proxy_holder(holder):
+                            items = [item async for item in job]
+                    else:
+                        items = [item async for item in job]
+                except InstagramAccessBlockedError as e:
+                    # Partial results: a blocked target must not kill the batch.
+                    # Record it so a fully-blocked run can still surface the refusal.
+                    if not isinstance(blocked, InstagramLoginRequiredError):
+                        blocked = e
+                    # The class only: a refusal's text names the post or profile.
+                    logger.warning("[instagram] target blocked: %s", type(e).__name__)
+                except Exception as e:  # one bad target must not kill the run
+                    logger.warning(
+                        "[instagram] fan-out job failed: %s", type(e).__name__
+                    )
+                await results.put(items)
+        finally:
+            if holder is not None:
+                await holder.close()
+
+    tasks = [asyncio.create_task(worker()) for _ in range(min(concurrency, len(jobs)))]
+    emitted = 0
+    try:
+        for _ in range(len(jobs)):
+            for item in await results.get():
+                emitted += 1
+                yield item
+    finally:
+        for task in tasks:
+            if not task.done():
+                task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+    # Reached only on natural exhaustion (an early-stop close raises GeneratorExit
+    # inside the loop and skips this). Nothing came back AND a wall was hit ->
+    # the run was fully refused, so fail loud rather than return empty.
+    if emitted == 0 and blocked is not None:
+        raise blocked
+
+
+def _emit(
+    partial: dict[str, Any],
+    *,
+    input_url: str | None,
+    model: type[InstagramMediaItem | InstagramProfile] = InstagramMediaItem,
+) -> dict[str, Any]:
+    """Stamp provenance and serialize through the output model.
+
+    Parsers return plain dicts that omit the fields their source lacks; the
+    model emits every documented field (``None`` when unsourced).
+    """
+    out = {**partial, "scrapedAt": now_iso()}
+    if input_url is not None:
+        out.setdefault("inputUrl", input_url)
+    try:
+        return model(**out).to_output()
+    except ValidationError as e:  # an unexpected shape must not drop the item
+        logger.warning("[instagram] item does not fit %s: %s", model.__name__, e)
+        return out
+
+
+async def _profile_pages(username: str) -> tuple[dict[str, Any], dict[str, Any]]:
+    """The profile's page and its embed's context."""
+    page = await fetch_html(f"{username}/")
+    user = profile_user(page) if page else {}
+    if not user:
+        return {}, {}
+    embed = await fetch_html(f"{username}/embed/")
+    return user, embed_context(embed) if embed else {}
+
+
+async def _reels_tab(username: str) -> dict[str, Any]:
+    """The profile's reels tab, without its embed.
+
+    Each reel is read from its own page for its video, which the embed lacks,
+    and an exit is rate-limited after about 14 reads.
+    """
+    page = await fetch_html(f"{username}/reels/")
+    return profile_user(page) if page else {}
+
+
+async def _profile_user(username: str) -> dict[str, Any] | None:
+    """The profile as ``web_profile_info``'s ``data.user`` gave it, or ``None``."""
+    user, context = await _profile_pages(username)
+    return profile_info(user, context) if user else None
+
+
+def _pinned_posts(grid: list[GridPost], newest: list[str]) -> list[GridPost]:
+    """Mark the posts grid's pinned posts, which it lists first and the embed leaves out."""
+    if not newest or newest[0] not in (post.code for post in grid):
+        return grid
+    first = next(i for i, post in enumerate(grid) if post.code == newest[0])
+    return [post._replace(pinned=i < first) for i, post in enumerate(grid)]
+
+
+def _embed_item(
+    post: GridPost, full: dict[str, Any], user: dict[str, Any]
+) -> dict[str, Any]:
+    """A grid post from the embed's copy, which lacks its product type, alt text,
+    owner's name and video URL.
+
+    The first two come from the grid and the name from the profile. The video
+    URL stays missing rather than cost the post's own page.
+    """
+    item = parse_media(full)
+    item["productType"] = item.get("productType") or post.product_type
+    item["alt"] = item.get("alt") or post.alt
+    if item.get("ownerUsername") == user.get("username"):
+        item["ownerFullName"] = item.get("ownerFullName") or user.get("full_name")
+    return item
+
+
+async def _post_page(code: str) -> dict[str, Any] | None:
+    url = f"https://www.instagram.com/p/{code}/"
+    return parse_post(await fetch_html(f"p/{code}/"), url=url, shortcode=code)
+
+
+async def _post_pages(codes: list[str]) -> dict[str, dict[str, Any] | None]:
+    """Posts read from their own pages on up to ``_PAGE_LANES`` exits at once.
+
+    The first lane reads on the held session and the others open their own, so
+    no exit nears its ~14 reads. One blocked lane cancels the rest.
+    """
+    lanes = [codes[i::_PAGE_LANES] for i in range(min(_PAGE_LANES, len(codes)))]
+
+    async def read(lane: list[str], fresh: bool) -> dict[str, dict[str, Any] | None]:
+        if not fresh:
+            return {code: await _post_page(code) for code in lane}
+        try:
+            holder = await open_proxy_holder()
+        except Exception as e:  # no session: one-shot fetches, as in fan_out
+            logger.warning("[instagram] proxy session open failed: %s", e)
+            return {code: await _post_page(code) for code in lane}
+        try:
+            async with bind_proxy_holder(holder):
+                return {code: await _post_page(code) for code in lane}
+        finally:
+            await holder.close()
+
+    try:
+        async with asyncio.TaskGroup() as group:
+            tasks = [
+                group.create_task(read(lane, i > 0)) for i, lane in enumerate(lanes)
+            ]
+    except BaseExceptionGroup as failed:
+        raise failed.exceptions[0] from None
+    return {code: item for task in tasks for code, item in task.result().items()}
+
+
+def _media_matches(item: dict[str, Any], result_type: str) -> bool:
+    """Filter a media item by feed type. ``reels`` keeps clips/videos only."""
+    if result_type == "reels":
+        return item.get("type") == "Video" or item.get("productType") == "clips"
+    return True
+
+
+async def _media_flow(
+    resolved: ResolvedUrl,
+    *,
+    input_model: InstagramScrapeInput,
+    cutoff: datetime | None,
+    per_target: int,
+) -> AsyncIterator[dict[str, Any]]:
+    """Emit media items for a profile feed, or a single ``/p/``/``/reel/`` page."""
+    result_type = input_model.resultsType
+    if resolved.kind == "profile":
+        reels = result_type == "reels"
+        if reels:
+            user, context = await _reels_tab(resolved.value), {}
+        else:
+            user, context = await _profile_pages(resolved.value)
+        full = {m.get("shortcode"): m for m in embed_media(context)}
+        grid = clips(user) if reels else _pinned_posts(timeline(user), list(full))
+        wanted = [p for p in grid if not (input_model.skipPinnedPosts and p.pinned)]
+        emitted = 0
+        # A window holds only as many posts as are still wanted, so a filter that
+        # drops some costs one more window, and a full feed reads no more pages.
+        while wanted and emitted < per_target:
+            window, wanted = (
+                wanted[: per_target - emitted],
+                wanted[per_target - emitted :],
+            )
+            pages = await _post_pages([p.code for p in window if p.code not in full])
+            for post in window:
+                if post.code in full:
+                    item = _embed_item(post, full[post.code], user)
+                else:
+                    item = pages.get(post.code)
+                if item is None:
+                    continue
+                if post.pinned is not None:
+                    item["isPinned"] = post.pinned
+                if item.get("videoViewCount") is None and post.views is not None:
+                    item["videoViewCount"] = post.views
+                if not _media_matches(item, result_type):
+                    continue
+                if not _is_after(item.get("timestamp"), cutoff):
+                    continue
+                yield _emit(item, input_url=resolved.url)
+                emitted += 1
+                if emitted >= per_target:
+                    return
+        return
+    if resolved.kind in ("post", "reel"):
+        # Single-post extraction: the anonymous ``?__a=1`` JSON API 404s/login-
+        # walls, but the public /p/<code>/ document embeds the mobile-v1
+        # PolarisMedia JSON (og-meta fallback), which parse_post reads. Numeric-ID
+        # URLs can't be keyed this way (the page needs the shortCode), so they're
+        # skipped upstream.
+        if resolved.numeric_post_id:
+            return
+        html = await fetch_html(f"p/{resolved.value}/")
+        item = parse_post(html, url=resolved.url, shortcode=resolved.value)
+        if item is None:
+            return
+        if not _media_matches(item, result_type):
+            return
+        if not _is_after(item.get("timestamp"), cutoff):
+            return
+        yield _emit(item, input_url=resolved.url)
+        return
+
+
+async def _details_flow(
+    resolved: ResolvedUrl, *, input_model: InstagramScrapeInput
+) -> AsyncIterator[dict[str, Any]]:
+    """Emit one profile detail item for a URL, from its page and its embed."""
+    if resolved.kind == "profile":
+        user = await _profile_user(resolved.value)
+        if user is not None:
+            yield _emit(
+                parse_profile(user), input_url=resolved.url, model=InstagramProfile
+            )
+
+
+def _kind_matches(resolved: ResolvedUrl, search_type: str) -> bool:
+    """True if a resolved IG URL is the kind the discovery query asked for.
+
+    Discovery is profile-only now (hashtag/place feeds are login-walled), so
+    every supported ``search_type`` maps to a profile target.
+    """
+    return resolved.kind == "profile"
+
+
+async def _discover_via_google(
+    query: str, *, search_type: str, limit: int
+) -> list[ResolvedUrl]:
+    """Discover IG profile targets via Google ``site:instagram.com`` (anonymous).
+
+    Instagram's own keyword search is login-walled, so we reuse the existing
+    ``google_search`` plugin, classify each organic URL with ``resolve_url``,
+    keep the profile hits, de-dup, and cap at ``limit``.
+
+    Quality caveat: results reflect Google's index/ranking of instagram.com, not
+    IG's own relevance. This is discovery, not search parity.
+    """
+    serps = await scrape_serps(
+        GoogleSearchScrapeInput(
+            queries=query, site="instagram.com", maxPagesPerQuery=1
+        ),
+        limit=1,
+    )
+    resolved: list[ResolvedUrl] = []
+    seen: set[tuple[str, str]] = set()
+    for serp in serps:
+        for org in serp.get("organicResults") or []:
+            url = org.get("url", "") if isinstance(org, dict) else ""
+            r = resolve_url(url)
+            if r is None or not _kind_matches(r, search_type):
+                continue
+            key = (r.kind, r.value)
+            if key in seen:
+                continue
+            seen.add(key)
+            resolved.append(r)
+            if len(resolved) >= limit:
+                return resolved
+    return resolved
+
+
+async def _discover(query: str, *, search_type: str, limit: int) -> list[ResolvedUrl]:
+    """Resolve a discovery query into profile targets - anonymously.
+
+    A query that is a valid handle resolves directly against the anonymous
+    profile endpoint ("messi" -> instagram.com/messi/). A non-handle query (e.g.
+    "national geographic") goes through Google ``site:instagram.com`` since IG's
+    native keyword search is login-walled.
+    """
+    handle = query.strip().lstrip("@")
+    if _HANDLE_RE.match(handle):
+        url = f"https://www.instagram.com/{handle}/"
+        return [ResolvedUrl("profile", handle, url)][:limit]
+    return await _discover_via_google(query, search_type=search_type, limit=limit)
+
+
+def _resolve_inputs(input_model: InstagramScrapeInput) -> list[ResolvedUrl]:
+    """Resolve ``directUrls`` (URLs take priority over ``search``)."""
+    resolved: list[ResolvedUrl] = []
+    for url in input_model.directUrls:
+        r = resolve_url(url)
+        if r is None:
+            logger.warning("[instagram] unrecognized URL on %s", logged_host(url))
+            continue
+        resolved.append(r)
+    return resolved
+
+
+async def _targets(input_model: InstagramScrapeInput) -> list[ResolvedUrl]:
+    """The resolved targets for this run: direct URLs, else discovery search."""
+    if input_model.directUrls:
+        return _resolve_inputs(input_model)
+    if not input_model.search:
+        return []
+    limit = input_model.searchLimit or 10
+    queries = [q.strip() for q in input_model.search.split(",") if q.strip()]
+    targets: list[ResolvedUrl] = []
+    for query in queries:
+        targets.extend(
+            await _discover(query, search_type=input_model.searchType, limit=limit)
+        )
+    return targets
+
+
+async def iter_instagram(
+    input_model: InstagramScrapeInput,
+) -> AsyncIterator[dict[str, Any]]:
+    """Yield flat Instagram items. ``directUrls`` override ``search``.
+
+    Independent targets fan out concurrently; each target's paging stays
+    sequential. De-dupes media by ``id`` across targets.
+    """
+    targets = await _targets(input_model)
+    if not targets:
+        return
+    result_type = input_model.resultsType
+    cutoff = _parse_newer_than(input_model.onlyPostsNewerThan)
+    per_target = input_model.resultsLimit or 10
+
+    if result_type == "details":
+        jobs = [_details_flow(r, input_model=input_model) for r in targets]
+        async with aclosing(fan_out(jobs)) as stream:
+            async for item in stream:
+                yield item
+        return
+
+    # posts / reels -> media feeds, de-duped by id across targets.
+    jobs = [
+        _media_flow(r, input_model=input_model, cutoff=cutoff, per_target=per_target)
+        for r in targets
+    ]
+    seen: set[str] = set()
+    async with aclosing(fan_out(jobs)) as stream:
+        async for item in stream:
+            item_id = item.get("id")
+            if isinstance(item_id, str):
+                if item_id in seen:
+                    continue
+                seen.add(item_id)
+            yield item
+
+
+async def scrape_instagram(
+    input_model: InstagramScrapeInput,
+    *,
+    limit: int | None = None,
+    on_item: Callable[[int], Awaitable[None]] | None = None,
+) -> list[dict[str, Any]]:
+    """Collect :func:`iter_instagram` into a list, honoring an optional ``limit``.
+
+    ``limit`` is a request-time policy guard, NOT a ceiling in the streaming
+    core. ``on_item`` hears the count after each item, for the caller's progress.
+    """
+    results: list[dict[str, Any]] = []
+    async with aclosing(iter_instagram(input_model)) as stream:
+        async for item in stream:
+            results.append(item)
+            if on_item is not None:
+                await on_item(len(results))
+            if limit is not None and len(results) >= limit:
+                break
+    return results

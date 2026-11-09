@@ -11,8 +11,12 @@ Docling's own OCR on a Mac with no parser pack.
 """
 
 import logging
+import threading
 from collections.abc import Iterable, Iterator
+from concurrent.futures import Future
 from typing import Any
+
+from PIL import Image
 
 from worker.ingestion.scan_ocr.frames import Frame
 from worker.ingestion.scan_ocr.page import OcrPage
@@ -23,6 +27,13 @@ log = logging.getLogger(__name__)
 
 # Vision takes far larger images than a 216 dpi page; this only bounds memory.
 MAX_SIDE = 10_000
+_BLANK_PAGE = (64, 64)
+# Fifty times the 2.4 s a page of the slowest Mac measured, above; a read past it
+# is stuck inside Apple's call, as one was once on macOS 27.
+READ_SECONDS = 120.0
+# The first read of a blank page, 0.35 s where measured: long enough for a slow Mac to
+# load Vision's models, and it holds up only the document that starts the reader.
+START_SECONDS = 60.0
 
 
 class VisionOcr:
@@ -33,14 +44,16 @@ class VisionOcr:
     def __init__(self) -> None:
         # PyObjC lets go of the GIL inside every Objective-C call, so pages in
         # flight do overlap.
-        self._pages = PagesAtOnce(_recognise, "vision-ocr")
+        self._pages = PagesAtOnce(self._read_within_limit, "vision-ocr")
+        self.stuck = False
 
     @classmethod
     def create(cls) -> "VisionOcr | None":
         try:
-            import Vision
-
-            Vision.VNRecognizeTextRequest.alloc().init()
+            # A real read: on macOS 27 a request could be made while every page failed.
+            _within_limit(
+                Frame(1, Image.new("L", _BLANK_PAGE, 255), 0.0), START_SECONDS
+            )
         except Exception:
             log.info("Vision is not available", exc_info=True)
             return None
@@ -48,6 +61,31 @@ class VisionOcr:
 
     def read(self, frames: Iterable[Frame]) -> Iterator[tuple[Frame, OcrPage]]:
         return self._pages.read(frames)
+
+    def _read_within_limit(self, frame: Frame) -> OcrPage:
+        # A page queued behind a stuck one would leave another thread behind.
+        if self.stuck:
+            raise TimeoutError("an earlier Vision read is stuck")
+        try:
+            return _within_limit(frame, READ_SECONDS)
+        except TimeoutError:
+            self.stuck = True
+            raise
+
+
+def _within_limit(frame: Frame, seconds: float) -> OcrPage:
+    """On a thread of its own: a stuck native call cannot be killed, and a pool's
+    thread would hold its pool open. Left behind, it ends with the process."""
+    outcome: Future[OcrPage] = Future()
+
+    def read() -> None:
+        try:
+            outcome.set_result(_recognise(frame))
+        except BaseException as error:
+            outcome.set_exception(error)
+
+    threading.Thread(target=read, name="vision-read", daemon=True).start()
+    return outcome.result(timeout=seconds)
 
 
 def _recognise(frame: Frame) -> OcrPage:
@@ -75,8 +113,10 @@ def _recognise(frame: Frame) -> OcrPage:
             False,
             Quartz.kCGRenderingIntentDefault,
         )
+        # macOS 27 refuses a Python dict here, even with PyObjC 13; Apple declares
+        # this argument non-null, so None is not promised to work either.
         handler = Vision.VNImageRequestHandler.alloc().initWithCGImage_options_(
-            picture, {}
+            picture, Foundation.NSDictionary.dictionary()
         )
         request = Vision.VNRecognizeTextRequest.alloc().init()
         request.setRecognitionLevel_(Vision.VNRequestTextRecognitionLevelAccurate)

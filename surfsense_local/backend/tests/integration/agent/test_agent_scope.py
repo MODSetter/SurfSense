@@ -73,24 +73,21 @@ async def test_a_turn_works_only_from_the_ticked_source(
     assert user["scope"] == {"document_ids": [ticked], "titles": ["Plan"]}
 
 
-async def test_the_scope_reaches_opencode_as_a_part_the_user_did_not_write(
+async def test_the_scope_reaches_opencode_as_a_message_the_user_did_not_write(
     agent_api: AgentAPI, engine: Engine, real_model: object
 ) -> None:
-    """opencode keeps the note as synthetic, beside the user's own words."""
+    """opencode keeps the note as a synthetic message, before the user's own words."""
     ticked, _ = ingest_note(engine, agent_api.workspace_id, "Plan", "Ship on Friday.")
     thread = await open_thread(agent_api)
 
     await send(agent_api, thread["id"], QUESTION, document_ids=[ticked])
 
     async with agent_api.opencode() as opencode:
-        (message, *_) = await opencode.messages(
-            thread_folder(agent_api.workspace_id, thread["id"]),
-            await _session_id(agent_api, thread["id"]),
-        )
-    texts = [p for p in message["parts"] if p["type"] == "text"]
-    assert texts[0]["text"] == QUESTION and not texts[0].get("synthetic")
-    assert texts[1]["synthetic"] is True
-    assert texts[1]["text"].startswith(f"[surfsense-scope: {ticked}]")
+        messages = await opencode.messages(await _session_id(agent_api, thread["id"]))
+    note, said = [m for m in messages if m["type"] in ("synthetic", "user")][:2]
+    assert note["type"] == "synthetic"
+    assert note["text"].startswith(f"[surfsense-scope: {ticked}]")
+    assert (said["type"], said["text"]) == ("user", QUESTION)
 
 
 async def test_with_nothing_ticked_the_agent_is_told_so_and_finds_nothing(

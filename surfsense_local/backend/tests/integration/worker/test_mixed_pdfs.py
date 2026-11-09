@@ -25,7 +25,7 @@ from tests import pdf_samples
 from tests.integration.worker.paged_docling_stand_in import PagedDocling
 from worker.ingestion import run
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.image]
 
 REPORT = pdf_samples.prose(9, seed=7)
 

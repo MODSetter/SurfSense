@@ -1,0 +1,51 @@
+---
+date: "2026-10-21"
+version: "2.2.3"
+---
+
+## What's New in v2.2.3
+
+v2.2.3 lets you use your Claude plan in SurfSense, connects any remote MCP server as a plugin, and reads scans and photos with OCR first, which in our tests had scans ready in about half the time. Get it from the [downloads page](/downloads).
+
+### Use your Claude plan
+
+- **Claude in chat and Agentic mode**: Settings › Add model, and onboarding, have a Use your Claude plan row. With a Claude Pro, Max or Team plan, SurfSense answers chats, titles, Studio and Agentic chats through the Claude Code you already have installed and signed in. SurfSense never signs in to Claude and never holds your Claude credentials.
+- **Setup that says what's missing**: The dialog checks your Claude Code and tells you whether it's not installed, too old, signed out or ready. Add Claude models asks once to allow `api.anthropic.com` and `platform.claude.com`.
+- **Switch models mid-thread**: An Agentic chat can move between a Claude plan model and any other model. The thread reads as one conversation, and the new model is told what it missed.
+- **Errors of its own**: Sign-in, plan-limit and network failures show as their own chat errors. Testing a model on a ChatGPT or Claude plan says it counts toward the plan's limits instead of costing money.
+
+### Plugins
+
+- **Connect any remote MCP server**: Add custom plugin is one screen: a name, a URL and Connect. Keys and other headers go under Advanced settings. Servers on the older SSE transport connect too, and a failure says why: it needs a key or sign-in, isn't an MCP server, can't be reached, or has moved.
+- **Sign in to more servers**: OAuth sign-in works with more providers, including SSE servers such as Asana's and Atlassian's. A provider that takes only registered apps, such as GitHub, walks you through registering your own OAuth app in three steps.
+- **One button per plugin**: A plugin's page has Connect while it isn't connected and Disconnect once it is, with everything else in its menu. In Yours, a plugin that isn't connected shows Connect in its row and why in grey, such as Sign-in expired or Key refused.
+- **Third-party plugins off means off**: While Allow third-party plugins is off, SurfSense contacts no third-party plugin's server at all, and turning it off ends any sign-in under way.
+- **Your plugin keys stay in SurfSense**: The agent reaches every plugin through SurfSense, which adds the key or sign-in itself, so the agent never sees them. An expired sign-in is refreshed mid-chat.
+- **More tools per chat**: The 24-tool limit is gone. Claude plan chats get every ready tool, and other models get as many as fit the model's context, with a plugin you mention first. A plugin left out is named, with how to bring it in.
+- **Why a sign-in failed**: A failed plugin sign-in says why, in your language, such as "You declined the sign-in." or "The sign-in wasn't finished in time. Try again."
+- **Notion is Verified**: Notion is now listed as Verified. The list comes from plugins.surfsense.com, so v2.2.2 shows it too.
+
+### Scans and photos
+
+- **OCR first, Docling only when needed**: Scanned PDFs and photos are read by OCR alone: RapidOCR on Windows and Linux, and Apple's Vision on a Mac. Docling reads only a page whose OCR came out garbled. In our tests on one Windows PC, 9 real scanned PDFs (199 pages) were all ready in 509 s instead of 829 s, and 40 receipts and forms in 113 s instead of 202 s, with far less CPU.
+- **Better answers from scans**: On 499 real pages, OCR alone kept more of each page than Docling did, including page numbers and headers Docling dropped, and answers to questions about them were more often right.
+
+### Settings
+
+- **Where your data is**: Settings › About has a Your data row showing the folder that holds your models, workspaces and settings, with Open folder.
+
+### No longer broken
+
+- **Numbered lists in Studio Word files**: Each numbered list starts at 1, instead of carrying on from the list before it.
+- **A full local model offers Retry**: When a model running on this computer runs out of room mid-reply, the chat offers Retry instead of saying SurfSense can't run the model or that something went wrong.
+
+### Known issues
+
+- **The first start needs free disk space**: v2.2.3 copies your library database before upgrading it, so the first start needs free space about the size of `~/.surfsense/surfsense.db`. Without it, SurfSense closes without a message. Free some space and start it again.
+- **Going back to v2.2.2 needs a manual restore**: v2.2.2 can't open the upgraded database. Quit SurfSense and replace `~/.surfsense/surfsense.db` with the copy saved at the upgrade, `~/.surfsense/backups/0030-0032.db`, before you reinstall v2.2.2. If `surfsense.db-wal` or `surfsense.db-shm` is still there, delete it too. Anything added since the update won't be in the copy. If you updated straight from v2.2.1, the copy is `0029-0032.db`.
+
+### Developers
+
+- **Decisions**: [ADR 0057](https://github.com/MODSetter/SurfSense/blob/main/docs/adr/0057-a-claude-plan-runs-through-the-users-own-claude-code.md) runs a Claude plan through your own Claude Code, [ADR 0062](https://github.com/MODSetter/SurfSense/blob/main/docs/adr/0062-a-scan-is-read-by-ocr-alone-before-docling.md) reads a scan by OCR alone before Docling, and ADRs 0063 to 0065 cover plugin connections, the plugin gateway and sizing a chat's tools by the model's window.
+- **Turning OCR-first off**: `SURFSENSE_LOCAL_SCAN_OCR=off` sends scans to Docling as before. Set it in the environment and restart SurfSense.
+- **Plugin publishers**: Registry entries can name the headers a key goes in, `user_client` and `transport`. Plugins are submitted through an issue form that a bot checks against the live server, and a custom plugin can be offered to the registry from its menu.

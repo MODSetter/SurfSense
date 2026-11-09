@@ -214,6 +214,368 @@ describe("egress prompt", () => {
     expect(dialog.textContent).not.toContain("excerpts of your documents")
   })
 
+  it("tells the truth about update checks: version, system and architecture, no ID, GitHub behind", async () => {
+    render(<EgressPrompt />)
+
+    void askEgress({
+      destination: "app_updates",
+      host: "updates.surfsense.com",
+      allow: async () => undefined,
+    })
+
+    const dialog = await screen.findByRole("alertdialog", {
+      name: "Allow SurfSense to check for updates?",
+    })
+    expect(dialog.textContent).toContain("asks updates.surfsense.com")
+    expect(dialog.textContent).toContain(
+      "the app’s name and version, your operating system and its architecture, and no ID"
+    )
+    expect(dialog.textContent).toContain(
+      "asks github.com instead, sending only your IP address and the app’s name"
+    )
+    // Every host the answer reaches, the download's included.
+    expect(dialog.textContent).toContain(
+      "githubusercontent.com, also sees your IP address"
+    )
+    expect(dialog.textContent).toContain("the next time you quit")
+  })
+
+  it("describes GitHub's releases for an app whose updater reads them directly", async () => {
+    render(<EgressPrompt />)
+
+    void askEgress({
+      destination: "app_updates",
+      host: "github.com",
+      purpose: "github_releases",
+      allow: async () => undefined,
+    })
+
+    const dialog = await screen.findByRole("alertdialog", {
+      name: "Allow SurfSense to check for updates?",
+    })
+    expect(dialog.textContent).toContain(
+      "reads the list of releases on github.com"
+    )
+    expect(dialog.textContent).toContain("githubusercontent.com")
+    expect(dialog.textContent).not.toContain("updates.surfsense.com")
+  })
+
+  it("names a policy's mirror as the only update host", async () => {
+    render(<EgressPrompt />)
+
+    void askEgress({
+      destination: "app_updates",
+      host: "updates.example.org",
+      purpose: "update_mirror",
+      allow: async () => undefined,
+    })
+
+    const dialog = await screen.findByRole("alertdialog", {
+      name: "Allow SurfSense to check for updates?",
+    })
+    expect(dialog.textContent).toContain(
+      "the update server your organization set"
+    )
+    expect(dialog.textContent).not.toContain("github.com")
+  })
+
+  it.each(["plugin_registry", "plugin"])(
+    "says SurfSense's plugin host gets the license key for paid plugins (%s)",
+    async (purpose) => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () =>
+          Response.json(
+            {
+              detail: {
+                code: "egress_disabled",
+                message: "off",
+                destination: "host:plugins.surfsense.com",
+                host: "plugins.surfsense.com",
+                purpose,
+              },
+            },
+            { status: 403 }
+          )
+        )
+      )
+      render(<EgressPrompt />)
+
+      void requestVoid("/plugins/registry/1", { method: "POST" }).catch(
+        () => {}
+      )
+
+      const dialog = await screen.findByRole("alertdialog")
+      expect(dialog.textContent).toContain("your license key")
+    }
+  )
+
+  it("asks about downloading the license’s jobs, names both of the license server’s errands, and downloads on Allow", async () => {
+    const calls: string[] = []
+    let allowed = false
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = String(input)
+        calls.push(`${init?.method ?? "GET"} ${path}`)
+        if (path === "/egress" && init?.method === "PUT") {
+          calls[calls.length - 1] +=
+            ` ${JSON.parse(String(init.body)).destinations.join(",")}`
+          allowed = true
+          return Response.json([])
+        }
+        return allowed
+          ? Response.json({ outcomes: [], packs: [] })
+          : Response.json(
+              {
+                detail: {
+                  code: "egress_disabled",
+                  message: "off",
+                  destination: "host:api.surfsense.com",
+                  host: "api.surfsense.com",
+                  hosts: ["api.surfsense.com"],
+                  purpose: "job_packs",
+                },
+              },
+              { status: 403 }
+            )
+      })
+    )
+    const user = userEvent.setup()
+    render(<EgressPrompt />)
+
+    const pending = requestVoid("/job-packs/download", { method: "POST" })
+    const prompt = await screen.findByRole("alertdialog", {
+      name: "Allow downloading your jobs?",
+    })
+    // One server, two errands: the license's file and its jobs, and what each sends.
+    expect(prompt.textContent).toContain(
+      "api.surfsense.com, its license server, for your license’s latest file and for the jobs your license includes, sending your license key and your IP address"
+    )
+    expect(prompt.textContent).toContain(
+      "A job download also sends the job’s code, the version you already have and the kinds of job this version of SurfSense can run."
+    )
+    expect(prompt.textContent).toContain(
+      "for newer versions of your jobs, while a license with jobs is active"
+    )
+    // A job's check that a run held back is made again once the run ends.
+    expect(prompt.textContent).toContain(
+      "A check for a job that comes during a run of it is made again once the run ends."
+    )
+    await user.click(screen.getByRole("button", { name: "Allow" }))
+
+    await expect(pending).resolves.toBeUndefined()
+    expect(calls).toEqual([
+      "POST /job-packs/download",
+      "PUT /egress host:api.surfsense.com",
+      "POST /job-packs/download",
+    ])
+  })
+
+  it("asks about reaching the license server when a refusal names no errand", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json(
+          {
+            detail: {
+              code: "egress_disabled",
+              message: "off",
+              destination: "host:api.surfsense.com",
+              host: "api.surfsense.com",
+            },
+          },
+          { status: 403 }
+        )
+      )
+    )
+    render(<EgressPrompt />)
+
+    // Its purpose left out, the question cannot say which errand it is for.
+    void requestVoid("/job-packs/download", { method: "POST" }).catch(() => {})
+
+    const dialog = await screen.findByRole("alertdialog", {
+      name: "Allow reaching SurfSense’s license server?",
+    })
+    expect(dialog.textContent).toContain(
+      "api.surfsense.com, its license server"
+    )
+  })
+
+  it("says a site gets a page's address from Add from the web, and asks about every site at once", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json(
+          {
+            detail: {
+              code: "egress_disabled",
+              message: "off",
+              destination: "host:tides.example",
+              host: "tides.example",
+              hosts: ["tides.example", "www.youtube.com"],
+              purpose: "web_page",
+            },
+          },
+          { status: 403 }
+        )
+      )
+    )
+    render(<EgressPrompt />)
+
+    void requestVoid("/workspaces/1/documents/web", { method: "POST" }).catch(
+      () => {}
+    )
+
+    const dialog = await screen.findByRole("alertdialog", {
+      name: "Allow reading pages from tides.example?",
+    })
+    expect(dialog.textContent).toContain(
+      "the page’s address and your IP address"
+    )
+    // The agent writes the address, so it can hold words from the chat.
+    expect(dialog.textContent).toContain(
+      "An address the agent chooses can carry words from your chats or files, such as a search term, but nothing else from them is sent."
+    )
+    expect(dialog.textContent).toContain("www.youtube.com")
+    expect(dialog.textContent).not.toContain("license key")
+  })
+
+  it.each(["wiki.documentfoundation.org", "platform.claude.com"])(
+    "asks about reading pages from %s, not its other errand",
+    async (host) => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () =>
+          Response.json(
+            {
+              detail: {
+                code: "egress_disabled",
+                message: "off",
+                destination: `host:${host}`,
+                host,
+                purpose: "web_page",
+              },
+            },
+            { status: 403 }
+          )
+        )
+      )
+      render(<EgressPrompt />)
+
+      void requestVoid("/workspaces/1/documents/web", {
+        method: "POST",
+      }).catch(() => {})
+
+      expect(
+        await screen.findByRole("alertdialog", {
+          name: `Allow reading pages from ${host}?`,
+        })
+      ).toBeTruthy()
+    }
+  )
+
+  // One row per host: allowing pages there also allows model search, which no
+  // longer asks once the host is on.
+  it.each([
+    { first: "huggingface.co", hosts: ["huggingface.co"] },
+    { first: "tides.example", hosts: ["tides.example", "huggingface.co"] },
+  ])(
+    "says reading pages from huggingface.co also turns on model search, when $first is asked first",
+    async ({ first, hosts }) => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () =>
+          Response.json(
+            {
+              detail: {
+                code: "egress_disabled",
+                message: "off",
+                destination: `host:${first}`,
+                host: first,
+                hosts,
+                purpose: "web_page",
+              },
+            },
+            { status: 403 }
+          )
+        )
+      )
+      render(<EgressPrompt />)
+
+      void requestVoid("/workspaces/1/documents/web", {
+        method: "POST",
+      }).catch(() => {})
+
+      const dialog = await screen.findByRole("alertdialog", {
+        name: `Allow reading pages from ${first}?`,
+      })
+      expect(dialog.textContent).toContain(
+        "Allowing also turns on model search and downloads from huggingface.co: searching sends what you type as you type it."
+      )
+    }
+  )
+
+  it("says a search goes to a SearXNG server, and that SurfSense runs its own", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json(
+          {
+            detail: {
+              code: "egress_disabled",
+              message: "off",
+              destination: "host:searxng.surfsense.com",
+              host: "searxng.surfsense.com",
+              purpose: "web_search",
+            },
+          },
+          { status: 403 }
+        )
+      )
+    )
+    render(<EgressPrompt />)
+
+    void requestVoid("/workspaces/1/documents/web/search", {
+      method: "POST",
+    }).catch(() => {})
+
+    const dialog = await screen.findByRole("alertdialog", {
+      name: "Allow searching with searxng.surfsense.com?",
+    })
+    expect(dialog.textContent).toContain("a SearXNG server")
+    expect(dialog.textContent).toContain(
+      "A search the agent writes can carry words from your chats or files, but nothing else from them is sent."
+    )
+    expect(dialog.textContent).toContain("SurfSense runs this server.")
+  })
+
+  it("never mentions a license key to a third-party plugin's host", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json(
+          {
+            detail: {
+              code: "egress_disabled",
+              message: "off",
+              destination: "host:mcp.notes.example",
+              host: "mcp.notes.example",
+              purpose: "plugin",
+            },
+          },
+          { status: 403 }
+        )
+      )
+    )
+    render(<EgressPrompt />)
+
+    void requestVoid("/plugins/custom", { method: "POST" }).catch(() => {})
+
+    const dialog = await screen.findByRole("alertdialog")
+    expect(dialog.textContent).not.toContain("license key")
+  })
+
   it("cancelling leaves the call refused", async () => {
     const calls = stubApi()
     const user = userEvent.setup()

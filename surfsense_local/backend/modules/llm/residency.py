@@ -14,10 +14,36 @@ import logging
 
 import httpx
 
+from modules.llm.admission.local_runtime import LocalAdmission
 from modules.llm.models import SelectedModel
 from modules.llm.providers.llamacpp import PROVIDER, RouterClient
+from modules.llm.providers.llamacpp.unload import unload_text_models
 
 logger = logging.getLogger(__name__)
+
+
+async def release_unselected(
+    selected: SelectedModel | None,
+    base_url: str,
+    admission: LocalAdmission,
+    *,
+    transport: httpx.BaseTransport | None = None,
+) -> list[str]:
+    """Unload the local chat model once chat has moved to another provider.
+
+    A loaded model otherwise stays until the app quits: 1.5 GB of RAM and 6 GB
+    of graphics memory for a 1.7B, all of it page-file backed on Windows. Waits
+    for what is generating locally to finish, as an image's hold does; the next
+    local request loads a model again. Never raises.
+    """
+    if selected is not None and selected.provider == PROVIDER:
+        return []
+    try:
+        async with admission.given_up():
+            return await unload_text_models(RouterClient(base_url, transport=transport))
+    except (httpx.HTTPError, OSError) as error:
+        logger.info("could not unload the local chat model: %s", error)
+        return []
 
 
 async def warm_selected(

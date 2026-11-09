@@ -25,7 +25,20 @@ from worker.studio.shared.artifact import Source
 pytestmark = pytest.mark.unit
 
 MODEL = ResolvedGeneration(
-    type("Selection", (), {"name": "qwen3:8b", "tier": Tier.CAPABLE})(), None
+    type(
+        "Selection",
+        (),
+        {"name": "qwen3:8b", "tier": Tier.CAPABLE, "provider": "openai_compatible"},
+    )(),
+    None,
+)
+LOCAL_MODEL = ResolvedGeneration(
+    type(
+        "Selection",
+        (),
+        {"name": "Qwen3-1.7B", "tier": Tier.CAPABLE, "provider": "llamacpp"},
+    )(),
+    None,
 )
 
 
@@ -137,6 +150,7 @@ def test_a_failed_script_goes_back_with_its_traceback_then_the_fix_is_kept(
         _sources: object,
         *,
         repair: generate.Repair | None = None,
+        **_kwargs: object,
     ) -> str:
         seen.append(repair)
         return next(replies)
@@ -219,3 +233,52 @@ def test_each_format_carries_its_skill_and_library() -> None:
     for spec in (docx, pptx, xlsx, pdf):
         assert spec.skill.strip()
         assert spec.library in {"python-docx", "python-pptx", "xlsxwriter", "reportlab"}
+
+
+def test_a_local_model_s_script_is_capped_and_a_remote_one_s_is_not(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A small local model that loops writes until the window is full."""
+    caps: list[int | None] = []
+
+    def fake_model(*_a: object, max_tokens: int | None = None, **_k: object) -> str:
+        caps.append(max_tokens)
+        return "save()"
+
+    monkeypatch.setattr(generate, "run_model", fake_model)
+    data = _deck("Cassini")
+    _runner(monkeypatch, _ran(data), _ran(data))
+
+    office.render(pptx, LOCAL_MODEL, [], None)
+    office.render(pptx, MODEL, [], None)
+
+    assert caps == [16_384, None]
+
+
+def test_a_script_that_ran_on_is_asked_for_anew_not_shown_back(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Shown back whole, a reply that ran on overflowed the window on its repair."""
+    asks: list[tuple[generate.Repair | None, str | None]] = []
+    replies = iter(["loop()\n" * 10_000, "fixed()"])
+
+    def fake_model(
+        *_a: object,
+        repair: generate.Repair | None = None,
+        after_sources: str | None = None,
+        **_k: object,
+    ) -> str:
+        asks.append((repair, after_sources))
+        return next(replies)
+
+    monkeypatch.setattr(generate, "run_model", fake_model)
+    data = _deck("Cassini")
+    _runner(monkeypatch, _failed("SyntaxError: never closed"), _ran(data))
+
+    built = office.render(pptx, LOCAL_MODEL, [], None)
+
+    assert built.primary == data
+    assert asks[0] == (None, None)
+    repair, after = asks[1]
+    assert repair is None
+    assert after is not None and "never finished" in after

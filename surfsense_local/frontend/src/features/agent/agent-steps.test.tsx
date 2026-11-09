@@ -2,6 +2,9 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { cleanup, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
+import { EgressPrompt } from "@/features/egress/egress-prompt"
+import { NetworkSettings } from "@/features/egress/network-settings"
+import { render as renderInApp } from "@/test-utils"
 import { OpenArtifactContext } from "@/features/studio/open-artifact"
 
 import { AgentSteps } from "./agent-steps"
@@ -19,12 +22,48 @@ function rendered(extra: Partial<AgentStep> = {}): AgentStep {
     id: "prt_1",
     tool: "surfsense_render_document",
     status: "completed",
-    title: null,
     input: { title: "Client proposal", format: "docx", script: "..." },
     output: "Rendered artifact 40, version 1.",
     artifact: { id: 40, title: "Client proposal", version: 1 },
     ...extra,
   }
+}
+
+// A page read refused because its site is not allowed yet.
+const REFUSED_READ: AgentStep = {
+  id: "prt_19",
+  tool: "surfsense_read_web_page",
+  status: "error",
+  input: { url: "https://tides.example/explained" },
+  error: "Not allowed in Settings > Network yet: tides.example.",
+  refused: { hosts: ["tides.example"], purpose: "web_page" },
+}
+
+/** The API's egress list, whose one site PUT /egress turns on and off. */
+function servingEgress(allowed: boolean) {
+  const calls: string[] = []
+  let enabled = allowed
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const path = String(input)
+      calls.push(`${init?.method ?? "GET"} ${path} ${init?.body ?? ""}`.trim())
+      if (path !== "/egress") return Response.json([])
+      if (init?.method === "PUT") {
+        enabled = (JSON.parse(String(init.body)) as { enabled: boolean })
+          .enabled
+      }
+      return Response.json([
+        {
+          destination: "host:tides.example",
+          host: "tides.example",
+          enabled,
+          last_call_at: null,
+        },
+      ])
+    })
+  )
+  return calls
 }
 
 afterEach(cleanup)
@@ -77,6 +116,122 @@ describe("agent steps", () => {
     )
   })
 
+  it("opens the version a saved web page made in Studio", async () => {
+    const openArtifact = vi.fn()
+    const user = userEvent.setup()
+    render(
+      <OpenArtifactContext.Provider value={openArtifact}>
+        <AgentSteps
+          steps={[
+            rendered({
+              tool: "surfsense_save_page",
+              input: { path: "outputs/q3.html", title: "Q3 revenue" },
+              artifact: { id: 52, title: "Q3 revenue", version: 1 },
+            }),
+          ]}
+        />
+      </OpenArtifactContext.Provider>
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "Created Q3 revenue v1" })
+    )
+    expect(openArtifact).toHaveBeenCalledExactlyOnceWith(52)
+  })
+
+  it("names a page save that made nothing by the page it was for", () => {
+    render(
+      <AgentSteps
+        steps={[
+          rendered({
+            tool: "surfsense_save_page",
+            status: "error",
+            input: { path: "outputs/q3.html", title: "Q3 revenue" },
+            artifact: undefined,
+            output: "The page is not UTF-8 text: save it as UTF-8.",
+          }),
+        ]}
+      />
+    )
+
+    expect(screen.getByText(/Saved the web page/).textContent).toBe(
+      "Saved the web page Q3 revenue"
+    )
+  })
+
+  it("opens the picture a make_image step made", async () => {
+    const openArtifact = vi.fn()
+    const user = userEvent.setup()
+    render(
+      <OpenArtifactContext.Provider value={openArtifact}>
+        <AgentSteps
+          steps={[
+            rendered({
+              tool: "surfsense_make_image",
+              input: { prompt: "A boat", title: "Boat" },
+              artifact: { id: 61, title: "Boat", version: 1 },
+            }),
+          ]}
+        />
+      </OpenArtifactContext.Provider>
+    )
+
+    await user.click(screen.getByRole("button", { name: "Created Boat v1" }))
+    expect(openArtifact).toHaveBeenCalledExactlyOnceWith(61)
+  })
+
+  it("names a picture still being drawn by what was asked for", () => {
+    render(
+      <AgentSteps
+        steps={[
+          rendered({
+            tool: "surfsense_make_image",
+            input: { prompt: "A boat", title: "Boat" },
+            artifact: undefined,
+            output: "Queued artifact 61, version 1: Boat",
+          }),
+        ]}
+      />
+    )
+
+    expect(screen.getByText(/Asked for the picture/).textContent).toBe(
+      "Asked for the picture Boat"
+    )
+  })
+
+  it("names an edit of a picture, which carries no title", () => {
+    render(
+      <AgentSteps
+        steps={[
+          rendered({
+            tool: "surfsense_make_image",
+            input: { prompt: "Make it night", artifact_id: 61 },
+            artifact: undefined,
+          }),
+        ]}
+      />
+    )
+
+    expect(screen.getByText("Asked to change a picture")).toBeTruthy()
+  })
+
+  it("calls a picture with no title and no artifact a picture, not an edit", () => {
+    render(
+      <AgentSteps
+        steps={[
+          rendered({
+            tool: "surfsense_make_image",
+            status: "running",
+            input: { prompt: "A boat" },
+            artifact: undefined,
+          }),
+        ]}
+      />
+    )
+
+    expect(screen.getByText("Asked for a picture")).toBeTruthy()
+  })
+
   it("names reading a document’s script and listing source images", () => {
     render(
       <AgentSteps
@@ -85,14 +240,12 @@ describe("agent steps", () => {
             id: "prt_2",
             tool: "surfsense_read_document",
             status: "completed",
-            title: null,
             input: { artifact_id: 40 },
           },
           {
             id: "prt_3",
             tool: "surfsense_list_images",
             status: "completed",
-            title: null,
             input: { source_ids: [3, 4] },
           },
         ]}
@@ -103,6 +256,79 @@ describe("agent steps", () => {
     expect(screen.getByText("Looked for images in 2 sources")).toBeTruthy()
   })
 
+  it("names loading a plugin's tools, asked for or not, and looking for tools", () => {
+    render(
+      <AgentSteps
+        steps={[
+          {
+            id: "call_1",
+            tool: "surfsense_loaded_tools",
+            status: "completed",
+            input: { plugin: "Linear" },
+            loaded_plugin: "Linear",
+          },
+          {
+            // Asked for by its @id; the step names the plugin by its name.
+            id: "call_2",
+            tool: "surfsense_open_plugin",
+            status: "completed",
+            input: { plugin: "@notion" },
+            loaded_plugin: "Notion",
+          },
+          {
+            id: "call_3",
+            tool: "surfsense_find_tools",
+            status: "completed",
+            input: { query: "file a bug" },
+            output: "No plugin tool you do not already hold fits that.",
+          },
+          {
+            id: "call_4",
+            tool: "surfsense_find_tools",
+            status: "completed",
+            input: { query: "check the weather" },
+            output: "These tools are yours now.",
+            loaded_plugin: "Weather",
+          },
+        ]}
+      />
+    )
+
+    for (const label of [
+      "Loaded Linear’s tools",
+      "Loaded Notion’s tools",
+      "Looked for tools to file a bug",
+      "Loaded Weather’s tools",
+    ]) {
+      expect(screen.getByText(label)).toBeTruthy()
+    }
+  })
+
+  it("names a file the same in a thread made on opencode 1.x and on 2.x", () => {
+    // 1.x's file tools took `filePath`; 2.x's, and Claude Code's steps, `path`.
+    render(
+      <AgentSteps
+        steps={[
+          {
+            id: "call_1",
+            tool: "write",
+            status: "completed",
+            input: { filePath: "/w/agent/threads/7/outputs/old.md" },
+          },
+          {
+            id: "call_2",
+            tool: "write",
+            status: "completed",
+            input: { path: "outputs/new.md" },
+          },
+        ]}
+      />
+    )
+
+    expect(screen.getByText("old.md")).toBeTruthy()
+    expect(screen.getByText("new.md")).toBeTruthy()
+  })
+
   it("names reading a workbook's cells by the workbook", () => {
     render(
       <AgentSteps
@@ -111,14 +337,12 @@ describe("agent steps", () => {
             id: "prt_20",
             tool: "surfsense_read_document",
             status: "completed",
-            title: null,
             input: { document_id: 8 },
           },
           {
             id: "prt_21",
             tool: "surfsense_read_document",
             status: "completed",
-            title: null,
             input: { artifact_id: 61 },
             output:
               'Artifact 61, version 2 of the revised copy of "Pricing.xlsx", is a workbook. Each cell below …',
@@ -127,7 +351,6 @@ describe("agent steps", () => {
             id: "prt_22",
             tool: "surfsense_read_document",
             status: "running",
-            title: null,
             input: { document_id: 9 },
           },
         ]}
@@ -226,6 +449,158 @@ describe("agent steps", () => {
     )
   })
 
+  it("names the workbook a job run filled in and opens its copy", async () => {
+    const openArtifact = vi.fn()
+    const user = userEvent.setup()
+    render(
+      <OpenArtifactContext.Provider value={openArtifact}>
+        <AgentSteps
+          steps={[
+            rendered({
+              tool: "surfsense_run_job",
+              input: { job: "security-questionnaire", document_id: 8 },
+              artifact: {
+                id: 41,
+                title: "Vendor questionnaire (revised)",
+                version: 1,
+              },
+            }),
+          ]}
+          scope={{ document_ids: [8], titles: ["Vendor questionnaire.xlsx"] }}
+        />
+      </OpenArtifactContext.Provider>
+    )
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Filled in Vendor questionnaire.xlsx",
+      })
+    )
+    expect(openArtifact).toHaveBeenCalledExactlyOnceWith(41)
+  })
+
+  it("names a job run by its copy when the turn names no workbook", () => {
+    render(
+      <AgentSteps
+        steps={[
+          rendered({
+            tool: "surfsense_run_job",
+            input: { job: "security-questionnaire", document_id: 8 },
+            artifact: {
+              id: 41,
+              title: "Vendor questionnaire (revised)",
+              version: 1,
+            },
+          }),
+        ]}
+        scope={null}
+      />
+    )
+
+    expect(screen.getByRole("listitem").textContent).toBe(
+      "Filled in Vendor questionnaire (revised)"
+    )
+  })
+
+  it("says a job run started filling in while no copy is linked", () => {
+    render(
+      <AgentSteps
+        steps={[
+          rendered({
+            tool: "surfsense_run_job",
+            status: "running",
+            input: { job: "security-questionnaire", document_id: 8 },
+            output: undefined,
+            artifact: null,
+          }),
+          rendered({
+            id: "prt_2",
+            tool: "surfsense_run_job",
+            status: "running",
+            input: { job: "security-questionnaire", document_id: 9 },
+            output: undefined,
+            artifact: null,
+          }),
+        ]}
+        scope={{ document_ids: [8], titles: ["Vendor questionnaire.xlsx"] }}
+      />
+    )
+
+    expect(
+      screen.getAllByRole("listitem").map((item) => item.textContent)
+    ).toEqual([
+      "Started filling in Vendor questionnaire.xlsx",
+      "Started filling in a workbook",
+    ])
+  })
+
+  it("says a redline reviewed the contract it was given, or started to", () => {
+    render(
+      <AgentSteps
+        steps={[
+          rendered({
+            tool: "surfsense_run_job",
+            input: { job: "contract-redline", document_id: 7 },
+            artifact: { id: 51, title: "Acme NDA (revised)", version: 1 },
+          }),
+          rendered({
+            id: "prt_2",
+            tool: "surfsense_run_job",
+            status: "running",
+            input: { job: "contract-redline", document_id: 7 },
+            output: undefined,
+            artifact: null,
+          }),
+        ]}
+        scope={{ document_ids: [7], titles: ["Acme NDA.docx"] }}
+      />
+    )
+
+    expect(
+      screen.getAllByRole("listitem").map((item) => item.textContent)
+    ).toEqual(["Reviewed Acme NDA.docx", "Started reviewing Acme NDA.docx"])
+  })
+
+  it("names the copy whose suggested answers were confirmed and opens that version", async () => {
+    const openArtifact = vi.fn()
+    const user = userEvent.setup()
+    render(
+      <OpenArtifactContext.Provider value={openArtifact}>
+        <AgentSteps
+          steps={[
+            rendered({
+              tool: "surfsense_confirm_job_suggestions",
+              input: { artifact_id: 41 },
+              artifact: {
+                id: 42,
+                title: "Vendor questionnaire (revised)",
+                version: 2,
+              },
+            }),
+            rendered({
+              id: "prt_2",
+              tool: "surfsense_confirm_job_suggestions",
+              status: "running",
+              input: { artifact_id: 41 },
+              output: undefined,
+              artifact: null,
+            }),
+          ]}
+        />
+      </OpenArtifactContext.Provider>
+    )
+
+    expect(screen.getAllByRole("listitem")[1].textContent).toBe(
+      "Started confirming suggested answers"
+    )
+    await user.click(
+      screen.getByRole("button", {
+        name: "Confirmed suggested answers in Vendor questionnaire (revised)",
+      })
+    )
+    expect(openArtifact).toHaveBeenCalledExactlyOnceWith(42)
+  })
+
   it("names looking at a source's pages by the source's title", () => {
     render(
       <AgentSteps
@@ -234,7 +609,6 @@ describe("agent steps", () => {
             id: "prt_5",
             tool: "surfsense_source_pages",
             status: "completed",
-            title: null,
             input: { document_id: 8, pages: [1, 2] },
           },
         ]}
@@ -258,7 +632,6 @@ describe("agent steps", () => {
             id: "prt_7",
             tool: "surfsense_analyze_data",
             status: "completed",
-            title: null,
             input: {
               title: "Revenue by region",
               document_ids: [3],
@@ -269,7 +642,6 @@ describe("agent steps", () => {
             id: "prt_8",
             tool: "surfsense_analyze_data",
             status: "running",
-            title: null,
             input: {},
           },
         ]}
@@ -289,7 +661,6 @@ describe("agent steps", () => {
             id: "prt_6",
             tool: "surfsense_source_pages",
             status: "running",
-            title: null,
             input: { document_id: 8 },
           },
         ]}
@@ -313,7 +684,6 @@ describe("agent steps", () => {
               id: "prt_7",
               tool: "surfsense_convert_document",
               status: "completed",
-              title: null,
               input: { artifact_id: 40, format: "pdf" },
               artifact: { id: 52, title: "Client proposal", version: 1 },
             },
@@ -336,7 +706,6 @@ describe("agent steps", () => {
             id: "prt_8",
             tool: "surfsense_convert_document",
             status: "running",
-            title: null,
             input: { document_id: 8, format: "pdf" },
           },
         ]}
@@ -353,7 +722,6 @@ describe("agent steps", () => {
       id,
       tool: "surfsense_source_pages",
       status: "completed",
-      title: null,
       input: { document_id: documentId },
     })
     const scope = { document_ids: [7, 8], titles: ["Notes.md", "Brief.pdf"] }
@@ -389,7 +757,7 @@ describe("agent steps", () => {
       id: string,
       tool: string,
       input: Record<string, unknown>
-    ): AgentStep => ({ id, tool, status: "completed", title: null, input })
+    ): AgentStep => ({ id, tool, status: "completed", input })
     render(
       <AgentSteps
         steps={[
@@ -415,5 +783,87 @@ describe("agent steps", () => {
       "Filled in a PDF form",
       "Worked on PDF pages",
     ])
+  })
+
+  it("names each web step by the search or the link it read", () => {
+    const step = (
+      id: string,
+      tool: string,
+      input: Record<string, unknown>
+    ): AgentStep => ({ id, tool, status: "completed", input })
+    render(
+      <AgentSteps
+        steps={[
+          step("prt_16", "surfsense_search_web", { query: "spring tides" }),
+          step("prt_17", "surfsense_read_web_page", {
+            url: "https://tides.example/explained",
+          }),
+          step("prt_18", "surfsense_read_youtube_transcript", {
+            url: "https://youtu.be/dQw4w9WgXcQ",
+          }),
+        ]}
+      />
+    )
+
+    expect(
+      screen.getAllByRole("listitem").map((item) => item.textContent)
+    ).toEqual([
+      "Searched the web for spring tides",
+      "Read the web page https://tides.example/explained",
+      "Read the transcript of https://youtu.be/dQw4w9WgXcQ",
+    ])
+  })
+
+  it("asks to allow a site a web step was refused, on a click", async () => {
+    const calls = servingEgress(false)
+    const user = userEvent.setup()
+    renderInApp(
+      <>
+        <EgressPrompt />
+        <AgentSteps steps={[REFUSED_READ]} />
+      </>
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "Allow tides.example" })
+    )
+    const prompt = await screen.findByRole("alertdialog", {
+      name: "Allow reading pages from tides.example?",
+    })
+    expect(prompt.textContent).toContain(
+      "when you add one from the web or the agent reads one"
+    )
+    await user.click(screen.getByRole("button", { name: "Allow" }))
+
+    expect(
+      await screen.findByText("Allowed. Ask the agent to try again.")
+    ).toBeTruthy()
+    expect(calls).toContain(
+      'PUT /egress {"destinations":["host:tides.example"],"enabled":true}'
+    )
+    vi.unstubAllGlobals()
+  })
+
+  it("offers Allow again once Settings › Network turns the site off", async () => {
+    servingEgress(true)
+    const user = userEvent.setup()
+    renderInApp(
+      <>
+        <AgentSteps steps={[REFUSED_READ]} />
+        <NetworkSettings />
+      </>
+    )
+
+    expect(
+      await screen.findByText("Allowed. Ask the agent to try again.")
+    ).toBeTruthy()
+    await user.click(
+      await screen.findByRole("checkbox", { name: "Allow tides.example" })
+    )
+
+    expect(
+      await screen.findByRole("button", { name: "Allow tides.example" })
+    ).toBeTruthy()
+    vi.unstubAllGlobals()
   })
 })

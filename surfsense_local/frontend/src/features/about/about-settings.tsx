@@ -1,3 +1,4 @@
+import { UsageStatisticsSettings } from "@/features/privacy-choices/usage-statistics-settings"
 import { SettingsSection } from "@/features/settings/settings-section"
 import { UpdateSettings } from "@/features/updates/update-settings"
 import { intl } from "@/i18n/intl"
@@ -5,7 +6,7 @@ import surfSenseLogo from "@/surfsense-logo.svg"
 
 import {
   DISCORD_URL,
-  DOCS_URL,
+  docsUrl,
   GITHUB_URL,
   LICENSE_URL,
   releaseNotesUrl,
@@ -51,6 +52,8 @@ function AppIdentity({ version }: { version?: string }) {
 
 export function AboutSettings() {
   const { data: details } = useAppDetails()
+  // The Docker image has no desktop app to ask; it is built with its version.
+  const version = details?.version ?? import.meta.env.VITE_SURFSENSE_VERSION
 
   return (
     <SettingsSection
@@ -65,8 +68,9 @@ export function AboutSettings() {
       })}
       scrollable="all"
     >
-      <AppIdentity version={details?.version} />
+      <AppIdentity version={version} />
       <UpdateSettings />
+      <UsageStatisticsSettings />
       <DataFolder />
 
       <div className="mt-8 flex flex-col gap-1">
@@ -77,15 +81,15 @@ export function AboutSettings() {
           })}
         </h3>
         <div className="mt-1 flex flex-col gap-2">
-          {details ? (
-            <ExternalLink href={releaseNotesUrl(details.version)}>
+          {version ? (
+            <ExternalLink href={releaseNotesUrl(version)}>
               {intl.formatMessage({
                 id: "about_release_notes_link",
                 defaultMessage: "Release notes",
               })}
             </ExternalLink>
           ) : null}
-          <ExternalLink href={DOCS_URL}>
+          <ExternalLink href={docsUrl(version)}>
             {intl.formatMessage({
               id: "about_docs_link",
               defaultMessage: "Documentation",

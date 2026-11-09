@@ -52,14 +52,23 @@ const DOCUMENTS = [
 
 type Call = { path: string; method: string; body: unknown }
 
-/** The folders API as the backend serves it, recording every write. */
-function folderApi() {
+type Route = (body: FormData | null) => Promise<Response>
+
+/**
+ * The folders API as the backend serves it, recording every write. `upload`
+ * and `health` replace those routes' answers.
+ */
+function folderApi({
+  upload,
+  health,
+}: { upload?: Route; health?: Route } = {}) {
   let folders = [...FOLDERS]
   let documents = [...DOCUMENTS]
   const writes: Call[] = []
   const fetchMock = vi.fn(
     async (input: RequestInfo | URL, init?: RequestInit) => {
-      const path = String(input)
+      // The Docker build calls the API under /api.
+      const path = String(input).replace(/^\/api/, "")
       const method = init?.method ?? "GET"
       const body =
         init?.body instanceof FormData
@@ -110,11 +119,13 @@ function folderApi() {
         return Response.json({ moved: document_ids, skipped: [] })
       }
       if (path === "/workspaces/1/documents/upload") {
+        if (upload) return upload(body as FormData)
         return Response.json(
           { created: [], duplicates: [], rejected: [] },
           { status: 201 }
         )
       }
+      if (path === "/health" && health) return health(null)
       return Response.json({ detail: "not found" }, { status: 404 })
     }
   )
@@ -122,7 +133,7 @@ function folderApi() {
   return { writes }
 }
 
-function TreeHarness() {
+function TreeHarness({ realOpen = false }: { realOpen?: boolean }) {
   const sources = useSources(1)
   return (
     <TooltipProvider>
@@ -140,7 +151,7 @@ function TreeHarness() {
           onUpload: (files) => void sources.upload(files),
           onUploadFolder: (entries) => void sources.uploadEntries(entries),
         }}
-        onOpen={vi.fn()}
+        onOpen={realOpen ? sources.openOriginal : vi.fn()}
         onReveal={vi.fn()}
         onRetry={vi.fn()}
         onCancel={vi.fn()}
@@ -162,6 +173,14 @@ function TreeHarness() {
 }
 
 const row = (name: string) => screen.getByRole("treeitem", { name })
+
+// A row starts taking drops in an effect after it appears, and a drop that comes
+// sooner lands on the panel. The drag library sets `draggable` in that same effect.
+async function rowTakingDrops(name: string) {
+  const found = await screen.findByRole("treeitem", { name })
+  await waitFor(() => expect(found.getAttribute("draggable")).toBe("true"))
+  return found
+}
 
 // jsdom lays nothing out: give a name the widths of one its row cuts off.
 function cutOff(element: HTMLElement) {
@@ -407,7 +426,7 @@ describe("source tree", () => {
     const dialog = await screen.findByRole("dialog", { name: "New folder" })
     await user.type(within(dialog).getByLabelText("Name"), "Archive")
     await user.click(within(dialog).getByRole("button", { name: "Create" }))
-    const archive = await screen.findByRole("treeitem", { name: "Archive" })
+    const archive = await rowTakingDrops("Archive")
 
     const dataTransfer = fakeDataTransfer()
     fireEvent.dragStart(research, { dataTransfer })
@@ -506,7 +525,7 @@ describe("source tree", () => {
   it("uploads a folder dropped on a folder row into it, with each file's path", async () => {
     const { writes } = folderApi()
     render(<TreeHarness />)
-    const research = await screen.findByRole("treeitem", { name: "Research" })
+    const research = await rowTakingDrops("Research")
     const a = new File(["a"], "a.md", { type: "text/markdown" })
     const b = new File(["b"], "b.txt", { type: "text/plain" })
     const clutter = new File(["x"], "HEAD")
@@ -564,6 +583,223 @@ describe("source tree", () => {
     expect(JSON.parse(String(sent.get("relative_paths")))).toEqual([
       "Trip/a.md",
     ])
+  })
+
+  it("skips the lock file Office keeps beside a document it has open", async () => {
+    const { writes } = folderApi()
+    render(<TreeHarness />)
+    const research = await rowTakingDrops("Research")
+    const plan = new File(["plan"], "plan.docx")
+    const lock = new File(["owner"], "~$plan.docx")
+
+    dropOn(
+      research,
+      fakeDataTransfer({
+        entries: [
+          droppedFolder("Trip", { "plan.docx": plan, "~$plan.docx": lock }),
+        ],
+      })
+    )
+
+    await waitFor(() =>
+      expect(
+        writes.some((write) => write.path === "/workspaces/1/documents/upload")
+      ).toBe(true)
+    )
+    const sent = writes.find(
+      (write) => write.path === "/workspaces/1/documents/upload"
+    )?.body as FormData
+    expect(sent.getAll("files")).toEqual([plan])
+  })
+
+  it("adds a folder's other files when one of them cannot be read", async () => {
+    let id = 100
+    const { writes } = folderApi({
+      // Chromium fails a whole request when it cannot read one of its files.
+      upload: async (body) => {
+        const files = body?.getAll("files") as File[]
+        if (files.some((file) => file.name === "budget.xlsx")) {
+          throw new TypeError("Failed to fetch")
+        }
+        return Response.json(
+          {
+            created: files.map((file) => source(id++, file.name, 2)),
+            duplicates: [],
+            rejected: [],
+          },
+          { status: 201 }
+        )
+      },
+    })
+    render(<TreeHarness />)
+    const research = await rowTakingDrops("Research")
+    const a = new File(["a"], "a.md", { type: "text/markdown" })
+    const budget = new File(["b"], "budget.xlsx")
+    const b = new File(["c"], "b.txt", { type: "text/plain" })
+
+    dropOn(
+      research,
+      fakeDataTransfer({
+        entries: [
+          droppedFolder("Trip", {
+            "a.md": a,
+            "budget.xlsx": budget,
+            "sub/b.txt": b,
+          }),
+        ],
+      })
+    )
+
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith(
+        "2 sources added",
+        expect.objectContaining({
+          description:
+            "Ingestion is running in the background. Rejected: budget.xlsx " +
+            "(Couldn’t be read; it may be open in another app)",
+        })
+      )
+    )
+    const sent = writes
+      .filter((write) => write.path === "/workspaces/1/documents/upload")
+      .map((write) => write.body as FormData)
+    expect(sent.map((body) => body.getAll("files"))).toEqual([
+      [a, budget, b],
+      [a],
+      [budget],
+      [b],
+    ])
+    expect(JSON.parse(String(sent[3].get("relative_paths")))).toEqual([
+      "Trip/sub/b.txt",
+    ])
+    expect(sent[3].get("folder_id")).toBe("2")
+  })
+
+  it("still reports a failed upload when the app's server does not answer", async () => {
+    const unanswered = async () => {
+      throw new TypeError("Failed to fetch")
+    }
+    folderApi({ upload: unanswered, health: unanswered })
+    render(<TreeHarness />)
+    const research = await rowTakingDrops("Research")
+
+    dropOn(
+      research,
+      fakeDataTransfer({
+        entries: [
+          droppedFolder("Trip", {
+            "a.md": new File(["a"], "a.md", { type: "text/markdown" }),
+            "b.txt": new File(["b"], "b.txt", { type: "text/plain" }),
+          }),
+        ],
+      })
+    )
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        "Couldn’t add your sources",
+        expect.objectContaining({ description: "Failed to fetch" })
+      )
+    )
+    expect(toast.success).not.toHaveBeenCalled()
+  })
+
+  it("keeps what the retry added when the server refuses one file of it", async () => {
+    let id = 100
+    folderApi({
+      upload: async (body) => {
+        const files = body?.getAll("files") as File[]
+        if (files.some((file) => file.name === "budget.xlsx")) {
+          throw new TypeError("Failed to fetch")
+        }
+        if (files[0].name === "b.txt") {
+          return Response.json(
+            { detail: "No space left on device" },
+            { status: 500 }
+          )
+        }
+        return Response.json(
+          {
+            created: files.map((file) => source(id++, file.name, 2)),
+            duplicates: [],
+            rejected: [],
+          },
+          { status: 201 }
+        )
+      },
+    })
+    render(<TreeHarness />)
+    const research = await rowTakingDrops("Research")
+
+    dropOn(
+      research,
+      fakeDataTransfer({
+        entries: [
+          droppedFolder("Trip", {
+            "a.md": new File(["a"], "a.md", { type: "text/markdown" }),
+            "budget.xlsx": new File(["b"], "budget.xlsx"),
+            "b.txt": new File(["c"], "b.txt", { type: "text/plain" }),
+          }),
+        ],
+      })
+    )
+
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith(
+        "1 source added",
+        expect.objectContaining({
+          description:
+            "Ingestion is running in the background. Rejected: " +
+            "b.txt (No space left on device), " +
+            "budget.xlsx (Couldn’t be read; it may be open in another app)",
+        })
+      )
+    )
+    expect(toast.error).not.toHaveBeenCalled()
+  })
+
+  it("does not blame the files when the server stops answering partway", async () => {
+    let id = 100
+    const unanswered = async () => {
+      throw new TypeError("Failed to fetch")
+    }
+    folderApi({
+      upload: async (body) => {
+        const files = body?.getAll("files") as File[]
+        if (files.length > 1 || files[0].name !== "a.md") return unanswered()
+        return Response.json(
+          {
+            created: [source(id++, "a.md", 2)],
+            duplicates: [],
+            rejected: [],
+          },
+          { status: 201 }
+        )
+      },
+      health: unanswered,
+    })
+    render(<TreeHarness />)
+    const research = await rowTakingDrops("Research")
+
+    dropOn(
+      research,
+      fakeDataTransfer({
+        entries: [
+          droppedFolder("Trip", {
+            "a.md": new File(["a"], "a.md", { type: "text/markdown" }),
+            "b.txt": new File(["b"], "b.txt", { type: "text/plain" }),
+          }),
+        ],
+      })
+    )
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        "Couldn’t add your sources",
+        expect.objectContaining({ description: "Failed to fetch" })
+      )
+    )
+    expect(toast.success).not.toHaveBeenCalled()
   })
 
   it("sets aside a file over 500 MB and uploads the rest", async () => {
@@ -627,5 +863,75 @@ describe("source tree", () => {
     expect(research.getAttribute("aria-checked")).toBe("false")
     await user.click(screen.getByRole("checkbox", { name: "Select notes.md" }))
     expect(row("notes.md").getAttribute("aria-checked")).toBe("false")
+  })
+})
+
+describe("sources in the Docker image", { tags: ["docker"] }, () => {
+  afterEach(() => {
+    cleanup()
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+  })
+
+  it("offers Download instead of Open, and no Show in folder: the file is in the container", async () => {
+    folderApi()
+    const user = userEvent.setup()
+    render(<TreeHarness />)
+
+    await user.click(
+      await screen.findByRole("button", { name: "Actions for notes.md" })
+    )
+
+    expect(
+      await screen.findByRole("menuitem", { name: "Download" })
+    ).toBeTruthy()
+    expect(screen.queryByRole("menuitem", { name: "Open" })).toBeNull()
+    expect(
+      screen.queryByRole("menuitem", { name: "Show in folder" })
+    ).toBeNull()
+  })
+
+  it("downloads the original the browser can keep, from the API", async () => {
+    folderApi()
+    const clicked: { href: string; download: string }[] = []
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
+      this: HTMLAnchorElement
+    ) {
+      clicked.push({
+        href: this.getAttribute("href") ?? "",
+        download: this.download,
+      })
+    })
+    const user = userEvent.setup()
+    render(<TreeHarness realOpen />)
+
+    await user.click(
+      await screen.findByRole("button", { name: "Actions for notes.md" })
+    )
+    await user.click(await screen.findByRole("menuitem", { name: "Download" }))
+
+    expect(clicked).toEqual([
+      { href: "/api/workspaces/1/documents/10/original", download: "" },
+    ])
+    expect(toast.error).not.toHaveBeenCalled()
+  })
+
+  it("does nothing on a click or Enter on a source with no preview: downloading is a menu choice", async () => {
+    folderApi()
+    const download = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => {})
+    const user = userEvent.setup()
+    render(<TreeHarness realOpen />)
+    await screen.findByRole("treeitem", { name: "Research" })
+
+    await user.click(
+      within(row("notes.md")).getByRole("button", { name: "notes.md" })
+    )
+    row("notes.md").focus()
+    await user.keyboard("{Enter}")
+
+    expect(download).not.toHaveBeenCalled()
+    expect(toast.error).not.toHaveBeenCalled()
   })
 })

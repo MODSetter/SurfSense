@@ -11,7 +11,7 @@ import pytest
 
 from worker.document_script.analysis_run import AnalysisInput, run_analysis_script
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.image]
 
 SALES = (
     "month,region,revenue\nJan,North,120\nJan,South,80\nFeb,North,150\nFeb,South,95\n"

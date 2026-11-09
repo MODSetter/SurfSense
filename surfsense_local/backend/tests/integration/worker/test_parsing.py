@@ -9,6 +9,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+from zipfile import ZipFile
 
 import numpy as np
 import pypdfium2
@@ -18,9 +19,10 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 
+from tests import kindle_samples
 from worker.ingestion.parser_pack import missing_parser_folders
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.image]
 
 BACKEND = Path(__file__).resolve().parents[3]
 # The pack `pnpm dev` points the app at, then the default data dir.
@@ -114,6 +116,48 @@ def scanned(image: Image.Image, angle: float, noise: float) -> Image.Image:
     return Image.open(io.BytesIO(lossy.getvalue()))
 
 
+def book(chapters: list[tuple[str, str]]) -> bytes:
+    """An EPUB 3 whose spine is the chapters' order; the ZIP stores them reversed."""
+    items = "".join(
+        f'<item id="c{n}" href="c{n}.xhtml" media-type="application/xhtml+xml"/>'
+        for n in range(len(chapters))
+    )
+    spine = "".join(f'<itemref idref="c{n}"/>' for n in range(len(chapters)))
+    epub = io.BytesIO()
+    with ZipFile(epub, "w") as archive:
+        archive.writestr("mimetype", "application/epub+zip")
+        archive.writestr(
+            "META-INF/container.xml",
+            '<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">'
+            '<rootfiles><rootfile full-path="OEBPS/content.opf" '
+            'media-type="application/oebps-package+xml"/></rootfiles></container>',
+        )
+        archive.writestr(
+            "OEBPS/content.opf",
+            '<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="id">'
+            '<metadata xmlns:dc="http://purl.org/dc/elements/1.1/">'
+            '<dc:identifier id="id">book</dc:identifier><dc:title>Book</dc:title>'
+            f"<dc:language>en</dc:language></metadata><manifest>{items}</manifest>"
+            f"<spine>{spine}</spine></package>",
+        )
+        for n, (heading, text) in reversed(list(enumerate(chapters))):
+            archive.writestr(
+                f"OEBPS/c{n}.xhtml",
+                '<html xmlns="http://www.w3.org/1999/xhtml"><body>'
+                f"<h1>{heading}</h1><p>{text}</p></body></html>",
+            )
+    return epub.getvalue()
+
+
+# As Project Gutenberg sets a chapter's number above its title.
+BROKEN_HEADING = "CHAPTER I.<br/>Down the Rabbit-Hole"
+
+CHAPTERS = [
+    ("The Harbour", RECEIPT),
+    ("The Ledger", business_paragraphs(1, seed=5)[0]),
+]
+
+
 def words(text: str) -> str:
     """The text's words and figures, without markdown or line breaks."""
     return " ".join(re.findall(r"[\w.%,:]+", text))
@@ -143,6 +187,24 @@ def parsed(tmp_path_factory: pytest.TempPathFactory) -> dict[str, str]:
     photo = io.BytesIO()
     sideways.convert("RGB").save(photo, "JPEG", quality=90, exif=exif)
     files["sideways.jpg"] = photo.getvalue()
+
+    files["novel.epub"] = book(CHAPTERS)
+    files["broken-heading.epub"] = book([(BROKEN_HEADING, RECEIPT)])
+    files["novel.azw3"] = kindle_samples.azw3(
+        [[f"<h2>{heading}</h2>", f"<p>{text}</p>"] for heading, text in CHAPTERS]
+    )
+    files["novel.mobi"] = kindle_samples.mobi(
+        "".join(
+            f'<p><font size="7">CHAPTER {n}.</font><br/><font size="7">{heading}</font></p>'
+            f"<p>{text}</p>"
+            for n, (heading, text) in enumerate(CHAPTERS, start=1)
+        ),
+        compression=2,
+    )
+    files["damaged.azw3"] = kindle_samples.azw3([["<p>Lost.</p>"]])[:400]
+    files["broken-heading.html"] = (
+        f"<html><body><h2>{BROKEN_HEADING}</h2><p>{RECEIPT}</p></body></html>"
+    ).encode()
 
     data_dir = root / "data"
     for document_id, (name, content) in enumerate(files.items(), start=1):
@@ -197,3 +259,44 @@ def test_a_copier_scan_reads_back_nearly_verbatim(parsed: dict[str, str]) -> Non
 def test_a_sideways_phone_photo_reads_upright(parsed: dict[str, str]) -> None:
     """A photo stored on its side with an EXIF turn is read the way it displays."""
     assert words(RECEIPT) in words(parsed["sideways.jpg"])
+
+
+def test_a_book_reads_its_chapters_in_spine_order(parsed: dict[str, str]) -> None:
+    """The spine, not the ZIP's order, is the order a reader turns the pages."""
+    expected = " ".join(f"# {heading}\n\n{text}" for heading, text in CHAPTERS)
+
+    assert words(expected) in words(parsed["novel.epub"])
+
+
+@pytest.mark.parametrize("name", ["broken-heading.epub", "broken-heading.html"])
+def test_a_line_break_in_a_heading_reads_as_a_space(
+    parsed: dict[str, str], name: str
+) -> None:
+    """Docling 2.125.0 leaves its private U+E000 for a heading's <br> in the text."""
+    markdown = parsed[name]
+
+    assert "CHAPTER I. Down the Rabbit-Hole" in markdown
+    assert "\ue000" not in markdown
+
+
+def test_a_kf8_book_reads_its_chapters_in_order(parsed: dict[str, str]) -> None:
+    """Each chapter's fragments go back into its file, and the files stay in order."""
+    expected = " ".join(f"## {heading}\n\n{text}" for heading, text in CHAPTERS)
+
+    assert words(expected) in words(parsed["novel.azw3"])
+
+
+def test_a_mobi6_book_reads_its_large_type_titles_as_headings(
+    parsed: dict[str, str],
+) -> None:
+    """Its titles are big paragraphs with a line break, as calibre writes them."""
+    markdown = parsed["novel.mobi"]
+
+    for n, (heading, text) in enumerate(CHAPTERS, start=1):
+        assert f"# CHAPTER {n}. {heading}\n\n{text}" in markdown
+    assert "\ue000" not in markdown
+
+
+def test_a_damaged_book_fails_as_unreadable(parsed: dict[str, str]) -> None:
+    """Unreadable fails the source with its reason and is not retried."""
+    assert parsed["damaged.azw3"].startswith("UnreadableFileError: ")

@@ -12,7 +12,7 @@ from modules.egress.service import set_enabled
 from modules.llm.subscriptions.claude import proxy as claude_proxy
 from modules.llm.subscriptions.claude.proxy_hosts import ClaudeHosts
 from shared.db import create_session_factory
-from tests.integration.agent.test_plugin_proxy import Echo, through
+from tests.integration.agent.test_runtime_proxy import Echo, connect_plugin, through
 
 pytestmark = pytest.mark.integration
 
@@ -122,3 +122,17 @@ async def test_a_refused_host_is_logged_as_claude_codes(
         r.getMessage() for r in caplog.records if r.getMessage().startswith("refused")
     ]
     assert refused == ["refused Claude Code's CONNECT console.anthropic.com:443"]
+
+
+async def test_a_plugins_host_is_refused_in_chat_and_agent_runs_alike(
+    engine: Engine, proxy: int, echo: Echo
+) -> None:
+    """Claude Code reaches a plugin only through the gateway, which holds its sign-in."""
+    connect_plugin(engine, f"https://localhost:{echo.port}/mcp")
+
+    head, _ = await through(
+        proxy, f"CONNECT localhost:{echo.port} HTTP/1.1\r\n\r\n".encode()
+    )
+
+    assert head.startswith(b"HTTP/1.1 403")
+    assert echo.connections == 0

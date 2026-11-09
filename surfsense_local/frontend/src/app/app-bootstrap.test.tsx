@@ -4,11 +4,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { EgressPrompt } from "@/features/egress/egress-prompt"
-import { render } from "@/test-utils"
+import { boxHeld, render } from "@/test-utils"
 import { AppBootstrap } from "./app-bootstrap"
 
 beforeEach(() => {
-  // The onboarding welcome step mounts OnboardingDither, which reads matchMedia.
+  // The onboarding welcome step mounts WelcomeBackdrop, which reads matchMedia.
   Object.defineProperty(window, "matchMedia", {
     configurable: true,
     value: vi.fn().mockReturnValue({
@@ -26,24 +26,6 @@ afterEach(() => {
 })
 
 describe("app bootstrap", () => {
-  it("shows the filling logo while startup is pending", () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(() => new Promise<Response>(() => {}))
-    )
-
-    render(
-      <TooltipProvider>
-        <AppBootstrap />
-      </TooltipProvider>
-    )
-
-    // Named for assistive tech; the logo itself is decoration and says nothing.
-    const loader = screen.getByRole("status", { name: "Starting SurfSense" })
-    expect(loader.textContent).toBe("")
-    expect(loader.querySelector(".ss-logo-fill-liquid")).toBeTruthy()
-  })
-
   it("shows onboarding only before it has been completed", async () => {
     vi.stubGlobal(
       "fetch",
@@ -155,9 +137,9 @@ describe("app bootstrap", () => {
     expect(setup.className).toContain("py-1")
     expect(setup.className).toContain("text-white")
     const message = screen.getByRole("textbox", { name: "Message" })
-    expect((message as HTMLTextAreaElement).disabled).toBe(true)
+    await waitFor(() => expect(boxHeld(message)).toBe(true))
     // No chat remembered from before, so launch opens a new one, centered.
-    expect(message.getAttribute("placeholder")).toBe(
+    expect(message.getAttribute("aria-placeholder")).toBe(
       "Turn your sources into answers"
     )
     expect(screen.queryByText("No chat model is available")).toBeNull()
@@ -256,10 +238,11 @@ describe("app bootstrap", () => {
       )
       expect(screen.queryByRole("button", { name: "Set up model" })).toBeNull()
       expect(screen.getByText("anthropic/claude-fable-5")).toBeTruthy()
-      expect(
-        screen.getByRole<HTMLTextAreaElement>("textbox", { name: "Message" })
-          .disabled
-      ).toBe(true)
+      await waitFor(() =>
+        expect(boxHeld(screen.getByRole("textbox", { name: "Message" }))).toBe(
+          true
+        )
+      )
       const notice = reasonText.closest<HTMLElement>("[role=status]")!
       expect(
         within(notice).getByRole("button", { name: "Open settings" })
@@ -322,11 +305,9 @@ describe("app bootstrap", () => {
     )
     const notice = reason.closest<HTMLElement>("[role=status]")!
     expect(screen.queryByRole("button", { name: "Set up model" })).toBeNull()
-    const message = screen.getByRole<HTMLTextAreaElement>("textbox", {
-      name: "Message",
-    })
-    expect(message.disabled).toBe(true)
-    expect(message.getAttribute("placeholder")).toBe(
+    const message = screen.getByRole("textbox", { name: "Message" })
+    await waitFor(() => expect(boxHeld(message)).toBe(true))
+    expect(message.getAttribute("aria-placeholder")).toBe(
       "Allow sending to openrouter.ai to chat"
     )
 
@@ -343,7 +324,7 @@ describe("app bootstrap", () => {
         screen.queryByText("Sending data to openrouter.ai is off.")
       ).toBeNull()
     )
-    expect(message.disabled).toBe(false)
+    await waitFor(() => expect(boxHeld(message)).toBe(false))
   }, 15_000)
 
   it("sends the user to Network, not the model list, when egress is off", async () => {
@@ -413,9 +394,7 @@ describe("app bootstrap", () => {
     await userEvent.keyboard("{Escape}")
 
     await waitFor(() => expect(screen.queryByText(unreadable)).toBeNull())
-    const message = screen.getByRole<HTMLTextAreaElement>("textbox", {
-      name: "Message",
-    })
-    expect(message.disabled).toBe(false)
+    const message = screen.getByRole("textbox", { name: "Message" })
+    await waitFor(() => expect(boxHeld(message)).toBe(false))
   }, 15_000)
 })

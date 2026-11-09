@@ -4,6 +4,8 @@ import type {
   UnavailablePlugin,
 } from "@/features/agent/api"
 import type { SourceScope } from "@/features/sources/tree/scope-state"
+
+import { mentionedSourcesOf, type ShownMention } from "./mentions/mention-text"
 import { request, requestJson, requestVoid } from "@/lib/api"
 
 import type { NewChatChoice } from "./modes/new-chat-mode"
@@ -71,6 +73,8 @@ export type MessageContent = {
   steps?: AgentStep[]
   // An agent turn's sources, on the user's message.
   scope?: TurnSources
+  // What the message named with `@`, for its chips; a deleted source drops out.
+  mentions?: ShownMention[]
   // Client only: what a turn not yet stored shows in place of `images`.
   previews?: string[]
   // Client only: how far the model has read the prompt, while it waits.
@@ -148,8 +152,6 @@ export function createThread(
         ? { source_scope: sourceScope }
         : {}),
       ...(choice ? { mode: choice.mode } : {}),
-      // Only the user's own choice becomes the model's default.
-      ...(choice?.chosen ? { remember: true } : {}),
     }),
     signal,
   })
@@ -198,8 +200,10 @@ export async function* streamMessage(
   sourceScope: SourceScope | null,
   thinking: boolean,
   retryOf: number | null,
+  mentions: readonly ShownMention[],
   signal: AbortSignal
 ): AsyncGenerator<NumberedEvent> {
+  const mentionedSources = mentionedSourcesOf(mentions)
   const response = await request(`/chat/threads/${threadId}/messages`, {
     method: "POST",
     headers: {
@@ -218,6 +222,7 @@ export async function* streamMessage(
       // Only when off, for the same reason: on is the API's default.
       ...(thinking ? {} : { thinking: false }),
       ...(retryOf !== null ? { retry_of: retryOf } : {}),
+      ...(mentionedSources ? { mentioned_sources: mentionedSources } : {}),
     }),
     signal,
   })

@@ -1,5 +1,6 @@
 import { BrowserWindow, session } from "electron"
 
+import { captureWebPage } from "./capture-web-page.ts"
 import { confineSnapshotSession } from "./confine-snapshot-session.ts"
 import { printOptions } from "./print-options.ts"
 import type { PrintSnapshot } from "./serve-snapshots.ts"
@@ -21,6 +22,14 @@ export function printInHiddenWindow(page: URL): PrintSnapshot {
   const allow = confineSnapshotSession(snapshotSession, page)
 
   return async ({ fileUrl, format, pages }, signal) => {
+    if (format === "html") {
+      const release = allow(fileUrl)
+      try {
+        return await captureWebPage(snapshotSession, fileUrl, signal)
+      } finally {
+        release()
+      }
+    }
     const win = new BrowserWindow({
       show: false,
       webPreferences: {

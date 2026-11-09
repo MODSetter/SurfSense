@@ -1,4 +1,4 @@
-"""A ready plugin a turn cannot use, and why, as either engine reports it."""
+"""A ready plugin a turn cannot use, or uses only in part, and why, as either engine reports it."""
 
 from dataclasses import dataclass
 from typing import Literal

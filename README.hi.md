@@ -11,7 +11,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Discord](https://img.shields.io/discord/1359368468260192417?label=Discord)](https://discord.gg/ejRNvftDp9)
 
-  <a href="https://www.surfsense.com/"><img alt="SurfSense, एयर-गैप्ड, ओपन-सोर्स NotebookLM विकल्प" src="surfsense_web/public/homepage/banner.png" /></a>
+  <a href="https://www.surfsense.com/"><img alt="SurfSense, एयर-गैप्ड, ओपन-सोर्स NotebookLM विकल्प" src="www/public/homepage/banner.png" /></a>
 
   <h1>SurfSense</h1>
 
@@ -38,18 +38,26 @@
   </p>
 </div>
 
+**ट्रैक किए गए बदलावों और टिप्पणियों के साथ अनुबंध रेडलाइन करें**
+
 https://github.com/user-attachments/assets/88326b9d-e763-46db-9635-75f9df9e8682
+
+**वेब से स्रोत जोड़ें, फिर उनसे एक वेब पेज बनाएं**
+
+https://github.com/user-attachments/assets/073577b7-f055-4f59-8540-330bd764aeb0
 
 SurfSense एक मुफ़्त, ओपन-सोर्स डेस्कटॉप ऐप है, उन दस्तावेज़ों के लिए जिन्हें आप अपलोड नहीं कर सकते। यह प्राइवेसी को केंद्र में रखकर बना, NotebookLM जैसा AI एजेंट है, जो आपके दस्तावेज़ों पर रिसर्च करता है, उन्हें ट्रांसफ़ॉर्म और एडिट करता है, और यह सब आपकी अपनी मशीन पर। इंडेक्स आपकी डिस्क पर रहता है, मॉडल आप चुनते हैं, चाहे लोकल हो या रिमोट, और कोई अकाउंट नहीं है।
 
 | प्लैटफ़ॉर्म | डाउनलोड |
 |---|---|
-| **Windows** x64 | [SurfSense-Setup.exe](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense-Setup.exe) |
-| **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense-arm64.dmg) |
-| **Linux** x64 | [AppImage](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense.AppImage) · [deb](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense.deb) |
+| **Windows** x64 | [SurfSense-Setup.exe](https://www.surfsense.com/downloads/windows?src=readme) |
+| **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
+| **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
+| **Docker** Linux, macOS | `curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh \| bash` |
+| **Docker** Windows (Docker Desktop) | `irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 \| iex` |
 
 > [!NOTE]
-> **होस्टेड वेब ऐप इस्तेमाल करते थे?** 18 अक्टूबर 2026 से पहले अपने वर्कस्पेस एक्सपोर्ट करें और उन्हें यहाँ इम्पोर्ट कर लें। [सनसेट पेज](https://www.surfsense.com/sunset) देखें।
+> Docker के साथ आप इसे अपने सर्वर पर खुद होस्ट करते हैं और अपने नेटवर्क के किसी भी डिवाइस से खोलते हैं। अपडेट करने के लिए वही कमांड फिर से चलाएं।
 
 ## झटपट शुरुआत
 
@@ -66,9 +74,10 @@ SurfSense एक मुफ़्त, ओपन-सोर्स डेस्क�
 | **Excel** `.xlsx` | ✓ एजेंट फ़ॉर्मूले भी पढ़ता है | ✓ फ़ॉर्मूलों और नेटिव चार्ट के साथ | ✓ सेल की वैल्यू और फ़ॉर्मूले | pandas से विश्लेषण करना, नतीजों का चार्ट बनाना |
 | **PowerPoint** `.pptx` | ✓ | ✓ या अपनी `.pptx` को टेम्प्लेट बनाकर | स्लाइड और नोट्स का टेक्स्ट बदलना; स्लाइड हटाना या डुप्लिकेट करना | PDF में¹ |
 | **CSV** | ✓ | — | — | pandas से विश्लेषण करना, नतीजों का चार्ट बनाना |
-| **इमेज** PNG, JPEG, TIFF, BMP, WebP | ✓ टेक्स्ट OCR से पढ़ा जाता है³ | इमेज और इन्फ़ोग्राफ़िक² | — | नए दस्तावेज़ों में लगाना |
+| **इमेज** PNG, JPEG, TIFF, BMP, WebP | ✓ टेक्स्ट OCR से पढ़ा जाता है³ | इमेज और इन्फ़ोग्राफ़िक, निर्देश से संपादन² | — | नए दस्तावेज़ों में लगाना |
 | **Markdown**, सादा टेक्स्ट | ✓ | ✓ Markdown | — | — |
 | **HTML** | ✓ | ✓ वेब पेज | — | — |
+| **ई-बुक** EPUB, MOBI, AZW3 | ✓ बिना DRM | — | — | — |
 | **रिकॉर्डिंग** WAV, MP3, FLAC, Ogg Vorbis | ✓ आपकी अपनी मशीन पर ट्रांसक्राइब की जाती हैं | — | — | — |
 | **पॉडकास्ट** (ऑडियो) | — | ✓ ट्रांसक्रिप्ट के साथ, आवाज़ डिफ़ॉल्ट रूप से आपकी अपनी मशीन पर दी जाती है | — | — |
 | **माइंड मैप, फ़्लैशकार्ड, क्विज़** | — | ✓ ऐप के अंदर | — | — |
@@ -79,22 +88,9 @@ SurfSense एक मुफ़्त, ओपन-सोर्स डेस्क�
 
 ## प्लगइन
 
-इन्हें **सेटिंग्स › प्लगइन** में कनेक्ट करें।
+इन्हें **सेटिंग्स › प्लगइन** में कनेक्ट करें: [प्लगइन रजिस्ट्री](backend/plugins/registry) के MCP सर्वर, जैसे DeepWiki और Notion, या कोई भी सर्वर जिसे आप URL से जोड़ें। जब तक आप अनुमति न दें, ये बंद रहते हैं।
 
-**SurfSense की ओर से।** ये आपके अपने अकाउंट के बिना सार्वजनिक पेज पढ़ते हैं और इनके लिए SurfSense लाइसेंस ज़रूरी है: [ऐप डाउनलोड करें](https://www.surfsense.com/downloads) और 30 दिन का मुफ़्त लाइसेंस पाने के लिए वहाँ अपना ईमेल डालें।
-
-| प्लगइन | यह क्या करता है |
-|---|---|
-| **Google Search** | Google पर खोजना और उसके नतीजे, विज्ञापन और संबंधित सवाल पढ़ना |
-| **Web Crawl** | कोई वेब पेज पढ़ना, या पूरी साइट को क्रॉल करके साफ़ टेक्स्ट में बदलना |
-| **YouTube** | YouTube के वीडियो, चैनल और उनकी टिप्पणियाँ पढ़ना |
-| **TikTok** | TikTok के वीडियो और उनकी टिप्पणियाँ पढ़ना, यूज़र खोजना और यह देखना कि क्या ट्रेंड कर रहा है |
-| **Google Maps** | Google Maps पर जगहें खोजना और उनके रिव्यू पढ़ना |
-| **Amazon** | Amazon के प्रोडक्ट और खोज के नतीजे पढ़ना |
-| **Walmart** | Walmart के प्रोडक्ट, खोज के नतीजे और रिव्यू पढ़ना |
-| **Indeed** | Indeed पर नौकरियों की लिस्टिंग पढ़ना |
-
-**थर्ड-पार्टी।** [प्लगइन रजिस्ट्री](plugins/registry) के MCP सर्वर, जैसे DeepWiki और Notion, या कोई भी सर्वर जिसे आप URL से जोड़ें। इनके लिए लाइसेंस की ज़रूरत नहीं; जब तक आप अनुमति न दें, ये बंद रहते हैं।
+**बिल्ट-इन और मुफ़्त:** एजेंट और स्रोतों में मौजूद **वेब से जोड़ें**, दोनों SearXNG के ज़रिए वेब पर खोजते हैं और आपके अपने कनेक्शन से पेज और YouTube के ट्रांसक्रिप्ट पढ़ते हैं, बिना किसी प्लगइन या लाइसेंस के।
 
 ## दूसरों से तुलना
 

@@ -4,9 +4,9 @@ import pytest
 from claude_agent_sdk import ClaudeAgentOptions
 
 from modules.agent.engines import thread_engine
-from modules.agent.engines.claude_code import agent_proxy
 from modules.agent.engines.claude_code import turn as claude_turn
 from modules.agent.engines.claude_code.engine import ClaudeCodeEngine
+from modules.llm.subscriptions.claude import proxy as claude_proxy
 from tests.claude_agent_stand_in import ScriptedAgentRun, Step
 from tests.integration.llm.claude.conftest import (
     FakeClaude,
@@ -41,7 +41,7 @@ def claude_agent(
     agent = ClaudeAgent()
     monkeypatch.setattr(claude_turn, "open_run", agent.open)
     # A serving API's proxy address; scripted runs never connect to it.
-    monkeypatch.setattr(agent_proxy, "_url", "http://127.0.0.1:9")
+    monkeypatch.setattr(claude_proxy, "_url", "http://127.0.0.1:9")
 
     async def nothing_changed(*_args: object, **_kwargs: object) -> int:
         return 0

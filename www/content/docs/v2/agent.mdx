@@ -1,0 +1,147 @@
+---
+title: Agent
+description: What the agent does in an Agentic chat, from Office files and PDFs to analyses, web pages and plugins
+---
+
+In an [Agentic chat](/docs/v2/chat#two-modes), the agent works in steps. It searches your ticked sources, reads them in full when it needs to, and answers with citations, as a Basic (Q&A) chat does. It can also make and change files, analyse tables, and call [plugins](/docs/v2/plugins).
+
+Each step shows above the reply as one line, such as "Searched the sources for …", "Created Budget v1" or "Merged PDFs". A spinner marks the step in progress.
+
+## What it can see
+
+The agent searches and reads only the sources ticked in the **Sources** panel, and any you [name with `@`](#name-a-source-with-). Ticks are not a security boundary: [code the agent writes](#code-the-agent-writes) runs with your user's permissions. Under your message the chat shows what it worked from, such as "Working from Plan.pdf" or "Working from 5 sources". Tick a folder to give it everything in that folder.
+
+## Name a source with @
+
+In an Agentic chat, type `@` in the composer and choose **Sources** or **Artifacts**, or keep typing a name to search both. Pick one and it sits in your message as a chip, which you delete as one piece, and the agent is pointed at it. The agent can read what you name even if it isn't ticked, and it can keep reading it for the rest of that chat. Your ticks in the **Sources** panel don't change.
+
+## Office files and PDFs
+
+Ask for a Word document, a PDF, a PowerPoint deck or an Excel workbook, and the agent makes it. Each file appears in [Studio](/docs/v2/studio) and opens in its viewer there. A step in the reply links to it.
+
+- **Real Office files.** You get a `.docx`, `.pptx` or `.xlsx` you can open and edit in Word, PowerPoint, Excel or LibreOffice: real headings, lists, tables, charts and speaker notes. Workbooks keep their formulas.
+- **Your sources' pictures and charts.** The agent can place a figure from a source, or draw a chart from a source's numbers.
+- **Pictures you ask for.** With an image model chosen, the agent can draw a picture or an infographic, change one it drew, and place it in a Word document, a PDF, a deck, a workbook or a web page. See [Pictures](#pictures).
+- **It checks its work.** With a model that reads images, the agent looks at the pages it made and fixes what looks wrong.
+- **Changes are new versions.** Ask for a change in the same chat, and the agent makes the document's next version. Earlier versions stay in Studio's version list.
+
+Documents the agent made are changed in its chat, not with Studio's **Refine**.
+
+### Pictures
+
+Ask for a picture, an infographic or a document with a picture in it. The agent reads what it needs from your sources, writes the prompt itself and draws with the model in **Settings › Image gen**. To change a picture, ask in the same chat, which uses **Settings › Image edit** and makes its next version. Each picture appears in [Studio](/docs/v2/studio).
+
+- **It draws only when you ask.** A remote model bills each picture. A model on a computer without a graphics card takes several minutes each.
+- **A slow picture may finish after the agent replies.** It appears in Studio when it's ready. To place it in a document, ask again in the same chat.
+- **Pictures used in a document stay until the document is gone.** If the agent placed a picture in a Word document, PDF, deck or workbook, delete that document before deleting the picture, because SurfSense needs the picture to make the document again.
+- **Exact words go in the document.** Image models can garble lettering, so check any words in a picture. Data charts stay real charts.
+
+### Start from your own template
+
+Tick one of your own Word files or decks, and ask the agent to use it as a template. It keeps the file's styles, headers, footers and slide layouts, and replaces the body or slides with new content. A deck with no slides works as a template too.
+
+To match a look it can't take as a template, such as a brand guide in a PDF, the agent can look at the source's pages, with a model that reads images.
+
+## Revised copies of your files
+
+Ask the agent to edit one of your own Word, Excel or PowerPoint sources, and it makes a **revised copy**. Your original file is never changed.
+
+- In a Word copy, every edit is a **tracked change**, and the agent can add **comments**. Studio shows them as Word does.
+- Each later edit is the copy's next version.
+
+In Studio, the copy reads "Revised copy of MSA_Acme.docx", with a count such as "7 tracked changes, 2 comments":
+
+- **Accept all** or **Reject all** makes a new version with the tracked changes applied or removed. Both are on a Word copy's newest version.
+- **With changes** downloads the copy with its tracked changes and comments.
+- **Clean** downloads the Word copy with every change accepted and no comments.
+
+The agent edits by quoting the text to change. If one edit can't be applied, nothing is saved, and the agent tries again. Word headers, footers and footnotes are not edited yet.
+
+## Jobs
+
+With a [job](/docs/v2/jobs) on your computer, such as **Security questionnaire**, the agent can run it. Tick the workbook and your policies, and ask it to fill in the questionnaire. Its step reads "Filled in" with the workbook's name, or "Started filling in" while the job still runs, and opens the copy in Studio when it's done.
+
+Once you've checked the copy's suggested answers, ask the agent to confirm them. That step reads "Confirmed suggested answers in" with the copy's name.
+
+A Basic (Q&A) chat can't run jobs. Use **Jobs** in the sidebar instead.
+
+## PDF tools
+
+The agent can work on PDF sources and the PDFs it made. Each result is a new PDF in Studio.
+
+- **Pages:** merge PDFs, take pages out, split, rotate or reorder pages.
+- **Stamps:** add a watermark, page numbers, a header or a footer.
+- **Forms:** read a form's fields, then fill them in, and optionally flatten the answers into the page.
+- **Convert to PDF:** turn a Word document or deck into a PDF. This needs [Office support](#office-support).
+
+PDFs that need a password, signature fields and XFA-only forms are not supported.
+
+## Data analysis
+
+Tick a spreadsheet (`.xlsx`) or `.csv` source and ask a question about its numbers. The agent writes a short analysis script, runs it on a copy of the file, and answers from the result, with tables and charts. It can then place a chart in a document it makes.
+
+## Web pages
+
+Ask for a web page, such as an interactive report or an explainer, and the agent writes one. It appears in Studio as a **Web page** and opens in its viewer there.
+
+A page runs with no network: it can't load anything from the internet, and links inside it don't open from Studio's viewer. Ask for changes in the same chat for its next version.
+
+## Search and read the web
+
+When your question needs more than your sources, such as recent facts or a page you name, the agent can search the web and read pages and YouTube videos. It needs no license and no plugin. SurfSense reads each page on your own computer and connection, and a video's transcript in the language the video speaks. Searches go to a SearXNG server: SurfSense's own, unless you enter your organization's under **Web search** in **Settings › Network**.
+
+The first time the agent reaches a site, its step says the site isn't allowed yet and offers **Allow** with the site's name. Allow it, then ask the agent again. The site gets the page's address and your IP address, and it stays listed in **Settings › Network**, where you can turn it off. The agent writes the addresses it reads and the searches it sends, so they can carry words from your chats or documents, but nothing else from them is sent.
+
+Some pages can't be read without a browser, such as ones behind a login. Save those as a PDF from your browser and add the file to your sources.
+
+## Studio formats
+
+The agent can also start any other [Studio](/docs/v2/studio) format from the chat, such as a podcast, a quiz or flashcards. A step reads "Started Podcast in Studio", and the result appears in Studio when it's ready.
+
+## Code the agent writes
+
+To make a document or run an analysis, the agent writes a short script, and SurfSense runs it without asking. The agent has no shell: it cannot run other programs.
+
+- The script runs in a separate process, with a time limit, an empty folder and only the libraries SurfSense ships.
+- The script behind each version is kept, so the next change edits that script.
+
+<Callout type="warn">
+  This runner is not a sandbox. A script runs with your user's permissions and
+  could read your files or reach the network. A source written to steer the
+  model could try to misuse that. Only tick sources you trust in Agentic
+  chats.
+</Callout>
+
+## Approvals
+
+A plugin tool set to **Needs approval** stops the turn and asks in the chat, under its step: **Allow once** or **Deny**. **Chats** marks the chat "Waiting for your approval" until you answer. Denying one request also denies the others waiting in that chat.
+
+Set each tool to **Always allow**, **Needs approval** or **Blocked** in **Settings › Plugins**. See [Plugins](/docs/v2/plugins).
+
+## Plugins
+
+The agent can use your connected plugins whenever a request needs them. To point it at one, say so in your message, such as "use Linear".
+
+If a plugin can't be used, the reply says so above its steps, such as "Couldn’t reach Notes" or "Sign in to Notes again". A plugin step's full result can be saved as a note with **Save to Sources**.
+
+See [Plugins](/docs/v2/plugins) to connect them.
+
+## Office support
+
+Office support is LibreOffice, run by SurfSense on copies of your files. It's optional and free, and nothing downloads until you turn it on. With it, SurfSense:
+
+- shows Word and PowerPoint pages as Office lays them out, when the agent checks its work;
+- puts real totals in the workbooks the agent makes;
+- converts Word documents and decks to PDF.
+
+Without it, previews use SurfSense's own viewer, which can differ from Office, and a workbook's formulas show the values the script stored until Excel recalculates them.
+
+To turn it on, open **Settings › Office support** and click **Turn on**. SurfSense asks before downloading LibreOffice from The Document Foundation. If LibreOffice is already installed, choose **Use the LibreOffice I have** instead. After the agent makes an Office file, the chat may offer **Turn on Office support** too.
+
+SurfSense runs LibreOffice with macros, links to other files and its own updates off.
+
+## Limits
+
+- The agent can't read images you attach to a message yet. Ask about images in a Basic (Q&A) chat.
+- Small local models can stall on multi-step work. A strong remote model does better.
+- Opening the first Agentic chat can take up to a minute while the agent starts and a local model loads.

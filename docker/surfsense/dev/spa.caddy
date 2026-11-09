@@ -1,0 +1,7 @@
+# The dev stack's SPA: Vite, with its HMR socket, in place of the built folder.
+handle {
+	reverse_proxy frontend:5173 {
+		# Vite serves only localhost and IPs; the access service has already vetted the name.
+		header_up Host localhost
+	}
+}

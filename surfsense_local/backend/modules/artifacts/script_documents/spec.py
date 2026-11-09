@@ -4,7 +4,9 @@ from dataclasses import dataclass
 from typing import Any, Literal, get_args
 
 DocumentFormat = Literal["docx", "pdf", "pptx", "xlsx"]
-SpecKind = Literal["python", "markdown"]
+# A Studio web page a model wrote keeps the page itself (ADR 0066).
+SpecKind = Literal["python", "markdown", "html"]
+SpecFormat = DocumentFormat | Literal["html"]
 
 DOCUMENT_FORMATS: tuple[DocumentFormat, ...] = get_args(DocumentFormat)
 
@@ -42,11 +44,11 @@ class DocumentScript:
 
 @dataclass(frozen=True)
 class DocumentSpec:
-    """Either kind of spec a Word or PDF version keeps: Markdown or a script."""
+    """The spec a Studio version keeps: a Word or PDF version's Markdown or script, or a web page's HTML."""
 
     kind: SpecKind
     text: str
-    format: DocumentFormat
+    format: SpecFormat
     images: tuple[str, ...]
 
     def as_metadata(self) -> dict[str, Any]:

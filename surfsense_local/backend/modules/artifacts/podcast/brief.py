@@ -4,8 +4,8 @@ from typing import Annotated
 from pydantic import BaseModel, Field, StringConstraints, ValidationError
 from sqlalchemy.orm import Session
 
-from modules.llm.providers.protocols import Voice
 from modules.llm.voices.roster import speech_voices
+from modules.llm.voices.voice import Voice
 
 MAX_SPEAKERS = 6
 DEFAULT_LANGUAGE = "en-US"
@@ -109,7 +109,10 @@ def proposed(voices: list[Voice], language: str | None = None) -> PodcastBrief:
 
 def validate_options(session: Session, raw: dict | None) -> dict:
     """The Format hook: the brief, checked against the chosen model's voices."""
-    return validated(speech_voices(session).voices, raw).model_dump(mode="json")
+    roster = speech_voices(session)
+    if roster.problem and not roster.voices:
+        raise ValueError(roster.problem.message)
+    return validated(roster.voices, raw).model_dump(mode="json")
 
 
 def validated(voices: list[Voice], raw: dict | None) -> PodcastBrief:

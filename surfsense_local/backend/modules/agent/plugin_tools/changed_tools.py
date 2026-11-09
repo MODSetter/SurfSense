@@ -6,7 +6,8 @@ is recorded when it ends, and the turn keeps what was recorded, as for a server 
 cannot be listed. After a turn, plugins last checked AFTER_TURN_SECONDS ago are listed
 in the background, so the next turn rarely waits; checks follow the user's turns, never
 a timer. A server that cannot be listed keeps what was recorded, and the check says
-why; opencode reports it unreachable to the turn.
+why; opencode reports it unreachable to the turn. A plugin recorded on the older SSE
+transport is never ready, so it is never checked: it stays until the user replaces it.
 """
 
 import asyncio
@@ -139,7 +140,9 @@ async def _listed(url: str, headers: dict[str, str]) -> list[SourceTool] | Serve
 
 
 def _record(
-    session: Session, plugin_id: str, listed: list[SourceTool] | ServerError
+    session: Session,
+    plugin_id: str,
+    listed: list[SourceTool] | ServerError,
 ) -> None:
     plugin = session.get(InstalledPlugin, plugin_id)
     if plugin is not None:

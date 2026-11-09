@@ -10,7 +10,7 @@ from collections.abc import AsyncIterator
 
 from sqlalchemy.orm import Session, sessionmaker
 
-from modules.agent.plugin_proxy.server import serving_plugin_proxy
+from modules.agent.runtime_proxy.server import serving_runtime_proxy
 from modules.llm.subscriptions.claude.proxy_hosts import DEFAULT_HOSTS, ClaudeHosts
 
 _url: str | None = None
@@ -41,7 +41,7 @@ async def serving_claude_proxy(
     hosts: tuple[tuple[str, int], ...] = DEFAULT_HOSTS,
 ) -> AsyncIterator[int]:
     global _url
-    async with serving_plugin_proxy(
+    async with serving_runtime_proxy(
         sessions,
         host,
         0,

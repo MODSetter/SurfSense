@@ -15,7 +15,8 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { DETAIL_RAIL_WIDTH, MAIN_RAIL_WIDTH } from "@/components/ui/slide-rail"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { IssueReportDialog } from "@/features/feedback/issue-report-dialog"
-import { render } from "@/test-utils"
+import { NO_LICENSE, runRead } from "@/features/jobs/stub-jobs-api"
+import { boxHeld, boxText, render } from "@/test-utils"
 
 import {
   COLUMN_WIDTH_KEYS,
@@ -106,6 +107,7 @@ function selectionStarting(mode: "basic" | "agentic") {
       reason: { code: "measured_pass", values: {} },
       note: null,
       measured: null,
+      studio: "full" as const,
       modes: {
         agentic_allowed: true,
         blocked: null,
@@ -661,7 +663,7 @@ describe("dashboard chat", () => {
       expect(
         resetInput.closest('[data-composer-placement="center"]')
       ).toBeTruthy()
-      expect((resetInput as HTMLTextAreaElement).value).toBe("")
+      expect(boxText(resetInput)).toBe("")
     })
   })
 
@@ -1079,6 +1081,7 @@ describe("dashboard chat", () => {
               reason: { code: "measured_pass", values: {} },
               note: null,
               measured: null,
+              studio: "full",
               modes: {
                 agentic_allowed: true,
                 blocked: null,
@@ -1115,10 +1118,8 @@ describe("dashboard chat", () => {
     )
 
     expect(await within(conversation).findByText("Revenue rose.")).toBeTruthy()
-    // Picked in the switch, so it becomes the model's default.
-    expect(created).toEqual([
-      { title: "New chat", mode: "basic", remember: true },
-    ])
+    // The switch saved the pick itself; the new chat only says its mode.
+    expect(created).toEqual([{ title: "New chat", mode: "basic" }])
     await user.click(
       within(conversation).getByRole("button", { name: /^Chat mode Basic/ })
     )
@@ -1211,9 +1212,9 @@ describe("dashboard chat", () => {
     )
 
     await waitFor(() =>
-      expect((message as HTMLTextAreaElement).value).toBe(
-        "Draft the board pack from the Q3 PDFs"
-      )
+      expect(
+        boxText(within(conversation).getByRole("textbox", { name: "Message" }))
+      ).toBe("Draft the board pack from the Q3 PDFs")
     )
     expect(
       within(conversation).getByRole("button", {
@@ -1482,6 +1483,148 @@ describe("dashboard chat", () => {
 
     expect(
       await screen.findByRole("heading", { level: 2, name: "Plugins" })
+    ).toBeTruthy()
+  })
+
+  it("opens Jobs from the sidebar, right after Plugins", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) =>
+        String(input) === "/license/status"
+          ? Response.json(NO_LICENSE)
+          : Response.json([])
+      )
+    )
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <DashboardPage
+          initialProviderAvailable={true}
+          selection={null}
+          initialWorkspaces={[workspace]}
+          onModelSelected={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    const jobs = screen.getByRole("button", { name: /^Jobs/ })
+    expect(
+      screen.getByRole("button", { name: /^Plugins/ }).nextElementSibling
+    ).toBe(jobs)
+    await user.click(jobs)
+
+    const dialog = await screen.findByRole("dialog", { name: "Jobs" })
+    // One row for each job SurfSense sells: the questionnaire and the redline.
+    expect(
+      await within(dialog).findAllByText(
+        "Comes with a SurfSense Business license. Try it free for 14 days."
+      )
+    ).toHaveLength(2)
+  })
+
+  it("closes Jobs and opens Settings › License for a job’s Add license", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) =>
+        String(input) === "/license/status"
+          ? Response.json(NO_LICENSE)
+          : Response.json([])
+      )
+    )
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <DashboardPage
+          initialProviderAvailable={true}
+          selection={null}
+          initialWorkspaces={[workspace]}
+          onModelSelected={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    await user.click(screen.getByRole("button", { name: /^Jobs/ }))
+    const dialog = await screen.findByRole("dialog", { name: "Jobs" })
+    const [addLicense] = await within(dialog).findAllByRole("button", {
+      name: "Add license",
+    })
+    await user.click(addLicense)
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "License" })
+    ).toBeTruthy()
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Jobs" })).toBeNull()
+    )
+  })
+
+  it("offers to confirm a job run’s suggested answers in the copy Studio opens", async () => {
+    const copy = {
+      id: 41,
+      document_id: 141,
+      format: "summary",
+      generation: 1,
+      title: "Vendor questionnaire (revised)",
+      status: "ready",
+      error_message: null,
+      created_at: "2026-11-03T09:00:00Z",
+      updated_at: "2026-11-03T09:00:00Z",
+      version: { root_id: 41, number: 1, parent_id: null },
+      spec_kind: null,
+      refinable: false,
+      image_editable: false,
+    }
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = String(input)
+        if (path === "/license/status") return Response.json(NO_LICENSE)
+        if (path === "/workspaces/1/artifacts") return Response.json([copy])
+        // Served as a summary, so no spreadsheet renderer is needed.
+        if (path === "/artifacts/41")
+          return Response.json({
+            ...copy,
+            content: "Do you encrypt backups? Yes",
+            files: [],
+            quiz_state: null,
+            flashcard_state: null,
+            revision: {
+              derived_from_document_id: 7,
+              source_name: "Vendor questionnaire.xlsx",
+              counts: null,
+              applied: null,
+            },
+          })
+        if (path === "/workspaces/1/job-runs/41")
+          return Response.json(runRead())
+        return Response.json([])
+      })
+    )
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <DashboardPage
+          initialProviderAvailable={true}
+          selection={null}
+          initialWorkspaces={[workspace]}
+          onModelSelected={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Vendor questionnaire (revised)",
+      })
+    )
+
+    expect(
+      await screen.findByRole("button", {
+        name: "Confirm 2 suggested answers",
+      })
     ).toBeTruthy()
   })
 
@@ -2622,6 +2765,82 @@ describe("dashboard chat", () => {
     ).toBeTruthy()
   })
 
+  describe("in the Docker image", { tags: ["docker"] }, () => {
+    it("keeps the toggle on the heading's line: Studio's while open, the chat's while hidden", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (input: RequestInfo | URL) => {
+          const path = String(input)
+          if (path === "/llm/providers") {
+            return Response.json([
+              { name: "llamacpp", healthy: true, can_download: true },
+            ])
+          }
+          if (
+            path ===
+            "/workspaces/1/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0"
+          ) {
+            return Response.json([])
+          }
+          if (path === "/workspaces/1/chat/threads") {
+            return Response.json([])
+          }
+          if (path === "/workspaces/1/studio/formats") {
+            return Response.json([])
+          }
+          if (path === "/workspaces/1/artifacts") {
+            return Response.json([])
+          }
+          return Response.json({ detail: "not found" }, { status: 404 })
+        })
+      )
+      const user = userEvent.setup()
+
+      render(
+        <ThemeProvider>
+          <TooltipProvider>
+            <DashboardPage
+              initialProviderAvailable={true}
+              selection={{
+                model_type: "text_gen",
+                provider: "llamacpp",
+                connection_id: null,
+                name: "llama3.2:1b",
+                updated_at: "2026-09-05T00:00:00Z",
+              }}
+              initialWorkspaces={[workspace]}
+              onModelSelected={vi.fn()}
+            />
+          </TooltipProvider>
+        </ThemeProvider>
+      )
+
+      expect(
+        await screen.findByRole("complementary", {
+          name: "Workspace artifacts",
+        })
+      ).toBeTruthy()
+      const hide = within(
+        screen.getByRole("complementary", { name: "Workspace artifacts" })
+      ).getByRole("button", { name: "Hide right panel" })
+      // A browser has no title bar to hold it.
+      expect(hide.closest(".titlebar-controls")).toBeNull()
+      await user.click(hide)
+      expect(
+        screen.queryByRole("complementary", { name: "Workspace artifacts" })
+      ).toBeNull()
+      await user.click(
+        within(screen.getByRole("region", { name: "Conversation" })).getByRole(
+          "button",
+          { name: "Show right panel" }
+        )
+      )
+      expect(
+        screen.getByRole("complementary", { name: "Workspace artifacts" })
+      ).toBeTruthy()
+    })
+  })
+
   it("shows how many sources the chat will use", async () => {
     vi.stubGlobal(
       "fetch",
@@ -2950,10 +3169,9 @@ describe("dashboard chat", () => {
 
     rerender(page(onOpenAI))
     await waitFor(() => expect(screen.queryByText(refused)).toBeNull())
-    expect(
-      screen.getByRole<HTMLTextAreaElement>("textbox", { name: "Message" })
-        .disabled
-    ).toBe(false)
+    expect(boxHeld(screen.getByRole("textbox", { name: "Message" }))).toBe(
+      false
+    )
 
     rerender(page(onOpenRouter))
     expect(await screen.findByText(refused)).toBeTruthy()

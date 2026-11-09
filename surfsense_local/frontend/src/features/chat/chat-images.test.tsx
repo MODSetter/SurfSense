@@ -6,7 +6,7 @@ import { toast } from "sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { DashboardPage } from "@/features/dashboard/dashboard-page"
 import type { ModelSelection } from "@/features/models/selection/api"
-import { render } from "@/test-utils"
+import { boxText, render } from "@/test-utils"
 
 import { IMAGE_ACCEPT } from "./image-attachments"
 
@@ -40,6 +40,7 @@ function startingIn(mode: "basic" | "agentic"): ModelSelection {
       reason: { code: "no_row", values: {} },
       note: null,
       measured: null,
+      studio: "full",
       modes: {
         agentic_allowed: true,
         blocked: null,
@@ -298,9 +299,7 @@ describe("images in chat", () => {
 
     await user.type(input, "what does it show?{Enter}")
 
-    await waitFor(() =>
-      expect((input as HTMLTextAreaElement).value).toBe("what does it show?")
-    )
+    await waitFor(() => expect(boxText(input)).toBe("what does it show?"))
     expect(
       await screen.findByRole("button", { name: "Remove image" })
     ).toBeTruthy()
@@ -352,9 +351,7 @@ describe("images in chat", () => {
         expect.anything()
       )
     )
-    await waitFor(() =>
-      expect((input as HTMLTextAreaElement).value).toBe("what does it show?")
-    )
+    await waitFor(() => expect(boxText(input)).toBe("what does it show?"))
     expect(
       await screen.findByRole("button", { name: "Remove image" })
     ).toBeTruthy()

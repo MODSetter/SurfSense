@@ -89,8 +89,8 @@ async def _forget(client: OpencodeClient, folder: Path, session_id: str) -> bool
     except httpx.HTTPError:
         legacy = False  # gone from opencode already: the folder is the thread's own
     try:
-        await client.abort(folder, session_id)
-        await client.delete_session(folder, session_id)
+        await client.abort(session_id)
+        await client.delete_session(session_id)
     except httpx.HTTPError:
         logger.warning("agent session %s was not deleted", session_id, exc_info=True)
     if not legacy:

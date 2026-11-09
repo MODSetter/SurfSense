@@ -3,10 +3,16 @@
 from dataclasses import asdict
 from typing import Any
 
+from modules.agent.tool_endpoint.confirm_job import TOOL_NAME as CONFIRM_JOB_TOOL
 from modules.agent.tool_endpoint.convert_document import TOOL_NAME as CONVERT_TOOL
+from modules.agent.tool_endpoint.make_image import TOOL_NAME as MAKE_IMAGE_TOOL
 from modules.agent.tool_endpoint.registration import SERVER
 from modules.agent.tool_endpoint.rendered_label import TOOL_NAME, rendered_artifact
 from modules.agent.tool_endpoint.revise_document import TOOL_NAME as REVISE_TOOL
+from modules.agent.tool_endpoint.run_job import TOOL_NAME as RUN_JOB_TOOL
+from modules.agent.tool_endpoint.save_page import TOOL_NAME as SAVE_PAGE_TOOL
+from modules.agent.tool_endpoint.search_web import TOOL_NAME as SEARCH_WEB_TOOL
+from modules.agent.tool_endpoint.web_reach import refused_hosts_in
 
 # A shell command or a read can return a whole file; the step keeps the start.
 MAX_OUTPUT_CHARS = 4000
@@ -22,35 +28,81 @@ RENDER_STEP = f"{SERVER}_{TOOL_NAME}"
 REVISE_STEP = f"{SERVER}_{REVISE_TOOL}"
 # A conversion's result opens the same way, naming the PDF it made.
 CONVERT_STEP = f"{SERVER}_{CONVERT_TOOL}"
-VERSION_STEPS = (RENDER_STEP, REVISE_STEP, CONVERT_STEP)
+# A saved page's result opens as a render's does.
+SAVE_PAGE_STEP = f"{SERVER}_{SAVE_PAGE_TOOL}"
+# So does a picture's.
+MAKE_IMAGE_STEP = f"{SERVER}_{MAKE_IMAGE_TOOL}"
+# A job run opens the revised copy it filled in, and a confirmation the version it made.
+RUN_JOB_STEP = f"{SERVER}_{RUN_JOB_TOOL}"
+CONFIRM_JOB_STEP = f"{SERVER}_{CONFIRM_JOB_TOOL}"
+VERSION_STEPS = (
+    RENDER_STEP,
+    REVISE_STEP,
+    CONVERT_STEP,
+    SAVE_PAGE_STEP,
+    MAKE_IMAGE_STEP,
+    RUN_JOB_STEP,
+    CONFIRM_JOB_STEP,
+)
+# The web tools; a refused host is offered to the user on the step, by the consent
+# question each asks with.
+WEB_STEPS = {
+    f"{SERVER}_{SEARCH_WEB_TOOL}": "web_search",
+    f"{SERVER}_read_web_page": "web_page",
+    f"{SERVER}_read_youtube_transcript": "web_page",
+}
 
 
-def step_of(part: dict[str, Any]) -> dict[str, Any]:
-    """The step a tool part of opencode's describes."""
-    state = part.get("state") or {}
+# opencode's state of a tool call, as the thread names it.
+_STATUS = {
+    "streaming": "pending",
+    "running": "running",
+    "completed": "completed",
+    "error": "error",
+}
+
+
+def step_of(item: dict[str, Any]) -> dict[str, Any]:
+    """The step a tool item of opencode's describes; its id is the call's."""
+    state = item.get("state") or {}
+    given = state.get("input")
     step: dict[str, Any] = {
-        "id": part["id"],
+        "id": item["id"],
         # What an approval names, to be asked on this step.
-        "call_id": part.get("callID"),
-        "tool": part.get("tool"),
-        "status": state.get("status"),
-        "title": state.get("title"),
-        "input": _shown_input(state.get("input") or {}),
+        "call_id": item["id"],
+        "tool": item.get("name"),
+        "status": _STATUS.get(state.get("status"), state.get("status")),
+        # Still streaming, the input is the model's unfinished JSON.
+        "input": _shown_input(given if isinstance(given, dict) else {}),
     }
-    if state.get("output") is not None:
-        step["output"] = str(state["output"])[:MAX_OUTPUT_CHARS]
+    output = tool_output(state)
+    if output is not None:
+        step["output"] = output[:MAX_OUTPUT_CHARS]
     if state.get("error") is not None:
-        step["error"] = str(state["error"])
+        step["error"] = state["error"].get("message") or state["error"].get("type")
     if step["tool"] in VERSION_STEPS:
         step["artifact"] = _rendered(state)
+    if step["tool"] in WEB_STEPS:
+        # A refusal is an MCP error result, which an engine may keep as either.
+        refused = refused_hosts_in(step.get("error") or step.get("output") or "")
+        if refused:
+            step["refused"] = {"hosts": refused, "purpose": WEB_STEPS[step["tool"]]}
     return step
+
+
+def tool_output(state: dict[str, Any]) -> str | None:
+    """What a call returned to the model: its text items, joined; None before it answered."""
+    content = state.get("content")
+    if not content:
+        return None
+    return "\n".join(item["text"] for item in content if item.get("type") == "text")
 
 
 def _rendered(state: dict[str, Any]) -> dict[str, Any] | None:
     """The version a render made, once ready; None while it runs, when it failed or was not ready in time."""
     if state.get("status") != "completed":
         return None
-    made = rendered_artifact(str(state.get("output") or ""))
+    made = rendered_artifact(tool_output(state) or "")
     return asdict(made) if made is not None else None
 
 

@@ -1,84 +1,19 @@
 import { useId, useState } from "react"
 
-import { Button } from "@/components/ui/button"
-import { Spinner } from "@/components/ui/spinner"
 import { intl } from "@/i18n/intl"
 
 import type { Plugin, ToolChange } from "../api"
-import { ConnectPluginButton } from "./connect-plugin-button"
-import { DisconnectPluginButton } from "./disconnect-plugin-button"
 import { PluginIcon } from "../plugin-icon"
+import { thirdPartyHeld } from "../third-party-held"
 import { pluginTypeLabel } from "../yours/plugin-type-label"
 import { PluginActionsMenu } from "./plugin-actions-menu"
+import { PluginMainAction } from "./plugin-main-action"
+import { PluginStatusLine } from "./plugin-status-line"
 import { RemovePluginDialog } from "./remove-plugin-dialog"
-import { ReplaceKeyButton } from "./replace-key-button"
-import { SignInAgainButton } from "../sign-in/sign-in-again-button"
 import { isReadOnly } from "./tool-kind"
 import { ToolGroup } from "./tool-group"
 
-function checkLabel(plugin: Plugin) {
-  if (plugin.check_failure === "unreachable") {
-    return intl.formatMessage({
-      id: "plugins_row_unreachable_status",
-      defaultMessage: "Couldn’t connect",
-    })
-  }
-  if (plugin.check_failure === "sign_in" && plugin.auth_type === "oauth") {
-    return intl.formatMessage({
-      id: "plugins_row_signed_out_status",
-      defaultMessage: "Signed out",
-    })
-  }
-  if (plugin.check_failure === "sign_in") {
-    return intl.formatMessage({
-      id: "plugins_row_sign_in_status",
-      defaultMessage: "Needs a new key",
-    })
-  }
-  if (plugin.check_failure === "needs_license") {
-    return intl.formatMessage({
-      id: "plugins_row_needs_license_status",
-      defaultMessage: "Needs a license",
-    })
-  }
-  if (plugin.check_failure === "license_expired") {
-    return intl.formatMessage({
-      id: "plugins_row_license_expired_status",
-      defaultMessage: "License expired",
-    })
-  }
-  if (plugin.check_failure === "license_revoked") {
-    return intl.formatMessage({
-      id: "plugins_row_license_revoked_status",
-      defaultMessage: "License revoked",
-    })
-  }
-  if (plugin.check_failure === "license_invalid") {
-    return intl.formatMessage({
-      id: "plugins_row_license_invalid_status",
-      defaultMessage: "License not recognized",
-    })
-  }
-  if (!plugin.enabled) {
-    return intl.formatMessage({
-      id: "plugins_row_paused_status",
-      defaultMessage: "Off",
-    })
-  }
-  return intl.formatMessage({
-    id: "plugins_row_connected_status",
-    defaultMessage: "Connected",
-  })
-}
-
-const LICENSE_FAILURES = new Set<Plugin["check_failure"]>([
-  "needs_license",
-  "license_expired",
-  "license_revoked",
-  "license_invalid",
-])
-
-/** A plugin's details: Disconnect or Connect, the rest in a menu, then its status and tools. */
+/** A plugin's details: Connect or Disconnect, the rest in a menu, then its status and tools. */
 export function PluginDetailsCard({
   plugin,
   thirdPartyAllowed,
@@ -104,7 +39,7 @@ export function PluginDetailsCard({
 }) {
   const nameId = useId()
   const [removeOpen, setRemoveOpen] = useState(false)
-  const unused = plugin.source !== "first_party" && !thirdPartyAllowed
+  const unused = thirdPartyHeld(plugin, thirdPartyAllowed)
   return (
     <section aria-labelledby={nameId}>
       <div className="flex items-center justify-between gap-6">
@@ -114,6 +49,8 @@ export function PluginDetailsCard({
             name={plugin.name}
             hasIcon={plugin.source !== "custom"}
             firstParty={plugin.source === "first_party"}
+            // As tall as the name and type beside it.
+            className="size-11 rounded-lg text-base"
           />
           <div className="min-w-0">
             <h3 id={nameId} className="truncate text-base font-medium">
@@ -125,20 +62,19 @@ export function PluginDetailsCard({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1">
-          {plugin.disconnected ? (
-            <ConnectPluginButton plugin={plugin} size="sm" />
-          ) : (
-            <DisconnectPluginButton
-              name={plugin.name}
-              disconnecting={disconnecting}
-              onDisconnect={onDisconnect}
-            />
-          )}
+          <PluginMainAction
+            plugin={plugin}
+            thirdPartyAllowed={thirdPartyAllowed}
+            disconnecting={disconnecting}
+            onDisconnect={onDisconnect}
+          />
           <PluginActionsMenu
             plugin={plugin}
+            held={unused}
             checking={checking}
             onCheck={onCheck}
             onRemove={() => setRemoveOpen(true)}
+            onOpenLicense={onOpenLicense}
           />
           <RemovePluginDialog
             name={plugin.name}
@@ -149,103 +85,57 @@ export function PluginDetailsCard({
           />
         </div>
       </div>
-      {plugin.disconnected ? (
-        <p className="mt-4 text-xs text-muted-foreground">
-          {intl.formatMessage({
-            id: "plugins_row_disconnected_status",
-            defaultMessage: "Disconnected",
+      <PluginStatusLine plugin={plugin} unused={unused} checking={checking} />
+      {/* Its tools, and what to know about them, apart from its state. */}
+      <div className="mt-6">
+        {plugin.tools.some((tool) => tool.change) ? (
+          <p className="text-xs text-muted-foreground">
+            {intl.formatMessage({
+              id: "plugins_row_changed_tools_body",
+              defaultMessage:
+                "Some tools are new or changed. They stay off until you allow them.",
+            })}
+          </p>
+        ) : null}
+        {/* Held by the third-party switch, it lists nothing; its status says why. */}
+        {plugin.tools.length === 0 && !unused ? (
+          <p className="text-xs text-muted-foreground">
+            {plugin.check_failure === "sign_in" && plugin.never_signed_in
+              ? intl.formatMessage({
+                  id: "plugins_row_connect_for_tools_empty",
+                  defaultMessage: "Connect to see its tools.",
+                })
+              : plugin.check_failure === "sign_in"
+                ? // Its tools are listed with the token a sign-in gives.
+                  intl.formatMessage({
+                    id: "plugins_row_sign_in_for_tools_empty",
+                    defaultMessage: "Sign in to see its tools.",
+                  })
+                : intl.formatMessage({
+                    id: "plugins_row_no_tools_empty",
+                    defaultMessage: "This server lists no tools.",
+                  })}
+          </p>
+        ) : null}
+        <ToolGroup
+          plugin={plugin}
+          label={intl.formatMessage({
+            id: "plugins_row_read_only_label",
+            defaultMessage: "Read-only",
           })}
-        </p>
-      ) : (
-        <div className="mt-4 flex items-center gap-2 text-xs">
-          <span
-            className={
-              plugin.check_failure
-                ? "text-destructive"
-                : "text-muted-foreground"
-            }
-          >
-            {checkLabel(plugin)}
-          </span>
-          {checking ? (
-            <Spinner className="size-3 text-muted-foreground" />
-          ) : null}
-          {plugin.check_failure === "sign_in" ? (
-            plugin.auth_type === "oauth" ? (
-              <SignInAgainButton plugin={plugin} />
-            ) : (
-              <ReplaceKeyButton plugin={plugin} />
-            )
-          ) : null}
-          {LICENSE_FAILURES.has(plugin.check_failure) && onOpenLicense ? (
-            <Button
-              type="button"
-              size="xs"
-              variant="ghost"
-              onClick={onOpenLicense}
-            >
-              {intl.formatMessage({
-                id: "plugins_row_license_settings_button",
-                defaultMessage: "License settings",
-              })}
-            </Button>
-          ) : null}
-        </div>
-      )}
-      {plugin.tools.some((tool) => tool.change) ? (
-        <p className="mt-2 text-xs text-muted-foreground">
-          {intl.formatMessage({
-            id: "plugins_row_changed_tools_body",
-            defaultMessage:
-              "Some tools are new or changed. They stay off until you allow them.",
+          tools={plugin.tools.filter(isReadOnly)}
+          onTool={onTool}
+        />
+        <ToolGroup
+          plugin={plugin}
+          label={intl.formatMessage({
+            id: "plugins_row_can_change_label",
+            defaultMessage: "Can make changes",
           })}
-        </p>
-      ) : null}
-      {plugin.removed_reason ? (
-        <p className="mt-2 text-xs text-destructive">
-          {intl.formatMessage(
-            {
-              id: "plugins_row_removed_body",
-              defaultMessage: "No longer listed: {reason}",
-            },
-            { reason: plugin.removed_reason }
-          )}
-        </p>
-      ) : null}
-      {unused ? (
-        <p className="mt-2 text-xs text-muted-foreground">
-          {intl.formatMessage({
-            id: "plugins_row_third_party_off_body",
-            defaultMessage: "Not used until third-party plugins are allowed",
-          })}
-        </p>
-      ) : null}
-      {plugin.tools.length === 0 ? (
-        <p className="mt-2 text-xs text-muted-foreground">
-          {intl.formatMessage({
-            id: "plugins_row_no_tools_empty",
-            defaultMessage: "This server lists no tools.",
-          })}
-        </p>
-      ) : null}
-      <ToolGroup
-        plugin={plugin}
-        label={intl.formatMessage({
-          id: "plugins_row_read_only_label",
-          defaultMessage: "Read-only",
-        })}
-        tools={plugin.tools.filter(isReadOnly)}
-        onTool={onTool}
-      />
-      <ToolGroup
-        plugin={plugin}
-        label={intl.formatMessage({
-          id: "plugins_row_can_change_label",
-          defaultMessage: "Can make changes",
-        })}
-        tools={plugin.tools.filter((tool) => !isReadOnly(tool))}
-        onTool={onTool}
-      />
+          tools={plugin.tools.filter((tool) => !isReadOnly(tool))}
+          onTool={onTool}
+        />
+      </div>
     </section>
   )
 }

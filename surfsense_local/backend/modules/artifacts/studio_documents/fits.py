@@ -5,12 +5,11 @@ from sqlalchemy.orm import Session
 
 from api.dependencies import transact
 from modules.agent.model_window import selected_model_window
+from modules.artifacts.refused import refused
 from modules.artifacts.studio_documents.recipe import Refinement
 from modules.artifacts.studio_documents.service import figure_captions
-from modules.artifacts.studio_documents.window import (
-    figure_list_chars,
-    too_long_reason,
-)
+from modules.artifacts.studio_documents.window import figure_list_chars, too_long
+from modules.artifacts.web_pages.design_guide import design_guide
 from modules.llm.resolution import ModelResolutionError
 
 
@@ -19,6 +18,9 @@ async def require_rewrite_fits(
 ) -> None:
     """Checked against the model selected now, which may not be the one that refined."""
     figures_chars = await transact(session, _figures_chars, artifact_id)
+    # A page's prompt carries the whole design guide instead (ADR 0066).
+    if rewrite.base.format == "html":
+        figures_chars = len(design_guide())
     try:
         # A local model's window is what llama-server loads it with, so it may load.
         model, window = await selected_model_window(session)
@@ -28,11 +30,20 @@ async def require_rewrite_fits(
             status.HTTP_409_CONFLICT,
             {"message": "Needs a chat model", "code": "needs_chat"},
         ) from error
-    reason = too_long_reason(
+    found = too_long(
         rewrite.base.text, rewrite.instruction, model, window, figures_chars
     )
-    if reason is not None:
-        raise HTTPException(status.HTTP_409_CONFLICT, reason)
+    if found is not None:
+        # Its numbers go raw beside the sentence, for the interface to format.
+        raise refused(
+            status.HTTP_409_CONFLICT,
+            found.reason,
+            "rewrite_too_long",
+            model=found.model,
+            spec_tokens=found.spec_tokens,
+            needed_tokens=found.needed_tokens,
+            window_tokens=found.window_tokens,
+        )
 
 
 def _figures_chars(session: Session, artifact_id: int) -> int:

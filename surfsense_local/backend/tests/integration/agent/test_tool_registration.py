@@ -20,19 +20,36 @@ from modules.agent.tool_endpoint.registration import (
 pytestmark = pytest.mark.integration
 
 
+_ADDED = "/api/experimental/mcp/"
+
+
 class _Opencode(BaseHTTPRequestHandler):
-    """Answers `POST /mcp` as opencode does, keeping each body it was sent."""
+    """Answers opencode 2.x's routes for adding, connecting and listing an MCP server,
+    keeping each server it was given, by name, with its config and folder."""
+
+    def do_PUT(self) -> None:
+        sent = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+        parts = urlsplit(self.path)
+        sent["name"] = parts.path.removeprefix(_ADDED)
+        self.server.sent.append(sent)  # type: ignore[attr-defined]
+        self.server.queries.append(parse_qs(parts.query))  # type: ignore[attr-defined]
+        self._answer(204)
 
     def do_POST(self) -> None:
-        sent = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
-        self.server.sent.append(sent)  # type: ignore[attr-defined]
-        self.server.queries.append(parse_qs(urlsplit(self.path).query))  # type: ignore[attr-defined]
-        body = json.dumps({sent["name"]: {"status": "connected"}}).encode()
-        self.send_response(200)
+        self._answer(204)  # the connect, which answers once it has
+
+    def do_GET(self) -> None:
+        names = [sent["name"] for sent in self.server.sent]  # type: ignore[attr-defined]
+        held = [{"name": n, "status": {"status": "connected"}} for n in names]
+        self._answer(200, {"data": held})
+
+    def _answer(self, status: int, body: object = None) -> None:
+        data = b"" if body is None else json.dumps(body).encode()
+        self.send_response(status)
         self.send_header("Content-Type", "application/json")
-        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Content-Length", str(len(data)))
         self.end_headers()
-        self.wfile.write(body)
+        self.wfile.write(data)
 
     def log_message(self, *args: object) -> None:
         """Keep the request log out of the test output."""
@@ -53,7 +70,7 @@ def opencode() -> Iterator[ThreadingHTTPServer]:
 async def test_a_tool_call_may_run_as_long_as_a_render_waits(
     opencode: ThreadingHTTPServer, tmp_path: Path
 ) -> None:
-    """Unless told otherwise, opencode leaves a tool call to its MCP SDK's 60 s limit."""
+    """Unless told otherwise, opencode allows a tool call 12 hours, which no progress shortens."""
     async with OpencodeClient(
         f"http://127.0.0.1:{opencode.server_port}", "pw"
     ) as client:
@@ -62,7 +79,7 @@ async def test_a_tool_call_may_run_as_long_as_a_render_waits(
     (sent,) = opencode.sent  # type: ignore[attr-defined]
     config = sent["config"]
     assert (sent["name"], config["type"]) == ("surfsense", "remote")
-    assert config["timeout"] == TOOL_CALL_SECONDS * 1000  # in milliseconds
+    assert config["timeout"]["execution"] == TOOL_CALL_SECONDS * 1000  # in ms
 
 
 async def test_each_turn_registers_its_threads_address_in_its_threads_folder(
@@ -77,7 +94,7 @@ async def test_each_turn_registers_its_threads_address_in_its_threads_folder(
         await register_thread_tools(client, second, 7, 13, "launch-key")
 
     registered = [
-        (query["directory"][0], urlsplit(sent["config"]["url"]).path)
+        (query["location[directory]"][0], urlsplit(sent["config"]["url"]).path)
         for query, sent in zip(
             opencode.queries,  # type: ignore[attr-defined]
             opencode.sent,  # type: ignore[attr-defined]

@@ -7,6 +7,7 @@ import type { WorkspaceChange } from "@/features/workspaces/workspace-changes"
 import { useStableCallback } from "@/hooks/use-stable-callback"
 import { intl } from "@/i18n/intl"
 
+import { downloadOriginal, downloadsOriginals } from "./download-original"
 import {
   cancelDocument,
   createNote,
@@ -15,10 +16,10 @@ import {
   listDocuments,
   retryDocument,
   updateDocument,
-  uploadDocuments,
   type UploadOutcome,
   type WorkspaceDocument,
 } from "./api"
+import { sendBatch } from "./folder-upload/send-batch"
 import {
   MAX_SOURCE_BYTES,
   planUpload,
@@ -231,6 +232,10 @@ export function useSources(workspaceId: number) {
   }
 
   const openOriginal = useStableCallback((documentId: number) => {
+    if (downloadsOriginals()) {
+      downloadOriginal(workspaceId, documentId)
+      return Promise.resolve()
+    }
     const bridge = window.surfsense
     return runNativeDocumentAction(
       intl.formatMessage({
@@ -298,6 +303,16 @@ export function useSources(workspaceId: number) {
       }),
       { description: messageFrom(cause) }
     )
+
+  // Sources another feature made, such as links added from the web.
+  const addCreated = useStableCallback((created: WorkspaceDocument[]) =>
+    setDocuments((current) => [
+      ...created,
+      ...current.filter((document) =>
+        created.every((made) => made.id !== document.id)
+      ),
+    ])
+  )
 
   const writeNote = useStableCallback(
     async (title: string, content: string) => {
@@ -421,11 +436,11 @@ export function useSources(workspaceId: number) {
       }
       try {
         for (const batch of plan.batches) {
-          const answered = await uploadDocuments(
+          const answered = await sendBatch(
             workspaceId,
-            batch.files,
+            batch,
             controller.signal,
-            { folderId, relativePaths: batch.relativePaths }
+            folderId
           )
           if (uploadController.current !== controller) {
             return
@@ -687,6 +702,7 @@ export function useSources(workspaceId: number) {
     cancel,
     rename,
     writeNote,
+    addCreated,
     editNote,
     loadNote,
     deleteOne,

@@ -1,0 +1,18 @@
+# The job itself is stdlib only and needs no install. This file configures the
+# tests, which need only pytest: `python -m pytest` from this folder.
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-v --tb=short -ra --strict-markers --import-mode=importlib"
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "N", "UP", "B", "C4", "T20", "SIM", "RUF"]
+ignore = ["T201"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["release_stats", "tests"]

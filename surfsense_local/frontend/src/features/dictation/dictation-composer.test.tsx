@@ -1,6 +1,7 @@
-import { afterEach, describe, expect, it, vi } from "vitest"
-import { act, cleanup, screen, waitFor } from "@testing-library/react"
+import { afterAll, afterEach, describe, expect, it, vi } from "vitest"
+import { act, cleanup, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { Toaster, toast } from "sonner"
 import {
   AssistantRuntimeProvider,
   useExternalStoreRuntime,
@@ -14,7 +15,7 @@ import {
   SPEECH_IN_USE,
 } from "@/features/models/local/transcription/fake-speech-rows"
 import type { ModelSelection } from "@/features/models/selection/api"
-import { render } from "@/test-utils"
+import { boxText, render } from "@/test-utils"
 
 import { fakeMicrophone } from "./capture/fake-microphone"
 import { createDictation, type Dictation } from "./dictation-adapter"
@@ -58,9 +59,12 @@ function Harness({
         dictation={dictation}
         onOpenSpeechSettings={onOpenSpeechSettings}
       />
+      <Toaster />
     </AssistantRuntimeProvider>
   )
 }
+
+const dictations: Dictation[] = []
 
 function setUp(
   options: Parameters<typeof fakeDictationApi>[0] = {},
@@ -78,9 +82,9 @@ function setUp(
   )
   const mic = fakeMicrophone()
   const dictation = createDictation({ openMicrophone: mic.open })
+  dictations.push(dictation)
   const user = userEvent.setup()
-  const box = () =>
-    screen.getByRole<HTMLTextAreaElement>("textbox", { name: "Message" })
+  const box = () => screen.getByRole("textbox", { name: "Message" })
   const listening = () => waitFor(() => expect(mic.state.open).toBe(true))
   return { api, mic, dictation, user, box, listening }
 }
@@ -89,9 +93,24 @@ const startButton = () =>
   screen.findByRole("button", { name: "Start voice input" })
 
 afterEach(() => {
+  // `fetch` is global: a recording still running would send its phrase to the next
+  // test's fake API and take the answer that test is waiting for.
+  for (const dictation of dictations.splice(0)) dictation.cancel()
+  // Sonner keeps its toasts across tests; one left over would show in the next Toaster.
+  toast.dismiss()
   cleanup()
   vi.unstubAllGlobals()
 })
+
+// A dismissed toast leaves 200 ms later (sonner's TIME_BEFORE_UNMOUNT); fired after the
+// file ends, that removal finds no window and fails the run.
+afterAll(() => new Promise((resolve) => setTimeout(resolve, 300)))
+
+/** The composer's footer line, which a problem never replaces. */
+const disclaimerStays = () =>
+  expect(
+    screen.getByText("SurfSense can make mistakes. Check important answers.")
+  ).toBeTruthy()
 
 describe("voice input in the composer", () => {
   it("listens on a click and puts each phrase in the box as it lands", async () => {
@@ -100,23 +119,31 @@ describe("voice input in the composer", () => {
     render(<Harness dictation={dictation} />)
 
     await user.click(await startButton())
-    expect(screen.getByRole("status").textContent).toBe(
-      "Starting the microphone…"
-    )
+    // Starting: a spinner in the mic's place, and nothing else yet.
+    const starting = screen.getByRole("button", {
+      name: "Starting the microphone…",
+    })
+    expect(starting.hasAttribute("disabled")).toBe(true)
+    expect(screen.queryByText("0:00")).toBeNull()
+    expect(screen.queryByRole("button", { name: "Stop and insert" })).toBeNull()
+    expect(screen.getByRole("button", { name: "Send message" })).toBeTruthy()
     await listening()
     act(() => mic.say())
 
-    await waitFor(() => expect(box().value).toBe("Hello there."))
-    expect(box().readOnly).toBe(true)
+    await waitFor(() => expect(boxText(box())).toBe("Hello there."))
     expect(screen.getByRole("status").textContent).toBe("Listening")
     expect(screen.getByText("0:00")).toBeTruthy()
+    // The recording takes the mic's and Send's places, never the line below.
     expect(
-      screen
-        .getByRole("button", { name: "Stop voice input" })
-        .getAttribute("aria-pressed")
-    ).toBe("true")
+      screen.queryByRole("button", { name: "Start voice input" })
+    ).toBeNull()
+    expect(screen.queryByRole("button", { name: "Send message" })).toBeNull()
+    expect(screen.getByRole("button", { name: "Stop and insert" })).toBeTruthy()
+    disclaimerStays()
     act(() => mic.say())
-    await waitFor(() => expect(box().value).toBe("Hello there. How are you?"))
+    await waitFor(() =>
+      expect(boxText(box())).toBe("Hello there. How are you?")
+    )
   })
 
   it("on Enter, stops, waits for the last phrase and inserts it, sending nothing", async () => {
@@ -129,19 +156,18 @@ describe("voice input in the composer", () => {
     await user.click(await startButton())
     await listening()
     act(() => mic.say())
-    await waitFor(() => expect(box().value).toBe("First."))
+    await waitFor(() => expect(boxText(box())).toBe("First."))
     act(() => mic.speak(0.8))
     await user.type(box(), "{Enter}")
 
     expect(mic.state.open).toBe(false)
     expect(await screen.findByText("Transcribing…")).toBeTruthy()
     last.release()
-    await waitFor(() => expect(box().value).toBe("First. Second."))
-    await waitFor(() => expect(box().readOnly).toBe(false))
+    await waitFor(() => expect(boxText(box())).toBe("First. Second."))
     expect(onNew).not.toHaveBeenCalled()
   })
 
-  it("on Send, stops and inserts instead of sending", async () => {
+  it("stops and inserts from the button in Send's place, sending nothing", async () => {
     const { api, mic, dictation, user, box, listening } = setUp()
     api.answer(said("Draft question."), said("More."))
     const onNew = vi.fn(async () => undefined)
@@ -150,13 +176,14 @@ describe("voice input in the composer", () => {
     await user.click(await startButton())
     await listening()
     act(() => mic.say())
-    await waitFor(() => expect(box().value).toBe("Draft question."))
+    await waitFor(() => expect(boxText(box())).toBe("Draft question."))
     act(() => mic.speak(0.8))
-    await user.click(screen.getByRole("button", { name: "Send message" }))
+    await user.click(screen.getByRole("button", { name: "Stop and insert" }))
 
-    await waitFor(() => expect(box().value).toBe("Draft question. More."))
-    await waitFor(() => expect(box().readOnly).toBe(false))
+    await waitFor(() => expect(boxText(box())).toBe("Draft question. More."))
     expect(onNew).not.toHaveBeenCalled()
+    // Send comes back, ready to send what was said.
+    expect(screen.getByRole("button", { name: "Send message" })).toBeTruthy()
   })
 
   it("on Escape, drops the recording and puts back the text from before the mic", async () => {
@@ -168,47 +195,49 @@ describe("voice input in the composer", () => {
     await user.click(await startButton())
     await listening()
     act(() => mic.say())
-    await waitFor(() => expect(box().value).toBe("Before Never mind."))
+    await waitFor(() => expect(boxText(box())).toBe("Before Never mind."))
     await user.type(box(), "{Escape}")
 
-    expect(box().value).toBe("Before")
+    await waitFor(() => expect(boxText(box())).toBe("Before"))
     expect(mic.state.open).toBe(false)
-    expect(box().readOnly).toBe(false)
     expect(await startButton()).toBeTruthy()
   })
 
-  it("stops on a second click and keeps the text", async () => {
-    const { api, mic, dictation, user, box, listening } = setUp()
-    api.answer(said("Keep this."))
+  it("adds to what the box already holds, and what is typed meanwhile is refused", async () => {
+    const { api, dictation, user, mic, box, listening } = setUp()
+    api.answer(said("with the memo"))
     render(<Harness dictation={dictation} />)
 
+    await user.type(box(), "compare this")
     await user.click(await startButton())
     await listening()
-    act(() => mic.speak(1.2))
-    await user.click(screen.getByRole("button", { name: "Stop voice input" }))
+    await user.keyboard("nope")
+    act(() => mic.say())
 
-    await waitFor(() => expect(box().value).toBe("Keep this."))
-    expect(mic.state.open).toBe(false)
-    expect(await startButton()).toBeTruthy()
+    await waitFor(() =>
+      expect(boxText(box())).toBe("compare this with the memo")
+    )
   })
 
-  it("listens while the mic is held, and stops on release", async () => {
-    const { api, mic, dictation, user, box, listening } = setUp()
-    api.answer(said("Push to talk."))
+  it("keeps listening after a long press: there is no push to talk", async () => {
+    const { mic, dictation, user } = setUp()
     render(<Harness dictation={dictation} />)
     const button = await startButton()
 
+    // Held past the old push-to-talk threshold, then let go: a plain click.
     await user.pointer({ keys: "[MouseLeft>]", target: button })
-    await listening()
-    act(() => mic.speak(1.2))
     await new Promise((resolve) => setTimeout(resolve, 320))
     await user.pointer({ keys: "[/MouseLeft]", target: button })
 
-    expect(mic.state.open).toBe(false)
-    await waitFor(() => expect(box().value).toBe("Push to talk."))
+    await waitFor(() => expect(mic.state.open).toBe(true))
+    // Stop and insert comes with the first real sound.
+    act(() => mic.speak(0.2))
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(mic.state.open).toBe(true)
+    expect(screen.getByRole("button", { name: "Stop and insert" })).toBeTruthy()
   })
 
-  it("toggles with Enter on the focused mic", async () => {
+  it("starts with Enter on the focused mic, then stops with Enter in the message box", async () => {
     const { api, mic, dictation, user, box, listening } = setUp()
     api.answer(said("By keyboard."))
     render(<Harness dictation={dictation} />)
@@ -216,26 +245,36 @@ describe("voice input in the composer", () => {
     ;(await startButton()).focus()
     await user.keyboard("{Enter}")
     await listening()
+    // The mic hides, so the focus moves to the message box rather than nowhere.
+    expect(document.activeElement).toBe(box())
     act(() => mic.speak(1.2))
     await user.keyboard("{Enter}")
 
-    await waitFor(() => expect(box().value).toBe("By keyboard."))
+    await waitFor(() => expect(boxText(box())).toBe("By keyboard."))
     expect(mic.state.open).toBe(false)
   })
 
-  it("sets up speech recognition instead when no model is chosen", async () => {
+  it("sets up speech recognition in Settings when no model is chosen", async () => {
     const { dictation, user, mic } = setUp({
       status: { ready: false, reason: "needs_speech_model", model: null },
     })
-    render(<Harness dictation={dictation} />)
+    const onOpenSpeechSettings = vi.fn()
+    render(
+      <Harness
+        dictation={dictation}
+        onOpenSpeechSettings={onOpenSpeechSettings}
+      />
+    )
 
     await user.click(
       await screen.findByRole("button", { name: "Set up voice input" })
     )
 
-    expect(
-      await screen.findByRole("dialog", { name: "Set up speech recognition" })
-    ).toBeTruthy()
+    const popover = await screen.findByRole("dialog", {
+      name: "Set up speech recognition",
+    })
+    await user.click(within(popover).getByRole("button", { name: "Set up…" }))
+    expect(onOpenSpeechSettings).toHaveBeenCalledOnce()
     expect(mic.state.opens).toBe(0)
   })
 
@@ -262,10 +301,8 @@ describe("voice input in the composer", () => {
     await listening()
     act(() => mic.say())
 
-    await waitFor(() => expect(box().value).toBe("Set up and talking."))
-    expect(
-      screen.getByRole("button", { name: "Stop voice input" })
-    ).toBeTruthy()
+    await waitFor(() => expect(boxText(box())).toBe("Set up and talking."))
+    expect(screen.getByRole("button", { name: "Stop and insert" })).toBeTruthy()
   })
 
   it("is off whenever the message box is, and at the message limit", async () => {
@@ -298,11 +335,48 @@ describe("voice input in the composer", () => {
 
     await user.click(await startButton())
 
-    expect((await screen.findByRole("alert")).textContent).toBe(
-      "Microphone access is off for SurfSense."
-    )
+    expect(
+      await screen.findByText("Microphone access is off for SurfSense.")
+    ).toBeTruthy()
+    disclaimerStays()
     await user.click(screen.getByRole("button", { name: "Open settings" }))
     expect(openSettings).toHaveBeenCalledOnce()
+  })
+
+  it("says the microphone needs HTTPS on a page the browser keeps it from", async () => {
+    // Another device than the Docker host, over plain HTTP: no mediaDevices at all.
+    vi.stubGlobal("isSecureContext", false)
+    const { mic, dictation, user } = setUp()
+    mic.refuse(new TypeError("navigator.mediaDevices is undefined"))
+    render(<Harness dictation={dictation} />)
+
+    await user.click(await startButton())
+    const https =
+      "Your browser allows the microphone only over HTTPS, or on the computer running SurfSense."
+
+    // It stays true until the page changes, so it is no passing toast.
+    // The click left the pointer on the mic: off and back on, as a reader would.
+    await user.unhover(await startButton())
+    await user.hover(await startButton())
+    expect((await screen.findByRole("tooltip")).textContent).toBe(https)
+    expect(screen.queryAllByText(https)).toHaveLength(1)
+    disclaimerStays()
+  })
+
+  it("says on the mic, not in a toast, that no microphone was found", async () => {
+    const { mic, dictation, user } = setUp()
+    mic.refuse(new DOMException("", "NotFoundError"))
+    render(<Harness dictation={dictation} />)
+
+    await user.click(await startButton())
+    // The click left the pointer on the mic: off and back on, as a reader would.
+    await user.unhover(await startButton())
+    await user.hover(await startButton())
+
+    expect((await screen.findByRole("tooltip")).textContent).toBe(
+      "No microphone found."
+    )
+    expect(screen.queryAllByText("No microphone found.")).toHaveLength(1)
   })
 
   it("keeps a phrase it could not transcribe, and Retry puts it in the box", async () => {
@@ -317,15 +391,20 @@ describe("voice input in the composer", () => {
     act(() => mic.say())
     act(() => mic.say())
 
-    expect((await screen.findByRole("alert")).textContent).toBe(
-      "Couldn’t turn part of your speech into text."
-    )
-    expect(box().value).toBe("Got this.")
+    expect(
+      await screen.findByText("Couldn’t turn part of your speech into text.")
+    ).toBeTruthy()
+    disclaimerStays()
+    await waitFor(() => expect(boxText(box())).toBe("Got this."))
     api.answer(said("And this."))
     await user.click(screen.getByRole("button", { name: "Retry" }))
 
-    await waitFor(() => expect(box().value).toBe("Got this. And this."))
-    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull())
+    await waitFor(() => expect(boxText(box())).toBe("Got this. And this."))
+    await waitFor(() =>
+      expect(
+        screen.queryByText("Couldn’t turn part of your speech into text.")
+      ).toBeNull()
+    )
   })
 
   it("names both sizes when memory is short", async () => {
@@ -340,11 +419,12 @@ describe("voice input in the composer", () => {
 
     await user.click(await startButton())
 
-    expect((await screen.findByRole("alert")).textContent).toBe(
-      "Transcribing needs about 2.9 GB free; this computer has 1.2 GB."
-    )
-    await user.click(screen.getByRole("button", { name: "Dismiss" }))
-    expect(screen.queryByRole("alert")).toBeNull()
+    expect(
+      await screen.findByText(
+        "Transcribing needs about 2.9 GB free; this computer has 1.2 GB."
+      )
+    ).toBeTruthy()
+    disclaimerStays()
   })
 
   it("names both sizes when a phrase is refused for memory, and offers Retry", async () => {
@@ -361,13 +441,15 @@ describe("voice input in the composer", () => {
     await listening()
     act(() => mic.say())
 
-    expect((await screen.findByRole("alert")).textContent).toBe(
-      "Transcribing needs about 2.9 GB free; this computer has 1.2 GB."
-    )
+    expect(
+      await screen.findByText(
+        "Transcribing needs about 2.9 GB free; this computer has 1.2 GB."
+      )
+    ).toBeTruthy()
     api.answer(said("Freed up."))
     await user.click(screen.getByRole("button", { name: "Retry" }))
 
-    await waitFor(() => expect(box().value).toBe("Freed up."))
+    await waitFor(() => expect(boxText(box())).toBe("Freed up."))
   })
 
   it("says why it stopped at the message limit", async () => {
@@ -381,11 +463,16 @@ describe("voice input in the composer", () => {
     await listening()
     act(() => mic.say())
 
-    await waitFor(() =>
-      expect(screen.getByRole("status").textContent).toBe(
+    expect(
+      await screen.findByText(
         "Voice input stopped at the 4,096-character message limit."
       )
+    ).toBeTruthy()
+    disclaimerStays()
+    await waitFor(() =>
+      expect(boxText(box())).toBe(
+        `${"x".repeat(QUESTION_MAX_CHARS - 10)} one two`
+      )
     )
-    expect(box().value).toBe(`${"x".repeat(QUESTION_MAX_CHARS - 10)} one two`)
   })
 })

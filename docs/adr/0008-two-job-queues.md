@@ -12,7 +12,7 @@ Background work comes in two kinds. Ingest jobs parse, chunk and embed, and they
 
 - Two `SqliteHuey` queues, `ingest` and `studio`, share one `huey.db` ([`shared/queue.py`](../../surfsense_local/backend/shared/queue.py)). The queue file is separate from `surfsense.db`, so Huey's constant polling does not hold the database's write lock.
 - `ingest` is drained by one thread and `studio` by four (`STUDIO_WORKERS` in [`worker/consumer.py`](../../surfsense_local/backend/worker/consumer.py)).
-- Electron runs each consumer as its own sidecar, `worker-ingest` and `worker-studio`, from the same worker binary with the queue name as its argument ([`sidecars/python.ts`](../../surfsense_local/electron/src/main/sidecars/python.ts)).
+- Electron runs each consumer as its own sidecar, `worker-ingest` and `worker-studio`, from the same worker binary with the queue name as its argument ([`sidecars/python.ts`](../../surfsense_local/sidecars/python.ts)).
 - Huey holds queue mechanics only. What the user sees is the row's own state, such as `documents.status`.
 
 ## Consequences

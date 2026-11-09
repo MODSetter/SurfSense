@@ -44,7 +44,7 @@ export function IssueReportDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent
-        className="max-h-[calc(100dvh-2rem)] overflow-y-auto select-none sm:max-w-3xl"
+        className="max-h-[calc(100dvh-2rem)] overflow-y-auto select-none sm:max-w-lg"
         initialFocus={descriptionRef}
       >
         <IssueReportForm

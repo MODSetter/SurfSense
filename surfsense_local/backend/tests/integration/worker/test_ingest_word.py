@@ -34,7 +34,7 @@ from tests.integration.worker.test_figures import (
 from tests.integration.worker.test_figures_docling import photo
 from worker.ingestion import run
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.image]
 
 TEXT_BOX_NAMESPACES = (
     'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"'

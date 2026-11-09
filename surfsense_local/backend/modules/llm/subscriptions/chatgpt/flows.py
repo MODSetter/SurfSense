@@ -4,14 +4,16 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Literal
-from urllib.parse import urlencode
+from urllib.parse import parse_qs, urlencode, urlsplit
 
 import httpx
 from sqlalchemy.orm import Session
 
+from api.config import get_settings
 from modules.llm.subscriptions.chatgpt import account, revocation
 from modules.llm.subscriptions.chatgpt.endpoints import (
     AGENT_NAME,
+    CALLBACK_PATH,
     DYNAMIC_CLIENT,
     PLAN_SCOPE,
     RESOURCE,
@@ -53,6 +55,11 @@ class Flow:
     connection_id: int | None = None
     message: str | None = None
     task: asyncio.Task | None = field(default=None, repr=False)
+    # Held here as well as by the task: a task cancelled before it starts never
+    # reaches its `finally`.
+    loopback: Loopback | None = field(default=None, repr=False)
+    # The browser came back: from here the flow saves, and is never replaced.
+    returned: bool = False
 
 
 class SignInFlows:
@@ -60,14 +67,41 @@ class SignInFlows:
 
     def __init__(self) -> None:
         self._flows: dict[str, Flow] = {}
+        # From replacing the waiting flow to holding the port, one start at a time.
+        self._binding = asyncio.Lock()
 
     def get(self, flow_id: str) -> Flow | None:
         return self._flows.get(flow_id)
 
+    def paste(self, flow_id: str, address: str) -> bool:
+        """The address a sign-in's redirect left in the browser, where the browser
+        cannot reach 127.0.0.1: on another machine than the container's. The
+        code is useless without the verifier, which never left this process."""
+        flow = self._flows.get(flow_id)
+        if flow is None or flow.loopback is None or flow.returned:
+            return False
+        try:
+            target = urlsplit(address.strip())
+        except ValueError:
+            return False
+        query = {k: v[0] for k, v in parse_qs(target.query).items()}
+        if (
+            target.path != CALLBACK_PATH
+            or not query.get("code")
+            or not query.get("state")
+        ):
+            return False
+        return flow.loopback.deliver(query)
+
     def cancel(self, flow_id: str) -> None:
         flow = self._flows.pop(flow_id, None)
-        if flow is not None and flow.task is not None:
+        if flow is None:
+            return
+        if flow.task is not None:
             flow.task.cancel()
+        # Now, not when the task next runs: a sign-in started at once needs the port.
+        if flow.loopback is not None:
+            flow.loopback.close()
 
     async def start(
         self,
@@ -82,13 +116,18 @@ class SignInFlows:
             if connection_id is not None
             else None
         )
-        pkce = Pkce()
-        loopback = Loopback()
-        redirect_uri = await loopback.open()
-        flow = Flow(
-            secrets.token_urlsafe(16), _authorize_url(pkce, redirect_uri, returning)
-        )
-        self._flows[flow.id] = flow
+        async with self._binding:
+            if get_settings().chatgpt_callback_port:
+                self._replace_waiting()
+            pkce = Pkce()
+            loopback = Loopback()
+            redirect_uri = await loopback.open()
+            flow = Flow(
+                secrets.token_urlsafe(16),
+                _authorize_url(pkce, redirect_uri, returning),
+                loopback=loopback,
+            )
+            self._flows[flow.id] = flow
         flow.task = asyncio.create_task(
             self._finish(
                 flow,
@@ -102,6 +141,14 @@ class SignInFlows:
             )
         )
         return flow
+
+    def _replace_waiting(self) -> None:
+        """A fixed callback port, as in the container, holds one listener: the
+        newest sign-in wins over one still waiting for its browser. One whose
+        browser came back is saving, and finishes."""
+        for flow in list(self._flows.values()):
+            if flow.status == "waiting" and not flow.returned:
+                self.cancel(flow.id)
 
     def _forget_settled(self) -> None:
         for flow_id in [k for k, f in self._flows.items() if f.status != "waiting"]:
@@ -121,6 +168,9 @@ class SignInFlows:
         try:
             async with asyncio.timeout(SIGN_IN_SECONDS):
                 query = await loopback.callback()
+            flow.returned = True
+            # The port is free for the next sign-in while this one saves.
+            loopback.close()
             tokens = await _tokens(query, pkce, redirect_uri, returning)
             flow.connection_id, stale = await asyncio.to_thread(
                 _save, session_factory, tokens, label, connection_id

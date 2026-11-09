@@ -1,11 +1,17 @@
 import { cleanup, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { toast } from "sonner"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { EgressPrompt } from "@/features/egress/egress-prompt"
 import { fakeInstallApi } from "@/features/models/local/installs/fake-install-api"
+import { stubPrivacyBridge } from "@/features/privacy-choices/stub-privacy-bridge"
 import { render } from "@/test-utils"
 import { OnboardingPage } from "./onboarding-page"
+
+// The API's sentence for a choice made while the local runtime is down.
+const RUNTIME_DOWN =
+  "The local runtime is not running, so a local model cannot be used yet."
 
 vi.mock("sonner", () => ({
   toast: { error: vi.fn(), info: vi.fn() },
@@ -81,10 +87,7 @@ function row(
     default_quantization: "Q4_K_M",
     recommended: false,
     engine,
-    voicing:
-      engine === "audiocpp"
-        ? { peak_mb: 1421, voice_count: 46, languages: ["en-US"] }
-        : null,
+    voicing: null,
     lead: { quantization: "Q4_K_M", why: "recommended" },
     builds: [
       {
@@ -125,6 +128,10 @@ function backend({
   huggingface = undefined as boolean | undefined,
   /** Whether a ChatGPT plan can be signed in to here, for chat only. */
   chatgpt = false,
+  /** Choosing a model fails as the API does while the local runtime is down. */
+  chooseFails = false,
+  /** Finishing setup fails with a bare 500. */
+  finishFails = false,
 } = {}) {
   // Every catalog lists the search models, whatever chat rows a test asks for.
   rows = [...rows, ...embedders()]
@@ -169,6 +176,17 @@ function backend({
     }
     if (path.startsWith("/llm/selection/")) {
       const slot = path.split("/").at(-1) ?? ""
+      if (init?.method === "PUT" && chooseFails) {
+        return Response.json(
+          {
+            detail: {
+              code: "local_runtime_unavailable",
+              message: RUNTIME_DOWN,
+            },
+          },
+          { status: 503 }
+        )
+      }
       if (init?.method === "PUT") {
         selections[slot] = {
           model_type: slot,
@@ -354,6 +372,12 @@ function backend({
     if (path === "/egress" && init?.method === "PUT") {
       return Response.json([])
     }
+    if (path === "/llm/onboarding" && init?.method === "POST" && finishFails) {
+      return new Response("Internal Server Error", {
+        status: 500,
+        statusText: "Internal Server Error",
+      })
+    }
     if (path === "/llm/onboarding" && init?.method === "POST") {
       finished.push(init.body ? JSON.parse(String(init.body)) : null)
       return Response.json({ completed: true })
@@ -379,7 +403,7 @@ const chatChosen = {
 }
 
 beforeEach(() => {
-  // The welcome step mounts OnboardingDither, which reads matchMedia.
+  // The welcome step mounts WelcomeBackdrop, which reads matchMedia.
   Object.defineProperty(window, "matchMedia", {
     configurable: true,
     value: vi.fn().mockReturnValue({
@@ -409,37 +433,9 @@ async function toChatStep(user: ReturnType<typeof userEvent.setup>) {
   await screen.findByRole("heading", { name: "Choose a text generation model" })
 }
 
-async function toImageStep(user: ReturnType<typeof userEvent.setup>) {
+async function toEmbeddingStep(user: ReturnType<typeof userEvent.setup>) {
   await toChatStep(user)
   await user.click(await screen.findByRole("button", { name: "Continue" }))
-  await screen.findByRole("heading", {
-    name: "Choose an image generation model",
-  })
-}
-
-async function toImageEditStep(user: ReturnType<typeof userEvent.setup>) {
-  await toImageStep(user)
-  await user.click(screen.getByRole("button", { name: "Skip" }))
-  await screen.findByRole("heading", { name: "Choose an image editing model" })
-}
-
-async function toAudioStep(user: ReturnType<typeof userEvent.setup>) {
-  await toImageEditStep(user)
-  await user.click(screen.getByRole("button", { name: "Skip" }))
-  await screen.findByRole("heading", { name: "Choose an audio model" })
-}
-
-async function toVideoStep(user: ReturnType<typeof userEvent.setup>) {
-  await toAudioStep(user)
-  await user.click(screen.getByRole("button", { name: "Skip" }))
-  await screen.findByRole("heading", {
-    name: "Choose a video generation model",
-  })
-}
-
-async function toEmbeddingStep(user: ReturnType<typeof userEvent.setup>) {
-  await toVideoStep(user)
-  await user.click(screen.getByRole("button", { name: "Skip" }))
   await screen.findByRole("heading", {
     name: "Choose an embedding model",
   })
@@ -458,7 +454,7 @@ const openRouter = {
 }
 
 describe("onboarding", () => {
-  it("walks the welcome, then six steps: chat, image, image editing, audio, video and search models", async () => {
+  it("walks the welcome, then two steps: chat and search models", async () => {
     vi.stubGlobal("fetch", backend({ selections: { ...chatChosen } }))
     const user = userEvent.setup()
     render(<OnboardingPage onComplete={() => undefined} />)
@@ -466,150 +462,29 @@ describe("onboarding", () => {
     // The welcome introduces onboarding; it is not one of its steps.
     expect(screen.queryByLabelText(/Onboarding step/)).toBeNull()
     await toChatStep(user)
-    expect(screen.getByLabelText("Onboarding step 1 of 6")).toBeTruthy()
+    expect(screen.getByLabelText("Onboarding step 1 of 2")).toBeTruthy()
     // The welcome is not somewhere to go back to.
     expect(screen.queryByRole("button", { name: "Back" })).toBeNull()
+    // Chat is required.
+    expect(screen.queryByText("Optional")).toBeNull()
+    expect(screen.queryByRole("button", { name: /^Skip/ })).toBeNull()
 
     await user.click(await screen.findByRole("button", { name: "Continue" }))
     expect(
-      await screen.findByRole("heading", {
-        name: "Choose an image generation model",
-      })
+      await screen.findByRole("heading", { name: "Choose an embedding model" })
     ).toBeTruthy()
-    expect(screen.getByLabelText("Onboarding step 2 of 6")).toBeTruthy()
-    expect(screen.getByText("Optional")).toBeTruthy()
-
-    // Skipping the image model moves on; it does not end onboarding.
-    await user.click(screen.getByRole("button", { name: "Skip" }))
-    expect(
-      await screen.findByRole("heading", {
-        name: "Choose an image editing model",
-      })
-    ).toBeTruthy()
-    expect(screen.getByLabelText("Onboarding step 3 of 6")).toBeTruthy()
-
-    await user.click(screen.getByRole("button", { name: "Skip" }))
-    expect(
-      await screen.findByRole("heading", { name: "Choose an audio model" })
-    ).toBeTruthy()
-    expect(screen.getByLabelText("Onboarding step 4 of 6")).toBeTruthy()
-
-    await user.click(screen.getByRole("button", { name: "Skip" }))
-    expect(
-      await screen.findByRole("heading", {
-        name: "Choose a video generation model",
-      })
-    ).toBeTruthy()
-    expect(screen.getByLabelText("Onboarding step 5 of 6")).toBeTruthy()
-
-    await user.click(screen.getByRole("button", { name: "Skip" }))
-    expect(
-      await screen.findByRole("heading", {
-        name: "Choose an embedding model",
-      })
-    ).toBeTruthy()
-    expect(screen.getByLabelText("Onboarding step 6 of 6")).toBeTruthy()
+    expect(screen.getByLabelText("Onboarding step 2 of 2")).toBeTruthy()
     expect(screen.getByText("Optional")).toBeTruthy()
     expect(screen.getByRole("button", { name: "Finish" })).toBeTruthy()
     // Skipping the last step ends onboarding, so it says so.
     expect(screen.getByRole("button", { name: "Skip and finish" })).toBeTruthy()
-    expect(screen.queryByRole("button", { name: "Skip" })).toBeNull()
 
-    for (const heading of [
-      "Choose a video generation model",
-      "Choose an audio model",
-      "Choose an image editing model",
-      "Choose an image generation model",
-      "Choose a text generation model",
-    ]) {
-      await user.click(screen.getByRole("button", { name: "Back" }))
-      expect(await screen.findByRole("heading", { name: heading })).toBeTruthy()
-    }
-  })
-
-  it("lists only video models on the video step, and fills the video slot", async () => {
-    const video = { selectable_for: ["video_gen"], types: ["video_gen"] }
-    const fetchMock = backend({
-      selections: { ...chatChosen },
-      rows: [
-        row("llamacpp", "Qwen3 4B", "qwen3-4b", { recommended: true }),
-        row("sdcpp", "Wan2.1 1.3B", "wan-small", video),
-        row("sdcpp", "SD 1.5", "sd15"),
-      ],
-    })
-    vi.stubGlobal("fetch", fetchMock)
-    const user = userEvent.setup()
-    render(<OnboardingPage onComplete={() => undefined} />)
-    await toVideoStep(user)
-
-    expect(screen.queryByText("SD 1.5")).toBeNull()
-    await user.click(
-      await screen.findByRole("button", { name: "Download Wan2.1 1.3B Q4_K_M" })
-    )
-
-    await waitFor(() =>
-      expect(installsStarted(fetchMock)).toEqual([
-        {
-          catalog_id: "opaque-wan-small",
-          select: true,
-          model_type: "video_gen",
-        },
-      ])
-    )
-  })
-
-  it("leads the editing step with the image model when it edits too", async () => {
-    // FLUX.2 klein makes and edits images from the same files: chosen for
-    // images earlier, it is one Use away, with nothing to download.
-    const edits = {
-      selectable_for: ["image_gen", "image_edit"],
-      types: ["image_gen", "image_edit"],
-    }
-    const fetchMock = backend({
-      selections: {
-        ...chatChosen,
-        image_gen: {
-          model_type: "image_gen",
-          provider: "sdcpp",
-          connection_id: null,
-          name: "flux-klein",
-          updated_at: "2026-09-25T00:00:00Z",
-        },
-      },
-      rows: [
-        row("llamacpp", "Qwen3 4B", "qwen3-4b", { recommended: true }),
-        row("sdcpp", "LongCat Edit", "longcat-edit", edits),
-        row("sdcpp", "FLUX.2 klein", "flux-klein", edits),
-        row("sdcpp", "SD 1.5", "sd15"),
-      ],
-      onDisk: ["flux-klein"],
-    })
-    vi.stubGlobal("fetch", fetchMock)
-    const user = userEvent.setup()
-    render(<OnboardingPage onComplete={() => undefined} />)
-    await toImageStep(user)
-    await user.click(await screen.findByRole("button", { name: "Continue" }))
-    await screen.findByRole("heading", {
-      name: "Choose an image editing model",
-    })
-
-    const choices = await screen.findAllByRole("listitem")
-    expect(choices[0]?.textContent).toContain("FLUX.2 klein")
-    expect(screen.queryByText("SD 1.5")).toBeNull()
-    await user.click(
-      screen.getByRole("button", { name: "Use FLUX.2 klein Q4_K_M" })
-    )
-
-    await waitFor(() => {
-      const write = fetchMock.mock.calls.find(
-        ([path, init]) =>
-          path === "/llm/selection/image_edit" && init?.method === "PUT"
-      )
-      expect(JSON.parse(String(write?.[1]?.body))).toMatchObject({
-        provider: "sdcpp",
-        name: "flux-klein",
+    await user.click(screen.getByRole("button", { name: "Back" }))
+    expect(
+      await screen.findByRole("heading", {
+        name: "Choose a text generation model",
       })
-    })
+    ).toBeTruthy()
   })
 
   it("lists every model at once, the recommended one first", async () => {
@@ -702,6 +577,37 @@ describe("onboarding", () => {
     })
   })
 
+  it("says in a toast when a downloaded model cannot be used, not under the list", async () => {
+    vi.stubGlobal(
+      "fetch",
+      backend({
+        selections: { ...chatChosen },
+        onDisk: ["qwen3-4b", "gemma-3-4b"],
+        chooseFails: true,
+      })
+    )
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+    await toChatStep(user)
+
+    await user.click(
+      await screen.findByRole("button", { name: "Use Gemma 3 4B Q4_K_M" })
+    )
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        "Couldn’t use this model",
+        expect.objectContaining({
+          description:
+            "The local model runtime isn’t running, so this model can’t be used yet.",
+          action: expect.objectContaining({ label: "Report issue" }),
+        })
+      )
+    )
+    // The API's own sentence goes to Report issue, never onto the screen.
+    expect(screen.queryByText(RUNTIME_DOWN)).toBeNull()
+  })
+
   it("shows a download under its row and stays put", async () => {
     const base = backend({ holdInstalls: true })
     vi.stubGlobal("fetch", base)
@@ -786,30 +692,6 @@ describe("onboarding", () => {
     )
   })
 
-  it("offers no search on the image, image editing, video or audio step", async () => {
-    vi.stubGlobal("fetch", backend({ selections: { ...chatChosen } }))
-    const user = userEvent.setup()
-    render(<OnboardingPage onComplete={() => undefined} />)
-    const search = () =>
-      screen.queryByRole("button", { name: "Not listed? Search Hugging Face" })
-
-    await toImageStep(user)
-    expect(search()).toBeNull()
-    await user.click(screen.getByRole("button", { name: "Skip" }))
-    await screen.findByRole("heading", {
-      name: "Choose an image editing model",
-    })
-    expect(search()).toBeNull()
-    await user.click(screen.getByRole("button", { name: "Skip" }))
-    await screen.findByRole("heading", { name: "Choose an audio model" })
-    expect(search()).toBeNull()
-    await user.click(screen.getByRole("button", { name: "Skip" }))
-    await screen.findByRole("heading", {
-      name: "Choose a video generation model",
-    })
-    expect(search()).toBeNull()
-  })
-
   it("offers a ChatGPT plan below Use a server on the chat step", async () => {
     vi.stubGlobal("fetch", backend({ chatgpt: true }))
     const user = userEvent.setup()
@@ -879,7 +761,6 @@ describe("onboarding", () => {
     const user = userEvent.setup()
     render(<OnboardingPage onComplete={() => undefined} />)
     await toChatStep(user)
-    await user.click(await screen.findByRole("button", { name: "Continue" }))
 
     const server = await screen.findByRole("region", { name: "Use a server" })
     expect(server.textContent).toContain("Connected: OpenRouter")
@@ -955,49 +836,31 @@ describe("onboarding", () => {
     )
   })
 
-  it("says when image models cannot run here", async () => {
-    vi.stubGlobal("fetch", backend({ selections: { ...chatChosen } }))
+  it("says in a toast when setup cannot finish, never above the footer", async () => {
+    vi.stubGlobal(
+      "fetch",
+      backend({ selections: { ...chatChosen }, finishFails: true })
+    )
+    const onComplete = vi.fn()
     const user = userEvent.setup()
-    render(<OnboardingPage onComplete={() => undefined} />)
-    await toImageStep(user)
+    render(<OnboardingPage onComplete={onComplete} />)
+    await toEmbeddingStep(user)
 
-    expect(
-      await screen.findByText(/Image models cannot run on this computer/)
-    ).toBeTruthy()
-    expect(
-      screen.getByRole("button", { name: "Continue" }).hasAttribute("disabled")
-    ).toBe(true)
-  })
+    await user.click(screen.getByRole("button", { name: "Skip and finish" }))
 
-  it("offers a server on the audio step, as on every other", async () => {
-    vi.stubGlobal("fetch", backend({ selections: { ...chatChosen } }))
-    const user = userEvent.setup()
-    render(<OnboardingPage onComplete={() => undefined} />)
-    await toAudioStep(user)
-
-    expect(
-      await screen.findByText(
-        "Audio models cannot run on this computer. Use a server instead."
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        "Could not finish setup",
+        expect.objectContaining({
+          action: expect.objectContaining({ label: "Report issue" }),
+        })
       )
-    ).toBeTruthy()
-    expect(screen.getByRole("region", { name: "Use a server" })).toBeTruthy()
+    )
+    expect(onComplete).not.toHaveBeenCalled()
+    expect(screen.queryByText("Internal Server Error")).toBeNull()
   })
 
-  it("says when audio models cannot run here", async () => {
-    vi.stubGlobal("fetch", backend({ selections: { ...chatChosen } }))
-    const user = userEvent.setup()
-    render(<OnboardingPage onComplete={() => undefined} />)
-    await toAudioStep(user)
-
-    expect(
-      await screen.findByText(/Audio models cannot run on this computer/)
-    ).toBeTruthy()
-    expect(
-      screen.getByRole("button", { name: "Continue" }).hasAttribute("disabled")
-    ).toBe(true)
-  })
-
-  it("finishes without any optional model when every one is skipped", async () => {
+  it("finishes with the chat model when the optional step is skipped", async () => {
     const fetchMock = backend({ selections: { ...chatChosen } })
     vi.stubGlobal("fetch", fetchMock)
     const onComplete = vi.fn()
@@ -1017,70 +880,7 @@ describe("onboarding", () => {
     ).toBe(true)
   })
 
-  it("moves on once an image model is downloaded", async () => {
-    const fetchMock = backend({
-      selections: { ...chatChosen },
-      rows: [
-        row("llamacpp", "Qwen3 4B", "qwen3-4b", { recommended: true }),
-        row("sdcpp", "SDXL Turbo", "sdxl-turbo"),
-      ],
-    })
-    vi.stubGlobal("fetch", fetchMock)
-    const onComplete = vi.fn()
-    const user = userEvent.setup()
-    render(<OnboardingPage onComplete={onComplete} />)
-    await toImageStep(user)
-
-    await user.click(
-      await screen.findByRole("button", { name: "Download SDXL Turbo Q4_K_M" })
-    )
-    await expectReady("SDXL Turbo")
-    const next = screen.getByRole("button", { name: "Continue" })
-    await waitFor(() => expect(next.hasAttribute("disabled")).toBe(false))
-    await user.click(next)
-
-    expect(
-      await screen.findByRole("heading", {
-        name: "Choose an image editing model",
-      })
-    ).toBeTruthy()
-    expect(onComplete).not.toHaveBeenCalled()
-  })
-
-  it("moves on to the search step once a video model is downloaded", async () => {
-    const fetchMock = backend({
-      selections: { ...chatChosen },
-      rows: [
-        row("llamacpp", "Qwen3 4B", "qwen3-4b", { recommended: true }),
-        row("sdcpp", "Wan2.1 1.3B", "wan-small", {
-          selectable_for: ["video_gen"],
-          types: ["video_gen"],
-        }),
-      ],
-    })
-    vi.stubGlobal("fetch", fetchMock)
-    const onComplete = vi.fn()
-    const user = userEvent.setup()
-    render(<OnboardingPage onComplete={onComplete} />)
-    await toVideoStep(user)
-
-    await user.click(
-      await screen.findByRole("button", { name: "Download Wan2.1 1.3B Q4_K_M" })
-    )
-    await expectReady("Wan2.1 1.3B")
-    const next = screen.getByRole("button", { name: "Continue" })
-    await waitFor(() => expect(next.hasAttribute("disabled")).toBe(false))
-    await user.click(next)
-
-    expect(
-      await screen.findByRole("heading", {
-        name: "Choose an embedding model",
-      })
-    ).toBeTruthy()
-    expect(onComplete).not.toHaveBeenCalled()
-  })
-
-  it("never finishes onboarding from a model step", async () => {
+  it("never finishes onboarding until the last step is left", async () => {
     const fetchMock = backend({ selections: { ...chatChosen } })
     vi.stubGlobal("fetch", fetchMock)
     const onComplete = vi.fn()
@@ -1328,5 +1128,277 @@ describe("the embedding model step", () => {
     expect(
       screen.queryByRole("button", { name: /^Download someone\/chat-model/ })
     ).toBeNull()
+  })
+})
+
+describe("the privacy choices", () => {
+  afterEach(() => {
+    delete window.surfsense
+  })
+
+  async function toPrivacyStep(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole("button", { name: "Start setting up" }))
+    await screen.findByRole("heading", { name: "Privacy choices" })
+  }
+
+  // The full description is the title's tooltip.
+  async function hoverDetails(
+    user: ReturnType<typeof userEvent.setup>,
+    label: string
+  ) {
+    await user.hover(screen.getByRole("button", { name: label }))
+    const tooltip = await screen.findByRole("tooltip")
+    return tooltip.textContent ?? ""
+  }
+
+  function choice(row: string, answer: "Yes" | "No") {
+    return within(screen.getByRole("group", { name: row })).getByRole(
+      "button",
+      { name: answer }
+    )
+  }
+
+  it("asks a new install right after the welcome, with nothing chosen for it", async () => {
+    vi.stubGlobal("fetch", backend({ selections: { ...chatChosen } }))
+    const bridge = stubPrivacyBridge()
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+
+    await toPrivacyStep(user)
+    // The first step like any other: counted, with no way back to the welcome.
+    expect(screen.getByLabelText("Onboarding step 1 of 3")).toBeTruthy()
+    expect(screen.queryByRole("button", { name: "Back" })).toBeNull()
+    for (const row of ["Check for updates", "Share usage statistics"])
+      for (const answer of ["Yes", "No"] as const)
+        expect(choice(row, answer).getAttribute("aria-pressed")).toBe("false")
+    const proceed = screen.getByRole("button", { name: "Continue" })
+    expect(proceed.hasAttribute("disabled")).toBe(true)
+
+    // One answer is not enough: each row is its own decision.
+    await user.click(choice("Check for updates", "Yes"))
+    expect(proceed.hasAttribute("disabled")).toBe(true)
+    await user.click(choice("Share usage statistics", "No"))
+    expect(
+      choice("Check for updates", "Yes").getAttribute("aria-pressed")
+    ).toBe("true")
+    expect(proceed.hasAttribute("disabled")).toBe(false)
+
+    await user.click(proceed)
+    await screen.findByRole("heading", {
+      name: "Choose a text generation model",
+    })
+    expect(bridge.calls).toContain("first-run:updates=true,usage=false")
+  })
+
+  it("says where each one goes and what it sends", async () => {
+    vi.stubGlobal("fetch", backend())
+    stubPrivacyBridge()
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+
+    await toPrivacyStep(user)
+    // One line each; the hosts are in the info icon's description.
+    const updates = screen.getByRole("region", { name: "Check for updates" })
+    expect(updates.textContent).toContain("No ID sent.")
+    expect(updates.textContent).not.toContain("updates.surfsense.com")
+    const usage = screen.getByRole("region", { name: "Share usage statistics" })
+    expect(usage.textContent).toContain(
+      "Never your documents, prompts or an ID."
+    )
+
+    // Every host, and the download, as the update prompt says.
+    const updatesDetails = await hoverDetails(
+      user,
+      "What an update check sends"
+    )
+    expect(updatesDetails).toContain("updates.surfsense.com")
+    expect(updatesDetails).toContain("github.com")
+    expect(updatesDetails).toContain("your IP address")
+    expect(updatesDetails).toContain("githubusercontent.com")
+    expect(updatesDetails).toContain("the next time you quit")
+    await user.unhover(
+      screen.getByRole("button", { name: "What an update check sends" })
+    )
+    await waitFor(() => expect(screen.queryByRole("tooltip")).toBeNull())
+    const usageDetails = await hoverDetails(user, "What usage statistics send")
+    expect(usageDetails).toContain("usage.surfsense.com")
+    expect(usageDetails).toContain(
+      "Never documents, prompts, file names, model names, hosts, your license key or an ID."
+    )
+  })
+
+  it("shows the next usage report, built but not sent", async () => {
+    vi.stubGlobal("fetch", backend())
+    const bridge = stubPrivacyBridge()
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+
+    await toPrivacyStep(user)
+    const usage = screen.getByRole("region", { name: "Share usage statistics" })
+    await user.click(
+      within(usage).getByRole("button", { name: "Show exactly what’s sent" })
+    )
+
+    const dialog = await screen.findByRole("dialog", {
+      name: "What usage statistics send",
+    })
+    const next = await within(dialog).findByLabelText(
+      "The next daily usage report"
+    )
+    expect(next.textContent).toContain('"schema": 1')
+    expect(dialog.textContent).toContain("Nothing sent yet.")
+    expect(bridge.calls).toContain("preview")
+    expect(bridge.calls.some((call) => call.startsWith("usage:"))).toBe(false)
+  })
+
+  it("lists the update request's only headers before any check", async () => {
+    vi.stubGlobal("fetch", backend())
+    stubPrivacyBridge()
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+
+    await toPrivacyStep(user)
+    const updates = screen.getByRole("region", { name: "Check for updates" })
+    await user.click(
+      within(updates).getByRole("button", { name: "Show exactly what’s sent" })
+    )
+
+    const dialog = await screen.findByRole("dialog", {
+      name: "What an update check sends",
+    })
+    for (const header of [
+      "User-Agent",
+      "X-SurfSense-Version",
+      "X-SurfSense-Platform",
+      "X-SurfSense-OS",
+    ])
+      expect(dialog.textContent).toContain(header)
+  })
+
+  it("takes a policy's lock as that row's answer", async () => {
+    vi.stubGlobal("fetch", backend({ selections: { ...chatChosen } }))
+    const bridge = stubPrivacyBridge({
+      usageStatistics: {
+        enabled: false,
+        locked: true,
+        lockedReason: "do_not_track",
+      },
+    })
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+
+    await toPrivacyStep(user)
+    expect(
+      screen.queryByRole("group", { name: "Share usage statistics" })
+    ).toBeNull()
+    expect(
+      screen.getByRole("region", { name: "Share usage statistics" }).textContent
+    ).toContain("DO_NOT_TRACK")
+
+    await user.click(choice("Check for updates", "No"))
+    await user.click(screen.getByRole("button", { name: "Continue" }))
+
+    await screen.findByRole("heading", {
+      name: "Choose a text generation model",
+    })
+    expect(bridge.calls).toContain("first-run:updates=false,usage=false")
+  })
+
+  it("says only that a package manager owns updates, with no check described", async () => {
+    vi.stubGlobal("fetch", backend({ selections: { ...chatChosen } }))
+    const bridge = stubPrivacyBridge({
+      updates: { locked: true, lockedReason: "channel", channel: "snap" },
+    })
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+
+    await toPrivacyStep(user)
+    const updates = screen.getByRole("region", { name: "Check for updates" })
+    expect(updates.textContent).toContain("Updates come from the Snap Store")
+    expect(updates.textContent).not.toContain("Once a day")
+    expect(
+      within(updates).queryByRole("button", {
+        name: "Show exactly what’s sent",
+      })
+    ).toBeNull()
+    expect(
+      within(updates).queryByRole("button", {
+        name: "What an update check sends",
+      })
+    ).toBeNull()
+    expect(
+      screen.queryByRole("group", { name: "Check for updates" })
+    ).toBeNull()
+
+    await user.click(choice("Share usage statistics", "Yes"))
+    await user.click(screen.getByRole("button", { name: "Continue" }))
+
+    await screen.findByRole("heading", {
+      name: "Choose a text generation model",
+    })
+    expect(bridge.calls).toContain("first-run:updates=false,usage=true")
+  })
+
+  it("goes on to the first step when the choices cannot be read", async () => {
+    vi.stubGlobal("fetch", backend())
+    stubPrivacyBridge()
+    window.surfsense!.privacy!.getState = async () => {
+      throw new Error("No handler registered for 'privacy:get-state'")
+    }
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+
+    // Nothing is switched on unasked, and setup is not held on an empty card.
+    await toChatStep(user)
+    expect(
+      screen.queryByRole("heading", { name: "Privacy choices" })
+    ).toBeNull()
+  })
+
+  it("asks an install that already answered again, with its answers chosen", async () => {
+    vi.stubGlobal("fetch", backend())
+    stubPrivacyBridge({
+      firstRunAsked: true,
+      updates: { automatic: true },
+      usageStatistics: { enabled: false },
+    })
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+
+    await toPrivacyStep(user)
+    expect(
+      choice("Check for updates", "Yes").getAttribute("aria-pressed")
+    ).toBe("true")
+    expect(
+      choice("Share usage statistics", "No").getAttribute("aria-pressed")
+    ).toBe("true")
+    expect(
+      screen.getByRole("button", { name: "Continue" }).hasAttribute("disabled")
+    ).toBe(false)
+  })
+
+  it("goes back to the choices from the first model step, keeping them", async () => {
+    vi.stubGlobal("fetch", backend({ selections: { ...chatChosen } }))
+    stubPrivacyBridge()
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+
+    await toPrivacyStep(user)
+    await user.click(choice("Check for updates", "No"))
+    await user.click(choice("Share usage statistics", "Yes"))
+    await user.click(screen.getByRole("button", { name: "Continue" }))
+    await screen.findByRole("heading", {
+      name: "Choose a text generation model",
+    })
+    expect(screen.getByLabelText("Onboarding step 2 of 3")).toBeTruthy()
+
+    await user.click(screen.getByRole("button", { name: "Back" }))
+    await screen.findByRole("heading", { name: "Privacy choices" })
+    expect(choice("Check for updates", "No").getAttribute("aria-pressed")).toBe(
+      "true"
+    )
+    expect(
+      choice("Share usage statistics", "Yes").getAttribute("aria-pressed")
+    ).toBe("true")
   })
 })

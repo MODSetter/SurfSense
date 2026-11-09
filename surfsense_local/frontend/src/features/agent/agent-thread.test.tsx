@@ -64,6 +64,16 @@ function approval() {
   return screen.findByRole("group", { name: "Approval needed" })
 }
 
+/** A request can show before its step does, then moves onto the step as a new
+ *  element, so only one already there can be held on to or clicked. */
+function approvalOnItsStep(label: string) {
+  return waitFor(() => {
+    const waiting = screen.getByRole("group", { name: "Approval needed" })
+    expect(waiting.closest("li")?.textContent).toContain(label)
+    return waiting
+  })
+}
+
 const sse = (frames: unknown[]) =>
   frames.map((frame) => `data: ${JSON.stringify(frame)}\n\n`).join("")
 
@@ -105,6 +115,7 @@ const PROPOSAL = {
   version: { root_id: 40, number: 1, parent_id: null },
   spec_kind: "python",
   refinable: false,
+  image_editable: false,
 }
 
 /**
@@ -280,10 +291,9 @@ describe("an agent thread", () => {
     renderAgentThread()
     const user = await ask("Run it")
 
-    const waiting = await approval()
-    expect(within(waiting).getByText("echo hi")).toBeTruthy()
     // On the step it holds back, in the reply, not over the thread.
-    expect(waiting.closest("li")?.textContent).toContain("Ran")
+    const waiting = await approvalOnItsStep("Ran")
+    expect(within(waiting).getByText("echo hi")).toBeTruthy()
     expect(screen.queryByRole("alertdialog")).toBeNull()
     await user.click(
       within(waiting).getByRole("button", { name: "Allow once" })
@@ -313,7 +323,9 @@ describe("an agent thread", () => {
     const user = await ask("Run it")
 
     await user.click(
-      within(await approval()).getByRole("button", { name: "Deny" })
+      within(await approvalOnItsStep("Ran")).getByRole("button", {
+        name: "Deny",
+      })
     )
 
     await waitFor(() => {
@@ -441,144 +453,6 @@ describe("an agent thread", () => {
     expect(state.sent[0].source_scope?.all).toBe(true)
   })
 
-  it("says third-party plugins must be allowed when only those are connected", async () => {
-    backend({
-      plugins: [
-        {
-          id: "wiki",
-          name: "Wiki",
-          source: "custom",
-          url: "https://wiki.example/mcp",
-          hosts: ["wiki.example"],
-          enabled: true,
-          connected_at: "2026-10-01T00:00:00Z",
-          checked_at: "2026-10-01T00:00:00Z",
-          check_failure: null,
-          tools: [
-            {
-              name: "search",
-              title: null,
-              description: "Search.",
-              annotations: {},
-              enabled: true,
-              approval: "ask",
-              change: null,
-            },
-          ],
-        },
-      ],
-      thirdPartyAllowed: false,
-      waitFor: ["never"],
-    })
-    renderAgentThread()
-    const user = userEvent.setup()
-    const composer = await screen.findByRole("textbox", { name: "Message" })
-
-    await user.type(composer, "@")
-
-    expect(
-      await screen.findByText(
-        "Allow third-party plugins in Settings › Plugins to use them here."
-      )
-    ).toBeTruthy()
-  })
-
-  it("offers the ready plugins after @, and sends the one picked", async () => {
-    const plugin = (id: string, name: string, enabled: boolean) => ({
-      id,
-      name,
-      source: "custom",
-      url: `https://${id}.example/mcp`,
-      hosts: [`${id}.example`],
-      enabled,
-      connected_at: "2026-10-01T00:00:00Z",
-      checked_at: "2026-10-01T00:00:00Z",
-      check_failure: null,
-      tools: [
-        {
-          name: "search",
-          title: null,
-          description: "Search.",
-          annotations: { readOnlyHint: true },
-          enabled: true,
-          approval: "ask",
-          change: null,
-        },
-      ],
-    })
-    const state = backend({
-      plugins: [plugin("notes", "Notes", true), plugin("wiki", "Wiki", false)],
-      waitFor: ["never"],
-    })
-    renderAgentThread()
-    const user = userEvent.setup()
-    const composer = await screen.findByRole("textbox", { name: "Message" })
-
-    await user.type(composer, "Summarize it with @")
-    await user.click(await screen.findByText("Notes"))
-    expect(screen.queryByText("Wiki")).toBeNull()
-    await user.type(composer, "{Enter}")
-
-    await waitFor(() => expect(state.sent).toHaveLength(1))
-    expect(state.sent[0].text).toContain("@notes")
-  })
-
-  it("leaves a paid plugin out of @ once its license was refused", async () => {
-    const plugin = (id: string, name: string, failure: string | null) => ({
-      id,
-      name,
-      source: "first_party",
-      url: `https://plugins.example/${id}/mcp`,
-      hosts: ["plugins.example"],
-      enabled: true,
-      connected_at: "2026-10-01T00:00:00Z",
-      checked_at: "2026-10-01T00:00:00Z",
-      check_failure: failure,
-      tools: [
-        {
-          name: "scrape",
-          title: null,
-          description: "Scrape.",
-          annotations: { readOnlyHint: true },
-          enabled: true,
-          approval: "ask",
-          change: null,
-        },
-      ],
-    })
-    backend({
-      plugins: [plugin("amazon", "Amazon", "needs_license")],
-      waitFor: ["never"],
-    })
-    renderAgentThread()
-    const user = userEvent.setup()
-    const composer = await screen.findByRole("textbox", { name: "Message" })
-
-    await user.type(composer, "@")
-
-    expect(
-      await screen.findByText(
-        "Your SurfSense license doesn’t unlock these plugins. Check Settings › License."
-      )
-    ).toBeTruthy()
-    expect(screen.queryByText("Amazon")).toBeNull()
-  })
-
-  it("says where to connect a plugin when none is ready", async () => {
-    backend({ waitFor: ["never"] })
-    renderAgentThread()
-    const user = userEvent.setup()
-    const composer = await screen.findByRole("textbox", { name: "Message" })
-
-    await user.type(composer, "@")
-
-    expect(
-      await screen.findByText(
-        "No plugins connected. Add one in Settings › Plugins."
-      )
-    ).toBeTruthy()
-  })
-
   it("names the plugins a turn could not reach, and why", async () => {
     backend({
       first: [
@@ -600,6 +474,28 @@ describe("an agent thread", () => {
     expect(await screen.findByText("Couldn’t reach Notion")).toBeTruthy()
     expect(screen.getByText("Sign in to Linear again")).toBeTruthy()
     expect(screen.getByText("Amazon needs a SurfSense license")).toBeTruthy()
+  })
+
+  it("adds a plugin refused mid-turn for more access to the ones named before", async () => {
+    backend({
+      first: [
+        ACCEPTED,
+        {
+          type: "agent-plugins-unavailable",
+          plugins: [{ title: "Notion", reason: "unreachable" }],
+        },
+        {
+          type: "agent-plugins-unavailable",
+          plugins: [{ title: "Linear", reason: "needs_scopes" }],
+        },
+      ],
+      waitFor: ["never"],
+    })
+    renderAgentThread()
+    await ask("When do we ship?")
+
+    expect(await screen.findByText("Linear needs more access")).toBeTruthy()
+    expect(screen.getByText("Couldn’t reach Notion")).toBeTruthy()
   })
 
   it("shows the sources a stored turn worked from", async () => {

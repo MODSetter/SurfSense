@@ -31,14 +31,16 @@ async def sign_in(
     allowed_hosts: set[str],
     open_browser: Callable[[str], Awaitable[None]],
     code_returned: Callable[[], Awaitable[AuthorizationCodeResult]],
+    confidential: bool = False,
 ) -> OAuthCredential:
     provider = OAuthClientProvider(
         server_url=url,
-        client_metadata=client_metadata(client, scopes),
+        client_metadata=client_metadata(client, scopes, confidential),
         storage=storage,
         redirect_handler=open_browser,
         callback_handler=code_returned,
-        client_metadata_url=client.client_metadata_url,
+        # A client metadata document names a public client; one with a secret registers.
+        client_metadata_url=None if confidential else client.client_metadata_url,
     )
     async with consented_client(allowed_hosts) as http:
         await http.post(url, json=_PROBE, headers=_ACCEPT, auth=provider)

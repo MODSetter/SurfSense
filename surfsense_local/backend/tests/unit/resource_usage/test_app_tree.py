@@ -71,9 +71,9 @@ def test_a_cycle_in_a_torn_snapshot_ends() -> None:
         ("audiocpp_server.exe", Engine.AUDIOCPP),
         ("python.exe", Engine.BACKEND),
         ("electron.exe", Engine.INTERFACE),
-        # Packaged: frozen onedir binaries, and the app's own executable.
-        ("api.exe", Engine.BACKEND),
-        ("worker", Engine.BACKEND),
+        # Packaged: the one frozen backend in either role, and the app's own executable.
+        ("surfsense-backend.exe", Engine.BACKEND),
+        ("surfsense-backend", Engine.BACKEND),
         ("SurfSense.exe", Engine.INTERFACE),
         ("SurfSense Helper (GPU)", Engine.INTERFACE),
         # POSIX development interpreters carry their version.

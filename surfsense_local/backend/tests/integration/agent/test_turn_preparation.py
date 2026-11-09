@@ -31,7 +31,8 @@ from tests.mcp_test_server import (
     serving,
 )
 
-pytestmark = pytest.mark.integration
+# The packaged list is empty: these connect a sample of SurfSense's own plugins.
+pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("first_party_sample")]
 
 
 def offered(api: AgentAPI, request: int = 0) -> set[str]:
@@ -41,7 +42,9 @@ def offered(api: AgentAPI, request: int = 0) -> set[str]:
 
 
 async def connect_custom(api: AgentAPI, url: str, name: str) -> None:
-    """Connect a server by URL under `name`, its id the name in lower case."""
+    """Connect a server by URL under `name`, its id the name in lower case, with
+    third-party plugins allowed, as adding one requires."""
+    await api.http.put("/plugins/third-party", json={"allowed": True})
     added = await api.http.post("/plugins/custom", json={"url": url, "name": name})
     assert added.status_code == 201, added.text
 
@@ -64,7 +67,6 @@ async def test_plugins_are_given_at_once_and_one_that_hangs_is_named_alone(
             base = servers.enter_context(serving(app))
             await connect_custom(agent_api, f"{base}/mcp", name)
             app.on = True
-        await agent_api.http.put("/plugins/third-party", json={"allowed": True})
         agent_api.model.replies = [("text", "Hi.")]
         thread = await open_thread(agent_api)
 
@@ -183,7 +185,6 @@ async def test_a_plugin_its_check_makes_not_ready_is_taken_back_before_the_model
     server = one_tool_server()
     with serving(server.streamable_http_app()) as base:
         await connect_custom(agent_api, f"{base}/mcp", "Solo")
-        await agent_api.http.put("/plugins/third-party", json={"allowed": True})
         server.remove_tool("search")
         server.add_tool(
             lambda query: query,
@@ -202,8 +203,8 @@ async def test_a_plugin_its_check_makes_not_ready_is_taken_back_before_the_model
 
     assert of_type(frames, "completed")[0]["text"] == "Hi."
     assert "solo_search" not in offered(agent_api)
-    # Disconnected: opencode lists a dropped server as disabled.
-    assert held["solo"] == "disabled"
+    # Removed: opencode no longer holds a dropped server at all.
+    assert "solo" not in held
     (prepared,) = [r.message for r in caplog.records if " prepared in " in r.message]
     assert "(1 added)" in prepared
 
@@ -246,15 +247,15 @@ async def _tools_once_checked(api: AgentAPI) -> dict[str, bool]:
     return tools
 
 
-def slow_amazon_server(seconds: float) -> MCPServer:
-    """SurfSense's Amazon plugin, its search taking `seconds` with no progress."""
-    server = MCPServer("amazon")
+def slow_news_server(seconds: float) -> MCPServer:
+    """SurfSense's sample plugin, its search taking `seconds` with no progress."""
+    server = MCPServer("news")
 
     @server.tool(annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=True))
-    async def search_products(query: str) -> str:
-        """Search Amazon's products."""
+    async def search_articles(query: str) -> str:
+        """Search the news."""
         await asyncio.sleep(seconds)
-        return f"products about {query}"
+        return f"articles about {query}"
 
     return server
 
@@ -275,13 +276,13 @@ async def test_a_call_opencode_gives_up_on_is_ended_on_surfsense_s_plugin_host(
         texts.append(RecordingHeaders(guarded[0], "x-surfsense-text-only"))
         return texts[0]
 
-    host = plugin_host("amazon", slow_amazon_server(30), around, cancels)
+    host = plugin_host("news", slow_news_server(30), around, cancels)
     with serving(host) as base:
         monkeypatch.setattr(get_plugin_host_settings(), "plugin_host_url", base)
-        connected = await agent_api.http.post("/plugins/first-party/amazon")
+        connected = await agent_api.http.post("/plugins/first-party/news")
         assert connected.status_code == 201, connected.text
         agent_api.model.replies = [
-            call("amazon_search_products", query="ship"),
+            call("news_search_articles", query="ship"),
             ("text", "It took too long."),
         ]
         thread = await open_thread(agent_api)
@@ -294,7 +295,7 @@ async def test_a_call_opencode_gives_up_on_is_ended_on_surfsense_s_plugin_host(
             await asyncio.sleep(0.1)
 
     step = of_type(frames, "agent-step")[-1]
-    assert (step["tool"], step["status"]) == ("amazon_search_products", "error")
+    assert (step["tool"], step["status"]) == ("news_search_articles", "error")
     assert time.monotonic() - began < 30
     (token,) = {token for token in guarded[0].calls_tokens if token}
     assert [c["x-surfsense-calls"] for c in cancels] == [token]
@@ -314,8 +315,14 @@ async def test_surfsense_s_tools_are_offered_again_after_opencode_forgets_them(
     async with agent_api.opencode() as opencode:
         await opencode.dispose_instance(folder)
     await send(agent_api, thread["id"], "Second")
-    async with agent_api.opencode() as opencode:
-        await opencode.reload_config()
+    # opencode's own reload drops every server added at runtime.
+    async with httpx.AsyncClient(
+        base_url=agent_api.opencode_url, auth=("opencode", agent_api.password)
+    ) as http:
+        reloaded = await http.post(
+            "/api/location/reload", params={"location[directory]": str(folder)}
+        )
+        assert reloaded.status_code < 300, reloaded.text
     await send(agent_api, thread["id"], "Third")
 
     for request in range(3):

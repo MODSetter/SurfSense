@@ -60,6 +60,9 @@ redirecting stdout).
 | `b2b/ranked-<vendor>.json.gz` | `dataforseo_labs/google/ranked_keywords/live` | **29 Sep 2026**: top 200 non-brand keywords of 15 AI-agent and vertical vendors |
 | `b2b/competitors-b2b-heads.json.gz` | `dataforseo_labs/google/serp_competitors/live` | **29 Sep 2026**: who ranks across the B2B heads, 1,000 domains |
 | `b2b/use-cases.json` | config | the 98 use cases with their play and terms, the exclusions with reasons, the profession regex per play, and two watch lists |
+| `b2b-oct/overview-*.json.gz`, `b2b-oct/clickstream-*.json.gz` | `keyword_overview/live`, `clickstream_data/bulk_search_volume/live` | **pulled 21 Oct 2026** for the October revision of [`../08-b2b-artifact-jobs.md`](../08-b2b-artifact-jobs.md): September's term set re-pulled plus 922 terms for 37 new file-job use cases, one snapshot through Sep 2026; see [B2B file jobs, October 2026](#b2b-file-jobs-october-2026) |
+| `b2b-oct/ranked-<vendor>.json.gz`, `b2b-oct/serp/`, `b2b-oct/recheck/`, `b2b-oct/discovery/` | `ranked_keywords/live`, `serp/google/organic/live/advanced`, overview, clickstream and suggestions | **21 Oct 2026**: 17 more vendors' non-brand keywords, 83 SERPs, the summer-step and category re-check, and the scouts' discovery pulls |
+| `b2b-oct/use-cases.json` | config | 135 use cases, the judged label of every new term (`labels`), 95 exclusions with reasons, the narrowed `cores` the verdicts rest on, plays and watch lists |
 
 ## Methodology notes
 
@@ -69,9 +72,13 @@ overstates the year and understates today. `parse.py` reports `recent` as the
 median of the last three months (capped at the reported figure) and flags
 `spike` when the peak month exceeds 4x the 12-month median. A row with `spike`
 whose `recent` still equals `volume` has held its new level for three months.
-Clickstream pulled 29 Sep 2026 shows no such step in the same phrases
-([B2B artifact jobs](#b2b-artifact-jobs)), so treat the step as unconfirmed
-until a re-pull after mid-October.
+Clickstream pulled 29 Sep 2026 showed no such step in the same phrases, and the
+21 Oct re-pull settled it: the step held through September in Google Ads while
+clickstream stayed flat, so it is a Google data change in AI-phrased records,
+not demand ([B2B file jobs, October 2026](#b2b-file-jobs-october-2026); table
+in `08`). Every Ads figure for an AI-phrased term in this folder from June 2026
+on is inflated; `b2b-oct/rollup.py` counts such terms from their January–May
+level instead.
 
 **Seasonality.** The study clusters (study, flashcards, quiz, and less so
 summary and slides) follow the academic year: peaks in September-October and
@@ -350,6 +357,54 @@ python parse.py --mode urls b2b/ranked-spellbook.json.gz   # a vendor's ranking 
 python parse.py b2b/overview-vendor-jobs.json.gz            # metrics for one overview pull
 cd b2b && python rollup.py --self-check && python rollup.py
 ```
+
+## B2B file jobs, October 2026
+
+The pulls behind the October revision of
+[`../08-b2b-artifact-jobs.md`](../08-b2b-artifact-jobs.md) sit in
+[`b2b-oct/`](b2b-oct/), all **21 Oct 2026**, Google US, data through
+September 2026. September's pulls in `b2b/` are kept unchanged, because the
+October rollup re-runs September's to print the "29 Sep" columns.
+
+| files | what they hold |
+|---|---|
+| `overview-08-1..3`, `clickstream-08-1..2` | September's whole term set re-pulled: 1,403 terms, 1,249 with Ads data |
+| `overview-m1..m4`, `clickstream-m1..m4` | the 922 terms of the 37 new use cases, in four batches |
+| `ranked-<vendor>` | datasnipper, docsumo, docuclipper, draftable, everlaw, harvey, idealsvdr, loopio, luminance, nanonets, parseur, redactable, renamer, rev, sureprep, wisedocs, x1 |
+| `serp/serp-<term>` | 83 SERPs (depth 10, with AI Overviews): one or two head terms per new use case, and the scouts' checks; a `-<scout>` suffix marks a second pull of the same term |
+| `recheck/` | the summer-step re-check (`summer-step-overview`, `clickstream-all`), September's 120 biggest job terms re-pulled (`movers-top120-overview`), and the agent-category and Cowork terms (`category-overview`, `suggestions-*`) |
+| `discovery/` | the scouts' own overview and clickstream pulls for extraction, organizing, file-pile review and competitor pools, from which the 37 use cases were chosen |
+
+[`b2b-oct/rollup.py`](b2b-oct/rollup.py) reads only the `overview-*` and
+`clickstream-*` files beside it, so the subfolders never enter the tables. It
+reuses `parse.py` and September's `b2b/rollup.py` (term kinds, profession
+regex) and changes how a term is counted, as `08` describes under "How this was
+counted": AI-phrased and stepped terms at their January–May level times their
+clickstream growth, single-month spikes capped, merged records rescaled, and the
+trend read from clickstream net of the panel's drift. Two new term kinds,
+`utility` and `brand`, come from judged labels in `use-cases.json`.
+
+**Labels.** Each new term was labelled job, utility, software, brand,
+profession or exclude by one agent, then re-judged by a second with SERP checks
+for ambiguous high-value terms; 20 labels changed on review. Non-job labels sit
+in `labels`, exclusions with their reasons in `exclude`. The September terms
+keep September's wording rules and exclusions.
+
+**Cores.** `cores` lists the narrowed term sets the verdicts in `08` rest on
+(for example the security questionnaires a vendor answers). The rollup prints
+them with the same counting rules, beside the raw clickstream change.
+
+```bash
+cd b2b-oct
+python rollup.py --self-check
+python rollup.py                 # 135 use cases, plays, cores, free-tool and brand demand, Sep vs Oct
+python rollup.py --json out.json # every case, play and counted-differently term
+python ../parse.py --mode urls ranked-loopio.json.gz
+```
+
+**Not saved here.** Practitioner evidence (G2 reviews, forum threads, Upwork
+listings) was read through Apify on 21 Oct 2026 and is cited by URL in `08`; the
+scraped text is not archived in this public repository.
 
 ## Not saved here
 

@@ -2,7 +2,7 @@ from collections.abc import Callable, Iterator
 from typing import Annotated
 
 from fastapi import Depends, Request
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 from starlette.concurrency import run_in_threadpool
 
 
@@ -35,5 +35,22 @@ async def transact[T](session: Session, work: Callable[..., T], *args: object) -
         result = work(session, *args)
         session.commit()
         return result
+
+    return await run_in_threadpool(run)
+
+
+async def transact_fresh[T](
+    sessions: sessionmaker[Session], work: Callable[..., T], *args: object
+) -> T:
+    """Session work in a session of its own, opened, committed and closed on one
+    worker thread, for work that holds no request's session. Cancelled at the await,
+    the thread still finishes and closes its own session, so nothing ever closes a
+    session a worker thread is using."""
+
+    def run() -> T:
+        with sessions() as session:
+            result = work(session, *args)
+            session.commit()
+            return result
 
     return await run_in_threadpool(run)

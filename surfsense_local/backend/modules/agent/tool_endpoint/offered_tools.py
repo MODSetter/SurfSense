@@ -10,16 +10,25 @@ from starlette.concurrency import run_in_threadpool
 from api.dependencies import transact
 from modules.agent.tool_endpoint import replies
 from modules.agent.tool_endpoint.analyze_data import ANALYZE_DATA
+from modules.agent.tool_endpoint.confirm_job import CONFIRM_JOB, confirm_listing
 from modules.agent.tool_endpoint.convert_document import CONVERT_DOCUMENT
 from modules.agent.tool_endpoint.create_artifact import CREATE_ARTIFACT
 from modules.agent.tool_endpoint.list_images import LIST_IMAGES
+from modules.agent.tool_endpoint.make_image import MAKE_IMAGE
 from modules.agent.tool_endpoint.pdf_form import PDF_FORM
 from modules.agent.tool_endpoint.pdf_pages import PDF_PAGES
 from modules.agent.tool_endpoint.pdf_stamp import PDF_STAMP
 from modules.agent.tool_endpoint.read_document import READ_DOCUMENT
+from modules.agent.tool_endpoint.read_web_page import READ_WEB_PAGE
+from modules.agent.tool_endpoint.read_youtube_transcript import (
+    READ_YOUTUBE_TRANSCRIPT,
+)
 from modules.agent.tool_endpoint.render_document import RENDER_DOCUMENT
 from modules.agent.tool_endpoint.revise_document import REVISE_DOCUMENT
+from modules.agent.tool_endpoint.run_job import RUN_JOB, job_listing
+from modules.agent.tool_endpoint.save_page import SAVE_PAGE
 from modules.agent.tool_endpoint.search_sources import SEARCH_SOURCES
+from modules.agent.tool_endpoint.search_web import SEARCH_WEB
 from modules.agent.tool_endpoint.source_pages import SOURCE_PAGES
 from modules.agent.tool_endpoint.tool import (
     InlineImage,
@@ -43,6 +52,8 @@ TOOLS: dict[str, Tool] = {
         SEARCH_SOURCES,
         CREATE_ARTIFACT,
         RENDER_DOCUMENT,
+        SAVE_PAGE,
+        MAKE_IMAGE,
         READ_DOCUMENT,
         LIST_IMAGES,
         SOURCE_PAGES,
@@ -52,6 +63,11 @@ TOOLS: dict[str, Tool] = {
         PDF_PAGES,
         PDF_STAMP,
         PDF_FORM,
+        SEARCH_WEB,
+        READ_WEB_PAGE,
+        READ_YOUTUBE_TRANSCRIPT,
+        RUN_JOB,
+        CONFIRM_JOB,
     )
 }
 
@@ -59,12 +75,19 @@ TOOLS: dict[str, Tool] = {
 def listings(scope: TurnScope) -> list[dict[str, Any]]:
     """What `tools/list` shows: each tool's name, description and input schema.
 
-    A tool returning images is left out for a model that cannot see them.
+    A tool returning images is left out for a model that cannot see them, and the
+    job tools while no job pack is installed.
     """
     reads = scope.reads_images()
-    return [
-        tool.listing for tool in TOOLS.values() if reads or not tool.needs_image_input
-    ]
+    shown = []
+    for tool in TOOLS.values():
+        if tool is RUN_JOB or tool is CONFIRM_JOB:
+            listing = job_listing() if tool is RUN_JOB else confirm_listing()
+            if listing is not None:
+                shown.append(listing)
+        elif reads or not tool.needs_image_input:
+            shown.append(tool.listing)
+    return shown
 
 
 async def call(

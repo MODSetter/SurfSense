@@ -1,0 +1,110 @@
+"""The license portal's settings, under surfsense_backend's names and meanings, so a deployment copies its values."""
+
+import os
+from collections.abc import Mapping
+
+
+class LicenseSettings:
+    def __init__(self, env: Mapping[str, str] = os.environ) -> None:
+        self.KEYGEN_ACCOUNT_ID = env.get("KEYGEN_ACCOUNT_ID")
+        # The product token every license policy belongs to (the admin token
+        # also works, but stays offline): without it the license routes are not served.
+        self.KEYGEN_API_TOKEN = env.get("KEYGEN_API_TOKEN")
+        # Self-hosted CE only; unset means Keygen Cloud.
+        self.KEYGEN_API_URL = env.get("KEYGEN_API_URL", "").strip()
+        self.KEYGEN_HOST = env.get("KEYGEN_HOST", "").strip()
+        self.KEYGEN_POLICY_TRIAL = env.get("KEYGEN_POLICY_TRIAL")
+        self.KEYGEN_POLICY_INDIVIDUAL = env.get("KEYGEN_POLICY_INDIVIDUAL")
+        self.KEYGEN_POLICY_TEAM = env.get("KEYGEN_POLICY_TEAM")
+        # Printed by scripts/setup_business_policies.py.
+        self.KEYGEN_POLICY_BUSINESS = env.get("KEYGEN_POLICY_BUSINESS")
+        self.KEYGEN_POLICY_BUSINESS_TRIAL = env.get("KEYGEN_POLICY_BUSINESS_TRIAL")
+
+        self.LICENSE_TRIAL_ENABLED = (
+            env.get("LICENSE_TRIAL_ENABLED", "FALSE").upper() == "TRUE"
+        )
+        # TRUE issues trials on the business-trial policy, with the jobs; off
+        # until Business goes on sale, so today's trial keeps working.
+        self.LICENSE_TRIAL_BUSINESS = (
+            env.get("LICENSE_TRIAL_BUSINESS", "FALSE").upper() == "TRUE"
+        )
+        self.LICENSE_TRIAL_DAYS = int(env.get("LICENSE_TRIAL_DAYS", "14"))
+        # ISO date; a trial issued before it expires that many days after it instead.
+        self.LICENSE_TRIAL_EXPIRY_FLOOR = env.get(
+            "LICENSE_TRIAL_EXPIRY_FLOOR", ""
+        ).strip()
+        self.LICENSE_DISPOSABLE_EMAIL_DOMAINS = env.get(
+            "LICENSE_DISPOSABLE_EMAIL_DOMAINS", ""
+        )
+
+        # One resend is a Keygen check-out per license, so these also guard the Keygen quota.
+        self.LICENSE_RATE_LIMIT_IP_PER_HOUR = int(
+            env.get("LICENSE_RATE_LIMIT_IP_PER_HOUR", "10")
+        )
+        self.LICENSE_RESEND_RATE_LIMIT_PER_HOUR = int(
+            env.get("LICENSE_RESEND_RATE_LIMIT_PER_HOUR", "5")
+        )
+        self.LICENSE_TRIAL_RATE_LIMIT_PER_HOUR = int(
+            env.get("LICENSE_TRIAL_RATE_LIMIT_PER_HOUR", "3")
+        )
+        # A firm's people share one key and often one address, so the app's
+        # refresh gets more room than the mailing routes.
+        self.LICENSE_REFRESH_RATE_LIMIT_PER_HOUR = int(
+            env.get("LICENSE_REFRESH_RATE_LIMIT_PER_HOUR", "30")
+        )
+        self.LICENSE_REFRESH_RATE_LIMIT_IP_PER_HOUR = int(
+            env.get("LICENSE_REFRESH_RATE_LIMIT_IP_PER_HOUR", "60")
+        )
+        # Twice the refresh's: the app asks once per job, at startup, daily and on
+        # the user's action, from every computer a firm's key is on.
+        self.LICENSE_JOB_PACK_RATE_LIMIT_PER_HOUR = int(
+            env.get("LICENSE_JOB_PACK_RATE_LIMIT_PER_HOUR", "60")
+        )
+        self.LICENSE_JOB_PACK_RATE_LIMIT_IP_PER_HOUR = int(
+            env.get("LICENSE_JOB_PACK_RATE_LIMIT_IP_PER_HOUR", "120")
+        )
+        # The one header the proxy in front writes with the caller's address: a
+        # caller can set any other. Empty means the socket's peer.
+        self.LICENSE_CLIENT_IP_HEADER = (
+            env.get("LICENSE_CLIENT_IP_HEADER", "x-real-ip").strip().lower()
+        )
+
+        # Job packs: the releases of a private repository that holds only
+        # releases, or a folder of the same zips, read instead when set.
+        self.JOB_PACKS_GITHUB_REPO = env.get("JOB_PACKS_GITHUB_REPO", "").strip()
+        self.JOB_PACKS_GITHUB_TOKEN = env.get("JOB_PACKS_GITHUB_TOKEN", "").strip()
+        self.JOB_PACKS_DIR = env.get("JOB_PACKS_DIR", "").strip()
+        self.JOB_PACKS_CACHE_SECONDS = int(env.get("JOB_PACKS_CACHE_SECONDS", "600"))
+
+        self.STRIPE_SECRET_KEY = env.get("STRIPE_SECRET_KEY")
+        self.STRIPE_WEBHOOK_SECRET = env.get("STRIPE_WEBHOOK_SECRET")
+        # A Payment Link carries no session metadata, so its price names the plan.
+        self.STRIPE_PRICE_LICENSE_INDIVIDUAL = env.get(
+            "STRIPE_PRICE_LICENSE_INDIVIDUAL", ""
+        )
+        self.STRIPE_PRICE_LICENSE_TEAM = env.get("STRIPE_PRICE_LICENSE_TEAM", "")
+        # The yearly price per person; its quantity is the number of people.
+        self.STRIPE_PRICE_LICENSE_BUSINESS = env.get(
+            "STRIPE_PRICE_LICENSE_BUSINESS", ""
+        )
+        # The customer portal's login link, mailed with every Business license
+        # for changing people or cancelling; unset, the mail says to reply.
+        self.STRIPE_CUSTOMER_PORTAL_URL = env.get(
+            "STRIPE_CUSTOMER_PORTAL_URL", ""
+        ).strip()
+
+        self.SMTP_LICENSE_FROM = env.get("SMTP_LICENSE_FROM", "").strip()
+        self.SMTP_LICENSE_REPLY_TO = env.get("SMTP_LICENSE_REPLY_TO", "").strip()
+
+        self.POSTHOG_API_KEY = env.get("POSTHOG_API_KEY")
+        self.POSTHOG_HOST = env.get("POSTHOG_HOST", "https://us.i.posthog.com")
+
+        # The site the license pages are on; CORS lets it, its www or bare twin, and localhost in.
+        self.NEXT_FRONTEND_URL = env.get(
+            "NEXT_FRONTEND_URL", "https://www.surfsense.com"
+        ).strip()
+        # Shared by every copy of the backend; unset, each copy limits on its own.
+        self.REDIS_URL = env.get("REDIS_URL")
+
+
+config = LicenseSettings()

@@ -1,4 +1,4 @@
-"""What freezing adds to both binaries beyond the app's own dependencies."""
+"""What freezing adds to the frozen backend beyond the app's own dependencies."""
 
 import platform
 import sys
@@ -9,7 +9,7 @@ from pathlib import Path
 # A dev dependency, so `uv export --no-dev` never names it, yet its bootloader ships.
 PYINSTALLER = "pyinstaller"
 PYINSTALLER_NOTE = (
-    "Its bootloader runs inside the frozen API and worker binaries, under the GPL "
+    "Its bootloader runs inside the frozen backend binary, under the GPL "
     "with PyInstaller's bootloader exception."
 )
 

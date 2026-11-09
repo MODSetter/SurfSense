@@ -50,4 +50,6 @@ export type ModelCapability = {
   note: string | null
   measured: MeasuredRow | null
   modes: ChatModes
+  /** Whether Studio has the model write its own pages and Office files, or takes the simple path. */
+  studio: "full" | "simple"
 }

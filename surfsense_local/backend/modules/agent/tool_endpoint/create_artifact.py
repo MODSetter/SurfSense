@@ -6,11 +6,14 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from modules.agent.thread_folder.layout import SOURCES
+from modules.agent.tool_endpoint.refusal_sentence import refusal_sentence
 from modules.agent.tool_endpoint.registration import SERVER
 from modules.agent.tool_endpoint.rendered_label import TOOL_NAME as RENDER_TOOL
+from modules.agent.tool_endpoint.save_page import TOOL_NAME as SAVE_TOOL
 from modules.agent.tool_endpoint.tool import Tool, ToolCallError
 from modules.agent.tool_endpoint.turn_scope import TurnScope
 from modules.artifacts.formats import FORMATS, FORMATS_BY_KEY
+from modules.artifacts.image_edits.editable import EDITABLE_FORMATS
 from modules.artifacts.schemas import StudioJobCreate
 from modules.artifacts.script_documents.spec import DOCUMENT_FORMATS
 from modules.artifacts.service import create_artifact_job
@@ -20,8 +23,14 @@ from modules.workspaces.models import Workspace
 # Studio's own cap on a request's instructions (StudioJobCreate.prompt).
 INSTRUCTIONS_CHARS = 2000
 
-# Office files and PDFs are scripts the agent renders: Studio's draft keeps none to edit.
-_KEYS = [fmt.key for fmt in FORMATS if fmt.key not in DOCUMENT_FORMATS]
+# Office files and PDFs are scripts the agent renders, and a web page it writes
+# itself (ADR 0066): Studio's draft keeps none to edit. A picture has its own tool,
+# since a draft hands the agent nothing to look at or place.
+_KEYS = [
+    fmt.key
+    for fmt in FORMATS
+    if fmt.key not in (*DOCUMENT_FORMATS, "html", *EDITABLE_FORMATS)
+]
 
 # Written out flat, and the same on every turn, so a local model's prompt cache holds.
 LISTING: dict[str, Any] = {
@@ -37,7 +46,7 @@ LISTING: dict[str, Any] = {
             "format": {
                 "type": "string",
                 "enum": _KEYS,
-                "description": "What to make. html is a web page.",
+                "description": "What to make.",
             },
             "source_ids": {
                 "type": "array",
@@ -67,6 +76,11 @@ def start(session: Session, scope: TurnScope, arguments: dict[str, Any]) -> str:
         raise ToolCallError(
             "Make a Word document, a PDF, a PowerPoint deck or an Excel workbook "
             f"with {SERVER}_{RENDER_TOOL}, after loading the surfsense-documents skill."
+        )
+    if key == "html":
+        raise ToolCallError(
+            f"Write a web page yourself and keep it with {SERVER}_{SAVE_TOOL}, "
+            "after loading the surfsense-html skill."
         )
     fmt = FORMATS_BY_KEY.get(key) if key in _KEYS else None
     if fmt is None:
@@ -107,7 +121,7 @@ def start(session: Session, scope: TurnScope, arguments: dict[str, Any]) -> str:
         create_artifact_job(session, workspace, payload)
     except HTTPException as refused:
         raise ToolCallError(
-            f'Studio could not start "{fmt.label}": {_sentence(refused.detail)}'
+            f'Studio could not start "{fmt.label}": {refusal_sentence(refused.detail)}'
         ) from refused
     count = len(set(source_ids))
     sources = "source" if count == 1 else "sources"
@@ -115,17 +129,6 @@ def start(session: Session, scope: TurnScope, arguments: dict[str, Any]) -> str:
         f'Studio started "{fmt.label}" from {count} {sources}. It appears in Studio '
         "when it is ready."
     )
-
-
-def _sentence(detail: object) -> str:
-    """Studio's reason, ended as a sentence.
-
-    A refusal the interface translates carries its reason as
-    ``{"message", "code"}``; the model reads the message."""
-    if isinstance(detail, dict) and isinstance(detail.get("message"), str):
-        detail = detail["message"]
-    text = str(detail).strip()
-    return text if text.endswith(".") else f"{text}."
 
 
 CREATE_ARTIFACT = Tool(listing=LISTING, run=start)

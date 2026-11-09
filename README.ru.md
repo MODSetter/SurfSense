@@ -11,7 +11,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Discord](https://img.shields.io/discord/1359368468260192417?label=Discord)](https://discord.gg/ejRNvftDp9)
 
-  <a href="https://www.surfsense.com/"><img alt="SurfSense, изолированная от сети альтернатива NotebookLM с открытым кодом" src="surfsense_web/public/homepage/banner.png" /></a>
+  <a href="https://www.surfsense.com/"><img alt="SurfSense, изолированная от сети альтернатива NotebookLM с открытым кодом" src="www/public/homepage/banner.png" /></a>
 
   <h1>SurfSense</h1>
 
@@ -38,18 +38,26 @@
   </p>
 </div>
 
+**Отредактируйте договор с отслеживаемыми изменениями и комментариями**
+
 https://github.com/user-attachments/assets/88326b9d-e763-46db-9635-75f9df9e8682
+
+**Добавьте источники из интернета и превратите их в веб-страницу**
+
+https://github.com/user-attachments/assets/073577b7-f055-4f59-8540-330bd764aeb0
 
 SurfSense — бесплатное настольное приложение с открытым кодом для документов, которые нельзя загрузить наружу. Это ИИ-агент в духе NotebookLM, созданный с упором на приватность: он исследует, преобразует и редактирует ваши документы на вашем компьютере. Индекс остаётся на вашем диске, модель, локальную или удалённую, выбираете вы, а аккаунта нет вовсе.
 
 | Платформа | Скачать |
 |---|---|
-| **Windows** x64 | [SurfSense-Setup.exe](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense-Setup.exe) |
-| **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense-arm64.dmg) |
-| **Linux** x64 | [AppImage](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense.AppImage) · [deb](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense.deb) |
+| **Windows** x64 | [SurfSense-Setup.exe](https://www.surfsense.com/downloads/windows?src=readme) |
+| **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
+| **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
+| **Docker** Linux, macOS | `curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh \| bash` |
+| **Docker** Windows (Docker Desktop) | `irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 \| iex` |
 
 > [!NOTE]
-> **Пользовались размещённым веб-приложением?** Экспортируйте рабочие области до 18 октября 2026 года и импортируйте их в это приложение. Подробности на [странице закрытия](https://www.surfsense.com/sunset).
+> С Docker вы разворачиваете его на своём сервере и открываете с любого устройства в вашей сети. Чтобы обновить, запустите ту же команду ещё раз.
 
 ## Быстрый старт
 
@@ -66,9 +74,10 @@ SurfSense — бесплатное настольное приложение с 
 | **Excel** `.xlsx` | ✓ агент читает и формулы | ✓ с формулами и нативными диаграммами | ✓ значения ячеек и формулы | Анализ в pandas, диаграммы по результатам |
 | **PowerPoint** `.pptx` | ✓ | ✓ или на основе вашего `.pptx` как шаблона | Замена текста на слайдах и в заметках; удаление и дублирование слайдов | В PDF¹ |
 | **CSV** | ✓ | — | — | Анализ в pandas, диаграммы по результатам |
-| **Изображения** PNG, JPEG, TIFF, BMP, WebP | ✓ текст распознаётся через OCR³ | Изображения и инфографика² | — | Вставка в новые документы |
+| **Изображения** PNG, JPEG, TIFF, BMP, WebP | ✓ текст распознаётся через OCR³ | Изображения и инфографика, с правкой по инструкции² | — | Вставка в новые документы |
 | **Markdown**, обычный текст | ✓ | ✓ Markdown | — | — |
 | **HTML** | ✓ | ✓ веб-страница | — | — |
+| **Книги** EPUB, MOBI, AZW3 | ✓ без DRM | — | — | — |
 | **Аудиозаписи** WAV, MP3, FLAC, Ogg Vorbis | ✓ расшифровываются на вашем компьютере | — | — | — |
 | **Подкаст** (аудио) | — | ✓ с расшифровкой, по умолчанию озвучивается на вашем компьютере | — | — |
 | **Интеллект-карты, карточки, тесты** | — | ✓ в приложении | — | — |
@@ -80,22 +89,9 @@ SurfSense — бесплатное настольное приложение с 
 
 ## Плагины
 
-Подключите их в разделе **Настройки › Плагины**.
+Подключите их в разделе **Настройки › Плагины**: MCP-серверы из [реестра плагинов](backend/plugins/registry), например DeepWiki и Notion, или любые другие, которые вы добавите по URL. Они остаются выключенными, пока вы их не разрешите.
 
-**От SurfSense.** Они читают общедоступные страницы без ваших собственных аккаунтов, и для них нужна лицензия SurfSense: [скачайте приложение](https://www.surfsense.com/downloads) и введите в нём свою почту, чтобы получить бесплатную лицензию на 30 дней.
-
-| Плагин | Что делает |
-|---|---|
-| **Google Search** | Ищет в Google и читает результаты, рекламу и похожие вопросы |
-| **Web Crawl** | Читает веб-страницу или обходит весь сайт, превращая его в чистый текст |
-| **YouTube** | Читает видео и каналы YouTube, а также комментарии к ним |
-| **TikTok** | Читает видео TikTok и комментарии к ним, ищет пользователей и показывает, что сейчас в тренде |
-| **Google Maps** | Находит места на Google Maps и читает отзывы о них |
-| **Amazon** | Читает карточки товаров и результаты поиска на Amazon |
-| **Walmart** | Читает карточки товаров, результаты поиска и отзывы на Walmart |
-| **Indeed** | Читает вакансии на Indeed |
-
-**Сторонние.** MCP-серверы из [реестра плагинов](plugins/registry), например DeepWiki и Notion, или любые другие, которые вы добавите по URL. Лицензия не нужна; они остаются выключенными, пока вы их не разрешите.
+**Встроено и бесплатно:** агент и **Добавить из интернета** в разделе «Источники» ищут в интернете через SearXNG, а страницы и расшифровки YouTube читают через ваше собственное подключение, без плагина и без лицензии.
 
 ## Сравнение
 

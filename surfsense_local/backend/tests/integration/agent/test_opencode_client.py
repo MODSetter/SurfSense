@@ -29,12 +29,11 @@ pytestmark = pytest.mark.integration
 
 
 class EventLog:
-    """Everything one folder's event stream has sent, read in the background."""
+    """Everything opencode's event stream has sent, read in the background."""
 
-    def __init__(self, client: OpencodeClient, directory: Path) -> None:
+    def __init__(self, client: OpencodeClient) -> None:
         self.seen: list[Event] = []
         self._client = client
-        self._directory = directory
         self._task: asyncio.Task | None = None
 
     async def __aenter__(self) -> "EventLog":
@@ -50,7 +49,7 @@ class EventLog:
 
     async def _read(self) -> None:
         """Keep every event, in order."""
-        async for event in self._client.events(self._directory):
+        async for event in self._client.events():
             self.seen.append(event)
 
     async def until(
@@ -80,25 +79,27 @@ def folder(tmp_path: Path) -> Path:
     return work
 
 
+_ENDED = (
+    "session.execution.succeeded",
+    "session.execution.failed",
+    "session.execution.interrupted",
+)
+
+
 def idle(session_id: str) -> Callable[[Event], bool]:
-    """Matches the end of every turn in one session."""
-    return lambda event: (
-        event.type == "session.idle" and event.properties["sessionID"] == session_id
-    )
+    """Matches the end of every turn in one session, however it ended."""
+    return lambda event: event.type in _ENDED and event.data["sessionID"] == session_id
 
 
 def tool_part(status: str) -> Callable[[Event], bool]:
-    """Matches a tool call reaching `status`."""
-    return lambda event: (
-        event.type == "message.part.updated"
-        and event.properties["part"].get("type") == "tool"
-        and event.properties["part"]["state"]["status"] == status
-    )
+    """Matches a tool call reaching `status`: `completed` or `error`."""
+    kind = {"completed": "session.tool.success", "error": "session.tool.failed"}
+    return lambda event: event.type == kind[status]
 
 
 async def test_it_speaks_only_to_the_pinned_opencode(client: OpencodeClient) -> None:
     """The staged build is the release the client was written against."""
-    assert await client.version() == OPENCODE_VERSION == "1.18.34"
+    assert await client.version() == OPENCODE_VERSION == "2.1.2"
     await client.require_pinned_version()
 
 
@@ -107,7 +108,7 @@ async def test_it_refuses_an_opencode_of_another_version() -> None:
 
     class Newer(BaseHTTPRequestHandler):
         def do_GET(self) -> None:
-            body = json.dumps({"healthy": True, "version": "1.19.0"}).encode()
+            body = json.dumps({"version": "2.2.0", "pid": 1}).encode()
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(body)))
@@ -123,7 +124,7 @@ async def test_it_refuses_an_opencode_of_another_version() -> None:
         async with OpencodeClient(
             f"http://127.0.0.1:{server.server_port}", "pw"
         ) as client:
-            with pytest.raises(OpencodeVersionError, match=r"1\.19\.0"):
+            with pytest.raises(OpencodeVersionError, match=r"2\.2\.0"):
                 await client.require_pinned_version()
     finally:
         server.shutdown()
@@ -135,24 +136,22 @@ async def test_a_turn_streams_its_reply_and_ends_idle(
 ) -> None:
     """A turn returns at once; its words and its end arrive as events."""
     scripted_model.replies = [("text", "Revenue rose in Q3.")]
-    session_id = await client.create_session(folder, "Thread 1")
+    session_id = await client.create_session(folder, "Thread 1", model=MODEL)
 
-    async with EventLog(client, folder) as log:
-        await client.send_turn(folder, session_id, "What happened in Q3?", model=MODEL)
+    async with EventLog(client) as log:
+        await client.send_turn(session_id, "What happened in Q3?", model=MODEL)
         await log.until(idle(session_id))
 
-    deltas = [e.properties["delta"] for e in log.seen if e.type == "message.part.delta"]
+    deltas = [e.data["delta"] for e in log.seen if e.type == "session.text.delta"]
     assert "".join(deltas) == "Revenue rose in Q3."
     # The session was named by SurfSense, so opencode asked the model nothing else.
     assert len(scripted_model.requests) == 1
 
 
-# A step that makes the same call three times is the one thing opencode still
-# asks about, now the shell is denied.
-REPEATED = (
-    "calls",
-    json.dumps([{"name": "glob", "arguments": {"pattern": "*.md"}}] * 3),
-)
+# A plugin tool the user must allow, as SurfSense's session rules ask about one;
+# a built-in tool stands in for it.
+GLOB = ("call", json.dumps({"name": "glob", "arguments": {"pattern": "*.md"}}))
+ASK_GLOB = [{"permission": "glob", "pattern": "*", "action": "ask"}]
 
 
 def asked() -> Callable[[Event], bool]:
@@ -165,14 +164,15 @@ async def test_the_agent_has_no_shell(
 ) -> None:
     """No shell is offered, and a call to one runs nothing and asks nothing (ADR 0039)."""
     scripted_model.replies = [("bash", "echo ran > outputs/ran.txt"), ("text", "No.")]
-    session_id = await client.create_session(folder, "Thread 1")
+    session_id = await client.create_session(folder, "Thread 1", model=MODEL)
 
-    async with EventLog(client, folder) as log:
-        await client.send_turn(folder, session_id, "Run it", model=MODEL)
+    async with EventLog(client) as log:
+        await client.send_turn(session_id, "Run it", model=MODEL)
         await log.until(idle(session_id))
 
     offered = [tool["function"]["name"] for tool in scripted_model.requests[0]["tools"]]
     assert "bash" not in offered
+    assert "shell" not in offered
     assert not any(asked()(event) for event in log.seen)
     assert not (folder / "outputs" / "ran.txt").exists()
 
@@ -181,16 +181,19 @@ async def test_an_approval_waits_for_the_answer_and_goes_on_once_allowed(
     client: OpencodeClient, folder: Path, scripted_model: ScriptedModel
 ) -> None:
     """Nothing opencode asks about runs before the user's answer reaches it."""
-    scripted_model.replies = [REPEATED, ("text", "Listed.")]
-    session_id = await client.create_session(folder, "Thread 1")
+    scripted_model.replies = [GLOB, ("text", "Listed.")]
+    session_id = await client.create_session(folder, "Thread 1", model=MODEL)
+    await client.set_session_rules(session_id, ASK_GLOB)
 
-    async with EventLog(client, folder) as log:
-        await client.send_turn(folder, session_id, "List them", model=MODEL)
+    async with EventLog(client) as log:
+        await client.send_turn(session_id, "List them", model=MODEL)
         request = await log.until(asked())
-        assert request.properties["permission"] == "doom_loop"
+        assert request.data["action"] == "glob"
+        # The tool call it holds back, so the thread asks on that step.
+        assert request.data["source"]["id"] == "call_1"
         assert not any(tool_part("completed")(e) for e in log.seen)
 
-        await client.reply(folder, request.properties["id"], "once")
+        await client.reply(session_id, request.data["id"], "once")
         await log.until(tool_part("completed"))
         await log.until(idle(session_id))
 
@@ -199,14 +202,15 @@ async def test_rejecting_an_approval_stops_the_call(
     client: OpencodeClient, folder: Path, scripted_model: ScriptedModel
 ) -> None:
     """A no fails the call it was asked about, and the turn ends."""
-    scripted_model.replies = [REPEATED]
-    session_id = await client.create_session(folder, "Thread 1")
+    scripted_model.replies = [GLOB]
+    session_id = await client.create_session(folder, "Thread 1", model=MODEL)
+    await client.set_session_rules(session_id, ASK_GLOB)
 
-    async with EventLog(client, folder) as log:
-        await client.send_turn(folder, session_id, "List them", model=MODEL)
+    async with EventLog(client) as log:
+        await client.send_turn(session_id, "List them", model=MODEL)
         request = await log.until(asked())
 
-        await client.reply(folder, request.properties["id"], "reject")
+        await client.reply(session_id, request.data["id"], "reject")
         await log.until(tool_part("error"))
         await log.until(idle(session_id))
 
@@ -216,21 +220,23 @@ async def test_stopping_ends_a_running_turn(
 ) -> None:
     """Stop must work while the model is still answering."""
     scripted_model.replies = [("stall", "Thinking about")]
-    session_id = await client.create_session(folder, "Thread 1")
+    session_id = await client.create_session(folder, "Thread 1", model=MODEL)
 
-    async with EventLog(client, folder) as log:
-        await client.send_turn(folder, session_id, "Take your time", model=MODEL)
-        await log.until(lambda e: e.type == "message.part.delta")
+    async with EventLog(client) as log:
+        await client.send_turn(session_id, "Take your time", model=MODEL)
+        await log.until(lambda e: e.type == "session.text.delta")
+        assert await client.status(session_id) == "running"
 
-        await client.abort(folder, session_id)
+        await client.abort(session_id)
         await log.until(idle(session_id), timeout=10)
+    assert await client.status(session_id) == "idle"
 
 
 async def test_a_deleted_session_is_gone(client: OpencodeClient, folder: Path) -> None:
     """Deleting a thread must not leave its conversation behind in opencode."""
-    session_id = await client.create_session(folder, "Thread 1")
+    session_id = await client.create_session(folder, "Thread 1", model=MODEL)
 
-    await client.delete_session(folder, session_id)
+    await client.delete_session(session_id)
 
     assert session_id not in await client.session_ids(folder)
 
@@ -239,7 +245,7 @@ async def test_a_session_says_the_folder_it_was_made_in(
     client: OpencodeClient, folder: Path
 ) -> None:
     """A session cannot move; whether it is a thread's own tells a legacy thread apart."""
-    session_id = await client.create_session(folder, "Thread 1")
+    session_id = await client.create_session(folder, "Thread 1", model=MODEL)
 
     assert Path(await client.session_directory(session_id)) == folder
 
@@ -249,24 +255,60 @@ async def test_a_disposed_folder_still_reads_its_sessions_back(
 ) -> None:
     """Disposing frees the folder's instance; the next call starts another from the stored session."""
     scripted_model.replies = [("text", "Revenue rose.")]
-    session_id = await client.create_session(folder, "Thread 1")
-    async with EventLog(client, folder) as log:
-        await client.send_turn(folder, session_id, "Q3?", model=MODEL)
+    session_id = await client.create_session(folder, "Thread 1", model=MODEL)
+    async with EventLog(client) as log:
+        await client.send_turn(session_id, "Q3?", model=MODEL)
         await log.until(idle(session_id))
 
     await client.dispose_instance(folder)
 
-    messages = await client.messages(folder, session_id)
-    assert [m["info"]["role"] for m in messages] == ["user", "assistant"]
+    messages = await client.messages(session_id)
+    assert [m["type"] for m in messages] == ["user", "assistant", "idle"]
+
+
+async def test_notes_go_before_the_users_words_as_messages_of_their_own(
+    client: OpencodeClient, folder: Path, scripted_model: ScriptedModel
+) -> None:
+    """The model reads SurfSense's notes, and the session keeps them apart from the user's words."""
+    scripted_model.replies = [("text", "Done.")]
+    session_id = await client.create_session(folder, "Thread 1", model=MODEL)
+
+    async with EventLog(client) as log:
+        await client.send_turn(session_id, "Q3?", model=MODEL, notes=["A note."])
+        await log.until(idle(session_id))
+
+    messages = await client.messages(session_id)
+    assert [(m["type"], m.get("text")) for m in messages[:2]] == [
+        ("synthetic", "A note."),
+        ("user", "Q3?"),
+    ]
+    sent = [m.get("content") for m in scripted_model.requests[0]["messages"][1:]]
+    assert sent == ["A note.", "Q3?"]
+
+
+async def test_a_long_session_reads_back_whole(
+    client: OpencodeClient, folder: Path, scripted_model: ScriptedModel
+) -> None:
+    """opencode pages a session's messages; a thread shows every turn."""
+    turns = 70  # three messages each, past a page of 200
+    scripted_model.replies = [("text", "Ok.")] * turns
+    session_id = await client.create_session(folder, "Thread 1", model=MODEL)
+    async with EventLog(client) as log:
+        for n in range(turns):
+            log.seen.clear()
+            await client.send_turn(session_id, f"Turn {n}", model=MODEL)
+            await log.until(idle(session_id))
+
+    messages = await client.messages(session_id)
+    users = [m["text"] for m in messages if m["type"] == "user"]
+    assert users == [f"Turn {n}" for n in range(turns)]
 
 
 def write_call(path: str, content: str) -> tuple[str, str]:
     """A scripted `write` tool call, as a model would make it."""
     return (
         "call",
-        json.dumps(
-            {"name": "write", "arguments": {"filePath": path, "content": content}}
-        ),
+        json.dumps({"name": "write", "arguments": {"path": path, "content": content}}),
     )
 
 
@@ -278,10 +320,10 @@ async def test_the_agent_writes_what_it_produces_to_outputs(
         write_call("outputs/summary.md", "Revenue rose."),
         ("text", "Wrote it."),
     ]
-    session_id = await client.create_session(folder, "Thread 1")
+    session_id = await client.create_session(folder, "Thread 1", model=MODEL)
 
-    async with EventLog(client, folder) as log:
-        await client.send_turn(folder, session_id, "Summarise", model=MODEL)
+    async with EventLog(client) as log:
+        await client.send_turn(session_id, "Summarise", model=MODEL)
         await log.until(idle(session_id))
 
     assert (folder / "outputs" / "summary.md").read_text() == "Revenue rose."
@@ -296,10 +338,10 @@ async def test_the_agent_cannot_change_its_sources(
         write_call("sources/Plan [1].md", "Rewritten."),
         ("text", "Done."),
     ]
-    session_id = await client.create_session(folder, "Thread 1")
+    session_id = await client.create_session(folder, "Thread 1", model=MODEL)
 
-    async with EventLog(client, folder) as log:
-        await client.send_turn(folder, session_id, "Rewrite the plan", model=MODEL)
+    async with EventLog(client) as log:
+        await client.send_turn(session_id, "Rewrite the plan", model=MODEL)
         await log.until(tool_part("error"))
         await log.until(idle(session_id))
 
@@ -324,24 +366,22 @@ async def test_the_agent_may_read_the_long_output_opencode_set_aside(
         read_call(str(elsewhere)),
         ("text", "Read."),
     ]
-    session_id = await client.create_session(folder, "Thread 1")
+    session_id = await client.create_session(folder, "Thread 1", model=MODEL)
 
-    async with EventLog(client, folder) as log:
-        await client.send_turn(folder, session_id, "Read on", model=MODEL)
+    async with EventLog(client) as log:
+        await client.send_turn(session_id, "Read on", model=MODEL)
         await log.until(idle(session_id))
 
     finished = [
-        e.properties["part"]["state"]
-        for e in log.seen
-        if tool_part("completed")(e) or tool_part("error")(e)
+        e for e in log.seen if tool_part("completed")(e) or tool_part("error")(e)
     ]
-    assert [state["status"] for state in finished] == ["completed", "error"]
-    assert "The rest of the output." in finished[0]["output"]
+    assert [e.type for e in finished] == ["session.tool.success", "session.tool.failed"]
+    assert "The rest of the output." in finished[0].data["content"][0]["text"]
 
 
 def read_call(path: str) -> tuple[str, str]:
     """A scripted `read` tool call."""
-    return ("call", json.dumps({"name": "read", "arguments": {"filePath": path}}))
+    return ("call", json.dumps({"name": "read", "arguments": {"path": path}}))
 
 
 _OUTPUTS_OF_A_THREAD = Path("agent", "threads", "7", "outputs")
@@ -392,10 +432,10 @@ async def test_a_path_that_only_names_outputs_is_refused(
         write_call(str(target), "---\nname: surfsense\n---\nPlanted."),
         ("text", "Done."),
     ]
-    session_id = await client.create_session(folder, "Thread 1")
+    session_id = await client.create_session(folder, "Thread 1", model=MODEL)
     try:
-        async with EventLog(client, folder) as log:
-            await client.send_turn(folder, session_id, "Save it", model=MODEL)
+        async with EventLog(client) as log:
+            await client.send_turn(session_id, "Save it", model=MODEL)
             await log.until(idle(session_id))
 
         assert any(tool_part("error")(event) for event in log.seen)

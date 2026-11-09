@@ -17,6 +17,8 @@ Office support is LibreOffice, run by the backend on copies of Word, Excel and P
 
 Windows is on 26.8.0 because 26.8.1 has no Windows build: TDF's stable folder lists one that answers 404, and the archive's 26.8.1.1 folder has no `win/`. `SUPPORTED_BRANCHES` lists the branches an installed LibreOffice may be on, with the day each stops getting fixes: 26.2 until 30 Nov 2026, 26.8 until 13 Jun 2027.
 
+TDF's Linux build links against libraries a desktop has and a minimal Ubuntu lacks: NSS, D-Bus, cairo, GLib, CUPS and a few X11 ones, and it needs a font. The Docker image installs them, about 21 MB, so the pack unpacked into `/data` converts there, and `image.test.ts` checks they are present.
+
 ## Turning it on
 
 `POST /runtime-packs/office/install` checks `egress.require("host:downloadarchive.documentfoundation.org")` before any connection opens, so the first answer is a `403 egress_disabled` naming that host, which the interface turns into a consent dialog ([egress](egress.md)). Once allowed, the install runs in the API in its own slot, never queued behind a model download:

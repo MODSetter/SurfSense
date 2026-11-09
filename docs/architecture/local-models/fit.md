@@ -588,8 +588,14 @@ to 4,096 tokens is not asked for 8,192.
 - **A fixed set of candidates rather than a continuous search**, so every window
   a person can see is one a test can enumerate: the rungs
   `CONTEXT_RUNGS = (8192, 16384, 32768)` that lie between floor and ceiling, the
-  model's own trained length, so a model is not held below what it was trained
-  for, and the floor, so the search never returns nothing.
+  model's own trained length when it falls between two rungs, so a model is not
+  held below what it was trained for, and the floor, so the search never returns
+  nothing. The ceiling is the trained length or the top rung, whichever is
+  smaller: nothing in the app needs more than Agentic's 32,768
+  ([agent](../agent.md)), and the cache is allocated whole at load. A 1.7B
+  trained to 40,960 held 914 MB more at its full length on an RTX 3080, with
+  prompts read no faster, and on Windows graphics memory counts against the page
+  file too.
 - **Two budgets, and widening stays inside the tighter one.** Capacity decides
   the verdict, so the plan agrees with the badge the catalog showed. Live caps
   widening only, because context past the floor is opportunistic and on unified

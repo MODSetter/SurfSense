@@ -1,9 +1,12 @@
-/// <reference types="vitest/config" />
 import { fileURLToPath, URL } from "node:url"
 import formatjs from "@formatjs/unplugin/vite"
 import tailwindcss from "@tailwindcss/vite"
 import react from "@vitejs/plugin-react"
 import { defineConfig, type Plugin } from "vite"
+import type {} from "vitest/config"
+
+import { devTabIdentity } from "./vite-plugins/dev-tab-identity.ts"
+import { woff2OnlyFonts } from "./vite-plugins/woff2-only-fonts.ts"
 
 // The snapshot page's policy (docx-snapshot.html) leaves 'self' out of
 // connect-src, since packaged it is file://. Served by Vite, its origin is the
@@ -25,12 +28,17 @@ export default defineConfig({
   // Relative asset paths so the packaged SPA loads over file:// (Electron loadFile).
   base: "./",
   plugins: [
-    // The catalogs supply every message, so the inline English is dropped from
-    // the bundle; `formatjs extract` reads it from the source instead.
-    formatjs({ removeDefaultMessage: true }),
+    // Served, English is each call's own defaultMessage, parsed here so no parser
+    // ships and an edit hot-reloads in place (src/i18n/intl.ts).
+    { ...formatjs({ ast: true }), apply: "serve" },
+    // Built, the catalogs supply every message, so the inline English is dropped
+    // from the bundle; `formatjs extract` reads it from the source instead.
+    { ...formatjs({ removeDefaultMessage: true }), apply: "build" },
     react(),
     tailwindcss(),
+    woff2OnlyFonts(),
     snapshotPageReachesDevServer(),
+    devTabIdentity(),
   ],
   resolve: {
     alias: {
@@ -53,6 +61,7 @@ export default defineConfig({
     },
   },
   test: {
+    environment: "jsdom",
     setupFiles: ["./src/test-setup.ts"],
     // Dates in tests are UTC instants and the assertions spell out the day
     // (license-settings.test.tsx expects "Sep 10, 2027" for
@@ -60,6 +69,34 @@ export default defineConfig({
     // UTC that reads as the 9th, so the suite fails on a laptop and passes
     // in CI. Pin the zone tests run in instead of pinning every assertion.
     env: { TZ: "UTC" },
+    // A test of what only the Docker image's build does carries this tag (strict:
+    // an undeclared tag is an error). `pnpm test` leaves it out, `pnpm test:docker`
+    // runs only it, in the `docker` project below.
+    tags: [
+      {
+        name: "docker",
+        description:
+          "Runs with the Docker image's build settings and no Electron bridge",
+      },
+    ],
+    // The build's settings are read when a module loads, which a tag cannot
+    // change, so each mode is a project; the tag picks the tests.
+    projects: [
+      { extends: true, test: { name: "desktop" } },
+      {
+        extends: true,
+        test: {
+          name: "docker",
+          // As docker/surfsense/Dockerfile builds it; the version is any release's.
+          env: {
+            TZ: "UTC",
+            VITE_API_BASE: "/api",
+            VITE_SURFSENSE_RUNTIME: "docker",
+            VITE_SURFSENSE_VERSION: "2.0.3",
+          },
+        },
+      },
+    ],
   },
   server: {
     host: "127.0.0.1",

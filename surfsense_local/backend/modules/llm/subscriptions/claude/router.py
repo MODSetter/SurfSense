@@ -35,7 +35,10 @@ def claude_status() -> ClaudeStatusRead:
     terminal shows on the next look."""
     found = read_status(this_machines_claude(), proxy_url=claude_proxy_url())
     return ClaudeStatusRead(
-        state=found.state, version=found.version, email=found.email, plan=found.plan
+        state=found.state,
+        version=found.version,
+        email=found.email,
+        plan=found.plan,
     )
 
 

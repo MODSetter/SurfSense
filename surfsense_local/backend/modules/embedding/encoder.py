@@ -51,7 +51,10 @@ def embed(spec: EmbedderSpec, texts: list[str], purpose: Purpose) -> list[list[f
     prefixed = [prefix + text for text in texts]
     vectors: list[list[float]] = []
     for start in range(0, len(prefixed), spec.batch):
-        vectors.extend(_embed_batch(spec, prefixed[start : start + spec.batch]))
+        last = start + spec.batch >= len(prefixed)
+        vectors.extend(
+            _embed_batch(spec, prefixed[start : start + spec.batch], shrink=last)
+        )
 
     wrong = next((len(v) for v in vectors if len(v) != spec.dimension), None)
     if wrong is not None:
@@ -64,10 +67,12 @@ def embed(spec: EmbedderSpec, texts: list[str], purpose: Purpose) -> list[list[f
 
 def width(spec: EmbedderSpec, text: str) -> int:
     """How wide the model's vectors really are, whatever its spec says."""
-    return len(_embed_batch(spec, [text])[0])
+    return len(_embed_batch(spec, [text], shrink=True)[0])
 
 
-def _embed_batch(spec: EmbedderSpec, texts: list[str]) -> list[list[float]]:
+def _embed_batch(
+    spec: EmbedderSpec, texts: list[str], *, shrink: bool
+) -> list[list[float]]:
     session, encoder = _loaded(spec, model_dir(spec))
     encoded = encoder.encode_batch(texts)
     feed = {
@@ -85,11 +90,25 @@ def _embed_batch(spec: EmbedderSpec, texts: list[str]) -> list[list[float]]:
             np.arange(ids.shape[1]), ids.shape
         ).copy()
 
-    output = session.run(None, feed)[0]
+    output = session.run(None, feed, _shrinking_arena() if shrink else None)[0]
     pooled = pool(spec.pooling, output, feed["attention_mask"])
     if spec.normalize:
         pooled = pooled / np.linalg.norm(pooled, axis=1, keepdims=True)
     return pooled.astype(np.float32).tolist()
+
+
+def _shrinking_arena() -> Any:
+    """Run options that hand the arena's unused memory back once the run ends.
+
+    The arena grows to a batch's activations and keeps them: 32 passages of 480
+    tokens left a process at 1,230 MB, 245 MB after shrinking, at the same speed.
+    With no arena at all every batch allocates afresh, which measured 18-30% slower.
+    """
+    import onnxruntime as ort
+
+    options = ort.RunOptions()
+    options.add_run_config_entry("memory.enable_memory_arena_shrinkage", "cpu:0")
+    return options
 
 
 @lru_cache(maxsize=2)

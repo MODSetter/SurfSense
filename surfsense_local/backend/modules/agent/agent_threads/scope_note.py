@@ -1,8 +1,8 @@
 """The note telling the agent which sources a turn may use, and reading it back.
 
-It goes to opencode as a synthetic part beside the user's words, so it lives in
-the session and survives compaction; its first line is SurfSense's own tag, so
-reading the thread back can take it out of the user's text and show the scope.
+It goes to opencode as a synthetic message before the user's words, so it lives
+in the session and survives compaction; its first line is SurfSense's own tag,
+so reading the thread back can tell it from the user's text and show the scope.
 The thread's folder holds only its sources; a few are named by path anyway, as a
 small model guesses a file's name rather than looking for it.
 """
@@ -18,7 +18,8 @@ from sqlalchemy.orm import Session
 from modules.agent.thread_folder.layout import SOURCES
 from modules.documents.models import Document
 
-_TAG = re.compile(r"\[surfsense-scope: (none|count=\d+|\d+(?:,\d+)*)\]")
+# At a line's start: a thread from opencode 1.x holds a turn's notes joined in one message.
+_TAG = re.compile(r"^\[surfsense-scope: (none|count=\d+|\d+(?:,\d+)*)\]", re.MULTILINE)
 
 # Past this many, the tag counts the sources: every turn's note stays in the
 # session, and 5,000 ids are about 30 KB.
@@ -28,7 +29,7 @@ NAMED_PATHS = 20
 
 _EARLIER = "Passages read earlier from other sources no longer apply."
 # A small model repeats the note as the start of its answer.
-_UNSAID = "SurfSense adds this note to the user's message; never repeat or quote it."
+UNSAID = "SurfSense adds this note to the user's message; never repeat or quote it."
 _HOW = "Open {them} with `read`, or search {them} with `surfsense_search_sources`."
 _NONE_SELECTED = (
     "No sources are selected for this request. Do not search, open or cite any "
@@ -60,7 +61,7 @@ def scope_note(
             else f"{indexing} selected sources are"
         )
         why = _STILL_READING.format(selected=selected) if indexing else _NONE_SELECTED
-        return f"[surfsense-scope: none]\n{why} {_EARLIER} {_UNSAID}"
+        return f"[surfsense-scope: none]\n{why} {_EARLIER} {UNSAID}"
     tag = (
         f"[surfsense-scope: {','.join(map(str, ids))}]"
         if len(ids) <= TAGGED_IDS
@@ -86,7 +87,7 @@ def scope_note(
             else f"{len(ids)} sources for this chat; they are the files in {SOURCES}/. "
             "Use only those."
         )
-    return f"{tag}\nThe user chose {chose} {_EARLIER} {_UNSAID}"
+    return f"{tag}\nThe user chose {chose} {_EARLIER} {UNSAID}"
 
 
 def shown_scope(
@@ -99,20 +100,16 @@ def shown_scope(
     return {"document_ids": list(ids), "titles": [titles[i] for i in ids]}
 
 
-def is_scope_note(part: dict[str, Any]) -> bool:
-    """Whether a message part is the note, never the user's own words."""
-    return (
-        part.get("type") == "text"
-        and part.get("synthetic") is True
-        and _TAG.match(part.get("text") or "") is not None
-    )
+def noted_scope(notes: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """The scope a turn's notes name, ids or a count; None when they carry none.
 
-
-def noted_scope(parts: list[dict[str, Any]]) -> dict[str, Any] | None:
-    """The scope a user message's note names, ids or a count; None when it carries none."""
-    for part in parts:
-        if is_scope_note(part):
-            said = _TAG.match(part["text"]).group(1)
+    `notes` are the synthetic messages SurfSense sent with the user's words.
+    """
+    for note in notes:
+        if note.get("type") != "synthetic":
+            continue
+        if (tagged := _TAG.search(note.get("text") or "")) is not None:
+            said = tagged.group(1)
             if said == "none":
                 return {"document_ids": []}
             if said.startswith("count="):

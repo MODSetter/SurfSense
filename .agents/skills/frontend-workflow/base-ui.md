@@ -1,7 +1,7 @@
 # Base UI in the desktop frontend
 
 `surfsense_local/frontend` builds its `components/ui/` on Base UI (shadcn
-`base-nova`). `surfsense_web` is still on Radix (`new-york`): none of this
+`base-nova`). `www` is still on Radix (`new-york`): none of this
 applies there.
 
 These are the rules that compile fine and still break. Check
@@ -61,9 +61,15 @@ These are the rules that compile fine and still break. Check
   a nested dialog's own click blocker then covers its parent. A `z-index` on a
   popup lifts it above that blocker and leaves the parent clickable. The
   toaster portals to `<body>`, outside `#root`, to stay above dialogs.
-- A popup inside a modal dialog (the combobox, through `container`) portals
-  into a host element within the dialog, which hides everything outside itself from
-  assistive technology.
+- A popup takes its default portal, inside a modal dialog too. A host element
+  within the dialog paints it by page order, under anything later that makes a
+  stacking context: a disabled button's opacity showed through the list.
+- A combobox choosing one value keeps its `ComboboxInput` inside
+  `ComboboxContent`, with `ComboboxTrigger` showing the value (shadcn's Popup
+  pattern). With the input outside, the chosen label sits in the search, and a
+  render with new `items` resets what was typed.
+- A field taking any text with suggestions is `Autocomplete`, which shares the
+  combobox's parts and keeps what is typed as its value (see `voice-field.tsx`).
 
 ## Tooltips and tabs
 

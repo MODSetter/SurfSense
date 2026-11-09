@@ -42,6 +42,7 @@ import { ChatErrorNotice } from "./chat-error-notice"
 import { preprocessCitationMarkdown } from "./citation-markdown"
 import { useCitationContext } from "./citation-context"
 import { CitationProvider, InlineCitation } from "./inline-citation"
+import { MentionedText } from "./mentions/mentioned-text"
 import { ReplyAnnouncer } from "./reply-announcer"
 import {
   ReplyThinking,
@@ -96,6 +97,7 @@ function MarkdownText() {
 }
 
 const assistantMessageParts = { Text: MarkdownText }
+const userMessageParts = { Text: MentionedText }
 
 function reasoningFrom(custom: unknown): ReplyReasoning | null {
   if (typeof custom === "object" && custom !== null && "reasoning" in custom) {
@@ -336,8 +338,11 @@ function MessageActions({
         className
       )}
     >
-      {timestampRight ? null : timestamp}
-      <ActionBarPrimitive.Root hideWhenRunning={hideWhenRunning}>
+      <ActionBarPrimitive.Root
+        hideWhenRunning={hideWhenRunning}
+        className="flex items-center gap-2 opacity-0 transition-opacity duration-150 ease-out group-hover/message:opacity-100 focus-within:opacity-100 motion-reduce:transition-none"
+      >
+        {timestampRight ? null : timestamp}
         <Tooltip>
           <ActionBarPrimitive.Copy copiedDuration={2_000} asChild>
             <TooltipTrigger
@@ -380,22 +385,22 @@ function MessageActions({
                 })}
           </TooltipContent>
         </Tooltip>
+        {timestampRight ? timestamp : null}
       </ActionBarPrimitive.Root>
-      {timestampRight ? timestamp : null}
     </div>
   )
 }
 
 export function UserMessage() {
   return (
-    <MessagePrimitive.Root className="mx-auto flex w-full max-w-2xl flex-col items-end px-6 py-3">
+    <MessagePrimitive.Root className="group/message mx-auto flex w-full max-w-2xl flex-col items-end px-6 py-3">
       <div className="mb-2 flex max-w-[78%] flex-wrap justify-end gap-2 empty:hidden">
         <MessagePrimitive.Attachments
           components={{ Image: MessageImage, Attachment: MessageImage }}
         />
       </div>
       <div className="max-w-[78%] rounded-2xl rounded-br-md bg-primary px-4 py-2.5 text-sm leading-6 whitespace-pre-wrap text-primary-foreground">
-        <MessagePrimitive.Parts />
+        <MessagePrimitive.Parts components={userMessageParts} />
       </div>
       <div className="mt-1.5 flex w-full justify-end empty:hidden">
         <MessageScope />
@@ -419,7 +424,7 @@ export function AssistantMessage({
   onNewChat: () => void
 }) {
   return (
-    <MessagePrimitive.Root className="mx-auto flex w-full max-w-2xl min-w-0 flex-col items-start px-6 py-4">
+    <MessagePrimitive.Root className="group/message mx-auto flex w-full max-w-2xl min-w-0 flex-col items-start px-6 py-4">
       <CitationProvider citations={citations} onCitation={onCitation}>
         <div className="w-full max-w-full min-w-0 text-sm leading-7">
           <MessageThinking />

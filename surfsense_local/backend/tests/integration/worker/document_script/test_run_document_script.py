@@ -17,7 +17,7 @@ import pytest
 from shared import cancellation
 from worker.document_script.run import run_document_script
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.image]
 
 # What the child may see of the parent's environment; anything else is a leak.
 ALLOWED_FROM_PARENT = {
@@ -37,6 +37,7 @@ CONTRACT = {
     "MPLCONFIGDIR",
     "PYTHONUTF8",
     "PYTHONDONTWRITEBYTECODE",
+    "OPENBLAS_NUM_THREADS",
 }
 
 
@@ -343,6 +344,7 @@ def test_the_child_sees_none_of_the_parents_secrets(
     assert seen["IMAGES_DIR"] == str(folder / "images")
     assert seen["MPLBACKEND"] == "Agg"
     assert seen["PYTHONUTF8"] == "1"
+    assert seen["OPENBLAS_NUM_THREADS"] == "1"
 
 
 def test_the_child_loads_none_of_the_workers_queue_or_database() -> None:

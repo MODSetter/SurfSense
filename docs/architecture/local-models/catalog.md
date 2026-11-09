@@ -43,7 +43,7 @@ of them.
 `GET /llm/catalog/local` returns llama.cpp's rows, then sd.cpp's, audio.cpp's and onnxruntime's.
 sd.cpp's are the six curated image models and two video models, only when Electron handed the API an
 images folder, which it does only when it staged sd-server, in dev or packaged
-([`sidecars/boot.ts`](../../../surfsense_local/electron/src/main/sidecars/boot.ts); [packaging](../packaging.md)).
+([`sidecars/boot.ts`](../../../surfsense_local/sidecars/boot.ts); [packaging](../packaging.md)).
 audio.cpp's are the three curated voice models and the two speech recognisers,
 Nemotron 3.5 ASR Streaming 0.6B and Canary 180M Flash, only when Electron handed the API an audio
 folder, which it does only when it staged audio.cpp's server.
@@ -506,7 +506,7 @@ counted rather than decoded
 
 `POST /llm/installs` takes `{"catalog_id": "...", "select": true}`, and
 optionally the `model_type` that `select` fills, the engine's first type when
-absent, so onboarding's editing step installs straight into `image_edit`. Nothing
+absent, so a speech model's download installs straight into `speech_to_text`. Nothing
 else: no repo, file, URL, path or quantization, so the renderer cannot name an
 arbitrary download. A curated build's id is minted once per process and keyed on
 its repo and weights path; a searched build's is a ticket holding the whole build
@@ -564,7 +564,9 @@ the renderer shows its own line for a code it knows, in the interface language,
 and the frame's English `message` for one it does not
 ([`install-text.ts`](../../../surfsense_local/frontend/src/features/models/local/installs/install-text.ts), [localization](../localization.md#backend-text)).
 A refusal for disk space is `not_enough_disk` with `needed_bytes` and
-`free_bytes` raw, so each language formats the sizes itself. A searched file of
+`free_bytes` raw, so each language formats the sizes itself. While the drive of
+a [moved models folder](../storage-location.md) is away, every install is refused
+with `model_storage_unavailable`. A searched file of
 a type the runtime cannot run is refused with the classifier's sentence and its
 `NotRunnableCode`, as a row is, so the toast is worded like a row's reason. A
 Hugging Face embedder that fails its search check is `retrieval_check_failed`
@@ -790,16 +792,15 @@ Rules the screen holds:
   Under the model in use, **Spoken language** reads and writes
   `/llm/selection/speech_to_text/language`: "Detect automatically", only when
   the model detects the language, then each language it lists.
-- The speech set-up popover ([`speech-setup/`](../../../surfsense_local/frontend/src/features/speech-setup/))
-  is the same download where speech is needed, for the mic and a recording
-  waiting for a model to open: one card per curated recogniser with its size
-  and "Works well in:" its listed languages.
-  **Download and set up** starts the same install job with `select: true`, so
-  egress consent is the usual refused-request prompt, nested in the popover;
-  the card then shows the job's progress, and once the catalog marks the model
-  in use the popover reads "Speech recognition is ready", with **Start
-  talking** where its opener can listen. **More choices** opens this section.
-  `useSpeechSetup()` holds that state, so an opener can show the download too.
+- The speech set-up popover ([`speech-setup/`](../../../surfsense_local/frontend/src/features/speech-setup/)),
+  where speech is needed, for the mic and a recording waiting for a model,
+  only asks and hands off: **Set up…** opens this section, which alone offers
+  the models, their downloads and their progress. With a speech download under
+  way it says how far it got, **Cancel download** stops it, and **Show progress**
+  opens this section; once
+  the catalog marks a model in use it reads "Speech recognition is ready", with
+  **Start talking** where its opener can listen. `useSpeechDownloadPercent()`
+  reads that download for the popover, the mic's ring and the mic's tooltip.
 
 ## How it is tested
 

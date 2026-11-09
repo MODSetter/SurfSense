@@ -5,13 +5,11 @@ A script is not analysed when the worker is frozen, so whatever it imports, or
 a library imports for it by name, ships only if the spec says so; the decode
 child's miniaudio loads a cffi backend by name too.
 
-SURFSENSE_TEST_FROZEN_WORKER names a worker already frozen, as the release
-workflow's; without it the test freezes one from the spec.
+The frozen binary comes from tests/packaging/frozen_backend.py: the release
+build's, or one frozen from the spec.
 """
 
 import io
-import os
-import subprocess
 import sys
 from pathlib import Path
 
@@ -20,6 +18,7 @@ import openpyxl
 import pypdfium2
 import pytest
 
+from tests.packaging.frozen_backend import frozen_backend
 from worker.audio_decode.run import decode_in_child
 from worker.document_script.analysis_run import AnalysisInput, run_analysis_script
 from worker.document_script.run import run_document_script
@@ -60,28 +59,8 @@ with PdfPages(os.environ["OUTPUT_PATH"]) as pages:
 
 @pytest.fixture(scope="module")
 def frozen_worker(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    """The worker frozen from bundling/worker.spec, as the installer ships it."""
-    if shipped := os.environ.get("SURFSENSE_TEST_FROZEN_WORKER"):
-        return Path(shipped).resolve()
-    build = tmp_path_factory.mktemp("frozen-worker")
-    subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "PyInstaller",
-            str(BACKEND / "bundling" / "worker.spec"),
-            "--noconfirm",
-            "--distpath",
-            str(build / "dist"),
-            "--workpath",
-            str(build / "build"),
-        ],
-        cwd=BACKEND,
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    return build / "dist" / "worker" / "worker"
+    """The backend frozen from bundling/backend.spec, as the installer ships it."""
+    return frozen_backend(tmp_path_factory.mktemp("frozen-backend"))
 
 
 @pytest.fixture

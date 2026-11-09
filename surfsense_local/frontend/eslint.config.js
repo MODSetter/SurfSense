@@ -61,6 +61,12 @@ export default defineConfig([
           message:
             'Press motion comes from Button itself; pass static to turn it off.',
         },
+        // The highlighter ships only the themes it names (code-highlighter.ts).
+        {
+          selector: "JSXAttribute[name.name='shikiTheme']",
+          message:
+            "Streamdown takes code themes from getThemes() in code-highlighter.ts and chat replies from assistant-ui's DEFAULT_SHIKI_THEME; the highlighter ships only github-light and github-dark, so add a theme to its map first.",
+        },
       ],
       'formatjs/enforce-id': [
         'error',

@@ -169,8 +169,8 @@ async def test_a_write_in_outputs_and_one_refused_outside(
     scenario = Scenario(
         "Write it down",
         opencode=lambda folder: [
-            _call("write", filePath=str(folder / "outputs/a.md"), content="A"),
-            _call("write", filePath=str(folder / "notes.md"), content="B"),
+            _call("write", path=str(folder / "outputs/a.md"), content="A"),
+            _call("write", path=str(folder / "notes.md"), content="B"),
             ("text", "Wrote it."),
         ],
         claude=lambda folder: [

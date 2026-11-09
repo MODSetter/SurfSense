@@ -1,8 +1,9 @@
 """A turn opencode compacted partway: the user's message and the agent's answer, without opencode's own notes.
 
-The message shapes are opencode 1.18.32's (session/compaction.ts): a user
-message holding a compaction part, an assistant summary, then a user message
-that carries the turn on.
+The message shapes are opencode 2.1.2's: a compaction is a message of its own
+(schema/src/session-message.ts). A thread from 1.x is read back as 2.x imports
+it (core/src/database/v1-migration.bun.ts): its summary becomes that message, and
+the "Continue…" or the user's message sent again stays after it.
 """
 
 from collections.abc import Callable
@@ -11,7 +12,6 @@ from typing import Any
 import pytest
 
 from modules.agent.agent_threads import replies
-from modules.agent.agent_threads.compaction import turn_openers
 from modules.agent.agent_threads.replies import thread_turns, turn_reply
 from modules.agent.agent_threads.turn_frames import TurnFrames
 from modules.agent.opencode_client import Event
@@ -22,130 +22,171 @@ SESSION = "ses_1"
 SUMMARY = "## Objective\nDraft the proposal."
 
 
-def _user(message_id: str, *parts: dict[str, Any]) -> dict[str, Any]:
+def _user(message_id: str, text: str | None = None) -> dict[str, Any]:
     return {
-        "info": {"id": message_id, "role": "user", "time": {"created": 1}},
-        "parts": list(parts) or [{"type": "text", "text": f"Asked in {message_id}"}],
+        "id": message_id,
+        "type": "user",
+        "text": text or f"Asked in {message_id}",
+        "time": {"created": 1},
     }
 
 
-def _assistant(
-    message_id: str, parent: str, text: str = "", **info: Any
-) -> dict[str, Any]:
-    parts = [{"type": "text", "text": text}] if text else []
+def _assistant(message_id: str, text: str = "", **fields: Any) -> dict[str, Any]:
     return {
-        "info": {
-            "id": message_id,
-            "role": "assistant",
-            "parentID": parent,
-            "time": {"created": 2, "completed": 3},
-            "finish": "stop",
-            **info,
-        },
-        "parts": parts,
+        "id": message_id,
+        "type": "assistant",
+        "content": [{"type": "text", "text": text}] if text else [],
+        "time": {"created": 2, "completed": 3},
+        "finish": "stop",
+        **fields,
     }
 
 
-def _summary(message_id: str, parent: str, **info: Any) -> dict[str, Any]:
-    return _assistant(
-        message_id, parent, SUMMARY, summary=True, mode="compaction", **info
-    )
+def _compaction(message_id: str, status: str = "completed") -> dict[str, Any]:
+    compaction: dict[str, Any] = {
+        "id": message_id,
+        "type": "compaction",
+        "status": status,
+        "reason": "auto",
+        "time": {"created": 2},
+    }
+    if status == "completed":
+        compaction["summary"] = SUMMARY
+    else:
+        compaction["error"] = TOO_LONG
+    return compaction
 
 
-COMPACTION = {"type": "compaction", "auto": True, "overflow": False}
+def _idle(message_id: str, outcome: str = "succeeded", **fields: Any) -> dict[str, Any]:
+    return {"id": message_id, "type": "idle", "outcome": outcome, **fields}
+
+
+TOO_LONG = {
+    "type": "compaction.failed",
+    "message": "Compaction summary did not match the required template",
+}
+# 1.x's own note after a compaction, imported as a synthetic message.
 CONTINUE = {
-    "type": "text",
-    "synthetic": True,
+    "id": "k1",
+    "type": "synthetic",
     "text": "Continue if you have next steps, or stop and ask for clarification "
     "if you are unsure how to proceed.",
-    "metadata": {"compaction_continue": True},
+    "time": {"created": 2},
 }
 
 
+def _shown(messages: list[dict[str, Any]]) -> list[tuple[str, str]]:
+    return [(t["role"], t["content"]["text"]) for t in thread_turns(messages, [])]
+
+
 def test_the_answer_after_a_compaction_is_the_turns_reply() -> None:
-    """opencode answers the continuation it added, not the user's message."""
+    """The summary is opencode's note to itself; the steps on either side are the reply."""
     messages = [
         _user("u1"),
-        _assistant("a1", "u1", finish="tool-calls"),
-        _user("c1", COMPACTION),
-        _summary("s1", "c1"),
-        _user("k1", CONTINUE),
-        _assistant("a2", "k1", "The proposal is in Studio."),
+        _assistant("a1", "Reading.", finish="tool-calls"),
+        _compaction("c1"),
+        _assistant("a2", "The proposal is in Studio."),
+        _idle("i1"),
     ]
 
     reply = turn_reply(messages, "u1", [])
 
     assert reply is not None
-    assert reply["content"]["text"] == "The proposal is in Studio."
-    assert [(t["role"], t["content"]["text"]) for t in thread_turns(messages, [])] == [
+    assert reply["content"]["text"] == "Reading.\n\nThe proposal is in Studio."
+    assert "ending" not in reply["content"]
+
+
+def test_a_turn_compacted_by_1x_reads_back_as_one() -> None:
+    """1.x's "Continue…" after its summary is not the user's."""
+    messages = [
+        _user("u1"),
+        _assistant("a1", finish="tool-calls"),
+        _compaction("c1"),
+        CONTINUE,
+        _assistant("a2", "The proposal is in Studio."),
+    ]
+
+    assert _shown(messages) == [
         ("user", "Asked in u1"),
         ("assistant", "The proposal is in Studio."),
     ]
 
 
-def test_a_turn_replayed_after_an_overflow_stays_one_turn() -> None:
-    """A request too large for the provider is compacted and the user's message sent again."""
+def test_a_turn_1x_replayed_after_an_overflow_stays_one_turn() -> None:
+    """1.x compacted a request too large for the provider and sent the user's message again."""
     messages = [
         _user("u1"),
-        _user("c1", {**COMPACTION, "overflow": True}),
-        _summary("s1", "c1"),
-        _user("r1", {"type": "text", "text": "Asked in u1"}),
-        _assistant("a1", "r1", "Done."),
+        _compaction("c1"),
+        _user("r1", "Asked in u1"),
+        _assistant("a1", "Done."),
     ]
 
-    assert [(t["role"], t["content"]["text"]) for t in thread_turns(messages, [])] == [
-        ("user", "Asked in u1"),
-        ("assistant", "Done."),
-    ]
+    assert _shown(messages) == [("user", "Asked in u1"), ("assistant", "Done.")]
 
 
 def test_after_a_failed_compaction_the_next_message_is_the_users() -> None:
-    """A summary that failed ends the turn; nothing carries it on."""
+    """A compaction that failed ends the turn; nothing carries it on."""
     messages = [
         _user("u1"),
-        _user("c1", COMPACTION),
-        _summary("s1", "c1", finish="error", error={"name": "ContextOverflowError"}),
-        _user("u2"),
-        _assistant("a2", "u2", "Here it is."),
+        _compaction("c1", "failed"),
+        _idle("i1", "failed", error=TOO_LONG),
+        _user("u2", "Asked in u1"),
+        _assistant("a2", "Here it is."),
+        _idle("i2"),
     ]
 
-    turns = [(t["role"], t["content"]["text"]) for t in thread_turns(messages, [])]
-
-    assert turns == [
+    assert _shown(messages) == [
         ("user", "Asked in u1"),
-        ("user", "Asked in u2"),
+        ("user", "Asked in u1"),
         ("assistant", "Here it is."),
     ]
 
 
+def test_a_turn_that_failed_after_its_steps_says_the_conversation_is_too_long() -> None:
+    """Read back, it ends as the live turn did: the thread cannot go on."""
+    reply = turn_reply(
+        [
+            _user("u1"),
+            _assistant("a1", "Reading.", finish="tool-calls"),
+            _compaction("c1", "failed"),
+            _idle("i1", "failed", error=TOO_LONG),
+        ],
+        "u1",
+        [],
+    )
+
+    assert reply is not None
+    assert reply["content"]["ending"]["type"] == "error"
+    assert "start a new thread" in reply["content"]["ending"]["message"]
+
+
 MIXED = [
     _user("u0"),
-    _assistant("a0", "u0", "First."),
+    _assistant("a0", "First."),
+    _idle("i0"),
     _user("u1"),
-    _assistant("a1", "u1", finish="tool-calls"),
-    _user("c1", COMPACTION),
-    _summary("s1", "c1"),
-    _user("k1", CONTINUE),
-    _assistant("a2", "k1", "The proposal is in Studio."),
+    _assistant("a1", finish="tool-calls"),
+    _compaction("c1"),
+    _assistant("a2", "The proposal is in Studio."),
+    _idle("i1"),
     _user("u2"),
-    _user("c2", {**COMPACTION, "overflow": True}),
-    _summary("s2", "c2"),
-    _user("r2", {"type": "text", "text": "Asked in u2"}),
-    _assistant("a3", "r2", "Done."),
+    _compaction("c2"),
+    _assistant("a3", "Done."),
+    _idle("i2"),
     _user("u3"),
-    _user("c3", COMPACTION),
-    _summary("s3", "c3", finish="error", error={"name": "ContextOverflowError"}),
+    _compaction("c3", "failed"),
+    _idle("i3", "failed", error=TOO_LONG),
     _user("u4"),
-    _assistant("a4", "u4", "Step one.", finish="tool-calls"),
-    _assistant("a5", "u4", "Step two."),
-    _assistant("a6", "gone", "Answers nothing in this session."),
+    _assistant("a4", "Step one.", finish="tool-calls"),
+    _assistant("a5", "Step two."),
+    _idle("i4", "interrupted"),
     _user("u5"),
 ]
 
 
 @pytest.mark.parametrize("answering", [False, True])
 def test_the_threads_replies_are_each_turns_own(answering: bool) -> None:
-    """Read whole or a turn at a time, through compactions clean, replayed and failed."""
+    """Read whole or a turn at a time, through compactions clean and failed."""
     noted = {"u4:reply": {"type": "stopped"}}
 
     turns = thread_turns(MIXED, [], noted, answering)
@@ -169,6 +210,7 @@ def test_the_threads_replies_are_each_turns_own(answering: bool) -> None:
         "Done.",
         "Step one.\n\nStep two.",
     ]
+    assert expected[-1]["content"]["ending"] == {"type": "stopped"}
 
 
 def test_a_thread_is_read_once_however_many_turns_it_has(
@@ -176,12 +218,13 @@ def test_a_thread_is_read_once_however_many_turns_it_has(
 ) -> None:
     """Finding each turn's steps by a pass per turn grew with turns times messages."""
     reads: list[int] = []
+    grouped = replies.session_turns
 
-    def counted(messages: list[dict[str, Any]]) -> dict[str, str]:
+    def counted(messages: list[dict[str, Any]]) -> list[replies.Turn]:
         reads.append(len(messages))
-        return turn_openers(messages)
+        return grouped(messages)
 
-    monkeypatch.setattr(replies, "turn_openers", counted)
+    monkeypatch.setattr(replies, "session_turns", counted)
 
     thread_turns(MIXED, [])
 
@@ -189,110 +232,74 @@ def test_a_thread_is_read_once_however_many_turns_it_has(
 
 
 def _stream(turn: TurnFrames) -> Callable[..., list[dict[str, Any]]]:
-    """Feed one event of this session to the turn; the frames it adds."""
+    """Feed one event of this session to a turn that has begun; the frames it adds."""
 
-    def frames(kind: str, **properties: Any) -> list[dict[str, Any]]:
-        return turn.frames(
-            Event(type=kind, properties={"sessionID": SESSION, **properties})
-        )
+    def frames(kind: str, **data: Any) -> list[dict[str, Any]]:
+        return turn.frames(Event(type=kind, data={"sessionID": SESSION, **data}))
 
+    frames("session.inbox.enqueued", inboxID="u1", item={"type": "user"})
     return frames
+
+
+def _said(frames: Callable[..., list[dict[str, Any]]], step: str, text: str) -> list:
+    shown = frames("session.text.started", assistantMessageID=step, ordinal=0)
+    shown += frames(
+        "session.text.delta", assistantMessageID=step, ordinal=0, delta=text
+    )
+    return shown + frames(
+        "session.text.ended", assistantMessageID=step, ordinal=0, text=text
+    )
 
 
 def test_the_summary_is_not_streamed_as_the_reply() -> None:
     """The summary is opencode's note to itself, written while the user watches."""
     frames = _stream(TurnFrames(SESSION))
 
-    frames("message.updated", info={"id": "u1", "role": "user"})
-    frames(
-        "message.updated",
-        info={"id": "s1", "role": "assistant", "summary": True, "mode": "compaction"},
-    )
-    shown = frames(
-        "message.part.updated",
-        part={"id": "p1", "messageID": "s1", "type": "text", "text": ""},
-    )
-    shown += frames("message.part.delta", partID="p1", field="text", delta=SUMMARY)
-    shown += frames(
-        "message.part.updated",
-        part={"id": "p1", "messageID": "s1", "type": "text", "text": SUMMARY},
-    )
-    frames("message.updated", info={"id": "a2", "role": "assistant"})
-    shown += frames(
-        "message.part.updated",
-        part={"id": "p2", "messageID": "a2", "type": "text", "text": "Done."},
-    )
+    shown = frames("session.compaction.started", reason="auto")
+    shown += frames("session.compaction.delta", text=SUMMARY)
+    shown += frames("session.compaction.ended", reason="auto", text=SUMMARY)
+    shown += _said(frames, "a2", "Done.")
 
     assert shown == [{"type": "delta", "text": "Done."}]
 
 
 OVERFLOW = {
-    "name": "ContextOverflowError",
-    "data": {"message": "request (40000 tokens) exceeds the available context size"},
+    "type": "provider.invalid-request",
+    "message": "request (40000 tokens) exceeds the available context size",
 }
 
 
 def test_an_overflow_opencode_compacts_away_is_not_an_error() -> None:
-    """opencode reports the provider's refusal, then compacts, replays and answers."""
+    """opencode fails the step, compacts, and answers in a new one."""
     frames = _stream(TurnFrames(SESSION))
 
-    frames("message.updated", info={"id": "u1", "role": "user"})
-    shown = frames("session.error", error=OVERFLOW)
-    frames(
-        "message.updated",
-        info={"id": "s1", "role": "assistant", "summary": True, "mode": "compaction"},
-    )
-    frames("message.updated", info={"id": "r1", "role": "user"})
-    frames("message.updated", info={"id": "a1", "role": "assistant"})
-    shown += frames(
-        "message.part.updated",
-        part={"id": "p1", "messageID": "a1", "type": "text", "text": "Done."},
-    )
+    shown = frames("session.step.failed", assistantMessageID="a1", error=OVERFLOW)
+    shown += frames("session.compaction.started", reason="auto")
+    shown += frames("session.compaction.ended", reason="auto", text=SUMMARY)
+    shown += _said(frames, "a2", "Done.")
+    shown += frames("session.execution.succeeded")
 
     assert shown == [{"type": "delta", "text": "Done."}]
 
 
-def test_a_summary_that_failed_ends_the_turn_with_one_error() -> None:
-    """Too long even to summarise: opencode marks the summary and says nothing else."""
+def test_a_compaction_that_failed_ends_the_turn_with_one_error() -> None:
+    """Too long even to summarise: the conversation cannot go on."""
     frames = _stream(TurnFrames(SESSION))
-    summary = {"id": "s1", "role": "assistant", "summary": True, "mode": "compaction"}
-    failed = {
-        **summary,
-        "finish": "error",
-        "error": {
-            "name": "ContextOverflowError",
-            "data": {"message": "Conversation history too large to compact"},
-        },
-    }
 
-    frames("message.updated", info={"id": "u1", "role": "user"})
-    shown = frames("session.error", error=OVERFLOW)
-    shown += frames("message.updated", info=summary)
-    shown += frames("session.error", error=OVERFLOW)
-    shown += frames("message.updated", info=failed)
-    shown += frames("message.updated", info=failed)
+    shown = frames("session.step.failed", assistantMessageID="a1", error=OVERFLOW)
+    shown += frames("session.compaction.failed", reason="auto", error=TOO_LONG)
+    shown += frames("session.execution.failed", error=TOO_LONG)
 
     assert [frame["type"] for frame in shown] == ["error"]
     assert "start a new thread" in shown[0]["message"]
 
 
-def test_a_summary_the_provider_failed_is_reported_once() -> None:
-    """opencode publishes the provider's error, then marks the summary with it too."""
+def test_a_provider_failure_is_reported_once() -> None:
+    """opencode fails the step, then the turn, with the same error."""
     frames = _stream(TurnFrames(SESSION))
-    broken = {"name": "APIError", "data": {"message": "Internal server error"}}
+    broken = {"type": "provider.error", "message": "Internal server error"}
 
-    frames("message.updated", info={"id": "u1", "role": "user"})
-    shown = frames("session.error", error=broken)
-    shown += frames(
-        "message.updated",
-        info={
-            "id": "s1",
-            "role": "assistant",
-            "summary": True,
-            "mode": "compaction",
-            "finish": "error",
-            "error": broken,
-        },
-    )
+    shown = frames("session.step.failed", assistantMessageID="a1", error=broken)
+    shown += frames("session.execution.failed", error=broken)
 
     assert [frame["message"] for frame in shown] == ["Internal server error"]

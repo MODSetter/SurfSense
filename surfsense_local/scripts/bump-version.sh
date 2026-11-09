@@ -89,9 +89,9 @@ bump() {
 bump "$LOCAL_ROOT/backend/pyproject.toml" "$TOML_FIELD" "version = \"$VERSION\""
 bump "$LOCAL_ROOT/frontend/package.json" "$JSON_FIELD" "\"version\": \"$VERSION\""
 bump "$LOCAL_ROOT/electron/package.json" "$JSON_FIELD" "\"version\": \"$VERSION\""
-bump "$LOCAL_ROOT/../surfsense_web/lib/app-release.ts" "$TS_FIELD" \
+bump "$LOCAL_ROOT/../www/features/downloads/app-release.ts" "$TS_FIELD" \
   "export const APP_RELEASE_VERSION = \"$VERSION\""
-bump "$LOCAL_ROOT/../surfsense_backend/app/license/release.py" "$PY_FIELD" \
+bump "$LOCAL_ROOT/../backend/license/release.py" "$PY_FIELD" \
   "APP_RELEASE_VERSION = \"$VERSION\""
 
 echo ""

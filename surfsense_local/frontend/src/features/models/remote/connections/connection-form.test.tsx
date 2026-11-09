@@ -35,6 +35,14 @@ const PROVIDERS = [
     base_url: "https://api.openai.com/v1",
     base_url_origin: "reviewed",
   }),
+  provider("opencode", "OpenCode Zen", {
+    base_url: "https://opencode.ai/inference/openai/v1",
+    base_url_origin: "models.dev",
+  }),
+  provider("opencode-go", "OpenCode Go", {
+    base_url: "https://opencode.ai/inference/go/openai/v1",
+    base_url_origin: "models.dev",
+  }),
   provider("databricks", "Databricks", {
     status: "needs_account_details",
     base_url: "https://${DATABRICKS_HOST}/ai-gateway/mlflow/v1",
@@ -115,6 +123,42 @@ describe("connection form", () => {
     )
   })
 
+  it("points OpenCode at the Console for its key", async () => {
+    serve()
+    const user = userEvent.setup()
+    render(<ConnectionForm onCancel={vi.fn()} onSaved={vi.fn()} />)
+
+    await pick(user, "OpenCode Zen")
+
+    expect(
+      screen
+        .getByRole("link", { name: /OpenCode Console/ })
+        .getAttribute("href")
+    ).toBe("https://opencode.ai/console")
+    expect(screen.queryByText(/Go subscription/)).toBeNull()
+  })
+
+  it("says OpenCode Go needs its own subscription", async () => {
+    serve()
+    const user = userEvent.setup()
+    render(<ConnectionForm onCancel={vi.fn()} onSaved={vi.fn()} />)
+
+    await pick(user, "OpenCode Go")
+
+    expect(screen.getByRole("link", { name: /OpenCode Console/ })).toBeTruthy()
+    expect(screen.getByText(/Go subscription/)).toBeTruthy()
+  })
+
+  it("adds no Console link to another provider", async () => {
+    serve()
+    const user = userEvent.setup()
+    render(<ConnectionForm onCancel={vi.fn()} onSaved={vi.fn()} />)
+
+    await pick(user, "OpenAI")
+
+    expect(screen.queryByRole("link", { name: /OpenCode Console/ })).toBeNull()
+  })
+
   it("builds the URL from the account details a provider asks for", async () => {
     serve()
     const user = userEvent.setup()
@@ -145,8 +189,8 @@ describe("connection form", () => {
     await user.click(bedrock)
 
     expect(
-      (screen.getByLabelText("Provider") as HTMLInputElement).value
-    ).not.toBe("Amazon Bedrock")
+      screen.getByRole("combobox", { name: "Provider" }).textContent
+    ).not.toContain("Amazon Bedrock")
   })
 
   it("asks for no key on a local server", async () => {
@@ -177,6 +221,53 @@ describe("connection form", () => {
         catalog_provider: "custom",
       })
     )
+  })
+
+  it("searches from an empty box, not after the chosen provider's name", async () => {
+    serve()
+    const user = userEvent.setup()
+    render(<ConnectionForm onCancel={vi.fn()} onSaved={vi.fn()} />)
+
+    await user.click(screen.getByLabelText("Provider"))
+    const search = await screen.findByPlaceholderText("Search providers")
+    expect((search as HTMLInputElement).value).toBe("")
+    await user.type(search, "openai")
+
+    expect(await screen.findByRole("option", { name: /^OpenAI/ })).toBeTruthy()
+    expect(screen.queryByRole("option", { name: /^LM Studio/ })).toBeNull()
+  })
+
+  it("keeps what is typed in the search when the form renders again", async () => {
+    serve()
+    const user = userEvent.setup()
+    const form = <ConnectionForm onCancel={vi.fn()} onSaved={vi.fn()} />
+    const { rerender } = render(form)
+
+    await user.click(screen.getByLabelText("Provider"))
+    const search = await screen.findByPlaceholderText("Search providers")
+    await user.type(search, "lm")
+    rerender(<ConnectionForm onCancel={vi.fn()} onSaved={vi.fn()} />)
+
+    expect((search as HTMLInputElement).value).toBe("lm")
+  })
+
+  it("clears the search with a button that appears once something is typed", async () => {
+    serve()
+    const user = userEvent.setup()
+    render(<ConnectionForm onCancel={vi.fn()} onSaved={vi.fn()} />)
+
+    await user.click(screen.getByLabelText("Provider"))
+    const search = await screen.findByPlaceholderText("Search providers")
+    expect(screen.queryByRole("button", { name: "Clear search" })).toBeNull()
+
+    await user.type(search, "lm")
+    expect(screen.queryByRole("option", { name: /^OpenAI/ })).toBeNull()
+    await user.click(screen.getByRole("button", { name: "Clear search" }))
+
+    expect((search as HTMLInputElement).value).toBe("")
+    expect(document.activeElement).toBe(search)
+    expect(await screen.findByRole("option", { name: /^OpenAI/ })).toBeTruthy()
+    expect(screen.queryByRole("button", { name: "Clear search" })).toBeNull()
   })
 
   it("leaves a new ChatGPT sign-in to its own option beside Use a server", async () => {

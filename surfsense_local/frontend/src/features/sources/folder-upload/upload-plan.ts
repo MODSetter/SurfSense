@@ -33,12 +33,18 @@ const IGNORED_NAMES = new Set([
   ".trash",
 ])
 
+// The owner file Office keeps beside a document it has open, `~$plan.docx`:
+// never a source, and held open so that Chromium cannot read it, which fails
+// the whole request it is in.
+const OFFICE_OWNER_FILE = /(^|\/)~\$[^/]*$/
+
 function isIgnored(relativePath: string | null) {
   return (
     relativePath !== null &&
-    relativePath
-      .split("/")
-      .some((segment) => IGNORED_NAMES.has(segment.toLowerCase()))
+    (OFFICE_OWNER_FILE.test(relativePath) ||
+      relativePath
+        .split("/")
+        .some((segment) => IGNORED_NAMES.has(segment.toLowerCase())))
   )
 }
 

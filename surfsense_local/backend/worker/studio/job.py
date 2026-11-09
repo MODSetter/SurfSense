@@ -10,7 +10,10 @@ from modules.artifacts.converted_documents.conversion import (
     conversion_of,
 )
 from modules.artifacts.converted_documents.input_file import input_file
+from modules.artifacts.drawn_images.recipe import ImageDrawing, image_drawing_of
 from modules.artifacts.formats import FORMATS_BY_KEY, Grounding
+from modules.artifacts.image_edits.editable import EDITABLE_FORMATS
+from modules.artifacts.image_edits.recipe import ImageEdit, image_edit_of
 from modules.artifacts.made_file import made_by
 from modules.artifacts.models import Artifact
 from modules.artifacts.revised_copies.revision import revision_of
@@ -29,6 +32,8 @@ from modules.artifacts.studio_documents.recipe import (
     renders_as_stored,
 )
 from modules.documents.models import Document, DocumentStatus
+from modules.jobs.asking.stopped import FillStoppedError
+from modules.jobs.runs.record import job_run_of
 from modules.llm.model_route.client import resolve_routed_generation
 from modules.llm.model_type import ModelType
 from modules.llm.providers.audiocpp.memory import NotEnoughMemoryError
@@ -39,6 +44,7 @@ from modules.llm.resolution import (
     ModelResolutionError,
     ResolvedGeneration,
     ResolvedImageGeneration,
+    resolve_image_edit,
     resolve_image_generation,
     resolve_text_to_speech,
 )
@@ -49,7 +55,11 @@ from worker.jobs import JobCancelledError, begin_job, finish_job, raise_if_cance
 from worker.notify import notify_artifact_updates
 from worker.studio import job_router
 from worker.studio.converted_document import pipeline as converted_document
+from worker.studio.job_run import pipeline as job_run
 from worker.studio.made_file import pipeline as made_file
+from worker.studio.media.visual.drawn import pipeline as drawn_image
+from worker.studio.media.visual.edit import pipeline as image_edit
+from worker.studio.media.visual.edit.base import base_image
 from worker.studio.office.document import figure_shelf
 from worker.studio.office.document.refine import refine
 from worker.studio.office.docx import docx
@@ -60,6 +70,7 @@ from worker.studio.script_document import pipeline as script_document
 from worker.studio.script_document.pipeline import ScriptRunFailedError
 from worker.studio.shared import gather, persist
 from worker.studio.shared.artifact import Built
+from worker.studio.web.html.written import page as written_page
 
 logger = logging.getLogger(__name__)
 
@@ -99,6 +110,8 @@ def _generate(session: Session, artifact: Artifact) -> None:
     try:
         meta = artifact.artifact_metadata
         refining = refinement(meta)
+        editing = image_edit_of(meta)
+        drawing = image_drawing_of(meta)
         script = document_script(meta) if renders_as_stored(meta) else None
         converting = conversion_of(meta)
         revised: revised_copy.Made | None = None
@@ -109,6 +122,10 @@ def _generate(session: Session, artifact: Artifact) -> None:
             built = revised.built
         elif refining is not None:
             built = _refine(session, artifact, document, refining)
+        elif editing is not None:
+            built = _edit_image(session, artifact, document, editing)
+        elif drawing is not None:
+            built = _draw_image(session, artifact, document, drawing)
         elif made_by(meta) is not None:
             built = made_file.built(artifact, document.title)
         elif script is not None:
@@ -127,6 +144,8 @@ def _generate(session: Session, artifact: Artifact) -> None:
             record_revision(artifact, revised)
         if built.spec is not None:
             _keep_spec(artifact, built.spec)
+        elif artifact.format in EDITABLE_FORMATS:
+            _keep_version(artifact)
         if built.metadata is not None:
             artifact.artifact_metadata = {
                 **(artifact.artifact_metadata or {}),
@@ -185,8 +204,13 @@ def _generate(session: Session, artifact: Artifact) -> None:
         # The same edits on the same file fail the same way.
         if revision_of(artifact.artifact_metadata) is not None:
             return
-        # A refine is one call the user asked for; Retry asks again if they want.
+        # A refine or an edit is one call the user asked for; Retry asks again.
         if refinement(artifact.artifact_metadata) is not None:
+            return
+        if image_edit_of(artifact.artifact_metadata) is not None:
+            return
+        # The agent's tool reads this FAILED; a retry could bill the picture twice.
+        if image_drawing_of(artifact.artifact_metadata) is not None:
             return
         raise  # Huey retries; a later success clears the message.
 
@@ -244,10 +268,12 @@ def _run_script(
     # The script may run for two minutes; the write lock must not be held across it.
     session.commit()
     raise_if_cancelled(session, document)
+    # Past the commit: a picture may be converted, with no write lock to hold up others.
+    files = script_document.image_files(images)
 
     # A cancel kills the script and everything it started.
     with cancellation.watching(lambda: _check_cancelled(session, document)):
-        return script_document.render(title, script, images, template)
+        return script_document.render(title, script, files, template)
 
 
 def _convert(
@@ -264,7 +290,15 @@ def _convert(
 def _revise(
     session: Session, document: Document, artifact: Artifact
 ) -> revised_copy.Made:
-    """An engine edits a copy of the input; no model is asked and no source is gathered."""
+    """An engine edits a copy of the input; only a job run asks a model first, for the edits."""
+    if job_run_of(artifact.artifact_metadata) is not None:
+        try:
+            job_run.work_out(
+                session, artifact, cancelled=lambda: _cancel_asked(session, document)
+            )
+        except FillStoppedError:
+            raise_if_cancelled(session, document)
+            raise
     prepared = revised_copy.prepare(session, artifact)
     session.commit()
     raise_if_cancelled(session, document)
@@ -276,6 +310,12 @@ def _refine(
 ) -> Built:
     """One call rewrites the base version's spec; the figures it may place are its draft's."""
     model = _choose_model(session, ModelType.TEXT_GEN)
+    if refining.base.format == "html":
+        title = document.title
+        session.commit()
+        raise_if_cancelled(session, document)
+        with cancellation.watching(lambda: _check_cancelled(session, document)):
+            return written_page.refine(model, refining, title)
     figures = figure_shelf.figures_of(
         session, artifact.workspace_id, figure_sources(artifact.artifact_metadata)
     )
@@ -289,10 +329,61 @@ def _refine(
         )
 
 
+def _edit_image(
+    session: Session, artifact: Artifact, document: Document, editing: ImageEdit
+) -> Built:
+    """One call to the edit model, from the picture of the version it names."""
+    try:
+        editor = resolve_image_edit(session)
+    except ModelResolutionError as error:
+        raise NoModelSelectedError(str(error)) from error
+    base = base_image(session, editing)
+    session.commit()
+    raise_if_cancelled(session, document)
+
+    # The local editor polls; each poll looks for a cancel.
+    with cancellation.watching(lambda: _check_cancelled(session, document)):
+        return image_edit.render(editor, base, editing.instruction)
+
+
+def _draw_image(
+    session: Session, artifact: Artifact, document: Document, drawing: ImageDrawing
+) -> Built:
+    """One call to the image model, with the prompt the agent wrote."""
+    painter = _choose_model(session, ModelType.IMAGE_GEN)
+    title, format = document.title, artifact.format
+    session.commit()
+    raise_if_cancelled(session, document)
+
+    # The local generator polls; each poll looks for a cancel.
+    with cancellation.watching(lambda: _check_cancelled(session, document)):
+        return drawn_image.render(painter, drawing.prompt, title, format)
+
+
 def _keep_spec(artifact: Artifact, spec: dict) -> None:
     """A Studio draft's spec becomes v1 of its own document; a refine already has its version."""
     meta = dict(artifact.artifact_metadata or {})
     meta["spec"] = spec
+    meta.setdefault(
+        "version",
+        ArtifactVersion(root=artifact.id, number=1, parent=None).as_metadata(),
+    )
+    meta.setdefault(RECIPE_KEY, drafted())
+    artifact.artifact_metadata = meta
+
+
+def _cancel_asked(session: Session, document: Document) -> bool:
+    """For a step that stops itself between units of work rather than being interrupted."""
+    try:
+        _check_cancelled(session, document)
+    except JobCancelledError:
+        return True
+    return False
+
+
+def _keep_version(artifact: Artifact) -> None:
+    """A drawn picture becomes v1 of its own document, so its edits group under it."""
+    meta = dict(artifact.artifact_metadata or {})
     meta.setdefault(
         "version",
         ArtifactVersion(root=artifact.id, number=1, parent=None).as_metadata(),

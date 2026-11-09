@@ -71,12 +71,12 @@ class TurnLink:
         await events.put(
             Event(
                 type="permission.asked",
-                properties={
+                data={
                     "sessionID": self._session_id,
                     "id": request_id,
-                    "permission": step_tool(tool),
-                    "patterns": [],
-                    "tool": {"callID": call_id},
+                    "action": step_tool(tool),
+                    "resources": [],
+                    "source": {"type": "tool", "id": call_id},
                 },
             )
         )
@@ -84,7 +84,7 @@ class TurnLink:
         await events.put(
             Event(
                 type="permission.replied",
-                properties={
+                data={
                     "sessionID": self._session_id,
                     "requestID": request_id,
                     "reply": reply,

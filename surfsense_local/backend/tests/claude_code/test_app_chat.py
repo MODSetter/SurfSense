@@ -77,7 +77,7 @@ async def test_a_basic_chat_is_answered_by_this_machines_claude_code(
     tunnelled = {
         record.args[0]
         for record in caplog.records
-        if record.name == "modules.agent.plugin_proxy.server"
+        if record.name == "modules.agent.runtime_proxy.server"
         and record.msg.startswith("tunnel to %s:%s: checked")
     }
     assert tunnelled == {"api.anthropic.com"}

@@ -2,15 +2,23 @@ import { request, requestJson } from "@/lib/api"
 
 const URL = "/llm/selection/audio_gen/voices"
 
-/** The audio selection's voices: the server's own list, or the ones the user
- *  added after hearing each. `connection_id` and `model` play a voice. */
+/** A voice's id, and its name where the server states one, else the id again. */
+export type VoiceOption = { id: string; label: string }
+
+/** The audio selection's voices: the server's own list; the model's published
+ *  ones and those the user added; or the added ones alone. `connection_id` and
+ *  `model` play a voice. */
 export type ServerVoicesRead = {
   connection_id: number
   model: string
-  source: "server" | "saved"
-  voices: string[]
+  source: "server" | "published" | "saved"
+  voices: VoiceOption[]
+  /** The ones removing can take away; the rest are the server's. */
+  added: string[]
   /** Where the provider documents the model's voices, when it does. */
   voices_page: string | null
+  /** Why there is no list to offer, when it is not that the server has none. */
+  problem?: { code: "no_usable_voices" | "list_failed"; message: string } | null
 }
 
 export function readServerVoices(

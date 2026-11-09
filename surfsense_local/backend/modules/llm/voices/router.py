@@ -6,13 +6,12 @@ from sqlalchemy.orm import Session
 
 from api.dependencies import SessionDep, transact
 from modules.llm.connections.router import allowed_connection
+from modules.llm.connections.speech_client import speech_client
 from modules.llm.model_type import ModelType
 from modules.llm.models import ProviderConnection, SelectedModel
-from modules.llm.providers.openai_compatible.speech import (
-    NonRetryableSpeechError,
-    RemoteSpeech,
-)
+from modules.llm.providers.openai_compatible.speech import NonRetryableSpeechError
 from modules.llm.providers.protocols import SpokenTurn
+from modules.llm.schemas import VoiceRead
 from modules.llm.voices.roster import server_roster, voices_page
 from modules.llm.voices.saved import forget, keep
 
@@ -26,13 +25,22 @@ VoiceId = Annotated[
 ]
 
 
+class VoicesProblemRead(BaseModel):
+    # The interface words `no_usable_voices` itself; `list_failed` carries the server's.
+    code: str
+    message: str
+
+
 class VoicesRead(BaseModel):
     # What a voice is played through: the connection's speech test.
     connection_id: int
     model: str
     source: str
-    voices: list[str]
+    voices: list[VoiceRead]
+    # Those removing can take away; the rest are the server's.
+    added: list[str]
     voices_page: str | None
+    problem: VoicesProblemRead | None = None
 
 
 class VoiceWrite(BaseModel):
@@ -44,14 +52,23 @@ class VoiceWrite(BaseModel):
 @router.get("", response_model=VoicesRead)
 def list_voices(session: SessionDep) -> VoicesRead:
     selected, connection = _server_selection(session)
-    source, voices = server_roster(session, selected, connection)
+    roster = server_roster(session, selected, connection)
     session.commit()  # egress stamps the host's last call
     return VoicesRead(
         connection_id=connection.id,
         model=selected.name,
-        source=source,
-        voices=voices,
-        voices_page=voices_page(connection, selected.name),
+        source=roster.source,
+        voices=[VoiceRead(id=voice.id, label=voice.label) for voice in roster.voices],
+        added=roster.added,
+        # A list here leaves no reason to go and read the provider's page.
+        voices_page=voices_page(connection, selected.name)
+        if roster.source == "saved"
+        else None,
+        problem=VoicesProblemRead(
+            code=roster.problem.code, message=roster.problem.message
+        )
+        if roster.problem
+        else None,
     )
 
 
@@ -59,16 +76,15 @@ def list_voices(session: SessionDep) -> VoicesRead:
 async def add_voice(payload: VoiceWrite, session: SessionDep) -> Response:
     """Voice one line in it, then keep it; a refusal keeps nothing."""
     selected, connection = await transact(session, _server_selection)
-    speech = RemoteSpeech(
-        selected.name, base_url=connection.base_url, api_key=connection.api_key
-    )
+    tested = (selected.connection_id, selected.name)
+    speech = speech_client(connection, selected.name)
     try:
         await speech.synthesize(
             [SpokenTurn(payload.voice, payload.text or TRIAL_LINE)], ""
         )
     except NonRetryableSpeechError as error:
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(error)) from error
-    await transact(session, _keep, payload.voice)
+    await transact(session, _keep, payload.voice, tested)
     return Response(status_code=status.HTTP_201_CREATED)
 
 
@@ -90,6 +106,13 @@ def _server_selection(session: Session) -> tuple[SelectedModel, ProviderConnecti
     return selected, allowed_connection(session, selected.connection_id)
 
 
-def _keep(session: Session, voice: str) -> None:
+def _keep(session: Session, voice: str, tested: tuple[int | None, str]) -> None:
+    """Read again, past what this session holds: voicing takes seconds, and the voice
+    was only heard on the model it began on."""
+    session.expire_all()
     selected, _ = _server_selection(session)
+    if (selected.connection_id, selected.name) != tested:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "the audio model changed while this was tested"
+        )
     keep(session, selected, voice)

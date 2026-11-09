@@ -51,7 +51,7 @@ class OpencodeEngine:
         try:
             live_instances.instance_used(folder)
             session_id = await ready.client.create_session(
-                folder, thread.title or "New chat"
+                folder, thread.title or "New chat", model=ready.model
             )
         except httpx.HTTPError as error:
             raise HTTPException(
@@ -99,12 +99,12 @@ class OpencodeEngine:
             raise HTTPException(
                 status.HTTP_503_SERVICE_UNAVAILABLE, str(error)
             ) from error
-        folder = get_storage_settings().thread_working_dir(
-            thread.workspace_id, thread.id
-        )
+        session_id = thread.opencode_session_id
+        if session_id is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "no such request is waiting")
         async with client:
             try:
-                await client.reply(folder, request_id, reply)
+                await client.reply(session_id, request_id, reply)
             except httpx.HTTPStatusError as error:
                 if error.response.status_code == status.HTTP_404_NOT_FOUND:
                     raise HTTPException(
@@ -121,6 +121,7 @@ class OpencodeEngine:
     async def stored_step(
         self, session: Session, thread: ChatThread, part_id: str
     ) -> dict[str, Any]:
+        # A step goes by its call's id.
         return await stored_step.stored_step(thread, part_id)
 
     async def forget_thread(self, thread: ChatThread) -> Path:

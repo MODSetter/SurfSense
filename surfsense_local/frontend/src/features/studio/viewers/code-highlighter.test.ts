@@ -1,25 +1,30 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import { DEFAULT_SHIKI_THEME } from "@assistant-ui/react-streamdown"
 import { createCodePlugin } from "@streamdown/code"
+import { bundledLanguages } from "shiki"
 
 import { codeHighlighter } from "./code-highlighter"
 
 const tokenized = vi.hoisted(() => ({ count: 0 }))
 
-// Counts each run of the tokenizer.
-vi.mock("shiki", async (original) => {
-  const actual = await original<typeof import("shiki")>()
+// Counts each run of our tokenizer; @streamdown/code's comes from "shiki".
+vi.mock("shiki/core", async (original) => {
+  const actual = await original<typeof import("shiki/core")>()
   return {
     ...actual,
-    createHighlighter: async (
-      ...args: Parameters<typeof actual.createHighlighter>
+    createBundledHighlighter: (
+      ...bundle: Parameters<typeof actual.createBundledHighlighter>
     ) => {
-      const highlighter = await actual.createHighlighter(...args)
-      const codeToTokens = highlighter.codeToTokens.bind(highlighter)
-      highlighter.codeToTokens = (...call) => {
-        tokenized.count += 1
-        return codeToTokens(...call)
+      const create = actual.createBundledHighlighter(...bundle)
+      return async (...args: Parameters<typeof create>) => {
+        const highlighter = await create(...args)
+        const codeToTokens = highlighter.codeToTokens.bind(highlighter)
+        highlighter.codeToTokens = (...call) => {
+          tokenized.count += 1
+          return codeToTokens(...call)
+        }
+        return highlighter
       }
-      return highlighter
     },
   }
 })
@@ -35,10 +40,11 @@ const coloured = (result: Result | null) =>
 function tokensFrom(
   plugin: Pick<typeof codeHighlighter, "highlight">,
   code: string,
-  language: string
+  language: string,
+  asked = themes
 ) {
   return new Promise<Result>((resolve) => {
-    const now = plugin.highlight({ code, language, themes }, resolve)
+    const now = plugin.highlight({ code, language, themes: asked }, resolve)
     if (now && coloured(now)) resolve(now)
   })
 }
@@ -54,6 +60,16 @@ describe("the code highlighter", () => {
     ["js", "const answer = 42 // an alias of javascript"],
     ["not-a-language", "plain words"],
     ["", "no language at all"],
+    // Grammars that embed others, aliases, and a rarely used grammar.
+    ["md", "# Total\n\n```python\nprint(1.07)\n```"],
+    ["html", "<style>p{color:red}</style><script>let a = 1</script><b>hi</b>"],
+    ["vue", "<template><b>{{ a }}</b></template><script>let a = 1</script>"],
+    ["bash", 'for f in *.md; do echo "$f"; done'],
+    ["c++", "int main() { return 0; }"],
+    ["yml", "key: value\nlist:\n  - 1"],
+    ["sql", "SELECT id FROM users WHERE id = 1;"],
+    ["latex", "\\frac{a}{b} \\alpha"],
+    ["lisp", '(defun hi () (format t "hi"))'],
   ])("colours %s exactly as @streamdown/code did", async (language, code) => {
     const theirPlugin = createCodePlugin()
     // Shiki stops colouring a line after 500 ms, which a busy machine can
@@ -66,7 +82,28 @@ describe("the code highlighter", () => {
     const ours = await tokensFrom(codeHighlighter, code, language)
     const theirs = await tokensFrom(theirPlugin, code, language)
 
-    expect(ours).toEqual(theirs)
+    expect(JSON.stringify(ours)).toBe(JSON.stringify(theirs))
+  })
+
+  // Chat replies render through assistant-ui, which asks for its own default
+  // rather than getThemes(); a theme the highlighter does not ship stays plain.
+  it("colours chat replies in the themes assistant-ui asks for", async () => {
+    expect(DEFAULT_SHIKI_THEME).toEqual(themes)
+
+    const reply = await tokensFrom(
+      codeHighlighter,
+      "const reply = 1",
+      "ts",
+      DEFAULT_SHIKI_THEME
+    )
+
+    expect(coloured(reply)).toBe(true)
+  })
+
+  it("offers every language Shiki bundles", () => {
+    expect(codeHighlighter.getSupportedLanguages().sort()).toEqual(
+      Object.keys(bundledLanguages).sort()
+    )
   })
 
   it("answers a block it has no tokens for at once, with its plain text", () => {

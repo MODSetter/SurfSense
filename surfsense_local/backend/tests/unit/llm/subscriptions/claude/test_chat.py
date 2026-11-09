@@ -249,11 +249,11 @@ async def test_an_image_goes_beside_the_newest_message(tmp_path: Path) -> None:
 
 
 async def test_the_models_window_comes_from_the_manifest(tmp_path: Path) -> None:
-    """Haiku 5.5 is not in the manifest yet, so its window is unknown, not zero."""
+    """A model the manifest does not hold has an unknown window, not a zero one."""
     provider = _provider(Opener(), tmp_path)
 
     assert await provider.context_tokens("claude-sonnet-5-5") == 1_000_000
-    assert await provider.context_tokens("claude-haiku-5-5") is None
+    assert await provider.context_tokens("claude-not-released") is None
 
 
 async def test_a_run_left_idle_is_closed(tmp_path: Path) -> None:

@@ -7,7 +7,7 @@ own job is one `sys.platform` comparison.
 
 import pytest
 
-from modules.llm.hardware.os_gpu import linux, windows
+from modules.llm.hardware.os_gpu import darwin, linux, windows
 
 pytestmark = pytest.mark.unit
 
@@ -76,3 +76,79 @@ def test_windows_keeps_a_card_whose_name_merely_mentions_a_vendor() -> None:
     output = "Parsec Virtual Display Adapter\nIntel(R) Arc(TM) A770 Graphics\n"
 
     assert windows.parse_adapters(output) == ["Intel(R) Arc(TM) A770 Graphics"]
+
+
+def test_linux_names_each_real_card_by_its_maker(tmp_path) -> None:
+    """sysfs gives a PCI vendor id, not a name, so the maker is the name; an id
+    nobody mapped stays as it is rather than being guessed."""
+    card(tmp_path, 0, "0x8086")
+    card(tmp_path, 1, "0x10de")
+    card(tmp_path, 2, "0x1234")
+    card(tmp_path, 3, "0x5143")
+
+    assert linux.adapter_names(tmp_path) == ["Intel", "NVIDIA", "0x5143"]
+
+
+def test_linux_names_no_adapter_on_a_machine_without_one(tmp_path) -> None:
+    """A headless server lists nothing; a kernel without DRM cannot say."""
+    card(tmp_path, 0, "0x1af4")
+
+    assert linux.adapter_names(tmp_path) == []
+    assert linux.adapter_names(tmp_path / "absent") is None
+
+
+class Finished:
+    """What `subprocess.run` hands back, with only the fields the reader reads."""
+
+    def __init__(self, returncode: int, stdout: str) -> None:
+        self.returncode = returncode
+        self.stdout = stdout
+
+
+@pytest.mark.parametrize(
+    ("finished", "names", "reports"),
+    [
+        (
+            Finished(0, "Parsec Virtual Display Adapter\nNVIDIA GeForce RTX 3050\n"),
+            ["NVIDIA GeForce RTX 3050"],
+            True,
+        ),
+        (Finished(0, "Microsoft Basic Display Adapter\n"), [], False),
+        (Finished(1, "NVIDIA GeForce RTX 3050\n"), None, None),
+    ],
+)
+def test_windows_names_the_adapters_it_counts(
+    monkeypatch: pytest.MonkeyPatch,
+    finished: Finished,
+    names: list[str] | None,
+    reports: bool | None,
+) -> None:
+    """One listing answers both questions, so the names and the verdict never disagree."""
+    monkeypatch.setattr(windows.subprocess, "run", lambda *_, **__: finished)
+
+    assert windows.adapter_names() == names
+    assert windows.reports_gpu() is reports
+
+
+def test_windows_without_powershell_cannot_name_anything(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A missing or hung PowerShell is no answer, never an empty machine."""
+
+    def fails(*_, **__):
+        raise OSError("powershell not found")
+
+    monkeypatch.setattr(windows.subprocess, "run", fails)
+
+    assert windows.adapter_names() is None
+    assert windows.reports_gpu() is None
+
+
+@pytest.mark.parametrize(("machine", "names"), [("arm64", ["Apple"]), ("x86_64", None)])
+def test_a_mac_names_apples_gpu_only_on_apple_silicon(
+    monkeypatch: pytest.MonkeyPatch, machine: str, names: list[str] | None
+) -> None:
+    """The runtime is arm64 only, so an Intel Mac is a machine we cannot name."""
+    monkeypatch.setattr(darwin.platform, "machine", lambda: machine)
+
+    assert darwin.adapter_names() == names

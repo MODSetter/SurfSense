@@ -12,18 +12,19 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 
 from api.config import Settings, get_settings
 from modules.agent.agent_threads.router import router as agent_threads_router
-from modules.agent.engines.claude_code.agent_proxy import serving_agent_proxy
 from modules.agent.engines.thread_engine import close_engines
 from modules.agent.launch_key import mint_launch_key
 from modules.agent.model_endpoint.responses_relay.router import (
     router as agent_responses_router,
 )
 from modules.agent.model_endpoint.router import router as agent_model_router
-from modules.agent.plugin_proxy.server import serving_plugin_proxy
+from modules.agent.plugin_gateway.router import router as agent_plugins_router
 from modules.agent.plugin_tools.router import router as plugin_steps_router
 from modules.agent.previews.router import file_router as agent_preview_files_router
 from modules.agent.previews.router import router as agent_previews_router
+from modules.agent.runtime_proxy.server import serving_runtime_proxy
 from modules.agent.tool_endpoint.router import router as agent_tools_router
+from modules.artifacts.image_edits.router import router as image_edit_router
 from modules.artifacts.podcast.router import router as podcast_router
 from modules.artifacts.router import router as artifacts_router
 from modules.artifacts.studio_documents.router import router as refine_router
@@ -32,6 +33,10 @@ from modules.chat.router import router as chat_router
 from modules.chat.runs.registry import ChatRuns
 from modules.chat.runs.router import router as chat_runs_router
 from modules.documents.router import router as documents_router
+from modules.documents.web_sources.router import router as web_sources_router
+from modules.documents.web_sources.web_search.server_router import (
+    router as search_server_router,
+)
 from modules.egress.router import router as egress_router
 from modules.egress.service import EgressDeniedError
 from modules.embedding.active import EmbeddingNotChosenError
@@ -44,6 +49,11 @@ from modules.events.router import router as events_router
 from modules.folders.finish_deletes import finish_interrupted_deletes
 from modules.folders.router import router as folders_router
 from modules.health.router import router as health_router
+from modules.jobs.packs.delivery.delivery_schedule import delivering_daily
+from modules.jobs.packs.delivery.router import router as job_pack_delivery_router
+from modules.jobs.packs.dev_packs import install_dev_packs
+from modules.jobs.router import router as jobs_router
+from modules.license.renewal.renewal_schedule import renewing_daily
 from modules.license.router import router as license_router
 from modules.llm.admission.local_runtime import LocalAdmission
 from modules.llm.catalog.local.dependencies import get_local_catalog
@@ -73,6 +83,9 @@ from modules.plugins.routes import router as plugins_router
 from modules.resource_usage.router import router as resource_usage_router
 from modules.runtime_packs.office.router import router as office_pack_router
 from modules.source_scope.router import router as source_scope_router
+from modules.usage_statistics.activity_counts import begin_counting
+from modules.usage_statistics.kept import usage_statistics_kept
+from modules.usage_statistics.router import router as usage_statistics_router
 from modules.workspaces.router import router as workspaces_router
 from modules.workspaces.seed import ensure_default_workspace
 from shared.config import get_agent_settings, get_llm_settings, get_storage_settings
@@ -117,7 +130,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             ensure_default_workspace(session)
             settle_interrupted_turns(session)
             session.commit()
+            begin_counting(session)
         app.state.session_factory = session_factory
+        install_dev_packs()
         # A thread too: a large subtree takes a while, and it is out of every
         # scope and the tree meanwhile.
         threading.Thread(
@@ -143,10 +158,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             name="catalog-warm",
             daemon=True,
         ).start()
+        # Last in, so it stops first; it runs after the developer's packs are installed.
         async with (
-            _plugin_proxy(session_factory),
+            _opencode_proxy(session_factory),
             serving_claude_proxy(session_factory, get_settings().host),
-            serving_agent_proxy(session_factory, get_settings().host),
+            renewing_daily(session_factory),
+            delivering_daily(session_factory),
         ):
             yield
     finally:
@@ -156,14 +173,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 @asynccontextmanager
-async def _plugin_proxy(session_factory: sessionmaker[Session]) -> AsyncIterator[None]:
-    """opencode's way out, beside an opencode only: without it, opencode reaches no plugin."""
+async def _opencode_proxy(
+    session_factory: sessionmaker[Session],
+) -> AsyncIterator[None]:
+    """Where opencode's proxy variables point, beside an opencode only; it refuses every host."""
     agent = get_agent_settings()
-    if not agent.has_opencode() or agent.plugin_proxy_port is None:
+    if not agent.has_opencode() or agent.opencode_proxy_port is None:
         yield
         return
     host = get_settings().host
-    async with serving_plugin_proxy(session_factory, host, agent.plugin_proxy_port):
+    async with serving_runtime_proxy(session_factory, host, agent.opencode_proxy_port):
         yield
 
 
@@ -237,6 +256,8 @@ def create_app() -> FastAPI:
     app.include_router(health_router)
     app.include_router(workspaces_router)
     app.include_router(documents_router)
+    app.include_router(web_sources_router)
+    app.include_router(search_server_router)
     app.include_router(folders_router)
     app.include_router(llm_router)
     app.include_router(model_route_router)
@@ -247,13 +268,18 @@ def create_app() -> FastAPI:
     app.include_router(artifacts_router)
     app.include_router(podcast_router)
     app.include_router(refine_router)
+    app.include_router(image_edit_router)
     app.include_router(events_router)
     app.include_router(migration_router)
     app.include_router(license_router)
+    app.include_router(jobs_router)
+    app.include_router(job_pack_delivery_router)
     app.include_router(egress_router)
     app.include_router(embedding_router)
     app.include_router(embedding_huggingface_router)
     app.include_router(resource_usage_router)
+    if usage_statistics_kept():
+        app.include_router(usage_statistics_router)
     app.include_router(office_pack_router)
     # Before `/plugins/{id}/...`, which would otherwise take `registry` or `license` for an id.
     app.include_router(plugin_registry_router)
@@ -262,6 +288,7 @@ def create_app() -> FastAPI:
     app.include_router(plugins_router)
     # Whichever engine runs a thread calls its tools and is answered through these.
     app.include_router(agent_tools_router)
+    app.include_router(agent_plugins_router)
     app.include_router(agent_threads_router)
     app.include_router(plugin_steps_router)
     # Routes only opencode calls, or that answer it, exist only beside one.

@@ -43,7 +43,9 @@ async def open_agent_session(
             fresh_thread_folder, thread.workspace_id, thread.id
         )
         live_instances.instance_used(folder)
-        return await ready.client.create_session(folder, thread.title or "New chat")
+        return await ready.client.create_session(
+            folder, thread.title or "New chat", model=ready.model
+        )
     except OSError:
         logger.warning(
             "thread %s opens as a chat: its folder holds a deleted thread's files",

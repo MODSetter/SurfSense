@@ -44,6 +44,17 @@ export function setDestinationsEnabled(
 const CLAUDE_API_HOST = "api.anthropic.com"
 const CLAUDE_SIGN_IN_HOST = "platform.claude.com"
 
+// SurfSense's own plugins: one of the two hosts the license key is sent to.
+const SURFSENSE_PLUGIN_HOST = "plugins.surfsense.com"
+// SurfSense's own SearXNG server, where Add from the web searches by default.
+const SURFSENSE_SEARCH_HOST = "searxng.surfsense.com"
+// HUGGINGFACE's host: a page read there shares model search's row.
+const HUGGINGFACE_HOST = "huggingface.co"
+
+// SurfSense's license server, the other: a renewed license file for the key,
+// and the jobs the license includes.
+const LICENSE_SERVER = "host:api.surfsense.com"
+
 export type DestinationCopy = {
   label: string
   title: string
@@ -63,23 +74,55 @@ export function describeDestination(
   purpose?: string,
   also: string[] = []
 ): DestinationCopy {
-  if (purpose === "claude_plan" || host === CLAUDE_SIGN_IN_HOST)
+  if (
+    purpose === "claude_plan" ||
+    (host === CLAUDE_SIGN_IN_HOST && purpose !== "web_page")
+  )
     return describeClaudePlan([host, ...also])
   const one = describeOne(destination, host, purpose)
-  return {
-    ...one,
-    details: also.length
-      ? [
-          intl.formatMessage(
-            {
-              id: "egress_prompt_also_allows_body",
-              defaultMessage: "Allowing also lets SurfSense reach {hosts}.",
-            },
-            { hosts: intl.formatList(also, { type: "conjunction" }) }
-          ),
-        ]
-      : [],
-  }
+  const details = []
+  if (also.length)
+    details.push(
+      intl.formatMessage(
+        {
+          id: "egress_prompt_also_allows_body",
+          defaultMessage: "Allowing also lets SurfSense reach {hosts}.",
+        },
+        { hosts: intl.formatList(also, { type: "conjunction" }) }
+      )
+    )
+  // One row per host: once a page there is allowed, model search never asks.
+  if (purpose === "web_page" && [host, ...also].includes(HUGGINGFACE_HOST))
+    details.push(
+      intl.formatMessage(
+        {
+          id: "egress_web_page_huggingface_body",
+          defaultMessage:
+            "Allowing also turns on model search and downloads from {host}: searching sends what you type as you type it.",
+        },
+        { host: HUGGINGFACE_HOST }
+      )
+    )
+  if (purpose === "web_search" && host === SURFSENSE_SEARCH_HOST)
+    details.push(
+      intl.formatMessage({
+        id: "egress_web_search_surfsense_body",
+        defaultMessage: "SurfSense runs this server.",
+      })
+    )
+  // The registry's own copy already says this; a plugin's does not.
+  if (purpose === "plugin" && [host, ...also].includes(SURFSENSE_PLUGIN_HOST))
+    details.push(
+      intl.formatMessage(
+        {
+          id: "egress_plugin_license_body",
+          defaultMessage:
+            "For SurfSense’s paid plugins, {host} also gets your license key, so the service can check it.",
+        },
+        { host: SURFSENSE_PLUGIN_HOST }
+      )
+    )
+  return { ...one, details }
 }
 
 // Each host's own sentence, since one gets chats and the other only a sign-in.
@@ -126,6 +169,56 @@ function describeClaudePlan(hosts: string[]): DestinationCopy {
   }
 }
 
+// An admin policy's mirror never falls back to GitHub and serves the download
+// too; an Electron main without the privacy bridge reads GitHub's releases alone.
+function updatesBody(host: string, purpose?: string) {
+  if (purpose === "update_mirror")
+    return intl.formatMessage(
+      {
+        id: "egress_app_updates_mirror_prompt_body",
+        defaultMessage:
+          "Once a day, SurfSense asks {host}, the update server your organization set, whether a newer version exists. The request sends your IP address, the app’s name and version, your operating system and its architecture, and no ID. A newer version downloads from {host} and installs when you restart from the prompt or the next time you quit. Allowing also turns on the daily check, which you can switch off in Settings › Network.",
+      },
+      { host }
+    )
+  if (purpose === "github_releases")
+    return intl.formatMessage(
+      {
+        id: "egress_app_updates_github_prompt_body",
+        defaultMessage:
+          "A check reads the list of releases on {host}, then asks for the release file for your platform: Windows, macOS or Linux. It sends your IP address and identifies itself only as electron-builder, with no version and no ID. GitHub serves its release files from githubusercontent.com, which also sees your IP address. A newer version downloads on its own and installs when you restart from the prompt or the next time you quit. Allowing also turns on the check at launch, which you can switch off in Settings › Network.",
+      },
+      { host }
+    )
+  return intl.formatMessage(
+    {
+      id: "egress_app_updates_prompt_body",
+      defaultMessage:
+        "Once a day, SurfSense asks {host} whether a newer version exists. The request sends your IP address, the app’s name and version, your operating system and its architecture, and no ID. If {host} cannot answer, SurfSense asks github.com instead, sending only your IP address and the app’s name. A newer version downloads from github.com, whose download host, githubusercontent.com, also sees your IP address. It installs when you restart from the prompt or the next time you quit. Allowing also turns on the daily check, which you can switch off in Settings › Network.",
+    },
+    { host }
+  )
+}
+
+// The question names the errand that asked; one the refusal does not name
+// asks about the server itself.
+function licenseServerTitle(purpose?: string) {
+  if (purpose === "job_packs")
+    return intl.formatMessage({
+      id: "egress_license_server_jobs_prompt_title",
+      defaultMessage: "Allow downloading your jobs?",
+    })
+  if (purpose === "license_refresh")
+    return intl.formatMessage({
+      id: "egress_license_renewal_prompt_title",
+      defaultMessage: "Allow checking for license renewals?",
+    })
+  return intl.formatMessage({
+    id: "egress_license_server_prompt_title",
+    defaultMessage: "Allow reaching SurfSense’s license server?",
+  })
+}
+
 function describeOne(destination: string, host: string, purpose?: string) {
   if (destination === "app_updates") {
     return {
@@ -137,11 +230,26 @@ function describeOne(destination: string, host: string, purpose?: string) {
         id: "egress_app_updates_prompt_title",
         defaultMessage: "Allow SurfSense to check for updates?",
       }),
+      body: updatesBody(host, purpose),
+    }
+  }
+  // Add from the web and the agent read each page from its own site, on the
+  // user's connection. Before the hosts below: any of them can be a page's.
+  if (purpose === "web_page") {
+    return {
+      label: host,
+      title: intl.formatMessage(
+        {
+          id: "egress_web_page_prompt_title",
+          defaultMessage: "Allow reading pages from {host}?",
+        },
+        { host }
+      ),
       body: intl.formatMessage(
         {
-          id: "egress_app_updates_prompt_body",
+          id: "egress_web_page_prompt_body",
           defaultMessage:
-            "Checking asks {host} for the latest release. SurfSense sends your IP address and the version you are running, nothing else. Allowing also turns on the check at launch, which you can switch off in Settings › Network.",
+            "SurfSense reads pages and videos from {host} on your own connection, as your browser would, when you add one from the web or the agent reads one. The site gets the page’s address and your IP address. An address the agent chooses can carry words from your chats or files, such as a search term, but nothing else from them is sent. You can turn this off any time in Settings › Network.",
         },
         { host }
       ),
@@ -170,11 +278,9 @@ function describeOne(destination: string, host: string, purpose?: string) {
       ),
     }
   }
-  // Office support's download is the only errand to The Document Foundation.
-  if (
-    host === "documentfoundation.org" ||
-    host.endsWith(".documentfoundation.org")
-  ) {
+  // Office support's download, from the host the Office pack pins (pin.py);
+  // other Document Foundation sites are pages like any other.
+  if (host === "downloadarchive.documentfoundation.org") {
     return {
       label: intl.formatMessage({
         id: "egress_office_download_label",
@@ -194,7 +300,35 @@ function describeOne(destination: string, host: string, purpose?: string) {
       ),
     }
   }
-  // The registry's host is also SurfSense's own plugins', so one answer covers both.
+  // A search goes to a SearXNG server, which asks search engines in turn.
+  if (purpose === "web_search" || host === SURFSENSE_SEARCH_HOST) {
+    return {
+      label:
+        host === SURFSENSE_SEARCH_HOST
+          ? intl.formatMessage({
+              id: "egress_web_search_label",
+              defaultMessage: "Web search",
+            })
+          : host,
+      title: intl.formatMessage(
+        {
+          id: "egress_web_search_prompt_title",
+          defaultMessage: "Allow searching with {host}?",
+        },
+        { host }
+      ),
+      body: intl.formatMessage(
+        {
+          id: "egress_web_search_prompt_body",
+          defaultMessage:
+            "SurfSense sends what you search for to {host}, a SearXNG server that asks search engines for you. It gets your search and your IP address. A search the agent writes can carry words from your chats or files, but nothing else from them is sent. You can choose another server, or turn this off, in Settings › Network.",
+        },
+        { host }
+      ),
+    }
+  }
+  // The registry's host is also SurfSense's own plugins', so one answer covers
+  // both, and says what using them sends.
   if (purpose === "plugin_registry") {
     return {
       label: host,
@@ -206,7 +340,32 @@ function describeOne(destination: string, host: string, purpose?: string) {
         {
           id: "egress_plugin_registry_prompt_body",
           defaultMessage:
-            "SurfSense fetches the list of third-party plugins from {host}, sending your IP address and nothing else. SurfSense’s own plugins run on the same host, so this also lets you connect them. You can turn this off any time in Settings › Network.",
+            "SurfSense fetches the list of third-party plugins from {host}, sending your IP address and nothing else. SurfSense’s own plugins run on the same host, so this also lets you connect them. Using them sends {host} what each tool needs and, for the paid ones, your license key so the service can check it. You can turn this off any time in Settings › Network.",
+        },
+        { host }
+      ),
+    }
+  }
+  // Renewal and the license's jobs are two errands to one server, so one
+  // answer covers both and says what each sends. Allowing also lets the app's
+  // own daily checks reach it, which no dialog can ask about later (ADR 0060).
+  // A mirror's row is named by its host.
+  if (
+    purpose === "license_refresh" ||
+    purpose === "job_packs" ||
+    destination === LICENSE_SERVER
+  ) {
+    return {
+      label: intl.formatMessage({
+        id: "egress_license_server_label",
+        defaultMessage: "License server",
+      }),
+      title: licenseServerTitle(purpose),
+      body: intl.formatMessage(
+        {
+          id: "egress_license_server_prompt_body",
+          defaultMessage:
+            "SurfSense asks {host}, its license server, for your license’s latest file and for the jobs your license includes, sending your license key and your IP address. A job download also sends the job’s code, the version you already have and the kinds of job this version of SurfSense can run. Allowing also lets SurfSense check on its own when it starts and once a day: for a renewal, from 30 days before a Business license ends until 30 days after, and for newer versions of your jobs, while a license with jobs is active. A check for a job that comes during a run of it is made again once the run ends. You can turn this off any time in Settings › Network.",
         },
         { host }
       ),

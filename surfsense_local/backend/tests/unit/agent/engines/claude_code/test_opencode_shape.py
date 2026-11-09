@@ -139,7 +139,7 @@ def test_a_tool_call_is_a_step_named_and_shown_as_opencodes() -> None:
     assert [s["status"] for s in steps] == ["pending", "running", "completed"]
     assert steps[-1]["tool"] == "read"
     assert steps[-1]["call_id"] == "toolu_1"
-    assert steps[-1]["input"] == {"filePath": "sources/q3.txt"}
+    assert steps[-1]["input"] == {"path": "sources/q3.txt"}
     assert steps[-1]["output"] == "Q3 revenue: 12%"
 
 

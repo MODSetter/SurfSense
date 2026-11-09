@@ -15,7 +15,9 @@ from shared.config import get_storage_settings
 
 pytestmark = pytest.mark.integration
 
-EXAMPLE = Path(__file__).resolve().parents[6] / "plugins" / "bundles" / "example"
+EXAMPLE = (
+    Path(__file__).resolve().parents[6] / "backend" / "plugins" / "bundles" / "example"
+)
 VERSION = "2.0.3"
 
 

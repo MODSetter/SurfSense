@@ -41,9 +41,15 @@ import { ChatImageAdapter, previewOf, uploadsOf } from "./image-attachments"
 import { AGENTIC_REFUSALS, agenticRefusedText } from "./modes/mode-text"
 import { AGENTIC_GATES, type NewChatChoice } from "./modes/new-chat-mode"
 import type { LiveThreadSource } from "./live-thread-runtime"
+import {
+  boxTextOf,
+  sentMessage,
+  type ShownMention,
+} from "./mentions/mention-text"
 import { isClaudeCodeRefusal } from "./claude-code-refusal"
 import { chatKeys } from "./query-keys"
 import { clearDraftScope } from "./use-thread-scope"
+import { useRefreshQueuedVersions } from "./use-refresh-queued-versions"
 import type { LivePair } from "./runs/apply-frame"
 import {
   beginRun,
@@ -59,6 +65,7 @@ import {
   type RunState,
 } from "./runs/run-store"
 import { storedUploads } from "./runs/stored-uploads"
+import { readLastThread, rememberThread } from "./last-thread"
 import { markRead, markUnread, readUnread } from "./runs/unread-replies"
 import type { ChatErrorKind, ChatStreamEvent } from "./sse"
 import { composedThread, isOptimistic, OPTIMISTIC_ID } from "./thread-messages"
@@ -130,12 +137,6 @@ function listedRunState(thread: ChatThread): RunState | null {
   return { state: "running" }
 }
 
-function lastThreadKey(workspaceId: number) {
-  return `surfsense:last-thread:${workspaceId}:v1`
-}
-
-const NEW_CHAT = "new"
-
 export type ConversationView =
   // `returned` is what a refused send hands back to the composer.
   | { status: "new"; returned?: ReturnedDraft }
@@ -144,29 +145,9 @@ export type ConversationView =
 
 export type ReturnedDraft = { text: string; images: ImageUpload[] }
 
-function rememberThread(workspaceId: number, threadId: number | null) {
-  try {
-    localStorage.setItem(
-      lastThreadKey(workspaceId),
-      threadId === null ? NEW_CHAT : String(threadId)
-    )
-  } catch {
-    // Selection remains valid for this session when storage is unavailable.
-  }
-}
-
 function readStoredView(workspaceId: number): ConversationView {
-  try {
-    const stored = localStorage.getItem(lastThreadKey(workspaceId))
-    if (stored === NEW_CHAT) return { status: "new" }
-    const id = Number(stored)
-    if (Number.isInteger(id) && id > 0) {
-      return { status: "active", threadId: id }
-    }
-  } catch {
-    // Private browsing: treat as a new chat.
-  }
-  return { status: "new" }
+  const threadId = readLastThread(workspaceId)
+  return threadId === null ? { status: "new" } : { status: "active", threadId }
 }
 
 function stoppedBeforeAWord(pair: LivePair) {
@@ -194,7 +175,8 @@ function optimisticPair(
   version: number,
   text: string,
   images: ImageUpload[],
-  scope: TurnSources | null
+  scope: TurnSources | null,
+  mentions: readonly ShownMention[]
 ): LivePair {
   return [
     {
@@ -204,6 +186,7 @@ function optimisticPair(
         text,
         ...(images.length > 0 ? { previews: images.map(previewOf) } : {}),
         ...(scope ? { scope } : {}),
+        ...(mentions.length > 0 ? { mentions: [...mentions] } : {}),
       },
       created_at: null,
       completed_at: null,
@@ -311,6 +294,7 @@ export function useChatRuntime({
   const activeRun =
     activeThreadId === null ? null : (runs[activeThreadId] ?? null)
   const isRunning = activeRun !== null && !activeRun.ended
+  useRefreshQueuedVersions(workspaceId, activeThreadId, isRunning)
 
   const createThreadMutation = useMutation({
     mutationFn: ({
@@ -594,7 +578,8 @@ export function useChatRuntime({
       typed: string,
       images: ImageUpload[] = [],
       retryOf: number | null = null,
-      replaces: ReadonlyArray<number | string> = []
+      replaces: ReadonlyArray<number | string> = [],
+      mentions: readonly ShownMention[] = []
     ) => {
       // The backend needs a question for retrieval and the title; an image sent
       // alone asks the obvious one.
@@ -628,7 +613,7 @@ export function useChatRuntime({
         if (threadId === null) {
           setConversationView({
             status: "new",
-            returned: { text: typed, images },
+            returned: { text: boxTextOf(typed, mentions), images },
           })
         }
         errorToast(
@@ -676,7 +661,7 @@ export function useChatRuntime({
           // agent; what was typed comes back rather than being lost.
           setConversationView({
             status: "new",
-            returned: { text: typed, images },
+            returned: { text: boxTextOf(typed, mentions), images },
           })
         }
         if (
@@ -709,7 +694,8 @@ export function useChatRuntime({
                 document_ids: selectedDocumentIds,
                 titles: selectedSourceTitles,
               }
-            : null
+            : null,
+          mentions
         ),
         replaces,
         retry: { text, images },
@@ -725,6 +711,7 @@ export function useChatRuntime({
             sourceScope,
             !canSkipThinking || readThinkingOn(),
             retryOf,
+            mentions,
             signal
           )
         )
@@ -743,7 +730,7 @@ export function useChatRuntime({
             setConversationView({
               status: "active",
               threadId: runThreadId,
-              returned: { text: typed, images },
+              returned: { text: boxTextOf(typed, mentions), images },
             })
           }
           onModelCheck?.()
@@ -822,8 +809,10 @@ export function useChatRuntime({
   )
 
   const onNew = useCallback(
-    (appendMessage: AppendMessage) =>
-      send(submittedText(appendMessage), uploadsOf(appendMessage)),
+    (appendMessage: AppendMessage) => {
+      const { text, mentions } = sentMessage(submittedText(appendMessage))
+      return send(text, uploadsOf(appendMessage), null, [], mentions)
+    },
     [send]
   )
 
@@ -860,10 +849,13 @@ export function useChatRuntime({
           activeThread?.uses_agent || typeof failed.id !== "number"
             ? null
             : failed.id
-        await send(question.content.text ?? "", images, retryOf, [
-          question.id,
-          failed.id,
-        ])
+        await send(
+          question.content.text ?? "",
+          images,
+          retryOf,
+          [question.id, failed.id],
+          question.content.mentions
+        )
       })()
     },
     [activeThread, activeThreadId, queryClient, send]

@@ -22,6 +22,13 @@ def record_check(
     plugin.checked_at = datetime.now(UTC)
     if isinstance(listed, ServerError):
         failure = check_failure(listed)
+        if listed.scopes:
+            # Signing in again asks for them: Needs more access, not Signed out.
+            auth = plugin.entry.get("auth", {})
+            plugin.entry = {
+                **plugin.entry,
+                "auth": {**auth, "needs_scopes": listed.scopes},
+            }
         # No answer is no news: a server out of reach, or Keygen down, keeps a license verdict.
         if not (
             failure == CheckFailure.UNREACHABLE

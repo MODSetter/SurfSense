@@ -9,10 +9,12 @@ import {
 } from "react"
 
 import { getFileViewer } from "@/features/file-viewers/registry"
+import { motionIsReduced } from "@/features/motion-preference/motion-preference"
 import { useStableCallback } from "@/hooks/use-stable-callback"
 import { intl } from "@/i18n/intl"
 
 import type { WorkspaceDocument } from "../api"
+import { downloadsOriginals } from "../download-original"
 import type { TranscriptionPace } from "../transcription/pace"
 import { DocumentRow } from "./document-row"
 import { FolderRow } from "./folder-row"
@@ -99,7 +101,10 @@ export const SourceTree = memo(function SourceTree({
     if (highlightedDocumentId === null) return
     rowElements.current
       .get(documentKey(highlightedDocumentId))
-      ?.scrollIntoView({ behavior: "smooth", block: "nearest" })
+      ?.scrollIntoView({
+        behavior: motionIsReduced() ? "auto" : "smooth",
+        block: "nearest",
+      })
   }, [highlightedDocumentId])
 
   const focusRow = (row: TreeRow | undefined) => {
@@ -132,7 +137,8 @@ export const SourceTree = memo(function SourceTree({
       documentActions.onPreview?.(document.id)
     } else if (
       document.status === "ready" &&
-      document.document_type === "FILE"
+      document.document_type === "FILE" &&
+      !downloadsOriginals()
     ) {
       documentActions.onOpen(document.id)
     }

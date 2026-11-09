@@ -18,7 +18,10 @@ from mcp.client.auth import OAuthFlowError
 from mcp.shared.auth import AuthorizationCodeResult, OAuthClientInformationFull
 from sqlalchemy.orm import Session
 
+from api.config import get_settings
+from modules.plugins.installed.models import PluginSource
 from modules.plugins.remote.mcp_client.server_error import ServerError
+from modules.plugins.remote.sign_in.oauth.browser_origin import BrowserOrigin
 from modules.plugins.remote.sign_in.oauth.consented_client import HostNotAllowedError
 from modules.plugins.remote.sign_in.oauth.oauth_credential import OAuthCredential
 from modules.plugins.remote.sign_in.oauth.pending_storage import PendingStorage
@@ -35,7 +38,7 @@ from modules.plugins.remote.sign_in.oauth.signed_in_plugin import (
     store_signed_in,
 )
 from modules.plugins.remote.sign_in.token_headers import token_headers
-from modules.plugins.remote.source import RemoteMcpSource
+from modules.plugins.remote.streamable_only import listed_streamable
 
 # Long enough to sign in and approve in a browser; an abandoned one is then forgotten.
 SIGN_IN_SECONDS = 600
@@ -105,12 +108,18 @@ class PluginSignIns:
             pending.task.cancel()
         return True
 
+    def cancel_third_party(self) -> None:
+        """Third-party plugins turned off: no sign-in under way reaches its provider after."""
+        for sign_in_id, pending in list(self._pending.items()):
+            if pending.draft.source != PluginSource.FIRST_PARTY:
+                self.cancel(sign_in_id)
+
     async def start(
         self,
         draft: PluginDraft,
         allowed_hosts: set[str],
         session_factory: SessionFactory,
-        port: int,
+        origin: BrowserOrigin,
     ) -> PendingSignIn:
         """Answers once the authorization URL is ready; raises what stopped it before."""
         self._forget_expired()
@@ -124,7 +133,7 @@ class PluginSignIns:
         )
         self._pending[pending.id] = pending
         pending.task = asyncio.create_task(
-            self._run(pending, allowed_hosts, session_factory, port)
+            self._run(pending, allowed_hosts, session_factory, origin)
         )
         try:
             await asyncio.wait_for(asyncio.shield(pending.started), START_SECONDS)
@@ -184,15 +193,18 @@ class PluginSignIns:
         pending: PendingSignIn,
         allowed_hosts: set[str],
         session_factory: SessionFactory,
-        port: int,
+        origin: BrowserOrigin,
     ) -> None:
-        client = sign_in_client(port)
+        client = sign_in_client(origin)
         draft = pending.draft
 
         async def open_browser(url: str) -> None:
             parts = urlsplit(url)
             query = dict(parse_qsl(parts.query))
             pending.nonce = query["state"]
+            # The port is read only by the plugin host's page, which forwards a
+            # loopback sign-in; another origin's callback is the API itself.
+            port = origin.port if origin.is_loopback else get_settings().port
             query["state"] = state_for(port, pending.nonce)
             if draft.scopes:
                 query["scope"] = " ".join(draft.scopes)
@@ -217,11 +229,16 @@ class PluginSignIns:
                 allowed_hosts,
                 open_browser,
                 code_returned,
+                draft.confidential,
             )
-            tools = await RemoteMcpSource(
+            # As adding a server without a sign-in does: Streamable HTTP alone, an
+            # address that answers only the older SSE refused as one.
+            tools = await listed_streamable(
                 draft.url, token_headers(credential.tokens.access_token)
-            ).list_tools()
-            await asyncio.to_thread(_store, session_factory, draft, credential, tools)
+            )
+            # The draft as it is now: saved before the browser came back, it signs in again.
+            stored = pending.draft
+            await asyncio.to_thread(_store, session_factory, stored, credential, tools)
             pending.status = "connected"
         except Exception as error:
             if not pending.started.done():
@@ -246,7 +263,10 @@ def _known_client(
     if draft.client_id:
         return OAuthClientInformationFull(
             client_id=draft.client_id,
-            token_endpoint_auth_method="none",
+            client_secret=draft.client_secret,
+            token_endpoint_auth_method=(
+                "client_secret_post" if draft.client_secret else "none"
+            ),
             redirect_uris=[client.redirect_uri],
         )
     previous = draft.previous_client

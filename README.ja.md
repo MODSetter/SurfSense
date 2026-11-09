@@ -11,7 +11,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Discord](https://img.shields.io/discord/1359368468260192417?label=Discord)](https://discord.gg/ejRNvftDp9)
 
-  <a href="https://www.surfsense.com/"><img alt="SurfSense。ネットワークから切り離して使える、オープンソースの NotebookLM 代替" src="surfsense_web/public/homepage/banner.png" /></a>
+  <a href="https://www.surfsense.com/"><img alt="SurfSense。ネットワークから切り離して使える、オープンソースの NotebookLM 代替" src="www/public/homepage/banner.png" /></a>
 
   <h1>SurfSense</h1>
 
@@ -38,18 +38,26 @@
   </p>
 </div>
 
+**契約書に変更履歴とコメントで朱入れ**
+
 https://github.com/user-attachments/assets/88326b9d-e763-46db-9635-75f9df9e8682
+
+**ウェブからソースを追加して、Webページに仕上げる**
+
+https://github.com/user-attachments/assets/073577b7-f055-4f59-8540-330bd764aeb0
 
 SurfSense は、アップロードできない文書のための、無料のオープンソース・デスクトップアプリです。プライバシーを重視した NotebookLM のような AI エージェントが、手元の文書を自分のマシン上で調査し、変換し、編集します。索引は自分のディスクに残り、モデルはローカルでもリモートでも自分で選べます。アカウントも要りません。
 
 | プラットフォーム | ダウンロード |
 |---|---|
-| **Windows** x64 | [SurfSense-Setup.exe](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense-Setup.exe) |
-| **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense-arm64.dmg) |
-| **Linux** x64 | [AppImage](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense.AppImage) · [deb](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense.deb) |
+| **Windows** x64 | [SurfSense-Setup.exe](https://www.surfsense.com/downloads/windows?src=readme) |
+| **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
+| **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
+| **Docker** Linux, macOS | `curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh \| bash` |
+| **Docker** Windows (Docker Desktop) | `irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 \| iex` |
 
 > [!NOTE]
-> **ホスト版の Web アプリを使っていましたか？** 2026 年 10 月 18 日より前にワークスペースをエクスポートし、こちらにインポートしてください。詳細は[提供終了のページ](https://www.surfsense.com/sunset)をご覧ください。
+> Docker でサーバーにセルフホストし、ネットワーク上のどのデバイスからでも開けます。更新するには、同じコマンドをもう一度実行してください。
 
 ## クイックスタート
 
@@ -66,9 +74,10 @@ SurfSense は、アップロードできない文書のための、無料のオ�
 | **Excel** `.xlsx` | ✓ エージェントは数式も読み取る | ✓ 数式とネイティブのグラフ付き | ✓ セルの値と数式 | pandas で分析し、結果をグラフにする |
 | **PowerPoint** `.pptx` | ✓ | ✓ 自分の `.pptx` をテンプレートにすることも可能 | スライドとノートのテキストを置換。スライドの削除や複製 | PDF へ¹ |
 | **CSV** | ✓ | — | — | pandas で分析し、結果をグラフにする |
-| **画像** PNG、JPEG、TIFF、BMP、WebP | ✓ 文字は OCR で読み取る³ | 画像とインフォグラフィック² | — | 新しい文書に配置する |
+| **画像** PNG、JPEG、TIFF、BMP、WebP | ✓ 文字は OCR で読み取る³ | 画像とインフォグラフィック、指示で編集² | — | 新しい文書に配置する |
 | **Markdown**、プレーンテキスト | ✓ | ✓ Markdown | — | — |
 | **HTML** | ✓ | ✓ Webページ | — | — |
+| **電子書籍** EPUB、MOBI、AZW3 | ✓ DRM なし | — | — | — |
 | **録音** WAV、MP3、FLAC、Ogg Vorbis | ✓ 自分のマシン上で文字起こし | — | — | — |
 | **ポッドキャスト**（音声） | — | ✓ 文字起こし付き。初期状態では自分のマシン上で読み上げる | — | — |
 | **マインドマップ、フラッシュカード、クイズ** | — | ✓ アプリ内で | — | — |
@@ -79,22 +88,9 @@ SurfSense は、アップロードできない文書のための、無料のオ�
 
 ## プラグイン
 
-**設定 › プラグイン**で接続します。
+**設定 › プラグイン**で、[プラグインレジストリ](backend/plugins/registry)にある DeepWiki や Notion などの MCP サーバーや、URL を指定して自分で追加したサーバーを接続します。許可するまではオフのままです。
 
-**SurfSense提供。** 自分のアカウントを使わずに公開ページを読み取ります。利用には SurfSense ライセンスが必要です。[アプリをダウンロード](https://www.surfsense.com/downloads)し、アプリでメールアドレスを入力すると、30 日間の無料ライセンスを受け取れます。
-
-| プラグイン | できること |
-|---|---|
-| **Google Search** | Google で検索し、検索結果、広告、関連する質問を読み取る |
-| **Web Crawl** | Webページを読み取るか、サイト全体をクロールしてクリーンなテキストにする |
-| **YouTube** | YouTube の動画、チャンネル、それらのコメントを読み取る |
-| **TikTok** | TikTok の動画とそのコメントを読み取り、ユーザーを検索し、トレンドを確認する |
-| **Google Maps** | Google Maps で場所を探し、そのレビューを読み取る |
-| **Amazon** | Amazon の商品と検索結果を読み取る |
-| **Walmart** | Walmart の商品、検索結果、レビューを読み取る |
-| **Indeed** | Indeed の求人情報を読み取る |
-
-**サードパーティ。** [プラグインレジストリ](plugins/registry)にある DeepWiki や Notion などの MCP サーバーや、URL を指定して自分で追加したサーバーです。ライセンスは不要で、許可するまではオフのままです。
+**標準搭載・無料：** エージェントも、ソースにある**ウェブから追加**も、SearXNG を通じてウェブを検索し、自分のインターネット接続でページと YouTube の文字起こしを読み取ります。プラグインもライセンスも不要です。
 
 ## SurfSenseの比較
 

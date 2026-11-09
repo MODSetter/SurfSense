@@ -1,0 +1,13 @@
+# The container's one listener, over plain HTTP: the default, for the host
+# itself. Caddyfile.lan and Caddyfile.domain add HTTPS for other devices. The
+# headless entry picks one, and starts Caddy with the API's loopback port,
+# ChatGPT's callback port and the SPA's folder in its environment.
+{
+	admin off
+	auto_https off
+}
+
+:80 {
+	# In order, as written: the access check runs before any route.
+	import routes.caddy
+}

@@ -36,10 +36,22 @@ class StandInAuthorizationServer:
     deny_with: str | None = None
     # Refreshing answers `400 invalid_grant`, as for a revoked grant.
     refuse_refresh: bool = False
+    # False: no `registration_endpoint`, as a provider taking only apps registered in advance.
+    registration: bool = True
+    # Clients registered in advance, by id, each with the secret its token requests must send.
+    secret_clients: dict[str, str] = field(default_factory=dict)
+    # False: registers only clients that will hold a secret, as Figma's metadata says.
+    public_registration: bool = True
+    # True: refuses every registration, as a provider taking only apps it approved.
+    refuse_registration: bool = False
     registered: list[dict] = field(default_factory=list)
+    # Every registration asked for, accepted or not.
+    registration_attempts: int = 0
     authorize_requests: list[dict[str, str]] = field(default_factory=list)
     token_requests: list[dict[str, str]] = field(default_factory=list)
     access_tokens: set[str] = field(default_factory=set)
+    # The scope each access token was issued with.
+    token_scopes: dict[str, str] = field(default_factory=dict)
     _codes: dict[str, _Code] = field(default_factory=dict)
     _refresh_tokens: dict[str, str] = field(default_factory=dict)
     _issued: int = 0
@@ -59,25 +71,40 @@ class StandInAuthorizationServer:
         self.access_tokens.clear()
 
     async def _metadata(self, _: Request) -> Response:
-        return JSONResponse(
-            {
-                "issuer": self.issuer,
-                "authorization_endpoint": f"{self.issuer}/authorize",
-                "token_endpoint": f"{self.issuer}/token",
-                "registration_endpoint": f"{self.issuer}/register",
-                "response_types_supported": ["code"],
-                "code_challenge_methods_supported": ["S256"],
-                "token_endpoint_auth_methods_supported": ["none"],
-                "client_id_metadata_document_supported": self.supports_client_metadata_document,
-            }
-        )
+        metadata = {
+            "issuer": self.issuer,
+            "authorization_endpoint": f"{self.issuer}/authorize",
+            "token_endpoint": f"{self.issuer}/token",
+            "response_types_supported": ["code"],
+            "code_challenge_methods_supported": ["S256"],
+            "token_endpoint_auth_methods_supported": (
+                ["none", "client_secret_post"]
+                if self.public_registration
+                else ["client_secret_post"]
+            ),
+            "client_id_metadata_document_supported": self.supports_client_metadata_document,
+        }
+        if self.registration:
+            metadata["registration_endpoint"] = f"{self.issuer}/register"
+        return JSONResponse(metadata)
 
     async def _register(self, request: Request) -> Response:
+        self.registration_attempts += 1
+        if not self.registration:
+            return Response(status_code=404)
         metadata = await request.json()
         self.registered.append(metadata)
-        return JSONResponse(
-            {**metadata, "client_id": f"client-{len(self.registered)}"}, 201
-        )
+        if self.refuse_registration:
+            return JSONResponse({"error": "unapproved_software_statement"}, 403)
+        method = metadata.get("token_endpoint_auth_method", "none")
+        if method == "none" and not self.public_registration:
+            return JSONResponse({"error": "invalid_client_metadata"}, 400)
+        client_id = f"client-{len(self.registered)}"
+        answer = {**metadata, "client_id": client_id}
+        if method != "none":
+            answer["client_secret"] = f"secret-{len(self.registered)}"
+            self.secret_clients[client_id] = answer["client_secret"]
+        return JSONResponse(answer, 201)
 
     async def _authorize(self, request: Request) -> Response:
         query = dict(request.query_params)
@@ -99,6 +126,9 @@ class StandInAuthorizationServer:
     async def _token(self, request: Request) -> Response:
         form = dict(await request.form())
         self.token_requests.append(form)
+        secret = self.secret_clients.get(form.get("client_id", ""))
+        if secret is not None and form.get("client_secret") != secret:
+            return JSONResponse({"error": "invalid_client"}, 401)
         if form.get("grant_type") == "authorization_code":
             code = self._codes.pop(form.get("code", ""), None)
             if (
@@ -120,6 +150,7 @@ class StandInAuthorizationServer:
         self._issued += 1
         access, refresh = f"at-{self._issued}", f"rt-{self._issued}"
         self.access_tokens.add(access)
+        self.token_scopes[access] = scope or ""
         self._refresh_tokens[refresh] = client_id
         body = {
             "access_token": access,
@@ -155,6 +186,14 @@ class ProtectedByStandIn:
         # Defaults to the stand-in's issuer; another names a host the app must ask about.
         self.authorization_server = authorization_server
         self.authorizations: list[str | None] = []
+        # A scope every request's token must carry; without it, `403 insufficient_scope`.
+        self.required_scope: str | None = None
+        # A scope only a tool call needs, as a server checks each operation's own.
+        self.call_scope: str | None = None
+        # Every path asked for, the SDK's guessed `/register` included.
+        self.paths: list[str] = []
+        # Every access token expires when a tool call arrives, as one does mid-turn.
+        self.expire_at_call = False
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
@@ -162,6 +201,7 @@ class ProtectedByStandIn:
             return
         request = Request(scope)
         url = str(request.url.replace(query=""))
+        self.paths.append(request.url.path)
         if url.endswith("/prm"):
             await JSONResponse(
                 {
@@ -172,6 +212,12 @@ class ProtectedByStandIn:
                 }
             )(scope, receive, send)
             return
+        if self.expire_at_call:
+            body = await _whole_body(receive)
+            if b'"tools/call"' in body:
+                self.expire_at_call = False
+                self.server.expire_access_tokens()
+            receive = _replaying(body, receive)
         authorization = request.headers.get("authorization")
         self.authorizations.append(authorization)
         token = (authorization or "").removeprefix("Bearer ")
@@ -181,4 +227,45 @@ class ProtectedByStandIn:
                 headers={"www-authenticate": f'Bearer resource_metadata="{url}/prm"'},
             )(scope, receive, send)
             return
+        granted = self.server.token_scopes.get(token, "").split()
+        if self.required_scope and self.required_scope not in granted:
+            await _scope_refusal(self.required_scope, url)(scope, receive, send)
+            return
+        if self.call_scope and self.call_scope not in granted:
+            body = await _whole_body(receive)
+            if b'"tools/call"' in body:
+                await _scope_refusal(self.call_scope, url)(scope, receive, send)
+                return
+            receive = _replaying(body, receive)
         await self.app(scope, receive, send)
+
+
+def _scope_refusal(needed: str, url: str) -> Response:
+    challenge = (
+        f'Bearer error="insufficient_scope", scope="{needed}", '
+        f'resource_metadata="{url}/prm"'
+    )
+    return Response(status_code=403, headers={"www-authenticate": challenge})
+
+
+async def _whole_body(receive: Receive) -> bytes:
+    body = b""
+    while True:
+        message = await receive()
+        body += message.get("body", b"")
+        if not message.get("more_body"):
+            return body
+
+
+def _replaying(body: bytes, receive: Receive) -> Receive:
+    """The body read once more, then the connection's own messages, such as its disconnect."""
+    sent = False
+
+    async def replayed() -> dict:
+        nonlocal sent
+        if sent:
+            return await receive()
+        sent = True
+        return {"type": "http.request", "body": body, "more_body": False}
+
+    return replayed

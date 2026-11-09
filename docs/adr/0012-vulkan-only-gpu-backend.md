@@ -11,7 +11,7 @@ llama.cpp publishes a separate build per GPU backend. Off Apple Silicon a user's
 ## Decision
 
 - macOS on Apple Silicon ships llama.cpp's arm64 build, which runs on Metal. Windows x64 and Linux x64 ship the Vulkan build. No CUDA payload ships.
-- [`electron/scripts/fetch-llamacpp.mjs`](../../surfsense_local/electron/scripts/fetch-llamacpp.mjs) pins the build and each archive's SHA-256, and refuses to stage if any target other than macOS is not the Vulkan build.
+- [`runtimes/fetch-llamacpp.mjs`](../../surfsense_local/runtimes/fetch-llamacpp.mjs) pins the build and each archive's SHA-256, and refuses to stage if any target other than macOS is not the Vulkan build.
 - CUDA stays a deferred proposal ([`proposals/cuda-backend.md`](../proposals/cuda-backend.md)): not yet, revisited on new evidence rather than on a schedule.
 
 ## Consequences

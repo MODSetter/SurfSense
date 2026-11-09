@@ -1,1 +1,0 @@
-"""Telegram gateway adapter."""

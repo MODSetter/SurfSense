@@ -9,8 +9,8 @@ test("opens the SurfSense site", () => {
     "https://www.surfsense.com/docs"
   )
   assert.equal(
-    allowedExternalUrl("https://surfsense.com/sunset"),
-    "https://surfsense.com/sunset"
+    allowedExternalUrl("https://surfsense.com/downloads"),
+    "https://surfsense.com/downloads"
   )
 })
 

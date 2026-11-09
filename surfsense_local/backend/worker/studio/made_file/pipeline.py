@@ -8,6 +8,7 @@ from collections.abc import Callable
 
 from modules.artifacts.models import Artifact, ArtifactFileRole
 from modules.artifacts.script_documents.spec import FORMAT_NAMES
+from modules.artifacts.web_pages.page_text import page_text
 from shared.config import get_storage_settings
 from worker.studio.script_document.deck_text import deck_text
 from worker.studio.script_document.extracted_text import (
@@ -18,11 +19,20 @@ from worker.studio.script_document.extracted_text import (
 from worker.studio.script_document.workbook_summary import workbook_summary
 from worker.studio.shared.artifact import Built
 
+
+def _page_text(data: bytes) -> str:
+    try:
+        return page_text(data.decode("utf-8"))
+    except UnicodeDecodeError as error:
+        raise UnreadableDocumentError("not UTF-8") from error
+
+
 _TEXT: dict[str, Callable[[bytes], str]] = {
     "pdf": pdf_text,
     "docx": word_text,
     "pptx": deck_text,
     "xlsx": workbook_summary,
+    "html": _page_text,
 }
 
 

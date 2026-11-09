@@ -11,7 +11,7 @@ The local runtime was Ollama. Its library held 240 models. A measured scan resol
 
 ## Decision
 
-- One sidecar: `llama-server` in router mode (`--models-dir`, `--models-max 1`). It boots with no model, holds no device memory until one loads, and is one PID for the supervisor to reap ([`sidecars/llamacpp.ts`](../../surfsense_local/electron/src/main/sidecars/llamacpp.ts)).
+- One sidecar: `llama-server` in router mode (`--models-dir`, `--models-max 1`). It boots with no model, holds no device memory until one loads, and is one PID for the supervisor to reap ([`sidecars/llamacpp.ts`](../../surfsense_local/sidecars/llamacpp.ts)).
 - Per-model flags go in a preset INI, passed as `--models-preset`, which the router reads once at startup. `POST /models/load` accepts an `args` field and ignores it, measured. Installing a model or changing its load plan rewrites the file, and Electron restarts the sidecar ([`providers/llamacpp/preset.py`](../../surfsense_local/backend/modules/llm/providers/llamacpp/preset.py)).
 - `--fit` owns layer placement. SurfSense never sets `n-gpu-layers`: setting it aborts the fitter, and the model then loads entirely on the CPU with exit code 0 and no error.
 - MLX is not shipped, to be revisited after launch. MLX's format covers 23,985 Hugging Face repos against GGUF's 204,797. Mac users who want MLX point a connection at LM Studio, which is why the `LM Studio (local)` and `Ollama (local)` presets stay in [`connection-form.tsx`](../../surfsense_local/frontend/src/features/models/remote/connections/connection-form.tsx).

@@ -5,7 +5,7 @@ import { join } from "node:path"
 import test from "node:test"
 
 import { loadSecret } from "./secret.ts"
-import { isWindows } from "./sidecars/platform.ts"
+import { isWindows } from "../../../sidecars/platform.ts"
 
 // Reverses bytes so the file never holds the secret verbatim.
 const cipher = {

@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session
 
 from modules.plugins.installed.models import InstalledPlugin, PluginTool
 from modules.plugins.lists.registry.delisted import delisted_reason, delisted_reasons
+from modules.plugins.remote.mcp_client.transports import SSE, recorded_on_sse
+from modules.plugins.remote.sign_in.headers.headers_credential import header_names
 
 
 class ToolRead(BaseModel):
@@ -27,8 +29,22 @@ class PluginRead(BaseModel):
     source: str
     url: str
     hosts: list[str]
-    # How it signs in: `none`, `token`, `license` or `oauth`.
+    # How it signs in: `none`, `token`, `headers`, `license` or `oauth`.
     auth_type: str
+    # A `headers` plugin's header names, never their values; empty otherwise.
+    header_names: list[str] = []
+    # `sse` for a plugin still recorded on the older HTTP+SSE transport, which no
+    # engine speaks: it could not be moved to its Streamable HTTP address.
+    transport: str = "streamable_http"
+    # Scopes the server's `403 insufficient_scope` asked for; Sign in again asks for them.
+    needs_scopes: list[str] = []
+    # Signs in with the user's own OAuth app, which they may change.
+    own_app: bool = False
+    # Needs the user's own app to sign in: the provider registers no app (`needs_client`),
+    # or it refused SurfSense (`refused`). None once signed in.
+    needs_own_app: str | None = None
+    # An OAuth plugin saved before its first sign-in: it connects, rather than signs in again.
+    never_signed_in: bool = False
     enabled: bool
     # Disconnected by the user: kept with its tool settings, signed out, never offered.
     disconnected: bool
@@ -58,6 +74,15 @@ def read_plugin(
         url=plugin.url,
         hosts=plugin.entry.get("hosts", []),
         auth_type=plugin.credential_kind or "none",
+        header_names=header_names(plugin),
+        transport=SSE if recorded_on_sse(plugin.entry) else "streamable_http",
+        needs_scopes=plugin.entry.get("auth", {}).get("needs_scopes", []),
+        own_app=plugin.entry.get("auth", {}).get("own_app") is True,
+        needs_own_app=plugin.entry.get("auth", {}).get("needs_own_app"),
+        # Disconnecting clears the credential too, so only a plugin never connected lacks one.
+        never_signed_in=plugin.credential_kind == "oauth"
+        and plugin.credential_ciphertext is None
+        and plugin.disconnected_at is None,
         enabled=plugin.enabled,
         disconnected=plugin.disconnected_at is not None,
         connected_at=plugin.connected_at,

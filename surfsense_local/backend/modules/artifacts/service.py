@@ -4,12 +4,16 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from modules.artifacts.drawn_images.model import require_image_model
+from modules.artifacts.drawn_images.recipe import image_drawing_of
 from modules.artifacts.formats import FORMATS, FORMATS_BY_KEY, Format
+from modules.artifacts.image_edits.model import require_image_edit_model
+from modules.artifacts.image_edits.recipe import image_edit_of
 from modules.artifacts.models import Artifact
+from modules.artifacts.queued_job import queue_job
 from modules.artifacts.refused import refused
 from modules.artifacts.schemas import FormatRead, StudioJobCreate
 from modules.artifacts.studio_documents.recipe import refinement, renders_as_stored
-from modules.artifacts.tasks import studio_job
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.documents.sources import load_selected_sources
 from modules.llm.model_type import ModelType
@@ -90,17 +94,15 @@ def create_artifact_job(
     session.add(artifact)
     session.flush()
 
-    # Before enqueueing, not by the request session afterwards: the worker is
-    # another process and would look for a row this request had not written.
-    session.commit()
-    studio_job(artifact.id)
+    queue_job(session, artifact)
     logger.info("studio: enqueued artifact %s format=%s", artifact.id, fmt.key)
     return artifact
 
 
 def regenerate_artifact(session: Session, artifact: Artifact) -> Artifact:
     """Run a finished or failed artifact's job again: a draft from its sources
-    re-resolved, a refine's same rewrite, or the same document script.
+    re-resolved, a refine's same rewrite, an image's same edit, or the same
+    document script.
 
     The artifact_metadata that created it (sources, prompt, options, spec) is still
     there, so this resets the backing document and re-enqueues — no new row.
@@ -111,8 +113,14 @@ def regenerate_artifact(session: Session, artifact: Artifact) -> Artifact:
             status.HTTP_409_CONFLICT, "already generating", "already_generating"
         )
     meta = artifact.artifact_metadata
+    # An edit asks only the edit model, and starts from its base, not the sources.
+    if image_edit_of(meta) is not None:
+        require_image_edit_model(session)
+    # A drawing asks only the image model, and paints its prompt, with no sources.
+    elif image_drawing_of(meta) is not None:
+        require_image_model(session)
     # A document script runs as stored: its format's models are never asked.
-    if not renders_as_stored(meta):
+    elif not renders_as_stored(meta):
         _require_available(session, FORMATS_BY_KEY[artifact.format])
         # A refine rewrites its base's spec, so it needs none of its sources back.
         if refinement(meta) is None:
@@ -124,8 +132,7 @@ def regenerate_artifact(session: Session, artifact: Artifact) -> Artifact:
     document.status = DocumentStatus.PENDING
     document.error_message = None
     artifact.generation += 1
-    session.commit()
-    studio_job(artifact.id)
+    queue_job(session, artifact)
     logger.info(
         "studio: re-enqueued artifact %s generation=%s",
         artifact.id,

@@ -20,7 +20,7 @@
 | `list_sources` | id, title and type of each ready document | the documents list route |
 | `create_artifact` | that the job started; the artifact appears in Studio | `create_artifact_job()` |
 
-- **To opencode:** `search_sources` and `create_artifact`, over an MCP server on loopback. opencode reads the text view with its own `read`, `grep` and `glob` ([`03-opencode.md`](03-opencode.md), Working folders), so the other three would repeat them, and every tool sent costs context (the same file, Fixed prompt size).
+- **To opencode:** `search_sources` and `create_artifact`, over an MCP server on loopback. opencode reads the text view with its own `read`, `grep` and `glob` ([agent](../../architecture/agent.md#folders)), so the other three would repeat them, and every tool sent costs context (the same file, Fixed prompt size).
 - **To workflows:** all five, as plain function calls in the worker.
 
 How opencode reaches them, as built ([agent](../../architecture/agent.md#surfsenses-tools)):

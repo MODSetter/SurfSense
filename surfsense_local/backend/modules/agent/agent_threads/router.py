@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException, Response, status
 from pydantic import BaseModel
 
 from api.dependencies import SessionDep
+from modules.agent.agent_threads.steps import tool_output
 from modules.agent.engines.both_sessions import stored_step_of
 from modules.agent.engines.thread_engine import every_engine, thread_engine
 from modules.chat.dependencies import ThreadDep
@@ -34,10 +35,10 @@ async def read_step_result(
 ) -> StepResult:
     step = await stored_step_of(session, thread, part_id, every_engine())
     state = step.get("state") or {}
-    output, error = state.get("output"), state.get("error")
+    error = state.get("error")
     return StepResult(
-        output=None if output is None else str(output),
-        error=None if error is None else str(error),
+        output=tool_output(state),
+        error=None if error is None else error.get("message") or error.get("type"),
     )
 
 

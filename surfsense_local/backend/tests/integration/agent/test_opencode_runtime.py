@@ -11,6 +11,7 @@ import pytest
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
+from modules.agent import opencode_config, opencode_runtime
 from modules.agent.model_window import selected_model_window
 from modules.agent.opencode_client import OpencodeClient
 from modules.agent.opencode_config import AgentSetup, write_opencode_config
@@ -205,20 +206,18 @@ async def test_it_waits_for_the_configuration_it_just_wrote(
         assert electron.running is not None
         await asyncio.to_thread(wait_until_healthy, electron.running)
         async with OpencodeClient(electron.running.url, password) as earlier:
-            # opencode reads its configuration when a folder is first used, and keeps it.
-            assert (await earlier.config())["provider"]["surfsense"]["options"][
-                "apiKey"
-            ] == "old-key"
+            loaded = await earlier.config(agent_dir)
+            assert loaded["providers"]["surfsense"]["settings"]["apiKey"] == "old-key"
 
         ready = await ready_opencode(session, launch_key="new-key")
         try:
-            loaded = await ready.client.config()
+            loaded = await ready.client.config(agent_dir)
         finally:
             await ready.client.close()
 
-    assert loaded["provider"]["surfsense"]["options"]["apiKey"] == "new-key"
+    assert loaded["providers"]["surfsense"]["settings"]["apiKey"] == "new-key"
     assert ready.model == "remote-model"
-    # Applied by opencode's own reload: no restart, so no turn elsewhere is cut off by one later.
+    # Loaded by opencode watching the file: no restart, so no turn elsewhere is cut off by one.
     assert electron.starts == 1
 
 
@@ -253,14 +252,45 @@ async def test_a_model_that_comes_to_read_images_is_reloaded_with_image_input(
         assert electron.running is not None
         await asyncio.to_thread(wait_until_healthy, electron.running)
         async with OpencodeClient(electron.running.url, password) as earlier:
-            await earlier.config()  # opencode reads the folder's configuration now
+            loaded = await earlier.config(agent_dir)
+            model = loaded["providers"]["surfsense"]["models"]["gpt-4o-mini"]
+            assert model["capabilities"]["input"] == ["text"]
 
         ready = await ready_opencode(session, launch_key="same-key")
         try:
-            loaded = await ready.client.config()
+            loaded = await ready.client.config(agent_dir)
         finally:
             await ready.client.close()
 
-    model = loaded["provider"]["surfsense"]["models"]["gpt-4o-mini"]
-    assert model["modalities"]["input"] == ["text", "image"]
-    assert model["attachment"] is True
+    model = loaded["providers"]["surfsense"]["models"]["gpt-4o-mini"]
+    assert model["capabilities"]["input"] == ["text", "image"]
+
+
+async def test_a_value_opencode_refuses_stops_the_turn_rather_than_the_agent_vanishing(
+    session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """One value opencode refuses drops the object holding it, here the agent, with
+    only a line in its log; every prompt would then fail with "Agent not found"."""
+    needs_staged_opencode()
+    agent_dir: Path = get_storage_settings().agent_dir
+    port, password = free_port(), secrets.token_urlsafe(16)
+    monkeypatch.setattr(
+        get_agent_settings(), "opencode_url", f"http://127.0.0.1:{port}"
+    )
+    monkeypatch.setattr(get_agent_settings(), "opencode_password", password)
+    monkeypatch.setattr(opencode_runtime, "READY_SECONDS", 5.0)
+    written = opencode_config.opencode_config
+
+    def with_a_refused_value(setup: AgentSetup, at: Path) -> dict:
+        config = written(setup, at)
+        config["agents"]["surfsense"]["steps"] = -1  # steps must be positive
+        return config
+
+    monkeypatch.setattr(opencode_config, "opencode_config", with_a_refused_value)
+
+    task = asyncio.create_task(ready_opencode(session, launch_key="key"))
+    with (
+        StandInForElectron(agent_dir, port, password),
+        pytest.raises(AgentUnavailableError, match="as written"),
+    ):
+        await task

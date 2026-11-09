@@ -74,6 +74,14 @@ test("the page's own object URLs load, as a deck's pictures are", () => {
   assert.ok(passes("blob:file:///6d1f4c3a-7b8e-4f0a-9c2d-1e5b7a9c0f11"))
 })
 
+test("a page's own data URLs load, as a web page's inline images are", () => {
+  const { session, passes } = fakeSession()
+  confineSnapshotSession(session, PACKAGED)
+
+  assert.ok(passes("data:image/png;base64,iVBORw0KGgo="))
+  assert.ok(!passes("https://example.com/data:image/png"))
+})
+
 test("a Word file is reachable only while it is being printed", () => {
   const { session, passes } = fakeSession()
   const allow = confineSnapshotSession(session, PACKAGED)

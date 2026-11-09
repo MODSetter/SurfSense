@@ -27,6 +27,12 @@ class SignInStarted(BaseModel):
     authorize_url: str
 
 
+class CallbackPaste(BaseModel):
+    """The address a sign-in's redirect left in a browser that could not reach it."""
+
+    address: str = Field(min_length=1, max_length=4096)
+
+
 class SignInRead(BaseModel):
     status: FlowStatus
     connection_id: int | None

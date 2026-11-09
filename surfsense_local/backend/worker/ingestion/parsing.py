@@ -1,11 +1,13 @@
 import os
 from contextlib import nullcontext
 from functools import lru_cache
+from io import BytesIO
 from pathlib import Path
 from typing import Any
 
 import psutil
 
+from modules.documents.kindle_books.upload_check import KINDLE_SUFFIXES
 from modules.documents.models import Document, DocumentType
 from modules.documents.original_file import original_path
 from modules.documents.recordings.kind import is_recording
@@ -15,6 +17,7 @@ from worker.ingestion.audio.transcript_job import recording_markdown
 from worker.ingestion.docx_style_cache import cached_style_lookups
 from worker.ingestion.figures.store import keep_figures
 from worker.ingestion.figures.word_figures_pass import leave_figures_to_the_pass
+from worker.ingestion.html_line_breaks import HTML_SUFFIXES, without_left_breaks
 from worker.ingestion.image_page import IMAGE_SUFFIXES, as_page
 from worker.ingestion.parser_pack import missing_parser_folders, parser_dir
 from worker.ingestion.scan_ocr.images import image_markdown
@@ -43,6 +46,11 @@ def markdown_for(document: Document) -> str:
         from worker.ingestion.pdf_reading import pdf_markdown
 
         return pdf_markdown(document, path)
+    if path.suffix.lower() in KINDLE_SUFFIXES:
+        # Lazy: it reads through this module's converter.
+        from worker.ingestion.kindle_books.markdown import book_markdown
+
+        return book_markdown(path)
     return _markdown_from(path)
 
 
@@ -62,7 +70,21 @@ def _markdown_from(path: Path) -> str:
     converted = convert(path)
     keep_figures(path, converted)
     template = describe_slideless_deck(path)
-    return converted.export_to_markdown() if template is None else template
+    if template is not None:
+        return template
+    markdown = converted.export_to_markdown()
+    # Only where Docling's HTML reader ran: other files may hold a real U+E000.
+    return without_left_breaks(markdown) if suffix in HTML_SUFFIXES else markdown
+
+
+def convert_html(html: str, name: str) -> Any:
+    """Docling's reading of HTML made in memory, as a file's would be: its
+    DoclingDocument."""
+    converter = _converter()
+    from docling.datamodel.base_models import DocumentStream
+
+    stream = DocumentStream(name=f"{name}.html", stream=BytesIO(html.encode()))
+    return converter.convert(stream).document
 
 
 def convert(path: Path, page_range: tuple[int, int] | None = None) -> Any:
@@ -137,6 +159,7 @@ def _converter() -> Any:
             InputFormat.DOCX,
             InputFormat.PPTX,
             InputFormat.XLSX,
+            InputFormat.EPUB,
             InputFormat.HTML,
             InputFormat.CSV,
             InputFormat.MD,

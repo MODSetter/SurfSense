@@ -1,8 +1,9 @@
 """Claude Code's messages as opencode's events, so one turn reader serves both engines.
 
-Each API message is an assistant message, as opencode starts one per step; text
-and thinking stream from the raw events, a tool call's input comes with its
-finished block and its result with the next user message.
+Each API message is a step, an assistant message, as opencode stores one per
+step; text and thinking stream from the raw events, keyed by their block's
+place in the message as opencode keys its items. A tool call's input comes with
+its finished block and its result with the next user message.
 """
 
 import time
@@ -24,6 +25,8 @@ from modules.agent.engines.claude_code.tool_result import result_text
 from modules.agent.opencode_client import Event
 
 _KINDS = {"text": "text", "thinking": "reasoning"}
+# Past any block's place in a message: blocks seen only once they finished.
+_UNSTREAMED = 1000
 
 
 def _now_ms() -> int:
@@ -36,24 +39,34 @@ class OpencodeShape:
     def __init__(self, session_id: str) -> None:
         self._session = session_id
         self._message = ""
-        self._announced: set[str] = set()
-        # Text and reasoning parts by stream position, and in the order they began,
-        # so a finished block finds the part its deltas went to.
-        self._by_index: dict[tuple[str, int], dict[str, Any]] = {}
-        self._begun: dict[tuple[str, str], list[dict[str, Any]]] = {}
+        # Text and reasoning items by their block's place, and in the order they
+        # began, so a finished block finds the item its deltas went to.
+        self._by_index: dict[tuple[str, int], tuple[int, dict[str, Any]]] = {}
+        self._begun: dict[tuple[str, str], list[tuple[int, dict[str, Any]]]] = {}
         self._finished: dict[tuple[str, str], int] = {}
         self._tools: dict[str, dict[str, Any]] = {}
         # The turn as opencode stores one, so its reply is stated from what streamed.
         self._messages: list[dict[str, Any]] = []
         self._by_id: dict[str, dict[str, Any]] = {}
-        self._user = ""
 
     def user(self, message_id: str, created_ms: int) -> list[Event]:
         """The turn's own user message, which opens the reply."""
-        self._user = message_id
-        info = {"id": message_id, "role": "user", "time": {"created": created_ms}}
-        self._messages.append({"info": info, "parts": []})
-        return [self._event("message.updated", info=info)]
+        self._messages.append(
+            {
+                "id": message_id,
+                "type": "user",
+                "text": "",
+                "time": {"created": created_ms},
+            }
+        )
+        return [
+            self._event(
+                "session.inbox.enqueued",
+                created_ms,
+                inboxID=message_id,
+                item={"type": "user"},
+            )
+        ]
 
     def messages(self) -> list[dict[str, Any]]:
         """The turn read so far, as opencode's messages."""
@@ -70,8 +83,11 @@ class OpencodeShape:
             return self._results(message)
         if isinstance(message, ResultMessage):
             if self._message in self._by_id:
-                self._by_id[self._message]["info"]["time"]["completed"] = _now_ms()
-            return [self._event("session.idle")]
+                self._by_id[self._message]["time"]["completed"] = _now_ms()
+            self._messages.append(
+                {"id": f"{self._session}:idle", "type": "idle", "outcome": "succeeded"}
+            )
+            return [self._event("session.execution.succeeded")]
         return []
 
     def _stream(self, event: dict[str, Any]) -> list[Event]:
@@ -81,41 +97,59 @@ class OpencodeShape:
         index = event.get("index", -1)
         if kind == "content_block_start":
             return self._block_started(index, event["content_block"])
-        part = self._by_index.get((self._message, index))
-        if part is None:
+        found = self._by_index.get((self._message, index))
+        if found is None:
             return []
+        ordinal, item = found
         if kind == "content_block_delta":
             delta = event["delta"]
             text = delta.get("text") or delta.get("thinking")
             if delta.get("type") not in {"text_delta", "thinking_delta"} or not text:
                 return []
-            part["text"] += text
-            return [
-                self._event(
-                    "message.part.delta", partID=part["id"], field="text", delta=text
-                )
-            ]
-        if kind == "content_block_stop" and part["type"] == "reasoning":
-            part["time"]["end"] = _now_ms()
-            return [self._part(part)]
+            item["text"] += text
+            return [self._item_event(item, "delta", ordinal, delta=text)]
+        if kind == "content_block_stop" and item["type"] == "reasoning":
+            return [self._item_event(item, "ended", ordinal, text=item["text"])]
         return []
 
     def _block_started(self, index: int, block: dict[str, Any]) -> list[Event]:
         if block.get("type") == "tool_use":
-            return [self._tool(block["id"], block["name"], {}, "pending")]
+            item = self._tool(block["id"], block["name"])
+            item["state"] = {"status": "streaming", "input": ""}
+            return [
+                self._event(
+                    "session.tool.input.started",
+                    assistantMessageID=self._message,
+                    id=block["id"],
+                    name=item["name"],
+                )
+            ]
         kind = _KINDS.get(block.get("type", ""))
         if kind is None:
             return []
-        part = self._new_part(kind, f"{self._message}:{index}")
-        self._by_index[(self._message, index)] = part
-        return [self._part(part)]
+        item = self._new_item(kind, index)
+        self._by_index[(self._message, index)] = (index, item)
+        return [self._item_event(item, "started", index)]
 
     def _assistant(self, message: AssistantMessage) -> list[Event]:
         events = self._announce(message.message_id or message.uuid or self._message)
         for block in message.content:
             if isinstance(block, ToolUseBlock):
+                if block.id not in self._tools:
+                    # Not streamed: named here, as opencode names a call before its input.
+                    named = {"type": "tool_use", "id": block.id, "name": block.name}
+                    events += self._block_started(-1, named)
+                item = self._tool(block.id, block.name)
                 tool_input = step_input(block.name, block.input)
-                events.append(self._tool(block.id, block.name, tool_input, "running"))
+                item["state"] = {"status": "running", "input": tool_input}
+                events.append(
+                    self._event(
+                        "session.tool.called",
+                        assistantMessageID=self._message,
+                        id=block.id,
+                        input=tool_input,
+                    )
+                )
             elif isinstance(block, TextBlock):
                 events += self._whole("text", block.text)
             elif isinstance(block, ThinkingBlock):
@@ -123,19 +157,18 @@ class OpencodeShape:
         return events
 
     def _whole(self, kind: str, text: str) -> list[Event]:
-        """A finished block: the part its deltas went to, given its whole text, or a new part."""
+        """A finished block: the item its deltas went to, given its whole text, or a new item."""
         key = (self._message, kind)
         seen = self._finished.get(key, 0)
         self._finished[key] = seen + 1
         begun = self._begun.get(key, [])
         if seen < len(begun):
-            part = begun[seen]
+            ordinal, item = begun[seen]
         else:
-            part = self._new_part(kind, f"{self._message}:{kind}:{seen}")
-            if kind == "reasoning":
-                part["time"]["end"] = part["time"]["start"]
-        part["text"] = text
-        return [self._part(part)]
+            ordinal = _UNSTREAMED + seen
+            item = self._new_item(kind, ordinal)
+        item["text"] = text
+        return [self._item_event(item, "ended", ordinal, text=text)]
 
     def _results(self, message: UserMessage) -> list[Event]:
         if isinstance(message.content, str):
@@ -144,84 +177,82 @@ class OpencodeShape:
         for block in message.content:
             if not isinstance(block, ToolResultBlock):
                 continue
-            part = self._tools.get(block.tool_use_id)
-            if part is None:
+            item = self._tools.get(block.tool_use_id)
+            if item is None:
                 continue
             text = result_text(block.content)
-            state = part["state"]
+            given = item["state"].get("input")
+            given = given if isinstance(given, dict) else {}
+            content = [{"type": "text", "text": text}]
             if block.is_error:
-                part["state"] = {
-                    "status": "error",
-                    "input": state["input"],
-                    "error": text,
-                }
+                error = {"type": "tool.execution", "message": text}
+                item["state"] = {"status": "error", "input": given, "error": error}
+                events.append(
+                    self._tool_event("session.tool.failed", item, error=error)
+                )
             else:
-                part["state"] = {
+                item["state"] = {
                     "status": "completed",
-                    "input": state["input"],
-                    "output": text,
+                    "input": given,
+                    "content": content,
                 }
-            events.append(self._part(part))
+                events.append(
+                    self._tool_event("session.tool.success", item, content=content)
+                )
         return events
 
-    def _tool(
-        self, call_id: str, name: str, tool_input: dict[str, Any], status: str
-    ) -> Event:
-        part = self._tools.get(call_id)
-        if part is None:
-            part = {
-                "id": call_id,
-                "messageID": self._message,
-                "type": "tool",
-                "callID": call_id,
-                "tool": step_tool(name),
-            }
-            self._tools[call_id] = part
-            self._add(part)
-        part["state"] = {"status": status, "input": tool_input}
-        return self._part(part)
+    def _tool(self, call_id: str, name: str) -> dict[str, Any]:
+        item = self._tools.get(call_id)
+        if item is None:
+            item = {"type": "tool", "id": call_id, "name": step_tool(name), "state": {}}
+            self._tools[call_id] = item
+            self._add(item)
+        return item
 
     def _announce(self, message_id: str) -> list[Event]:
         self._message = message_id
-        if message_id in self._announced:
+        if message_id in self._by_id:
             return []
-        self._announced.add(message_id)
         message = {
-            "info": {
-                "id": message_id,
-                "role": "assistant",
-                "parentID": self._user,
-                "time": {"created": _now_ms()},
-            },
-            "parts": [],
+            "id": message_id,
+            "type": "assistant",
+            "content": [],
+            "time": {"created": _now_ms()},
         }
         self._by_id[message_id] = message
         self._messages.append(message)
-        return [
-            self._event("message.updated", info={"id": message_id, "role": "assistant"})
-        ]
+        return [self._event("session.step.started", assistantMessageID=message_id)]
 
-    def _new_part(self, kind: str, part_id: str) -> dict[str, Any]:
-        part: dict[str, Any] = {
-            "id": part_id,
-            "messageID": self._message,
-            "type": kind,
-            "text": "",
-        }
-        if kind == "reasoning":
-            part["time"] = {"start": _now_ms()}
-        self._begun.setdefault((self._message, kind), []).append(part)
-        self._add(part)
-        return part
+    def _new_item(self, kind: str, ordinal: int) -> dict[str, Any]:
+        item: dict[str, Any] = {"type": kind, "text": ""}
+        self._begun.setdefault((self._message, kind), []).append((ordinal, item))
+        self._add(item)
+        return item
 
-    def _add(self, part: dict[str, Any]) -> None:
+    def _add(self, item: dict[str, Any]) -> None:
         message = self._by_id.get(self._message)
         if message is not None:
-            message["parts"].append(part)
-            message["info"]["time"]["completed"] = _now_ms()
+            message["content"].append(item)
+            message["time"]["completed"] = _now_ms()
 
-    def _part(self, part: dict[str, Any]) -> Event:
-        return self._event("message.part.updated", part=dict(part))
+    def _item_event(
+        self, item: dict[str, Any], stage: str, ordinal: int, **data: Any
+    ) -> Event:
+        return self._event(
+            f"session.{item['type']}.{stage}",
+            assistantMessageID=self._message,
+            ordinal=ordinal,
+            **data,
+        )
 
-    def _event(self, kind: str, **properties: Any) -> Event:
-        return Event(type=kind, properties={"sessionID": self._session, **properties})
+    def _tool_event(self, kind: str, item: dict[str, Any], **data: Any) -> Event:
+        return self._event(
+            kind, assistantMessageID=self._message, id=item["id"], **data
+        )
+
+    def _event(self, kind: str, created: int | None = None, **data: Any) -> Event:
+        return Event(
+            type=kind,
+            created=created or _now_ms(),
+            data={"sessionID": self._session, **data},
+        )

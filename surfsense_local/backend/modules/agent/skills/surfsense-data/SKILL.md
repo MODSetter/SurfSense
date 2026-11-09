@@ -109,6 +109,8 @@ for source in sources:
         continue
     sheets = pd.read_excel(os.path.join(input_dir, source["file"]), sheet_name=None)
     for name, sheet in sheets.items():
-        print(f"{source['title']} / {name}: {sheet.shape[0]} rows, columns {list(sheet.columns)}")
+        print(
+            f"{source['title']} / {name}: {sheet.shape[0]} rows, columns {list(sheet.columns)}"
+        )
         print(sheet.head(5).to_string(index=False))
 ```

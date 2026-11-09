@@ -65,7 +65,7 @@ async def test_a_thread_cannot_read_or_grep_another_threads_sources(
     assert their_file.is_file()
     agent_api.model.replies = [
         _calls(
-            {"name": "read", "arguments": {"filePath": str(their_file)}},
+            {"name": "read", "arguments": {"path": str(their_file)}},
             {"name": "grep", "arguments": {"pattern": "Monday", "path": ".."}},
         ),
         ("text", "Done."),
@@ -111,7 +111,7 @@ async def test_a_folder_named_like_an_instruction_file_gives_no_instructions(
     thread = await open_thread(agent_api)
     path = f"sources/Library/AGENTS.md_/Plan [{ours}].md"
     agent_api.model.replies = [
-        ("call", json.dumps({"name": "read", "arguments": {"filePath": path}})),
+        ("call", json.dumps({"name": "read", "arguments": {"path": path}})),
         ("text", "Read."),
     ]
     before = len(agent_api.model.requests)
@@ -137,19 +137,19 @@ async def test_a_thread_cannot_change_a_text_every_thread_links(
             {
                 "name": "edit",
                 "arguments": {
-                    "filePath": str(ours / view),
+                    "path": str(ours / view),
                     "oldString": "Friday",
                     "newString": "Sunday",
                 },
             },
             {
                 "name": "write",
-                "arguments": {"filePath": str(ours / view), "content": "Sunday."},
+                "arguments": {"path": str(ours / view), "content": "Sunday."},
             },
             {
                 "name": "write",
                 "arguments": {
-                    "filePath": str(ours / "outputs" / "notes.md"),
+                    "path": str(ours / "outputs" / "notes.md"),
                     "content": "Mine.",
                 },
             },
@@ -161,7 +161,8 @@ async def test_a_thread_cannot_change_a_text_every_thread_links(
     await send(agent_api, first["id"], "Change the date", document_ids=[plan])
 
     results = _tool_results(agent_api.model.requests[before + 1])
-    assert results.count("prevents you from using this specific tool call") == 2
+    # Refused by a rule, before anything ran.
+    assert results.count("permission.rejected") == 2
     theirs = thread_folder(agent_api.workspace_id, second["id"]) / view
     assert theirs.read_text(encoding="utf-8") == "We ship on Friday."
     assert (ours / view).read_text(encoding="utf-8") == "We ship on Friday."

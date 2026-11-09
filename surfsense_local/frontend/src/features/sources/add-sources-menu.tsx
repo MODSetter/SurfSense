@@ -3,6 +3,7 @@ import {
   FilePlus2Icon,
   FolderAddIcon,
   FolderUploadIcon,
+  GlobalSearchIcon,
   NoteAddIcon,
   PlusIcon,
 } from "@/components/ui/icons"
@@ -37,18 +38,21 @@ export type SourceUploads = {
 // Every way to add to the list behind one button, so the header keeps room.
 export function AddSourcesMenu({
   upload,
+  onAddFromWeb,
   onNewFolder,
   onNewNote,
 }: {
   upload?: SourceUploads
+  onAddFromWeb?: () => void
   onNewFolder?: () => void
   onNewNote?: () => void
 }) {
   const fileInput = useRef<HTMLInputElement>(null)
   const folderInput = useRef<HTMLInputElement>(null)
   const isUploading = upload?.isUploading ?? false
+  const adds = upload !== undefined || onAddFromWeb !== undefined
   const creates = onNewFolder !== undefined || onNewNote !== undefined
-  if (!upload && !creates) return null
+  if (!adds && !creates) return null
 
   const uploadSelectedFiles = (event: ChangeEvent<HTMLInputElement>) => {
     upload?.onUpload(Array.from(event.target.files ?? []))
@@ -131,19 +135,21 @@ export function AddSourcesMenu({
           <TooltipContent side="top">{label}</TooltipContent>
         </Tooltip>
         <DropdownMenuContent align="end" sideOffset={6} className="min-w-44">
-          {upload ? (
+          {adds ? (
             <DropdownMenuGroup>
-              <DropdownMenuItem
-                disabled={isUploading}
-                onClick={() => fileInput.current?.click()}
-              >
-                <FilePlus2Icon />
-                {intl.formatMessage({
-                  id: "sources_add_menu_upload_files_label",
-                  defaultMessage: "Upload files…",
-                })}
-              </DropdownMenuItem>
-              {upload.onUploadFolder ? (
+              {upload ? (
+                <DropdownMenuItem
+                  disabled={isUploading}
+                  onClick={() => fileInput.current?.click()}
+                >
+                  <FilePlus2Icon />
+                  {intl.formatMessage({
+                    id: "sources_add_menu_upload_files_label",
+                    defaultMessage: "Upload files…",
+                  })}
+                </DropdownMenuItem>
+              ) : null}
+              {upload?.onUploadFolder ? (
                 <DropdownMenuItem
                   disabled={isUploading}
                   onClick={() => folderInput.current?.click()}
@@ -155,9 +161,18 @@ export function AddSourcesMenu({
                   })}
                 </DropdownMenuItem>
               ) : null}
+              {onAddFromWeb ? (
+                <DropdownMenuItem onClick={onAddFromWeb}>
+                  <GlobalSearchIcon />
+                  {intl.formatMessage({
+                    id: "sources_add_menu_from_web_label",
+                    defaultMessage: "Add from the web…",
+                  })}
+                </DropdownMenuItem>
+              ) : null}
             </DropdownMenuGroup>
           ) : null}
-          {upload && creates ? <DropdownMenuSeparator /> : null}
+          {adds && creates ? <DropdownMenuSeparator /> : null}
           {creates ? (
             <DropdownMenuGroup>
               {onNewFolder ? (

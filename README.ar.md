@@ -11,7 +11,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Discord](https://img.shields.io/discord/1359368468260192417?label=Discord)](https://discord.gg/ejRNvftDp9)
 
-  <a href="https://www.surfsense.com/"><img alt="SurfSense، بديل NotebookLM المعزول عن الشبكة والمفتوح المصدر" src="surfsense_web/public/homepage/banner.png" /></a>
+  <a href="https://www.surfsense.com/"><img alt="SurfSense، بديل NotebookLM المعزول عن الشبكة والمفتوح المصدر" src="www/public/homepage/banner.png" /></a>
 
   <h1>SurfSense</h1>
 
@@ -38,18 +38,26 @@
   </p>
 </div>
 
+**مراجعة عقد بتغييرات متعقَّبة وتعليقات**
+
 https://github.com/user-attachments/assets/88326b9d-e763-46db-9635-75f9df9e8682
+
+**إضافة مصادر من الويب، ثم تحويلها إلى صفحة ويب**
+
+https://github.com/user-attachments/assets/073577b7-f055-4f59-8540-330bd764aeb0
 
 يُعد SurfSense تطبيق سطح مكتب مجانيًا ومفتوح المصدر للمستندات التي لا يمكن رفعها. وهو وكيل ذكاء اصطناعي يركّز على الخصوصية، على طريقة NotebookLM، يبحث في المستندات ويحوّلها ويحرّرها على الجهاز نفسه. يبقى الفهرس على القرص، ويُختار النموذج بحسب الرغبة، محليًا كان أو بعيدًا، ولا حساب أصلًا.
 
 | المنصة | التنزيل |
 |---|---|
-| **Windows** x64 | [SurfSense-Setup.exe](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense-Setup.exe) |
-| **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense-arm64.dmg) |
-| **Linux** x64 | [AppImage](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense.AppImage) · [deb](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense.deb) |
+| **Windows** x64 | [SurfSense-Setup.exe](https://www.surfsense.com/downloads/windows?src=readme) |
+| **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
+| **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
+| **Docker** Linux, macOS | `curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh \| bash` |
+| **Docker** Windows (Docker Desktop) | `irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 \| iex` |
 
 > [!NOTE]
-> **هل استُخدم تطبيق الويب المستضاف؟** تُصدَّر مساحات العمل قبل 18 أكتوبر 2026، ثم تُستورد هنا. التفاصيل في [صفحة الإيقاف](https://www.surfsense.com/sunset).
+> مع Docker تستضيفه بنفسك على خادم وتفتحه من أي جهاز على شبكتك. شغّل الأمر نفسه مرة أخرى للتحديث.
 
 ## بداية سريعة
 
@@ -66,9 +74,10 @@ https://github.com/user-attachments/assets/88326b9d-e763-46db-9635-75f9df9e8682
 | **Excel** `.xlsx` | ✓ ويقرأ الوكيل الصيغ الحسابية أيضًا | ✓ مع صيغ حسابية ومخططات أصلية | ✓ قيم الخلايا والصيغ الحسابية | التحليل باستخدام pandas وتمثيل النتائج بمخططات |
 | **PowerPoint** `.pptx` | ✓ | ✓ أو انطلاقًا من ملف `.pptx` خاص يُعتمد قالبًا | استبدال النص في الشرائح والملاحظات؛ وحذف الشرائح أو تكرارها | إلى PDF¹ |
 | **CSV** | ✓ | — | — | التحليل باستخدام pandas وتمثيل النتائج بمخططات |
-| **الصور** PNG, JPEG, TIFF, BMP, WebP | ✓ يُقرأ نصها بالتعرّف الضوئي على الحروف (OCR)³ | صور وإنفوجرافيك (Infographic)² | — | إدراجها في مستندات جديدة |
+| **الصور** PNG, JPEG, TIFF, BMP, WebP | ✓ يُقرأ نصها بالتعرّف الضوئي على الحروف (OCR)³ | صور وإنفوجرافيك (Infographic)، تُعدَّل بتعليمات² | — | إدراجها في مستندات جديدة |
 | **Markdown**، والنص العادي | ✓ | ✓ Markdown | — | — |
 | **HTML** | ✓ | ✓ صفحة ويب | — | — |
+| **الكتب الإلكترونية** EPUB, MOBI, AZW3 | ✓ دون DRM | — | — | — |
 | **التسجيلات الصوتية** WAV وMP3 وFLAC وOgg Vorbis | ✓ تُفرَّغ نصيًا على جهازك | — | — | — |
 | **بودكاست صوتي** (Podcast) | — | ✓ مع تفريغ نصي، وتُولَّد الأصوات على الجهاز نفسه افتراضيًا | — | — |
 | **الخرائط الذهنية (Mind map)، والبطاقات التعليمية (Flashcards)، والاختبارات (Quiz)** | — | ✓ داخل التطبيق | — | — |
@@ -79,22 +88,9 @@ https://github.com/user-attachments/assets/88326b9d-e763-46db-9635-75f9df9e8682
 
 ## الإضافات
 
-تُربط من **الإعدادات › الإضافات** (Settings › Plugins).
+تُربط من **الإعدادات › الإضافات** (Settings › Plugins): خوادم MCP من [سجل الإضافات](backend/plugins/registry)، مثل DeepWiki وNotion، أو أي خادم يُضاف عبر عنوان URL. تبقى معطّلة إلى أن يُسمح بها.
 
-**من SurfSense** (By SurfSense). تقرأ الصفحات العامة دون الحاجة إلى حسابات شخصية، وتتطلب رخصة SurfSense (License): يكفي [تنزيل التطبيق](https://www.surfsense.com/downloads) وإدخال البريد الإلكتروني فيه للحصول على رخصة مجانية لمدة 30 يومًا.
-
-| الإضافة | ما تفعله |
-|---|---|
-| **Google Search** | البحث في Google وقراءة نتائجه وإعلاناته والأسئلة ذات الصلة |
-| **Web Crawl** | قراءة صفحة ويب، أو الزحف على موقع كامل وتحويله إلى نص نظيف |
-| **YouTube** | قراءة مقاطع فيديو YouTube وقنواته والتعليقات عليها |
-| **TikTok** | قراءة مقاطع فيديو TikTok والتعليقات عليها، والبحث عن المستخدمين، ومعرفة الرائج حاليًا |
-| **Google Maps** | العثور على الأماكن في Google Maps وقراءة مراجعاتها |
-| **Amazon** | قراءة منتجات Amazon ونتائج البحث فيه |
-| **Walmart** | قراءة منتجات Walmart ونتائج البحث فيه والمراجعات |
-| **Indeed** | قراءة إعلانات الوظائف على Indeed |
-
-**من جهات خارجية** (Third-party). خوادم MCP من [سجل الإضافات](plugins/registry)، مثل DeepWiki وNotion، أو أي خادم يُضاف عبر عنوان URL. لا تتطلب رخصة، وتبقى معطّلة إلى أن يُسمح بها.
+**مدمج ومجاني:** الوكيل و**إضافة من الويب** (Add from the web)، الموجودة في المصادر (Sources)، يبحثان في الويب من خلال SearXNG ويقرآن الصفحات والتفريغ النصي لمقاطع فيديو YouTube عبر اتصال الجهاز نفسه بالإنترنت، دون الحاجة إلى إضافة أو رخصة.
 
 ## كيف يقارن بغيره
 

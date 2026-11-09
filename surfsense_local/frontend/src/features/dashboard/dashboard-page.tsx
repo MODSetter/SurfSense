@@ -1,22 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { AgentApprovalsProvider } from "@/features/agent/agent-approvals"
+import { IN_CONTAINER } from "@/app/in-container"
 import {
   CircleAlertIcon,
   LayoutGridIcon,
   PlusIcon,
-  SidebarRightIcon,
   PlugIcon,
+  Task01Icon,
   XIcon,
 } from "@/components/ui/icons"
 
 import { FeatureBadge } from "@/components/feature-badge"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
 import { CitationPanel } from "@/features/chat/citation-panel"
 import { consentPlaceholder } from "@/features/chat/model-issue"
 import { askEgress } from "@/features/egress/ask-egress"
@@ -30,11 +26,13 @@ import {
   useNewChatChoice,
 } from "@/features/chat/modes/new-chat-mode"
 import { NewChatModeProvider } from "@/features/chat/modes/new-chat-mode-provider"
+import { rememberNextNewChatMode } from "@/features/chat/modes/next-new-chat-mode"
 import { canSkipThinking } from "@/features/chat/thinking-preference"
 import { ThreadPanel } from "@/features/chat/thread-panel"
 import { useChatRuntime } from "@/features/chat/use-chat-runtime"
 import { useThreadScope } from "@/features/chat/use-thread-scope"
 import { useHelpMenuReport } from "@/features/feedback/help-menu-report"
+import { JobsDialog } from "@/features/jobs/jobs-dialog"
 import type { ImportAccepted } from "@/features/migration/api"
 import { ImportBundleButton } from "@/features/migration/import-bundle"
 import { modelKey, type ModelSelection } from "@/features/models/selection/api"
@@ -49,6 +47,7 @@ import {
 } from "@/features/settings/settings-dialog"
 import { SourcesPanel } from "@/features/sources/sources-panel"
 import { useSources } from "@/features/sources/use-sources"
+import { useWebSources } from "@/features/sources/web/use-web-sources"
 import { getFileViewer } from "@/features/file-viewers/registry"
 import { SourcePreviewPanel } from "@/features/source-preview/source-preview-panel"
 import { ArtifactList } from "@/features/studio/artifact-list"
@@ -60,11 +59,14 @@ import {
 } from "@/features/office-support/office-offer"
 import { StudioPanel } from "@/features/studio/studio-panel"
 import { useStudio } from "@/features/studio/use-studio"
-import { UpdateButton } from "@/features/updates/update-settings"
+import { TitleBarUpdate } from "@/features/updates/title-bar-update"
 import type { Workspace } from "@/features/workspaces/api"
 import { useWorkspaces } from "@/features/workspaces/use-workspaces"
+import { useStartupReveal } from "@/features/startup/use-startup-reveal"
 import { useStableCallback } from "@/hooks/use-stable-callback"
+import { onStorageSettingsRequested } from "@/features/storage/open-storage-settings"
 import { intl } from "@/i18n/intl"
+import { cn } from "@/lib/utils"
 import { WorkspaceRail } from "@/features/workspaces/workspace-rail"
 import type { PluginsStart } from "@/features/plugins/plugins-settings"
 import {
@@ -74,6 +76,7 @@ import {
   writeSourcePreview,
 } from "./chrome-prefs"
 import {
+  ChatColumn,
   ColumnEdge,
   DashboardColumns,
   RightPanelRail,
@@ -81,6 +84,8 @@ import {
 } from "./dashboard-columns"
 import { LeftSidebar, type SidebarNavAction } from "./left-sidebar"
 import { RightPanel } from "./right-panel"
+import { RightPanelToggle } from "./right-panel-toggle"
+import { DashboardShell } from "./dashboard-shell"
 import { SidebarFooter } from "./sidebar-footer"
 
 // Clicking "N sources" in the composer used to switch the right rail to its
@@ -109,6 +114,7 @@ function WorkspaceDashboard({
   onOpenLicense,
   onOpenAudioSettings,
   onOpenSpeechSettings,
+  onOpenModelSettings,
   onOpenOfficeSupport,
   onOpenPlugins,
   modelsVisited,
@@ -126,16 +132,19 @@ function WorkspaceDashboard({
   onOpenLicense: () => void
   onOpenAudioSettings: () => void
   onOpenSpeechSettings: () => void
+  onOpenModelSettings: (section: SettingsSectionId) => void
   onOpenOfficeSupport: () => void
   onOpenPlugins: (start?: PluginsStart) => void
   modelsVisited: number
 }) {
+  const reveal = useStartupReveal()
   const [inspect, setInspect] = useState<Inspect>(null)
   const [rightPanelOpen, setRightPanelOpen] = useState(readRightPanelOpen)
   const [sourcePreviewId, setSourcePreviewId] = useState<number | null>(() =>
     readSourcePreview(workspace.id)
   )
   const sources = useSources(workspace.id)
+  const webSources = useWebSources(workspace.id, sources.addCreated)
   // Which formats Studio offers is the server's answer to what is selected,
   // so it has to be asked again when that changes. The chat model is named
   // here directly; the image model is chosen inside the settings dialog and
@@ -150,6 +159,21 @@ function WorkspaceDashboard({
     )
     return sources.includedDocumentIds.map((id) => titles.get(id) ?? "")
   }, [sources.documents, sources.includedDocumentIds])
+  const mentionables = useMemo(
+    () => ({
+      documents: sources.documents,
+      index: sources.index,
+      artifacts: studio.artifacts,
+      isLoading: sources.isLoading || studio.isLoading,
+    }),
+    [
+      sources.documents,
+      sources.index,
+      sources.isLoading,
+      studio.artifacts,
+      studio.isLoading,
+    ]
+  )
   const blockAgentic = useBlockAgentic()
   // Bound to the model the chat was asked on: the picker stays open meanwhile.
   const onAgenticGate = useCallback(
@@ -273,6 +297,7 @@ function WorkspaceDashboard({
           onRename={sources.rename}
           folderActions={sources.folderActions}
           notes={sourceNotes}
+          web={webSources}
           transcriptionPaces={sources.transcriptionPaces}
           onOpenSpeechSettings={openSpeechSettings}
         />
@@ -302,6 +327,7 @@ function WorkspaceDashboard({
       sources.rename,
       sources.folderActions,
       sourceNotes,
+      webSources,
       sources.transcriptionPaces,
       openSpeechSettings,
     ]
@@ -310,6 +336,14 @@ function WorkspaceDashboard({
     () => <SidebarFooter onOpenLicense={onOpenLicense} />,
     [onOpenLicense]
   )
+  const [jobsOpen, setJobsOpen] = useState(false)
+  const openJobs = useCallback(() => setJobsOpen(true), [])
+  // Stable, for the memoized Jobs dialog: the page above makes both anew on
+  // each of its renders.
+  const openModelSettings = useStableCallback((section: SettingsSectionId) =>
+    onOpenModelSettings(section)
+  )
+  const openLicense = useStableCallback(() => onOpenLicense())
   const sidebarActions = useMemo<SidebarNavAction[]>(
     () => [
       {
@@ -319,11 +353,20 @@ function WorkspaceDashboard({
           defaultMessage: "Plugins",
         }),
         icon: PlugIcon,
-        badge: <FeatureBadge stage="new" />,
         onClick: () => onOpenPlugins(),
       },
+      {
+        key: "jobs",
+        label: intl.formatMessage({
+          id: "dashboard_sidebar_jobs_button",
+          defaultMessage: "Jobs",
+        }),
+        icon: Task01Icon,
+        badge: <FeatureBadge stage="new" />,
+        onClick: openJobs,
+      },
     ],
-    [onOpenPlugins]
+    [onOpenPlugins, openJobs]
   )
   // The sidebar's callbacks keep one identity and call the latest chat.
   const sidebarNewChat = useStableCallback(() => startNewChat())
@@ -381,51 +424,27 @@ function WorkspaceDashboard({
     },
     [openRightPanel]
   )
+  const rightPanelToggle = (className?: string) => (
+    <RightPanelToggle
+      open={rightPanelOpen}
+      controls={RIGHT_PANEL_ID}
+      onToggle={toggleRightPanel}
+      className={className}
+    />
+  )
   return (
     <OfficeOfferContext.Provider value={officeOffer}>
       <OpenArtifactContext.Provider value={openArtifact}>
         <div className="titlebar-controls">
-          <div className="titlebar-controls-end">
-            <UpdateButton />
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    className="pointer-events-auto size-6 aria-expanded:bg-transparent"
-                    aria-expanded={rightPanelOpen}
-                    aria-controls={RIGHT_PANEL_ID}
-                    aria-label={
-                      rightPanelOpen
-                        ? intl.formatMessage({
-                            id: "dashboard_right_panel_hide_aria",
-                            defaultMessage: "Hide right panel",
-                          })
-                        : intl.formatMessage({
-                            id: "dashboard_right_panel_show_aria",
-                            defaultMessage: "Show right panel",
-                          })
-                    }
-                    onClick={toggleRightPanel}
-                  >
-                    <SidebarRightIcon />
-                  </Button>
-                }
-              />
-              <TooltipContent side="bottom" collisionPadding={8}>
-                {rightPanelOpen
-                  ? intl.formatMessage({
-                      id: "dashboard_right_panel_hide_tooltip",
-                      defaultMessage: "Hide right panel",
-                    })
-                  : intl.formatMessage({
-                      id: "dashboard_right_panel_show_tooltip",
-                      defaultMessage: "Show right panel",
-                    })}
-              </TooltipContent>
-            </Tooltip>
+          <div
+            {...reveal}
+            className={cn("titlebar-controls-end", reveal.className)}
+          >
+            <TitleBarUpdate />
+            {/* Docker's browser has no title bar: there the toggle sits on a heading's line. */}
+            {IN_CONTAINER
+              ? null
+              : rightPanelToggle("pointer-events-auto size-6")}
           </div>
         </div>
         {/* The widths live in here, so a drag of an edge renders the column
@@ -480,12 +499,16 @@ function WorkspaceDashboard({
             })}
             controls={LEFT_COLUMN_ID}
           />
-          <div className="flex min-h-0 min-w-[520px] flex-1 flex-col">
+          <ChatColumn>
             <AgentApprovalsProvider
               approvals={chat.approvals}
               answer={chat.answerApproval}
             >
               <ThreadPanel
+                // Hidden, the panel's heading is gone: the chat's holds the toggle.
+                headerEnd={
+                  IN_CONTAINER && !rightPanelOpen ? rightPanelToggle() : null
+                }
                 live={chat.liveThread}
                 thread={chat.activeThread}
                 view={chat.conversationView}
@@ -514,6 +537,7 @@ function WorkspaceDashboard({
                 onRetry={chat.retry}
                 onNewChat={startNewChat}
                 sourceCount={sources.includedDocumentIds.length}
+                mentionables={mentionables}
                 onUploadSources={(files) => void sources.upload(files)}
                 isUploadingSources={sources.isUploading}
                 onOpenPlugins={onOpenPlugins}
@@ -528,7 +552,7 @@ function WorkspaceDashboard({
                 }}
               />
             </AgentApprovalsProvider>
-          </div>
+          </ChatColumn>
           {/* Collapsed, the rail has no edge to drag. */}
           {rightPanelOpen ? (
             <ColumnEdge
@@ -543,6 +567,7 @@ function WorkspaceDashboard({
           <RightPanelRail open={rightPanelOpen}>
             <div id={RIGHT_PANEL_ID} className="h-full min-h-0">
               <RightPanel
+                toggle={IN_CONTAINER ? rightPanelToggle() : null}
                 inspect={
                   inspect?.kind === "citation" ? (
                     <CitationPanel
@@ -553,10 +578,13 @@ function WorkspaceDashboard({
                     />
                   ) : inspect?.kind === "artifact" ? (
                     <ArtifactPanel
+                      workspaceId={workspace.id}
                       artifactId={inspect.artifactId}
                       artifacts={studio.artifacts}
                       onOpenVersion={openArtifact}
                       onRefine={studio.refine}
+                      onImageEdit={studio.editImage}
+                      onOpenModelSettings={onOpenModelSettings}
                       onDecideAll={studio.decideAll}
                       onClose={closeInspect}
                     />
@@ -593,6 +621,19 @@ function WorkspaceDashboard({
             </div>
           </RightPanelRail>
         </DashboardColumns>
+        {/* Inside the opener, so a run's Open in Studio shows its copy here. */}
+        <JobsDialog
+          open={jobsOpen}
+          onOpenChange={setJobsOpen}
+          workspaceId={workspace.id}
+          documents={sources.documents}
+          includedDocumentIds={sources.includedDocumentIds}
+          selection={selection}
+          providerAvailable={providerAvailable}
+          onUploadSources={sources.upload}
+          onOpenModelSettings={openModelSettings}
+          onOpenLicense={openLicense}
+        />
       </OpenArtifactContext.Provider>
     </OfficeOfferContext.Provider>
   )
@@ -705,6 +746,14 @@ export function DashboardPage({
     setSettingsSection(section)
     setSettingsOpen(true)
   }
+  useEffect(
+    () =>
+      onStorageSettingsRequested(() => {
+        setSettingsSection("storage")
+        setSettingsOpen(true)
+      }),
+    []
+  )
   const openOfficeSupport = useCallback(() => {
     setAskOfficeConsent(true)
     setSettingsSection("office-support")
@@ -723,6 +772,9 @@ export function DashboardPage({
     () => openSettings("report-issue"),
     Boolean(workspaces.activeWorkspace)
   )
+
+  // For the startup frame, which offers mentions before this loads.
+  useEffect(() => rememberNextNewChatMode(selection), [selection])
 
   // Checked when the model changes, when settings close (a key entered again,
   // egress switched, a connection edited), after egress is allowed, and after a
@@ -787,7 +839,7 @@ export function DashboardPage({
   return (
     // Above the workspace, so a mode picked for the next chat holds across them.
     <NewChatModeProvider>
-      <main className="relative grid h-full min-w-[1168px] grid-cols-[56px_minmax(0,1fr)] overflow-hidden bg-app-shell">
+      <DashboardShell>
         <WorkspaceRail
           workspaces={workspaces.workspaces}
           activeWorkspaceId={workspaces.activeWorkspace.id}
@@ -819,6 +871,7 @@ export function DashboardPage({
           onOpenLicense={() => openSettings("license")}
           onOpenAudioSettings={() => openSettings("audio-models")}
           onOpenSpeechSettings={() => openSettings("speech-models")}
+          onOpenModelSettings={openSettings}
           onOpenOfficeSupport={openOfficeSupport}
           onOpenPlugins={openPlugins}
           modelsVisited={modelsVisited}
@@ -872,7 +925,7 @@ export function DashboardPage({
             </Button>
           </Alert>
         ) : null}
-      </main>
+      </DashboardShell>
     </NewChatModeProvider>
   )
 }

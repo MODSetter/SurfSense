@@ -47,12 +47,8 @@ class _Engine:
             raise HTTPException(self._refusal, "not answering")
 
 
-def _turn(role: str, text: str) -> dict[str, Any]:
-    return {
-        "role": role,
-        "content": {"text": text},
-        "created_at": "2026-10-17T09:00:00Z",
-    }
+def _turn(role: str, text: str, at: str = "2026-10-17T09:00:00Z") -> dict[str, Any]:
+    return {"role": role, "content": {"text": text}, "created_at": at}
 
 
 async def test_the_engine_left_behind_not_answering_still_reads_the_thread() -> None:
@@ -66,6 +62,23 @@ async def test_the_engine_left_behind_not_answering_still_reads_the_thread() -> 
     turns = await thread_turns_of(None, THREAD, "key", False, [left, current])
 
     assert [t["content"]["text"] for t in turns] == ["Second", "Two."]
+
+
+async def test_turns_in_the_same_second_read_back_in_the_order_they_were_sent() -> None:
+    """A time on a whole second is spelled without its fraction, which must not sort it later."""
+    current = _Engine(
+        AgentEngineKind.CLAUDE_CODE,
+        [
+            _turn("user", "First", "2026-10-17T09:00:05Z"),
+            _turn("assistant", "One.", "2026-10-17T09:00:05Z"),
+            _turn("user", "Second", "2026-10-17T09:00:05.015000Z"),
+            _turn("assistant", "Two.", "2026-10-17T09:00:05.015000Z"),
+        ],
+    )
+
+    turns = await thread_turns_of(None, THREAD, "key", False, [current])
+
+    assert [t["content"]["text"] for t in turns] == ["First", "One.", "Second", "Two."]
 
 
 async def test_the_engine_running_the_thread_not_answering_is_said() -> None:

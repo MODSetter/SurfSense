@@ -1,0 +1,84 @@
+---
+title: Updates
+description: How SurfSense checks for updates, installs them, and what a check sends
+---
+
+Updates are free for everyone, with or without a [license](/docs/v2/license). SurfSense doesn't check for them until you allow it.
+
+## Turn on update checks
+
+A new install asks during setup, in **Privacy choices**: answer **Yes** to **Check for updates**.
+
+If you answered **No**, you can still check by hand at any time. The first time, SurfSense asks **Allow SurfSense to check for updates?** and names the server it will ask. **Allow** also turns on the daily check.
+
+Once allowed, SurfSense checks at most once a day: when it starts, or later that day if it stays open. To stop, untick **App updates** in Settings › Network.
+
+## Check by hand
+
+You can check from three places:
+
+- **The title bar**, on every platform. The small button beside the right-panel toggle shows **Check for updates** when you point at it. It spins while a check runs. It doesn't appear when your organization or a package manager handles updates, or in Docker.
+- **Settings › About**, with **Check now** under **App updates**.
+- **The macOS menu bar**, with **SurfSense › Check for Updates…**.
+
+A check from the title bar or the menu tells you the result once, in a message: **SurfSense is up to date**, or **Couldn't check for updates**. Settings › About shows the result too.
+
+## Install an update
+
+When a newer version exists, SurfSense downloads it straight away. The title bar button fills a ring as it downloads, and shows the percentage when you point at it.
+
+When the download finishes, the button turns into **Update**, and Settings › About says the new version is ready and installs when you restart or the next time you quit.
+
+- Click **Update** in the title bar, or **Restart to update** in Settings › About, to install now. SurfSense restarts into the new version.
+- Or carry on working. The update installs the next time you quit SurfSense.
+
+Your data folder is not touched by an update. See [data folder](/docs/v2/data-folder).
+
+Most updates download only the parts of the app that changed, so they're much smaller than a full install. The deb and rpm packages always download in full, and so does the first update on a Mac.
+
+What's new in each version is on the [changelog](/changelog).
+
+### On a Mac with SurfSense 2.3.0 or earlier
+
+These versions can't install a newer version themselves: the update downloads, then SurfSense closes when it tries to install it. Install the new version once by hand: download it from the [downloads page](/downloads) and replace the app in Applications, or run `brew upgrade` if you installed it with Homebrew. Your data folder stays as it is. From then on, updates install in the app as usual.
+
+## What a check sends
+
+A check asks `updates.surfsense.com` for the newest release for your system. If that server fails, SurfSense asks `github.com` directly, so an update never depends on SurfSense's own server. A check sends:
+
+- your IP address, as every request does
+- the user agent `SurfSense`, with no version
+- the app's version, such as `2.2.4`
+- your system and processor, such as `win32-x64`
+- your OS version, such as `windows-11` or `macos-15`
+
+No cookies and no ID. The fallback to GitHub sends only your IP address and the user agent. The update itself downloads from GitHub.
+
+To see the last request exactly as it was sent, open Settings › About and choose **Show exactly what's sent** under **App updates**. More on this in [privacy](/docs/v2/privacy#update-checks).
+
+## How you installed SurfSense
+
+Most ways of [installing SurfSense](/docs/v2/install) use the app's own installer, so the in-app updater works the same. The exception is the one-line install script on Linux with apt, which adds SurfSense's apt repository: apt then updates SurfSense.
+
+| Installed with | Update with |
+|---|---|
+| The download from the website | the in-app updater |
+| The one-line install script, on Linux with apt | `sudo apt-get update && sudo apt-get upgrade` |
+| The one-line install script, anywhere else | the in-app updater |
+| A deb or rpm you installed by hand | the in-app updater |
+
+A deb or rpm update installs as an administrator, so expect a password prompt.
+
+If a package manager installed SurfSense, it keeps SurfSense up to date itself and the app never checks for updates. Settings › About then says where updates come from instead.
+
+## Locked by your organization
+
+An administrator can turn update checks off for everyone on a computer, or point them at the organization's own update server. Then **Check now** is turned off and Settings › About says why, or names that server. See [organization policy](/docs/v2/privacy#organization-policy).
+
+## Docker
+
+The [Docker image](/docs/v2/docker) has no in-app updater. To update, run the install command again.
+
+## Coming from SurfSense 0.0.x
+
+SurfSense 2 is a new app, not an update to the old 0.0.x desktop app. The old app's updater only offers its own last version, so it never moves you to 2. Install SurfSense 2 from the [downloads page](/downloads).

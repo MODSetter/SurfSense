@@ -1,571 +1,215 @@
 #!/usr/bin/env bash
-# =============================================================================
-# SurfSense — One-line Install Script
+# SurfSense in Docker: installs it, and updates it when run again (docs/architecture/docker.md).
 #
+#   curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
 #
-# Usage: curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
-#
-# Flags:
-#   --no-watchtower              Skip automatic Watchtower setup
-#   --watchtower-interval=SECS   Check interval in seconds (default: 86400 = 24h)
-#   --variant=cpu|cuda|cuda126   Select backend image variant
-#   --gpu                        Alias for --variant=cuda
-#   --cpu                        Alias for --variant=cpu
-#   --gpu-count=N|all            Number of GPUs to reserve when GPU is enabled
-#   --quiet                      Skip interactive prompts
-#
-# Handles two cases automatically:
-#   1. Fresh install        — no prior SurfSense data detected
-#   2. Migration from the legacy all-in-one container (surfsense-data volume)
-#      Downloads and runs migrate-database.sh --yes, then restores the dump
-#      into the new PostgreSQL 17 stack. The user runs one command for both.
-#
-# If you used custom database credentials in the old all-in-one container, run
-# migrate-database.sh manually first (with --db-user / --db-password flags),
-# then re-run this script:
-#   curl -fsSL .../docker/scripts/migrate-database.sh | bash -s -- --db-user X --db-password Y
-# =============================================================================
+# The install lives in ./surfsense: docker-compose.yml, which each run replaces,
+# and .env, which only the first run writes.
 
 set -euo pipefail
 
+# Wrapped, so a download cut short runs nothing.
 main() {
 
-REPO_RAW="https://raw.githubusercontent.com/MODSetter/SurfSense/main"
-INSTALL_DIR="./surfsense"
-OLD_VOLUME="surfsense-data"
-DUMP_FILE="./surfsense_migration_backup.sql"
-KEY_FILE="./surfsense_migration_secret.key"
-MIGRATION_DONE_FILE="${INSTALL_DIR}/.migration_done"
-MIGRATION_MODE=false
-SETUP_WATCHTOWER=true
-WATCHTOWER_INTERVAL=86400
-WATCHTOWER_CONTAINER="watchtower"
-WATCHTOWER_EXPLICIT=false
-REQUESTED_VARIANT=""
-VARIANT_EXPLICIT=false
-GPU_COUNT=""
-QUIET=false
+# A test points this at a local copy of the repository.
+SOURCE="${SURFSENSE_INSTALL_SOURCE:-https://raw.githubusercontent.com/MODSetter/SurfSense/main}"
+PROJECT="surfsense"
+# Another project's containers in "surfsense" are none of this install's business.
+export COMPOSE_IGNORE_ORPHANS=1
 
-# ── Parse flags ─────────────────────────────────────────────────────────────
-for arg in "$@"; do
-    case "$arg" in
-        --no-watchtower) SETUP_WATCHTOWER=false; WATCHTOWER_EXPLICIT=true ;;
-        --watchtower-interval=*) WATCHTOWER_INTERVAL="${arg#*=}" ;;
-        --variant=*) REQUESTED_VARIANT="${arg#*=}"; VARIANT_EXPLICIT=true ;;
-        --gpu) REQUESTED_VARIANT="cuda"; VARIANT_EXPLICIT=true ;;
-        --cpu) REQUESTED_VARIANT="cpu"; VARIANT_EXPLICIT=true ;;
-        --gpu-count=*) GPU_COUNT="${arg#*=}" ;;
-        --quiet) QUIET=true ;;
+# The app's dark palette (frontend-workflow's color/PALETTE.css), since a terminal is
+# usually dark; success is green-500. 256-colour stand-ins without 24-bit colour.
+paint() {
+    case "${COLORTERM:-}" in
+        truecolor|24bit) printf '\033[38;2;%d;%d;%dm' "$1" "$2" "$3" ;;
+        *) printf '\033[38;5;%dm' "$4" ;;
     esac
-done
-
-CYAN='\033[1;36m'
-YELLOW='\033[1;33m'
-GREEN='\033[0;32m'
-RED='\033[0;31m'
-BOLD='\033[1m'
-NC='\033[0m'
-
-info()    { printf "${CYAN}[SurfSense]${NC} %s\n"        "$1"; }
-success() { printf "${GREEN}[SurfSense]${NC} %s\n"       "$1"; }
-warn()    { printf "${YELLOW}[SurfSense]${NC} %s\n"      "$1"; }
-error()   { printf "${RED}[SurfSense]${NC} ERROR: %s\n"  "$1" >&2; exit 1; }
-step()    { printf "\n${BOLD}${CYAN}── %s${NC}\n"        "$1"; }
-
-show_banner() {
-    echo ""
-    printf '\033[1;37m'
-    cat << 'EOF'
-
-
-███████╗██╗   ██╗██████╗ ███████╗███████╗███████╗███╗   ██╗███████╗███████╗
-██╔════╝██║   ██║██╔══██╗██╔════╝██╔════╝██╔════╝████╗  ██║██╔════╝██╔════╝
-███████╗██║   ██║██████╔╝█████╗  ███████╗█████╗  ██╔██╗ ██║███████╗█████╗  
-╚════██║██║   ██║██╔══██╗██╔══╝  ╚════██║██╔══╝  ██║╚██╗██║╚════██║██╔══╝  
-███████║╚██████╔╝██║  ██║██║     ███████║███████╗██║ ╚████║███████║███████╗
-╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚═╝     ╚══════╝╚══════╝╚═╝  ╚═══╝╚══════╝╚══════╝
-                                                                           
-
-EOF
-    printf "${YELLOW}           NotebookLM for Open Web Research${NC}\n"
-    printf "${CYAN}══════════════════════════════════════════════════════════════${NC}\n"
-    info "This installer will create ${INSTALL_DIR}/ and start SurfSense with Docker Compose."
 }
-
-show_banner
-
-case "${REQUESTED_VARIANT}" in
-    ""|cpu|cuda|cuda126) ;;
-    *) error "Invalid --variant='${REQUESTED_VARIANT}'. Use cpu, cuda, or cuda126." ;;
-esac
-
-if [[ -n "${GPU_COUNT}" && ! "${GPU_COUNT}" =~ ^([0-9]+|all)$ ]]; then
-    error "Invalid --gpu-count='${GPU_COUNT}'. Use a number or 'all'."
+if [[ -t 1 && -z "${NO_COLOR:-}" ]]; then
+    PRIMARY=$(paint 217 170 144 180)      # primary #d9aa90
+    FOREGROUND=$(paint 232 227 218 254)   # foreground #e8e3da
+    MUTED=$(paint 142 138 131 245)        # muted-foreground #8e8a83
+    SUCCESS=$(paint 34 197 94 41)         # green-500 #22c55e
+    WARNING=$(paint 228 160 60 179)       # warning #e4a03c
+    DESTRUCTIVE=$(paint 239 68 68 203)    # destructive #ef4444
+    BOLD=$'\033[1m'; RESET=$'\033[0m'
+else
+    PRIMARY=""; FOREGROUND=""; MUTED=""; SUCCESS=""; WARNING=""; DESTRUCTIVE=""; BOLD=""; RESET=""
 fi
 
-resolve_watchtower_preference() {
-    if $WATCHTOWER_EXPLICIT || $QUIET || [[ ! -r /dev/tty || ! -w /dev/tty ]]; then
-        return 0
+info()    { printf '%s[SurfSense]%s %s\n' "$MUTED" "$RESET" "$1"; }
+success() { printf '%s[SurfSense] %s%s\n' "$SUCCESS" "$1" "$RESET"; }
+warn()    { printf '%s[SurfSense] %s%s\n' "$WARNING" "$1" "$RESET"; }
+error()   { printf '%s[SurfSense] ERROR: %s%s\n' "$DESTRUCTIVE" "$1" "$RESET" >&2; exit 1; }
+step()    { printf '\n%s%s── %s%s\n' "$BOLD" "$FOREGROUND" "$1" "$RESET"; }
+# The outcome, set apart: heavy rules and an emoji on a terminal, a plain step in a log.
+done_step() {
+    if [[ -z "$RESET" ]]; then
+        printf '\n── %s\n' "$2"
+        return
     fi
-
-    local choice
-    echo "" > /dev/tty
-    printf "${BOLD}${CYAN}Automatic updates${NC}\n" > /dev/tty
-    printf "Enable automatic daily updates with Watchtower? (may download several GB in the background) [Y/n]: " > /dev/tty
-    read -r choice < /dev/tty || choice=""
-
-    case "$choice" in
-        ""|[Yy]|[Yy][Ee][Ss]) SETUP_WATCHTOWER=true ;;
-        [Nn]|[Nn][Oo]) SETUP_WATCHTOWER=false ;;
-        *) warn "Unrecognized choice '${choice}', enabling Watchtower by default. Use --no-watchtower to skip it." >&2; SETUP_WATCHTOWER=true ;;
-    esac
+    local rule
+    rule=$(printf '━%.0s' $(seq 1 $(( ${#2} + 10 ))))
+    printf '\n%s%s%s\n   %s  %s\n%s%s\n' "$BOLD" "$SUCCESS" "$rule" "$1" "$2" "$rule" "$RESET"
 }
 
-resolve_watchtower_preference
+# Docker never reads the piped script as its own input.
+compose() { (cd "$INSTALL_DIR" && docker compose "$@") < /dev/null; }
 
-# ── Pre-flight checks ────────────────────────────────────────────────────────
+# As Compose reads it: a quoted value whole, otherwise up to " #"; CRLF from a Windows editor.
+env_value() {
+    local value
+    value=$(grep -E "^$1=" "$INSTALL_DIR/.env" 2>/dev/null | tail -n 1 | tr -d '\r' || true)
+    value="${value#*=}"
+    case "$value" in
+        \"*\"*) value="${value#\"}"; value="${value%%\"*}" ;;
+        \'*\'*) value="${value#\'}"; value="${value%%\'*}" ;;
+        *) value="${value%% #*}"; value="${value%"${value##*[![:space:]]}"}" ;;
+    esac
+    printf '%s' "$value"
+}
+
+is_this_install() { grep -qE '^  surfsense:' "$1/docker-compose.yml" 2>/dev/null; }
+
+download() {
+    curl -fsSL "$SOURCE/$1" -o "$INSTALL_DIR/$2.download" \
+        || error "Couldn't download $2. Check your internet connection and try again."
+    mv "$INSTALL_DIR/$2.download" "$INSTALL_DIR/$2"
+}
+
+image_id() { docker image inspect --format '{{.Id}}' "$1" 2>/dev/null < /dev/null || true; }
+
+lan_address() {
+    { hostname -I 2>/dev/null || ipconfig getifaddr en0 2>/dev/null || true; } | awk '{print $1}'
+}
+
+printf '\n%s' "$PRIMARY"
+printf '%s\n' \
+    '███████╗██╗   ██╗██████╗ ███████╗███████╗███████╗███╗   ██╗███████╗███████╗' \
+    '██╔════╝██║   ██║██╔══██╗██╔════╝██╔════╝██╔════╝████╗  ██║██╔════╝██╔════╝' \
+    '███████╗██║   ██║██████╔╝█████╗  ███████╗█████╗  ██╔██╗ ██║███████╗█████╗' \
+    '╚════██║██║   ██║██╔══██╗██╔══╝  ╚════██║██╔══╝  ██║╚██╗██║╚════██║██╔══╝' \
+    '███████║╚██████╔╝██║  ██║██║     ███████║███████╗██║ ╚████║███████║███████╗' \
+    '╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚═╝     ╚══════╝╚══════╝╚═╝  ╚═══╝╚══════╝╚══════╝'
+printf '%s' "$RESET"
 
 step "Checking prerequisites"
+command -v docker > /dev/null 2>&1 \
+    || error "Docker is not installed. Install it: https://docs.docker.com/get-docker/"
+docker info > /dev/null 2>&1 < /dev/null \
+    || error "Docker is not running. Start it and try again."
+success "Docker is running."
+docker compose version > /dev/null 2>&1 < /dev/null \
+    || error "Docker Compose is not installed. Install it: https://docs.docker.com/compose/install/"
+success "Docker Compose found."
+ARCH=$(docker info --format '{{.Architecture}}' 2>/dev/null < /dev/null || true)
+case "$ARCH" in
+    x86_64|amd64) ;;
+    *) error "SurfSense runs on x86-64 (amd64) servers only, for now. This one is ${ARCH:-unknown}." ;;
+esac
 
-command -v docker >/dev/null 2>&1 \
-    || error "Docker is not installed. Install it at: https://docs.docker.com/get-docker/"
-success "Docker found."
+# Run again from any folder, it finds the install by its container.
+FOUND=$(docker ps -a \
+    --filter "label=com.docker.compose.project=$PROJECT" \
+    --filter "label=com.docker.compose.service=surfsense" \
+    --format '{{.Label "com.docker.compose.project.working_dir"}}' 2>/dev/null < /dev/null | head -n 1 || true)
 
-docker info >/dev/null 2>&1 < /dev/null \
-    || error "Docker daemon is not running. Please start Docker and try again."
-success "Docker daemon is running."
-
-if docker compose version >/dev/null 2>&1 < /dev/null; then
-    DC="docker compose"
-elif command -v docker-compose >/dev/null 2>&1; then
-    DC="docker-compose"
-else
-    error "Docker Compose is not installed. Install it at: https://docs.docker.com/compose/install/"
-fi
-success "Docker Compose found ($DC)."
-
-# ── Wait-for-postgres helper ─────────────────────────────────────────────────
-wait_for_pg() {
-    local db_user="$1"
-    local max_attempts=45
-    local attempt=0
-
-    info "Waiting for PostgreSQL to accept connections..."
-    until (cd "${INSTALL_DIR}" && ${DC} exec -T db pg_isready -U "${db_user}" -q 2>/dev/null) < /dev/null; do
-        attempt=$((attempt + 1))
-        if [[ $attempt -ge $max_attempts ]]; then
-            error "PostgreSQL did not become ready after $((max_attempts * 2)) seconds.\nCheck logs: cd ${INSTALL_DIR} && ${DC} logs db"
-        fi
-        printf "."
-        sleep 2
-    done
-    printf "\n"
-    success "PostgreSQL is ready."
-}
-
-# ── Stack startup helper ─────────────────────────────────────────────────────
-
-stack_failure_report() {
-    echo ""
-    echo -e "\033[31m[ERROR]\033[0m Stack did not reach a healthy state."
-    echo ""
-    info "Recent logs from migrations / zero-cache / backend:"
-    (cd "${INSTALL_DIR}" && ${DC} logs --tail=60 migrations zero-cache backend 2>&1) || true
-    echo ""
-    echo "Recovery hints:"
-    echo "  1. Inspect migrations:   cd ${INSTALL_DIR} && ${DC} logs migrations"
-    echo "  2. Verify publication:   cd ${INSTALL_DIR} && ${DC} exec db psql -U surfsense -d surfsense -c 'SELECT pubname FROM pg_publication;'"
-    echo "  3. Hard reset zero db:   cd ${INSTALL_DIR} && ${DC} down && docker volume rm surfsense-zero-cache && ${DC} up -d --wait"
-    echo ""
-    exit 1
-}
-
-compose_up_wait() {
-    local service="${1:-}"
-    if [[ -n "$service" ]]; then
-        (cd "${INSTALL_DIR}" && ${DC} up -d --wait "$service") < /dev/null
-    else
-        (cd "${INSTALL_DIR}" && ${DC} up -d --wait) < /dev/null
-    fi
-}
-
-# ── Variant and .env helpers ─────────────────────────────────────────────────
-
-set_env_value() {
-    local file="$1"
-    local key="$2"
-    local value="$3"
-    local tmp
-    tmp=$(mktemp)
-
-    if grep -q "^${key}=" "$file" 2>/dev/null; then
-        awk -v key="$key" -v value="$value" 'BEGIN { prefix = key "=" } $0 ~ "^" prefix { print prefix value; next } { print }' "$file" > "$tmp"
-    else
-        cp "$file" "$tmp"
-        printf '\n%s=%s\n' "$key" "$value" >> "$tmp"
-    fi
-    mv "$tmp" "$file"
-}
-
-remove_env_value() {
-    local file="$1"
-    local key="$2"
-    local tmp
-    tmp=$(mktemp)
-    awk -v key="$key" 'BEGIN { prefix = key "=" } $0 !~ "^" prefix { print }' "$file" > "$tmp"
-    mv "$tmp" "$file"
-}
-
-version_major() {
-    printf '%s' "$1" | cut -d. -f1
-}
-
-recommend_cuda_variant() {
-    local driver_version driver_major
-    driver_version=$(nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>/dev/null | head -n 1 | tr -d '[:space:]' || true)
-    driver_major=$(version_major "$driver_version")
-
-    # CUDA 12.8 generally requires an R570+ driver. Use CUDA 12.6 as the
-    # compatibility fallback for older 12.x driver stacks and GPUs.
-    if [[ "$driver_major" =~ ^[0-9]+$ && "$driver_major" -lt 570 ]]; then
-        printf 'cuda126'
-    else
-        printf 'cuda'
-    fi
-}
-
-gpu_runtime_available() {
-    docker info 2>/dev/null | grep -qi 'nvidia' \
-        || command -v nvidia-ctk >/dev/null 2>&1 \
-        || command -v nvidia-container-runtime >/dev/null 2>&1
-}
-
-host_has_nvidia_gpu() {
-    command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi >/dev/null 2>&1
-}
-
-resolve_variant() {
-    local detected_variant="cpu"
-    local has_gpu=false
-    local has_runtime=false
-
-    if host_has_nvidia_gpu; then
-        has_gpu=true
-        detected_variant=$(recommend_cuda_variant)
-        if gpu_runtime_available; then
-            has_runtime=true
-        fi
-    fi
-
-    if $VARIANT_EXPLICIT; then
-        if [[ "$REQUESTED_VARIANT" == "cpu" ]]; then
-            printf 'cpu'
-            return 0
-        fi
-        if ! $has_gpu; then
-            warn "No NVIDIA GPU detected; falling back to CPU variant." >&2
-            printf 'cpu'
-            return 0
-        fi
-        if ! $has_runtime; then
-            warn "NVIDIA GPU detected, but NVIDIA Container Toolkit was not detected; falling back to CPU variant." >&2
-            warn "Install the toolkit before enabling SurfSense GPU acceleration." >&2
-            printf 'cpu'
-            return 0
-        fi
-        printf '%s' "$REQUESTED_VARIANT"
-        return 0
-    fi
-
-    if $has_gpu && ! $has_runtime; then
-        warn "NVIDIA GPU detected, but NVIDIA Container Toolkit was not detected; using CPU variant." >&2
-    fi
-
-    if $has_gpu && $has_runtime && ! $QUIET && [[ -r /dev/tty && -w /dev/tty ]]; then
-        local choice
-        echo "" > /dev/tty
-        printf "${BOLD}${CYAN}SurfSense detected an NVIDIA GPU.${NC}\n" > /dev/tty
-        printf "Use GPU acceleration? [Y/n]: " > /dev/tty
-        read -r choice < /dev/tty || choice=""
-        case "$choice" in
-            "") printf '%s' "$detected_variant" ;;
-            [Yy]|[Yy][Ee][Ss]) printf '%s' "$detected_variant" ;;
-            [Nn]|[Nn][Oo]) printf 'cpu' ;;
-            *) warn "Unrecognized choice '${choice}', using CPU variant." >&2; printf 'cpu' ;;
-        esac
-        return 0
-    fi
-
-    printf 'cpu'
-}
-
-apply_variant_env() {
-    local env_file="$1"
-    local variant="$2"
-    local allow_existing_update="$3"
-
-    if [[ -f "$env_file" && "$allow_existing_update" != "true" ]]; then
-        warn ".env already exists — keeping your existing configuration."
-        info "To change variants later, edit SURFSENSE_VARIANT and COMPOSE_FILE in ${env_file}, then run ${DC} up -d --wait."
-        return 0
-    fi
-
-    if [[ "$variant" == "cpu" ]]; then
-        set_env_value "$env_file" "SURFSENSE_VARIANT" ""
-        remove_env_value "$env_file" "COMPOSE_FILE"
-        remove_env_value "$env_file" "SURFSENSE_GPU_COUNT"
-    else
-        set_env_value "$env_file" "SURFSENSE_VARIANT" "$variant"
-        set_env_value "$env_file" "COMPOSE_FILE" "docker-compose.yml:docker-compose.gpu.yml"
-        if [[ -n "$GPU_COUNT" ]]; then
-            set_env_value "$env_file" "SURFSENSE_GPU_COUNT" "$GPU_COUNT"
-        fi
-    fi
-
-    remove_env_value "$env_file" "COMPOSE_PROFILES"
-}
-
-SELECTED_VARIANT=$(resolve_variant)
-
-# ── Download files ───────────────────────────────────────────────────────────
-
-step "Downloading SurfSense files"
-info "Installation directory: ${INSTALL_DIR}"
-mkdir -p "${INSTALL_DIR}/scripts"
-mkdir -p "${INSTALL_DIR}/proxy"
-mkdir -p "${INSTALL_DIR}/searxng"
-
-FILES=(
-    "docker/docker-compose.yml:docker-compose.yml"
-    "docker/docker-compose.gpu.yml:docker-compose.gpu.yml"
-    "docker/.env.example:.env.example"
-    "docker/proxy/Caddyfile:proxy/Caddyfile"
-    "docker/postgresql.conf:postgresql.conf"
-    "docker/scripts/migrate-database.sh:scripts/migrate-database.sh"
-    "docker/searxng/settings.yml:searxng/settings.yml"
-    "docker/searxng/limiter.toml:searxng/limiter.toml"
-)
-
-for entry in "${FILES[@]}"; do
-    src="${entry%%:*}"
-    dest="${entry##*:}"
-    info "Downloading ${dest}..."
-    curl -fsSL "${REPO_RAW}/${src}" -o "${INSTALL_DIR}/${dest}" \
-        || error "Failed to download ${dest}. Check your internet connection and try again."
-done
-
-chmod +x "${INSTALL_DIR}/scripts/migrate-database.sh"
-success "All files downloaded to ${INSTALL_DIR}/"
-
-# ── Legacy all-in-one detection ──────────────────────────────────────────────
-# Detect surfsense-data volume → migration mode.
-# If a dump already exists (from a previous partial run) skip extraction and
-# go straight to restore — this makes re-runs safe and idempotent.
-
-if docker volume ls --format '{{.Name}}' 2>/dev/null < /dev/null | grep -q "^${OLD_VOLUME}$" \
-   && [[ ! -f "${MIGRATION_DONE_FILE}" ]]; then
-    MIGRATION_MODE=true
-
-    if [[ -f "${DUMP_FILE}" ]]; then
-        step "Migration mode — using existing dump (skipping extraction)"
-        info "Found existing dump: ${DUMP_FILE}"
-        info "Skipping data extraction — proceeding directly to restore."
-        info "To force a fresh extraction, remove the dump first: rm ${DUMP_FILE}"
-    else
-        step "Migration mode — legacy all-in-one container detected"
-        warn "Volume '${OLD_VOLUME}' found. Your data will be migrated automatically."
-        warn "PostgreSQL is being upgraded from version 14 to 17."
-        warn "Your original data will NOT be deleted."
-        printf "\n"
-        info "Running data extraction (migrate-database.sh --yes)..."
-        info "Full extraction log: ./surfsense-migration.log"
-        printf "\n"
-
-        # Run extraction non-interactively. On failure the error from
-        # migrate-database.sh is printed and install.sh exits here.
-        bash "${INSTALL_DIR}/scripts/migrate-database.sh" --yes < /dev/null \
-            || error "Data extraction failed. See ./surfsense-migration.log for details.\nYou can also run migrate-database.sh manually with custom flags:\n  bash ${INSTALL_DIR}/scripts/migrate-database.sh --db-user X --db-password Y"
-
-        printf "\n"
-        success "Data extraction complete. Proceeding with installation and restore."
-    fi
-fi
-
-# ── Set up .env ──────────────────────────────────────────────────────────────
-
-step "Configuring environment"
-
-if [ ! -f "${INSTALL_DIR}/.env" ]; then
-    cp "${INSTALL_DIR}/.env.example" "${INSTALL_DIR}/.env"
-
-    if $MIGRATION_MODE && [[ -f "${KEY_FILE}" ]]; then
-        SECRET_KEY=$(cat "${KEY_FILE}" | tr -d '[:space:]')
-        success "Using SECRET_KEY recovered from legacy container."
-    else
-        SECRET_KEY=$(openssl rand -base64 32 2>/dev/null \
-            || head -c 32 /dev/urandom | base64 | tr -d '\n')
-        success "Generated new random SECRET_KEY."
-    fi
-
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        sed -i '' "s|SECRET_KEY=replace_me_with_a_random_string|SECRET_KEY=${SECRET_KEY}|" "${INSTALL_DIR}/.env"
-    else
-        sed -i "s|SECRET_KEY=replace_me_with_a_random_string|SECRET_KEY=${SECRET_KEY}|" "${INSTALL_DIR}/.env"
-    fi
-    apply_variant_env "${INSTALL_DIR}/.env" "$SELECTED_VARIANT" "false"
-    info "Created ${INSTALL_DIR}/.env"
-else
-    if $VARIANT_EXPLICIT; then
-        apply_variant_env "${INSTALL_DIR}/.env" "$SELECTED_VARIANT" "true"
-        info "Updated SurfSense image variant in existing ${INSTALL_DIR}/.env"
-    else
-        apply_variant_env "${INSTALL_DIR}/.env" "$SELECTED_VARIANT" "false"
-    fi
-fi
-
-# ── Start containers ─────────────────────────────────────────────────────────
-
-if $MIGRATION_MODE; then
-    # Read DB credentials from .env (fall back to defaults from docker-compose.yml)
-    DB_USER=$(grep '^DB_USER=' "${INSTALL_DIR}/.env" 2>/dev/null | cut -d= -f2 | tr -d '"' | head -1 || true)
-    DB_PASS=$(grep '^DB_PASSWORD=' "${INSTALL_DIR}/.env" 2>/dev/null | cut -d= -f2 | tr -d '"' | head -1 || true)
-    DB_NAME=$(grep '^DB_NAME=' "${INSTALL_DIR}/.env" 2>/dev/null | cut -d= -f2 | tr -d '"' | head -1 || true)
-    DB_USER="${DB_USER:-surfsense}"
-    DB_PASS="${DB_PASS:-surfsense}"
-    DB_NAME="${DB_NAME:-surfsense}"
-
-    step "Starting PostgreSQL 17"
-    (cd "${INSTALL_DIR}" && ${DC} up -d db) < /dev/null
-    wait_for_pg "${DB_USER}"
-
-    step "Restoring database"
-    [[ -f "${DUMP_FILE}" ]] \
-        || error "Dump file '${DUMP_FILE}' not found. The migration script may have failed.\n  Check: ./surfsense-migration.log\n  Or run manually: bash ${INSTALL_DIR}/scripts/migrate-database.sh --yes"
-    info "Restoring dump into PostgreSQL 17 — this may take a while for large databases..."
-
-    RESTORE_ERR="/tmp/surfsense_restore_err.log"
-    (cd "${INSTALL_DIR}" && ${DC} exec -T \
-        -e PGPASSWORD="${DB_PASS}" \
-        db psql -U "${DB_USER}" -d "${DB_NAME}" \
-        >/dev/null 2>"${RESTORE_ERR}") < "${DUMP_FILE}" || true
-
-    # Surface real errors; ignore benign "already exists" noise from pg_dump headers
-    FATAL_ERRORS=$(grep -i "^ERROR:" "${RESTORE_ERR}" \
-        | grep -iv "already exists" \
-        | grep -iv "multiple primary keys" \
-        || true)
-
-    if [[ -n "${FATAL_ERRORS}" ]]; then
-        warn "Restore completed with errors (may be harmless pg_dump header noise):"
-        printf "%s\n" "${FATAL_ERRORS}"
-        warn "If SurfSense behaves incorrectly, inspect manually:"
-        warn "  cd ${INSTALL_DIR} && ${DC} exec db psql -U ${DB_USER} -d ${DB_NAME} < ${DUMP_FILE}"
-    else
-        success "Database restored with no fatal errors."
-    fi
-
-    # Smoke test — verify tables are present
-    TABLE_COUNT=$(
-        cd "${INSTALL_DIR}" && ${DC} exec -T \
-            -e PGPASSWORD="${DB_PASS}" \
-            db psql -U "${DB_USER}" -d "${DB_NAME}" -t \
-            -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" \
-            2>/dev/null < /dev/null | tr -d ' \n' || echo "0"
-    )
-    if [[ "${TABLE_COUNT}" == "0" || -z "${TABLE_COUNT}" ]]; then
-        warn "Smoke test: no tables found after restore."
-        warn "The restore may have failed silently. Check: cd ${INSTALL_DIR} && ${DC} logs db"
-    else
-        success "Smoke test passed: ${TABLE_COUNT} table(s) restored successfully."
-        touch "${MIGRATION_DONE_FILE}"
-    fi
-
-    step "Starting all SurfSense services"
-    if ! compose_up_wait; then
-        stack_failure_report
-    fi
-    success "All services started and healthy."
-
-    # Key file is no longer needed — SECRET_KEY is now in .env
-    rm -f "${KEY_FILE}"
-
-else
-    step "Starting SurfSense"
-    if ! compose_up_wait; then
-        stack_failure_report
-    fi
-    success "All services started and healthy."
-fi
-
-# ── Watchtower (auto-update) ─────────────────────────────────────────────────
-
-if $SETUP_WATCHTOWER; then
-    step "Setting up Watchtower (auto-updates every $((WATCHTOWER_INTERVAL / 3600))h)"
-
-    WT_STATE=$(docker inspect -f '{{.State.Running}}' "${WATCHTOWER_CONTAINER}" 2>/dev/null < /dev/null || echo "missing")
-
-    if [[ "${WT_STATE}" == "true" ]]; then
-        success "Watchtower is already running — skipping."
-    else
-        if [[ "${WT_STATE}" != "missing" ]]; then
-            info "Removing stopped Watchtower container..."
-            docker rm -f "${WATCHTOWER_CONTAINER}" >/dev/null 2>&1 < /dev/null || true
-        fi
-        docker run -d \
-            --name "${WATCHTOWER_CONTAINER}" \
-            --restart unless-stopped \
-            -v /var/run/docker.sock:/var/run/docker.sock \
-            nickfedor/watchtower \
-            --label-enable \
-            --interval "${WATCHTOWER_INTERVAL}" >/dev/null 2>&1 < /dev/null \
-            && success "Watchtower started — labeled SurfSense containers will auto-update." \
-            || warn "Could not start Watchtower. You can set it up manually or use: docker compose pull && docker compose up -d --wait"
+if [[ -n "$FOUND" ]] && is_this_install "$FOUND"; then
+    INSTALL_DIR="$FOUND"
+elif [[ -e "$PWD/surfsense" ]]; then
+    INSTALL_DIR="$PWD/surfsense"
+    if ! is_this_install "$INSTALL_DIR" && [[ -n "$(ls -A "$INSTALL_DIR" 2>/dev/null)" ]]; then
+        error "./surfsense already holds something else. Move it, or run this command from another folder."
     fi
 else
-    info "Skipping Watchtower setup (--no-watchtower flag)."
+    INSTALL_DIR="$PWD/surfsense"
 fi
 
-# ── Done ─────────────────────────────────────────────────────────────────────
+if [[ -f "$INSTALL_DIR/.env" ]]; then
+    UPDATING=true
+    step "Updating SurfSense in $INSTALL_DIR"
+    info "Keeping your settings (.env)."
+else
+    UPDATING=false
+    step "Downloading SurfSense"
+    info "Installing into $INSTALL_DIR"
+fi
+
+mkdir -p "$INSTALL_DIR"
+download docker/surfsense/docker-compose.yml docker-compose.yml
+download docker/surfsense/.env.example .env.example
+if ! $UPDATING; then
+    cp "$INSTALL_DIR/.env.example" "$INSTALL_DIR/.env"
+    success "Created $INSTALL_DIR/.env"
+fi
+
+IMAGE=$(compose config --images 2>/dev/null | head -n 1 || true)
+[[ -n "$IMAGE" ]] || error "docker-compose.yml names no image. Check $INSTALL_DIR/.env."
+BEFORE=$(image_id "$IMAGE")
+
+if [[ -z "$BEFORE" ]]; then
+    step "Pulling SurfSense (about 5 GB the first time)"
+else
+    step "Pulling SurfSense"
+fi
+compose pull || error "Couldn't download the SurfSense image. Check your internet connection and try again."
+AFTER=$(image_id "$IMAGE")
+
+step "Starting SurfSense"
+info "Waiting for SurfSense to be ready. A first start takes a minute or two."
+if ! compose up -d --wait --wait-timeout 600; then
+    compose logs --tail=40 surfsense || true
+    error "SurfSense didn't start. Logs: cd $INSTALL_DIR && docker compose logs"
+fi
+
+if [[ -n "$BEFORE" && "$BEFORE" != "$AFTER" ]]; then
+    # Every version is about 5 GB; the one replaced goes.
+    if docker image rm "$BEFORE" > /dev/null 2>&1 < /dev/null; then
+        info "Removed the previous image."
+    fi
+fi
+
+VERSION=$(compose exec -T surfsense cat /app/VERSION 2>/dev/null | tr -d '[:space:]' || true)
+PINNED=$(env_value SURFSENSE_VERSION)
+PORT=$(env_value SURFSENSE_PORT); PORT="${PORT:-4929}"
+BIND=$(env_value SURFSENSE_BIND)
+DOMAIN=$(env_value SURFSENSE_DOMAIN)
+
+if ! $UPDATING; then
+    done_step "🎉" "SurfSense ${VERSION:+$VERSION }is running"
+elif [[ "$BEFORE" == "$AFTER" ]]; then
+    done_step "✅" "SurfSense ${VERSION:+$VERSION }is already up to date"
+else
+    done_step "✨" "SurfSense updated${VERSION:+ to $VERSION}"
+fi
+if [[ -n "$PINNED" && "$PINNED" != "latest" ]]; then
+    warn "Pinned to $PINNED by SURFSENSE_VERSION in $INSTALL_DIR/.env. Set it to latest to update."
+fi
 
 echo ""
-_version_display=$(grep '^SURFSENSE_VERSION=' "${INSTALL_DIR}/.env" 2>/dev/null | cut -d= -f2 | tr -d '"' | head -1 || true)
-_version_display="${_version_display:-latest}"
-_variant_display=$(grep '^SURFSENSE_VARIANT=' "${INSTALL_DIR}/.env" 2>/dev/null | cut -d= -f2 | tr -d '"' | head -1 || true)
-_variant_display="${_variant_display:-cpu}"
-step "SurfSense is now installed [${_version_display}]"
-
-_public_url=$(grep '^SURFSENSE_PUBLIC_URL=' "${INSTALL_DIR}/.env" 2>/dev/null | cut -d= -f2- | tr -d '"' | head -1 || true)
-_public_url="${_public_url:-http://localhost:3929}"
-
-info "  SurfSense: ${_public_url}"
-info "  Backend:   ${_public_url}/api/v1"
-info "  Zero sync: ${_public_url}/zero"
-info ""
-info "  Config:    ${INSTALL_DIR}/.env"
-info "  Variant:   ${_variant_display}"
-info "  Logs:      cd ${INSTALL_DIR} && ${DC} logs -f"
-info "  Stop:      cd ${INSTALL_DIR} && ${DC} down"
-info "  Update:    cd ${INSTALL_DIR} && ${DC} pull && ${DC} up -d --wait"
-info ""
-
-if $SETUP_WATCHTOWER; then
-    info "  Watchtower: auto-updates every $((WATCHTOWER_INTERVAL / 3600))h (disable: docker rm -f ${WATCHTOWER_CONTAINER})"
+if [[ -n "$DOMAIN" ]]; then
+    echo "  Open:      https://$DOMAIN"
 else
-    warn "  Watchtower skipped. For auto-updates, re-run without --no-watchtower."
+    ADDRESS=""
+    [[ "$BIND" == "127.0.0.1" ]] || ADDRESS=$(lan_address)
+    if [[ -n "$ADDRESS" ]]; then
+        echo "  Open:      http://$ADDRESS:$PORT    (any device on this network)"
+        echo "             http://localhost:$PORT    (this machine)"
+    else
+        echo "  Open:      http://localhost:$PORT"
+    fi
 fi
-info ""
-
-if $MIGRATION_MODE; then
-    warn "  Migration complete! Open frontend and verify your data."
-    warn "  Once verified, clean up the legacy volume and migration files:"
-    warn "    docker volume rm ${OLD_VOLUME}"
-    warn "    rm ${DUMP_FILE}"
-    warn "    rm ${MIGRATION_DONE_FILE}"
-else
-    warn "  First startup may take a few minutes while images are pulled."
-    warn "  Edit ${INSTALL_DIR}/.env to configure API keys, OAuth, etc."
+echo ""
+if ! $UPDATING; then
+    echo "  The first visit asks you to create a password."
+    echo ""
 fi
+echo "  Settings:  $INSTALL_DIR/.env"
+echo "  Logs:      cd $INSTALL_DIR && docker compose logs -f"
+echo "  Stop:      cd $INSTALL_DIR && docker compose down"
+echo "  Update:    run this same command again"
+echo ""
 
-} # end main()
+}
 
 main "$@"

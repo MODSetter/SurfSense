@@ -17,8 +17,9 @@ _RUNTIMES = {
     "sd-server": Engine.SDCPP,
     "audiocpp_server": Engine.AUDIOCPP,
 }
-# Frozen onedir binaries when packaged, the venv interpreter in development.
-_BACKEND = {"api", "worker"}
+# The one frozen binary both roles run when packaged (sidecars/python.ts), the
+# venv interpreter in development.
+_BACKEND = {"surfsense-backend"}
 
 
 def engine_of(executable: str) -> Engine:

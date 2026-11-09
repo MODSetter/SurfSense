@@ -8,29 +8,31 @@ from sqlalchemy.orm import Session
 
 from api.dependencies import SessionDep, transact
 from modules.egress import service as egress
+from modules.jobs.settings.deleted_connection import forget_connection
 from modules.llm.capability import capability_of
 from modules.llm.catalog.remote.manifest.loader import remote_lookup
 from modules.llm.catalog.remote.reads_images import remote_reads_images
 from modules.llm.catalog.remote.rows import CUSTOM
+from modules.llm.connections.console_refusals import refusal_words
 from modules.llm.connections.discovery_failure import discovery_failure
+from modules.llm.connections.elevenlabs_key import require_usable_key
 from modules.llm.connections.listing import connection_models
 from modules.llm.connections.serves import connection_serves
 from modules.llm.connections.service import (
     normalize_base_url,
     probe_connection,
 )
+from modules.llm.connections.speech_client import speech_client
 from modules.llm.connections.text_generator import connection_generator
 from modules.llm.model_type import ModelType
 from modules.llm.models import ProviderConnection
+from modules.llm.providers.elevenlabs.account import ELEVENLABS
 from modules.llm.providers.openai_compatible import (
     NonRetryableImageError,
     OpenAICompatibleImageProvider,
 )
 from modules.llm.providers.openai_compatible.chat import StreamedError
-from modules.llm.providers.openai_compatible.speech import (
-    NonRetryableSpeechError,
-    RemoteSpeech,
-)
+from modules.llm.providers.openai_compatible.speech import NonRetryableSpeechError
 from modules.llm.providers.openai_responses import (
     PlanLimitError,
     SignInRequiredError,
@@ -43,6 +45,7 @@ from modules.llm.schemas import (
     ConnectionRead,
     ConnectionWrite,
     ModelTestWrite,
+    VoiceRead,
 )
 from modules.llm.selectable import selectable_for
 from modules.llm.subscriptions.chatgpt import revocation
@@ -154,7 +157,7 @@ def _requested_model(payload: ModelTestWrite) -> str:
     return model
 
 
-def _save(session: Session, connection: ProviderConnection) -> ConnectionRead:
+def save_connection(session: Session, connection: ProviderConnection) -> ConnectionRead:
     session.add(connection)
     try:
         session.flush()
@@ -204,7 +207,7 @@ async def create_connection(
         catalog_provider=payload.catalog_provider,
         api_key=api_key,
     )
-    return await transact(session, _save, connection)
+    return await transact(session, save_connection, connection)
 
 
 @router.put("/{connection_id}", response_model=ConnectionRead)
@@ -213,6 +216,19 @@ async def update_connection(
 ) -> ConnectionRead:
     connection = await transact(session, _stored, connection_id)
     if connection.auth_kind in (CHATGPT, CLAUDE_PLAN):
+        return await transact(session, _rename, connection, payload)
+    if connection.auth_kind == ELEVENLABS:
+        # Its address is fixed; a new key replaces the old only once it works. Null
+        # clears a key elsewhere, but this connection is nothing without one.
+        if "api_key" in payload.model_fields_set:
+            new_key = (payload.api_key or "").strip()
+            if not new_key:
+                raise HTTPException(
+                    status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    "an ElevenLabs connection needs a key; disconnect it to remove it",
+                )
+            await require_usable_key(session, connection.base_url, new_key)
+            connection.api_key = new_key
         return await transact(session, _rename, connection, payload)
     label, base_url, submitted_key = _candidate(payload)
     api_key = (
@@ -224,7 +240,7 @@ async def update_connection(
     connection.base_url = base_url
     connection.catalog_provider = payload.catalog_provider
     connection.api_key = api_key
-    return await transact(session, _save, connection)
+    return await transact(session, save_connection, connection)
 
 
 def _rename(
@@ -237,7 +253,7 @@ def _rename(
             status.HTTP_422_UNPROCESSABLE_CONTENT, "label must not be empty"
         )
     connection.label = label
-    return _save(session, connection)
+    return save_connection(session, connection)
 
 
 @router.delete("/{connection_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -253,6 +269,7 @@ def delete_connection(connection_id: int, session: SessionDep) -> Response:
     revoke = forgotten is not None and revocation.may_revoke(session)
     session.delete(connection)
     session.flush()
+    forget_connection(session, connection_id)
     egress.forget_if_unused(session, egress.host_destination(connection.base_url))
     if connection.auth_kind == CLAUDE_PLAN:
         # No connection names the sign-in host, so nothing else would clear it.
@@ -291,6 +308,7 @@ async def list_connection_models(
             capability_level=capability_of(model.name, connection).level
             if ModelType.TEXT_GEN in slots
             else None,
+            voices=[VoiceRead(id=v.id, label=v.label) for v in model.voices],
         )
         for model in models
         for slots in [
@@ -334,6 +352,11 @@ async def test_connection_chat(
         raise HTTPException(
             status.HTTP_502_BAD_GATEWAY, f"chat request failed: {error}"
         ) from error
+    except httpx.HTTPStatusError as error:
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY,
+            refusal_words(error) or f"chat request failed: {error}",
+        ) from error
     except httpx.HTTPError as error:
         raise HTTPException(
             status.HTTP_502_BAD_GATEWAY, f"chat request failed: {error}"
@@ -360,17 +383,8 @@ async def test_connection_image(
     connection = await transact(session, allowed_connection, connection_id)
     _require_serves(connection, ModelType.IMAGE_GEN)
 
-    async def allow_url_host(url: str) -> None:
-        # A 403 like the connection's own, so the renderer asks about this host.
-        refused = await transact(session, egress.refused_named_host, url)
-        if refused is not None:
-            raise refused
-
     provider = OpenAICompatibleImageProvider(
-        connection.id,
-        connection.base_url,
-        connection.api_key,
-        allow_url_host=allow_url_host,
+        connection.id, connection.base_url, connection.api_key
     )
     model = _requested_model(payload)
     try:
@@ -395,11 +409,7 @@ async def test_connection_speech(
     connection = await transact(session, allowed_connection, connection_id)
     _require_serves(connection, ModelType.AUDIO_GEN)
     model = _requested_model(payload)
-    speech = RemoteSpeech(
-        model,
-        base_url=connection.base_url,
-        api_key=connection.api_key,
-    )
+    speech = speech_client(connection, model)
     # Empty leaves the voice to the server's default, where it has one.
     voice = (payload.voice or "").strip()
     line = SpokenTurn(voice, payload.prompt or DEFAULT_SPEECH_TEST_TEXT)

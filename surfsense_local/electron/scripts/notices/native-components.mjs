@@ -2,10 +2,11 @@
 // stage scripts already leave beside them. Folders are relative to electron/.
 import { readFileSync } from "node:fs"
 
-import { ESPEAK_VERSION, TAG as AUDIOCPP_TAG } from "../audiocpp/pins.mjs"
-import { BUILD as LLAMACPP_BUILD } from "../fetch-llamacpp.mjs"
-import { RIPGREP_VERSION, VERSION as OPENCODE_VERSION } from "../opencode/pins.mjs"
-import { TAG as SDCPP_TAG } from "../sdcpp/pins.mjs"
+import { DICTIONARIES_FOR, KEPT_DICTIONARIES } from "../../../runtimes/audiocpp/espeak/dictionaries.mjs"
+import { ESPEAK_VERSION, TAG as AUDIOCPP_TAG } from "../../../runtimes/audiocpp/pins.mjs"
+import { BUILD as LLAMACPP_BUILD } from "../../../runtimes/fetch-llamacpp.mjs"
+import { RIPGREP_VERSION, VERSION as OPENCODE_VERSION } from "../../../runtimes/opencode/pins.mjs"
+import { TAG as SDCPP_TAG } from "../../../runtimes/sdcpp/pins.mjs"
 
 function electronVersion() {
   try {
@@ -27,7 +28,11 @@ export const NATIVE_COMPONENTS = [
   { name: "stable-diffusion.cpp", version: SDCPP_TAG, license: "MIT", folder: "sdcpp", files: ["stable-diffusion.cpp.txt"] },
   { name: "ggml (in stable-diffusion.cpp)", version: SDCPP_TAG, license: "MIT", folder: "sdcpp", files: ["ggml.txt"] },
   { name: "audio.cpp", version: AUDIOCPP_TAG, license: "Apache-2.0", folder: "audiocpp", files: ["LICENSE"] },
-  { name: "eSpeak NG", version: ESPEAK_VERSION, license: "GPL-3.0-or-later", folder: "audiocpp", files: ["espeak/COPYING"] },
+  // The GPL asks a modified copy to say so and give a date; the trimmed data is one.
+  { name: "eSpeak NG", version: ESPEAK_VERSION, license: "GPL-3.0-or-later", folder: "audiocpp", files: ["espeak/COPYING"],
+    note: `SurfSense modified this copy on ${DICTIONARIES_FOR.on}, trimming eSpeak NG's data to the dictionaries ` +
+      `its voices can use: ${KEPT_DICTIONARIES.join(", ")}. The complete source, every dictionary included, is at ` +
+      `https://github.com/espeak-ng/espeak-ng/tree/${ESPEAK_VERSION}.` },
   { name: "opencode", version: OPENCODE_VERSION, license: "MIT", folder: "opencode", files: ["LICENSE"] },
   { name: "ripgrep", version: RIPGREP_VERSION, license: "Unlicense OR MIT", folder: "opencode",
     files: ["ripgrep/COPYING", "ripgrep/LICENSE-MIT", "ripgrep/UNLICENSE"] },

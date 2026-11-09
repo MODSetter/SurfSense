@@ -1,11 +1,11 @@
 ---
 name: frontend-workflow
-description: Frontend and UI work in surfsense_web and surfsense_local/frontend — building, refactoring, styling, animating, or reviewing React and Next.js components, shadcn/ui, color tokens and themes, visual polish, and motion. Load this first for any UI task, including adding or changing a shadcn/ui component (dialog, button, dropdown, form, sidebar, table) in a tree with components.json — it owns the color palette, polish rules, and the precedence order, then routes to the separate shadcn skill for component wiring and the CLI. Use for any frontend component, page, style, animation, hover state, icon, layout, or UI review task.
+description: Frontend and UI work in www and surfsense_local/frontend — building, refactoring, styling, animating, or reviewing React and Next.js components, shadcn/ui, color tokens and themes, visual polish, and motion. Load this first for any UI task, including adding or changing a shadcn/ui component (dialog, button, dropdown, form, sidebar, table) in a tree with components.json — it owns the color palette, polish rules, and the precedence order, then routes to the separate shadcn skill for component wiring and the CLI. Use for any frontend component, page, style, animation, hover state, icon, layout, or UI review task.
 ---
 
 # Frontend Workflow
 
-Single entry point for frontend work in `surfsense_web` and
+Single entry point for frontend work in `www` and
 `surfsense_local/frontend`. Both are React + Tailwind + shadcn/ui with their own
 `components.json`. Detect which tree the task touches, and treat that tree's
 `package.json`, `components.json`, and styling setup as authoritative. All

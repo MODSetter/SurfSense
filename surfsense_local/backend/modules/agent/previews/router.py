@@ -1,4 +1,4 @@
-"""The routes Electron polls for Word and PowerPoint snapshots and posts each printed PDF to."""
+"""The routes Electron polls for Word, PowerPoint and web page snapshots and posts each PDF or capture to."""
 
 from typing import Annotated
 
@@ -10,16 +10,25 @@ from modules.agent.previews import docx_snapshots
 from modules.agent.previews.docx_snapshots import SnapshotFormat, SnapshotRequest
 from modules.agent.previews.snapshot_key import require_snapshot_key
 from modules.agent.tool_endpoint.allowed_callers import refuse_web_pages
+from modules.artifacts.web_pages.no_network import NO_NETWORK_POLICY
 
 # Four pages of a document script's output are far below this; a body past it
 # is not a snapshot.
 PDF_BYTES = 50 * 1024 * 1024
 
 PREFIX = "/agent/previews/docx-snapshots"
-# A source is printed only from its own .docx or .pptx original.
+_PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+# A source is printed only from its own .docx or .pptx original; a page from its stored file.
 _MIME: dict[str, str] = {
     "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "html": "text/html; charset=utf-8",
+}
+# The page runs here on the API's own origin, so it gets an opaque one as well
+# as no network: the window loads it straight from this route (ADR 0066).
+_PAGE_HEADERS = {
+    "Content-Security-Policy": f"{NO_NETWORK_POLICY}; sandbox allow-scripts",
+    "X-Content-Type-Options": "nosniff",
 }
 
 router = APIRouter(
@@ -40,7 +49,8 @@ class SnapshotRequestRead(BaseModel):
     # Relative to the API: the artifact's file as the in-app viewer loads it,
     # or a source's original under this request's own file route.
     file_url: str
-    # How to lay the file out: docx-preview for docx, pptx-renderer for pptx.
+    # How to lay the file out: docx-preview for docx, pptx-renderer for pptx;
+    # a web page is loaded as it is and captured.
     format: SnapshotFormat
     # printToPDF's pageRanges, such as "1-4" or "2,5"; the PDF holds them in order.
     pages: str
@@ -83,7 +93,9 @@ def read_snapshot_file(request_id: str) -> FileResponse:
     path = docx_snapshots.snapshots.source_file(request_id)
     if path is None or not path.is_file():
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no file is being printed here")
-    return FileResponse(path, media_type=_MIME[path.suffix.lower().lstrip(".")])
+    format = path.suffix.lower().lstrip(".")
+    headers = _PAGE_HEADERS if format == "html" else None
+    return FileResponse(path, media_type=_MIME[format], headers=headers)
 
 
 @router.post(
@@ -100,6 +112,23 @@ async def deliver_snapshot(request_id: str, request: Request) -> None:
             status.HTTP_422_UNPROCESSABLE_CONTENT, "the body is not a PDF"
         )
     if not docx_snapshots.snapshots.deliver(request_id, pdf):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "no one waits for this snapshot")
+
+
+@router.post(
+    "/{request_id}/png",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Hand back a web page's capture",
+)
+async def deliver_capture(request_id: str, request: Request) -> None:
+    png = await request.body()
+    if len(png) > PDF_BYTES:
+        raise HTTPException(status.HTTP_413_CONTENT_TOO_LARGE, "the PNG is too large")
+    if not png.startswith(_PNG_SIGNATURE):
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, "the body is not a PNG"
+        )
+    if not docx_snapshots.snapshots.deliver(request_id, png):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no one waits for this snapshot")
 
 

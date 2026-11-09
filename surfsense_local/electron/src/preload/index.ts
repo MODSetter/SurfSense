@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from "electron"
 
 import type { MicrophoneAccess } from "../main/microphone/system-access.ts"
+import type { PrivacyState } from "../main/privacy-choices/privacy-controller.ts"
 
 // main passes the API base URL via additionalArguments; read it back off argv
 const FLAG = "--surfsense-api-url="
@@ -36,6 +37,9 @@ function isSidecarCrash(value: unknown): value is SidecarCrash {
 contextBridge.exposeInMainWorld("surfsense", {
   apiUrl: arg ? arg.slice(FLAG.length) : "http://127.0.0.1:8000",
   platform: process.platform,
+  // Asked when needed: on a first launch the database appears after the page loads.
+  databaseIdentity: (): string | null =>
+    ipcRenderer.sendSync("startup:database-identity") as string | null,
   openDocument: (workspaceId: number, documentId: number): Promise<string> =>
     ipcRenderer.invoke("documents:open", workspaceId, documentId),
   revealDocument: (workspaceId: number, documentId: number): Promise<string> =>
@@ -57,6 +61,35 @@ contextBridge.exposeInMainWorld("surfsense", {
       ipcRenderer.on("updates:check-requested", wrapped)
       return () =>
         ipcRenderer.removeListener("updates:check-requested", wrapped)
+    },
+  },
+  // Update checks and usage statistics: what each sends, where, and the switches
+  // (contract 05, part C). State is null outside the app's own window.
+  privacy: {
+    getState: (): Promise<PrivacyState | null> =>
+      ipcRenderer.invoke("privacy:state"),
+    setUsageStatistics: async (enabled: boolean): Promise<void> => {
+      await ipcRenderer.invoke("privacy:set-usage-statistics", enabled)
+    },
+    // The updates bridge's own switch, so both bridges stay one setting.
+    setUpdatesAutomatic: async (enabled: boolean): Promise<void> => {
+      await ipcRenderer.invoke("updates:set-automatic", enabled)
+    },
+    // The exact next report, built but not sent.
+    previewUsageReport: (): Promise<unknown> =>
+      ipcRenderer.invoke("privacy:preview-usage-report"),
+    completeFirstRun: async (choices: {
+      updates: boolean
+      usageStatistics: boolean
+    }): Promise<void> => {
+      await ipcRenderer.invoke("privacy:complete-first-run", choices)
+    },
+    onStateChanged: (
+      listener: (state: PrivacyState) => void
+    ): (() => void) => {
+      const wrapped = (_event: unknown, state: PrivacyState) => listener(state)
+      ipcRenderer.on("privacy:state-changed", wrapped)
+      return () => ipcRenderer.removeListener("privacy:state-changed", wrapped)
     },
   },
   setTitleBarOverlay: (overlay: {
@@ -83,6 +116,24 @@ contextBridge.exposeInMainWorld("surfsense", {
     openDataFolder: (): Promise<string> =>
       ipcRenderer.invoke("about:open-data-folder"),
   },
+  // Where the models and data live, and moving them. Absent where no other drive
+  // can be reached (a confined snap); main opens the picker and holds the plan.
+  storage: (ipcRenderer.sendSync("storage:supported") as boolean)
+    ? {
+        state: () => ipcRenderer.invoke("storage:state"),
+        choose: (kind: "data" | "models") => ipcRenderer.invoke("storage:choose", kind),
+        planDefault: (kind: "data" | "models") =>
+          ipcRenderer.invoke("storage:plan-default", kind),
+        start: (): Promise<boolean> => ipcRenderer.invoke("storage:start"),
+        cancel: (): Promise<void> => ipcRenderer.invoke("storage:cancel"),
+        restart: (): Promise<void> => ipcRenderer.invoke("storage:restart"),
+        onProgress: (listener: (progress: unknown) => void): (() => void) => {
+          const wrapped = (_event: unknown, progress: unknown) => listener(progress)
+          ipcRenderer.on("storage:progress", wrapped)
+          return () => ipcRenderer.removeListener("storage:progress", wrapped)
+        },
+      }
+    : undefined,
   sessionLog: {
     read: (): Promise<string[]> => ipcRenderer.invoke("session-log:read"),
   },

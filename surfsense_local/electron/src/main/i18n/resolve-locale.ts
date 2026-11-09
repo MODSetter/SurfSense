@@ -7,6 +7,8 @@ import {
 
 export type LocalePreference = AppLocale | "system"
 
+// Mirrored in frontend/src/i18n/resolve-locale.ts, which resolves a browser's
+// language without Electron; both run the same cases in their tests.
 // "system" takes the first OS language the app ships, matched on its base
 // language, so ja-JP and de-AT resolve without listing every region.
 export function resolveLocale(

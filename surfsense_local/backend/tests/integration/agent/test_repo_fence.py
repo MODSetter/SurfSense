@@ -1,5 +1,6 @@
 """A git repository above the data folder, as the real opencode finds it."""
 
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -15,14 +16,20 @@ from tests.integration.agent.test_agent_threads import open_thread, thread_folde
 pytestmark = pytest.mark.integration
 
 
-async def worktree(api: AgentAPI, folder: Path) -> str:
-    """The project root opencode resolved for the folder's instance; `/` is none."""
+async def project_root(api: AgentAPI, folder: Path) -> str:
+    """The project opencode resolved for the folder's instance, in one spelling."""
     async with httpx.AsyncClient(
         base_url=api.opencode_url, auth=("opencode", api.password)
     ) as http:
-        reply = await http.get("/path", params={"directory": str(folder)})
+        reply = await http.get(
+            "/api/location", params={"location[directory]": str(folder)}
+        )
         reply.raise_for_status()
-        return reply.json()["worktree"]
+        return os.path.normcase(os.path.realpath(reply.json()["project"]["directory"]))
+
+
+def _spelled(folder: Path) -> str:
+    return os.path.normcase(os.path.realpath(folder))
 
 
 async def test_a_repository_above_is_not_the_project_of_a_thread_read_before_its_next_sync(
@@ -43,7 +50,8 @@ async def test_a_repository_above_is_not_the_project_of_a_thread_read_before_its
     history = await agent_api.http.get(f"/chat/threads/{thread['id']}/messages")
 
     assert history.status_code == 200
-    assert await worktree(agent_api, folder) == "/"
+    # The thread's own folder, not the repository above it.
+    assert await project_root(agent_api, folder) == _spelled(folder)
 
 
 async def test_without_a_repository_above_no_fence_is_written(
@@ -54,7 +62,5 @@ async def test_without_a_repository_above_no_fence_is_written(
 
     agent_folder = get_storage_settings().agent_working_dir(agent_api.workspace_id)
     assert not (agent_folder / FENCE).exists()
-    assert (
-        await worktree(agent_api, thread_folder(agent_api.workspace_id, thread["id"]))
-        == "/"
-    )
+    folder = thread_folder(agent_api.workspace_id, thread["id"])
+    assert await project_root(agent_api, folder) == _spelled(folder)

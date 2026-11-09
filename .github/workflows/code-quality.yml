@@ -3,7 +3,7 @@ name: Code Quality Checks
 # Checks that belong to no product, on every PR: file hygiene, docs and
 # secrets. A PR touching only docs/, .github/ or scripts/ starts neither
 # product workflow, so these must not live in one. Each product lints, scans
-# and tests itself: docker-tests.yml and desktop-tests.yml.
+# and tests itself in its own workflow, such as desktop-tests.yml.
 
 on:
   pull_request:
@@ -98,7 +98,7 @@ jobs:
             pre-commit-security-
 
       # Secrets are a leak wherever they land, so this scans every PR. bandit
-      # is per product: docker-tests.yml and desktop-tests.yml run their own.
+      # is per product: desktop-tests.yml runs its own.
       - name: Scan changed files for secrets
         run: |
           if git show-ref --verify --quiet refs/heads/${{ github.base_ref }}; then
@@ -129,7 +129,7 @@ jobs:
       # The checkout is the pull request merged into its base, its first parent.
       - name: Refuse changes to proprietary code
         run: |
-          changed=$(git diff --name-only HEAD^1 HEAD -- surfsense_backend/app/proprietary plugins/remote/proprietary)
+          changed=$(git diff --name-only HEAD^1 HEAD -- backend/plugins/proprietary)
           if [ -n "$changed" ]; then
             echo "::error::Only SurfSense's maintainers change proprietary/ (Business Source License 1.1). See CONTRIBUTING.md."
             echo "$changed"

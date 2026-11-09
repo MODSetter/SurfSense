@@ -37,7 +37,6 @@ from modules.agent.agent_threads.turn import (
 from modules.agent.agent_threads.turn_frames import TurnFrames
 from modules.agent.agent_threads.turn_sources import turn_sources
 from modules.agent.engines.claude_code.agent_options import AgentLaunch, agent_options
-from modules.agent.engines.claude_code.agent_proxy import required_agent_proxy_url
 from modules.agent.engines.claude_code.agent_runs import AgentRuns, HeldRun
 from modules.agent.engines.claude_code.approvals import APPROVALS
 from modules.agent.engines.claude_code.endings import (
@@ -62,10 +61,8 @@ from modules.agent.plugin_tools.changed_tools import (
     check_after_turn,
     check_changed_tools,
 )
-from modules.agent.plugin_tools.mentions import mention_note, mentioned_plugins
 from modules.agent.plugin_tools.refreshed_sign_ins import refresh_sign_ins
-from modules.agent.plugin_tools.stop_plugin_calls import HostCalls, stop_plugin_calls
-from modules.agent.plugin_tools.thread_calls import thread_calls_token
+from modules.agent.plugin_tools.stop_plugin_calls import stop_plugin_calls
 from modules.agent.plugin_tools.turn_plugins import TurnPlugin, turn_plugins
 from modules.agent.plugin_tools.unavailable_plugin import UnavailablePlugin
 from modules.agent.thread_folder.sync import ThreadGoneError, sync_thread_folder
@@ -87,11 +84,13 @@ from modules.llm.subscriptions.claude.errors import (
 )
 from modules.llm.subscriptions.claude.extra_usage import plan_usage
 from modules.llm.subscriptions.claude.hosts import claude_refusal, require_claude_hosts
+from modules.llm.subscriptions.claude.proxy import required_claude_proxy_url
 from modules.llm.subscriptions.claude.run import ClaudeRun, open_run
 from modules.llm.subscriptions.claude.usable_claude import usable_claude
 from modules.llm.subscriptions.plan_usage_frame import plan_usage_frame
 from modules.plugins.installed.models import PluginTool
 from modules.plugins.license_verdict.license_refresh import refresh_license_verdict
+from modules.usage_statistics.activity_counts import count_agent_answer
 from shared.config import get_storage_settings
 
 logger = logging.getLogger(__name__)
@@ -124,13 +123,14 @@ class _Sending:
     thinking: bool
     # What opencode did in this thread while Claude Code was away.
     handover: str | None = None
+    # The sources the message named with `@`.
+    mention_note: str | None = None
 
 
 @dataclass
 class _Tools:
     plugins: list[TurnPlugin] = field(default_factory=list)
     unavailable: list[UnavailablePlugin] = field(default_factory=list)
-    mentions: list[Any] = field(default_factory=list)
     hidden: list[str] = field(default_factory=list)
     # A digest of each plugin's offered tools, as SurfSense last listed them.
     listings: dict[str, str] = field(default_factory=dict)
@@ -177,6 +177,7 @@ async def claude_turn(
         model,
         payload.thinking,
         handover,
+        sources.mention_note,
     )
     thread_id, workspace_id = thread.id, thread.workspace_id
     session_id = thread.claude_session_id
@@ -226,7 +227,6 @@ async def _stream(
     frames = TurnFrames(session_id)
     shape = OpencodeShape(session_id)
     waiting: set[str] = set()
-    host_calls = HostCalls()
     tools = _Tools()
     held: HeldRun | None = None
     pump: asyncio.Task | None = None
@@ -239,7 +239,7 @@ async def _stream(
             if thread is None:
                 raise ThreadGoneError(thread_id)
             prepared = asyncio.create_task(
-                _prepare_tools(sessions, thread_id, sending.text)
+                _prepare_tools(sessions, where, launch_key, sending.text)
             )
             await run_in_threadpool(
                 sync_thread_folder, session, thread, sending.document_ids
@@ -266,7 +266,7 @@ async def _stream(
             session_id=session_id,
         )
         digest = _digest(sending, servers, tools.hidden, setup.skills)
-        proxy_url = required_agent_proxy_url()
+        proxy_url = required_claude_proxy_url()
         store = ThreadSessionStore(sessions, thread_id)
         resumed = await transact(session, _has_session, session_id)
 
@@ -303,7 +303,7 @@ async def _stream(
         events: asyncio.Queue[Any] = asyncio.Queue()
         held.link.begin(gate, events, session_id)
         pump = asyncio.create_task(
-            _pump(held.run, _blocks(sending, tools.mentions), user_id, events)
+            _pump(held.run, _blocks(sending), user_id, events)
         )
         for event in shape.user(user_id, int(time.time() * 1000)):
             for frame in frames.frames(event):
@@ -344,7 +344,6 @@ async def _stream(
             for event in read:
                 for frame in frames.frames(event):
                     follow_approvals(run, waiting, frame)
-                    host_calls.follow(frame, tools.plugins)
                     if frame.get("artifact") is not None:
                         await transact(session, link_live_render, workspace_id, frame)
                     yield _frame(frame)
@@ -355,6 +354,8 @@ async def _stream(
         )
         stated = turn_reply(messages, user_id, citations)
         await transact(session, finished, thread_id, reply)
+        if stated and stated["content"]["text"]:
+            await count_agent_answer(session)
         if stated and stated["content"]["citations"]:
             yield _frame({"type": "citations", "items": stated["content"]["citations"]})
         yield _frame(
@@ -388,8 +389,6 @@ async def _stream(
             if stopped:
                 await transact(session, record_ending, thread_id, reply, STOPPED)
                 await stop_plugin_calls(tools.plugins)
-            else:
-                host_calls.end()
             setup.runs.release(thread_id)
             await run_in_threadpool(drop_transcript, session_id)
 
@@ -411,7 +410,10 @@ async def _pump(
 
 
 async def _prepare_tools(
-    sessions: sessionmaker[Session], thread_id: int, text: str
+    sessions: sessionmaker[Session],
+    where: tuple[int, int],
+    launch_key: str,
+    text: str,
 ) -> _Tools:
     """The ready plugins and their rules, as opencode's turn plans them, read once the check ends."""
     with sessions() as session:
@@ -420,20 +422,16 @@ async def _prepare_tools(
             UnavailablePlugin(title, "license")
             for title in await refresh_license_verdict(session, if_stale=True)
         ]
-        mentions = await transact(session, mentioned_plugins, text)
         await check_changed_tools(sessions)
         session.expire_all()
-        mentioned = frozenset(m.plugin_id for m in mentions)
-        plugins = await transact(
-            session, turn_plugins, mentioned, thread_calls_token(thread_id)
-        )
+        plugins = await transact(session, turn_plugins, where, launch_key)
         hidden = await transact(session, _hidden_tools, plugins)
         listings = await transact(session, _listings, plugins)
-    return _Tools(plugins, signed_out + licensed_out, mentions, hidden, listings)
+    return _Tools(plugins, signed_out + licensed_out, hidden, listings)
 
 
 def _hidden_tools(session: Session, plugins: list[TurnPlugin]) -> list[str]:
-    """Each given plugin's tools with no rule: switched off, unreviewed, or past the cap."""
+    """Each given plugin's tools with no rule: switched off or unreviewed."""
     hidden = []
     for plugin in plugins:
         for tool in session.scalars(
@@ -472,6 +470,8 @@ def _servers(
             "type": "http",
             "url": thread_tools_url(workspace_id, thread_id),
             "headers": {"Authorization": f"Bearer {launch_key}"},
+            # SurfSense's own tools are seen every turn, never behind a search.
+            "alwaysLoad": True,
         }
     }
     for plugin in plugins:
@@ -483,11 +483,11 @@ def _servers(
     return servers
 
 
-def _blocks(sending: _Sending, mentions: list[Any]) -> list[dict[str, Any]]:
+def _blocks(sending: _Sending) -> list[dict[str, Any]]:
     """SurfSense's notes first, each a block of its own, then the user's words."""
     notes = [
         note
-        for note in (sending.handover, sending.note, mention_note(mentions))
+        for note in (sending.handover, sending.note, sending.mention_note)
         if note is not None
     ]
     return [

@@ -2,10 +2,12 @@ import asyncio
 import json
 from pathlib import Path
 
+import httpx
 import pytest
 from httpx import AsyncClient
 
 from modules.llm.catalog.local.dependencies import get_local_catalog
+from modules.llm.connections import router as connections_router
 from modules.llm.connections.router import CHAT_TEST_MAX_TOKENS
 from modules.llm.providers.openai_compatible import OpenAICompatibleChatProvider
 from modules.llm.providers.sdcpp import provider as sdcpp
@@ -491,6 +493,36 @@ async def test_an_error_the_model_sends_mid_reply_fails_the_chat_test(
 
     assert tested.status_code == 502
     assert tested.json() == {"detail": "chat request failed: Provider disconnected"}
+
+
+async def test_a_chat_test_the_console_refuses_shows_only_its_reason(
+    client: AsyncClient, openai_server: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The reason names the fix, and the prefixes only push it down the dialog."""
+
+    class Refusing:
+        async def chat(self, *_args: object, **_kwargs: object):
+            request = httpx.Request(
+                "POST", "https://opencode.ai/inference/go/openai/v1/chat/completions"
+            )
+            message = "Upstream request failed: Select Global to use it."
+            response = httpx.Response(
+                400, request=request, json={"error": {"message": message}}
+            )
+            raise httpx.HTTPStatusError(message, request=request, response=response)
+            yield ""
+
+    monkeypatch.setattr(
+        connections_router, "connection_generator", lambda *_args: Refusing()
+    )
+    connection = await _connect(client, openai_server)
+
+    tested = await client.post(
+        f"/llm/connections/{connection['id']}/chat-test", json={"model": "deepseek"}
+    )
+
+    assert tested.status_code == 502
+    assert tested.json() == {"detail": "Select Global to use it."}
 
 
 SD15 = "v1-5-pruned_Q4_0"

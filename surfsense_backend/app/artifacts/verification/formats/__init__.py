@@ -1,1 +1,0 @@
-"""Format-specific structural checks."""

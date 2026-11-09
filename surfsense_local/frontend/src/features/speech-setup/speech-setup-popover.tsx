@@ -10,16 +10,14 @@ import {
   PopoverTitle,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { Spinner } from "@/components/ui/spinner"
 import { intl } from "@/i18n/intl"
 
-import { SpeechModelCard } from "./speech-model-card"
 import { useSpeechSetup } from "./use-speech-setup"
 
 /**
- * Setting up speech recognition where it is needed: a waiting recording's row
- * and the composer's mic. Downloading also chooses the model, so one click
- * is the whole set-up; Settings holds every other choice.
+ * Where speech recognition is needed but not set up, a waiting recording's row
+ * and the composer's mic: it asks, then hands off to Settings, which alone
+ * offers the models, their downloads and their progress.
  */
 export function SpeechSetupPopover({
   trigger,
@@ -36,7 +34,7 @@ export function SpeechSetupPopover({
   onOpenChange?: (open: boolean) => void
   /** Present for the mic: once ready, it starts listening. */
   onStart?: () => void
-  /** Opens Settings › Speech recognition. */
+  /** Opens Settings › Speech recognition, where the model is chosen. */
   onMoreChoices: () => void
   side?: "top" | "bottom" | "left" | "right"
   align?: "start" | "center" | "end"
@@ -44,7 +42,11 @@ export function SpeechSetupPopover({
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger render={trigger} />
-      <PopoverContent side={side} align={align} className="w-80 gap-3 p-3">
+      <PopoverContent
+        side={side}
+        align={align}
+        className="w-80 gap-3 p-3 select-none"
+      >
         <SpeechSetupBody onStart={onStart} onMoreChoices={onMoreChoices} />
       </PopoverContent>
     </Popover>
@@ -103,7 +105,8 @@ function SpeechSetupBody({
     )
   }
 
-  const { catalog } = setup
+  const { download } = setup
+  const downloading = download !== null
   return (
     <>
       <PopoverHeader>
@@ -114,65 +117,61 @@ function SpeechSetupBody({
           })}
         </PopoverTitle>
         <PopoverDescription>
-          {intl.formatMessage({
-            id: "speech_setup_popover_body",
-            defaultMessage:
-              "SurfSense turns your voice into text on this computer. It needs a one-time download.",
-          })}
+          {downloading
+            ? intl.formatMessage(
+                {
+                  id: "speech_setup_popover_downloading_body",
+                  defaultMessage:
+                    "Downloading the speech recognition model, {percent, number, ::percent}.",
+                },
+                { percent: (download?.percent ?? 0) / 100 }
+              )
+            : intl.formatMessage({
+                id: "speech_setup_popover_ask_body",
+                defaultMessage:
+                  "Turn your voice into text, on this computer. Choose a model in Settings; it downloads once.",
+              })}
         </PopoverDescription>
       </PopoverHeader>
-
-      {catalog.isPending ? (
-        <Spinner className="self-center" />
-      ) : catalog.isError ? (
-        <p className="text-destructive">
-          {intl.formatMessage({
-            id: "speech_setup_popover_load_error",
-            defaultMessage: "Could not load speech recognition models.",
-          })}
-        </p>
-      ) : setup.curated.length === 0 ? (
-        <p className="text-muted-foreground">
-          {intl.formatMessage({
-            id: "speech_setup_popover_unsupported_body",
-            defaultMessage: "Speech recognition can’t run on this computer.",
-          })}
-        </p>
-      ) : (
-        setup.curated.map((model) => (
-          <SpeechModelCard
-            key={model.id}
-            model={model}
-            download={setup.downloadOf(model)}
-            busy={setup.choosing || setup.settling(model)}
-            onSetUp={() => setup.setUp(model)}
-            onCancel={setup.cancel}
-          />
-        ))
-      )}
-
-      {setup.chooseError ? (
-        <p className="text-destructive">{setup.chooseError.message}</p>
-      ) : null}
-
-      {catalog.isSuccess && setup.curated.length > 0 ? (
+      <div className="flex justify-end gap-2">
+        {download ? (
+          // Stays open: once the feed reports it ended, this asks again.
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            onClick={download.cancel}
+          >
+            {intl.formatMessage({
+              id: "speech_setup_popover_cancel_button",
+              defaultMessage: "Cancel download",
+            })}
+          </Button>
+        ) : (
+          <PopoverClose
+            render={<Button type="button" size="sm" variant="ghost" />}
+          >
+            {intl.formatMessage({
+              id: "speech_setup_popover_not_now_button",
+              defaultMessage: "Not now",
+            })}
+          </PopoverClose>
+        )}
         <PopoverClose
-          render={
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              className="-ml-2 self-start text-muted-foreground"
-            />
-          }
+          render={<Button type="button" size="sm" />}
           onClick={onMoreChoices}
         >
-          {intl.formatMessage({
-            id: "speech_setup_popover_more_button",
-            defaultMessage: "More choices",
-          })}
+          {downloading
+            ? intl.formatMessage({
+                id: "speech_setup_popover_show_progress_button",
+                defaultMessage: "Show progress",
+              })
+            : intl.formatMessage({
+                id: "speech_setup_popover_set_up_button",
+                defaultMessage: "Set up…",
+              })}
         </PopoverClose>
-      ) : null}
+      </div>
     </>
   )
 }

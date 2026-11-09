@@ -1,0 +1,36 @@
+---
+date: "2026-10-14"
+version: "2.2.1"
+---
+
+## What's New in v2.2.1
+
+v2.2.1 brings plugins to the desktop app. A plugin is an MCP server whose tools the agent can use in an Agentic chat, for example to search Google, read a web page or look up products and job listings. You choose which plugins to connect, which tools the agent may use and which ones ask first. Get it from the [downloads page](/downloads), and read more on the [plugins page](/plugins).
+
+### Plugins
+
+- **Settings › Plugins**: Browse lists what you can connect, each with a page showing its tools and who runs it. Yours lists your connected plugins, which you can switch off, disconnect (keeping their tool settings) or remove.
+- **SurfSense's own plugins**: Google Search, Web Crawl, YouTube, TikTok, Google Maps, Amazon, Walmart and Indeed, which need a SurfSense license. Get a free 14-day one on the [downloads page](/downloads) and add it in Settings › License, or see the [pricing page](/pricing).
+- **Third-party plugins**: Turn on Allow third-party plugins to see a list that SurfSense signs, starting with DeepWiki. Each entry is Verified, meaning SurfSense checked who runs the server, or Community. Connecting a Community plugin first asks whether you trust its author.
+- **Any MCP server by URL**: Once third-party plugins are allowed, Add custom plugin connects a remote MCP server, with a key if it needs one. Servers that run as a local command, such as `npx` or `uvx`, can't be added yet.
+- **Tool permissions**: Each tool has its own switch and, for most, Ask or Always allow. A tool that doesn't declare itself read-only or harmless always asks, and one a server adds or changes later stays off until you allow it.
+- **Plugins in the chat**: In an Agentic chat, type `@` and pick a plugin, such as `@amazon`, to have the agent use it. The "+" menu switches plugins on and off. Each plugin step shows its whole result with Save to Sources, and a tool set to Ask waits on its step for Allow once or Deny.
+
+### No longer broken
+
+- Importing a SurfSense cloud export again now adds the chats an interrupted import missed. For a workspace imported before v2.2.1, keep your export ZIP, delete the workspace and import the ZIP again.
+- When your data folder sits inside a git repository, an Agentic chat can no longer reach other chats' and workspaces' folders.
+- Studio now builds PowerPoint and Excel files in the script runner, as it already did for Word and PDF, so Cancel stops a running script.
+- The Word viewer refits when you resize its panel.
+- More messages appear in your language, including why a Studio job can't start, run again or stop.
+
+### Known issues
+
+- **The first start needs free disk space**: v2.2.1 copies your library database before upgrading it, so the first start needs free space about the size of `~/.surfsense/surfsense.db`. Without it, SurfSense closes without a message. Free some space and start it again.
+- **Going back to v2.2.0 needs a manual restore**: v2.2.0 can't open the upgraded database. Quit SurfSense and replace `~/.surfsense/surfsense.db` with the copy saved at the upgrade, `~/.surfsense/backups/0027-0029.db`, before you reinstall v2.2.0. Anything added since the update, connected plugins included, won't be in it.
+- **Plugins work only in Agentic chats**: Choose Agentic when you start a chat. Chats on a model that runs on this computer start in Basic (Q&A), which doesn't use plugins.
+- **Some plugin results are unreliable**: When Amazon, Walmart or YouTube blocks a request, the agent may say nothing was found. TikTok's user search works only some of the time, and a deep Web Crawl or a Google Search over many queries can time out.
+
+### Developers
+
+- Any remote MCP server over Streamable HTTP on HTTPS works as a plugin. To list yours, open a pull request to `plugins/registry`, following `plugins/README.md`.

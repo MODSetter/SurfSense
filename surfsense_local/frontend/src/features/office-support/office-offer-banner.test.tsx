@@ -64,6 +64,7 @@ function artifact(id: number, format: string) {
     version: { root_id: id, number: 1, parent_id: null },
     spec_kind: "python",
     refinable: false,
+    image_editable: false,
   }
 }
 

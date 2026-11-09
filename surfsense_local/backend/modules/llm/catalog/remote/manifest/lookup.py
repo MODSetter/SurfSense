@@ -114,7 +114,11 @@ class RemoteLookup:
 
 def call_reason(call: Call | None) -> str | None:
     """Why a model's own `call` puts it out of reach, or None."""
-    if call is None or call.protocol is None:
+    if call is None:
+        return None
+    if call.unavailable is not None:
+        return call.unavailable
+    if call.protocol is None:
         return None
     return (
         f"Served through the {call.protocol} protocol, which SurfSense does not speak"

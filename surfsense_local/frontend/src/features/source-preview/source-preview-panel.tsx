@@ -6,6 +6,7 @@ import type { WorkspaceDocument } from "@/features/sources/api"
 import { originalDocumentUrl } from "@/features/sources/api"
 import { intl } from "@/i18n/intl"
 import { getFileViewer } from "@/features/file-viewers/registry"
+import { downloadsOriginals } from "@/features/sources/download-original"
 
 export function SourcePreviewPanel({
   workspaceId,
@@ -48,10 +49,15 @@ export function SourcePreviewPanel({
             className="h-6 px-1.5 text-[11px]"
             onClick={onOpen}
           >
-            {intl.formatMessage({
-              id: "source_preview_panel_open_file_button",
-              defaultMessage: "Open file",
-            })}
+            {downloadsOriginals()
+              ? intl.formatMessage({
+                  id: "source_preview_panel_download_file_button",
+                  defaultMessage: "Download file",
+                })
+              : intl.formatMessage({
+                  id: "source_preview_panel_open_file_button",
+                  defaultMessage: "Open file",
+                })}
           </Button>
         </>
       }

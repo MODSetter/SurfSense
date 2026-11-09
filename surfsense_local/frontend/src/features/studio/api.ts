@@ -34,9 +34,12 @@ export type Artifact = {
   /** Null for an artifact made in one go, with no versions. */
   version: ArtifactVersion | null
   /** What the artifact is rendered from, kept so an edit can change it. */
-  spec_kind: "python" | "markdown" | null
-  /** A ready Word or PDF version Studio made, which Refine may rewrite. */
+  spec_kind: "python" | "markdown" | "html" | null
+  /** A ready Word or PDF version Studio made, or a web page a model wrote
+   *  there, which Refine may rewrite. */
   refinable: boolean
+  /** A ready image or infographic, whose picture the Edit box may change. */
+  image_editable: boolean
 }
 
 export type ArtifactFile = {
@@ -94,6 +97,11 @@ export function isWordCopy(revision: Revision): boolean {
   return revision.source_name.toLowerCase().endsWith(".docx")
 }
 
+/** Only a workbook copy can be a job run's. */
+export function isWorkbookCopy(revision: Revision): boolean {
+  return /\.xls[xm]$/i.test(revision.source_name)
+}
+
 export type RevisionDecision = "accept_all" | "reject_all"
 export type RevisedCopyVariant = "changes" | "clean"
 
@@ -149,7 +157,13 @@ export type Voice = {
 
 /** Where a brief's voices come from: the local model's roster, the server's
  *  own list, or the ones the user added for a server model. */
-export type VoicesSource = "local" | "server" | "saved"
+export type VoicesSource = "local" | "server" | "published" | "saved"
+
+/** `list_failed` carries the server's own words; the interface words the other. */
+export type VoicesProblem = {
+  code: "no_usable_voices" | "list_failed"
+  message: string
+}
 
 /** The server that voices a podcast. */
 export type VoicedBy = { server: string; model: string }
@@ -162,6 +176,8 @@ export type OpenedBrief = {
   voices_source: VoicesSource
   voiced_by: VoicedBy | null
   languages: string[]
+  /** Why a server model has no voices, when it is not simply that it lists none. */
+  problem?: VoicesProblem | null
 }
 
 export function readPodcastBrief(
@@ -231,6 +247,21 @@ export function refineArtifact(
   signal?: AbortSignal
 ): Promise<Artifact> {
   return requestJson<Artifact>(`/artifacts/${artifactId}/refine`, {
+    method: "POST",
+    body: JSON.stringify({ instruction }),
+    headers: { "Content-Type": "application/json" },
+    signal,
+  })
+}
+
+/** Makes the next version of an image or infographic: its picture, edited
+ *  to the instruction; the answer is that version, still running. */
+export function editImageArtifact(
+  artifactId: number,
+  instruction: string,
+  signal?: AbortSignal
+): Promise<Artifact> {
+  return requestJson<Artifact>(`/artifacts/${artifactId}/image-edit`, {
     method: "POST",
     body: JSON.stringify({ instruction }),
     headers: { "Content-Type": "application/json" },

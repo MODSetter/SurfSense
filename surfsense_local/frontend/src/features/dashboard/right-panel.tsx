@@ -1,6 +1,9 @@
 import type { ReactNode } from "react"
 
+import { ColumnHeader } from "@/components/ui/column-header"
+import { useStartupReveal } from "@/features/startup/use-startup-reveal"
 import { intl } from "@/i18n/intl"
+import { cn } from "@/lib/utils"
 
 // The right column: Studio's generate control sits above the artifact
 // list, and an inspected citation or artifact swaps out for the whole panel.
@@ -10,11 +13,15 @@ export function RightPanel({
   inspect,
   studio,
   artifacts,
+  toggle,
 }: {
   inspect: ReactNode
   studio: ReactNode
   artifacts: ReactNode
+  /** Hides the panel; Studio's heading holds it, a preview's header never does. */
+  toggle?: ReactNode
 }) {
+  const reveal = useStartupReveal()
   if (inspect) return inspect
 
   return (
@@ -29,13 +36,24 @@ export function RightPanel({
           "SurfSense" header — Studio's format cards start exactly where
           "New chat" does over there, so they don't need a heading of
           their own. */}
-      <header className="shrink-0 space-y-6 px-3 py-3">
-        <h2 className="truncate px-1 font-heading text-lg font-medium text-foreground select-none">
-          Studio
-        </h2>
-        {studio}
+      <header className="shrink-0">
+        <ColumnHeader className="justify-between">
+          <h2 className="truncate px-1 font-heading text-lg font-medium text-foreground select-none">
+            Studio
+          </h2>
+          {toggle}
+        </ColumnHeader>
+        <div {...reveal} className={cn("px-3 pt-2", reveal.className)}>
+          {studio}
+        </div>
       </header>
-      <div className="min-h-0 min-w-0 flex-1 overflow-hidden px-3 pb-2">
+      <div
+        {...reveal}
+        className={cn(
+          "min-h-0 min-w-0 flex-1 overflow-hidden px-3",
+          reveal.className
+        )}
+      >
         {artifacts}
       </div>
     </aside>

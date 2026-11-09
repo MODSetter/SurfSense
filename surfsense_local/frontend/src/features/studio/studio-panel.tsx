@@ -8,7 +8,6 @@ import {
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
   DialogContent,
@@ -17,7 +16,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { OverflowTooltip } from "@/components/ui/overflow-tooltip"
 import { ScrollFade } from "@/components/ui/scroll-fade"
 import { Spinner } from "@/components/ui/spinner"
 import {
@@ -26,6 +24,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import type { WorkspaceDocument } from "@/features/sources/api"
+import { SourceChecklist } from "@/features/sources/source-checklist"
 import type { SourceScope } from "@/features/sources/tree/scope-state"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
@@ -164,8 +163,6 @@ function Composer({
   const podcast = usePodcastBrief(format === "podcast" ? workspaceId : null)
   const allSelected = ready.length > 0 && selected.size === ready.length
 
-  const toggle = (id: number) => onSelectionChange(id, !selected.has(id))
-
   // A podcast is generated from its reviewed brief, so it waits for the brief.
   // A server model with no voices yet can voice nothing: set them up first.
   const needsVoices =
@@ -196,6 +193,7 @@ function Composer({
                 voices={podcast.opened.voices}
                 languages={podcast.opened.languages}
                 voicesSource={podcast.opened.voices_source}
+                voicesProblem={podcast.opened.problem}
                 voicedBy={podcast.opened.voiced_by}
                 onSetUpVoices={onSetUpVoices}
                 onChange={podcast.setBrief}
@@ -347,34 +345,11 @@ function Composer({
           ) : null}
         </div>
         <ScrollFade className="min-h-0 flex-1" viewportClassName="pr-2">
-          <div className="space-y-1">
-            {ready.map((document) => {
-              const on = selected.has(document.id)
-              return (
-                <label
-                  key={document.id}
-                  className={cn(
-                    "flex w-full cursor-pointer items-center gap-2 rounded-md border px-2.5 py-2 text-left text-sm",
-                    on ? "border-primary bg-primary/5" : "hover:bg-accent"
-                  )}
-                >
-                  <Checkbox
-                    checked={on}
-                    onCheckedChange={() => toggle(document.id)}
-                  />
-                  <OverflowTooltip
-                    label={document.title}
-                    focusOwner="label"
-                    render={
-                      <span className="min-w-0 flex-1 truncate">
-                        {document.title}
-                      </span>
-                    }
-                  />
-                </label>
-              )
-            })}
-          </div>
+          <SourceChecklist
+            documents={ready}
+            isChecked={(id) => selected.has(id)}
+            onToggle={onSelectionChange}
+          />
         </ScrollFade>
       </div>
     </div>
