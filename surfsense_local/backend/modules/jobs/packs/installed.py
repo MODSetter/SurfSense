@@ -93,12 +93,13 @@ def _verified_versions(folder: Path) -> list[InstalledPack]:
 def _read_versions(folder: Path) -> tuple[list[InstalledPack], bool]:
     """The versions that pass their checks, and whether one went while it was read."""
     try:
-        versions = sorted(p for p in folder.iterdir() if p.is_dir())
+        listed = sorted(folder.iterdir())
     except OSError:
         return [], False
     found: list[InstalledPack] = []
-    vanished = False
-    for version in versions:
+    # A version listed but gone before it was looked at was moved by an install, too.
+    vanished = any(not entry.exists() for entry in listed)
+    for version in (entry for entry in listed if entry.is_dir()):
         try:
             raw = read_raw_manifest(version)
             manifest = parse_manifest(raw)

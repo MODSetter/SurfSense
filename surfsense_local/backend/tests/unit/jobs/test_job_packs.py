@@ -444,6 +444,32 @@ def test_a_listing_that_saw_a_version_go_reads_again_while_no_install_can_move_o
     assert installs_could_run == [True, False]
 
 
+def test_a_version_moved_between_listing_and_reading_it_is_read_again(
+    tmp_path, monkeypatch
+):
+    """An install can put the new version in place and move the old one away after the folder
+    was listed but before its entries were looked at: the listing still finds the pack."""
+    root = tmp_path / "installed"
+    install_pack(write_pack(tmp_path / "v1"), root)
+    elsewhere = tmp_path / "elsewhere"
+    install_pack(write_pack(tmp_path / "v2", version="1.1.0"), elsewhere)
+    pack = root / "acme-jobs"
+    iterdir = Path.iterdir
+    moved: list[bool] = []
+
+    def listed_then_moved(self: Path):
+        listing = list(iterdir(self))
+        if self == pack and not moved:
+            moved.append(True)
+            (elsewhere / "acme-jobs" / "1.1.0").rename(pack / "1.1.0")
+            (pack / "1.0.0").rename(root / ".replaced-old")
+        return iter(listing)
+
+    monkeypatch.setattr(Path, "iterdir", listed_then_moved)
+
+    assert _versions(root) == ["1.1.0"]
+
+
 def test_an_old_version_that_cannot_be_moved_stays_and_the_newest_is_listed(
     tmp_path, monkeypatch, caplog
 ):
