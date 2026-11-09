@@ -25,7 +25,7 @@ export function updatesText(state: PrivacyState): ChoiceText {
         {
           id: "privacy_choices_updates_mirror_details_body",
           defaultMessage:
-            "Once a day, SurfSense asks {host}, your organization’s update server, for a newer version, sending your IP address, the app’s version and your system, but no ID. Updates download from {host}.",
+            "Once a day, SurfSense asks {host}, your organization’s update server, for a newer version, sending your IP address, the app’s version and your system, but no ID. Updates download from {host}, or a server it names, and install when you quit.",
         },
         { host }
       ),
@@ -40,7 +40,7 @@ export function updatesText(state: PrivacyState): ChoiceText {
       {
         id: "privacy_choices_updates_details_body",
         defaultMessage:
-          "Once a day, SurfSense asks {host}, or github.com as a fallback, for a newer version, sending your IP address, the app’s version and your system, but no ID. Updates download from github.com and githubusercontent.com.",
+          "Once a day, SurfSense asks {host} for a newer version, sending your IP address, the app’s version and your system, but no ID. If that fails, github.com sees only your IP address and operating system. Updates download from github.com and githubusercontent.com and install when you quit.",
       },
       { host }
     ),
@@ -63,7 +63,7 @@ export function usageText(state: PrivacyState): ChoiceText {
       {
         id: "privacy_choices_usage_details_body",
         defaultMessage:
-          "Once a day, SurfSense sends {host} the app’s version, your system and hardware, and usage counts in ranges. Never documents, prompts, file names, model names, hosts, your license key or an ID.",
+          "Once a day, SurfSense sends {host} the app’s version, your system and hardware, whether models can use your graphics card, and usage counts and days used, in ranges. Never documents, prompts, file names, model names, hosts, your license key or an ID.",
       },
       { host }
     ),
