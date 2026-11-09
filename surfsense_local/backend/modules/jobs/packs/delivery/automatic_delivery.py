@@ -54,10 +54,13 @@ async def deliver_held_back(sessions: sessionmaker[Session]) -> None:
     if not ended:
         return
     # Out of the record before the check: one held back again is recorded again, and any
-    # other end, a refusal or a licence gone among them, is that code's last follow-up.
-    HELD_BACK.release(ended)
-    logger.info("job packs checked again once their runs ended: %s", ", ".join(ended))
-    await deliver_if_due(sessions, ended)
+    # other end, a refusal or a licence gone among them, is that code's last follow-up. A
+    # code another follow-up took off meanwhile is that one's to check.
+    claimed = HELD_BACK.release(ended)
+    if not claimed:
+        return
+    logger.info("job packs checked again once their runs ended: %s", ", ".join(claimed))
+    await deliver_if_due(sessions, claimed)
 
 
 def _runs_ended(session: Session, held: dict[str, str]) -> list[str]:
