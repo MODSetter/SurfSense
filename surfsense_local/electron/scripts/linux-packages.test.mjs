@@ -90,6 +90,14 @@ test("the snap job builds in LXD, so the snap keeps electron-builder's GNOME ext
   assert.equal(snap.layout, undefined)
 })
 
+test("the snap job builds with snapcraft 8, which finds electron-builder's desktop file", () => {
+  // electron-builder 26 names the app's desktop file meta/gui/<name>.desktop, which exists
+  // only once snapcraft has copied snap/gui to meta/gui. Snapcraft 8 copies first; snapcraft
+  // 9 reads desktop files before copying and fails the build (dry run 40069485663).
+  const workflow = readFileSync(join(ELECTRON, "..", "..", ".github", "workflows", "release-local.yml"), "utf8")
+  assert.match(workflow, /sudo snap install snapcraft --classic --channel=8\.x\/stable/)
+})
+
 test("electron-builder never uploads the snap to the Snap Store itself", () => {
   // Without a publish entry of its own, a snap build with --publish falls back to `snapcraft upload`.
   const { default: SnapTarget } = builder("app-builder-lib/out/targets/snap/SnapTarget")
