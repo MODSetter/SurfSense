@@ -14,6 +14,8 @@ import { DETAIL_RAIL_WIDTH, MAIN_RAIL_WIDTH } from "@/components/ui/slide-rail"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { IssueReportDialog } from "@/features/feedback/issue-report-dialog"
 import { NO_LICENSE, runRead } from "@/features/jobs/stub-jobs-api"
+import { rememberTicks } from "@/features/sources/tree/remembered-ticks"
+import { everySource } from "@/features/sources/tree/scope-state"
 import { boxHeld, boxText, render } from "@/test-utils"
 
 import {
@@ -925,6 +927,8 @@ describe("dashboard chat", () => {
     vi.stubGlobal("fetch", fetchMock)
     const user = userEvent.setup()
 
+    // The user ticked every source last session.
+    rememberTicks(1, everySource(true))
     render(
       <TooltipProvider>
         <DashboardPage
@@ -1919,7 +1923,6 @@ describe("dashboard chat", () => {
     )
 
     await screen.findByRole("treeitem", { name: "Research" })
-    await user.click(screen.getByRole("button", { name: "Clear" }))
     await user.click(
       screen.getByRole("checkbox", { name: "Select folder Research" })
     )
@@ -1983,6 +1986,8 @@ describe("dashboard chat", () => {
     vi.stubGlobal("fetch", fetchMock)
     const user = userEvent.setup()
 
+    // The user ticked every source last session.
+    rememberTicks(1, everySource(true))
     render(
       <TooltipProvider>
         <DashboardPage
@@ -2448,6 +2453,8 @@ describe("dashboard chat", () => {
     )
     const user = userEvent.setup()
 
+    // The user ticked every source last session.
+    rememberTicks(1, everySource(true))
     render(
       <TooltipProvider>
         <DashboardPage
