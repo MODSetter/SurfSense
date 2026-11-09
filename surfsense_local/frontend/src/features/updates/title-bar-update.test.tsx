@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { act, cleanup, screen, waitFor } from "@testing-library/react"
+import {
+  act,
+  cleanup,
+  fireEvent,
+  screen,
+  waitFor,
+} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
 import { EgressPrompt } from "@/features/egress/egress-prompt"
@@ -10,6 +16,7 @@ import { toast } from "sonner"
 import { MenuUpdateCheck } from "./menu-update-check"
 import { stubUpdateBridge as stubBridge } from "./stub-bridge"
 import { TitleBarUpdate } from "./title-bar-update"
+import { UP_TO_DATE_SHOWN_MS } from "./up-to-date-confirmation"
 
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
@@ -17,6 +24,7 @@ vi.mock("sonner", () => ({
 
 afterEach(() => {
   cleanup()
+  vi.useRealTimers()
   vi.clearAllMocks()
   delete window.surfsense
 })
@@ -41,7 +49,7 @@ describe("the title bar's update pill", () => {
     }
   )
 
-  it("says when its check found nothing newer", async () => {
+  it("says in the pill, not a toast, when its check found nothing newer", async () => {
     const bridge = stubBridge({ automatic: true, state: { status: "idle" } })
     const user = userEvent.setup()
     render(<TitleBarUpdate />)
@@ -52,7 +60,39 @@ describe("the title bar's update pill", () => {
     act(() => bridge.push({ status: "checking" }))
     act(() => bridge.push({ status: "up-to-date" }))
 
-    expect(toast.success).toHaveBeenCalledWith("SurfSense is up to date")
+    const pill = screen.getByRole("status", { name: "SurfSense is up to date" })
+    expect(pill.textContent).toBe("Up to date")
+    expect(toast.success).not.toHaveBeenCalled()
+  })
+
+  it("offers a check again once it has said so", async () => {
+    const bridge = stubBridge({ automatic: true, state: { status: "idle" } })
+    render(<TitleBarUpdate />)
+    const button = await screen.findByRole("button", {
+      name: "Check for updates",
+    })
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] })
+
+    fireEvent.click(button)
+    act(() => bridge.push({ status: "checking" }))
+    act(() => bridge.push({ status: "up-to-date" }))
+    expect(screen.getByRole("status", { name: "SurfSense is up to date" }))
+    act(() => vi.advanceTimersByTime(UP_TO_DATE_SHOWN_MS))
+
+    expect(screen.queryByRole("status")).toBeNull()
+    expect(screen.getByRole("button", { name: "Check for updates" }))
+  })
+
+  it("says nothing when a check it did not start finds nothing newer", async () => {
+    const bridge = stubBridge({ automatic: true, state: { status: "idle" } })
+    render(<TitleBarUpdate />)
+    await screen.findByRole("button", { name: "Check for updates" })
+
+    act(() => bridge.push({ status: "checking" }))
+    act(() => bridge.push({ status: "up-to-date" }))
+
+    expect(screen.queryByRole("status")).toBeNull()
+    expect(screen.getByRole("button", { name: "Check for updates" }))
   })
 
   it("says when its check failed", async () => {
@@ -111,7 +151,7 @@ describe("the title bar's update pill", () => {
       bridge.push({ status: "up-to-date" })
     })
 
-    expect(toast.success).toHaveBeenCalledWith("SurfSense is up to date")
+    expect(screen.getByRole("status", { name: "SurfSense is up to date" }))
   })
 
   it("reports one result once, when the menu checks too", async () => {
@@ -128,12 +168,14 @@ describe("the title bar's update pill", () => {
       await screen.findByRole("button", { name: "Check for updates" })
     )
     await act(async () => bridge.checkFromMenu())
-    // Both checks ran, so the one toast is not just the title bar's alone.
+    // Both checks ran, so the one result is not just the title bar's alone.
     await waitFor(() => expect(bridge.calls).toEqual(["check", "check"]))
     act(() => bridge.push({ status: "checking" }))
     act(() => bridge.push({ status: "up-to-date" }))
 
-    expect(toast.success).toHaveBeenCalledTimes(1)
+    expect(
+      screen.getAllByRole("status", { name: "SurfSense is up to date" })
+    ).toHaveLength(1)
   })
 
   it.each(["policy", "channel"] as const)(

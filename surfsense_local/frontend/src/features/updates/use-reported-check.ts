@@ -4,6 +4,7 @@ import { toast } from "sonner"
 import { intl } from "@/i18n/intl"
 import type { UpdateState } from "@/lib/api"
 
+import { confirmUpToDate } from "./up-to-date-confirmation"
 import { useCheckForUpdates } from "./use-check-for-updates"
 import { updatesBridge } from "./use-update-state"
 
@@ -31,9 +32,8 @@ function reportingFor(updates: Updates) {
 }
 
 /**
- * A check whose result comes back as a toast, up to date or failed, for the
- * app menu and the title bar, where Settings may be closed. A found update
- * shows in the title bar instead.
+ * A check from the app menu or the title bar, where Settings may be closed.
+ * Up to date and a found update show in the title bar; a failure is a toast.
  */
 export function useReportedCheck() {
   const check = useCheckForUpdates()
@@ -50,13 +50,7 @@ export function useReportedCheck() {
       }
       if (shared.phase !== "running") return
       shared.phase = "none"
-      if (state.status === "up-to-date")
-        toast.success(
-          intl.formatMessage({
-            id: "updates_check_up_to_date_toast",
-            defaultMessage: "SurfSense is up to date",
-          })
-        )
+      if (state.status === "up-to-date") confirmUpToDate(updates)
       else if (state.status === "error")
         toast.error(
           intl.formatMessage({
