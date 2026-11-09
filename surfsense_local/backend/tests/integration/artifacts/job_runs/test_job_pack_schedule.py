@@ -783,3 +783,18 @@ async def test_the_api_stops_promptly_while_a_check_is_held_back(
     bound = delivery_schedule.STOP_WITHIN.total_seconds() + (1 if asking else 0)
     assert time.monotonic() - stopping < bound
     assert versions() == ["1.0.0"]
+
+
+async def test_two_follow_ups_at_once_check_a_code_once(
+    sessions: sessionmaker[Session],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Whoever takes a code off the record checks it: a second follow-up that read it as held
+    finds it gone and sends nothing."""
+    caplog.set_level(logging.INFO, logger=DELIVERY_LOG)
+    HELD_BACK.hold(ENTITLEMENT, PACK_ID)
+
+    await asyncio.gather(deliver_held_back(sessions), deliver_held_back(sessions))
+
+    assert caplog.text.count("job packs checked again once their runs ended") == 1
+    assert caplog.text.count(NO_LICENSE) == 1

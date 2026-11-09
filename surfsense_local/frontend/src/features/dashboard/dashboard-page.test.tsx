@@ -1508,12 +1508,18 @@ describe("dashboard chat", () => {
     await user.click(jobs)
 
     const dialog = await screen.findByRole("dialog", { name: "Jobs" })
-    // One row for each job SurfSense sells: the questionnaire and the redline.
+    // One row for each job SurfSense sells, under one offer of a trial.
     expect(
       await within(dialog).findAllByText(
-        "Comes with a SurfSense Business license. Try it free for 14 days."
+        "Jobs come with a SurfSense Business license. Try it free for 14 days."
       )
-    ).toHaveLength(2)
+    ).toHaveLength(1)
+    expect(
+      within(dialog).getByRole("heading", { name: "Security questionnaire" })
+    ).toBeTruthy()
+    expect(
+      within(dialog).getByRole("heading", { name: "Contract redline" })
+    ).toBeTruthy()
   })
 
   it("closes Jobs and opens Settings › License for a job’s Add license", async () => {
@@ -2316,7 +2322,7 @@ describe("dashboard chat", () => {
   })
 
   describe("in the Docker image", { tags: ["docker"] }, () => {
-    it("keeps the toggle on the heading's line: Studio's while open, the chat's while hidden", async () => {
+    it("keeps one toggle in the columns' corner, open or hidden", async () => {
       vi.stubGlobal(
         "fetch",
         vi.fn(async (input: RequestInfo | URL) => {
@@ -2370,24 +2376,23 @@ describe("dashboard chat", () => {
           name: "Workspace artifacts",
         })
       ).toBeTruthy()
-      const hide = within(
-        screen.getByRole("complementary", { name: "Workspace artifacts" })
-      ).getByRole("button", { name: "Hide right panel" })
+      const hide = screen.getByRole("button", { name: "Hide right panel" })
       // A browser has no title bar to hold it.
       expect(hide.closest(".titlebar-controls")).toBeNull()
       await user.click(hide)
       expect(
         screen.queryByRole("complementary", { name: "Workspace artifacts" })
       ).toBeNull()
-      await user.click(
-        within(screen.getByRole("region", { name: "Conversation" })).getByRole(
-          "button",
-          { name: "Show right panel" }
-        )
-      )
+      // One button that only changes its name, so it never moves.
+      const show = screen.getByRole("button", { name: "Show right panel" })
+      expect(show).toBe(hide)
+      await user.click(show)
       expect(
         screen.getByRole("complementary", { name: "Workspace artifacts" })
       ).toBeTruthy()
+      expect(
+        screen.getAllByRole("button", { name: "Hide right panel" })
+      ).toHaveLength(1)
     })
   })
 

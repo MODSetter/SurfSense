@@ -255,6 +255,19 @@
   padding-inline: 0.5rem 0.75rem;
 }
 
+.titlebar-controls-start {
+  display: flex;
+  align-items: center;
+  transform: translateY(calc(var(--columns-gap) / 2));
+  app-region: no-drag;
+  -webkit-app-region: no-drag;
+}
+
+/* macOS has no title-bar area to read: this clears the traffic lights. */
+.electron-macos .titlebar-controls-start {
+  margin-inline-start: 4.25rem;
+}
+
 .titlebar-controls-end {
   display: flex;
   align-items: center;

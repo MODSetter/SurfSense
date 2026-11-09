@@ -1,5 +1,10 @@
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext"
-import { $getSelection, $isRangeSelection, $isTextNode, RootNode } from "lexical"
+import {
+  $getSelection,
+  $isRangeSelection,
+  $isTextNode,
+  RootNode,
+} from "lexical"
 import { useEffect } from "react"
 
 import { messageLength } from "../mentions/mention-text"

@@ -945,7 +945,9 @@ describe("artifact panel image edit", () => {
     await user.click(
       await screen.findByRole("button", { name: "Edit this image" })
     )
-    expect(await screen.findByText("Needs an image editing model.")).toBeTruthy()
+    expect(
+      await screen.findByText("Needs an image editing model.")
+    ).toBeTruthy()
     expect(
       screen
         .getByRole("textbox", { name: "How to change this image" })

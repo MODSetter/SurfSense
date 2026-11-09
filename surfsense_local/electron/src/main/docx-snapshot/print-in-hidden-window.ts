@@ -56,6 +56,8 @@ export function printInHiddenWindow(page: URL): PrintSnapshot {
       const url = new URL(page)
       url.searchParams.set("file", fileUrl)
       url.searchParams.set("format", format)
+      // The page draws only these; drawing a long file's every page could outlast the print's time.
+      url.searchParams.set("pages", pages)
       await win.loadURL(url.href)
       // A rejected promise reaches here without its message, so the page resolves its reason.
       const answer: unknown = await win.webContents.executeJavaScript("window.docxSnapshot")

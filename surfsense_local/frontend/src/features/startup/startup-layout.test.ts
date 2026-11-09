@@ -8,9 +8,15 @@ describe("startup layout", () => {
   it("opens on a new chat with the right panel open when nothing is stored", () => {
     expect(readStartupLayout()).toEqual({
       composer: "center",
+      sidebarOpen: true,
       rightPanelOpen: true,
       mentions: false,
     })
+  })
+
+  it("keeps the sidebar hidden when it was hidden", () => {
+    localStorage.setItem("surfsense:sidebar:v1", "collapsed")
+    expect(readStartupLayout().sidebarOpen).toBe(false)
   })
 
   it("puts the composer at the bottom when the last workspace had a thread open", () => {

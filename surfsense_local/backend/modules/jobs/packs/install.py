@@ -11,7 +11,6 @@ import errno
 import logging
 import shutil
 import tempfile
-import threading
 import time
 import zipfile
 import zlib
@@ -21,6 +20,7 @@ from pathlib import Path
 from typing import BinaryIO
 from uuid import uuid4
 
+from modules.jobs.packs.install_lock import INSTALLING
 from modules.jobs.packs.installed import installed_packs
 from modules.jobs.packs.integrity import MAX_PACK_BYTES, check_files
 from modules.jobs.packs.manifest import (
@@ -35,9 +35,6 @@ from modules.jobs.packs.signature import check_signature
 
 logger = logging.getLogger(__name__)
 
-# Process-wide: a developer's packs, the path route, an import, a download and the daily check
-# all install here, and two at once could each move the other's version away.
-_INSTALLING = threading.Lock()
 # What an install, a download or an import leaves when the app stops mid-way. Readers skip
 # every name starting with a dot; an install sweeps these once they are an hour old.
 _LEFTOVERS = (".installing-", ".replaced-", ".download-", ".upload-")
@@ -83,7 +80,7 @@ def install_pack(
     `replace_same_version`, which only a developer's own paths ask for."""
     root.mkdir(parents=True, exist_ok=True)
     with (
-        _INSTALLING,
+        INSTALLING,
         tempfile.TemporaryDirectory(
             prefix=".installing-", dir=root, ignore_cleanup_errors=True
         ) as scratch,
@@ -111,7 +108,7 @@ def install_pack(
 def remove_pack(pack_id: str, root: Path) -> bool:
     """Whether a pack of that id was installed; its folder goes, the user's files stay."""
     folder = root / pack_id
-    with _INSTALLING:
+    with INSTALLING:
         if pack_id.startswith(".") or folder.parent != root or not folder.is_dir():
             return False
         shutil.rmtree(folder)

@@ -257,10 +257,9 @@ describe(
     })
 
     it("signs a signed-out Claude Code in inside the container", async () => {
-      serve(
-        [{ state: "signed_out", email: null, plan: null }],
-        { bridge: false }
-      )
+      serve([{ state: "signed_out", email: null, plan: null }], {
+        bridge: false,
+      })
       const user = userEvent.setup()
       render(<ClaudeRow modelType="text_gen" onConnected={vi.fn()} />)
 

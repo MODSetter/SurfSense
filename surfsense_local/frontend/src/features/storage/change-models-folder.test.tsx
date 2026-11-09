@@ -7,7 +7,12 @@ import { render } from "@/test-utils"
 import { ChangeModelsFolder } from "./change-models-folder"
 import type { PlanResult, StorageBridge } from "./storage-types"
 
-const FOLDER = { path: "/Users/ana/.surfsense", isDefault: true, connected: true, freeBytes: 64_300_000_000 }
+const FOLDER = {
+  path: "/Users/ana/.surfsense",
+  isDefault: true,
+  connected: true,
+  freeBytes: 64_300_000_000,
+}
 
 const READY: PlanResult = {
   status: "ready",
@@ -36,7 +41,9 @@ afterEach(() => {
 })
 
 async function openDialog(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(await screen.findByRole("button", { name: "Change download folder" }))
+  await user.click(
+    await screen.findByRole("button", { name: "Change download folder" })
+  )
 }
 
 describe("ChangeModelsFolder", () => {
@@ -66,13 +73,19 @@ describe("ChangeModelsFolder", () => {
     render(<ChangeModelsFolder />)
 
     await openDialog(user)
-    await user.click(await screen.findByRole("button", { name: "Choose folder…" }))
+    await user.click(
+      await screen.findByRole("button", { name: "Choose folder…" })
+    )
 
     expect(await screen.findByText("Move your models?")).toBeTruthy()
-    expect(screen.getByText(READY.status === "ready" ? READY.source : "")).toBeTruthy()
+    expect(
+      screen.getByText(READY.status === "ready" ? READY.source : "")
+    ).toBeTruthy()
     expect(screen.getByText("/Volumes/Big/SurfSense-Models")).toBeTruthy()
     expect(screen.getByText("Needs 1.1 GB212 GB free")).toBeTruthy()
-    expect(screen.getByText(/The old copy is removed automatically/)).toBeTruthy()
+    expect(
+      screen.getByText(/The old copy is removed automatically/)
+    ).toBeTruthy()
     expect(bridge.start).not.toHaveBeenCalled()
 
     await user.click(screen.getByRole("button", { name: "Move and restart" }))
@@ -85,7 +98,9 @@ describe("ChangeModelsFolder", () => {
     render(<ChangeModelsFolder />)
 
     await openDialog(user)
-    await user.click(await screen.findByRole("button", { name: "Choose folder…" }))
+    await user.click(
+      await screen.findByRole("button", { name: "Choose folder…" })
+    )
 
     expect(await screen.findByText(FOLDER.path)).toBeTruthy()
     expect(screen.queryByText("Move your models?")).toBeNull()
@@ -97,11 +112,15 @@ describe("ChangeModelsFolder", () => {
     render(<ChangeModelsFolder />)
 
     await openDialog(user)
-    await user.click(await screen.findByRole("button", { name: "Choose folder…" }))
+    await user.click(
+      await screen.findByRole("button", { name: "Choose folder…" })
+    )
     await user.click(await screen.findByRole("button", { name: "Cancel" }))
 
     expect(bridge.start).not.toHaveBeenCalled()
-    await waitFor(() => expect(screen.queryByText("Move your models?")).toBeNull())
+    await waitFor(() =>
+      expect(screen.queryByText("Move your models?")).toBeNull()
+    )
   })
 
   it("is absent while the models drive is away", async () => {

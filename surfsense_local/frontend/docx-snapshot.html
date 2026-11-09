@@ -8,16 +8,17 @@
       the agent's previews. No app styles, so only the document's own look
       reaches the page.
 
-      The document is untrusted. Its styles are inline, its fonts data URLs,
-      and its images data URLs (Word) or object URLs the page makes from the
-      file (PowerPoint); the only fetch is the file from the API on
-      loopback. connect-src has no 'self': packaged, that is file://, and a
-      script that got in could read any local file. vite.config.ts adds it in
-      development for Vite's client.
+      The document is untrusted. A Word file's pages are images the page draws
+      from it; a deck's styles are inline and its pictures object URLs. The
+      only fetches are the file from the API on loopback and the Word parser,
+      inlined as a data URL, which its worker runs as WebAssembly. connect-src
+      has no 'self': packaged, that is file://, and a script that got in could
+      read any local file. vite.config.ts adds it in development for Vite's
+      client.
     -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; connect-src http://127.0.0.1:*; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
+      content="default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; worker-src blob: data:; style-src 'unsafe-inline'; img-src data: blob:; font-src data: blob:; connect-src http://127.0.0.1:* data:; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
     />
     <title>Document snapshot</title>
   </head>

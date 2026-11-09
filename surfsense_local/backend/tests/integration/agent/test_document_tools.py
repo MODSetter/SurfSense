@@ -400,7 +400,7 @@ async def test_word_previews_say_they_leave_out_headers_and_footers(
     assert is_error is False, text
     assert len(images) == 1
     assert "in order: page 1." in text
-    assert "Word previews leave out headers and footers" in text
+    assert "shows headers, footers and watermarks" in text
 
 
 async def test_a_page_too_long_and_thin_to_draw_is_named_beside_the_others(

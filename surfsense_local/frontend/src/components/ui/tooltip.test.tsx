@@ -70,9 +70,7 @@ describe("Tooltip accessibility", () => {
       <TooltipProvider>
         <Tooltip id="custom-tooltip-id" defaultOpen>
           <TooltipTrigger render={<button type="button">Trigger</button>} />
-          <TooltipContent>
-            Custom ID content
-          </TooltipContent>
+          <TooltipContent>Custom ID content</TooltipContent>
         </Tooltip>
       </TooltipProvider>
     )

@@ -1,470 +1,221 @@
-import { act, cleanup, render } from "@testing-library/react"
-import { renderAsync } from "docx-preview"
-import {
-  afterAll,
-  afterEach,
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vitest"
+import { act, cleanup, render, screen } from "@testing-library/react"
+import { strFromU8, unzipSync } from "fflate"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-import { CLAUSE_WITH_TRACKED_CHANGES } from "@/features/docx-snapshot/fixtures/clause-with-tracked-changes"
-import { CLAUSES_WITH_COMMENTS } from "@/features/docx-snapshot/fixtures/clauses-with-comments"
-import { LINKS_OF_EVERY_KIND } from "@/features/docx-snapshot/fixtures/links-of-every-kind"
-import { REPLY_AND_UNSIGNED_COMMENT } from "@/features/docx-snapshot/fixtures/reply-and-unsigned-comment"
-import { REPORT_WITH_ALT_CHUNK } from "@/features/docx-snapshot/fixtures/report-with-alt-chunk"
-import { STYLES_THAT_LOAD_REMOTE_IMAGES } from "@/features/docx-snapshot/fixtures/styles-that-load-remote-images"
+import {
+  textWatermark,
+  WORD_TEXT_SHAPE_TYPE,
+  wordFileWithHeader,
+} from "@/features/word-document/watermarks/fixtures"
 import type { ArtifactDetail } from "../api"
-import { COMMENT_GUTTER } from "./docx-comments"
 import { DocxViewer } from "./docx-viewer"
 
-// The real library, watched so a test can hold one render back.
-vi.mock("docx-preview", async (importOriginal) => {
-  const real = await importOriginal<typeof import("docx-preview")>()
-  return { ...real, renderAsync: vi.fn(real.renderAsync) }
-})
+// The renderer draws to canvases jsdom cannot paint; its real output is checked
+// in word-document/watermarks. Here is what the viewer asks of it.
+const renderer = vi.hoisted(() => ({
+  load: vi.fn(),
+  fromDocument: vi.fn(),
+}))
+vi.mock("@silurus/ooxml/docx", () => ({
+  DocxDocument: { load: renderer.load },
+  DocxScrollViewer: { fromDocument: renderer.fromDocument },
+}))
+vi.mock("@silurus/ooxml/math", () => ({ math: { name: "math" } }))
 
-function wordArtifact(
-  id: number,
-  file: Uint8Array<ArrayBuffer>
-): ArtifactDetail {
+function wordArtifact(id = 12, size = 1000): ArtifactDetail {
   return {
     id,
-    document_id: 40,
-    format: "docx",
     generation: 1,
     title: "Client proposal",
-    status: "ready",
-    error_message: null,
-    created_at: "2026-10-04T00:00:00Z",
-    updated_at: "2026-10-04T00:00:00Z",
-    version: { root_id: 12, number: id - 11, parent_id: null },
-    spec_kind: "python",
-    refinable: false,
-    image_editable: false,
-    content: null,
-    files: [
-      {
-        role: "primary",
-        mime_type:
-          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        size_bytes: file.byteLength,
-        original_filename: "Client proposal.docx",
-      },
-    ],
-    quiz_state: null,
-    flashcard_state: null,
+    files: [{ role: "primary", size_bytes: size }],
+  } as unknown as ArtifactDetail
+}
+
+function serve(file: ArrayBuffer = wordFileWithHeader("")) {
+  const fetchMock = vi.fn(async () => new Response(file))
+  vi.stubGlobal("fetch", fetchMock)
+  return fetchMock
+}
+
+function fakeDocument() {
+  return { destroy: vi.fn(), getBookmarkPage: vi.fn() }
+}
+
+function fakeViewer() {
+  return {
+    destroy: vi.fn(),
+    zoomIn: vi.fn(),
+    zoomOut: vi.fn(),
+    scrollToPage: vi.fn(),
   }
 }
 
-/** Serves each artifact's Word file by the id in the URL. */
-function serve(files: Record<number, Uint8Array<ArrayBuffer>>): void {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (url: string) => {
-      const id = Number(/\/artifacts\/(\d+)\//.exec(url)?.[1])
-      return new Response(files[id])
-    })
+async function open(artifact = wordArtifact()) {
+  const actions = document.createElement("div")
+  const view = render(
+    <DocxViewer artifact={artifact} actionsContainer={actions} />
   )
+  await vi.waitFor(() => expect(renderer.fromDocument).toHaveBeenCalled())
+  return { ...view, actions }
 }
 
-/**
- * A Word file opened at the zoom the viewer fits it at: jsdom lays nothing
- * out, so this is a 600 px frame whose scrollbar leaves 585 px, holding pages
- * 816 px wide.
- */
-async function openFitted(file: Uint8Array<ArrayBuffer>): Promise<Document> {
-  serve({ 12: file })
-  const { container } = render(
-    <DocxViewer artifact={wordArtifact(12, file)} actionsContainer={null} />
-  )
-  const frame = container.querySelector("iframe")!
-  Object.defineProperty(frame, "clientWidth", { value: 600 })
-  const pages = pagesOf(container)
-  Object.defineProperty(pages.documentElement, "clientWidth", {
-    configurable: true,
-    value: 585,
-  })
-  // docx-preview may make the page in either window's realm.
-  const frameWindow = pages.defaultView as unknown as typeof globalThis
-  const realms = [HTMLElement.prototype, frameWindow.HTMLElement.prototype]
-  const own = realms.map((prototype) =>
-    Object.getOwnPropertyDescriptor(prototype, "offsetWidth")
-  )
-  for (const prototype of realms) {
-    Object.defineProperty(prototype, "offsetWidth", {
-      configurable: true,
-      get(this: HTMLElement) {
-        return this.classList.contains("docx") ? 816 : 0
-      },
-    })
-  }
-
-  try {
-    await vi.waitFor(() => expect(zoomOf(pages)).not.toMatch(/^1?$/))
-    return pages
-  } finally {
-    realms.forEach((prototype, index) => {
-      const descriptor = own[index]
-      if (descriptor)
-        Object.defineProperty(prototype, "offsetWidth", descriptor)
-      else Reflect.deleteProperty(prototype, "offsetWidth")
-    })
-  }
+/** What the viewer told the renderer to do on a link or a page. */
+function viewerOptions() {
+  return renderer.fromDocument.mock.lastCall![2]
 }
-
-async function fitZoom(file: Uint8Array<ArrayBuffer>): Promise<string> {
-  return zoomOf(await openFitted(file))
-}
-
-function zoomOf(pages: Document): string {
-  return pages.body.style.getPropertyValue("zoom")
-}
-
-/** The observers watching for a resize, as the browser would call them. */
-const resizeObservers = new Set<{ callback: ResizeObserverCallback }>()
-
-/** Narrows or widens the frame's viewport, as dragging the panel's edge does. */
-function resize(pages: Document, viewportWidth: number): void {
-  Object.defineProperty(pages.documentElement, "clientWidth", {
-    configurable: true,
-    value: viewportWidth,
-  })
-  act(() => {
-    for (const { callback } of resizeObservers)
-      callback([], {} as ResizeObserver)
-  })
-}
-
-/** The document the viewer lays the Word file's pages out in. */
-function pagesOf(viewer: HTMLElement): Document {
-  const frame = viewer.querySelector("iframe")
-  expect(frame?.contentDocument).toBeTruthy()
-  return frame!.contentDocument!
-}
-
-async function open(file: Uint8Array<ArrayBuffer>): Promise<Document> {
-  serve({ 12: file })
-  const { container } = render(
-    <DocxViewer artifact={wordArtifact(12, file)} actionsContainer={null} />
-  )
-  await vi.waitFor(() =>
-    expect(pagesOf(container).querySelector("section.docx")).not.toBeNull()
-  )
-  return pagesOf(container)
-}
-
-function link(pages: Document, text: string): HTMLAnchorElement | null {
-  const links = [...pages.querySelectorAll("a")]
-  return links.find((anchor) => anchor.textContent === text) ?? null
-}
-
-function policyOf(pages: Document): Map<string, string[]> {
-  const policy = pages
-    .querySelector('head > meta[http-equiv="Content-Security-Policy"]')
-    ?.getAttribute("content")
-  return new Map(
-    (policy ?? "")
-      .split(";")
-      .map((directive) => directive.trim().split(/\s+/))
-      .filter(([name]) => name)
-      .map(([name, ...sources]) => [name, sources])
-  )
-}
-
-// docx-preview sizes a VML shape from its SVG box, which jsdom does not lay out.
-beforeAll(() => {
-  Object.defineProperty(SVGElement.prototype, "getBBox", {
-    configurable: true,
-    value: () => ({ x: 0, y: 0, width: 0, height: 0 }),
-  })
-})
-
-afterAll(() => {
-  Reflect.deleteProperty(SVGElement.prototype, "getBBox")
-})
 
 beforeEach(() => {
-  resizeObservers.clear()
-  vi.stubGlobal(
-    "ResizeObserver",
-    class {
-      readonly callback: ResizeObserverCallback
-      constructor(callback: ResizeObserverCallback) {
-        this.callback = callback
-      }
-      observe() {
-        resizeObservers.add(this)
-      }
-      unobserve() {}
-      disconnect() {
-        resizeObservers.delete(this)
-      }
-    }
-  )
+  renderer.load.mockReset().mockImplementation(async () => fakeDocument())
+  renderer.fromDocument.mockReset().mockImplementation(() => fakeViewer())
 })
 
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
-  vi.mocked(renderAsync).mockClear()
 })
 
 describe("Word viewer", () => {
-  it("leaves out HTML the Word file carries, so none of its script runs", async () => {
-    const pages = await open(REPORT_WITH_ALT_CHUNK)
-
-    expect(pages.body.textContent).toContain("Quarterly report")
-    expect(pages.querySelector("iframe")).toBeNull()
+  it("shows tracked changes and comments, as a revised copy is reviewed by them", async () => {
+    serve()
+    await open()
+    expect(renderer.load.mock.lastCall![1].showTrackedChanges).toBe(true)
+    expect(viewerOptions().comments).toBe(true)
   })
 
-  it("lays the pages out in a frame of their own that runs no script", async () => {
-    const pages = await open(STYLES_THAT_LOAD_REMOTE_IMAGES)
-
-    const frame = pages.defaultView?.frameElement
-    expect(frame?.getAttribute("sandbox")).toBe("allow-same-origin")
-    expect(pages.body.textContent).toContain("Proposal")
+  it("draws equations and lets the reader select text", async () => {
+    serve()
+    await open()
+    expect(renderer.load.mock.lastCall![1].math).toBeTruthy()
+    expect(viewerOptions().enableTextSelection).toBe(true)
   })
 
-  it("keeps the Word file's styles out of the app's own window", async () => {
-    const pages = await open(STYLES_THAT_LOAD_REMOTE_IMAGES)
-
-    const ownStyles = [...document.querySelectorAll("style")]
-      .map((style) => style.textContent)
-      .join("\n")
-    const ownInlineStyles = [...document.querySelectorAll("[style]")]
-      .map((element) => element.getAttribute("style"))
-      .join("\n")
-    expect(ownStyles).not.toContain("tracker.example")
-    expect(ownInlineStyles).not.toContain("tracker.example")
-    // The global rule the font name smuggles in lands in the frame instead.
-    const frameStyles = [...pages.querySelectorAll("style")]
-      .map((style) => style.textContent)
-      .join("\n")
-    expect(frameStyles).toContain("https://tracker.example/beacon")
+  it("asks the web for no font on a document's behalf", async () => {
+    serve()
+    await open()
+    expect(renderer.load.mock.lastCall![1].useGoogleFonts).toBe(false)
   })
 
-  it("lets the frame load images and fonts from the file alone, never the web", async () => {
-    const pages = await open(STYLES_THAT_LOAD_REMOTE_IMAGES)
-
-    const policy = policyOf(pages)
-    expect(policy.get("default-src")).toEqual(["'none'"])
-    expect(policy.get("style-src")).toEqual(["'unsafe-inline'"])
-    expect(policy.get("img-src")).toEqual(["data:"])
-    expect(policy.get("font-src")).toEqual(["data:"])
-    // Set before the file's styles, so it already covers their first load.
-    expect(pages.head.firstElementChild?.getAttribute("http-equiv")).toBe(
-      "Content-Security-Policy"
+  it("carries its parser inline, as the packaged app cannot fetch it from disk", async () => {
+    serve()
+    await open()
+    expect(renderer.load.mock.lastCall![1].wasmUrl).toMatch(
+      /^data:application\/wasm;base64,/
     )
   })
 
-  it("shows tracked changes: insertions underlined, deletions struck through", async () => {
-    const pages = await open(CLAUSE_WITH_TRACKED_CHANGES)
-
-    const inserted = pages.querySelector("ins")
-    const deleted = pages.querySelector("del")
-    expect(inserted?.textContent).toBe("45")
-    expect(deleted?.textContent).toBe("30")
-    const view = pages.defaultView!
-    expect(view.getComputedStyle(inserted!).textDecorationLine).toContain(
-      "underline"
+  it("gives the renderer the file's watermark in the form it draws", async () => {
+    serve(wordFileWithHeader(WORD_TEXT_SHAPE_TYPE + textWatermark()))
+    await open()
+    const given = renderer.load.mock.lastCall![0] as ArrayBuffer
+    const header = strFromU8(
+      unzipSync(new Uint8Array(given))["word/header1.xml"]
     )
-    expect(view.getComputedStyle(deleted!).textDecorationLine).toContain(
-      "line-through"
-    )
+    expect(header).toContain("font-size:96pt")
   })
 
-  it("keeps no link that would run script when clicked", async () => {
-    const pages = await open(LINKS_OF_EVERY_KIND)
-
-    expect(link(pages, "Open the chart")?.hasAttribute("href")).toBe(false)
-    expect(pages.querySelector('a[href^="javascript:" i]')).toBeNull()
-  })
-
-  it("follows no web link, since the app opens none of them", async () => {
-    const pages = await open(LINKS_OF_EVERY_KIND)
-
-    const website = link(pages, "Our website")
-    expect(website).not.toBeNull()
-    expect(website?.hasAttribute("href")).toBe(false)
-    expect(website?.hasAttribute("target")).toBe(false)
-  })
-
-  it("keeps a link to a place in the document, within the document", async () => {
-    const pages = await open(LINKS_OF_EVERY_KIND)
-
-    const pricing = link(pages, "See pricing")
-    expect(pricing?.getAttribute("href")).toBe("#pricing")
-    // Not the app's own address with #pricing on it, which would load the
-    // app into the frame instead of scrolling.
-    expect(pricing?.href).toBe("about:blank#pricing")
-  })
-
-  it("fits the page to the frame's viewport, leaving out its scrollbar", async () => {
-    expect(await fitZoom(LINKS_OF_EVERY_KIND)).toBe(String(585 / 816))
-  })
-
-  it("fits the comments' balloons beside the page", async () => {
-    expect(await fitZoom(CLAUSES_WITH_COMMENTS)).toBe(
-      String(585 / (816 + COMMENT_GUTTER))
-    )
-  })
-
-  it("refits the page when the frame is resized", async () => {
-    const pages = await openFitted(LINKS_OF_EVERY_KIND)
-
-    resize(pages, 400)
-
-    expect(zoomOf(pages)).toBe(String(400 / 816))
-  })
-
-  it("keeps a zoom set by hand when the frame is resized", async () => {
-    const pages = await openFitted(LINKS_OF_EVERY_KIND)
-    const frameWindow = pages.defaultView!
-    act(() => {
-      pages.dispatchEvent(
-        new frameWindow.WheelEvent("wheel", {
-          ctrlKey: true,
-          deltaY: -1,
-          cancelable: true,
-        })
-      )
+  it("opens no web page a document links to", async () => {
+    serve()
+    const opened = vi.fn()
+    vi.stubGlobal("open", opened)
+    await open()
+    viewerOptions().onHyperlinkClick({
+      kind: "external",
+      url: "https://example.invalid/",
     })
-    const byHand = zoomOf(pages)
-    expect(byHand).toBe(String((585 / 816) * 1.1))
-
-    resize(pages, 400)
-
-    expect(zoomOf(pages)).toBe(byHand)
+    expect(opened).not.toHaveBeenCalled()
   })
 
-  it("shows each comment numbered in a balloon, its passage shaded", async () => {
-    const pages = await open(CLAUSES_WITH_COMMENTS)
-
-    const balloons = [...pages.querySelectorAll(".surfsense-comment")]
-    expect(balloons.map((balloon) => balloon.textContent)).toEqual([
-      expect.stringMatching(
-        /^1SurfSense.*2026.*Cash flow: the request asks for payment within 30 days\.$/
-      ),
-      // Saved without a date, so it shows none rather than 1970.
-      "2SurfSenseTermination should be mutual.",
-    ])
-    const refs = [...pages.querySelectorAll(".surfsense-comment-ref")]
-    expect(refs.map((ref) => ref.textContent)).toEqual(["1", "2"])
-    const shaded = (note: string) =>
-      [
-        ...pages.querySelectorAll(
-          `.surfsense-comment-anchor[data-notes~="${note}"]`
-        ),
-      ]
-        .map((shade) => shade.textContent)
-        .join("")
-    // The first comment covers the change: "60" struck through, "30" put in.
-    expect(shaded("1")).toBe("6030")
-    expect(shaded("2")).toBe("terminate on notice")
-    // Not hidden behind a hover, as docx-preview leaves them.
-    expect(pages.querySelector(".docx-comment-popover")).toBeNull()
-    expect(pages.body.textContent).not.toContain("💬")
+  it("follows a link to a place in the document", async () => {
+    serve()
+    const document = fakeDocument()
+    document.getBookmarkPage.mockReturnValue(3)
+    const viewer = fakeViewer()
+    renderer.load.mockResolvedValue(document)
+    renderer.fromDocument.mockReturnValue(viewer)
+    await open()
+    viewerOptions().onHyperlinkClick({ kind: "internal", ref: "chapter-2" })
+    expect(document.getBookmarkPage).toHaveBeenCalledWith("chapter-2")
+    expect(viewer.scrollToPage).toHaveBeenCalledWith(3)
   })
 
-  it("shows a comment's time as Word does, without moving it by the reader's offset", async () => {
-    const pages = await open(CLAUSES_WITH_COMMENTS)
+  it("stays put on a link to a place that does not exist", async () => {
+    serve()
+    const viewer = fakeViewer()
+    renderer.fromDocument.mockReturnValue(viewer)
+    await open()
+    viewerOptions().onHyperlinkClick({ kind: "internal", ref: "gone" })
+    expect(viewer.scrollToPage).not.toHaveBeenCalled()
+  })
 
-    // Written 2026-10-06T12:00:00Z: Word shows 12:00 wherever it is opened.
-    expect(pages.querySelector(".surfsense-comment")?.textContent).toMatch(
-      /Oct 6, 2026.*12:00/
+  it("zooms from the panel's buttons", async () => {
+    serve()
+    const viewer = fakeViewer()
+    renderer.fromDocument.mockReturnValue(viewer)
+    const { actions } = await open()
+    await vi.waitFor(() =>
+      expect(actions.querySelector("button")).not.toBeNull()
     )
+    const [zoomOut, zoomIn] = actions.querySelectorAll("button")
+    act(() => zoomIn.click())
+    act(() => zoomOut.click())
+    expect(viewer.zoomIn).toHaveBeenCalledOnce()
+    expect(viewer.zoomOut).toHaveBeenCalledOnce()
   })
 
-  it("opens a file whose comment has no author, and shows that comment", async () => {
-    const pages = await open(REPLY_AND_UNSIGNED_COMMENT)
-
-    expect(pages.body.textContent).toContain("Notices go")
-    const balloons = [...pages.querySelectorAll(".surfsense-comment")]
-    expect(balloons.at(-1)?.textContent).toBe("3Email too.")
+  it("refuses a file over the limit before fetching it", async () => {
+    const fetchMock = serve()
+    render(
+      <DocxViewer
+        artifact={wordArtifact(12, 16 * 1024 * 1024)}
+        actionsContainer={null}
+      />
+    )
+    expect(await screen.findByText(/too large to preview/)).toBeTruthy()
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  it("keeps a reply's marker legible and shades shared text once", async () => {
-    const pages = await open(REPLY_AND_UNSIGNED_COMMENT)
-
-    const shades = [
-      ...pages.querySelectorAll<HTMLElement>(".surfsense-comment-anchor"),
-    ]
-    // "fixed" carries Dana's comment and SurfSense's reply in one shade.
-    expect(shades[0]?.textContent).toBe("fixed")
-    expect(shades[0]?.dataset.notes).toBe("1 2")
-    expect(shades[0]?.querySelector(".surfsense-comment-anchor")).toBeNull()
-    // Dana's marker sits inside the reply's passage, unshaded.
-    const marker = pages.querySelector(".surfsense-comment-ref")
-    expect(marker?.textContent).toBe("1")
-    expect(marker?.querySelector(".surfsense-comment-anchor")).toBeNull()
-  })
-
-  it("keeps the balloons in the margin beside the pages", async () => {
-    const pages = await open(CLAUSES_WITH_COMMENTS)
-
-    const wrapper = pages.querySelector<HTMLElement>(".docx-wrapper")!
-    expect(wrapper.style.paddingRight).toBe(`${30 + COMMENT_GUTTER}px`)
-    const balloon = pages.querySelector<HTMLElement>(".surfsense-comment")!
-    expect(balloon.parentElement).toBe(wrapper)
-    // From the middle, as the pages are centred: jsdom gives them no width.
-    expect(balloon.style.left).toMatch(/^calc\(50% [+-] \d+px\)$/)
-    expect(balloon.style.top).toMatch(/px$/)
-    // A link in a comment is disarmed as one in the text is.
-    expect(pages.querySelector('a[href]:not([href^="#"])')).toBeNull()
-  })
-
-  it("leaves a file without comments as it was, with no margin", async () => {
-    const pages = await open(CLAUSE_WITH_TRACKED_CHANGES)
-
-    expect(pages.querySelector(".surfsense-comment")).toBeNull()
-    expect(
-      pages.querySelector<HTMLElement>(".docx-wrapper")!.style.paddingRight
-    ).toBe("")
+  it("says so when the file cannot be read, and tries again on request", async () => {
+    serve()
+    renderer.load.mockRejectedValueOnce(new Error("not a Word file"))
+    render(<DocxViewer artifact={wordArtifact()} actionsContainer={null} />)
+    expect(await screen.findByText("not a Word file")).toBeTruthy()
+    act(() => screen.getByRole("button", { name: "Try again" }).click())
+    await vi.waitFor(() => expect(renderer.fromDocument).toHaveBeenCalled())
+    expect(screen.queryByText("not a Word file")).toBeNull()
   })
 
   it("shows the version picked last when an earlier one finishes after it", async () => {
-    const { renderAsync: realRenderAsync } =
-      await vi.importActual<typeof import("docx-preview")>("docx-preview")
-    let releaseFirst = () => {}
-    const firstHeld = new Promise<void>((resolve) => {
-      releaseFirst = resolve
-    })
-    vi.mocked(renderAsync).mockImplementationOnce(async (...args) => {
-      await firstHeld
-      return realRenderAsync(...args)
-    })
-    serve({ 12: LINKS_OF_EVERY_KIND, 13: REPORT_WITH_ALT_CHUNK })
-
-    const { container, rerender } = render(
-      <DocxViewer
-        artifact={wordArtifact(12, LINKS_OF_EVERY_KIND)}
-        actionsContainer={null}
-      />
-    )
-    await vi.waitFor(() => expect(renderAsync).toHaveBeenCalledTimes(1))
-    rerender(
-      <DocxViewer
-        artifact={wordArtifact(13, REPORT_WITH_ALT_CHUNK)}
-        actionsContainer={null}
-      />
-    )
-    await vi.waitFor(() =>
-      expect(pagesOf(container).body.textContent).toContain("Quarterly report")
-    )
-    releaseFirst()
-    await vi.waitFor(() =>
-      expect(vi.mocked(renderAsync).mock.settledResults[0]?.type).toBe(
-        "fulfilled"
+    serve()
+    let finishFirst: (document: unknown) => void = () => {}
+    const first = fakeDocument()
+    renderer.load
+      .mockImplementationOnce(
+        () => new Promise((resolve) => (finishFirst = resolve))
       )
+      .mockImplementation(async () => fakeDocument())
+    const { rerender } = render(
+      <DocxViewer artifact={wordArtifact(12)} actionsContainer={null} />
     )
+    await vi.waitFor(() => expect(renderer.load).toHaveBeenCalledOnce())
+    rerender(<DocxViewer artifact={wordArtifact(13)} actionsContainer={null} />)
+    await vi.waitFor(() => expect(renderer.fromDocument).toHaveBeenCalledOnce())
 
-    const pages = pagesOf(container)
-    expect(pages.body.textContent).toContain("Quarterly report")
-    expect(pages.body.textContent).not.toContain("Open the chart")
-    expect(pages.querySelector('a[href^="javascript:" i]')).toBeNull()
+    await act(async () => finishFirst(first))
+
+    expect(first.destroy).toHaveBeenCalled()
+    expect(renderer.fromDocument).toHaveBeenCalledOnce()
+  })
+
+  it("frees the document and its viewer when closed", async () => {
+    serve()
+    const document = fakeDocument()
+    const viewer = fakeViewer()
+    renderer.load.mockResolvedValue(document)
+    renderer.fromDocument.mockReturnValue(viewer)
+    const { unmount } = await open()
+    await vi.waitFor(() => expect(renderer.fromDocument).toHaveBeenCalled())
+    unmount()
+    expect(viewer.destroy).toHaveBeenCalled()
+    expect(document.destroy).toHaveBeenCalled()
   })
 })

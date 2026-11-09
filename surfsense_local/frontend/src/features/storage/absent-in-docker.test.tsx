@@ -31,4 +31,3 @@ describe("moving folders in the Docker image", { tags: ["docker"] }, () => {
     stop()
   })
 })
-

@@ -428,30 +428,30 @@ export function SettingsDialog({
                     className="flex flex-col gap-0.5"
                     aria-labelledby={`settings-nav-${group}`}
                   >
-                    {sections.filter(
-                      (section) => section.group === group
-                    ).map((section) => {
-                      const Icon = section.icon
-                      const selected = section.id === activeSection.id
-                      return (
-                        <Button
-                          static
-                          key={section.id}
-                          type="button"
-                          variant="ghost"
-                          className={cn(
-                            "h-8 w-full justify-start rounded-lg",
-                            selected &&
-                              "bg-sidebar-accent text-sidebar-accent-foreground"
-                          )}
-                          aria-current={selected ? "page" : undefined}
-                          onClick={() => onSectionChange(section.id)}
-                        >
-                          <Icon />
-                          {SECTION_LABELS[section.id]()}
-                        </Button>
-                      )
-                    })}
+                    {sections
+                      .filter((section) => section.group === group)
+                      .map((section) => {
+                        const Icon = section.icon
+                        const selected = section.id === activeSection.id
+                        return (
+                          <Button
+                            static
+                            key={section.id}
+                            type="button"
+                            variant="ghost"
+                            className={cn(
+                              "h-8 w-full justify-start rounded-lg",
+                              selected &&
+                                "bg-sidebar-accent text-sidebar-accent-foreground"
+                            )}
+                            aria-current={selected ? "page" : undefined}
+                            onClick={() => onSectionChange(section.id)}
+                          >
+                            <Icon />
+                            {SECTION_LABELS[section.id]()}
+                          </Button>
+                        )
+                      })}
                   </nav>
                 </div>
               )

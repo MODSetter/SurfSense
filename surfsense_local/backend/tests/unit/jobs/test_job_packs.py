@@ -13,6 +13,7 @@ from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
 from modules.jobs.packs import installed
 from modules.jobs.packs.install import install_pack, remove_pack
+from modules.jobs.packs.install_lock import INSTALLING
 from modules.jobs.packs.installed import find_job, installed_packs
 from modules.jobs.packs.manifest import PackManifest, PackRefusedError, version_key
 from modules.jobs.packs.seal import seal_pack, zip_pack
@@ -408,24 +409,112 @@ def test_a_version_is_listed_at_every_moment_of_an_install(tmp_path):
     assert [listed for listed in seen if len(listed) != 1] == []
 
 
-def test_a_listing_reads_again_while_installs_follow_each_other(tmp_path, monkeypatch):
-    """Two installs in a row can each move the version the last read found: the listing reads
-    the pack's folder again until a read sees none go, so the pack never drops out."""
+def test_a_listing_that_saw_a_version_go_reads_again_while_no_install_can_move_one(
+    tmp_path, monkeypatch
+):
+    """Installs in a row can each move the version the last read found, however often it reads:
+    the read after one goes waits out the install under way, so the pack never drops out."""
     root = tmp_path / "installed"
     install_pack(write_pack(tmp_path / "v1"), root)
     read_versions = installed._read_versions
-    reads: list[Path] = []
+    installs_could_run: list[bool] = []
 
-    def moved_twice(folder: Path):
-        reads.append(folder)
-        if len(reads) <= 2:
+    def an_install_could_run() -> bool:
+        free = threading.Event()
+
+        def try_lock() -> None:
+            if INSTALLING.acquire(blocking=False):
+                INSTALLING.release()
+                free.set()
+
+        probe = threading.Thread(target=try_lock)
+        probe.start()
+        probe.join()
+        return free.is_set()
+
+    def moved_while_read(folder: Path):
+        installs_could_run.append(an_install_could_run())
+        if len(installs_could_run) == 1:
             return [], True
         return read_versions(folder)
 
-    monkeypatch.setattr(installed, "_read_versions", moved_twice)
+    monkeypatch.setattr(installed, "_read_versions", moved_while_read)
 
     assert [pack.manifest.version for pack in installed_packs(root)] == ["1.0.0"]
-    assert len(reads) == 3
+    assert installs_could_run == [True, False]
+
+
+def test_a_version_moved_between_listing_and_reading_it_is_read_again(
+    tmp_path, monkeypatch
+):
+    """An install can put the new version in place and move the old one away after the folder
+    was listed but before its entries were looked at: the listing still finds the pack."""
+    root = tmp_path / "installed"
+    install_pack(write_pack(tmp_path / "v1"), root)
+    elsewhere = tmp_path / "elsewhere"
+    install_pack(write_pack(tmp_path / "v2", version="1.1.0"), elsewhere)
+    pack = root / "acme-jobs"
+    iterdir = Path.iterdir
+    moved: list[bool] = []
+
+    def listed_then_moved(self: Path):
+        listing = list(iterdir(self))
+        if self == pack and not moved:
+            moved.append(True)
+            (elsewhere / "acme-jobs" / "1.1.0").rename(pack / "1.1.0")
+            (pack / "1.0.0").rename(root / ".replaced-old")
+        return iter(listing)
+
+    monkeypatch.setattr(Path, "iterdir", listed_then_moved)
+
+    assert _versions(root) == ["1.1.0"]
+
+
+def test_a_version_moved_while_its_entry_is_looked_at_is_read_again(
+    tmp_path, monkeypatch
+):
+    """The move can also land while the listing asks whether an entry is a folder."""
+    root = tmp_path / "installed"
+    install_pack(write_pack(tmp_path / "v1"), root)
+    elsewhere = tmp_path / "elsewhere"
+    install_pack(write_pack(tmp_path / "v2", version="1.1.0"), elsewhere)
+    pack = root / "acme-jobs"
+    old = pack / "1.0.0"
+    is_dir = Path.is_dir
+    moved: list[bool] = []
+
+    def moved_when_asked(self: Path, *args, **kwargs) -> bool:
+        if self == old and not moved:
+            moved.append(True)
+            (elsewhere / "acme-jobs" / "1.1.0").rename(pack / "1.1.0")
+            old.rename(root / ".replaced-old")
+        return is_dir(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "is_dir", moved_when_asked)
+
+    assert _versions(root) == ["1.1.0"]
+
+
+def test_a_dangling_link_in_a_pack_does_not_wait_for_installs(tmp_path):
+    """Only an entry gone from the folder means an install moved it; a link that points
+    nowhere stays, so reading again under the install lock would only delay installs."""
+    root = tmp_path / "installed"
+    install_pack(write_pack(tmp_path / "v1"), root)
+    try:
+        os.symlink(tmp_path / "nowhere", root / "acme-jobs" / "0.9.0")
+    except OSError:
+        pytest.skip("this system does not let the tests make a link")
+    listed: list[list[str]] = []
+
+    with INSTALLING:
+        reader = threading.Thread(target=lambda: listed.append(_versions(root)))
+        reader.start()
+        reader.join(timeout=5)
+        waited = reader.is_alive()
+
+    reader.join()
+    assert not waited
+    assert listed == [["1.0.0"]]
 
 
 def test_an_old_version_that_cannot_be_moved_stays_and_the_newest_is_listed(

@@ -10,11 +10,8 @@ import {
   type MockInstance,
 } from "vitest"
 
-import { CLAUSE_WITH_TRACKED_CHANGES } from "./fixtures/clause-with-tracked-changes"
 import { DECK_WITH_PICTURE } from "./fixtures/deck-with-picture"
-import { LETTER_WITH_HEADER_AND_FOOTER } from "./fixtures/letter-with-header-and-footer"
 import { LETTER_WITH_LOGO } from "./fixtures/letter-with-logo"
-import { REPORT_WITH_ALT_CHUNK } from "./fixtures/report-with-alt-chunk"
 import { layOutSnapshot } from "./snapshot-page"
 
 const FILE_URL = "http://127.0.0.1:8000/artifacts/12/files/primary"
@@ -58,9 +55,47 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
+const renderer = vi.hoisted(() => ({ load: vi.fn() }))
+vi.mock("@silurus/ooxml/docx", () => ({
+  DocxDocument: { load: renderer.load },
+}))
+vi.mock("@silurus/ooxml/math", () => ({ math: {} }))
+
+/** A two-page document, the second page landscape, as the renderer gives it. */
+function twoPageDocument() {
+  const sizes = [
+    { widthPt: 612, heightPt: 792 },
+    { widthPt: 792, heightPt: 612 },
+  ]
+  return {
+    pageCount: sizes.length,
+    waitUntilLayoutComplete: vi.fn(async () => {}),
+    pageSize: (index: number) => sizes[index],
+    renderPage: vi.fn(async () => {}),
+    destroy: vi.fn(),
+  }
+}
+
+function pageRules(): string[] {
+  const css = [...document.head.querySelectorAll("style")]
+    .map((style) => style.textContent ?? "")
+    .join("\n")
+  return css.match(/@page [^}]*}/g) ?? []
+}
+
 describe("layOutSnapshot", () => {
-  it("lays the Word file out as the in-app viewer's library does", async () => {
+  beforeEach(() => {
+    renderer.load.mockReset().mockImplementation(async () => twoPageDocument())
+    // jsdom has no canvas to encode.
+    vi.spyOn(HTMLCanvasElement.prototype, "toBlob").mockImplementation(
+      (callback) => callback(new Blob(["page"], { type: "image/png" }))
+    )
+  })
+
+  it("draws every page of the Word file with the in-app viewer's renderer", async () => {
     const fetchMock = serve(new Response(LETTER_WITH_LOGO))
+    const word = twoPageDocument()
+    renderer.load.mockResolvedValue(word)
 
     const failure = await layOutSnapshot(
       `?file=${encodeURIComponent(FILE_URL)}`,
@@ -69,21 +104,46 @@ describe("layOutSnapshot", () => {
 
     expect(failure).toBeNull()
     expect(fetchMock).toHaveBeenCalledWith(FILE_URL)
-    expect(document.body.textContent).toContain("Client proposal")
-    expect(document.body.querySelector("section.docx img")).not.toBeNull()
+    expect(renderer.load.mock.lastCall![1].showTrackedChanges).toBe(true)
+    expect(word.renderPage).toHaveBeenCalledTimes(2)
+    expect(document.body.querySelectorAll("img")).toHaveLength(2)
+    expect(word.destroy).toHaveBeenCalled()
   })
 
-  it("prints on the document's own page size and margins", async () => {
+  it("draws only the pages to be printed, each other page kept in its place", async () => {
+    serve(new Response(LETTER_WITH_LOGO))
+    const word = twoPageDocument()
+    renderer.load.mockResolvedValue(word)
+
+    const failure = await layOutSnapshot(
+      `?file=${encodeURIComponent(FILE_URL)}&pages=2`,
+      document
+    )
+
+    expect(failure).toBeNull()
+    expect(word.renderPage).toHaveBeenCalledOnce()
+    expect(word.renderPage).toHaveBeenCalledWith(
+      expect.anything(),
+      1,
+      expect.anything()
+    )
+    expect(document.body.querySelectorAll("img")).toHaveLength(1)
+    expect(document.body.children).toHaveLength(2)
+    expect(pageRules()).toHaveLength(2)
+  })
+
+  it("prints each page at its own size, with no margin of its own", async () => {
     serve(new Response(LETTER_WITH_LOGO))
 
     await layOutSnapshot(`?file=${encodeURIComponent(FILE_URL)}`, document)
 
-    // Twentieths of a point in the file: 12240 x 15840, margins 1440 and 1800.
-    expect(pageRule()).toContain("size: 612pt 792pt")
-    expect(pageRule()).toContain("margin: 72pt 90pt 72pt 90pt")
+    expect(pageRules()).toEqual([
+      "@page word-page-0 { size: 612pt 792pt; margin: 0 }",
+      "@page word-page-1 { size: 792pt 612pt; margin: 0 }",
+    ])
   })
 
-  it("waits for the document's images before saying it is ready", async () => {
+  it("waits for the pages' images before saying it is ready", async () => {
     serve(new Response(LETTER_WITH_LOGO))
     imagesLoaded.mockReturnValue(false)
 
@@ -96,7 +156,7 @@ describe("layOutSnapshot", () => {
       return failure
     })
     await vi.waitFor(() =>
-      expect(document.body.querySelector("section.docx img")).not.toBeNull()
+      expect(document.body.querySelectorAll("img")).toHaveLength(2)
     )
     await new Promise((resolve) => setTimeout(resolve, 20))
     expect(settled).toBe(false)
@@ -107,52 +167,6 @@ describe("layOutSnapshot", () => {
       .forEach((image) => image.dispatchEvent(new Event("load")))
 
     expect(await ready).toBeNull()
-  })
-
-  it("leaves out HTML the Word file carries, so none of its script runs", async () => {
-    serve(new Response(REPORT_WITH_ALT_CHUNK))
-
-    const failure = await layOutSnapshot(
-      `?file=${encodeURIComponent(FILE_URL)}`,
-      document
-    )
-
-    expect(failure).toBeNull()
-    expect(document.body.textContent).toContain("Quarterly report")
-    expect(document.body.querySelector("iframe")).toBeNull()
-  })
-
-  it("shows tracked changes, so the agent checks a revised copy as the user sees it", async () => {
-    serve(new Response(CLAUSE_WITH_TRACKED_CHANGES))
-
-    const failure = await layOutSnapshot(
-      `?file=${encodeURIComponent(FILE_URL)}`,
-      document
-    )
-
-    expect(failure).toBeNull()
-    expect(document.body.querySelector("ins")?.textContent).toBe("45")
-    expect(document.body.querySelector("del")?.textContent).toBe("30")
-    expect(
-      getComputedStyle(document.body.querySelector("del")!).textDecorationLine
-    ).toContain("line-through")
-  })
-
-  it("leaves out headers and footers, as the agent is told it does", async () => {
-    // Under print pagination docx-preview's header shows once, clipped, on the
-    // first page and its footer only after the last line, so a logo there
-    // would look misplaced. render_document tells the model they are left out.
-    serve(new Response(LETTER_WITH_HEADER_AND_FOOTER))
-
-    const failure = await layOutSnapshot(
-      `?file=${encodeURIComponent(FILE_URL)}`,
-      document
-    )
-
-    expect(failure).toBeNull()
-    expect(document.body.textContent).toContain("Client proposal")
-    expect(document.body.textContent).not.toContain("Acme letterhead")
-    expect(document.body.textContent).not.toContain("Confidential footer")
   })
 
   it("says why when the Word file cannot be fetched", async () => {
@@ -184,13 +198,16 @@ describe("layOutSnapshot", () => {
 
   it("says why when the file is not a Word document", async () => {
     serve(new Response("not a zip at all"))
+    renderer.load.mockRejectedValue(new Error("not an Office file"))
 
     const failure = await layOutSnapshot(
       `?file=${encodeURIComponent(FILE_URL)}`,
       document
     )
 
-    expect(failure).toMatch(/^the Word file could not be laid out: /)
+    expect(failure).toBe(
+      "the Word file could not be laid out: not an Office file"
+    )
   })
 
   it("says why when it was opened without a file", async () => {

@@ -70,8 +70,10 @@ import { WorkspaceRail } from "@/features/workspaces/workspace-rail"
 import type { PluginsStart } from "@/features/plugins/plugins-settings"
 import {
   readRightPanelOpen,
+  readSidebarOpen,
   readSourcePreview,
   writeRightPanelOpen,
+  writeSidebarOpen,
   writeSourcePreview,
 } from "./chrome-prefs"
 import {
@@ -83,9 +85,12 @@ import {
 } from "./dashboard-columns"
 import { LeftSidebar, type SidebarNavAction } from "./left-sidebar"
 import { RightPanel } from "./right-panel"
+import { CornerToggle, CornerToggleSlot } from "./corner-toggle"
 import { RightPanelToggle } from "./right-panel-toggle"
 import { DashboardShell } from "./dashboard-shell"
 import { SidebarFooter } from "./sidebar-footer"
+import { SidebarToggle } from "./sidebar-toggle"
+import { useSidebarShortcut } from "./use-sidebar-shortcut"
 
 // Clicking "N sources" in the composer used to switch the right rail to its
 // Sources tab. Sources now live in the always-visible left sidebar, so the
@@ -139,6 +144,7 @@ function WorkspaceDashboard({
   const reveal = useStartupReveal()
   const [inspect, setInspect] = useState<Inspect>(null)
   const [rightPanelOpen, setRightPanelOpen] = useState(readRightPanelOpen)
+  const [sidebarWanted, setSidebarWanted] = useState(readSidebarOpen)
   const [sourcePreviewId, setSourcePreviewId] = useState<number | null>(() =>
     readSourcePreview(workspace.id)
   )
@@ -375,6 +381,33 @@ function WorkspaceDashboard({
   const sidebarTitleAnimationComplete = useStableCallback(() =>
     chat.finishTitleAnimation()
   )
+  // A source preview needs its column, so it shows over a hidden sidebar.
+  const sidebarOpen = sidebarWanted || sourcePreviewOpen
+  const setSidebar = useStableCallback((open: boolean) => {
+    setSidebarWanted(open)
+    writeSidebarOpen(open)
+  })
+  const toggleSidebar = useStableCallback(() => {
+    if (sourcePreviewOpen) closeSourcePreview()
+    setSidebar(!sidebarOpen)
+  })
+  useSidebarShortcut(toggleSidebar)
+  // Docker's toggle sits in the columns' corner: shown, the logo keeps its
+  // room; floated in, the sidebar covers that corner and carries its own.
+  const sidebarHeaderStart = useMemo(
+    () =>
+      !IN_CONTAINER ? null : sidebarOpen ? (
+        <CornerToggleSlot className="-ml-1" />
+      ) : (
+        <SidebarToggle
+          open={false}
+          controls={LEFT_COLUMN_ID}
+          onToggle={toggleSidebar}
+          className="-ml-1"
+        />
+      ),
+    [sidebarOpen, toggleSidebar]
+  )
   const toggleRightPanel = () => {
     setRightPanelOpen((open) => {
       const next = !open
@@ -427,6 +460,20 @@ function WorkspaceDashboard({
     <OfficeOfferContext.Provider value={officeOffer}>
       <OpenArtifactContext.Provider value={openArtifact}>
         <div className="titlebar-controls">
+          {/* Docker's browser has no title bar: there it sits beside the logo. */}
+          {IN_CONTAINER ? null : (
+            <div
+              {...reveal}
+              className={cn("titlebar-controls-start", reveal.className)}
+            >
+              <SidebarToggle
+                open={sidebarOpen}
+                controls={LEFT_COLUMN_ID}
+                onToggle={toggleSidebar}
+                className="pointer-events-auto size-6"
+              />
+            </div>
+          )}
           <div
             {...reveal}
             className={cn("titlebar-controls-end", reveal.className)}
@@ -441,15 +488,32 @@ function WorkspaceDashboard({
         {/* The widths live in here, so a drag of an edge renders the column
           boxes and edges, not the sidebar, the thread or Studio. */}
         <DashboardColumns
+          sidebarOpen={sidebarOpen}
           sidebarWide={sourcePreviewOpen}
           rightPanelOpen={rightPanelOpen}
           rightPanelWide={inspect !== null}
         >
+          {/* Docker's browser has no title bar: one toggle pinned to the
+            columns' corner, so it never moves as the panel slides. An
+            inspected citation or artifact has its own close button there. */}
+          {IN_CONTAINER && !(rightPanelOpen && inspect !== null) ? (
+            <CornerToggle side="end">{rightPanelToggle()}</CornerToggle>
+          ) : null}
+          {/* The same on the left; a source preview's header has its own close. */}
+          {IN_CONTAINER && !sourcePreviewOpen ? (
+            <CornerToggle side="start">
+              <SidebarToggle
+                open={sidebarOpen}
+                controls={LEFT_COLUMN_ID}
+                onToggle={toggleSidebar}
+              />
+            </CornerToggle>
+          ) : null}
           {/* A preview takes over the left column and widens it, as an
             inspected artifact does the right one; the right panel stays put.
             On a narrow window it gives way first, down to the sidebar's
             minimum, before the right panel does: the chat keeps its own. */}
-          <SidebarColumn id={LEFT_COLUMN_ID}>
+          <SidebarColumn id={LEFT_COLUMN_ID} peekable>
             {sourcePreviewOpen && sourcePreview ? (
               <SourcePreviewPanel
                 workspaceId={workspace.id}
@@ -477,28 +541,41 @@ function WorkspaceDashboard({
                 runStates={chat.runStates}
                 unreadThreadIds={chat.unreadThreadIds}
                 actions={sidebarActions}
+                headerStart={sidebarHeaderStart}
                 sources={sourcesList}
                 footer={sidebarFooter}
               />
             </div>
           </SidebarColumn>
-          <ColumnEdge
-            column="sidebar"
-            label={intl.formatMessage({
-              id: "dashboard_sidebar_resize_aria",
-              defaultMessage: "Resize sidebar",
-            })}
-            controls={LEFT_COLUMN_ID}
-          />
+          {/* Hidden, the sidebar has no edge to drag. */}
+          {sidebarOpen ? (
+            <ColumnEdge
+              column="sidebar"
+              label={intl.formatMessage({
+                id: "dashboard_sidebar_resize_aria",
+                defaultMessage: "Resize sidebar",
+              })}
+              controls={LEFT_COLUMN_ID}
+            />
+          ) : null}
           <ChatColumn>
             <AgentApprovalsProvider
               approvals={chat.approvals}
               answer={chat.answerApproval}
             >
               <ThreadPanel
-                // Hidden, the panel's heading is gone: the chat's holds the toggle.
+                // Hidden, the chat's header runs under the corner toggle: keep its
+                // slot. -ml-3 undoes the 12 px of its px-5 over the corner's 8.
+                headerStart={
+                  IN_CONTAINER && !sidebarOpen ? (
+                    <CornerToggleSlot className="-ml-3" />
+                  ) : null
+                }
+                // Hidden, the chat's header runs under the corner toggle: keep its slot.
                 headerEnd={
-                  IN_CONTAINER && !rightPanelOpen ? rightPanelToggle() : null
+                  IN_CONTAINER && !rightPanelOpen ? (
+                    <CornerToggleSlot className="-mr-1" />
+                  ) : null
                 }
                 live={chat.liveThread}
                 thread={chat.activeThread}
@@ -558,7 +635,9 @@ function WorkspaceDashboard({
           <RightPanelRail open={rightPanelOpen}>
             <div id={RIGHT_PANEL_ID} className="h-full min-h-0">
               <RightPanel
-                toggle={IN_CONTAINER ? rightPanelToggle() : null}
+                toggle={
+                  IN_CONTAINER ? <CornerToggleSlot className="-mr-1" /> : null
+                }
                 inspect={
                   inspect?.kind === "citation" ? (
                     <CitationPanel

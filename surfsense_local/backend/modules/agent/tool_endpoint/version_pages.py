@@ -14,12 +14,10 @@ from shared.config import get_storage_settings
 
 logger = logging.getLogger(__name__)
 
-# The snapshot page lays Word out with docx-preview, told to skip both
-# (frontend/src/features/docx-snapshot/snapshot-page.ts).
-WORD_PREVIEWS_LEAVE_OUT = (
-    "Drawn by SurfSense's Word viewer. Word previews leave out headers and "
-    "footers: a logo or page number placed there is in the document even though "
-    "no preview shows it."
+# The snapshot page draws Word with the Studio viewer's renderer.
+WORD_PREVIEWS_ARE = (
+    "Drawn by SurfSense's Word viewer, which shows headers, footers and watermarks "
+    "as the user sees them; it can differ a little from Word in fonts and line breaks."
 )
 # The snapshot page lays a deck out with pptx-renderer, the Studio viewer's library.
 SLIDE_PREVIEWS_DIFFER = (
@@ -99,7 +97,7 @@ def version_pages(
         caveat = [drawn_by_office(previews.drawn_by_office)]
     else:
         caveat = {
-            "docx": [WORD_PREVIEWS_LEAVE_OUT],
+            "docx": [WORD_PREVIEWS_ARE],
             "pptx": [SLIDE_PREVIEWS_DIFFER],
             "html": [PAGE_SCREENS_ARE],
         }.get(artifact.format, [])

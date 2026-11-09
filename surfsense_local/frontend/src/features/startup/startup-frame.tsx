@@ -32,6 +32,7 @@ export function StartupFrame() {
       {/* The workspace rail's column, empty until its workspaces arrive. */}
       <div />
       <DashboardColumns
+        sidebarOpen={layout.sidebarOpen}
         sidebarWide={false}
         rightPanelOpen={layout.rightPanelOpen}
         rightPanelWide={false}
