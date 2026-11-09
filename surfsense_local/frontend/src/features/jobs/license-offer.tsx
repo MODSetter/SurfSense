@@ -215,21 +215,27 @@ function OfferBody({
       return (
         <RenewalOffer
           version={version}
-          sentence={intl.formatMessage({
-            id: "jobs_offer_expired_body",
-            defaultMessage:
-              "Your license has ended, so jobs can’t run. If it was renewed, Check for renewal fetches the new file.",
-          })}
+          sentence={intl.formatMessage(
+            {
+              id: "jobs_offer_expired_body",
+              defaultMessage:
+                "Your license has ended, so {count, plural, one {the job marked Locked} other {the jobs marked Locked}} can’t run. If it was renewed, Check for renewal fetches the new file.",
+            },
+            { count }
+          )}
         />
       )
     case "clock":
       return (
         <Sentence>
-          {intl.formatMessage({
-            id: "jobs_offer_clock_body",
-            defaultMessage:
-              "This computer’s clock is behind the last time SurfSense ran. Set the clock right to run jobs.",
-          })}
+          {intl.formatMessage(
+            {
+              id: "jobs_offer_clock_body",
+              defaultMessage:
+                "This computer’s clock is behind the last time SurfSense ran. Set the clock right to run {count, plural, one {the job marked Locked} other {the jobs marked Locked}}.",
+            },
+            { count }
+          )}
         </Sentence>
       )
   }

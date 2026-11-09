@@ -193,7 +193,7 @@ describe("jobs dialog", () => {
 
     expect(
       offer.getByText(
-        "Your license has ended, so jobs can’t run. If it was renewed, Check for renewal fetches the new file."
+        "Your license has ended, so the job marked Locked can’t run. If it was renewed, Check for renewal fetches the new file."
       )
     ).toBeTruthy()
     expect(
@@ -245,7 +245,7 @@ describe("jobs dialog", () => {
 
     expect(
       offer.getByText(
-        "This computer’s clock is behind the last time SurfSense ran. Set the clock right to run jobs."
+        "This computer’s clock is behind the last time SurfSense ran. Set the clock right to run the job marked Locked."
       )
     ).toBeTruthy()
     expect(offer.queryAllByRole("button")).toHaveLength(0)
