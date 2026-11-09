@@ -57,6 +57,7 @@ export const BUSINESS_PLANS: Plan[] = [
 			"Runs offline; your sources stay on your disk",
 			"Bring your own model keys, or run a local model",
 			"Web pages, YouTube videos and web search as sources",
+			"Studio: flashcards, quizzes, mind maps, slides, podcasts, and Word, PDF and spreadsheet files",
 			"A 14-day trial of the security questionnaire and contract redline jobs, by email",
 			"Open source, so you can build it yourself",
 		],
@@ -104,6 +105,13 @@ const FAQ_IS_IT_FREE: PricingQuestion = {
 	question: "Is SurfSense free?",
 	answer:
 		"Yes. The app and all of its updates are free forever, with no account, no trial clock and no usage cap, and reading web pages, YouTube videos and web search come with it. You download it, install it, and use it. A Business licence is needed only to use SurfSense's job plugins for work; everything the app itself does stays free.",
+};
+
+/** For the students and teachers the free pages bring (`plans/community-local/seo/09-audience-pages.md`). */
+const FAQ_STUDENTS_AND_TEACHERS: PricingQuestion = {
+	question: "Is SurfSense free for students and teachers?",
+	answer:
+		"Yes. The whole app is free for everyone, with every update: chat across your sources with a citation for every point, and Studio's flashcards, quizzes, mind maps, slides and podcasts. Students and teachers need no licence. A Business licence is only for SurfSense's job plugins, used for work.",
 };
 
 /** Each job plugin in a sentence, so `/pricing` and `/pricing/business` describe them alike. */
@@ -174,6 +182,7 @@ const FAQ_WHAT_HAPPENED_TO_INDIVIDUAL: PricingQuestion = {
 
 export const BUSINESS_PRICING_FAQ: PricingQuestion[] = [
 	FAQ_IS_IT_FREE,
+	FAQ_STUDENTS_AND_TEACHERS,
 	FAQ_WHAT_BUSINESS_ADDS,
 	FAQ_WHO_NEEDS_BUSINESS,
 	FAQ_BUSINESS_PRICE,
@@ -186,6 +195,89 @@ export const BUSINESS_PRICING_FAQ: PricingQuestion[] = [
 	FAQ_BUSINESS_ENTERPRISE,
 	FAQ_WHAT_HAPPENED_TO_INDIVIDUAL,
 	FAQ_NOTEBOOKLM_LOCALLY,
+];
+
+/**
+ * "What each licence gets": the cards' facts in one table, row by row, so a reader comparing
+ * the three does not have to read three lists (`plans/community-local/seo/09-audience-pages.md`,
+ * `/pricing`). Every cell restates a line of `BUSINESS_PLANS` or an answer below; change them
+ * together.
+ */
+export type LicenceRow = { feature: string; free: string; business: string; enterprise: string };
+
+export const LICENCE_COMPARISON: LicenceRow[] = [
+	{
+		feature: "Price",
+		free: "$0",
+		business: `${FIRST} a year for the first person, ${FURTHER} for each more`,
+		enterprise: "Custom, invoiced yearly",
+	},
+	{
+		feature: "The app and every update",
+		free: "Forever, with no account",
+		business: "Yes",
+		enterprise: "Yes",
+	},
+	{
+		feature: "Local models, or your own model keys",
+		free: "Yes",
+		business: "Yes",
+		enterprise: "Yes, and you decide which models everyone can reach",
+	},
+	{
+		feature: "Web pages, YouTube videos and web search as sources",
+		free: "Yes",
+		business: "Yes",
+		enterprise: "Yes",
+	},
+	{
+		feature: "Studio: flashcards, quizzes, slides, podcasts and more",
+		free: "Yes",
+		business: "Yes",
+		enterprise: "Yes",
+	},
+	{
+		feature: "The security questionnaire job",
+		free: "14-day trial",
+		business: "Yes",
+		enterprise: "Yes",
+	},
+	{
+		feature: "The contract redline job",
+		free: "14-day trial",
+		business: "Yes",
+		enterprise: "Yes",
+	},
+	{
+		feature: "Support",
+		free: "Discord and GitHub",
+		business: "Priority support",
+		enterprise: "Named support on an agreed response time",
+	},
+	{
+		feature: "Feature build requests",
+		free: "No",
+		business: FEATURE_REQUEST_LINE,
+		enterprise: "Yes",
+	},
+	{
+		feature: "People covered",
+		free: "Anyone",
+		business: `Up to ${SELF_SERVE_PEOPLE} people, counted in people, not devices`,
+		enterprise: `More than ${SELF_SERVE_PEOPLE} people, or a site licence`,
+	},
+	{
+		feature: "Licensing and job plugins mirrored inside your network",
+		free: "No",
+		business: "No",
+		enterprise: "Yes",
+	},
+	{
+		feature: "A data processing agreement and a code audit",
+		free: "No",
+		business: "No",
+		enterprise: "Yes",
+	},
 ];
 
 /** `Product` with the Free and Business offers; Enterprise is quoted, so it has none. */

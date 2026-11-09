@@ -1,4 +1,12 @@
-import { BUSINESS_URL, DOWNLOADS_URL, REPO_URL } from "@/components/site/site-content";
+import {
+	ACCOUNTANTS_URL,
+	BUSINESS_URL,
+	CONTRACT_REDLINE_URL,
+	DOWNLOADS_URL,
+	LAWYERS_URL,
+	REPO_URL,
+	SECURITY_QUESTIONNAIRE_URL,
+} from "@/components/site/site-content";
 import { BUSINESS_LAUNCHED } from "@/features/business-launch/business-launched.mts";
 
 /**
@@ -136,6 +144,56 @@ export const FORMATS: Format[] = [
 	{ key: "infographic", label: "Infographic", body: "Key figures laid out as one visual." },
 ];
 
+/**
+ * Who it's for, added on 9 Nov 2026 (`plans/community-local/seo/09-audience-pages.md`):
+ * a card per reader, each linking the page written for them, and the paid jobs in a strip
+ * below. Like `HomePillars` and `HomeCompare`, a band of its own whose headline is a `<p>`
+ * styled like an H2, so the brief's eight H2s keep their count and order.
+ *
+ * Shown once Business is on sale, because the pages it links name the paid jobs. A reader
+ * joins the band once their page is live: students and teachers next.
+ */
+export type AudienceCard = {
+	key: "lawyers" | "accountants" | "business";
+	title: string;
+	body: string;
+	action: Action;
+};
+
+export const AUDIENCES: { eyebrow: string; headline: string; cards: AudienceCard[] } = {
+	eyebrow: "Who it's for",
+	headline: "Made for the files you can't upload",
+	cards: [
+		{
+			key: "lawyers",
+			title: "Lawyers",
+			body: "Ask across a matter with a citation for every point, draft memos and decks, and review contracts against your playbook.",
+			action: { label: "AI for lawyers", href: LAWYERS_URL },
+		},
+		{
+			key: "accountants",
+			title: "Accountants",
+			body: "Work through client statements and returns, build reports and spreadsheets, and answer clients' security questionnaires.",
+			action: { label: "AI for accountants", href: ACCOUNTANTS_URL },
+		},
+		{
+			key: "business",
+			title: "Consultants and other professions",
+			body: "Turn confidential research into client-ready decks, reports and briefings, on the machine the files are on.",
+			action: { label: "Private AI for business", href: BUSINESS_URL },
+		},
+	],
+};
+
+/** The paid jobs, in the user guide's words: a job does paperwork from your firm's own documents. */
+export const JOBS_STRIP: { body: string; actions: Action[] } = {
+	body: "SurfSense Business adds jobs that do paperwork from your firm's own documents.",
+	actions: [
+		{ label: "Contract redline", href: CONTRACT_REDLINE_URL },
+		{ label: "Security questionnaire", href: SECURITY_QUESTIONNAIRE_URL },
+	],
+};
+
 /** H2 #2, #3, #4 — the three arguments that run as a ruled row. */
 export const PILLARS: (Cell & { action: Action })[] = [
 	{
@@ -190,7 +248,10 @@ export const FEATURES: {
 	},
 	{
 		key: "plugins",
-		heading: "Open source, extended by plugins",
+		// Its plugins retire with the switch, so the heading names what is built in instead.
+		heading: BUSINESS_LAUNCHED
+			? "Open source, with web search built in"
+			: "Open source, extended by plugins",
 		// From Business on, the platform scrapers are retired and SurfSense's three are built in.
 		body: BUSINESS_LAUNCHED
 			? "Reading web pages, YouTube and web search is built in and free. Plugins add more."

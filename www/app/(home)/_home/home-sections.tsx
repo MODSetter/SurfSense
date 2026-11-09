@@ -51,11 +51,11 @@ export function HomeHero() {
 				<div className="relative mx-auto max-w-4xl">
 					<HomeAnnouncement />
 					<h1 className={cn(siteText.display, "text-white")}>
-						Air-gapped, open source NotebookLM alternative
+						Air-gapped private AI for confidential documents
 					</h1>
 					<p className="mx-auto mt-8 max-w-2xl text-base leading-relaxed text-pretty text-white/85 md:text-lg lg:text-xl">
-						A private research notebook that runs entirely on your own machine. Your documents, your
-						model keys, no cloud, no account.
+						A NotebookLM-style notebook that runs entirely on your own computer. Your documents,
+						your model, no cloud and no account.
 					</p>
 					<div className="mt-10 flex justify-center">
 						<HomeDownloadButton />

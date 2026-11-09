@@ -63,6 +63,9 @@ redirecting stdout).
 | `b2b-oct/overview-*.json.gz`, `b2b-oct/clickstream-*.json.gz` | `keyword_overview/live`, `clickstream_data/bulk_search_volume/live` | **pulled 21 Oct 2026** for the October revision of [`../08-b2b-artifact-jobs.md`](../08-b2b-artifact-jobs.md): September's term set re-pulled plus 922 terms for 37 new file-job use cases, one snapshot through Sep 2026; see [B2B file jobs, October 2026](#b2b-file-jobs-october-2026) |
 | `b2b-oct/ranked-<vendor>.json.gz`, `b2b-oct/serp/`, `b2b-oct/recheck/`, `b2b-oct/discovery/` | `ranked_keywords/live`, `serp/google/organic/live/advanced`, overview, clickstream and suggestions | **21 Oct 2026**: 17 more vendors' non-brand keywords, 83 SERPs, the summer-step and category re-check, and the scouts' discovery pulls |
 | `b2b-oct/use-cases.json` | config | 135 use cases, the judged label of every new term (`labels`), 95 exclusions with reasons, the narrowed `cores` the verdicts rest on, plays and watch lists |
+| `keyword-overview-audiences-2026-11.json.gz` | `dataforseo_labs/google/keyword_overview/live` | **pulled 9 Nov 2026** for [`../09-audience-pages.md`](../09-audience-pages.md): 67 privacy, profession, job, study and teaching terms, US, through Sep 2026 |
+| `clickstream-audiences-2026-11.json.gz` | `keywords_data/clickstream_data/bulk_search_volume/live` | **9 Nov 2026**: exact-phrase volumes for 40 of those terms through Oct 2026, 33 with a series and 7 below the floor; stored compact, one series per term, newest month first |
+| `ranked-keywords-surfsense-2026-11.json.gz` | `dataforseo_labs/google/ranked_keywords/live` | **9 Nov 2026**: surfsense.com's top 40 rankings, every one of them on `/free` |
 
 ## Methodology notes
 

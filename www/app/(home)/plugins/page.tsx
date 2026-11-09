@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { HomeButton } from "@/components/site/home-button";
 import { sectionSpacing } from "@/components/site/home-section-spacing";
-import { REPO_URL } from "@/components/site/site-content";
+import {
+	CONTRACT_REDLINE_URL,
+	REPO_URL,
+	SECURITY_QUESTIONNAIRE_URL,
+} from "@/components/site/site-content";
 import { siteText } from "@/components/site/site-text";
 import { cn } from "@/components/ui/cn";
 import { BUSINESS_LAUNCHED } from "@/features/business-launch/business-launched.mts";
@@ -67,6 +72,20 @@ export default async function PluginsPage() {
 					</span>
 				</h1>
 				<p className={cn(siteText.lede, "mt-6 max-w-2xl")}>{lede}</p>
+				{/* The paid jobs are plugins too, but each has a page of its own; point there. */}
+				{BUSINESS_LAUNCHED ? (
+					<p className={cn(siteText.body, "mt-4 max-w-2xl text-sm")}>
+						Looking for the paid jobs? The{" "}
+						<Link className={siteText.link} href={CONTRACT_REDLINE_URL}>
+							contract redline
+						</Link>{" "}
+						and the{" "}
+						<Link className={siteText.link} href={SECURITY_QUESTIONNAIRE_URL}>
+							security questionnaire
+						</Link>{" "}
+						are job plugins that come with Business.
+					</p>
+				) : null}
 				<PluginBrowser registryPlugins={listed} submitUrl={submitUrl} docsUrl={registryUrl} />
 			</section>
 

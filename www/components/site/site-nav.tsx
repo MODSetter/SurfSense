@@ -4,18 +4,25 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { HomeButton } from "@/components/site/home-button";
-import { DOWNLOADS_URL, NAV_LINKS, NAV_RESOURCES } from "@/components/site/site-content";
+import { DOWNLOADS_URL, type SiteLink } from "@/components/site/site-content";
 import { SiteStars } from "@/components/site/site-stars";
 import { siteText } from "@/components/site/site-text";
 import { cn } from "@/components/ui/cn";
 import { ChevronDownIcon, MenuTwoLineIcon } from "@/components/ui/icons";
+import { BUSINESS_LAUNCHED } from "@/features/business-launch/business-launched.mts";
+import {
+	isNavMenu,
+	type NavEntry,
+	type NavMenu,
+	siteNavigation,
+} from "@/features/site-navigation/site-navigation";
 
 /**
  * Site navigation.
  *
  * Rendered once by `app/(home)/layout.tsx`, above any route branch, so it is a
  * single element in a single slot for every page. React therefore keeps it
- * mounted across navigations: the drawer, the dropdown, the scroll listener and
+ * mounted across navigations: the drawer, the dropdowns, the scroll listener and
  * the star query all survive, and only the content below it changes. Rendering
  * a different nav per route — which is what this replaced — made React unmount
  * one component and mount another, resetting all of that on every link click.
@@ -29,11 +36,39 @@ import { ChevronDownIcon, MenuTwoLineIcon } from "@/components/ui/icons";
  * `ss-home-nav*` classes left on the markup are hooks for the surface shadow
  * and the menu motion in `home.css`.
  *
+ * What it links comes from `siteNavigation`, which changes with the Business
+ * launch switch: plain links and dropdown menus, in order. One menu is open at a
+ * time.
+ *
  * The star count arrives as a prop rather than being fetched here: it is read
  * and cached on the server, so it is already in the HTML on first paint.
  */
 
 const MENU_ID = "site-nav-menu";
+
+const NAV = siteNavigation(BUSINESS_LAUNCHED);
+
+/** The drawer's runs: each menu under its own heading, and the plain links between them together. */
+type DrawerGroup = { key: string; heading?: string; links: SiteLink[] };
+
+function drawerGroups(entries: NavEntry[]): DrawerGroup[] {
+	const groups: DrawerGroup[] = [];
+	for (const entry of entries) {
+		if (isNavMenu(entry)) {
+			groups.push({ key: entry.name, heading: entry.name, links: entry.items });
+			continue;
+		}
+		const last = groups.at(-1);
+		if (last && last.heading === undefined) {
+			last.links.push(entry);
+		} else {
+			groups.push({ key: entry.href, links: [entry] });
+		}
+	}
+	return groups;
+}
+
+const DRAWER_GROUPS = drawerGroups(NAV);
 
 const LINK_CLASS =
 	"flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors duration-100 hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring";
@@ -71,28 +106,75 @@ function DownloadLink({ onClick, className }: { onClick?: () => void; className?
 	);
 }
 
+function MenuDropdown({
+	menu,
+	open,
+	onToggle,
+	onNavigate,
+}: {
+	menu: NavMenu;
+	open: boolean;
+	onToggle: () => void;
+	onNavigate: () => void;
+}) {
+	return (
+		<div className="relative">
+			<button type="button" className={LINK_CLASS} aria-expanded={open} onClick={onToggle}>
+				{menu.name}
+				<ChevronDownIcon
+					aria-hidden="true"
+					className={`size-3.5 shrink-0 transition-transform duration-150 ${
+						open ? "rotate-180" : ""
+					}`}
+				/>
+			</button>
+
+			{open ? (
+				<div className="absolute top-full left-1/2 mt-7 w-72 -translate-x-1/2 rounded-xl bg-popover p-1.5 text-popover-foreground shadow-(--nav-surface)">
+					{menu.items.map((item) => (
+						<Link
+							key={item.href}
+							href={item.href}
+							onClick={onNavigate}
+							className="flex items-center gap-3 rounded-md px-3 py-2.5 transition-colors duration-100 hover:bg-accent focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+						>
+							<span className="grid size-9 shrink-0 place-items-center rounded-lg bg-secondary text-foreground">
+								<item.icon aria-hidden="true" className="size-[1.125rem]" />
+							</span>
+							<span className="flex min-w-0 flex-col gap-0.5">
+								<span className="text-sm font-medium text-foreground">{item.name}</span>
+								<span className="text-xs text-muted-foreground">{item.description}</span>
+							</span>
+						</Link>
+					))}
+				</div>
+			) : null}
+		</div>
+	);
+}
+
 export function SiteNav({ starCount, starsHref }: { starCount: number | null; starsHref: string }) {
 	const [menuOpen, setMenuOpen] = useState(false);
-	const [resourcesOpen, setResourcesOpen] = useState(false);
+	const [openMenu, setOpenMenu] = useState<string | null>(null);
 	const headerRef = useRef<HTMLElement>(null);
 
 	// Escape closes whatever is open; a click outside the header closes the
 	// dropdown. Both match what a visitor expects from a menu regardless of how
 	// it was opened.
 	useEffect(() => {
-		if (!menuOpen && !resourcesOpen) {
+		if (!menuOpen && openMenu === null) {
 			return;
 		}
 
 		const onKeyDown = (event: KeyboardEvent) => {
 			if (event.key === "Escape") {
 				setMenuOpen(false);
-				setResourcesOpen(false);
+				setOpenMenu(null);
 			}
 		};
 		const onPointerDown = (event: PointerEvent) => {
 			if (!headerRef.current?.contains(event.target as Node)) {
-				setResourcesOpen(false);
+				setOpenMenu(null);
 			}
 		};
 
@@ -102,11 +184,11 @@ export function SiteNav({ starCount, starsHref }: { starCount: number | null; st
 			document.removeEventListener("keydown", onKeyDown);
 			document.removeEventListener("pointerdown", onPointerDown);
 		};
-	}, [menuOpen, resourcesOpen]);
+	}, [menuOpen, openMenu]);
 
 	const closeAll = () => {
 		setMenuOpen(false);
-		setResourcesOpen(false);
+		setOpenMenu(null);
 	};
 
 	return (
@@ -127,49 +209,21 @@ export function SiteNav({ starCount, starsHref }: { starCount: number | null; st
 					<Wordmark />
 
 					<nav className="hidden items-center gap-1 lg:flex" aria-label="Main">
-						{NAV_LINKS.map((link) => (
-							<Link key={link.href} href={link.href} className={LINK_CLASS}>
-								{link.name}
-							</Link>
-						))}
-
-						<div className="relative">
-							<button
-								type="button"
-								className={LINK_CLASS}
-								aria-expanded={resourcesOpen}
-								onClick={() => setResourcesOpen((open) => !open)}
-							>
-								Resources
-								<ChevronDownIcon
-									aria-hidden="true"
-									className={`size-3.5 shrink-0 transition-transform duration-150 ${
-										resourcesOpen ? "rotate-180" : ""
-									}`}
+						{NAV.map((entry) =>
+							isNavMenu(entry) ? (
+								<MenuDropdown
+									key={entry.name}
+									menu={entry}
+									open={openMenu === entry.name}
+									onToggle={() => setOpenMenu((open) => (open === entry.name ? null : entry.name))}
+									onNavigate={closeAll}
 								/>
-							</button>
-
-							{resourcesOpen ? (
-								<div className="absolute top-full left-1/2 mt-7 w-72 -translate-x-1/2 rounded-xl bg-popover p-1.5 text-popover-foreground shadow-(--nav-surface)">
-									{NAV_RESOURCES.map((item) => (
-										<Link
-											key={item.href}
-											href={item.href}
-											onClick={closeAll}
-											className="flex items-center gap-3 rounded-md px-3 py-2.5 transition-colors duration-100 hover:bg-accent focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
-										>
-											<span className="grid size-9 shrink-0 place-items-center rounded-lg bg-secondary text-foreground">
-												<item.icon aria-hidden="true" className="size-[1.125rem]" />
-											</span>
-											<span className="flex min-w-0 flex-col gap-0.5">
-												<span className="text-sm font-medium text-foreground">{item.name}</span>
-												<span className="text-xs text-muted-foreground">{item.description}</span>
-											</span>
-										</Link>
-									))}
-								</div>
-							) : null}
-						</div>
+							) : (
+								<Link key={entry.href} href={entry.href} className={LINK_CLASS}>
+									{entry.name}
+								</Link>
+							)
+						)}
 					</nav>
 
 					<div className="col-start-3 flex items-center gap-2 justify-self-end">
@@ -181,7 +235,7 @@ export function SiteNav({ starCount, starsHref }: { starCount: number | null; st
 							type="button"
 							onClick={() => {
 								setMenuOpen((open) => !open);
-								setResourcesOpen(false);
+								setOpenMenu(null);
 							}}
 							aria-label={menuOpen ? "Close menu" : "Open menu"}
 							aria-expanded={menuOpen}
@@ -220,29 +274,23 @@ export function SiteNav({ starCount, starsHref }: { starCount: number | null; st
 					className="ss-home-nav-drawer absolute inset-x-6 top-full z-1 mx-auto max-h-[calc(100dvh-6rem)] max-w-5xl overflow-y-auto overscroll-contain rounded-2xl bg-card p-2 shadow-(--nav-surface) md:inset-x-10 lg:hidden"
 				>
 					<div className="flex flex-col gap-0.5">
-						{NAV_LINKS.map((link) => (
-							<Link
-								key={link.href}
-								href={link.href}
-								onClick={closeAll}
-								className={DRAWER_LINK_CLASS}
-							>
-								{link.name}
-							</Link>
-						))}
-
-						<div className="my-2 border-t border-border" />
-						<p className={cn(siteText.eyebrow, "px-3 py-1")}>Resources</p>
-
-						{NAV_RESOURCES.map((item) => (
-							<Link
-								key={item.href}
-								href={item.href}
-								onClick={closeAll}
-								className={DRAWER_LINK_CLASS}
-							>
-								{item.name}
-							</Link>
+						{DRAWER_GROUPS.map((group, index) => (
+							<div key={group.key} className="flex flex-col gap-0.5">
+								{index > 0 ? <div className="my-2 border-t border-border" /> : null}
+								{group.heading ? (
+									<p className={cn(siteText.eyebrow, "px-3 py-1")}>{group.heading}</p>
+								) : null}
+								{group.links.map((link) => (
+									<Link
+										key={link.href}
+										href={link.href}
+										onClick={closeAll}
+										className={DRAWER_LINK_CLASS}
+									>
+										{link.name}
+									</Link>
+								))}
+							</div>
 						))}
 					</div>
 
