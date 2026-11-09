@@ -54,8 +54,8 @@ async function inkOf(file: ArrayBuffer): Promise<number> {
   return ink
 }
 
-function headerOf(file: ArrayBuffer): string {
-  return strFromU8(unzipSync(new Uint8Array(file))["word/header1.xml"])
+function headerOf(file: ArrayBuffer, part = "word/header1.xml"): string {
+  return strFromU8(unzipSync(new Uint8Array(file))[part])
 }
 
 function drawn(vml: string): ArrayBuffer {
@@ -110,6 +110,45 @@ describe("a Word file's watermarks", () => {
     // Washout's light grey: 0.3 x 0 + 0.805, per DrawingML's lum.
     expect(data[centre]).toBeGreaterThan(190)
     expect(data[centre]).toBeLessThan(220)
+  })
+
+  it("finds a header the document names by any part name", () => {
+    const file = wordFileWithHeader(WASHED_OUT_PICTURE, {
+      headerPart: "headers/letterhead.xml",
+    })
+    expect(
+      headerOf(withDrawableWatermarks(file), "word/headers/letterhead.xml")
+    ).toContain("a:lum")
+  })
+
+  it("reads VML under whatever prefix the file gives it", () => {
+    const vml = WASHED_OUT_PICTURE.replace(/<(\/?)v:/g, "<$1vml:")
+    const file = wordFileWithHeader(vml, { vmlPrefix: "vml" })
+    expect(headerOf(withDrawableWatermarks(file))).toContain("a:lum")
+  })
+
+  it("leaves a small size alone when the shape type says not to fit the text", () => {
+    const fixed = WORD_TEXT_SHAPE_TYPE.replace('fitshape="t"', 'fitshape="f"')
+    const vml = fixed + textWatermark({ fontSize: "8pt" })
+    expect(headerOf(drawn(vml))).toContain("font-size:8pt")
+  })
+
+  it("keeps a washed-out picture's crop", () => {
+    const cropped = WASHED_OUT_PICTURE.replace(
+      'gain="19661f"',
+      'croptop="6554f" cropleft="0.25" gain="19661f"'
+    )
+    const header = headerOf(drawn(cropped))
+    expect(header).toContain("a:lum")
+    expect(header).toMatch(/<a:srcRect[^>]* t="10001"/)
+    expect(header).toMatch(/<a:srcRect[^>]* l="25000"/)
+  })
+
+  it("leaves a washed-out picture in a group as written, with the group's other shapes", () => {
+    const group = `<v:group id="Letterhead" style="position:absolute;width:200pt;height:100pt" coordsize="200,100">${WASHED_OUT_PICTURE}<v:rect id="Rule" style="position:absolute;width:200pt;height:2pt" fillcolor="black"/></v:group>`
+    const header = headerOf(drawn(group))
+    expect(header).toContain('id="Rule"')
+    expect(header).toContain('gain="19661f"')
   })
 
   it("hands back a file with no watermark untouched", () => {

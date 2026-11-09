@@ -55,6 +55,7 @@ function position(
  */
 function drawingOf(shape: Element, id: number, gain: number, black: number) {
   const data = shape.getElementsByTagNameNS(VML, "imagedata")[0]
+  const crop = cropOf(data)
   const relationship = data.getAttributeNS(R, "id")
   const style = parseStyle(shape.getAttribute("style") ?? "")
   const width = Math.round(pointsOf(style.get("width")) * EMU_PER_PT)
@@ -64,8 +65,40 @@ function drawingOf(shape: Element, id: number, gain: number, black: number) {
   const contrast = gain <= 1 ? gain - 1 : 1 - 1 / gain
   const rotation = Number.parseFloat(style.get("rotation") ?? "0") || 0
   const behind = style.get("z-index")?.startsWith("-") ? "1" : "0"
-  const xml = `<w:drawing xmlns:w="${WORD}" xmlns:r="${R}" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" relativeHeight="1" behindDoc="${behind}" locked="0" layoutInCell="1" allowOverlap="1"><wp:simplePos x="0" y="0"/>${position("positionH", style, "horizontal", "margin-left")}${position("positionV", style, "vertical", "margin-top")}<wp:extent cx="${width}" cy="${height}"/><wp:wrapNone/><wp:docPr id="${id}" name="Watermark"/><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="${id}" name="Watermark"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${relationship}"><a:lum bright="${Math.round(black * 200000)}" contrast="${Math.round(contrast * 100000)}"/></a:blip><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm rot="${Math.round(rotation * 60000)}"><a:off x="0" y="0"/><a:ext cx="${width}" cy="${height}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:anchor></w:drawing>`
+  const xml = `<w:drawing xmlns:w="${WORD}" xmlns:r="${R}" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" relativeHeight="1" behindDoc="${behind}" locked="0" layoutInCell="1" allowOverlap="1"><wp:simplePos x="0" y="0"/>${position("positionH", style, "horizontal", "margin-left")}${position("positionV", style, "vertical", "margin-top")}<wp:extent cx="${width}" cy="${height}"/><wp:wrapNone/><wp:docPr id="${id}" name="Watermark"/><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="${id}" name="Watermark"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${relationship}"><a:lum bright="${Math.round(black * 200000)}" contrast="${Math.round(contrast * 100000)}"/></a:blip>${crop}<a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm rot="${Math.round(rotation * 60000)}"><a:off x="0" y="0"/><a:ext cx="${width}" cy="${height}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:anchor></w:drawing>`
   return new DOMParser().parseFromString(xml, "application/xml").documentElement
+}
+
+/** VML's crop fractions as DrawingML's source rectangle, in thousandths of a percent. */
+function cropOf(data: Element): string {
+  const sides = [
+    ["l", "cropleft"],
+    ["t", "croptop"],
+    ["r", "cropright"],
+    ["b", "cropbottom"],
+  ]
+    .map(([side, name]) => [side, fractionOf(data.getAttribute(name))] as const)
+    .filter(([, fraction]) => fraction)
+    .map(
+      ([side, fraction]) => `${side}="${Math.round((fraction ?? 0) * 100000)}"`
+    )
+  return sides.length ? `<a:srcRect ${sides.join(" ")}/>` : ""
+}
+
+/**
+ * The one picture a w:pict holds, beside at most its shape type. A group, or a
+ * picture with other shapes, stays as written: replacing the w:pict would drop them.
+ */
+function lonePicture(picture: Element): Element | null {
+  const shapes = [...picture.children].filter(
+    (child) => !(child.namespaceURI === VML && child.localName === "shapetype")
+  )
+  const [shape] = shapes
+  return shapes.length === 1 &&
+    shape.namespaceURI === VML &&
+    shape.localName === "shape"
+    ? shape
+    : null
 }
 
 /** Redraw every faded VML picture in a header as DrawingML; true if any changed. */
@@ -73,9 +106,9 @@ export function drawablePictureWatermarks(header: Document): boolean {
   let changed = false
   const pictures = [...header.getElementsByTagNameNS(WORD, "pict")]
   for (const [index, picture] of pictures.entries()) {
-    const shape = picture.getElementsByTagNameNS(VML, "shape")[0]
+    const shape = lonePicture(picture)
     const data = shape?.getElementsByTagNameNS(VML, "imagedata")[0]
-    if (!data) continue
+    if (!shape || !data) continue
     const gain = fractionOf(data.getAttribute("gain"))
     const black = fractionOf(data.getAttribute("blacklevel"))
     if (gain === null && black === null) continue

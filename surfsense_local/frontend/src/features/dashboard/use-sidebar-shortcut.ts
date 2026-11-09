@@ -13,6 +13,8 @@ export function useSidebarShortcut(onToggle: () => void) {
       if (event.key.toLowerCase() !== "b") return
       event.preventDefault()
       event.stopPropagation()
+      // A held key repeats: it would flicker the sidebar and rewrite its choice.
+      if (event.repeat) return
       onToggle()
     }
     window.addEventListener("keydown", onKeyDown, { capture: true })

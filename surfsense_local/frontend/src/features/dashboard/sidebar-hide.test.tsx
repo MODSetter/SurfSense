@@ -131,6 +131,15 @@ describe("hiding the left sidebar", () => {
     expect(column().style.width).toBe("272px")
   })
 
+  it("toggles once while the shortcut is held", async () => {
+    renderDashboard()
+    await screen.findByRole("button", { name: "Hide sidebar" })
+
+    fireEvent.keyDown(window, { key: "b", metaKey: true })
+    fireEvent.keyDown(window, { key: "b", metaKey: true, repeat: true })
+    expect(column().style.width).toBe("0px")
+  })
+
   describe("floating in at the left edge", () => {
     const newChat = () => within(column()).getByText("New chat")
     const isAvailable = () => newChat().closest("[inert]") === null
@@ -162,6 +171,26 @@ describe("hiding the left sidebar", () => {
       await user.hover(newChat())
       await user.hover(screen.getByRole("region", { name: "Conversation" }))
       await waitFor(() => expect(isAvailable()).toBe(false))
+    })
+
+    it("hides again once the pointer leaves the window from the edge", async () => {
+      const user = userEvent.setup()
+      await hiddenDashboard()
+      await user.hover(edge())
+      await waitFor(() => expect(isAvailable()).toBe(true))
+
+      fireEvent.mouseOut(document.documentElement, { relatedTarget: null })
+      await waitFor(() => expect(isAvailable()).toBe(false))
+    })
+
+    it("does not float in late after the sidebar was shown and hidden again", async () => {
+      await hiddenDashboard()
+      fireEvent.pointerEnter(edge())
+      fireEvent.keyDown(window, { key: "b", metaKey: true })
+      fireEvent.keyDown(window, { key: "b", metaKey: true })
+
+      await act(() => new Promise((settled) => window.setTimeout(settled, 300)))
+      expect(isAvailable()).toBe(false)
     })
 
     it("stays while a dialog it opened is up", async () => {

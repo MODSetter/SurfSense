@@ -39,6 +39,10 @@ export function useSidebarPeek(
     openTimer.current = window.setTimeout(() => setPeeking(true), OPEN_DELAY_MS)
   }, [])
   useEffect(() => cancelOpen, [cancelOpen])
+  // The edge unmounts while the sidebar shows, so no pointer leave cancels it.
+  useEffect(() => {
+    if (!enabled) cancelOpen()
+  }, [enabled, cancelOpen])
 
   useEffect(() => {
     if (!peeking) return
@@ -63,12 +67,20 @@ export function useSidebarPeek(
         closeTimer = window.setTimeout(closeWhenFree, CLOSE_DELAY_MS)
       }
     }
+    // Leaving the window past the edge, its likeliest exit, moves nothing inside it.
+    const leaveWindow = (event: MouseEvent) => {
+      if (event.relatedTarget === null && closeTimer === undefined) {
+        closeTimer = window.setTimeout(closeWhenFree, CLOSE_DELAY_MS)
+      }
+    }
     document.addEventListener("pointermove", follow, { passive: true })
     document.addEventListener("dragover", follow, { passive: true })
+    document.addEventListener("mouseout", leaveWindow)
     return () => {
       window.clearTimeout(closeTimer)
       document.removeEventListener("pointermove", follow)
       document.removeEventListener("dragover", follow)
+      document.removeEventListener("mouseout", leaveWindow)
     }
   }, [peeking, panelRef])
 

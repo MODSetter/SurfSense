@@ -3,7 +3,11 @@ import { strFromU8, strToU8, unzipSync, zipSync } from "fflate"
 import { drawablePictureWatermarks } from "./picture-watermark"
 import { drawableTextWatermarks } from "./text-watermark"
 
+// Word's own names, for a file whose relationships cannot be read.
 const HEADER_PART = /^word\/header\d*\.xml$/
+const DOCUMENT_RELS = "word/_rels/document.xml.rels"
+const HEADER_TYPE =
+  "http://schemas.openxmlformats.org/officeDocument/2006/relationships/header"
 // Beyond these a file is not worth inflating here: it opens with its watermarks
 // as written. The viewers already refuse files over 15 MB on disk.
 const MAX_HEADER_BYTES = 8 * 1024 * 1024
@@ -17,9 +21,20 @@ const MAX_FILE_BYTES = 512 * 1024 * 1024
 export function withDrawableWatermarks(file: ArrayBuffer): ArrayBuffer {
   try {
     const bytes = new Uint8Array(file)
+    // Sized from the zip's own directory before anything is inflated.
+    let total = 0
+    const rels = unzipSync(bytes, {
+      filter: ({ name, originalSize }) => {
+        total += originalSize
+        return name === DOCUMENT_RELS && originalSize <= MAX_HEADER_BYTES
+      },
+    })
+    if (total > MAX_FILE_BYTES) return file
+    const headerParts = headerPartsOf(rels[DOCUMENT_RELS])
     const headers = unzipSync(bytes, {
       filter: ({ name, originalSize }) =>
-        HEADER_PART.test(name) && originalSize <= MAX_HEADER_BYTES,
+        (headerParts ? headerParts.has(name) : HEADER_PART.test(name)) &&
+        originalSize <= MAX_HEADER_BYTES,
     })
     const rewritten = new Map<string, Uint8Array>()
     for (const [name, part] of Object.entries(headers)) {
@@ -29,14 +44,7 @@ export function withDrawableWatermarks(file: ArrayBuffer): ArrayBuffer {
     }
     if (rewritten.size === 0) return file
 
-    let total = 0
-    const parts = unzipSync(bytes, {
-      filter: ({ originalSize }) => {
-        total += originalSize
-        return true
-      },
-    })
-    if (total > MAX_FILE_BYTES) return file
+    const parts = unzipSync(bytes)
     for (const [name, part] of rewritten) parts[name] = part
     const zipped = zipSync(
       Object.fromEntries(
@@ -55,8 +63,38 @@ export function withDrawableWatermarks(file: ArrayBuffer): ArrayBuffer {
   }
 }
 
+/** The parts the document names as headers, or null when its relationships cannot say. */
+function headerPartsOf(rels: Uint8Array | undefined): Set<string> | null {
+  if (!rels) return null
+  const parsed = new DOMParser().parseFromString(
+    strFromU8(rels),
+    "application/xml"
+  )
+  if (parsed.querySelector("parsererror")) return null
+  const parts = new Set<string>()
+  for (const relationship of parsed.getElementsByTagName("Relationship")) {
+    const target = relationship.getAttribute("Target")
+    if (relationship.getAttribute("Type") !== HEADER_TYPE || !target) continue
+    if (relationship.getAttribute("TargetMode") === "External") continue
+    parts.add(partName(target))
+  }
+  return parts
+}
+
+/** A relationship's target as a part name: from the package root, or from word/. */
+function partName(target: string): string {
+  const path = target.startsWith("/") ? target.slice(1) : `word/${target}`
+  const resolved: string[] = []
+  for (const segment of path.split("/")) {
+    if (segment === "..") resolved.pop()
+    else if (segment !== "." && segment !== "") resolved.push(segment)
+  }
+  return resolved.join("/")
+}
+
 function drawableInHeader(xml: string): string {
-  if (!/<v:(textpath|imagedata)\b/.test(xml)) return xml
+  // Any prefix: the parts below find VML by its namespace.
+  if (!/<(?:[\w.-]+:)?(?:textpath|imagedata)\b/.test(xml)) return xml
   const header = new DOMParser().parseFromString(xml, "application/xml")
   if (header.querySelector("parsererror")) return xml
   const changed = [
