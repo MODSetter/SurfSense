@@ -1,6 +1,6 @@
 # ADR 0088: The app draws Word and Excel files with one renderer
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-11-05
 - **Source:** the watermark bug, where a downloaded Word file showed a watermark the app did not (no permalink)
 
