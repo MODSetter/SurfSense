@@ -110,6 +110,28 @@ describe("layOutSnapshot", () => {
     expect(word.destroy).toHaveBeenCalled()
   })
 
+  it("draws only the pages to be printed, each other page kept in its place", async () => {
+    serve(new Response(LETTER_WITH_LOGO))
+    const word = twoPageDocument()
+    renderer.load.mockResolvedValue(word)
+
+    const failure = await layOutSnapshot(
+      `?file=${encodeURIComponent(FILE_URL)}&pages=2`,
+      document
+    )
+
+    expect(failure).toBeNull()
+    expect(word.renderPage).toHaveBeenCalledOnce()
+    expect(word.renderPage).toHaveBeenCalledWith(
+      expect.anything(),
+      1,
+      expect.anything()
+    )
+    expect(document.body.querySelectorAll("img")).toHaveLength(1)
+    expect(document.body.children).toHaveLength(2)
+    expect(pageRules()).toHaveLength(2)
+  })
+
   it("prints each page at its own size, with no margin of its own", async () => {
     serve(new Response(LETTER_WITH_LOGO))
 
