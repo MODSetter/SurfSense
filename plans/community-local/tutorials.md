@@ -37,7 +37,8 @@ questionnaire workbook and the spoken question) are kept in
 The jobs guides run on a Business trial the walkthroughs answer for: the
 license routes and the jobs download are intercepted (`trial-license.mjs`), and
 the backend's `SURFSENSE_LOCAL_JOBS_UNLOCKED` switch lets the job run, with the
-signed questionnaire pack installed through `SURFSENSE_LOCAL_JOB_PACKS`.
+two signed job packs, the questionnaire's and the redline's, installed through
+`SURFSENSE_LOCAL_JOB_PACKS` (a path list, `;` between paths on Windows).
 
 ## The guides, in order of value
 
@@ -73,8 +74,10 @@ signed questionnaire pack installed through `SURFSENSE_LOCAL_JOB_PACKS`.
 | 28 | Run SurfSense in Docker and open it from another device | `docker` | 4 |
 
 Not captured: signing in with a ChatGPT or Claude plan, since a capture can't
-sign in to those accounts. The redline guide waits for its pack to be signed, and
-for the lawyer's read if ADR 0086 covers it. Docker gets no guide of its own: a
+sign in to those accounts. The redline guide runs on the contract redline pack
+the maintainer had signed for it on 10 Nov 2026, and on Claude Sonnet 5.5: on
+Haiku 5.5 the job wrote stray markup into its changes, so its walkthrough refuses
+a take whose copy holds any. Docker gets no guide of its own: a
 capture would pull the image, and the [Docker](/docs/v2/docker) pages already
 walk through it, so the guides hub links there.
 

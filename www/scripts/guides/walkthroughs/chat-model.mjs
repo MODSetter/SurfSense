@@ -14,9 +14,12 @@ export async function switchChatModel(g, model) {
 	const inUse = settings.getByRole("region", { name: "chat model in use" });
 	await inUse.waitFor();
 	if (!(await inUse.innerText()).includes(model)) {
+		// The server's model list arrives after the section: either its search box or the button that shows it.
+		const search = settings.getByPlaceholder("Search chat models");
 		const show = settings.getByRole("button", { name: /^Show chat models/ });
-		if (await show.count()) await show.click();
-		await settings.getByPlaceholder("Search chat models").fill(model);
+		await search.or(show).first().waitFor();
+		if (!(await search.isVisible())) await show.click();
+		await search.fill(model);
 		await settings.getByRole("button", { name: `Use ${model}`, exact: true }).click();
 		const confirm = page.getByRole("dialog", { name: `Use ${model} for chat?` });
 		await confirm.getByRole("button", { name: "Use without testing" }).click();

@@ -38,8 +38,8 @@ function corsHeaders(route) {
  * Answers the license routes as the trial would. With `licensed: false` the app
  * starts with no license and gets the trial when the walkthrough adds its file.
  * Its jobs download then answers as it would with that file on the backend:
- * refused until the license server is allowed, then the questionnaire, which
- * the capture installed at start.
+ * refused until the license server is allowed, then each job whose pack the
+ * capture installed at start.
  */
 export async function answerAsTrial(page, apiUrl, { licensed = true } = {}) {
 	let active = licensed;
@@ -66,23 +66,13 @@ export async function answerAsTrial(page, apiUrl, { licensed = true } = {}) {
 			return route.fulfill({ status: 403, json: LICENSE_SERVER_OFF, headers: corsHeaders(route) });
 		}
 		const packs = await (await fetch(`${apiUrl}/job-packs`)).json();
-		const questionnaire = packs.find((pack) =>
-			pack.jobs.some((job) => job.entitlement === "JOB_QUESTIONNAIRE")
-		);
-		return route.fulfill({
-			json: {
-				packs,
-				outcomes: [
-					{
-						entitlement: "JOB_QUESTIONNAIRE",
-						outcome: "installed",
-						message: "",
-						version: questionnaire?.version ?? null,
-						detail: null,
-					},
-				],
-			},
-			headers: corsHeaders(route),
+		// Each job the trial carries whose pack the capture installed, as a first download would.
+		const outcomes = TRIAL_LICENSE.jobs.flatMap((entitlement) => {
+			const pack = packs.find((each) => each.jobs.some((job) => job.entitlement === entitlement));
+			return pack
+				? [{ entitlement, outcome: "installed", message: "", version: pack.version, detail: null }]
+				: [];
 		});
+		return route.fulfill({ json: { packs, outcomes }, headers: corsHeaders(route) });
 	});
 }

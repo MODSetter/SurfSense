@@ -39,10 +39,11 @@ export const securityQuestionnaire = {
 	async intercept({ page, apiUrl }) {
 		await answerAsTrial(page, apiUrl);
 	},
-	/** An earlier take's workbook and its filled-in copies, so the run starts with none. */
+	/** An earlier take's workbook and every job's copies, so the run starts with none and Recent runs is empty. */
 	async prepare({ apiUrl }) {
 		await deleteSources(apiUrl, [WORKBOOK]);
 		await deleteArtifactsTitled(apiUrl, "Supplier security questionnaire");
+		await deleteArtifactsTitled(apiUrl, "Confidentiality and non-disclosure agreement");
 	},
 	async before(g) {
 		await closeArtifact(g);
