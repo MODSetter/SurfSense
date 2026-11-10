@@ -62,6 +62,7 @@
 		"@types/node": "^24",
 		"@types/react": "^19.1.8",
 		"@types/react-dom": "^19.1.6",
+		"@vercel/blob": "^2.8.2",
 		"cross-env": "^7.0.3",
 		"tailwindcss": "^4.1.11",
 		"tsx": "^4.20.6",
