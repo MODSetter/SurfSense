@@ -9,8 +9,8 @@ import {
 	conversation,
 	deleteSources,
 	newAgentChat,
+	switchToAgentModel,
 	uploadSource,
-	useAgentModel,
 } from "./agent-chat.mjs";
 import { closeArtifact } from "./studio.mjs";
 
@@ -23,7 +23,7 @@ export const analyseASpreadsheet = {
 	},
 	async before(g) {
 		await closeArtifact(g);
-		await useAgentModel(g);
+		await switchToAgentModel(g);
 		await uploadSource(g, `Data/${DATA}`);
 	},
 	async run(g) {

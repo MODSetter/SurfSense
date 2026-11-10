@@ -1,13 +1,13 @@
 /** /docs/v2/guides/agent-documents: an Agentic chat writes a Word report from the sources, then changes it on request. */
 
-import { askAgent, conversation, newAgentChat, useAgentModel } from "./agent-chat.mjs";
+import { askAgent, conversation, newAgentChat, switchToAgentModel } from "./agent-chat.mjs";
 import { closeArtifact } from "./studio.mjs";
 
 export const agentDocuments = {
 	slug: "agent-documents",
 	async before(g) {
 		await closeArtifact(g);
-		await useAgentModel(g);
+		await switchToAgentModel(g);
 	},
 	async run(g) {
 		const { page } = g;

@@ -16,7 +16,6 @@ export const voiceInput = {
 	async run(g) {
 		const { page } = g;
 		await startChat(g, "Basic (Q&A)");
-		const composer = page.getByRole("textbox", { name: "Message" });
 		const mic = page.getByRole("button", { name: /voice input/i }).first();
 		await g.click(mic, { caption: "Click the microphone beside Send" });
 		await g.caption("Speak: your words arrive a phrase at a time");

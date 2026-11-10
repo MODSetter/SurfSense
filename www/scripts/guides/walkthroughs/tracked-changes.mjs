@@ -5,8 +5,8 @@ import {
 	conversation,
 	deleteSources,
 	newAgentChat,
+	switchToAgentModel,
 	uploadSource,
-	useAgentModel,
 } from "./agent-chat.mjs";
 import { closeArtifact } from "./studio.mjs";
 
@@ -19,7 +19,7 @@ export const trackedChanges = {
 	},
 	async before(g) {
 		await closeArtifact(g);
-		await useAgentModel(g);
+		await switchToAgentModel(g);
 		await uploadSource(g, `Firm policies/${PLAN}`);
 	},
 	async run(g) {

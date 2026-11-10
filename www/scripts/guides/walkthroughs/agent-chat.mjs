@@ -19,7 +19,7 @@ export function conversation(page) {
 	return page.getByRole("region", { name: "Conversation" });
 }
 
-export async function useAgentModel(g) {
+export async function switchToAgentModel(g) {
 	await switchChatModel(g, AGENT_MODEL);
 }
 

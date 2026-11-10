@@ -4,13 +4,8 @@
  * sign-in, and its tools always ask first, which shows the approval.
  */
 
-import {
-	askAgent,
-	conversation,
-	newAgentChat,
-	replyFinished,
-	useAgentModel,
-} from "./agent-chat.mjs";
+import { conversation, newAgentChat, replyFinished, switchToAgentModel } from "./agent-chat.mjs";
+import { setHostAllowed } from "./egress.mjs";
 import { closeSettings, openSettingsSection } from "./open-settings.mjs";
 import { closeArtifact } from "./studio.mjs";
 
@@ -30,22 +25,11 @@ export const plugins = {
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ allowed: false }),
 		});
-		const destinations = await (await fetch(`${apiUrl}/egress`)).json();
-		const host = destinations.filter((each) => each.host === "mcp.deepwiki.com" && each.enabled);
-		if (host.length) {
-			await fetch(`${apiUrl}/egress`, {
-				method: "PUT",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					destinations: host.map((each) => each.destination),
-					enabled: false,
-				}),
-			});
-		}
+		await setHostAllowed(apiUrl, "mcp.deepwiki.com", false);
 	},
 	async before(g) {
 		await closeArtifact(g);
-		await useAgentModel(g);
+		await switchToAgentModel(g);
 	},
 	async run(g) {
 		const { page } = g;

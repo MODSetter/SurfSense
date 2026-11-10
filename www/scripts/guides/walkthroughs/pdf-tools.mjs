@@ -1,13 +1,13 @@
 /** /docs/v2/guides/pdf-tools: the agent merges two PDF sources and numbers the pages of the result. */
 
-import { askAgent, conversation, newAgentChat, useAgentModel } from "./agent-chat.mjs";
+import { askAgent, conversation, newAgentChat, switchToAgentModel } from "./agent-chat.mjs";
 import { artifactRow, closeArtifact } from "./studio.mjs";
 
 export const pdfTools = {
 	slug: "pdf-tools",
 	async before(g) {
 		await closeArtifact(g);
-		await useAgentModel(g);
+		await switchToAgentModel(g);
 	},
 	async run(g) {
 		const { page } = g;

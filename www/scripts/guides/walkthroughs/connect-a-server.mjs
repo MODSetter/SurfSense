@@ -5,6 +5,7 @@
  * is typed or shown.
  */
 
+import { setHostAllowed } from "./egress.mjs";
 import { closeSettings, openSettingsSection } from "./open-settings.mjs";
 
 const PLACEHOLDER_KEY = "sk-or-v1-placeholder-for-the-guides-0000000000000000000000000000000";
@@ -20,18 +21,7 @@ export const connectAServer = {
 		)) {
 			await fetch(`${apiUrl}/llm/connections/${connection.id}`, { method: "DELETE" });
 		}
-		const destinations = await (await fetch(`${apiUrl}/egress`)).json();
-		const openRouter = destinations.filter((each) => each.host === "openrouter.ai" && each.enabled);
-		if (openRouter.length) {
-			await fetch(`${apiUrl}/egress`, {
-				method: "PUT",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					destinations: openRouter.map((each) => each.destination),
-					enabled: false,
-				}),
-			});
-		}
+		await setHostAllowed(apiUrl, "openrouter.ai", false);
 	},
 	async run(g) {
 		const { page } = g;

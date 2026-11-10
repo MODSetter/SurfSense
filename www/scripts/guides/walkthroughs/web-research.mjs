@@ -1,6 +1,7 @@
 /** /docs/v2/guides/web-research: the agent reads a page the user names, after the user allows its site. */
 
-import { askAgent, conversation, newAgentChat, steps, useAgentModel } from "./agent-chat.mjs";
+import { askAgent, conversation, newAgentChat, steps, switchToAgentModel } from "./agent-chat.mjs";
+import { setHostAllowed } from "./egress.mjs";
 import { closeArtifact } from "./studio.mjs";
 
 const SITE = "www.cisa.gov";
@@ -10,22 +11,11 @@ export const webResearch = {
 	slug: "web-research",
 	/** Turns the site off again, so the take shows the question the first visit asks. */
 	async prepare({ apiUrl }) {
-		const destinations = await (await fetch(`${apiUrl}/egress`)).json();
-		const site = destinations.filter((each) => each.host === SITE && each.enabled);
-		if (site.length) {
-			await fetch(`${apiUrl}/egress`, {
-				method: "PUT",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					destinations: site.map((each) => each.destination),
-					enabled: false,
-				}),
-			});
-		}
+		await setHostAllowed(apiUrl, SITE, false);
 	},
 	async before(g) {
 		await closeArtifact(g);
-		await useAgentModel(g);
+		await switchToAgentModel(g);
 	},
 	async run(g) {
 		const { page } = g;
