@@ -210,6 +210,7 @@ def test_only_surfsenses_own_skills_load_from_the_shipped_folder(
         "surfsense-data",
         "surfsense-pdf",
         "surfsense-html",
+        "surfsense-pictures",
     )
     for name in names:
         assert (Path(skills) / name / "SKILL.md").is_file()
