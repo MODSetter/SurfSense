@@ -22,7 +22,7 @@ type is the slot.
 |---|---|---|---|
 | `text_gen` | `llamacpp`, the bundled runtime | `openai_compatible`, with a `connection_id` | chat, titles, Studio's writing |
 | `image_gen` | `sdcpp`, the bundled sd-server | `openai_compatible`, with a `connection_id` | Studio's `image` and `infographic` |
-| `image_edit` | `sdcpp`, a model whose entry names `edit` | `openai_compatible`, with a `connection_id` | Studio's image and infographic edits ([studio](../studio.md#editing-a-picture)) |
+| `image_edit` | `sdcpp`, a model whose entry names `edit` | `openai_compatible`, with a `connection_id` | Optional: edits and references with a model other than the image model; empty, the image model takes them when it takes pictures in, and redraws when not ([studio](../studio.md#which-model-takes-a-picture)) |
 | `audio_gen` | `audiocpp`, the bundled audio.cpp server | `openai_compatible`, with a `connection_id` | Studio's `podcast` |
 | `video_gen` | `sdcpp`, a model whose entry has a `video` block | `openai_compatible`, with a `connection_id` | nothing yet |
 | `speech_to_text` | `audiocpp`, a recogniser, run on a second audio.cpp server | none: local only | the transcription routes ([admission](admission.md#speech-recognition)), which a recording's ingest calls ([documents](../documents.md#recordings)) |

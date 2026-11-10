@@ -117,3 +117,5 @@ The Date is the day the decision was first written down. Source links are permal
 | 0086 | [The contract redline ships with the Business switch, as an app runner on SurfSense's own Word engine](0086-the-contract-redline-ships-with-the-business-switch-on-the-word-engine.md) | Accepted |
 | 0087 | [The agent makes pictures with its own SurfSense tool, not opencode's](0087-the-agent-makes-pictures-with-its-own-surfsense-tool.md) | Accepted |
 | 0088 | [The app draws Word and Excel files with one renderer](0088-the-app-draws-word-and-excel-files-with-one-renderer.md) | Accepted |
+| 0089 | [Any image model changes a picture: one that takes pictures edits it, any other draws it again](0089-any-image-model-changes-a-picture.md) | Accepted |
+| 0090 | [A document waits on the server for the pictures it places](0090-a-document-waits-on-the-server-for-its-pictures.md) | Accepted |

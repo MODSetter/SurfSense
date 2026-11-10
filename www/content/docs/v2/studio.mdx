@@ -92,11 +92,11 @@ Documents the agent made are changed in its chat instead: "The agent made this d
 
 ## Edit an image
 
-Over a ready image or infographic, the same round button opens an edit box. Describe a change, such as "a darker background" or a new title, and click **Edit**. Studio sends the picture and your instruction to the image editing model, and what comes back is the next version.
+Over a ready image or infographic, the same round button opens an edit box. Describe a change, such as "a darker background" or a new title, and click **Edit**. Studio sends the picture and your instruction to your image model, and what comes back is the next version.
 
 Each edit starts from the version you have open, so edits chain, and every earlier version stays. There's no way to select one region of the picture yet: an edit applies to the whole image.
 
-Without an image editing model, the box says "Needs an image editing model." with **Choose a model**.
+Some image models can't take a picture in. With one of those, the box says "Describe a change: the picture is drawn again": Studio draws the picture again from what it was drawn from and your change, so the rest of the picture may change too. Image models that edit are marked **Edits** in Settings.
 
 <Callout type="info">
   Editing an image on a computer without a graphics card is slow. In testing,
@@ -108,7 +108,7 @@ Without an image editing model, the box says "Needs an image editing model." wit
 Choose them in Settings:
 
 - **Settings › Image gen** for drawing. Run a model on this computer, such as FLUX.2 klein 4B, Z-Image Turbo or Stable Diffusion XL, or use one from an API connection.
-- **Settings › Image edit** for editing. FLUX.2 klein 4B both draws and edits from one download. A remote model that takes a picture in and gives one back works too.
+- **Settings › Image edit** is optional: your image model edits pictures when it can, and draws them again when it can't. Choose a model there only to edit with a different one. FLUX.2 klein 4B both draws and edits from one download, and most remote image models take a picture in.
 
 A local image model runs only while Studio needs it, and works offline. It frees its memory a few minutes after the last image. See [Models](/docs/v2/models).
 

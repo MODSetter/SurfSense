@@ -1,6 +1,6 @@
 # ADR 0077: An image edit is the next version of the same document
 
-- **Status:** Accepted
+- **Status:** Accepted; its consequence on models that cannot edit superseded by [ADR 0089](0089-any-image-model-changes-a-picture.md)
 - **Date:** 2026-10-31
 - **Supersedes:** the removal of Studio's earlier image Edit, which made a new artifact per edit
 - **Source:** maintainer decision, 31 Oct 2026 (no permalink)

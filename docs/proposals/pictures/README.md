@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: in-progress
 code:
   - surfsense_local/backend/modules/llm/providers/
   - surfsense_local/backend/modules/llm/connections/
@@ -89,6 +89,22 @@ On one branch, `feat/comics`, a commit per step, each test first:
 6. The render that waits ([04](04-waiting-render.md)).
 7. Settings' label and Studio's Edit ([05](05-in-the-app.md)).
 8. Docs: architecture, ADRs, user docs, and this proposal deleted ([below](#when-it-ships)).
+
+## Built, and where it differs
+
+Steps 1 to 8 are built on `feat/comics`; what is now true is in [studio](../../architecture/studio.md#which-model-takes-a-picture), [agent](../../architecture/agent.md#pictures-the-agent-makes), [ADR 0089](../../adr/0089-any-image-model-changes-a-picture.md) and [ADR 0090](../../adr/0090-a-document-waits-on-the-server-for-its-pictures.md). Where the build differs from the parts below:
+
+- **Two protocols, not one.** `ImageGenerator` draws from words and `ImageEditor` takes pictures, each with `shape`, the editor with several pictures; the rule picks which client a picture goes to, so Studio's pipelines kept their shape.
+- **No OpenRouter client.** One client sends pictures to `/images/edits` and, on a `404` or `405` there, to `/images` with `input_references`, remembered per server. Any OpenAI-compatible server whose image models take pictures works, not OpenRouter alone.
+- **Taking pictures is the `image_edit` type** a model already gets from the catalog, now also from a connection's own `input_modalities`; no new field.
+- **A waiting render's failure does not count** toward renders' three-failure stop: renders never counted late failures, as pictures do.
+- **The agent's prompt names the skill in one line**, since it was 4 characters short of its 4,000-character cap; the tool's description and the web page skill's carry the rest.
+
+## Left to do
+
+- The spikes in [image models](01-image-models.md#spikes-before-code): several pictures on OpenAI's `/images/edits`, and local references and shapes through sd-server.
+- Settings: the edit override as its own section, retitled "Use a different model for edits", not yet folded under Image gen; the **Edits** label on server models only, not yet on local models to download.
+- The images guide's walkthrough and screenshots, which still choose a model for editing.
 
 ## Decisions
 
