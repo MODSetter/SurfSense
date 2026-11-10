@@ -3,7 +3,6 @@ import {
   act,
   cleanup,
   fireEvent,
-  render,
   screen,
   waitFor,
 } from "@testing-library/react"
@@ -11,6 +10,7 @@ import userEvent from "@testing-library/user-event"
 import { toast } from "sonner"
 
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { render } from "@/test-utils"
 
 import { dropOn, fakeDataTransfer } from "./fake-data-transfer"
 import { SourcesPanel } from "./sources-panel"

@@ -10,6 +10,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty"
 import { CircleAlertIcon } from "@/components/ui/icons"
+import { GuideLink } from "@/features/guides/guide-link"
 import { AddModelOptions } from "@/features/models/add-model/add-model-options"
 import type { ModelType } from "@/features/models/model-type"
 import type { Connection } from "@/features/models/remote/connections/api"
@@ -58,6 +59,29 @@ function emptyBody({
         id: "settings_models_empty_server_body",
         defaultMessage: "Use one from a server you already run.",
       })
+}
+
+/** A guide that walks through filling the slot, for the slots that have one. */
+function SlotGuide({ slot }: { slot: string }) {
+  if (slot === "chat")
+    return (
+      <GuideLink guide="local-model" surface="models_empty">
+        {intl.formatMessage({
+          id: "settings_models_chat_guide_link",
+          defaultMessage: "How to set up a chat model",
+        })}
+      </GuideLink>
+    )
+  if (slot === "speech")
+    return (
+      <GuideLink guide="transcribe-a-recording" surface="models_empty">
+        {intl.formatMessage({
+          id: "settings_models_speech_guide_link",
+          defaultMessage: "How to set up speech recognition",
+        })}
+      </GuideLink>
+    )
+  return null
 }
 
 /**
@@ -190,7 +214,10 @@ export function ModelSlotSettings({
               {emptyBody({ localOnly, canDownload: models.canDownload })}
             </EmptyDescription>
           </EmptyHeader>
-          <EmptyContent>{add}</EmptyContent>
+          <EmptyContent>
+            {add}
+            <SlotGuide slot={slot} />
+          </EmptyContent>
         </Empty>
       ) : (
         <div className="flex flex-col gap-5">
