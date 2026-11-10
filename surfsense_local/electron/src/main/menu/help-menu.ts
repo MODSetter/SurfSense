@@ -2,6 +2,8 @@ import type { MenuItemConstructorOptions } from "electron"
 
 // Each must pass external-url.ts. Mirrors frontend/src/features/about/about-links.ts.
 const DOCS_URL = "https://www.surfsense.com/docs"
+// Mirrors frontend/src/features/guides/guide-links.ts.
+const GUIDES_URL = "https://www.surfsense.com/docs/v2/guides"
 const GITHUB_URL = "https://github.com/MODSetter/SurfSense"
 const RELEASES_URL = `${GITHUB_URL}/releases/tag`
 
@@ -29,6 +31,10 @@ export function helpMenu(actions: {
       {
         label: "Documentation",
         click: () => actions.openExternal(fromHelpMenu(DOCS_URL, actions.version)),
+      },
+      {
+        label: "Guides and Videos",
+        click: () => actions.openExternal(fromHelpMenu(GUIDES_URL, actions.version)),
       },
       {
         label: "Source Code on GitHub",

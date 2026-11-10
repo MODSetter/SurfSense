@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { cleanup, screen } from "@testing-library/react"
+import { cleanup, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
 import type { LicenseStatus } from "@/features/license/api"
@@ -86,9 +86,56 @@ describe("the license row", () => {
     )
     const { container } = renderFooter()
 
-    // No bridge and nothing known yet: the strip goes rather than leaving a
-    // bordered gap above the bottom edge.
-    expect(container.textContent).toBe("")
+    // Nothing known yet: no row guesses at the license, and the guides stay.
+    expect(container.textContent).toBe("Guides and videos")
+  })
+})
+
+describe("the guides row", () => {
+  it("opens the guides by area, each a link to its page on surfsense.com", async () => {
+    stubLicense(license("none"))
+    const user = userEvent.setup()
+    renderFooter()
+
+    await user.click(screen.getByRole("button", { name: "Guides and videos" }))
+
+    const dialog = await screen.findByRole("dialog", {
+      name: "Guides and videos",
+    })
+    const area = within(dialog).getByRole("region", { name: "Jobs" })
+    const guide = within(area).getByRole("link", {
+      name: "Fill in a security questionnaire from your policies",
+    })
+    const url = new URL(guide.getAttribute("href") ?? "")
+    expect(url.origin + url.pathname).toBe(
+      "https://www.surfsense.com/docs/v2/guides/security-questionnaire"
+    )
+    // Tagged like every other surfsense.com link: where in the app it was opened.
+    expect(url.searchParams.get("utm_content")).toBe("guides_dialog")
+    const hub = within(dialog).getByRole("link", {
+      name: "All guides on surfsense.com",
+    })
+    expect(new URL(hub.getAttribute("href") ?? "").pathname).toBe(
+      "/docs/v2/guides"
+    )
+  })
+
+  it("lists every guide on the site once", async () => {
+    stubLicense(license("none"))
+    const user = userEvent.setup()
+    renderFooter()
+
+    await user.click(screen.getByRole("button", { name: "Guides and videos" }))
+
+    const dialog = await screen.findByRole("dialog", {
+      name: "Guides and videos",
+    })
+    const pages = within(dialog)
+      .getAllByRole("link")
+      .map((link) => new URL(link.getAttribute("href") ?? "").pathname)
+      .filter((path) => path !== "/docs/v2/guides")
+    expect(pages).toHaveLength(26)
+    expect(new Set(pages).size).toBe(26)
   })
 })
 
@@ -105,14 +152,15 @@ describe("updates", () => {
     expect(screen.queryByRole("button", { name: /update/i })).toBeNull()
   })
 
-  it("leave no footer at all when there is no license status", () => {
+  it("add no row while there is no license status", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => new Promise<Response>(() => undefined))
     )
     stubUpdateBridge({ automatic: true, state: { status: "idle" } })
-    const { container } = renderFooter()
+    renderFooter()
 
-    expect(container.querySelector(".border-t")).toBeNull()
+    expect(screen.getAllByRole("button")).toHaveLength(1)
+    expect(screen.queryByRole("button", { name: /update/i })).toBeNull()
   })
 })

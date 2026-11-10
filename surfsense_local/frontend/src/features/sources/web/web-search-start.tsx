@@ -8,6 +8,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty"
 import { GlobalSearchIcon } from "@/components/ui/icons"
+import { GuideLink } from "@/features/guides/guide-link"
 import { intl } from "@/i18n/intl"
 
 import { SearchSiteLogo } from "./search-site-logo"
@@ -56,6 +57,12 @@ export function WebSearchStart({
           </Button>
         ))}
       </EmptyContent>
+      <GuideLink guide="add-from-the-web" surface="web_search_start">
+        {intl.formatMessage({
+          id: "sources_web_start_guide_link",
+          defaultMessage: "How to add pages and videos",
+        })}
+      </GuideLink>
     </Empty>
   )
 }
