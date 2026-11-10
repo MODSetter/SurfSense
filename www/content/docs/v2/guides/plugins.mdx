@@ -1,0 +1,73 @@
+---
+title: Connect a plugin and use it in a chat
+description: Add an MCP server as a plugin, choose what its tools may do, and approve them in an Agentic chat
+---
+
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+
+<GuideVideo slug="plugins" poster="/guides/plugins/poster.webp" title="Adding an MCP server by its URL and approving its tool in a chat" />
+
+A plugin gives the agent tools from an MCP server, such as "ask about a GitHub repository". This guide adds DeepWiki's public server, which needs no sign-in, by its URL. Plugins from the **Browse** tab connect the same way. See [Plugins](/docs/v2/plugins).
+
+<Steps>
+<Step>
+
+### Allow third-party plugins
+
+Open **Settings**, then **Plugins**, and click **Add custom plugin**. A server added by its URL is a third-party plugin: turn on **Allow third-party plugins**, and SurfSense says what that means before you **Allow**.
+
+![The question Allow third-party plugins?, with Cancel and Allow](/guides/plugins/01-allow-third-party.webp)
+
+</Step>
+<Step>
+
+### Add the server
+
+Give it a **Name**, paste its **Server URL**, and click **Add**.
+
+![The Add an MCP server box with a name and the server's URL](/guides/plugins/02-add-server.webp)
+
+</Step>
+<Step>
+
+### Allow the server
+
+SurfSense asks before it contacts the server, and says what it receives. Click **Allow**. You can turn it off later in **Settings › Network**.
+
+![The question Allow connecting to mcp.deepwiki.com?](/guides/plugins/03-allow-server.webp)
+
+</Step>
+<Step>
+
+### Choose what its tools may do
+
+Open the plugin to see its tools. Set each one to always allowed, ask first, or blocked. A tool that can make changes always asks first.
+
+![DeepWiki's tools, each set to ask before it's used](/guides/plugins/04-tools.webp)
+
+</Step>
+<Step>
+
+### Approve it in a chat
+
+In an **Agentic** chat, ask for something the plugin does. When a tool needs approval, the turn stops under its step and shows what the tool will receive. Click **Allow once**, or **Deny**.
+
+![A plugin step waiting for approval, with Deny and Allow once](/guides/plugins/05-approval.webp)
+
+</Step>
+<Step>
+
+### Read the answer
+
+The agent answers from what the tool returned. A plugin step's full result can be saved as a note with **Save to Sources**.
+
+![The agent's answer from the plugin's tool](/guides/plugins/06-answer.webp)
+
+</Step>
+</Steps>
+
+Plugins work in Agentic chats only.
+
+## Next
+
+- [Third-party and custom plugins](/docs/v2/plugins/third-party) covers sign-ins and keys.

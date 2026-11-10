@@ -19,6 +19,16 @@
 		"study-materials",
 		"podcast",
 		"refine-and-versions",
-		"images"
+		"images",
+		"---Agent and plugins---",
+		"agent-documents",
+		"tracked-changes",
+		"analyse-a-spreadsheet",
+		"pdf-tools",
+		"web-research",
+		"plugins",
+		"---Voice---",
+		"transcribe-a-recording",
+		"voice-input"
 	]
 }
