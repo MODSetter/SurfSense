@@ -18,6 +18,8 @@ export async function closeSettings(g) {
 	const { page } = g;
 	const settings = page.getByRole("dialog", { name: "Settings" });
 	if (await settings.count()) {
+		// The close button sits where notices such as "DeepWiki connected" appear.
+		await g.noticesGone();
 		await g.click(settings.getByRole("button", { name: "Close" }).last());
 		await settings.waitFor({ state: "detached" });
 	}

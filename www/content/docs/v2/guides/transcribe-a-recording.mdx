@@ -1,0 +1,48 @@
+---
+title: Turn a recording into a source
+description: Download a speech recognition model, add a recording, and ask about what was said, with times in the citations
+---
+
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+
+<GuideVideo slug="transcribe-a-recording" poster="/guides/transcribe-a-recording/poster.webp" title="Downloading a speech model, transcribing a recording, and citing it" />
+
+A recording becomes a source through a speech recognition model on your computer: its transcript is searched and cited like any document, and each passage says when it was said. Your audio never leaves your computer. See [Recordings](/docs/v2/sources#recordings).
+
+This guide uses a LibriVox reading of *The Art of War*, which is in the public domain.
+
+<Steps>
+<Step>
+
+### Choose a speech recognition model
+
+Open **Settings**, then **Speech recognition**, and click **Add model**. Each model lists its languages; one detects the language on its own. Click **Download**: downloading a model also chooses it.
+
+![The speech recognition models on offer, with Download](/guides/transcribe-a-recording/01-speech-models.webp)
+
+</Step>
+<Step>
+
+### Add the recording
+
+Add a `.wav`, `.mp3`, `.flac` or Ogg Vorbis file to **Sources** like any other file. Its row shows how far the transcript has got.
+
+![The recording in Sources, being transcribed](/guides/transcribe-a-recording/02-transcribing.webp)
+
+</Step>
+<Step>
+
+### Ask about it
+
+When it's ready, ask about it in a chat. A cited passage starts with the time it was said, such as `[00:02:41]`.
+
+![A cited passage from the recording, with the time it was said](/guides/transcribe-a-recording/03-cited-recording.webp)
+
+</Step>
+</Steps>
+
+Under the model in use, **Spoken language** sets the language your recordings are in. A recording can't be played back in SurfSense yet.
+
+## Next
+
+- [Dictate a question](/docs/v2/guides/voice-input) with the same model.

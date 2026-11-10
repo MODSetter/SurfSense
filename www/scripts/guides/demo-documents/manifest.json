@@ -72,6 +72,16 @@
 			"retrieved": "2026-10-29",
 			"bytes": 7495,
 			"sha256": "5edb3314e2b07abbca09e41f7929a14f03b33b4a0995eac764c7136398155e50"
+		},
+		{
+			"file": "Voice/Spoken question.wav",
+			"title": "A spoken question, for the dictation walkthrough's microphone",
+			"publisher": "Made for the guides with Windows' built-in speech synthesis (Microsoft David Desktop), then padded with silence",
+			"kept": "Spoken question.wav",
+			"licence": "Made for SurfSense's guides; no third-party content",
+			"retrieved": "2026-11-10",
+			"bytes": 497796,
+			"sha256": "99705051f981866958b67caca9e0ebc479c7810438a50928dc83e3c34d020d35"
 		}
 	]
 }

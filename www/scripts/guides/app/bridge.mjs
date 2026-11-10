@@ -8,11 +8,17 @@
  *
  * Runs in the page through `addInitScript`, so it must not close over anything.
  */
-export function installBridge({ apiUrl, version, firstRunAsked }) {
+export function installBridge({
+	apiUrl,
+	version,
+	firstRunAsked,
+	updatesAutomatic = false,
+	usageStatistics = null,
+}) {
 	const listeners = new Set();
 	let privacy = {
 		updates: {
-			automatic: false,
+			automatic: updatesAutomatic,
 			locked: false,
 			lockedReason: null,
 			channel: null,
@@ -22,7 +28,7 @@ export function installBridge({ apiUrl, version, firstRunAsked }) {
 			lastRequest: null,
 		},
 		usageStatistics: {
-			enabled: firstRunAsked ? false : null,
+			enabled: firstRunAsked ? Boolean(usageStatistics) : null,
 			locked: false,
 			lockedReason: null,
 			host: "us.i.posthog.com",
@@ -36,6 +42,15 @@ export function installBridge({ apiUrl, version, firstRunAsked }) {
 	};
 	const nothing = async () => {};
 	const noListener = () => () => {};
+	const updateState = {
+		current: { status: "idle" },
+		checkedAt: undefined,
+		listeners: new Set(),
+		set(next) {
+			this.current = next;
+			for (const listener of this.listeners) listener(next);
+		},
+	};
 
 	window.surfsense = {
 		apiUrl,
@@ -43,13 +58,25 @@ export function installBridge({ apiUrl, version, firstRunAsked }) {
 		databaseIdentity: () => "guides",
 		openDocument: async () => "",
 		revealDocument: async () => "",
+		// A check answers as the updater does when this is the newest version: checking, then up to date.
 		updates: {
-			prefs: async () => ({ automatic: privacy.updates.automatic }),
+			prefs: async () => ({
+				automatic: privacy.updates.automatic,
+				lastCheckedAt: updateState.checkedAt,
+			}),
 			setAutomatic: async (automatic) => ({ automatic }),
-			state: async () => ({ status: "idle" }),
-			check: nothing,
+			state: async () => updateState.current,
+			check: async () => {
+				updateState.set({ status: "checking" });
+				await new Promise((resolve) => setTimeout(resolve, 1200));
+				updateState.checkedAt = new Date().toISOString();
+				updateState.set({ status: "up-to-date" });
+			},
 			install: nothing,
-			onState: noListener,
+			onState: (listener) => {
+				updateState.listeners.add(listener);
+				return () => updateState.listeners.delete(listener);
+			},
 			onCheckRequested: noListener,
 		},
 		privacy: {

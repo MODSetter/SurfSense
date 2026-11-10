@@ -1,0 +1,60 @@
+---
+title: Have the agent write a report or a deck
+description: Ask an Agentic chat for a Word document, a deck or a PDF from your sources, then change it by asking
+---
+
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+
+<GuideVideo slug="agent-documents" poster="/guides/agent-documents/poster.webp" title="The agent writing a Word report from the sources, then changing it" />
+
+In an **Agentic** chat, the agent works in steps: it searches your ticked sources, reads them in full when it needs to, and makes real Office files and PDFs. Each file appears in Studio. See [Agent](/docs/v2/agent).
+
+<Steps>
+<Step>
+
+### Ask in an Agentic chat
+
+Click **New chat** and choose **Agentic** under **Mode for this chat**. Ask for the file you want, such as "a two-page Word report for a small business owner". Each step shows above the reply as one line while the agent works.
+
+![The agent's first steps above its reply: searching and reading the sources](/guides/agent-documents/01-working.webp)
+
+</Step>
+<Step>
+
+### Read what it did
+
+When it's done, the steps list everything it did, and the reply says what the document draws on. The step that made the file links to it.
+
+![The finished reply, with the step that created the Word document](/guides/agent-documents/02-reply.webp)
+
+</Step>
+<Step>
+
+### Open the document
+
+Click the file in its step to open it in Studio. It's a real `.docx` you can download and edit in Word or LibreOffice.
+
+![The agent's Word document open in Studio](/guides/agent-documents/03-document.webp)
+
+</Step>
+<Step>
+
+### Ask for a change
+
+Ask in the same chat, such as "add a short section on backups". The agent makes the document's next version, and the earlier one stays in Studio's version list.
+
+![The document's next version, after the change was asked for in the chat](/guides/agent-documents/04-version-2.webp)
+
+</Step>
+</Steps>
+
+<Callout type="info">
+  When the agent wants to check its pages as Office lays them out, or convert a document to PDF, it needs Office support. If it's off, the step says so and the chat offers **Turn on Office support**. See [Office support](/docs/v2/agent#office-support).
+</Callout>
+
+Agentic works best on strong models. Small local models can stall on multi-step work.
+
+## Next
+
+- [Edit your own Word file with tracked changes](/docs/v2/guides/tracked-changes).
+- [Analyse a spreadsheet and chart it](/docs/v2/guides/analyse-a-spreadsheet).

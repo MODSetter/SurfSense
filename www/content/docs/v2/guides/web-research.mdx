@@ -1,0 +1,37 @@
+---
+title: Let the agent search and read the web
+description: Ask the agent about a page or a recent fact, and allow each site once
+---
+
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+
+<GuideVideo slug="web-research" poster="/guides/web-research/poster.webp" title="The agent asking to reach a site, then reading the page" />
+
+When your question needs more than your sources, the agent can search the web and read pages and YouTube videos, on your own computer and connection. It needs no license and no plugin. See [Search and read the web](/docs/v2/agent#search-and-read-the-web).
+
+<Steps>
+<Step>
+
+### Ask, and allow the site
+
+In an **Agentic** chat, name a page or ask something your sources don't cover. The first time the agent reaches a site, its step says the site isn't allowed yet and offers **Allow** with the site's name. The site gets the page's address and your IP address.
+
+![The agent's step asking to allow www.cisa.gov](/guides/web-research/01-allow-site.webp)
+
+</Step>
+<Step>
+
+### Ask again
+
+Click **Allow**, then ask the agent again. It reads the page and answers from it. The site stays listed in **Settings › Network**, where you can turn it off.
+
+![The agent's answer from the page it read](/guides/web-research/02-answer.webp)
+
+</Step>
+</Steps>
+
+Searches go to a SearXNG server: SurfSense's own, unless you enter your organization's under **Web search** in **Settings › Network**. Pages behind a login can't be read: save them as a PDF from your browser and add the file instead.
+
+## Next
+
+- [Add web pages and YouTube videos](/docs/v2/guides/add-from-the-web) as sources you keep.
