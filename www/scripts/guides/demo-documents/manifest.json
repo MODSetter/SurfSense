@@ -1,0 +1,35 @@
+{
+	"$comment": "Public documents the guides are captured with. Each is fetched from its source and checked against its sha256 before a capture, and none is committed.",
+	"documents": [
+		{
+			"file": "Security guides/NIST CSF 2.0.pdf",
+			"title": "The NIST Cybersecurity Framework (CSF) 2.0 (NIST CSWP 29)",
+			"publisher": "National Institute of Standards and Technology",
+			"url": "https://nvlpubs.nist.gov/nistpubs/CSWP/NIST.CSWP.29.pdf",
+			"licence": "Public domain in the United States: a work of the US federal government (17 U.S.C. 105)",
+			"retrieved": "2026-11-10",
+			"bytes": 1518858,
+			"sha256": "3c31f46fee98cac0c4323453e5109291a213b4de7fef8c058af9bf67f717433c"
+		},
+		{
+			"file": "Security guides/Security fundamentals.pdf",
+			"title": "Small Business Information Security: The Fundamentals (NISTIR 7621 Rev. 1)",
+			"publisher": "National Institute of Standards and Technology",
+			"url": "https://nvlpubs.nist.gov/nistpubs/ir/2016/NIST.IR.7621r1.pdf",
+			"licence": "Public domain in the United States: a work of the US federal government (17 U.S.C. 105)",
+			"retrieved": "2026-11-10",
+			"bytes": 1266567,
+			"sha256": "edc2fbc5e193f606b985f63f36cf42c57d774ec68ebd2fac8fb978eb8de77374"
+		},
+		{
+			"file": "Security guides/CSF quick start.pdf",
+			"title": "NIST Cybersecurity Framework 2.0: Small Business Quick-Start Guide (NIST SP 1300)",
+			"publisher": "National Institute of Standards and Technology",
+			"url": "https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.1300.pdf",
+			"licence": "Public domain in the United States: a work of the US federal government (17 U.S.C. 105)",
+			"retrieved": "2026-11-10",
+			"bytes": 934230,
+			"sha256": "1e77c1bd63d1e15c48c870b7c17b7c9a2edf6bd5103b0940e72828515c9f1881"
+		}
+	]
+}

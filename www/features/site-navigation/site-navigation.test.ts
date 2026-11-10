@@ -87,10 +87,10 @@ test("the bar opens on the For menu: who it's for, the jobs, then the study tool
 	);
 });
 
-test("Plugins sits under Resources, since the scrapers retired", () => {
+test("Resources opens on the tutorials, and Plugins sits there since the scrapers retired", () => {
 	assert.deepEqual(
 		menuItems(menu(SITE_NAVIGATION, "Resources")).map((item) => item.href),
-		["/blog", "/announcements", "/changelog", "/plugins", "/contact"]
+		["/docs/v2/guides", "/blog", "/announcements", "/changelog", "/plugins", "/contact"]
 	);
 });
 
@@ -119,7 +119,7 @@ test("the footer groups the pages by who they are for, and the jobs sit under Pr
 					"/private-ai-for-business",
 				],
 			],
-			["Resources", ["/blog", "/announcements", "/changelog", "/contact"]],
+			["Resources", ["/docs/v2/guides", "/blog", "/announcements", "/changelog", "/contact"]],
 			["Company", ["/privacy", "/terms"]],
 		]
 	);

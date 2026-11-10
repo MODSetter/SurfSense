@@ -46,6 +46,7 @@ import {
 	Notebook01Icon as Notebook01IconData,
 	Notification03Icon as Notification03IconData,
 	Pdf01Icon as Pdf01IconData,
+	PlayCircleIcon as PlayCircleIconData,
 	Plug01Icon as Plug01IconData,
 	PlusIcon as PlusIconData,
 	PodcastIcon as PodcastIconData,
@@ -146,6 +147,7 @@ export const NetworkIcon = createIcon(NetworkIconData);
 export const Notebook01Icon = createIcon(Notebook01IconData);
 export const Notification03Icon = createIcon(Notification03IconData);
 export const Pdf01Icon = createIcon(Pdf01IconData);
+export const PlayCircleIcon = createIcon(PlayCircleIconData);
 export const Plug01Icon = createIcon(Plug01IconData);
 export const PlusIcon = createIcon(PlusIconData);
 export const PodcastIcon = createIcon(PodcastIconData);

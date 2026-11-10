@@ -1,0 +1,17 @@
+{
+	"title": "Step-by-step guides",
+	"icon": "PlayCircle",
+	"defaultOpen": false,
+	"pages": [
+		"---Get started---",
+		"set-up",
+		"local-model",
+		"connect-a-server",
+		"---Sources and chat---",
+		"add-sources",
+		"ask-and-cite",
+		"pick-sources",
+		"add-from-the-web",
+		"workspaces"
+	]
+}

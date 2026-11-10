@@ -1,0 +1,113 @@
+{
+	"$comment": "Each guide's video, by the guide's slug: where it is hosted and how long it runs. Written by scripts/guides/upload-videos.mjs.",
+	"videos": {
+		"add-from-the-web": {
+			"src": "https://kwcw2blywltaztqj.public.blob.vercel-storage.com/guides/add-from-the-web-b78c082aefdc.mp4",
+			"seconds": 17
+		},
+		"add-sources": {
+			"src": "https://kwcw2blywltaztqj.public.blob.vercel-storage.com/guides/add-sources-609a5d8e0f3f.mp4",
+			"seconds": 10
+		},
+		"agent-documents": {
+			"src": "https://kwcw2blywltaztqj.public.blob.vercel-storage.com/guides/agent-documents-e525615f1e52.mp4",
+			"seconds": 51
+		},
+		"analyse-a-spreadsheet": {
+			"src": "https://kwcw2blywltaztqj.public.blob.vercel-storage.com/guides/analyse-a-spreadsheet-0f481e261a78.mp4",
+			"seconds": 47
+		},
+		"ask-and-cite": {
+			"src": "https://kwcw2blywltaztqj.public.blob.vercel-storage.com/guides/ask-and-cite-e7649ccf51b2.mp4",
+			"seconds": 17
+		},
+		"business-trial": {
+			"src": "https://kwcw2blywltaztqj.public.blob.vercel-storage.com/guides/business-trial-4ce35f7b3f0c.mp4",
+			"seconds": 25
+		},
+		"connect-a-server": {
+			"src": "https://kwcw2blywltaztqj.public.blob.vercel-storage.com/guides/connect-a-server-fea9629dde87.mp4",
+			"seconds": 36
+		},
+		"contract-redline": {
+			"src": "https://kwcw2blywltaztqj.public.blob.vercel-storage.com/guides/contract-redline-b00be032bd29.mp4",
+			"seconds": 48
+		},
+		"images": {
+			"src": "https://kwcw2blywltaztqj.public.blob.vercel-storage.com/guides/images-7aa6be3dba2e.mp4",
+			"seconds": 43
+		},
+		"local-model": {
+			"src": "https://kwcw2blywltaztqj.public.blob.vercel-storage.com/guides/local-model-0b39c5fdf0ad.mp4",
+			"seconds": 14
+		},
+		"organise-sources": {
+			"src": "https://kwcw2blywltaztqj.public.blob.vercel-storage.com/guides/organise-sources-523f8d2f93f5.mp4",
+			"seconds": 29
+		},
+		"pdf-tools": {
+			"src": "https://kwcw2blywltaztqj.public.blob.vercel-storage.com/guides/pdf-tools-c58b537fcc20.mp4",
+			"seconds": 30
+		},
+		"pick-sources": {
+			"src": "https://kwcw2blywltaztqj.public.blob.vercel-storage.com/guides/pick-sources-de6636f68974.mp4",
+			"seconds": 10
+		},
+		"plugins": {
+			"src": "https://kwcw2blywltaztqj.public.blob.vercel-storage.com/guides/plugins-4c3396fe7041.mp4",
+			"seconds": 35
+		},
+		"podcast": {
+			"src": "https://kwcw2blywltaztqj.public.blob.vercel-storage.com/guides/podcast-ebaebc90739f.mp4",
+			"seconds": 22
+		},
+		"privacy-network": {
+			"src": "https://kwcw2blywltaztqj.public.blob.vercel-storage.com/guides/privacy-network-cd25cde4f04c.mp4",
+			"seconds": 21
+		},
+		"refine-and-versions": {
+			"src": "https://kwcw2blywltaztqj.public.blob.vercel-storage.com/guides/refine-and-versions-3db3e49d34e2.mp4",
+			"seconds": 15
+		},
+		"security-questionnaire": {
+			"src": "https://kwcw2blywltaztqj.public.blob.vercel-storage.com/guides/security-questionnaire-c77b2bd009fd.mp4",
+			"seconds": 51
+		},
+		"set-up": {
+			"src": "https://kwcw2blywltaztqj.public.blob.vercel-storage.com/guides/set-up-00f2a770cf7c.mp4",
+			"seconds": 28
+		},
+		"studio-documents": {
+			"src": "https://kwcw2blywltaztqj.public.blob.vercel-storage.com/guides/studio-documents-eafaf0977f98.mp4",
+			"seconds": 21
+		},
+		"study-materials": {
+			"src": "https://kwcw2blywltaztqj.public.blob.vercel-storage.com/guides/study-materials-63530a01b7c5.mp4",
+			"seconds": 39
+		},
+		"tracked-changes": {
+			"src": "https://kwcw2blywltaztqj.public.blob.vercel-storage.com/guides/tracked-changes-ec60be422e66.mp4",
+			"seconds": 16
+		},
+		"transcribe-a-recording": {
+			"src": "https://kwcw2blywltaztqj.public.blob.vercel-storage.com/guides/transcribe-a-recording-c8413bafd2aa.mp4",
+			"seconds": 41
+		},
+		"updates": {
+			"src": "https://kwcw2blywltaztqj.public.blob.vercel-storage.com/guides/updates-e8c9bf1e6a0c.mp4",
+			"seconds": 18
+		},
+		"voice-input": {
+			"src": "https://kwcw2blywltaztqj.public.blob.vercel-storage.com/guides/voice-input-ed08ecb9608e.mp4",
+			"seconds": 15
+		},
+		"web-research": {
+			"src": "https://kwcw2blywltaztqj.public.blob.vercel-storage.com/guides/web-research-9bafbabe39bd.mp4",
+			"seconds": 19
+		},
+		"workspaces": {
+			"src": "https://kwcw2blywltaztqj.public.blob.vercel-storage.com/guides/workspaces-ca2af7adba94.mp4",
+			"seconds": 22
+		}
+	}
+}

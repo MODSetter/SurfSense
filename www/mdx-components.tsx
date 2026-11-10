@@ -8,6 +8,7 @@ import {
 	AccordionTrigger,
 } from "@/components/ui/accordion";
 import { cn } from "@/components/ui/cn";
+import { GuideVideo } from "@/features/guides/guide-video";
 
 export function getMDXComponents(components?: MDXComponents): MDXComponents {
 	return {
@@ -23,6 +24,7 @@ export function getMDXComponents(components?: MDXComponents): MDXComponents {
 		Video: ({ className, ...props }: React.ComponentProps<"video">) => (
 			<video className={cn("rounded-md border", className)} controls loop {...props} />
 		),
+		GuideVideo,
 		Accordion,
 		AccordionItem,
 		AccordionTrigger,
