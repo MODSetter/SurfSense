@@ -30,8 +30,10 @@ import {
 	FlaskConicalIcon as FlaskConicalIconData,
 	HistoryIcon as HistoryIconData,
 	InformationCircleIcon as InformationCircleIconData,
+	JusticeScale01Icon as JusticeScale01IconData,
 	Key01Icon as Key01IconData,
 	LaptopIcon as LaptopIconData,
+	LegalDocument01Icon as LegalDocument01IconData,
 	LinkSquare02Icon as LinkSquare02IconData,
 	Mail01Icon as Mail01IconData,
 	Megaphone01Icon as Megaphone01IconData,
@@ -121,8 +123,10 @@ export const File02Icon = createIcon(File02IconData);
 export const FlaskConicalIcon = createIcon(FlaskConicalIconData);
 export const HistoryIcon = createIcon(HistoryIconData);
 export const InformationCircleIcon = createIcon(InformationCircleIconData);
+export const JusticeScale01Icon = createIcon(JusticeScale01IconData);
 export const Key01Icon = createIcon(Key01IconData);
 export const LaptopIcon = createIcon(LaptopIconData);
+export const LegalDocument01Icon = createIcon(LegalDocument01IconData);
 export const LinkSquare02Icon = createIcon(LinkSquare02IconData);
 export const Mail01Icon = createIcon(Mail01IconData);
 export const Megaphone01Icon = createIcon(Megaphone01IconData);

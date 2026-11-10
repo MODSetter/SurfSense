@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { LicenceRow } from "@/app/(home)/pricing/business-pricing-content";
 import { PlatformsTooltip } from "@/app/(home)/pricing/platforms-tooltip";
 import {
 	type Plan,
@@ -152,6 +153,56 @@ export function PricingPlans({ plans }: { plans: Plan[] }) {
 				{plans.map((plan) => (
 					<PlanCard key={plan.name} plan={plan} />
 				))}
+			</div>
+		</section>
+	);
+}
+
+/**
+ * "What each licence gets": the plan cards' facts as one table, for a reader comparing all
+ * three. On a narrow screen the table scrolls inside its own frame, never the page.
+ */
+export function PricingComparison({ rows }: { rows: LicenceRow[] }) {
+	return (
+		<section className={sectionSpacing.foot} aria-labelledby="ss-pricing-compare-label">
+			<div className={cn("text-center", sectionSpacing.head)}>
+				<HomeBadge>Compare</HomeBadge>
+				<h2 id="ss-pricing-compare-label" className={cn(siteText.h2, "mt-4")}>
+					What each licence gets
+				</h2>
+			</div>
+
+			<div className="mt-10 overflow-x-auto rounded-3xl border border-border lg:mt-14">
+				<table className="w-full min-w-[42rem] border-collapse text-left text-sm">
+					<thead>
+						<tr className="border-b border-border bg-muted">
+							<th scope="col" className="px-5 py-4 font-medium text-foreground">
+								What you get
+							</th>
+							<th scope="col" className="px-5 py-4 font-medium text-foreground">
+								Free
+							</th>
+							<th scope="col" className="px-5 py-4 font-medium text-foreground">
+								Business
+							</th>
+							<th scope="col" className="px-5 py-4 font-medium text-foreground">
+								Enterprise
+							</th>
+						</tr>
+					</thead>
+					<tbody>
+						{rows.map((row) => (
+							<tr key={row.feature} className="border-b border-border align-top last:border-b-0">
+								<th scope="row" className="px-5 py-4 font-medium text-foreground">
+									{row.feature}
+								</th>
+								<td className="px-5 py-4 text-muted-foreground">{row.free}</td>
+								<td className="px-5 py-4 text-muted-foreground">{row.business}</td>
+								<td className="px-5 py-4 text-muted-foreground">{row.enterprise}</td>
+							</tr>
+						))}
+					</tbody>
+				</table>
 			</div>
 		</section>
 	);

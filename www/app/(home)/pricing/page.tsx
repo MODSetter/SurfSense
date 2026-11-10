@@ -6,9 +6,15 @@ import {
 	BUSINESS_PRICING_FAQ,
 	BUSINESS_PRICING_LEDE,
 	BUSINESS_PRICING_SCHEMA,
+	LICENCE_COMPARISON,
 } from "@/app/(home)/pricing/business-pricing-content";
 import { PLANS, PRICING_FAQ, PRICING_LEDE } from "@/app/(home)/pricing/pricing-content";
-import { PricingHero, PricingPlans, PricingQuestions } from "@/app/(home)/pricing/pricing-sections";
+import {
+	PricingComparison,
+	PricingHero,
+	PricingPlans,
+	PricingQuestions,
+} from "@/app/(home)/pricing/pricing-sections";
 import { JsonLd } from "@/components/site/json-ld";
 import { BUSINESS_LAUNCHED } from "@/features/business-launch/business-launched.mts";
 
@@ -118,6 +124,7 @@ export default function PricingPage() {
 			<JsonLd data={BUSINESS_LAUNCHED ? BUSINESS_PRICING_SCHEMA : PRICING_SCHEMA} />
 			<PricingHero lede={BUSINESS_LAUNCHED ? BUSINESS_PRICING_LEDE : PRICING_LEDE} />
 			<PricingPlans plans={BUSINESS_LAUNCHED ? BUSINESS_PLANS : PLANS} />
+			{BUSINESS_LAUNCHED ? <PricingComparison rows={LICENCE_COMPARISON} /> : null}
 			<PricingQuestions questions={BUSINESS_LAUNCHED ? BUSINESS_PRICING_FAQ : PRICING_FAQ} />
 		</>
 	);

@@ -7,6 +7,7 @@ import { getPublishedAnnouncementPosts } from "@/features/announcements/announce
 import { announcementPath } from "@/features/announcements/announcements-utils";
 import { BUSINESS_LAUNCHED } from "@/features/business-launch/business-launched.mts";
 import { source as docsSource } from "@/features/docs/source";
+import { BUSINESS_PAGES } from "@/features/site-navigation/site-navigation";
 
 const blogSource = loader({
 	baseUrl: "/blog",
@@ -36,6 +37,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 			changeFrequency: "weekly",
 			priority: 0.9,
 		},
+		// The audience and job pages: 404s until Business is on sale (`site-navigation.ts`).
+		...(BUSINESS_LAUNCHED ? BUSINESS_PAGES : []).map((path) => ({
+			url: `${BASE_URL}${path}`,
+			lastModified,
+			changeFrequency: "weekly" as const,
+			priority: 0.9,
+		})),
 		{ url: `${BASE_URL}/plugins`, lastModified, changeFrequency: "weekly", priority: 0.9 },
 		{ url: `${BASE_URL}/mcp-server`, lastModified, changeFrequency: "weekly", priority: 0.85 },
 		{
