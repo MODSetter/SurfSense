@@ -347,6 +347,6 @@ language, and `test_connections.py` that no connection fills it.
 
 ## Known gaps
 
-- Only the quiz and flashcards pass `json_schema`: HTML, image, infographic and the podcast's outline and draft still ask for JSON in the prompt alone, so their format compliance depends on it. The mind map is not JSON: it is a Markdown outline, written free.
+- Only the quiz, flashcards and simple web page pass `json_schema`: image, infographic and the podcast's outline and draft still ask for JSON in the prompt alone, so their format compliance depends on it. The mind map is not JSON: it is a Markdown outline, written free.
 - A schema whose node refers to itself, for a tree of any depth, crashed llama-server at b11050 twice in nine replies as Qwen3 0.6B nested deeper. No Studio schema refers to itself.
 - Nothing measures whether three tiers are still needed; once constrained decoding carries format compliance, a tier would carry reasoning depth only, which plausibly collapses three tiers to two.
