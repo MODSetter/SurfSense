@@ -78,7 +78,7 @@ sign in to those accounts. The redline guide runs on the contract redline pack
 the maintainer had signed for it on 10 Nov 2026, and on Claude Sonnet 5.5: on
 Haiku 5.5 the job wrote stray markup into its changes, so its walkthrough refuses
 a take whose copy holds any. Docker gets no guide of its own: a
-capture would pull the image, and the [Docker](/docs/v2/docker) pages already
+capture would pull the image, and the [Docker](../../www/content/docs/v2/docker/index.mdx) pages already
 walk through it, so the guides hub links there.
 
 ## In the app (PR 5)
