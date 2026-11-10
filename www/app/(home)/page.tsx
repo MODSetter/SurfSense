@@ -56,7 +56,7 @@ const APPLICATION_SCHEMA = {
 	applicationCategory: "productivity",
 	operatingSystem: "Windows, macOS, Linux",
 	description:
-		"Free, open-source private AI for confidential documents: a NotebookLM-style notebook that runs air-gapped on your own computer.",
+		"Free, open-source private AI for confidential documents: a NotebookLM-style notebook that runs on your own computer, air-gapped with a local model.",
 	url: "https://www.surfsense.com",
 	isAccessibleForFree: true,
 	offers: {

@@ -10,25 +10,36 @@ import {
 	Calculator01Icon,
 	type Icon,
 	JusticeScale01Icon,
+	Mortarboard01Icon,
+	TeacherIcon,
 } from "@/components/ui/icons";
 import { BUSINESS_LAUNCHED } from "@/features/business-launch/business-launched.mts";
 
 /**
  * Who it's for: a card per reader, each linking the page written for them, with the paid
  * jobs in a strip below. Sits under the logos so a visitor can pick their page before the
- * argument starts. Renders nothing until Business is on sale. See `AUDIENCES` in
- * `home-content.ts`.
+ * argument starts. A card shows once its page exists: the students', teachers' and
+ * business cards always, the lawyers' and accountants' cards and the jobs strip once
+ * Business is on sale. See `AUDIENCES` in `home-content.ts`.
  */
 
 const ICONS: Record<AudienceCard["key"], Icon> = {
 	lawyers: JusticeScale01Icon,
 	accountants: Calculator01Icon,
+	students: Mortarboard01Icon,
+	teachers: TeacherIcon,
 	business: Briefcase01Icon,
 };
 
-export function HomeAudiences() {
-	if (!BUSINESS_LAUNCHED) return null;
+const CARDS = AUDIENCES.cards.filter((card) => BUSINESS_LAUNCHED || !card.forSale);
 
+/** Five cards fill two rows evenly on six columns: three, then two wider. */
+function cardSpan(index: number, count: number) {
+	if (count !== 5) return "md:col-span-2";
+	return index < 3 ? "md:col-span-2" : "md:col-span-3";
+}
+
+export function HomeAudiences() {
 	return (
 		<section className={sectionSpacing.foot}>
 			<div className={cn("text-center", sectionSpacing.head)}>
@@ -36,13 +47,16 @@ export function HomeAudiences() {
 				<p className={cn(siteText.h2, "mt-4")}>{AUDIENCES.headline}</p>
 			</div>
 
-			<ul className="m-0 mt-10 grid list-none gap-4 p-0 md:grid-cols-3 lg:mt-14">
-				{AUDIENCES.cards.map((card) => {
+			<ul className="m-0 mt-10 grid list-none gap-4 p-0 md:grid-cols-6 lg:mt-14">
+				{CARDS.map((card, index) => {
 					const CardIcon = ICONS[card.key];
 					return (
 						<li
 							key={card.key}
-							className="flex flex-col rounded-2xl border border-border bg-card p-6 shadow-xs md:p-8"
+							className={cn(
+								"flex flex-col rounded-2xl border border-border bg-card p-6 shadow-xs md:p-8",
+								cardSpan(index, CARDS.length)
+							)}
 						>
 							<span
 								aria-hidden="true"
@@ -62,16 +76,18 @@ export function HomeAudiences() {
 				})}
 			</ul>
 
-			<div className="mt-4 flex flex-col gap-4 rounded-3xl bg-muted px-6 py-6 sm:flex-row sm:items-center sm:justify-between md:px-8">
-				<p className={cn(siteText.body, "text-sm")}>{JOBS_STRIP.body}</p>
-				<div className="flex flex-wrap gap-x-6 gap-y-2">
-					{JOBS_STRIP.actions.map((action) => (
-						<Link key={action.href} className={siteText.forward} href={action.href}>
-							{action.label} <ArrowRightIcon aria-hidden="true" className="size-4" />
-						</Link>
-					))}
+			{BUSINESS_LAUNCHED ? (
+				<div className="mt-4 flex flex-col gap-4 rounded-3xl bg-muted px-6 py-6 sm:flex-row sm:items-center sm:justify-between md:px-8">
+					<p className={cn(siteText.body, "text-sm")}>{JOBS_STRIP.body}</p>
+					<div className="flex flex-wrap gap-x-6 gap-y-2">
+						{JOBS_STRIP.actions.map((action) => (
+							<Link key={action.href} className={siteText.forward} href={action.href}>
+								{action.label} <ArrowRightIcon aria-hidden="true" className="size-4" />
+							</Link>
+						))}
+					</div>
 				</div>
-			</div>
+			) : null}
 		</section>
 	);
 }

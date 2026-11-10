@@ -112,21 +112,24 @@ hosted model does better, the page says so.
 
 ## The nav
 
-Today: For business, Plugins, Docs, Pricing. After the switch:
+A "For" menu takes the place of the "For business" link, on both sites (the
+maintainer's ask, 10 Nov 2026). It holds only the pages that exist:
 
-| entry | goes to |
-|---|---|
-| Who it's for (menu) | Lawyers `/ai-for-lawyers`, Accountants `/ai-for-accountants`, Students `/ai-for-students`, Teachers `/ai-for-teachers`, Healthcare `/private-ai-for-healthcare`, Other professional work `/private-ai-for-business`. An item appears once its page is live. |
-| Jobs (menu) | Contract redline `/jobs/contract-redline`, Security questionnaire `/jobs/security-questionnaire` |
-| Docs | `/docs` |
-| Pricing | `/pricing` |
-| Resources (menu) | Blog, Announcements, Changelog, Plugins, Contact us |
+| group in For | before the switch | after the switch |
+|---|---|---|
+| Who it's for | Students, Teachers, Business (`/private-ai-for-business`) | Lawyers, Accountants, Students, Teachers, Business |
+| Jobs | none | Contract redline, Security questionnaire |
+| Study tools | Study guide maker, Flashcard generator, Quiz generator, Podcast generator | the same |
+
+The bar reads For, Plugins, Docs, Pricing, Resources before the switch, and
+For, Docs, Pricing, Resources after it.
 
 - **Plugins** moves from the bar into the Resources menu. After the switch,
   `first-party-plugins.json` is empty, so the page shows the three built-in
   sources and third-party plugins: too little for the top bar.
-- **The footer** gains a "For firms" column with the audience and job pages,
-  each anchored with its keyword ("AI for lawyers").
+- **The footer**, after the switch, has a "Who it's for" column of the five
+  audience pages, each anchored with its keyword ("AI for lawyers"), and lists
+  the two jobs under Product. Before the switch it is as it was.
 - **`/private-ai-for-business` stays**, as the page for consultants and other
   professions. Its legal and accounting cards link the new pages, and the header
   comment in its `page.tsx` that forbade vertical pages now points here.
@@ -155,10 +158,12 @@ layout.
 - **H1:** `Air-gapped private AI for confidential documents`. The brand stays in
   the title tag and the wordmark, as today; the H1 has not carried it since
   October. The line under it carries the familiar hook: "A NotebookLM-style
-  notebook that runs entirely on your own computer."
+  notebook that runs on your own computer, with no account and no SurfSense
+  cloud. Pick a local model and nothing is sent anywhere."
 - **New band after the logos, "Who it's for":** a card per audience with one
-  line and a keyword link. It is the internal-link hub for the new pages; it
-  shows once Business is on sale, and a card joins once its page is live.
+  line and a keyword link, the internal-link hub for the new pages. A card
+  shows once its page exists: students, teachers and business on both sites,
+  lawyers and accountants once Business is on sale.
 - **"Jobs for firms"** is a strip under the audience cards, behind the switch:
   one sentence from the user guide and a link to each job's page.
 - **"Open source, extended by plugins"** becomes "Open source, with web search
@@ -181,7 +186,7 @@ layout.
 
 - **Title:** `AI for Lawyers: Private Legal AI That Runs on Your Computer` (59)
 - **Meta:** `Free, open-source legal AI that keeps client files on your computer. Search a matter, draft memos and decks, and redline contracts against your playbook.` (153)
-- **H1:** `Private AI for lawyers: client files never leave your computer`
+- **H1:** `Private AI for lawyers: client files stay on your computer`
 - **First paragraph, the answer:** SurfSense is a free, open-source AI app a
   lawyer runs on their own computer. It indexes a matter's documents on that
   disk, answers questions with a citation for each answer, and makes memos,
@@ -242,7 +247,8 @@ layout.
      or both, chosen from Sources.
   3. *What it reviews:* the non-disclosure agreement's review points, listed as
      the [proposal](../../../docs/proposals/contract-redline-job.md) has them.
-  4. *Your contract never leaves your computer.*
+  4. *SurfSense never receives your contract*, a heading true whichever model
+     is chosen; its text says what a hosted model receives.
   5. *What it does not do yet:* headers, footers and footnotes; replies to a
      counterparty's markup; contracts that are not `.docx`.
   6. *How well it does:* the measured rows by model, once the stance check is
@@ -311,7 +317,7 @@ due diligence.
 - **H2s:** *What you get back* (the filled workbook, the source of each answer,
   the list for a person to review) · *What it reads* (your policies, from
   Sources) · *Which questionnaires* (any Excel workbook; the HECVAT, CAIQ and
-  SIG Lite pages follow `08`) · *Nothing leaves your computer* · *How well it
+  SIG Lite pages follow `08`) · *SurfSense never receives your policies* · *How well it
   does* (the measured rows, as the eval publishes them) · *Price and trial*.
 - **Links:** `/ai-for-accountants`, `/pricing`, `/downloads`.
 - **Gate:** the switch.
@@ -406,7 +412,7 @@ later slides page.
 | tertiary | notebooklm for teachers | - | 151 | - | - |
 
 - **Title:** `Free AI for Teachers: Quizzes, Worksheets and Lesson Plans` (58)
-- **Meta:** `Make quizzes, worksheets, lesson plans and slides from your own teaching materials, free and on your computer. Student work never leaves your machine.` (150)
+- **Meta:** `Make quizzes, worksheets, lesson plans and slides from your own teaching materials, free and on your own computer, with no account or school sign-up.` (149)
 - **H1:** `Free AI for teachers: quizzes, worksheets and lesson plans from your own materials`
 - **First paragraph:** free and on the teacher's own computer; made from their
   syllabus, readings and slides; student work they add is never uploaded.
@@ -417,14 +423,33 @@ later slides page.
   3. *Lesson plans from your syllabus* (Word)
   4. *Slides for tomorrow's class*
   5. *Flashcards and a podcast recap for your students*
-  6. *Student work stays on your computer* (where the bytes are; no FERPA claim)
+  6. *With a local model, student work never leaves your computer* (where the
+     bytes are; no FERPA claim)
   7. *Free, with no account and no school sign-up*
 - **FAQ:** *Is it free for teachers?* *Can I print the quiz?* *Is student work
-  uploaded?* *Does it run on a school computer?* (answer only after checking
-  an install without admin rights on each OS)
+  uploaded?* *Can my students use it too?* A school-computer question waits
+  until an install without admin rights has been checked on each OS.
 - **Links:** `/ai-for-students`, `/downloads`, `/pricing`.
 - **Verify before publishing:** a printable quiz with an answer key, a
   worksheet and a lesson plan, on a local model and with a hosted key.
+
+## Round two's feature pages
+
+`02`'s briefs, built as written apart from their titles' dashes, under
+`/features/<job>`, the path naming the job:
+
+| page | brief in `02` | primary keyword |
+|---|---|---|
+| `/features/study-guide-maker` | Study guide (hub) | study guide maker |
+| `/features/flashcard-generator` | Flashcards | ai flashcard generator |
+| `/features/quiz-generator` | Quiz | ai quiz generator |
+| `/features/podcast-generator` | Podcast | ai podcast generator |
+
+The flashcard and quiz pages name the hub as their parent in breadcrumbs. Two
+facts changed since `02` was written: the podcast is now an MP3, and the app
+reads web pages and YouTube once Business is on sale. Studio's flashcards and
+quizzes still have no download, so no page promises an Anki export or a
+printable quiz: a printable test is a Word or PDF file with an answer key.
 
 ## `/private-ai-for-healthcare` (round three)
 
@@ -488,6 +513,9 @@ later slides page.
   `/private-ai-for-business` is built.
 - App labels quoted exactly as `en.json` has them, and no claim the app cannot
   show today.
+- No heading claims more than holds with a hosted model. "SurfSense never
+  receives your files" is always true; "never leaves your computer" holds only
+  with a local model, so it says so (from the review of #2425).
 
 ## Order
 

@@ -159,7 +159,7 @@ export default function ContractRedlinePage() {
 			/>
 
 			<AudienceAnswer
-				heading="Your contract never leaves your computer"
+				heading="SurfSense never receives your contract"
 				points={[
 					"Runs in the app on your computer",
 					"Sends SurfSense nothing",

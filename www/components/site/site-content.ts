@@ -36,4 +36,25 @@ export const ACCOUNTANTS_URL = "/ai-for-accountants";
 export const CONTRACT_REDLINE_URL = "/jobs/contract-redline";
 export const SECURITY_QUESTIONNAIRE_URL = "/jobs/security-questionnaire";
 
+/**
+ * The free audiences and the Studio jobs they search for, from the same plan's round two.
+ * They name no paid job, so they exist with or without the Business switch.
+ */
+export const STUDENTS_URL = "/ai-for-students";
+export const TEACHERS_URL = "/ai-for-teachers";
+export const STUDY_GUIDE_URL = "/features/study-guide-maker";
+export const FLASHCARDS_URL = "/features/flashcard-generator";
+export const QUIZ_URL = "/features/quiz-generator";
+export const PODCAST_URL = "/features/podcast-generator";
+
+/** Every page round two adds, for the sitemap. */
+export const STUDY_PAGES = [
+	STUDENTS_URL,
+	TEACHERS_URL,
+	STUDY_GUIDE_URL,
+	FLASHCARDS_URL,
+	QUIZ_URL,
+	PODCAST_URL,
+];
+
 export type FooterLink = { title: string; href: string; external?: boolean };

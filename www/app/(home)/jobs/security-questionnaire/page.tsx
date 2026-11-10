@@ -157,7 +157,7 @@ export default function SecurityQuestionnairePage() {
 			/>
 
 			<AudienceAnswer
-				heading="Your policies never leave your computer"
+				heading="SurfSense never receives your policies"
 				points={[
 					"Runs in the app on your computer",
 					"Sends SurfSense nothing",

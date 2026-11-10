@@ -87,7 +87,7 @@ export default function AiForLawyersPage() {
 
 			<AudienceHero
 				badge="AI for lawyers"
-				title="Private AI for lawyers: client files never leave"
+				title="Private AI for lawyers: client files stay on"
 				highlight="your computer"
 				lede="SurfSense is a free, open-source AI app that runs on your own computer. Add a matter's documents, ask questions across them with a citation for every point, and turn them into memos, chronologies and decks. With a local model, nothing is sent anywhere."
 				note="No account, and no vendor copy of your files. Business adds the contract redline, with a 14-day free trial."

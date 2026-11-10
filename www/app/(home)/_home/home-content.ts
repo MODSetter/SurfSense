@@ -6,6 +6,8 @@ import {
 	LAWYERS_URL,
 	REPO_URL,
 	SECURITY_QUESTIONNAIRE_URL,
+	STUDENTS_URL,
+	TEACHERS_URL,
 } from "@/components/site/site-content";
 import { BUSINESS_LAUNCHED } from "@/features/business-launch/business-launched.mts";
 
@@ -150,14 +152,16 @@ export const FORMATS: Format[] = [
  * below. Like `HomePillars` and `HomeCompare`, a band of its own whose headline is a `<p>`
  * styled like an H2, so the brief's eight H2s keep their count and order.
  *
- * Shown once Business is on sale, because the pages it links name the paid jobs. A reader
- * joins the band once their page is live: students and teachers next.
+ * A card shows once its page exists. The lawyers' and accountants' pages name the paid
+ * jobs, so their cards, marked `forSale`, and the jobs strip wait for the Business switch;
+ * the students', teachers' and business cards show on both sites.
  */
 export type AudienceCard = {
-	key: "lawyers" | "accountants" | "business";
+	key: "lawyers" | "accountants" | "students" | "teachers" | "business";
 	title: string;
 	body: string;
 	action: Action;
+	forSale?: boolean;
 };
 
 export const AUDIENCES: { eyebrow: string; headline: string; cards: AudienceCard[] } = {
@@ -169,12 +173,26 @@ export const AUDIENCES: { eyebrow: string; headline: string; cards: AudienceCard
 			title: "Lawyers",
 			body: "Ask across a matter with a citation for every point, draft memos and decks, and review contracts against your playbook.",
 			action: { label: "AI for lawyers", href: LAWYERS_URL },
+			forSale: true,
 		},
 		{
 			key: "accountants",
 			title: "Accountants",
 			body: "Work through client statements and returns, build reports and spreadsheets, and answer clients' security questionnaires.",
 			action: { label: "AI for accountants", href: ACCOUNTANTS_URL },
+			forSale: true,
+		},
+		{
+			key: "students",
+			title: "Students",
+			body: "Turn lecture slides, readings and notes into flashcards, practice quizzes, mind maps and podcasts, free.",
+			action: { label: "AI for students", href: STUDENTS_URL },
+		},
+		{
+			key: "teachers",
+			title: "Teachers",
+			body: "Make quizzes, worksheets, lesson plans and slides from your own teaching materials, free.",
+			action: { label: "AI for teachers", href: TEACHERS_URL },
 		},
 		{
 			key: "business",

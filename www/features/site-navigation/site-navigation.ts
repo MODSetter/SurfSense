@@ -3,23 +3,35 @@ import {
 	BUSINESS_URL,
 	CONTRACT_REDLINE_URL,
 	DOWNLOADS_URL,
+	FLASHCARDS_URL,
 	type FooterLink,
 	LAWYERS_URL,
+	PODCAST_URL,
+	QUIZ_URL,
 	SECURITY_QUESTIONNAIRE_URL,
 	type SiteLink,
 	type SiteMenuItem,
+	STUDENTS_URL,
+	STUDY_GUIDE_URL,
+	TEACHERS_URL,
 } from "@/components/site/site-content";
 import {
 	BookOpen01Icon,
 	Briefcase01Icon,
 	Calculator01Icon,
+	Cards01Icon,
 	HistoryIcon,
 	JusticeScale01Icon,
 	LegalDocument01Icon,
 	Mail01Icon,
 	Megaphone01Icon,
+	Mortarboard01Icon,
+	Notebook01Icon,
 	Plug01Icon,
+	PodcastIcon,
+	Quiz02Icon,
 	SecurityCheckIcon,
+	TeacherIcon,
 } from "@/components/ui/icons";
 
 /**
@@ -28,18 +40,27 @@ import {
  * `site-navigation.test.ts` can check both sites; `SiteNav` and `SiteFooter` pass
  * `BUSINESS_LAUNCHED`.
  *
- * Switched on, the nav leads with who SurfSense is for and the paid jobs
- * (`plans/community-local/seo/09-audience-pages.md`, "The nav"). Plugins leaves the bar for
- * Resources: once the scrapers retire, its page holds the three built-in sources and
- * third-party plugins.
+ * The bar opens on a "For" menu, which took the place of the "For business" link on
+ * 10 Nov 2026 at the maintainer's ask: who SurfSense is for, then the jobs, then the study
+ * tools (`plans/community-local/seo/09-audience-pages.md`, "The nav"). Before the switch it
+ * holds only the pages that exist then. Switched on, Plugins leaves the bar for Resources:
+ * once the scrapers retire, its page holds the three built-in sources and third-party
+ * plugins.
  */
 
-export type NavMenu = { name: string; items: SiteMenuItem[] };
+/** A run of a menu's links under one heading; a menu of one group needs no heading. */
+export type NavGroup = { heading?: string; items: SiteMenuItem[] };
+export type NavMenu = { name: string; groups: NavGroup[] };
 export type NavEntry = SiteLink | NavMenu;
 export type FooterColumn = { heading: string; links: FooterLink[] };
 
 export function isNavMenu(entry: NavEntry): entry is NavMenu {
-	return "items" in entry;
+	return "groups" in entry;
+}
+
+/** Every link in a menu, group after group. */
+export function menuItems(menu: NavMenu): SiteMenuItem[] {
+	return menu.groups.flatMap((group) => group.items);
 }
 
 /**
@@ -54,27 +75,36 @@ export const BUSINESS_PAGES = [
 	SECURITY_QUESTIONNAIRE_URL,
 ];
 
-/** Who it's for. An audience joins the menu once its page is live. */
-const AUDIENCES: SiteMenuItem[] = [
-	{
-		name: "Lawyers",
-		href: LAWYERS_URL,
-		description: "Client files that never leave your computer",
-		icon: JusticeScale01Icon,
-	},
-	{
-		name: "Accountants",
-		href: ACCOUNTANTS_URL,
-		description: "Client financial files, kept on your machine",
-		icon: Calculator01Icon,
-	},
-	{
-		name: "Other professional work",
-		href: BUSINESS_URL,
-		description: "Decks and reports from confidential files",
-		icon: Briefcase01Icon,
-	},
-];
+const LAWYERS: SiteMenuItem = {
+	name: "Lawyers",
+	href: LAWYERS_URL,
+	description: "Client files kept on your own computer",
+	icon: JusticeScale01Icon,
+};
+const ACCOUNTANTS: SiteMenuItem = {
+	name: "Accountants",
+	href: ACCOUNTANTS_URL,
+	description: "Client financial files, kept on your machine",
+	icon: Calculator01Icon,
+};
+const STUDENTS: SiteMenuItem = {
+	name: "Students",
+	href: STUDENTS_URL,
+	description: "Flashcards, quizzes and study guides, free",
+	icon: Mortarboard01Icon,
+};
+const TEACHERS: SiteMenuItem = {
+	name: "Teachers",
+	href: TEACHERS_URL,
+	description: "Quizzes, worksheets and lesson plans, free",
+	icon: TeacherIcon,
+};
+const BUSINESS: SiteMenuItem = {
+	name: "Business",
+	href: BUSINESS_URL,
+	description: "Decks and reports from confidential files",
+	icon: Briefcase01Icon,
+};
 
 const JOBS: SiteMenuItem[] = [
 	{
@@ -88,6 +118,33 @@ const JOBS: SiteMenuItem[] = [
 		href: SECURITY_QUESTIONNAIRE_URL,
 		description: "Answer one from your own policies",
 		icon: SecurityCheckIcon,
+	},
+];
+
+const STUDY_TOOLS: SiteMenuItem[] = [
+	{
+		name: "Study guide maker",
+		href: STUDY_GUIDE_URL,
+		description: "A summary, flashcards and a quiz",
+		icon: Notebook01Icon,
+	},
+	{
+		name: "Flashcard generator",
+		href: FLASHCARDS_URL,
+		description: "Cards from your PDFs and notes",
+		icon: Cards01Icon,
+	},
+	{
+		name: "Quiz generator",
+		href: QUIZ_URL,
+		description: "Practice quizzes from your material",
+		icon: Quiz02Icon,
+	},
+	{
+		name: "Podcast generator",
+		href: PODCAST_URL,
+		description: "Audio from your documents, made offline",
+		icon: PodcastIcon,
 	},
 ];
 
@@ -122,22 +179,45 @@ const CONTACT: SiteMenuItem = {
 	icon: Mail01Icon,
 };
 
+/** Who SurfSense is for, the jobs and the study tools, holding only the pages that exist. */
+function forMenu(launched: boolean): NavMenu {
+	if (!launched) {
+		return {
+			name: "For",
+			groups: [
+				{ heading: "Who it's for", items: [STUDENTS, TEACHERS, BUSINESS] },
+				{ heading: "Study tools", items: STUDY_TOOLS },
+			],
+		};
+	}
+	return {
+		name: "For",
+		groups: [
+			{ heading: "Who it's for", items: [LAWYERS, ACCOUNTANTS, STUDENTS, TEACHERS, BUSINESS] },
+			{ heading: "Jobs", items: JOBS },
+			{ heading: "Study tools", items: STUDY_TOOLS },
+		],
+	};
+}
+
 export function siteNavigation(launched: boolean): NavEntry[] {
 	if (!launched) {
 		return [
-			{ name: "For business", href: BUSINESS_URL },
+			forMenu(false),
 			{ name: "Plugins", href: PLUGINS.href },
 			{ name: "Docs", href: "/docs" },
 			{ name: "Pricing", href: "/pricing" },
-			{ name: "Resources", items: [BLOG, ANNOUNCEMENTS, CHANGELOG, CONTACT] },
+			{ name: "Resources", groups: [{ items: [BLOG, ANNOUNCEMENTS, CHANGELOG, CONTACT] }] },
 		];
 	}
 	return [
-		{ name: "Who it's for", items: AUDIENCES },
-		{ name: "Jobs", items: JOBS },
+		forMenu(true),
 		{ name: "Docs", href: "/docs" },
 		{ name: "Pricing", href: "/pricing" },
-		{ name: "Resources", items: [BLOG, ANNOUNCEMENTS, CHANGELOG, PLUGINS, CONTACT] },
+		{
+			name: "Resources",
+			groups: [{ items: [BLOG, ANNOUNCEMENTS, CHANGELOG, PLUGINS, CONTACT] }],
+		},
 	];
 }
 
@@ -181,18 +261,20 @@ export function footerColumns(launched: boolean): FooterColumn[] {
 			links: [
 				{ title: "Download", href: DOWNLOADS_URL },
 				{ title: "Pricing", href: "/pricing" },
+				{ title: "Contract redline", href: CONTRACT_REDLINE_URL },
+				{ title: "Security questionnaire", href: SECURITY_QUESTIONNAIRE_URL },
 				{ title: "Docs", href: "/docs" },
 				{ title: "Plugins", href: PLUGINS.href },
 			],
 		},
 		{
-			heading: "For firms",
+			heading: "Who it's for",
 			links: [
 				{ title: "AI for lawyers", href: LAWYERS_URL },
 				{ title: "AI for accountants", href: ACCOUNTANTS_URL },
+				{ title: "AI for students", href: STUDENTS_URL },
+				{ title: "AI for teachers", href: TEACHERS_URL },
 				{ title: "Private AI for business", href: BUSINESS_URL },
-				{ title: "Contract redline", href: CONTRACT_REDLINE_URL },
-				{ title: "Security questionnaire", href: SECURITY_QUESTIONNAIRE_URL },
 			],
 		},
 		RESOURCES_COLUMN,
