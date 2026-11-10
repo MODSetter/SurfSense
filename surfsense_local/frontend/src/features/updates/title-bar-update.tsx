@@ -3,10 +3,10 @@ import { useEffect, useRef, useState, type ReactNode } from "react"
 import { Button } from "@/components/ui/button"
 import { DownloadRing } from "@/components/ui/download-ring"
 import {
-  Alert02Icon,
   ArrowDown02Icon,
   CheckCircle2Icon,
   CircleArrowUp02Icon,
+  InformationCircleIcon,
 } from "@/components/ui/icons"
 import { Spinner } from "@/components/ui/spinner"
 import { usePrivacyState } from "@/features/privacy-choices/use-privacy-state"
@@ -168,7 +168,10 @@ export function TitleBarUpdate() {
         </span>
         <Slot>
           {failed ? (
-            <Alert02Icon aria-hidden="true" className="size-3 text-warning" />
+            <InformationCircleIcon
+              aria-hidden="true"
+              className="size-3 text-warning"
+            />
           ) : (
             <CheckCircle2Icon
               aria-hidden="true"
