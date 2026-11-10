@@ -54,8 +54,8 @@ export function HomeHero() {
 						Air-gapped private AI for confidential documents
 					</h1>
 					<p className="mx-auto mt-8 max-w-2xl text-base leading-relaxed text-pretty text-white/85 md:text-lg lg:text-xl">
-						A NotebookLM-style notebook that runs entirely on your own computer. Your documents,
-						your model, no cloud and no account.
+						A NotebookLM-style notebook that runs on your own computer, with no account and no
+						SurfSense cloud. Pick a local model and nothing is sent anywhere.
 					</p>
 					<div className="mt-10 flex justify-center">
 						<HomeDownloadButton />
