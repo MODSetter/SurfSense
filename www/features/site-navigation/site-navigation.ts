@@ -35,17 +35,13 @@ import {
 } from "@/components/ui/icons";
 
 /**
- * The site's navigation and footer, before and after the Business launch switch
- * (`NEXT_PUBLIC_BUSINESS_LAUNCHED`). Functions of the switch rather than constants, so
- * `site-navigation.test.ts` can check both sites; `SiteNav` and `SiteFooter` pass
- * `BUSINESS_LAUNCHED`.
+ * The site's navigation and footer.
  *
  * The bar opens on a "For" menu, which took the place of the "For business" link on
  * 10 Nov 2026 at the maintainer's ask: who SurfSense is for, then the jobs, then the study
- * tools (`plans/community-local/seo/09-audience-pages.md`, "The nav"). Before the switch it
- * holds only the pages that exist then. Switched on, Plugins leaves the bar for Resources:
- * once the scrapers retire, its page holds the three built-in sources and third-party
- * plugins.
+ * tools (`plans/community-local/seo/09-audience-pages.md`, "The nav"). Plugins sits under
+ * Resources: since the scrapers retired, its page holds the three built-in sources and
+ * third-party plugins.
  */
 
 /** A run of a menu's links under one heading; a menu of one group needs no heading. */
@@ -63,11 +59,7 @@ export function menuItems(menu: NavMenu): SiteMenuItem[] {
 	return menu.groups.flatMap((group) => group.items);
 }
 
-/**
- * The pages that exist only once Business is on sale. Each is a 404 before the switch, as
- * `/pricing/business` is, because each names a paid job; from the switch on, the sitemap
- * lists them.
- */
+/** The audience and job pages that sell Business's jobs, for the sitemap. */
 export const BUSINESS_PAGES = [
 	LAWYERS_URL,
 	ACCOUNTANTS_URL,
@@ -179,47 +171,25 @@ const CONTACT: SiteMenuItem = {
 	icon: Mail01Icon,
 };
 
-/** Who SurfSense is for, the jobs and the study tools, holding only the pages that exist. */
-function forMenu(launched: boolean): NavMenu {
-	if (!launched) {
-		return {
-			name: "For",
-			groups: [
-				{ heading: "Who it's for", items: [STUDENTS, TEACHERS, BUSINESS] },
-				{ heading: "Study tools", items: STUDY_TOOLS },
-			],
-		};
-	}
-	return {
-		name: "For",
-		groups: [
-			{ heading: "Who it's for", items: [LAWYERS, ACCOUNTANTS, STUDENTS, TEACHERS, BUSINESS] },
-			{ heading: "Jobs", items: JOBS },
-			{ heading: "Study tools", items: STUDY_TOOLS },
-		],
-	};
-}
+/** Who SurfSense is for, then the jobs, then the study tools. */
+const FOR_MENU: NavMenu = {
+	name: "For",
+	groups: [
+		{ heading: "Who it's for", items: [LAWYERS, ACCOUNTANTS, STUDENTS, TEACHERS, BUSINESS] },
+		{ heading: "Jobs", items: JOBS },
+		{ heading: "Study tools", items: STUDY_TOOLS },
+	],
+};
 
-export function siteNavigation(launched: boolean): NavEntry[] {
-	if (!launched) {
-		return [
-			forMenu(false),
-			{ name: "Plugins", href: PLUGINS.href },
-			{ name: "Docs", href: "/docs" },
-			{ name: "Pricing", href: "/pricing" },
-			{ name: "Resources", groups: [{ items: [BLOG, ANNOUNCEMENTS, CHANGELOG, CONTACT] }] },
-		];
-	}
-	return [
-		forMenu(true),
-		{ name: "Docs", href: "/docs" },
-		{ name: "Pricing", href: "/pricing" },
-		{
-			name: "Resources",
-			groups: [{ items: [BLOG, ANNOUNCEMENTS, CHANGELOG, PLUGINS, CONTACT] }],
-		},
-	];
-}
+export const SITE_NAVIGATION: NavEntry[] = [
+	FOR_MENU,
+	{ name: "Docs", href: "/docs" },
+	{ name: "Pricing", href: "/pricing" },
+	{
+		name: "Resources",
+		groups: [{ items: [BLOG, ANNOUNCEMENTS, CHANGELOG, PLUGINS, CONTACT] }],
+	},
+];
 
 const RESOURCES_COLUMN: FooterColumn = {
 	heading: "Resources",
@@ -237,47 +207,29 @@ const COMPANY_COLUMN: FooterColumn = {
 	],
 };
 
-/** Switched on, the footer's anchors carry each page's keyword rather than the menu's short name. */
-export function footerColumns(launched: boolean): FooterColumn[] {
-	if (!launched) {
-		return [
-			{
-				heading: "Product",
-				links: [
-					{ title: "Download", href: DOWNLOADS_URL },
-					{ title: "For business", href: BUSINESS_URL },
-					{ title: "Plugins", href: PLUGINS.href },
-					{ title: "Pricing", href: "/pricing" },
-					{ title: "Docs", href: "/docs" },
-				],
-			},
-			RESOURCES_COLUMN,
-			COMPANY_COLUMN,
-		];
-	}
-	return [
-		{
-			heading: "Product",
-			links: [
-				{ title: "Download", href: DOWNLOADS_URL },
-				{ title: "Pricing", href: "/pricing" },
-				{ title: "Contract redline", href: CONTRACT_REDLINE_URL },
-				{ title: "Security questionnaire", href: SECURITY_QUESTIONNAIRE_URL },
-				{ title: "Docs", href: "/docs" },
-				{ title: "Plugins", href: PLUGINS.href },
-			],
-		},
-		{
-			heading: "Who it's for",
-			links: [
-				{ title: "AI for lawyers", href: LAWYERS_URL },
-				{ title: "AI for accountants", href: ACCOUNTANTS_URL },
-				{ title: "AI for students", href: STUDENTS_URL },
-				{ title: "AI for teachers", href: TEACHERS_URL },
-				{ title: "Private AI for business", href: BUSINESS_URL },
-			],
-		},
-		RESOURCES_COLUMN,
-		COMPANY_COLUMN,
-	];
-}
+/** The footer's anchors carry each page's keyword rather than the menu's short name. */
+export const FOOTER_COLUMNS: FooterColumn[] = [
+	{
+		heading: "Product",
+		links: [
+			{ title: "Download", href: DOWNLOADS_URL },
+			{ title: "Pricing", href: "/pricing" },
+			{ title: "Contract redline", href: CONTRACT_REDLINE_URL },
+			{ title: "Security questionnaire", href: SECURITY_QUESTIONNAIRE_URL },
+			{ title: "Docs", href: "/docs" },
+			{ title: "Plugins", href: PLUGINS.href },
+		],
+	},
+	{
+		heading: "Who it's for",
+		links: [
+			{ title: "AI for lawyers", href: LAWYERS_URL },
+			{ title: "AI for accountants", href: ACCOUNTANTS_URL },
+			{ title: "AI for students", href: STUDENTS_URL },
+			{ title: "AI for teachers", href: TEACHERS_URL },
+			{ title: "Private AI for business", href: BUSINESS_URL },
+		],
+	},
+	RESOURCES_COLUMN,
+	COMPANY_COLUMN,
+];

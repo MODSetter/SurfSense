@@ -13,14 +13,11 @@ import {
 	Mortarboard01Icon,
 	TeacherIcon,
 } from "@/components/ui/icons";
-import { BUSINESS_LAUNCHED } from "@/features/business-launch/business-launched.mts";
 
 /**
  * Who it's for: a card per reader, each linking the page written for them, with the paid
  * jobs in a strip below. Sits under the logos so a visitor can pick their page before the
- * argument starts. A card shows once its page exists: the students', teachers' and
- * business cards always, the lawyers' and accountants' cards and the jobs strip once
- * Business is on sale. See `AUDIENCES` in `home-content.ts`.
+ * argument starts. See `AUDIENCES` in `home-content.ts`.
  */
 
 const ICONS: Record<AudienceCard["key"], Icon> = {
@@ -31,7 +28,7 @@ const ICONS: Record<AudienceCard["key"], Icon> = {
 	business: Briefcase01Icon,
 };
 
-const CARDS = AUDIENCES.cards.filter((card) => BUSINESS_LAUNCHED || !card.forSale);
+const CARDS = AUDIENCES.cards;
 
 /** Five cards fill two rows evenly on six columns: three, then two wider. */
 function cardSpan(index: number, count: number) {
@@ -76,18 +73,16 @@ export function HomeAudiences() {
 				})}
 			</ul>
 
-			{BUSINESS_LAUNCHED ? (
-				<div className="mt-4 flex flex-col gap-4 rounded-3xl bg-muted px-6 py-6 sm:flex-row sm:items-center sm:justify-between md:px-8">
-					<p className={cn(siteText.body, "text-sm")}>{JOBS_STRIP.body}</p>
-					<div className="flex flex-wrap gap-x-6 gap-y-2">
-						{JOBS_STRIP.actions.map((action) => (
-							<Link key={action.href} className={siteText.forward} href={action.href}>
-								{action.label} <ArrowRightIcon aria-hidden="true" className="size-4" />
-							</Link>
-						))}
-					</div>
+			<div className="mt-4 flex flex-col gap-4 rounded-3xl bg-muted px-6 py-6 sm:flex-row sm:items-center sm:justify-between md:px-8">
+				<p className={cn(siteText.body, "text-sm")}>{JOBS_STRIP.body}</p>
+				<div className="flex flex-wrap gap-x-6 gap-y-2">
+					{JOBS_STRIP.actions.map((action) => (
+						<Link key={action.href} className={siteText.forward} href={action.href}>
+							{action.label} <ArrowRightIcon aria-hidden="true" className="size-4" />
+						</Link>
+					))}
 				</div>
-			) : null}
+			</div>
 		</section>
 	);
 }

@@ -44,15 +44,6 @@ export function audiencePageMetadata(page: AudiencePageMeta): Metadata {
 }
 
 /**
- * A page that names a paid job exists only once Business is on sale
- * (`NEXT_PUBLIC_BUSINESS_LAUNCHED`). Before that it is a 404, kept out of the index, as
- * `/pricing/business` is.
- */
-export function businessPageMetadata(launched: boolean, page: AudiencePageMeta): Metadata {
-	return launched ? audiencePageMetadata(page) : { robots: { index: false, follow: false } };
-}
-
-/**
  * `SoftwareApplication` for the free app, as the homepage states it, with the Business offer
  * beside it on a page that sells a job.
  */

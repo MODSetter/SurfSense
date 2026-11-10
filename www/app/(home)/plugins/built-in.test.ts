@@ -11,20 +11,8 @@ import { listingFromEntry } from "./plugin-listing";
 
 const ids = (plugins: { id: string }[]) => plugins.map((plugin) => plugin.id);
 
-test("before Business, the site lists the ten scrapers, each needing the licence", () => {
-	const plugins = surfsensePlugins(false, firstPartyList);
-	assert.deepEqual(
-		ids(plugins),
-		listBeforeBusiness.plugins.map((entry) => entry.id)
-	);
-	for (const plugin of plugins) {
-		assert.equal(plugin.access, "license", plugin.id);
-		assert.equal(isBuiltIn(plugin), false, plugin.id);
-	}
-});
-
-test("from Business on, web search, Web Crawl and YouTube are free and built into the app", () => {
-	const plugins = surfsensePlugins(true, firstPartyList);
+test("web search, Web Crawl and YouTube are free and built into the app", () => {
+	const plugins = surfsensePlugins(firstPartyList);
 	assert.deepEqual(ids(plugins), ["google-search", "web-crawl", "youtube"]);
 	for (const plugin of plugins) {
 		assert.equal(isBuiltIn(plugin), true, plugin.id);
@@ -41,7 +29,7 @@ test("an app list that still carries the three, licensed, lists each once, as bu
 			["google-search", "web-crawl", "youtube"].includes(entry.id)
 		),
 	};
-	const plugins = surfsensePlugins(true, interim);
+	const plugins = surfsensePlugins(interim);
 	assert.deepEqual(ids(plugins), ["google-search", "web-crawl", "youtube"]);
 	assert.ok(plugins.every(isBuiltIn));
 });

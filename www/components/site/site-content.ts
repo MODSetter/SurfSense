@@ -1,7 +1,7 @@
 /**
  * Shared site chrome: the addresses and link types the navigation, the footer and
- * the pages share. The nav and footer themselves, before and after the Business
- * launch switch, are in `features/site-navigation/site-navigation.ts`.
+ * the pages share. The nav and footer themselves are in
+ * `features/site-navigation/site-navigation.ts`.
  *
  * The nav and footer belong to the whole site, not the home page: they are
  * rendered once by `app/(home)/layout.tsx` and kept mounted across navigations.
@@ -29,7 +29,7 @@ export type SiteMenuItem = SiteLink & { description: string; icon: Icon };
 
 /**
  * The audience and job pages, from `plans/community-local/seo/09-audience-pages.md`. Each
- * slug is its page's primary keyword. They exist only once Business is on sale.
+ * slug is its page's primary keyword.
  */
 export const LAWYERS_URL = "/ai-for-lawyers";
 export const ACCOUNTANTS_URL = "/ai-for-accountants";

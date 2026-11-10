@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { JsonLd } from "@/components/site/json-ld";
 import { ACCOUNTANTS_URL, SECURITY_QUESTIONNAIRE_URL } from "@/components/site/site-content";
 import { siteText } from "@/components/site/site-text";
@@ -11,8 +10,8 @@ import {
 } from "@/components/ui/icons";
 import {
 	type AudiencePageMeta,
+	audiencePageMetadata,
 	audiencePageSchema,
-	businessPageMetadata,
 } from "@/features/audience-pages/audience-metadata";
 import {
 	AudienceAnswer,
@@ -24,7 +23,6 @@ import {
 	AudienceQuestions,
 	AudienceSteps,
 } from "@/features/audience-pages/audience-sections";
-import { BUSINESS_LAUNCHED } from "@/features/business-launch/business-launched.mts";
 import { FIRST_PERSON_PRICE, yearlyPriceLabel } from "../../pricing/business-price";
 import { BUSINESS_CHECKOUT_URL } from "../../pricing/business-pricing-content";
 
@@ -34,8 +32,7 @@ import { BUSINESS_CHECKOUT_URL } from "../../pricing/business-pricing-content";
  * from the user guide's "Run a job" and "What a job writes" (`content/docs/v2/jobs.mdx`),
  * so the two never disagree.
  *
- * A 404 until Business is on sale (`NEXT_PUBLIC_BUSINESS_LAUNCHED`). Pages for named
- * questionnaires (HECVAT, CAIQ, SIG Lite) follow `08-b2b-artifact-jobs.md` later.
+ * Pages for named questionnaires (HECVAT, CAIQ, SIG Lite) follow `08-b2b-artifact-jobs.md` later.
  */
 
 const PRICE = yearlyPriceLabel(FIRST_PERSON_PRICE);
@@ -55,7 +52,7 @@ const PAGE: AudiencePageMeta = {
 	imageAlt: "SurfSense security questionnaire",
 };
 
-export const metadata = businessPageMetadata(BUSINESS_LAUNCHED, PAGE);
+export const metadata = audiencePageMetadata(PAGE);
 
 const QUESTIONS: AudienceQuestion[] = [
 	{
@@ -86,8 +83,6 @@ const QUESTIONS: AudienceQuestion[] = [
 ];
 
 export default function SecurityQuestionnairePage() {
-	if (!BUSINESS_LAUNCHED) notFound();
-
 	return (
 		<>
 			<JsonLd

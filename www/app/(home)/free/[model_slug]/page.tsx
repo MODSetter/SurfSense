@@ -16,7 +16,6 @@ import { SiteFaqItem } from "@/components/site/site-faq-item";
 import { siteText } from "@/components/site/site-text";
 import { cn } from "@/components/ui/cn";
 import { CheckIcon } from "@/components/ui/icons";
-import { BUSINESS_LAUNCHED } from "@/features/business-launch/business-launched.mts";
 import { HomeDownloadButton } from "@/features/downloads/home-download-button";
 
 /**
@@ -161,10 +160,9 @@ export default async function FreeModelPage({ params }: PageProps) {
 		},
 		{
 			question: "Is the SurfSense desktop app free?",
-			// From Business on, the trial is the paid jobs' and the scrapers are retired.
-			answer: BUSINESS_LAUNCHED
-				? "Yes. The app and every update are free forever on Windows, macOS and Linux, reading web pages, YouTube and web search included, and a 14-day trial of the paid security questionnaire and contract redline jobs comes with it. There is no account to create and no trial clock on the app itself."
-				: "Yes. The app and every update are free forever on Windows, macOS and Linux, and a 14-day licence for the scraper plugins comes with it. There is no account to create and no trial clock on the app itself.",
+			// The trial is the paid jobs', and the scrapers are retired.
+			answer:
+				"Yes. The app and every update are free forever on Windows, macOS and Linux, reading web pages, YouTube and web search included, and a 14-day trial of the paid security questionnaire and contract redline jobs comes with it. There is no account to create and no trial clock on the app itself.",
 		},
 		{
 			question: "What happened to the 500,000 free tokens?",

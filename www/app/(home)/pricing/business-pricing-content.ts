@@ -15,9 +15,8 @@ import {
 } from "./business-price";
 
 /**
- * `/pricing` once Business is on sale (`NEXT_PUBLIC_BUSINESS_LAUNCHED`), from ADR 0080, ADR 0083 and the
+ * `/pricing`, from ADR 0080, ADR 0083 and the
  * `/pricing` brief in `plans/community-local/seo/02-page-briefs.md` as revised on 1 Nov 2026.
- * When the switch goes, this replaces `pricing-content.ts`.
  *
  * Three claims follow the recommended defaults of ADR 0080's open questions, not decisions:
  * priority support and the feature build request carried over from Individual (n), every job

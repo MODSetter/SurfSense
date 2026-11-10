@@ -9,8 +9,7 @@ import { ArrowRightIcon } from "@/components/ui/icons";
  * on one side and that step's screenshot on the other, in the homepage's
  * "What you get" row shape.
  *
- * Shared by `/license/activate` and `/pricing/individual` so the two guides
- * stay the same page shape.
+ * Used by `/license/activate`, and by any later guide that should keep its page shape.
  *
  * `shot` is optional, and a step without one runs its prose across the whole
  * card rather than beside an empty half. Steps whose action is on this site

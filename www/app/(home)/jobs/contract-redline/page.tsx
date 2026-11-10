@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { JsonLd } from "@/components/site/json-ld";
 import { CONTRACT_REDLINE_URL, LAWYERS_URL } from "@/components/site/site-content";
 import { siteText } from "@/components/site/site-text";
@@ -11,8 +10,8 @@ import {
 } from "@/components/ui/icons";
 import {
 	type AudiencePageMeta,
+	audiencePageMetadata,
 	audiencePageSchema,
-	businessPageMetadata,
 } from "@/features/audience-pages/audience-metadata";
 import {
 	AudienceAnswer,
@@ -24,7 +23,6 @@ import {
 	AudienceQuestions,
 	AudienceSteps,
 } from "@/features/audience-pages/audience-sections";
-import { BUSINESS_LAUNCHED } from "@/features/business-launch/business-launched.mts";
 import { FIRST_PERSON_PRICE, yearlyPriceLabel } from "../../pricing/business-price";
 import { BUSINESS_CHECKOUT_URL } from "../../pricing/business-pricing-content";
 
@@ -33,9 +31,8 @@ import { BUSINESS_CHECKOUT_URL } from "../../pricing/business-pricing-content";
  * `/jobs/contract-redline`. What the job does, and every label quoted here, comes from the
  * user guide's "Review a contract" (`content/docs/v2/jobs.mdx`), so the two never disagree.
  *
- * A 404 until Business is on sale (`NEXT_PUBLIC_BUSINESS_LAUNCHED`). ADR 0086 holds public
- * redline pages for a lawyer's review, so the PR that turns it on records who read it. No
- * accuracy figure goes on it before the maintainer has checked the eval's stance file.
+ * ADR 0086 holds public redline pages for a lawyer's review: record who read this page
+ * before the release that ships it. No accuracy figure goes on it before the maintainer has checked the eval's stance file.
  */
 
 const PRICE = yearlyPriceLabel(FIRST_PERSON_PRICE);
@@ -57,7 +54,7 @@ const PAGE: AudiencePageMeta = {
 	imageAlt: "SurfSense contract redline",
 };
 
-export const metadata = businessPageMetadata(BUSINESS_LAUNCHED, PAGE);
+export const metadata = audiencePageMetadata(PAGE);
 
 const QUESTIONS: AudienceQuestion[] = [
 	{
@@ -88,8 +85,6 @@ const QUESTIONS: AudienceQuestion[] = [
 ];
 
 export default function ContractRedlinePage() {
-	if (!BUSINESS_LAUNCHED) notFound();
-
 	return (
 		<>
 			<JsonLd

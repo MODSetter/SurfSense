@@ -3,8 +3,9 @@
 **Status: draft, not live.** Written 3 Nov 2026, revised 4 Nov 2026 for ADR 0083, for the lawyer who drafts the Business terms
 and the Job Plugin License. Nothing here is on the site: the live
 [Terms page](../../../www/app/\(home\)/terms/page.tsx) keeps its 22 Oct 2026 text until counsel
-signs off, and the new text goes live in the release that ships the first paid job, when the
-site's `NEXT_PUBLIC_BUSINESS_LAUNCHED` switch goes on.
+signs off, and the new text goes live in the release that ships the first paid job. The site
+has had no Business switch since 10 Nov 2026, so that release is the day Business goes on
+sale, and the new text must be ready before it.
 
 **Sources.** The decisions are ADR 0080 (one Business licence, priced per person) and ADR 0081
 (the scrapers retire; reading web pages, YouTube and web search move into the app), both in

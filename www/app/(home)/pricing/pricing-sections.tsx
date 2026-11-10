@@ -1,6 +1,5 @@
 import Link from "next/link";
 import type { LicenceRow } from "@/app/(home)/pricing/business-pricing-content";
-import { PlatformsTooltip } from "@/app/(home)/pricing/platforms-tooltip";
 import {
 	type Plan,
 	type PricingLede,
@@ -15,24 +14,6 @@ import { SiteFaqItem } from "@/components/site/site-faq-item";
 import { siteText } from "@/components/site/site-text";
 import { cn } from "@/components/ui/cn";
 import { CheckIcon } from "@/components/ui/icons";
-
-/**
- * Splits a feature string around "7 platforms" so that segment alone can be
- * wrapped in `PlatformsTooltip` — the rest of the line renders as plain text.
- */
-function renderFeature(feature: string) {
-	const marker = "7 platforms";
-	const index = feature.indexOf(marker);
-	if (index === -1) return feature;
-
-	return (
-		<>
-			{feature.slice(0, index)}
-			<PlatformsTooltip>{marker}</PlatformsTooltip>
-			{feature.slice(index + marker.length)}
-		</>
-	);
-}
 
 /**
  * Pricing sections, in the homepage's shapes: centred badge heads, rounded
@@ -138,7 +119,7 @@ function PlanCard({ plan }: { plan: Plan }) {
 						>
 							<CheckIcon className="size-3" />
 						</span>
-						<span className="text-muted-foreground">{renderFeature(feature)}</span>
+						<span className="text-muted-foreground">{feature}</span>
 					</li>
 				))}
 			</ul>
