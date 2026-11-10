@@ -44,6 +44,8 @@ Every format needs a chat model. A format that can't run says what it needs, suc
 
 Studio uses the chat model selected in Settings at the time you click **Generate**. Strong models make Word documents and PDFs with richer layout; small local models make simpler ones from Markdown.
 
+Studio reads as much of your sources as the chat model can take in at once, its context window, and keeps room for the answer. With many or long sources, a model with a small window reads less of each. If they can't fit at all, Studio says so: see [Troubleshooting](/docs/v2/troubleshooting).
+
 ### Podcasts
 
 Click **Podcast** to open its brief before you generate:

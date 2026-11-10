@@ -50,6 +50,17 @@ class RouteClass(enum.StrEnum):
         return Priority.BACKGROUND
 
 
+class WindowRequest(BaseModel):
+    """The text model whose window is asked for; left out, the current selection."""
+
+    model: ModelRef | None = None
+
+
+class WindowReply(BaseModel):
+    # None when nothing states it, which is unknown rather than narrow.
+    window: int | None
+
+
 class GenerateRequest(BaseModel):
     """What `Generator.chat` takes, plus the model and who is asking.
 

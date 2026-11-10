@@ -1,5 +1,7 @@
+import asyncio
 import logging
 import time
+from typing import cast
 
 import httpx
 from sqlalchemy.exc import OperationalError
@@ -37,6 +39,7 @@ from modules.jobs.runs.record import job_run_of
 from modules.llm.model_route.client import resolve_routed_generation
 from modules.llm.model_type import ModelType
 from modules.llm.providers.audiocpp.memory import NotEnoughMemoryError
+from modules.llm.providers.context_overflow import ContextOverflowError
 from modules.llm.providers.openai_compatible import NonRetryableImageError
 from modules.llm.providers.openai_compatible.speech import NonRetryableSpeechError
 from modules.llm.providers.protocols import TextToSpeech
@@ -68,13 +71,18 @@ from worker.studio.revised_copy import pipeline as revised_copy
 from worker.studio.revised_copy.record import record as record_revision
 from worker.studio.script_document import pipeline as script_document
 from worker.studio.script_document.pipeline import ScriptRunFailedError
-from worker.studio.shared import gather, persist
-from worker.studio.shared.artifact import Built
+from worker.studio.shared import gather, persist, window_budget
+from worker.studio.shared.artifact import Built, Source
 from worker.studio.web.html.written import page as written_page
 
 logger = logging.getLogger(__name__)
 
 MESSAGE_CHARS = 500
+# The model was reached and refused the length; a draft names its sources instead.
+TOO_LONG = (
+    "The request was longer than the model's context window. "
+    "Choose a model with a larger context window."
+)
 
 _DOCUMENT_OFFICE = {"docx": docx, "pdf": pdf}
 
@@ -193,6 +201,11 @@ def _generate(session: Session, artifact: Artifact) -> None:
             NonRetryableImageError | NonRetryableSpeechError | NotEnoughMemoryError,
         ):
             return
+        # The same request is refused the same way: fewer sources or a larger window help.
+        if isinstance(
+            failure, ContextOverflowError | window_budget.SourcesDoNotFitError
+        ):
+            return
         # The agent's script document is never retried: its agent reads this FAILED
         # and renders a fix as a new version, which a retry turning READY would race.
         # A Studio draft's kept spec does not count: its Retry asks the model again.
@@ -216,35 +229,48 @@ def _generate(session: Session, artifact: Artifact) -> None:
 
 
 def _draft(session: Session, artifact: Artifact, document: Document) -> Built:
-    """The format's pipeline: gather the sources, ask the model, build the file."""
+    """The format's pipeline: gather the sources to the window, ask the model, build the file."""
     meta = artifact.artifact_metadata or {}
     prompt = meta.get("prompt")
     kind = job_router.Kind(artifact.format)
     fmt = FORMATS_BY_KEY[kind]
+    models = [
+        _choose_model(session, model_type) for model_type in fmt.requires_model_types
+    ]
+    writer = cast(
+        ResolvedGeneration, models[fmt.requires_model_types.index(ModelType.TEXT_GEN)]
+    )
+    window = _window(writer)
     # The prompt is what to search for, where the format reads passages.
     query = prompt if fmt.grounding is Grounding.PASSAGES else None
-    sources = gather.gather(
-        session,
-        meta.get("source_document_ids", []),
-        query,
-        focus=prompt or fmt.default_focus,
+
+    def gathered(budget_chars: int | None) -> list[Source]:
+        found = gather.gather(
+            session,
+            meta.get("source_document_ids", []),
+            query,
+            budget_chars=budget_chars,
+            focus=prompt or fmt.default_focus,
+        )
+        if kind in job_router.PLACES_FIGURES:
+            found = figure_shelf.with_figures(session, artifact.workspace_id, found)
+        return found
+
+    sources = window_budget.fit_sources(
+        gathered, window_budget.sources_room(window, prompt)
     )
-    if kind in job_router.PLACES_FIGURES:
-        sources = figure_shelf.with_figures(session, artifact.workspace_id, sources)
     # "Grounded on 14 of 212 sources": what reached the model, not what was ticked.
     artifact.artifact_metadata = {
         **meta,
         "grounded_document_ids": [source.document_id for source in sources],
     }
     logger.info(
-        "studio: artifact %s gathered %s sources (%s chars)",
+        "studio: artifact %s gathered %s sources (%s chars) for a window of %s tokens",
         artifact.id,
         len(sources),
         sum(len(source.content) for source in sources),
+        window or "unknown",
     )
-    models = [
-        _choose_model(session, model_type) for model_type in fmt.requires_model_types
-    ]
     # Options were checked at job creation; only formats that take them get them.
     extras = [meta.get("options")] if fmt.validate_options else []
     # Generation runs for minutes; the write lock must not be held across it.
@@ -253,7 +279,12 @@ def _draft(session: Session, artifact: Artifact, document: Document) -> Built:
 
     # A cancel hangs up on a model mid-reply; other stages still finish first.
     with cancellation.watching(lambda: _check_cancelled(session, document)):
-        return job_router.pipeline_for(kind)(*models, sources, prompt, *extras)
+        try:
+            return job_router.pipeline_for(kind)(*models, sources, prompt, *extras)
+        except ContextOverflowError as refused:
+            raise window_budget.SourcesDoNotFitError(
+                window_budget.DOES_NOT_FIT
+            ) from refused
 
 
 def _run_script(
@@ -412,10 +443,26 @@ def _reason(failure: Exception) -> str:
     """
     if isinstance(failure, ScriptRunFailedError):
         return script_error(failure.reason(MESSAGE_CHARS - len(PREFIX)))
+    if isinstance(failure, ContextOverflowError):
+        return TOO_LONG
     if isinstance(failure, httpx.HTTPError):
         return f"The model could not be reached: {failure}"[:MESSAGE_CHARS]
     first_line = str(failure).strip().splitlines()[:1]
     return (first_line[0] if first_line else type(failure).__name__)[:MESSAGE_CHARS]
+
+
+def _window(model: ResolvedGeneration) -> int | None:
+    """The window the job's text model answers within. One that cannot be read is
+    unknown: the sources keep the ceiling, and a refusal still says why."""
+    try:
+        return asyncio.run(model.generator.context_tokens(model.selection.name))
+    except Exception:
+        logger.warning(
+            "studio: could not read the window of %s",
+            model.selection.name,
+            exc_info=True,
+        )
+        return None
 
 
 def _choose_model(

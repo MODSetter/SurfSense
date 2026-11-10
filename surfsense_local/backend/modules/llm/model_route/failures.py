@@ -2,6 +2,10 @@ import httpx
 
 from modules.egress.service import EgressDeniedError
 from modules.llm.activity import ModelBusyError
+from modules.llm.providers.context_overflow import (
+    ContextOverflowError,
+    refuses_as_too_long,
+)
 from modules.llm.providers.openai_responses.errors import (
     PlanLimitError,
     SignInRequiredError,
@@ -14,6 +18,9 @@ def as_frame(failure: Exception) -> dict:
     """A generation's failure, as the worker needs it to raise the same type."""
     message = str(failure)
     if isinstance(failure, httpx.HTTPStatusError):
+        # Told apart here, where the provider's body is still readable.
+        if refuses_as_too_long(failure.response):
+            return {"type": "error", "error": "context_overflow", "message": message}
         frame = {
             "type": "error",
             "error": "http_status",
@@ -56,9 +63,13 @@ def raise_from_frame(frame: dict) -> None:
     """Raise what `as_frame` described, so a caller handles it as it always has."""
     message = frame.get("message", "")
     kind = frame.get("error")
+    request = httpx.Request("POST", "http://model")
+    if kind == "context_overflow":
+        raise ContextOverflowError(
+            message, request=request, response=httpx.Response(400, request=request)
+        )
     if kind == "http_status":
         status = int(frame["status"])
-        request = httpx.Request("POST", "http://model")
         headers = (
             {"retry-after": str(frame["retry_after"])}
             if frame.get("retry_after")

@@ -161,6 +161,13 @@ Find the message you see, or the problem you have, below. If nothing here helps,
       Retry it from its row. If it says it needs a model type you haven't set up, such as an image model, choose one in Settings first. See [Studio](/docs/v2/studio).
     </AccordionContent>
   </AccordionItem>
+
+  <AccordionItem value="studio-too-long">
+    <AccordionTrigger>"The selected sources don't fit the model's context window"</AccordionTrigger>
+    <AccordionContent className="flex flex-col gap-4">
+      Studio cuts your sources to what the chat model can read at once, its context window, and keeps room for the answer. When they still don't fit, or the window is too small to hold any of them, select fewer sources or choose a model with a larger context window, then retry. SurfSense gives a local model a smaller window when your computer is short of memory.
+    </AccordionContent>
+  </AccordionItem>
 </Accordion>
 
 ## The app
