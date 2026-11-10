@@ -14,6 +14,7 @@ import {
 	type AudienceQuestion,
 	AudienceQuestions,
 } from "@/features/audience-pages/audience-sections";
+import { UseCaseSection } from "@/features/guides/use-case-section";
 import { FIRST_PERSON_PRICE, yearlyPriceLabel } from "../pricing/business-price";
 
 /**
@@ -87,6 +88,13 @@ export default function AiForLawyersPage() {
 				lede="SurfSense is a free, open-source AI app that runs on your own computer. Add a matter's documents, ask questions across them with a citation for every point, and turn them into memos, chronologies and decks. With a local model, nothing is sent anywhere."
 				note="No account, and no vendor copy of your files. Business adds the contract redline, with a 14-day free trial."
 				link={{ label: "See pricing", href: "/pricing" }}
+			/>
+
+			<UseCaseSection
+				badge="See it work"
+				headline="Watch it answer, draft and redline"
+				slugs={["ask-and-cite", "studio-documents", "contract-redline"]}
+				placement="for-page"
 			/>
 
 			<AudienceAnswer

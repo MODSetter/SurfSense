@@ -27,6 +27,7 @@ import {
 	type AudienceQuestion,
 	AudienceQuestions,
 } from "@/features/audience-pages/audience-sections";
+import { UseCaseSection } from "@/features/guides/use-case-section";
 
 /**
  * AI for students. Brief: `plans/community-local/seo/09-audience-pages.md`, `/ai-for-students`.
@@ -98,6 +99,13 @@ export default function AiForStudentsPage() {
 				lede="SurfSense is a free, open-source study app that runs on your own laptop. Add your lecture slides, readings, notes and recordings, ask questions with a citation for every point, and make flashcards, practice quizzes, mind maps and podcasts from them. With the free local model, nothing is sent anywhere."
 				note="No account, no subscription and no usage cap."
 				link={{ label: "Make a study guide", href: STUDY_GUIDE_URL }}
+			/>
+
+			<UseCaseSection
+				badge="See it work"
+				headline="Watch it turn notes and lectures into study material"
+				slugs={["study-materials", "podcast", "transcribe-a-recording"]}
+				placement="for-page"
 			/>
 
 			<AudienceCards

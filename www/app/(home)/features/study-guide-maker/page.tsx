@@ -84,6 +84,7 @@ export default function StudyGuideMakerPage() {
 			<AudienceSteps
 				badge="How it works"
 				heading="How to make a study guide with SurfSense"
+				video="study-materials"
 				steps={[
 					{
 						title: "Add your material",

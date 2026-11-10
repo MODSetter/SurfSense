@@ -93,3 +93,29 @@ walk through it, so the guides hub links there.
   the speech setup box, an empty model section.
 - Every link through `siteVisitUrl` with its own surface name; every string in
   all 10 catalogs.
+
+## On the marketing pages (PR 6)
+
+Asked 10 Nov 2026 to lift download conversion: the guides' videos on the
+homepage and every For page, each with a basic guide beside it.
+
+- Homepage: a band under the logos with a tab per use case (ask your files,
+  write a report, flashcards and quizzes, a podcast, the redline, the
+  questionnaire), each video beside three steps and its guide, then the
+  download.
+- Lawyers, accountants, students, teachers and business: the same band
+  under the hero, with the three or four videos that page sells.
+- The job and study tool pages: their own guide's video above their "How it
+  works" steps, with the download after the steps.
+- A video loads nothing until it plays, plays muted once most of it is on
+  screen, pauses when it scrolls away, and stays put once the visitor pauses
+  it or it ends. Never by itself for reduced motion or save-data.
+- The catalog (`features/guides/use-cases.ts`) cuts each guide to three steps;
+  a test keeps its titles in step with the guides.
+- No new headings: the bands' headlines are `<p>`s, so each page's H2s keep
+  their count and order.
+- Measuring it: `use_case_video_started` (with `autoplay`) and
+  `use_case_video_finished` in PostHog, and the download buttons beside the
+  videos carry `placement: use-case-video` on their autocaptured clicks.
+- A section shows only videos that are hosted, so production shows none of
+  this until `upload-videos.mjs` has run.

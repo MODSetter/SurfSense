@@ -10,15 +10,26 @@ const TONES = {
 	dark: "",
 };
 
-/** The download call to action. */
-export function HomeDownloadButton({ tone = "light" }: { tone?: keyof typeof TONES }) {
+/**
+ * The download call to action. `placement` names the section in PostHog's autocaptured
+ * click, so downloads started beside a use-case video can be told from the rest.
+ */
+export function HomeDownloadButton({
+	tone = "light",
+	placement,
+}: {
+	tone?: keyof typeof TONES;
+	placement?: string;
+}) {
 	return (
 		<HomeButton
 			asChild
 			size="xl"
 			className={cn("h-11 rounded-full px-5 text-[0.9375rem]", TONES[tone])}
 		>
-			<Link href={DOWNLOADS_URL}>Download for desktop</Link>
+			<Link href={DOWNLOADS_URL} data-ph-capture-attribute-placement={placement}>
+				Download for desktop
+			</Link>
 		</HomeButton>
 	);
 }

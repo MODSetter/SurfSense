@@ -8,6 +8,7 @@ import { HomeLogos } from "@/app/(home)/_home/home-logos";
 import { HomePillars } from "@/app/(home)/_home/home-pillars/home-pillars";
 import { HomeQuestions } from "@/app/(home)/_home/home-questions";
 import { HomeHero, HomeOnYourMachine } from "@/app/(home)/_home/home-sections";
+import { HomeUseCases } from "@/app/(home)/_home/home-use-cases";
 import { JsonLd } from "@/components/site/json-ld";
 
 /**
@@ -74,6 +75,7 @@ export default function HomePage() {
 			<JsonLd data={APPLICATION_SCHEMA} />
 			<HomeHero />
 			<HomeLogos />
+			<HomeUseCases />
 			<HomeAudiences />
 			<HomeOnYourMachine />
 			<HomePillars />
