@@ -22,7 +22,6 @@ import { cn } from "@/lib/utils"
 import { intl } from "@/i18n/intl"
 
 import type { ModelType } from "../../model-type"
-import { EditsBadge } from "../../pictures-in/edits-badge"
 import type { ModelSelection } from "../../selection/api"
 import { useSelection } from "../../selection/use-selection"
 import { ServerVoices } from "../voices/server-voices"
@@ -374,17 +373,11 @@ export function ServerModels({
                               })}
                             </Badge>
                           ) : (
-                            model.types.map((type) =>
-                              // A picture in as well as out: said the same
-                              // way wherever an image model is listed.
-                              type === "image_edit" ? (
-                                <EditsBadge key={type} />
-                              ) : (
-                                <Badge key={type} variant="secondary">
-                                  {TYPE_LABELS[type]()}
-                                </Badge>
-                              )
-                            )
+                            model.types.map((type) => (
+                              <Badge key={type} variant="secondary">
+                                {TYPE_LABELS[type]()}
+                              </Badge>
+                            ))
                           )}
                           {model.reads_images ? (
                             <Badge variant="secondary">

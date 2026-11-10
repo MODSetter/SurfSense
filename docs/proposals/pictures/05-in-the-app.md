@@ -11,8 +11,7 @@
 
 ## Settings
 
-- **The label.** In Settings › Image models, each model that takes pictures in carries a small **Edits** label beside its name, in the list of a server's models and in the list of local models to download ([`server-models.tsx`](../../../surfsense_local/frontend/src/features/models/remote/models/server-models.tsx), [`download-image-models.tsx`](../../../surfsense_local/frontend/src/features/models/local/image/download-image-models.tsx)). It is information only: choosing a model without it works.
-- **The tooltip** on the label: "Can edit pictures". The label is focusable, so the tooltip opens on keyboard focus as on hover, and a screen reader reads the same words. It uses the app's own tooltip, as the rest of Settings does.
+- **The badge.** In Settings › Image models, each model that takes pictures in carries the **Image editing** type badge beside **Image generation**, in the list of a server's models and in the list of local models to download ([`server-models.tsx`](../../../surfsense_local/frontend/src/features/models/remote/models/server-models.tsx), [`download-image-models.tsx`](../../../surfsense_local/frontend/src/features/models/local/image/download-image-models.tsx)). It is information only: choosing a model without it works.
 - **Image editing models** ([`image-edit-models-settings.tsx`](../../../surfsense_local/frontend/src/features/settings/models/image-edit-models-settings.tsx)) becomes an optional override, collapsed under the image models, titled "Use a different model for edits". Its summary reads "Same as the image model" when nothing is chosen there, in place of "No image editing model chosen" ([`in-use-summary.tsx`](../../../surfsense_local/frontend/src/features/models/your-models/in-use-summary.tsx)).
 
 ## Words
@@ -21,8 +20,6 @@ Every new or changed string goes through the `translate` skill, into every langu
 
 | Where | Text |
 |---|---|
-| Label | Edits |
-| Tooltip | Can edit pictures |
 | Edit placeholder, a model that edits | Describe a change |
 | Edit placeholder, a redraw | Describe a change: the picture is drawn again |
 | A redrawn version | Drawn again with your change. |

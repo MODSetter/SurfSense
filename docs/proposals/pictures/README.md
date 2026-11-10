@@ -37,7 +37,7 @@ Asked for a comic, the agent wrote a web page and drew the panels as SVG, or dre
 | Edit, with a model that takes pictures in | needs the edit slot filled | a real edit by the image model |
 | Edit, with a model that does not | "Needs an image editing model", and a link to Settings | the picture drawn again from its prompt and the change, said in one neutral line |
 | Editing through OpenRouter | 404 | works, through `/images` with `input_references` |
-| Settings › Image models | no sign of which models edit | an **Edits** label on those that do, tooltip "Can edit pictures" |
+| Settings › Image models | no sign of which models edit | an **Image editing** badge on those that do, beside **Image generation** |
 | "Make a comic about …" | a web page with SVG panels, or one picture | a plan, one confirmation, one picture per page, one PDF |
 | Characters across pages | redrawn from words each time | page 1 given to every later page as a reference |
 | A page's shape | the model's default | `portrait`, `landscape` or `square` |
@@ -103,7 +103,7 @@ Steps 1 to 8 are built on `feat/comics`; what is now true is in [studio](../../a
 ## Left to do
 
 - The spikes in [image models](01-image-models.md#spikes-before-code): several pictures on OpenAI's `/images/edits`, and local references and shapes through sd-server.
-- Settings: the edit override as its own section, retitled "Use a different model for edits", not yet folded under Image gen; the **Edits** label on server models only, not yet on local models to download.
+- Settings: the edit override as its own section, retitled "Use a different model for edits", not yet folded under Image gen; the **Image editing** badge on server models only, not yet on local models to download.
 - The images guide's walkthrough and screenshots, which still choose a model for editing.
 
 ## Decisions
