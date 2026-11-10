@@ -63,7 +63,14 @@ const docsDir = await fetchDemoDocuments(join(CAPTURE, "docs"));
 const version = readFileSync(join(REPO, "surfsense_local", "VERSION"), "utf8").trim();
 
 const app = await bootApp({ dataDir: DATA });
-const browser = await chromium.launch();
+// Chromium's own microphone, fed a spoken question, for the dictation walkthrough.
+const browser = await chromium.launch({
+	args: [
+		"--use-fake-ui-for-media-stream",
+		"--use-fake-device-for-media-stream",
+		`--use-file-for-fake-audio-capture=${join(docsDir, "Voice", "Spoken question.wav")}`,
+	],
+});
 try {
 	for (const walkthrough of chosen) {
 		const rawDir = join(CAPTURE, "raw", walkthrough.slug);
@@ -83,7 +90,7 @@ try {
 		await context.addInitScript(installBridge, {
 			apiUrl: app.apiUrl,
 			version,
-			firstRunAsked: readBridgeState().firstRunAsked,
+			...readBridgeState(),
 		});
 		await context.addInitScript(installOverlay);
 		const page = await context.newPage();
@@ -126,8 +133,16 @@ try {
 		// Undoes what only this walkthrough needed, such as another chat model; the video has ended.
 		await walkthrough.after?.(session);
 
+		// The privacy answers live in Electron, which the stub stands in for: carry them to the next walkthrough.
 		const privacy = await page.evaluate(() => window.surfsense.privacy.getState());
-		writeFileSync(BRIDGE_STATE, JSON.stringify({ firstRunAsked: privacy.firstRunAsked }));
+		writeFileSync(
+			BRIDGE_STATE,
+			JSON.stringify({
+				firstRunAsked: privacy.firstRunAsked,
+				updatesAutomatic: privacy.updates.automatic,
+				usageStatistics: privacy.usageStatistics.enabled,
+			})
+		);
 		const video = page.video();
 		await context.close();
 		mkdirSync(join(CAPTURE, "videos"), { recursive: true });
