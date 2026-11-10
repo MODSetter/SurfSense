@@ -29,6 +29,13 @@
 		"plugins",
 		"---Voice---",
 		"transcribe-a-recording",
-		"voice-input"
+		"voice-input",
+		"---Jobs---",
+		"business-trial",
+		"security-questionnaire",
+		"contract-redline",
+		"---Privacy and updates---",
+		"privacy-network",
+		"updates"
 	]
 }

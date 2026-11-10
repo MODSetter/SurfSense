@@ -27,6 +27,8 @@ export function createWalkthroughSession({ page, slug, shotsDir, scratchDir, doc
 		page,
 		slug,
 		docsDir,
+		// For files a walkthrough makes on the spot, which never reach the site.
+		scratchDir,
 		marks,
 		shots,
 
@@ -145,11 +147,11 @@ export function createWalkthroughSession({ page, slug, shotsDir, scratchDir, doc
 		},
 
 		/** The video's still before it plays: the window as the walkthrough leaves it, without the overlay. */
-		async poster() {
+		async poster(quality = 80) {
 			const png = join(scratchDir, "poster.png");
 			await page.evaluate(() => window.__guide.hide());
 			await page.screenshot({ path: png, animations: "disabled", caret: "hide" });
-			await pngToWebp(png, join(shotsDir, "poster.webp"), 80);
+			await pngToWebp(png, join(shotsDir, "poster.webp"), quality);
 		},
 	};
 	return session;

@@ -80,12 +80,14 @@ try {
 		// Undoes what an earlier take of this walkthrough left, so a retake starts as the first take did.
 		await walkthrough.prepare?.({ apiUrl: app.apiUrl });
 
+		// A walkthrough whose screen needs more room than the usual window names its own size.
+		const viewport = walkthrough.viewport ?? VIEWPORT;
 		const context = await browser.newContext({
-			viewport: VIEWPORT,
+			viewport,
 			deviceScaleFactor: 2,
 			locale: "en-US",
 			colorScheme: "light",
-			recordVideo: { dir: rawDir, size: VIEWPORT },
+			recordVideo: { dir: rawDir, size: viewport },
 		});
 		await context.addInitScript(installBridge, {
 			apiUrl: app.apiUrl,
@@ -94,6 +96,8 @@ try {
 		});
 		await context.addInitScript(installOverlay);
 		const page = await context.newPage();
+		// Answers the app's own requests where a capture can't have the real answer, such as a license.
+		await walkthrough.intercept?.({ page, apiUrl: app.apiUrl });
 		const startedAt = Date.now();
 		await page.goto(app.appUrl);
 		await page.locator("main").first().waitFor();
@@ -129,7 +133,7 @@ try {
 		await session.hold(1200);
 		session.end();
 		// After the end mark, so the hidden overlay never reaches the video.
-		await session.poster();
+		await session.poster(walkthrough.posterQuality);
 		// Undoes what only this walkthrough needed, such as another chat model; the video has ended.
 		await walkthrough.after?.(session);
 

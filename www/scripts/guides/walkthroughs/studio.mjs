@@ -53,6 +53,16 @@ export async function clearArtifacts(apiUrl, { keep = 0 } = {}) {
 	}
 }
 
+/** Deletes My Workspace's artifacts whose title starts with `prefix`, such as an earlier take's copies. */
+export async function deleteArtifactsTitled(apiUrl, prefix) {
+	const workspaces = await (await fetch(`${apiUrl}/workspaces`)).json();
+	const mine = workspaces.find((workspace) => workspace.name === "My Workspace");
+	const all = await (await fetch(`${apiUrl}/workspaces/${mine.id}/artifacts`)).json();
+	for (const artifact of all.filter((each) => each.title?.startsWith(prefix))) {
+		await fetch(`${apiUrl}/artifacts/${artifact.id}`, { method: "DELETE" });
+	}
+}
+
 export async function closeArtifact(g) {
 	const close = g.page.getByRole("button", { name: "Close artifact" });
 	if (!(await close.count())) return;

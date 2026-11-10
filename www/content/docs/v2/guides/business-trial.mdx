@@ -1,0 +1,55 @@
+---
+title: Start a trial and add your license
+description: Ask for the free 14-day Business trial, add the license file it sends, and let SurfSense download your jobs
+---
+
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+
+<GuideVideo slug="business-trial" poster="/guides/business-trial/poster.webp" title="Adding a trial license in Settings › License, then allowing SurfSense to download its jobs" />
+
+Jobs, such as [filling in a security questionnaire](/docs/v2/guides/security-questionnaire), come with a SurfSense Business license, and with its free 14-day trial. Everything else in SurfSense needs no license. See [License](/docs/v2/license) for the plans.
+
+<Steps>
+<Step>
+
+### Ask for the trial
+
+Enter your email on the [downloads page](/downloads), and the trial's license file arrives by email. No card is needed, and each email address gets one trial. In the app, Settings › License says "No license on this device", and **Start a free trial** there opens [pricing](/pricing) in your browser.
+
+![Settings › License with no license](/guides/business-trial/01-no-license.webp)
+
+</Step>
+<Step>
+
+### Add the license file
+
+Save `surfsense.lic` from the email. In Settings › License, click **Add license**, then **Choose license file** and pick it. Or paste the file's text under **Or paste the file** and click **Add**.
+
+![The Add license dialog](/guides/business-trial/02-add-license.webp)
+
+</Step>
+<Step>
+
+### Allow your jobs to download
+
+SurfSense downloads the jobs your license includes from its license server, `api.surfsense.com`. The first time, it asks "Allow downloading your jobs?" and says what the server gets: your license key and your IP address, and each job's code and version. Click **Allow**.
+
+![The question SurfSense asks before it downloads your jobs](/guides/business-trial/03-allow-jobs.webp)
+
+</Step>
+<Step>
+
+### Check that it reads Active
+
+Settings › License now says **Active**, with the date the trial ends and the jobs it includes. **Jobs on this computer** lists each job with its version once it's downloaded. A job that reads "Not downloaded yet" downloads with **Download**, here or on its row in **Jobs**.
+
+![Settings › License with the trial active](/guides/business-trial/04-active.webp)
+
+</Step>
+</Steps>
+
+When the trial ends, jobs stop running. To keep running them, buy a Business license on [pricing](/pricing), then replace the trial's license with the one we email you: click **Replace license** in Settings › License.
+
+## Next
+
+- [Fill in a security questionnaire from your policies](/docs/v2/guides/security-questionnaire).

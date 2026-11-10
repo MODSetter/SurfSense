@@ -1,5 +1,5 @@
 {
-	"$comment": "Public documents the guides are captured with, each checked against its sha256 before a capture. A `url` is fetched from its source and never committed; a `kept` file is in files/: a public template filled in for a made-up firm, which no source serves as it is.",
+	"$comment": "Public documents the guides are captured with, each checked against its sha256 before a capture. A `url` is fetched from its source and never committed; a `kept` file is in files/: made for the guides from public material, such as a template filled in for a made-up firm or a public text saved as a Word file, which no source serves as it is.",
 	"documents": [
 		{
 			"file": "Security guides/NIST CSF 2.0.pdf",
@@ -82,6 +82,27 @@
 			"retrieved": "2026-11-10",
 			"bytes": 497796,
 			"sha256": "99705051f981866958b67caca9e0ebc479c7810438a50928dc83e3c34d020d35"
+		},
+		{
+			"file": "Contracts/Confidentiality and non-disclosure agreement.docx",
+			"title": "Confidentiality and non-disclosure agreement of 19 November 1998, from an SEC filing",
+			"publisher": "ContractNLI (Koreeda and Manning, Findings of EMNLP 2021), document 406, an NDA filed with the SEC; saved as a Word file with one paragraph per line of the dataset's text, no word changed",
+			"kept": "Confidentiality and non-disclosure agreement.docx",
+			"source": "https://www.sec.gov/Archives/edgar/data/0000813562/000095011799001205/0000950117-99-001205.txt",
+			"licence": "ContractNLI: CC BY 4.0 (https://stanfordnlp.github.io/contract-nli/); the agreement itself is a public SEC filing",
+			"retrieved": "2026-11-06",
+			"bytes": 39525,
+			"sha256": "683ad6916f9937f08c5eb19fbcd002dd3a057b6baf70b111c0baed1e026cecc5"
+		},
+		{
+			"file": "Firm playbook/Bonterms Mutual NDA.pdf",
+			"title": "Bonterms Mutual NDA, version 1.0, standing in for a firm's own standard agreement",
+			"publisher": "Bonterms, linked from https://bonterms.com/download-center/mutual-nda",
+			"url": "https://framerusercontent.com/assets/1hAO0IMpgpG7l7TX7i0YTxwZc.pdf",
+			"licence": "CC BY 4.0",
+			"retrieved": "2026-11-10",
+			"bytes": 151156,
+			"sha256": "7f92b9d136f39f6d8bc4d22c2f726f90076bd95e2833bdc4724f2111a8d269be"
 		}
 	]
 }

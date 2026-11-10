@@ -29,7 +29,16 @@ drawn pointer and a one-line caption, loses the frames where the overlay was
 hidden for a screenshot, and plays long waits on a model faster.
 
 The demo documents are public: `scripts/guides/demo-documents/manifest.json`
-records each one's source, licence, date and sha256, and nothing is committed.
+records each one's source, licence, date and sha256. Most are fetched at capture
+time; the three with no stable download (the sample security plan, the
+questionnaire workbook and the spoken question) are kept in
+`demo-documents/files/`.
+
+The jobs guides run on a Business trial the walkthroughs answer for: the
+license routes and the jobs download are intercepted (`trial-license.mjs`), and
+the backend's `SURFSENSE_LOCAL_JOBS_UNLOCKED` switch lets the job run, with the
+two signed job packs, the questionnaire's and the redline's, installed through
+`SURFSENSE_LOCAL_JOB_PACKS` (a path list, `;` between paths on Windows).
 
 ## The guides, in order of value
 
@@ -57,7 +66,7 @@ records each one's source, licence, date and sha256, and nothing is committed.
 | 20 | Connect a plugin and use it in a chat | `plugins` | 3 |
 | 21 | Turn a recording into a source | `transcribe-a-recording` | 3 |
 | 22 | Dictate a question | `voice-input` | 3 |
-| 23 | Start a trial and add your licence | `business-trial` | 4 |
+| 23 | Start a trial and add your license | `business-trial` | 4 |
 | 24 | Fill in a security questionnaire from your policies | `security-questionnaire` | 4 |
 | 25 | Redline a contract against your playbook | `contract-redline` | 4 |
 | 26 | See and control what leaves your computer | `privacy-network` | 4 |
@@ -65,8 +74,12 @@ records each one's source, licence, date and sha256, and nothing is committed.
 | 28 | Run SurfSense in Docker and open it from another device | `docker` | 4 |
 
 Not captured: signing in with a ChatGPT or Claude plan, since a capture can't
-sign in to those accounts. The redline guide waits for the lawyer's read if ADR
-0086 covers it.
+sign in to those accounts. The redline guide runs on the contract redline pack
+the maintainer had signed for it on 10 Nov 2026, and on Claude Sonnet 5.5: on
+Haiku 5.5 the job wrote stray markup into its changes, so its walkthrough refuses
+a take whose copy holds any. Docker gets no guide of its own: a
+capture would pull the image, and the [Docker](/docs/v2/docker) pages already
+walk through it, so the guides hub links there.
 
 ## In the app (PR 5)
 
