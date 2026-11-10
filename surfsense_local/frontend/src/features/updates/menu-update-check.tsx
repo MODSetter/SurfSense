@@ -5,7 +5,7 @@ import { updatesBridge } from "./use-update-state"
 
 /**
  * The app menu's Check for Updates…. Mounted once at the app root, so its
- * result comes back as a toast whether or not Settings is open.
+ * result reaches the title bar, or a failure's toast, whether or not Settings is open.
  */
 export function MenuUpdateCheck() {
   const check = useReportedCheck()
