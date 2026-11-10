@@ -21,7 +21,8 @@ export function installOverlay() {
   max-width: 78%; padding: 10px 18px; border-radius: 999px; background: rgba(23,23,23,.9);
   color: #fff; font: 500 15px/1.35 system-ui, sans-serif; text-align: center;
   opacity: 0; transition: opacity 240ms ease; }
-#guide-caption.guide-shown { opacity: 1; }`;
+#guide-caption.guide-shown { opacity: 1; }
+html.guide-shot-quiet [data-sonner-toaster] { visibility: hidden !important; }`;
 
 	let overlay;
 	let pointer;
@@ -70,12 +71,15 @@ export function installOverlay() {
 			if (text) caption.textContent = text;
 			caption.classList.toggle("guide-shown", Boolean(text));
 		},
-		hide() {
+		// Notices hide too, unless a screenshot is about one: they cover whatever sits under them.
+		hide({ keepNotices = false } = {}) {
 			mount();
 			overlay.classList.add("guide-hidden");
+			document.documentElement.classList.toggle("guide-shot-quiet", !keepNotices);
 		},
 		show() {
 			overlay?.classList.remove("guide-hidden");
+			document.documentElement.classList.remove("guide-shot-quiet");
 		},
 	};
 }
