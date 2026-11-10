@@ -131,6 +131,49 @@ def test_an_endpoints_own_word_for_speech_is_the_audio_slot() -> None:
     assert models["openai/whisper-1"].capability_known is True
 
 
+def test_an_image_model_that_declares_pictures_in_can_edit() -> None:
+    """OpenRouter lists what a model takes as well as what it returns; a picture in
+    and a picture out is what an edit, or a comic page's reference, needs."""
+    models = {
+        model.name: model
+        for model in parse_models(
+            {
+                "data": [
+                    {
+                        "id": "openai/gpt-image-2.6-flare",
+                        "architecture": {
+                            "input_modalities": ["text", "image"],
+                            "output_modalities": ["image"],
+                        },
+                    },
+                    {
+                        "id": "recraft/recraft-v4.1-flash",
+                        "architecture": {
+                            "input_modalities": ["text"],
+                            "output_modalities": ["image"],
+                        },
+                    },
+                    {
+                        "id": "openai/gpt-4o",
+                        "architecture": {
+                            "input_modalities": ["text", "image"],
+                            "output_modalities": ["text"],
+                        },
+                    },
+                ]
+            }
+        )
+    }
+
+    assert models["openai/gpt-image-2.6-flare"].types == (
+        ModelType.IMAGE_GEN,
+        ModelType.IMAGE_EDIT,
+    )
+    assert models["recraft/recraft-v4.1-flash"].types == (ModelType.IMAGE_GEN,)
+    # Reading pictures is not editing them: a chat model stays a chat model.
+    assert models["openai/gpt-4o"].types == (ModelType.TEXT_GEN,)
+
+
 def test_delta_reads_openai_sse_and_ignores_done() -> None:
     """Chat streaming retains the existing OpenAI delta behavior."""
     assert _delta('data: {"choices":[{"delta":{"content":"hi"}}]}') == Delta("hi")
@@ -247,3 +290,45 @@ async def test_a_link_the_model_returns_is_downloaded_without_asking_egress(
     assert fetched == [
         "https://oaidalleapiprodscus.blob.core.windows.net/private/x.png"
     ]
+
+
+async def test_a_shape_is_asked_for_as_a_size_and_dropped_where_refused(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A comic page is portrait. A server that refuses the size draws its own,
+    and a 400 is a refusal before any work, so asking again bills nothing."""
+    _route_cache.clear()
+    _asks_for_picture.clear()
+    provider = _provider(6)
+    sizes: list[str | None] = []
+
+    async def post(_route, _model, _prompt, _picture, size=None):
+        sizes.append(size)
+        return (400, {}) if size else (200, PAYLOAD)
+
+    monkeypatch.setattr(provider, "_post", post)
+    await provider.generate("flux", "page one", shape="portrait")
+    await provider.generate("flux", "page two", shape="portrait")
+
+    # Without the size, after the picture setting was tried without first.
+    assert sizes == ["1024x1536", "1024x1536", None, None]
+
+
+async def test_a_shape_reaches_a_server_that_takes_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Only asked for when a picture names a shape."""
+    _route_cache.clear()
+    _asks_for_picture.clear()
+    provider = _provider(7)
+    sizes: list[str | None] = []
+
+    async def post(_route, _model, _prompt, _picture, size=None):
+        sizes.append(size)
+        return 200, PAYLOAD
+
+    monkeypatch.setattr(provider, "_post", post)
+    await provider.generate("gpt-image-1", "a strip", shape="landscape")
+    await provider.generate("gpt-image-1", "a picture")
+
+    assert sizes == ["1536x1024", None]

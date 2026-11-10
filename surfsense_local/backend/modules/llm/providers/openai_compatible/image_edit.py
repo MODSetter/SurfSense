@@ -1,5 +1,8 @@
-"""A remote edit model, reached on `/images/edits` with one picture and its instruction."""
+"""A remote model given pictures and an instruction: an edit, or a page that keeps
+its references. `/images/edits` as OpenAI takes it; `/images` with
+`input_references` where a server has no edit route, as OpenRouter."""
 
+import base64
 import json
 
 import httpx
@@ -12,14 +15,25 @@ from modules.llm.providers.openai_compatible.image_response import (
     bounded_body,
     read_image,
 )
+from modules.llm.providers.picture_shape import ASPECT_RATIO, SIZE, Shape
 from modules.llm.providers.protocols import GeneratedImage
 
 # An edit reads the picture as well as drawing one: slower than a generation.
 TIMEOUT = httpx.Timeout(300.0, connect=5.0)
-ROUTE = "/images/edits"
+EDITS = "/images/edits"
+REFERENCES = "/images"
+# A missing route answers before any work, so trying the other bills nothing.
+_NO_ROUTE = {404, 405}
 
-# Whether an endpoint takes PICTURE_ITSELF; GPT image models refuse it.
-_asks_for_picture: dict[str, bool] = {}
+# Optional fields, dropped one at a time when a server refuses them: GPT image
+# models refuse `response_format` and take a size, so each is its own.
+PICTURE = "response_format"
+SHAPE = "shape"
+_OPTIONAL = (PICTURE, SHAPE)
+
+# Per server: which route takes pictures, and which optional fields it refuses.
+_routes: dict[str, str] = {}
+_refused: dict[str, frozenset[str]] = {}
 
 
 class OpenAICompatibleImageEditor:
@@ -35,15 +49,32 @@ class OpenAICompatibleImageEditor:
         self._transport = transport
 
     async def edit(
-        self, model: str, prompt: str, image: GeneratedImage
+        self,
+        model: str,
+        prompt: str,
+        images: tuple[GeneratedImage, ...],
+        *,
+        shape: Shape | None = None,
     ) -> GeneratedImage:
-        picture = _asks_for_picture.get(self._base_url, True)
+        route = _routes.get(self._base_url, EDITS)
+        refused = _refused.get(self._base_url, frozenset())
         try:
-            status, payload = await self._post(model, prompt, image, picture)
-            # Once more without it if refused: a 400 comes before any work.
-            if status == 400 and picture:
-                picture = False
-                status, payload = await self._post(model, prompt, image, picture)
+            status, payload = await self._post(
+                route, model, prompt, images, shape, refused
+            )
+            if status in _NO_ROUTE and route == EDITS:
+                route = REFERENCES
+                status, payload = await self._post(
+                    route, model, prompt, images, shape, refused
+                )
+            # Without each optional field in turn if refused: a 400 comes before any work.
+            for field in _OPTIONAL:
+                if status != 400 or field in refused:
+                    continue
+                refused = refused | {field}
+                status, payload = await self._post(
+                    route, model, prompt, images, shape, refused
+                )
             if status >= 400:
                 raise NonRetryableImageError(f"image endpoint returned HTTP {status}")
             edited = await read_image(payload)
@@ -51,39 +82,93 @@ class OpenAICompatibleImageEditor:
             raise
         except (httpx.HTTPError, ValueError, KeyError, json.JSONDecodeError) as error:
             raise NonRetryableImageError(str(error)) from error
-        _asks_for_picture[self._base_url] = picture
+        _routes[self._base_url] = route
+        _refused[self._base_url] = refused
         return edited
 
     async def _post(
-        self, model: str, prompt: str, image: GeneratedImage, picture: bool
+        self,
+        route: str,
+        model: str,
+        prompt: str,
+        images: tuple[GeneratedImage, ...],
+        shape: Shape | None,
+        refused: frozenset[str],
     ) -> tuple[int, object]:
-        extension = image.media_type.removeprefix("image/").replace("jpeg", "jpg")
-        # No `input_fidelity`: only some GPT image models take it.
-        async with (
-            httpx.AsyncClient(
-                timeout=TIMEOUT,
-                headers=key_headers(self._base_url, self._api_key),
-                transport=self._transport,
-            ) as client,
-            client.stream(
-                "POST",
-                f"{self._base_url}{ROUTE}",
-                data={
-                    "model": model,
-                    "prompt": prompt,
-                    **(PICTURE_ITSELF if picture else {}),
-                },
-                files={
-                    "image": (f"image.{extension}", image.content, image.media_type)
-                },
-            ) as reply,
-        ):
-            content = await bounded_body(reply, MAX_RESPONSE_BYTES)
-            try:
-                payload = json.loads(content)
-            except json.JSONDecodeError:
-                if reply.status_code >= 400:
-                    payload = {}
-                else:
+        async with httpx.AsyncClient(
+            timeout=TIMEOUT,
+            headers=key_headers(self._base_url, self._api_key),
+            transport=self._transport,
+        ) as client:
+            if route == REFERENCES:
+                request = client.stream(
+                    "POST",
+                    f"{self._base_url}{route}",
+                    json=_references_body(model, prompt, images, shape, refused),
+                )
+            else:
+                request = client.stream(
+                    "POST",
+                    f"{self._base_url}{route}",
+                    data=_edits_fields(model, prompt, shape, refused),
+                    files=_edits_files(images),
+                )
+            async with request as reply:
+                content = await bounded_body(reply, MAX_RESPONSE_BYTES)
+                try:
+                    return reply.status_code, json.loads(content)
+                except json.JSONDecodeError:
+                    if reply.status_code >= 400:
+                        return reply.status_code, {}
                     raise
-            return reply.status_code, payload
+
+
+def _edits_fields(
+    model: str, prompt: str, shape: Shape | None, refused: frozenset[str]
+) -> dict[str, str]:
+    # No `input_fidelity`: only some GPT image models take it.
+    fields = {"model": model, "prompt": prompt}
+    if PICTURE not in refused:
+        fields.update(PICTURE_ITSELF)
+    if shape is not None and SHAPE not in refused:
+        fields["size"] = SIZE[shape]
+    return fields
+
+
+def _edits_files(images: tuple[GeneratedImage, ...]) -> list[tuple[str, tuple]]:
+    # One picture keeps the field every edit server takes; several are OpenAI's `image[]`.
+    field = "image" if len(images) == 1 else "image[]"
+    return [
+        (field, (f"image-{n}.{_extension(image)}", image.content, image.media_type))
+        if len(images) > 1
+        else (field, (f"image.{_extension(image)}", image.content, image.media_type))
+        for n, image in enumerate(images, 1)
+    ]
+
+
+def _references_body(
+    model: str,
+    prompt: str,
+    images: tuple[GeneratedImage, ...],
+    shape: Shape | None,
+    refused: frozenset[str],
+) -> dict:
+    body: dict = {
+        "model": model,
+        "prompt": prompt,
+        "input_references": [
+            {"type": "image_url", "image_url": {"url": _data_url(image)}}
+            for image in images
+        ],
+    }
+    if shape is not None and SHAPE not in refused:
+        body["aspect_ratio"] = ASPECT_RATIO[shape]
+    return body
+
+
+def _data_url(image: GeneratedImage) -> str:
+    return f"data:{image.media_type};base64,{base64.b64encode(image.content).decode()}"
+
+
+def _extension(image: GeneratedImage) -> str:
+    return image.media_type.removeprefix("image/").replace("jpeg", "jpg")

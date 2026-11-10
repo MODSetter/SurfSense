@@ -1,13 +1,15 @@
 """A remote edit model: the picture and the instruction go to `/images/edits`."""
 
 import base64
+import json
 
 import httpx
 import pytest
 
 from modules.llm.providers.openai_compatible.image_edit import (
     OpenAICompatibleImageEditor,
-    _asks_for_picture,
+    _refused,
+    _routes,
 )
 from modules.llm.providers.openai_compatible.image_response import (
     NonRetryableImageError,
@@ -41,7 +43,7 @@ async def test_it_posts_the_picture_and_the_instruction_as_a_form() -> None:
         200, json={"data": [{"b64_json": base64.b64encode(EDITED).decode()}]}
     )
 
-    image = await _editor(reply, asked).edit("gpt-image-1", "make it night", BASE)
+    image = await _editor(reply, asked).edit("gpt-image-1", "make it night", (BASE,))
 
     assert image == GeneratedImage(EDITED, "image/png")
     [request] = asked
@@ -65,20 +67,22 @@ async def test_a_refused_edit_is_not_retried() -> None:
     asked: list[httpx.Request] = []
 
     with pytest.raises(NonRetryableImageError, match="500"):
-        await _editor(httpx.Response(500, json={}), asked).edit("m", "x", BASE)
+        await _editor(httpx.Response(500, json={}), asked).edit("m", "x", (BASE,))
     assert len(asked) == 1
 
 
 async def test_an_answer_with_no_picture_fails_the_edit() -> None:
     """Read as a generation's answer is."""
     with pytest.raises(NonRetryableImageError, match="no data list"):
-        await _editor(httpx.Response(200, json={"error": "?"}), []).edit("m", "x", BASE)
+        await _editor(httpx.Response(200, json={"error": "?"}), []).edit(
+            "m", "x", (BASE,)
+        )
 
 
 async def test_a_model_that_refuses_the_setting_is_asked_again_without_it() -> None:
     """GPT image models answer with the picture and refuse the setting; a 400
     comes before any work, so asking again bills nothing twice."""
-    _asks_for_picture.clear()
+    _refused.clear()
     asked: list[bytes] = []
     done = httpx.Response(
         200, json={"data": [{"b64_json": base64.b64encode(EDITED).decode()}]}
@@ -92,7 +96,85 @@ async def test_a_model_that_refuses_the_setting_is_asked_again_without_it() -> N
     editor = OpenAICompatibleImageEditor(
         "https://example.test/v1", transport=httpx.MockTransport(answer)
     )
-    image = await editor.edit("gpt-image-1", "make it night", BASE)
+    image = await editor.edit("gpt-image-1", "make it night", (BASE,))
 
     assert image.content == EDITED
     assert [b"response_format" in form for form in asked] == [True, False]
+
+
+PAGE_ONE = GeneratedImage(b"\x89PNG\r\n\x1a\npage-one", "image/png")
+DONE = {"data": [{"b64_json": base64.b64encode(EDITED).decode()}]}
+
+
+async def test_several_pictures_go_as_one_part_each() -> None:
+    """A comic page keeps its characters from the pages before it."""
+    asked: list[httpx.Request] = []
+    editor = _editor(httpx.Response(200, json=DONE), asked)
+
+    await editor.edit("gpt-image-1", "page two", (PAGE_ONE, BASE))
+
+    form = asked[0].read()
+    assert form.count(b'name="image[]"') == 2
+    assert form.index(PAGE_ONE.content) < form.index(BASE.content)
+
+
+async def test_a_shape_is_asked_for_as_a_size() -> None:
+    """As OpenAI's edit route takes it."""
+    asked: list[httpx.Request] = []
+    editor = _editor(httpx.Response(200, json=DONE), asked)
+
+    await editor.edit("gpt-image-1", "page two", (PAGE_ONE,), shape="portrait")
+
+    assert b'name="size"\r\n\r\n1024x1536' in asked[0].read()
+
+
+async def test_a_server_with_no_edit_route_is_sent_references_instead() -> None:
+    """OpenRouter answers 404 on /images/edits, before any work, and takes the
+    pictures as input_references on /images; the route is kept per server."""
+    _routes.clear()
+    asked: list[httpx.Request] = []
+
+    def answer(request: httpx.Request) -> httpx.Response:
+        asked.append(request)
+        if request.url.path.endswith("/images/edits"):
+            return httpx.Response(404, json={})
+        return httpx.Response(200, json=DONE)
+
+    editor = OpenAICompatibleImageEditor(
+        "https://gateway.test/v1", "sk-test", transport=httpx.MockTransport(answer)
+    )
+    image = await editor.edit(
+        "openai/gpt-image-2.6", "page two", (PAGE_ONE,), shape="portrait"
+    )
+    await editor.edit("openai/gpt-image-2.6", "page three", (PAGE_ONE,))
+
+    assert image.content == EDITED
+    assert [r.url.path for r in asked] == [
+        "/v1/images/edits",
+        "/v1/images",
+        "/v1/images",
+    ]
+    sent = json.loads(asked[1].read())
+    assert sent["model"] == "openai/gpt-image-2.6"
+    assert sent["prompt"] == "page two"
+    assert sent["aspect_ratio"] == "2:3"
+    assert sent["input_references"] == [
+        {
+            "type": "image_url",
+            "image_url": {
+                "url": "data:image/png;base64,"
+                + base64.b64encode(PAGE_ONE.content).decode()
+            },
+        }
+    ]
+    assert "aspect_ratio" not in json.loads(asked[2].read())
+
+
+async def test_a_server_error_on_the_edit_route_is_not_tried_elsewhere() -> None:
+    """A 5xx may follow billed work: no second route, no second picture."""
+    _routes.clear()
+    asked: list[httpx.Request] = []
+
+    with pytest.raises(NonRetryableImageError, match="502"):
+        await _editor(httpx.Response(502, json={}), asked).edit("m", "x", (BASE,))
+    assert len(asked) == 1

@@ -38,6 +38,7 @@ from modules.jobs.asking.stopped import FillStoppedError
 from modules.jobs.runs.record import job_run_of
 from modules.llm.model_route.client import resolve_routed_generation
 from modules.llm.model_type import ModelType
+from modules.llm.pictures_in import model as pictures_in
 from modules.llm.providers.audiocpp.memory import NotEnoughMemoryError
 from modules.llm.providers.context_overflow import ContextOverflowError
 from modules.llm.providers.openai_compatible import NonRetryableImageError
@@ -47,7 +48,6 @@ from modules.llm.resolution import (
     ModelResolutionError,
     ResolvedGeneration,
     ResolvedImageGeneration,
-    resolve_image_edit,
     resolve_image_generation,
     resolve_text_to_speech,
 )
@@ -61,8 +61,10 @@ from worker.studio.converted_document import pipeline as converted_document
 from worker.studio.job_run import pipeline as job_run
 from worker.studio.made_file import pipeline as made_file
 from worker.studio.media.visual.drawn import pipeline as drawn_image
+from worker.studio.media.visual.drawn.references import reference_pictures
 from worker.studio.media.visual.edit import pipeline as image_edit
 from worker.studio.media.visual.edit.base import base_image
+from worker.studio.media.visual.redraw import pipeline as image_redraw
 from worker.studio.office.document import figure_shelf
 from worker.studio.office.document.refine import refine
 from worker.studio.office.docx import docx
@@ -363,32 +365,53 @@ def _refine(
 def _edit_image(
     session: Session, artifact: Artifact, document: Document, editing: ImageEdit
 ) -> Built:
-    """One call to the edit model, from the picture of the version it names."""
+    """One call: the picture to the model that takes pictures, or, with none,
+    the image model drawing it again from the words it was drawn with."""
     try:
-        editor = resolve_image_edit(session)
+        editor = pictures_in.picture_model(session)
     except ModelResolutionError as error:
         raise NoModelSelectedError(str(error)) from error
+    painter = _choose_model(session, ModelType.IMAGE_GEN) if editor is None else None
     base = base_image(session, editing)
     session.commit()
     raise_if_cancelled(session, document)
 
-    # The local editor polls; each poll looks for a cancel.
+    # The local clients poll; each poll looks for a cancel.
     with cancellation.watching(lambda: _check_cancelled(session, document)):
-        return image_edit.render(editor, base, editing.instruction)
+        if editor is not None:
+            return image_edit.render(editor, base, editing.instruction)
+        assert painter is not None
+        return image_redraw.render(painter, base, editing.instruction)
 
 
 def _draw_image(
     session: Session, artifact: Artifact, document: Document, drawing: ImageDrawing
 ) -> Built:
-    """One call to the image model, with the prompt the agent wrote."""
+    """One call to the image model, with the prompt the agent wrote; with
+    reference pictures, to the model that takes them, when one does."""
     painter = _choose_model(session, ModelType.IMAGE_GEN)
+    keeper = None
+    if drawing.references:
+        try:
+            keeper = pictures_in.picture_model(session)
+        except ModelResolutionError as error:
+            raise NoModelSelectedError(str(error)) from error
+    references = reference_pictures(session, drawing.references)
     title, format = document.title, artifact.format
     session.commit()
     raise_if_cancelled(session, document)
 
-    # The local generator polls; each poll looks for a cancel.
+    # The local clients poll; each poll looks for a cancel.
     with cancellation.watching(lambda: _check_cancelled(session, document)):
-        return drawn_image.render(painter, drawing.prompt, title, format)
+        return drawn_image.render(
+            painter,
+            drawing.prompt,
+            title,
+            format,
+            shape=drawing.shape,
+            references=references,
+            keeper=keeper,
+        )
 
 
 def _keep_spec(artifact: Artifact, spec: dict) -> None:

@@ -95,7 +95,7 @@ async def test_it_sends_the_picture_as_a_reference_at_its_own_size() -> None:
     """The launch's size would crop or stretch a picture of another shape."""
     server = SdServer(_job("queued"), _job("generating"), _done())
 
-    image = await _editor(server).edit("klein", "make it night", BASE)
+    image = await _editor(server).edit("klein", "make it night", (BASE,))
 
     assert image == GeneratedImage(EDITED, "image/png")
     [body] = server.posted
@@ -131,7 +131,7 @@ async def test_the_text_runtime_is_given_up_until_the_edit_is_back() -> None:
         transport=httpx.MockTransport(watch),
     )
 
-    await edit.edit("klein", "make it night", BASE)
+    await edit.edit("klein", "make it night", (BASE,))
 
     assert seen and all(seen)
     assert runtime.held is False
@@ -144,7 +144,7 @@ async def test_a_failed_job_fails_the_edit_with_its_reason() -> None:
     )
 
     with pytest.raises(NonRetryableImageError, match="out of memory"):
-        await _editor(server).edit("klein", "make it night", BASE)
+        await _editor(server).edit("klein", "make it night", (BASE,))
 
 
 @pytest.mark.parametrize("status", [404, 410])
@@ -153,7 +153,7 @@ async def test_a_job_the_server_no_longer_has_fails_the_edit(status: int) -> Non
     server = SdServer(httpx.Response(status, json={"error": "gone"}))
 
     with pytest.raises(NonRetryableImageError, match=str(status)):
-        await _editor(server).edit("klein", "make it night", BASE)
+        await _editor(server).edit("klein", "make it night", (BASE,))
 
 
 async def test_a_full_queue_fails_the_edit() -> None:
@@ -161,7 +161,7 @@ async def test_a_full_queue_fails_the_edit() -> None:
     server = SdServer(_done(), submit=httpx.Response(429, json={"error": "full"}))
 
     with pytest.raises(NonRetryableImageError, match="429"):
-        await _editor(server).edit("klein", "make it night", BASE)
+        await _editor(server).edit("klein", "make it night", (BASE,))
 
 
 async def test_a_cancel_withdraws_the_queued_job() -> None:
@@ -175,7 +175,7 @@ async def test_a_cancel_withdraws_the_queued_job() -> None:
         raise CancelledError
 
     with cancellation.watching(cancelled), pytest.raises(CancelledError):
-        await _editor(server).edit("klein", "make it night", BASE)
+        await _editor(server).edit("klein", "make it night", (BASE,))
 
     assert server.asked[-1] == "POST /sdcpp/v1/jobs/job_1/cancel"
 
@@ -203,8 +203,24 @@ async def test_withdrawing_a_job_waits_only_briefly() -> None:
         transport=httpx.MockTransport(watch),
     )
     with cancellation.watching(cancelled), pytest.raises(CancelledError):
-        await edit.edit("klein", "make it night", BASE)
+        await edit.edit("klein", "make it night", (BASE,))
 
     withdraw = seen[-1]
     assert withdraw.url.path == "/sdcpp/v1/jobs/job_1/cancel"
     assert withdraw.extensions["timeout"]["read"] <= 2
+
+
+async def test_every_reference_goes_in_at_the_shape_asked_for() -> None:
+    """A comic page keeps its characters from page one, drawn portrait at about
+    the reference's pixel count, each side a multiple of 64."""
+    server = SdServer(_done())
+    page_one = GeneratedImage(_png(1024, 1024), "image/png")
+
+    await _editor(server).edit("klein", "page two", (page_one, BASE), shape="portrait")
+
+    [body] = server.posted
+    assert body["ref_images"] == [
+        "data:image/png;base64," + base64.b64encode(page_one.content).decode(),
+        "data:image/png;base64," + base64.b64encode(BASE.content).decode(),
+    ]
+    assert (body["width"], body["height"]) == (832, 1280)

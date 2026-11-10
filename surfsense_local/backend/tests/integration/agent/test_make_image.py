@@ -20,13 +20,10 @@ from modules.artifacts.local_image_demand import local_image_demand
 from modules.artifacts.models import Artifact, ArtifactFileRole
 from modules.llm.model_type import ModelType
 from modules.llm.models import SelectedModel
+from modules.llm.pictures_in.model import PictureModel
 from modules.llm.providers.openai_compatible import NonRetryableImageError
 from modules.llm.providers.protocols import GeneratedImage
-from modules.llm.resolution import (
-    ModelResolutionError,
-    ResolvedImageEdit,
-    ResolvedImageGeneration,
-)
+from modules.llm.resolution import ResolvedImageGeneration
 from modules.source_scope.schemas import SourceScope
 from modules.workspaces.models import Workspace
 from shared.config import get_storage_settings
@@ -54,13 +51,18 @@ class Painter:
 
     def __init__(self) -> None:
         self.prompts: list[str] = []
+        self.shapes: list[str | None] = []
         self.edits: list[tuple[str, bytes]] = []
+        self.references: list[tuple[bytes, ...]] = []
         self.fail_with: Exception | None = None
         self.hold: threading.Event | None = None
         self.gives = GeneratedImage(_png(), "image/png")
 
-    async def generate(self, _model: str, prompt: str) -> GeneratedImage:
+    async def generate(
+        self, _model: str, prompt: str, *, shape: str | None = None
+    ) -> GeneratedImage:
         self.prompts.append(prompt)
+        self.shapes.append(shape)
         if self.hold is not None:
             await asyncio.to_thread(self.hold.wait)
         if self.fail_with is not None:
@@ -68,31 +70,39 @@ class Painter:
         return self.gives
 
     async def edit(
-        self, _model: str, prompt: str, image: GeneratedImage
+        self,
+        _model: str,
+        prompt: str,
+        images: tuple[GeneratedImage, ...],
+        *,
+        shape: str | None = None,
     ) -> GeneratedImage:
-        self.edits.append((prompt, image.content))
+        if len(images) == 1:
+            self.edits.append((prompt, images[0].content))
+        self.references.append(tuple(image.content for image in images))
+        self.shapes.append(shape)
         return GeneratedImage(_png("navy"), "image/png")
 
 
 @pytest.fixture
 def painter(engine: Engine, monkeypatch: pytest.MonkeyPatch) -> Iterator[Painter]:
-    """An image and an edit model chosen, and no chat model: a drawing never needs one."""
+    """An image model that takes pictures, and no chat model: a drawing never needs one."""
     with create_session_factory(engine)() as session:
-        for model_type in (ModelType.IMAGE_GEN, ModelType.IMAGE_EDIT):
-            session.add(
-                SelectedModel(model_type=model_type, provider="sdcpp", name="m")
-            )
+        session.add(
+            SelectedModel(model_type=ModelType.IMAGE_GEN, provider="sdcpp", name="m")
+        )
         session.commit()
     fake = Painter()
     selection = type("Selection", (), {"provider": "fake", "name": "m"})()
     draws = lambda _session: ResolvedImageGeneration(selection, fake)  # noqa: E731
-    edits = lambda _session: ResolvedImageEdit(selection, fake)  # noqa: E731
     monkeypatch.setattr("worker.studio.job.resolve_image_generation", draws)
     monkeypatch.setattr(
         "modules.artifacts.drawn_images.model.resolve_image_generation", draws
     )
-    monkeypatch.setattr("worker.studio.job.resolve_image_edit", edits)
-    monkeypatch.setattr("modules.artifacts.image_edits.model.resolve_image_edit", edits)
+    monkeypatch.setattr(
+        "modules.llm.pictures_in.model.picture_model",
+        lambda _session: PictureModel("image_model", selection, fake),
+    )
     yield fake
     if fake.hold is not None:
         fake.hold.set()
@@ -409,31 +419,145 @@ async def test_with_an_edit_model_the_picture_can_be_changed(
     assert "change it or tell the user" in text
 
 
-async def test_with_no_edit_model_the_agent_is_not_sent_to_change_the_picture(
-    tools: ToolEndpoint,
-    studio_worker: None,
-    painter: Painter,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """A call to edit could only be refused, and a redraw would bill another picture."""
-
-    def none_chosen(_session: object) -> None:
-        raise ModelResolutionError("no image editing model selected")
-
+@pytest.fixture
+def words_only(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The image model takes no picture in, and no edit model is chosen."""
     monkeypatch.setattr(
-        "modules.artifacts.image_edits.model.resolve_image_edit", none_chosen
+        "modules.llm.pictures_in.model.picture_model", lambda _session: None
     )
+
+
+async def test_with_a_model_that_takes_no_pictures_a_change_is_drawn_again(
+    tools: ToolEndpoint, studio_worker: None, painter: Painter, words_only: None
+) -> None:
+    """Every image model can change a picture, and the agent is told how, plainly:
+    never sent to Settings for a model the user need not have."""
     workspace_id = await tools.workspace()
+    first, _ = await tools.call(
+        workspace_id, "make_image", {"prompt": "A boat", "title": "Boat"}
+    )
+    root = _artifact_id(first)
+    assert f"call this tool again with artifact_id {root}" in first
+    assert "drawn again" in first
+    assert "Settings" not in first
 
     text, is_error = await tools.call(
-        workspace_id, "make_image", {"prompt": "A boat", "title": "Boat"}
+        workspace_id, "make_image", {"prompt": "Make it night", "artifact_id": root}
     )
 
     assert is_error is False, text
-    assert "image-" in text
-    assert "artifact_id" not in text
-    assert "change it" not in text
-    assert "Settings > Image edit" in text
+    assert painter.edits == []
+    assert painter.prompts[-1] == "A boat\n\nChange: Make it night"
+    assert "Drawn again from its prompt and the change" in text
+    assert "Settings" not in text
+
+
+async def test_a_shape_reaches_the_image_model(
+    tools: ToolEndpoint, studio_worker: None, painter: Painter
+) -> None:
+    """A comic page is portrait."""
+    workspace_id = await tools.workspace()
+
+    text, is_error = await tools.call(
+        workspace_id,
+        "make_image",
+        {"prompt": "Page one", "title": "Comic · page 1", "shape": "portrait"},
+    )
+
+    assert is_error is False, text
+    assert painter.shapes == ["portrait"]
+    assert "Drawn on this computer." in text
+
+
+async def test_references_reach_the_model_that_takes_pictures_in_order(
+    tools: ToolEndpoint, studio_worker: None, painter: Painter, engine: Engine
+) -> None:
+    """A comic's later pages keep page one's characters."""
+    workspace_id = await tools.workspace()
+    first, _ = await tools.call(
+        workspace_id, "make_image", {"prompt": "Page one", "title": "Comic · page 1"}
+    )
+    sheet, _ = await tools.call(
+        workspace_id, "make_image", {"prompt": "The cat", "title": "Character sheet"}
+    )
+    page_one, cat = _artifact_id(first), _artifact_id(sheet)
+
+    text, is_error = await tools.call(
+        workspace_id,
+        "make_image",
+        {
+            "prompt": "Page two",
+            "title": "Comic · page 2",
+            "shape": "portrait",
+            "references": [f"image-{page_one}", f"image-{cat}"],
+        },
+    )
+
+    assert is_error is False, text
+    assert painter.references[-1] == (
+        _stored(engine, page_one),
+        _stored(engine, cat),
+    )
+    assert painter.shapes[-1] == "portrait"
+    assert painter.prompts == ["Page one", "The cat"]
+
+
+async def test_with_a_model_that_takes_no_pictures_references_are_drawn_from_words(
+    tools: ToolEndpoint, studio_worker: None, painter: Painter, words_only: None
+) -> None:
+    """Never refused: the page is drawn, and the agent told the faces may differ."""
+    workspace_id = await tools.workspace()
+    first, _ = await tools.call(
+        workspace_id, "make_image", {"prompt": "Page one", "title": "Comic · page 1"}
+    )
+
+    text, is_error = await tools.call(
+        workspace_id,
+        "make_image",
+        {
+            "prompt": "Page two",
+            "title": "Comic · page 2",
+            "references": [f"image-{_artifact_id(first)}"],
+        },
+    )
+
+    assert is_error is False, text
+    assert painter.references == []
+    assert painter.prompts == ["Page one", "Page two"]
+    assert "Drawn from words alone" in text
+
+
+async def test_references_are_refused_unbilled_when_they_cannot_be_kept(
+    tools: ToolEndpoint, studio_worker: None, painter: Painter
+) -> None:
+    """Another chat's picture, an unknown one, five of them, or with an edit."""
+    workspace_id = await tools.workspace()
+    first, _ = await tools.call(
+        workspace_id, "make_image", {"prompt": "Page one", "title": "Comic · page 1"}
+    )
+    name = f"image-{_artifact_id(first)}"
+    asks = [
+        ({"references": [name]}, tools.thread(workspace_id), "no picture"),
+        ({"references": ["image-999"]}, None, "no picture"),
+        ({"references": [name, "a", "b", "c", "d"]}, None, "at most 4"),
+        (
+            {"references": [name], "artifact_id": _artifact_id(first)},
+            None,
+            "references are for a new picture",
+        ),
+    ]
+
+    for n, (extra, thread, said) in enumerate(asks):
+        text, is_error = await tools.call(
+            workspace_id,
+            "make_image",
+            {"prompt": "Page two", "title": f"Page {n}", **extra},
+            **({"thread": thread} if thread is not None else {}),
+        )
+        assert is_error is True, text
+        assert said in text
+    assert painter.prompts == ["Page one"]
+    assert painter.references == []
 
 
 # Fails unless what it is handed is really a PNG, as IMAGES_DIR promises.
@@ -527,28 +651,6 @@ async def test_a_copy_the_agent_overwrote_is_not_what_gets_placed(
 
     assert is_error is False, text
     assert _pictures_in_word(engine, _artifact_id(text)) == [_png()]
-
-
-async def test_a_picture_still_being_drawn_is_refused_saying_so(
-    tools: ToolEndpoint,
-    studio_worker: None,
-    painter: Painter,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """The agent tells the user, rather than reading it as a wrong name."""
-    monkeypatch.setattr("modules.agent.tool_endpoint.make_image.WAIT_SECONDS", 0.2)
-    painter.hold = threading.Event()
-    workspace_id = await tools.workspace()
-    queued, _ = await tools.call(
-        workspace_id, "make_image", {"prompt": "A boat", "title": "Boat"}
-    )
-
-    text, is_error = await tools.call(
-        workspace_id, "render_document", _placing(f"image-{_artifact_id(queued)}")
-    )
-
-    assert is_error is True
-    assert "still being drawn" in text
 
 
 async def test_another_chats_picture_cannot_be_placed(

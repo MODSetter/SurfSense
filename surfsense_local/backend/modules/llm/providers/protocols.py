@@ -2,6 +2,7 @@ from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import Protocol
 
+from modules.llm.providers.picture_shape import Shape
 from modules.llm.providers.types import Delta, Message, Model
 
 
@@ -81,14 +82,24 @@ class GeneratedImage:
 
 
 class ImageGenerator(Protocol):
-    async def generate(self, model: str, prompt: str) -> GeneratedImage: ...
+    """A model that draws from words alone."""
+
+    async def generate(
+        self, model: str, prompt: str, *, shape: Shape | None = None
+    ) -> GeneratedImage: ...
 
 
 class ImageEditor(Protocol):
-    """A model that changes a picture as an instruction says, given it as a reference."""
+    """A model given pictures as references: an edit of one, or a new picture
+    that keeps the characters and style of the others."""
 
     async def edit(
-        self, model: str, prompt: str, image: GeneratedImage
+        self,
+        model: str,
+        prompt: str,
+        images: tuple[GeneratedImage, ...],
+        *,
+        shape: Shape | None = None,
     ) -> GeneratedImage: ...
 
 

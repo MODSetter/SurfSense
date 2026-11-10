@@ -11,6 +11,7 @@ from modules.artifacts.queued_job import queue_job
 from modules.artifacts.studio_documents.recipe import RECIPE_KEY
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.embedding.active import require_active_index
+from modules.llm.providers.picture_shape import Shape
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,8 @@ def create_drawn_image(
     prompt: str,
     format: str,
     chat_thread_id: int | None,
+    shape: Shape | None = None,
+    references: tuple[int, ...] = (),
 ) -> Artifact:
     """Pending until Studio's job paints it. Commits before enqueueing: the worker
     is another process and must find the row."""
@@ -43,7 +46,7 @@ def create_drawn_image(
         format=format,
         chat_thread_id=chat_thread_id,
         artifact_metadata={
-            RECIPE_KEY: image_drawn(prompt),
+            RECIPE_KEY: image_drawn(prompt, shape, references),
             "source_document_ids": [],
             "prompt": prompt,
         },

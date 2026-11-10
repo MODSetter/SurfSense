@@ -1,5 +1,6 @@
 """Editing a Studio image: the instruction and the open version's picture go to
-the edit model, and what comes back is the document's next version."""
+the model that takes pictures, or, with none, the picture is drawn again from its
+prompt and the change; either way it is the document's next version."""
 
 import asyncio
 
@@ -14,13 +15,10 @@ from modules.artifacts.service import create_artifact_job
 from modules.documents.models import Document, DocumentStatus
 from modules.llm.model_type import ModelType
 from modules.llm.models import SelectedModel
+from modules.llm.pictures_in.model import PictureModel
 from modules.llm.providers.openai_compatible import NonRetryableImageError
 from modules.llm.providers.protocols import GeneratedImage
-from modules.llm.resolution import (
-    ResolvedImageEdit,
-    ResolvedImageGeneration,
-    resolve_image_edit,
-)
+from modules.llm.resolution import ResolvedImageGeneration
 from modules.workspaces.models import Workspace
 from shared.config import get_storage_settings
 from shared.queue import studio_queue
@@ -37,16 +35,26 @@ class Painter:
 
     def __init__(self) -> None:
         self.edits: list[tuple[str, bytes]] = []
+        self.drawn: list[str] = []
         self.fail_with: Exception | None = None
 
-    async def generate(self, _model: str, _prompt: str) -> GeneratedImage:
+    async def generate(
+        self, _model: str, prompt: str, *, shape: str | None = None
+    ) -> GeneratedImage:
+        self.drawn.append(prompt)
         return GeneratedImage(DRAWN, "image/png")
 
     async def edit(
-        self, _model: str, prompt: str, image: GeneratedImage
+        self,
+        _model: str,
+        prompt: str,
+        images: tuple[GeneratedImage, ...],
+        *,
+        shape: str | None = None,
     ) -> GeneratedImage:
         if self.fail_with is not None:
             raise self.fail_with
+        (image,) = images
         self.edits.append((prompt, image.content))
         number = len(self.edits)
         return GeneratedImage(b"\x89PNG\r\n\x1a\nedit%d" % number, "image/png")
@@ -54,28 +62,37 @@ class Painter:
 
 @pytest.fixture
 def painter(session: Session, monkeypatch: pytest.MonkeyPatch) -> Painter:
-    """A chat model, an image model and an edit model, all chosen."""
+    """A chat model, and an image model that takes pictures."""
     session.add(
         SelectedModel(model_type=ModelType.TEXT_GEN, provider="llamacpp", name="m")
     )
-    for model_type in (ModelType.IMAGE_GEN, ModelType.IMAGE_EDIT):
-        session.add(SelectedModel(model_type=model_type, provider="sdcpp", name="m"))
+    session.add(
+        SelectedModel(model_type=ModelType.IMAGE_GEN, provider="sdcpp", name="m")
+    )
     session.commit()
     fake = Painter()
     selection = type("Selection", (), {"provider": "fake", "name": "m"})()
     monkeypatch.setattr(
         "worker.studio.shared.generate.run_model", lambda *_a, **_k: WRITER
     )
+    draws = lambda _session: ResolvedImageGeneration(selection, fake)  # noqa: E731
+    monkeypatch.setattr("worker.studio.job.resolve_image_generation", draws)
     monkeypatch.setattr(
-        "worker.studio.job.resolve_image_generation",
-        lambda _session: ResolvedImageGeneration(selection, fake),
+        "modules.artifacts.drawn_images.model.resolve_image_generation", draws
     )
-    edit_model = lambda _session: ResolvedImageEdit(selection, fake)  # noqa: E731
-    monkeypatch.setattr("worker.studio.job.resolve_image_edit", edit_model)
     monkeypatch.setattr(
-        "modules.artifacts.image_edits.model.resolve_image_edit", edit_model
+        "modules.llm.pictures_in.model.picture_model",
+        lambda _session: PictureModel("image_model", selection, fake),
     )
     return fake
+
+
+@pytest.fixture
+def words_only(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The image model takes no pictures in, and no edit model is chosen."""
+    monkeypatch.setattr(
+        "modules.llm.pictures_in.model.picture_model", lambda _session: None
+    )
 
 
 async def _work_off(queue: Huey) -> None:
@@ -272,7 +289,47 @@ async def test_a_failed_edit_is_not_retried_and_leaves_earlier_versions_alone(
     assert _primary(first) == DRAWN
 
 
-async def test_editing_with_no_edit_model_says_so_as_a_code(
+async def test_with_no_model_that_takes_pictures_an_edit_is_drawn_again(
+    client: AsyncClient,
+    session: Session,
+    workspace: Workspace,
+    logo_source: Document,
+    painter: Painter,
+    words_only: None,
+) -> None:
+    """Edit works for every image model: one that cannot take the picture draws
+    it again from the prompt it was drawn with and the change, and says so."""
+    first = await _drawn(session, workspace, logo_source)
+
+    second = await _edited(client, session, first.id, "Make it night")
+
+    assert painter.edits == []
+    assert painter.drawn[-1] == "a lighthouse at dusk\n\nChange: Make it night"
+    assert second.document.content.startswith("Drawn again with your change.")
+    assert second.artifact_metadata["redrawn"] is True
+    assert second.artifact_metadata["version"]["number"] == 2
+
+
+async def test_changes_add_up_when_a_redrawn_picture_is_changed_again(
+    client: AsyncClient,
+    session: Session,
+    workspace: Workspace,
+    logo_source: Document,
+    painter: Painter,
+    words_only: None,
+) -> None:
+    """Each redraw starts from the prompt its base was drawn with."""
+    first = await _drawn(session, workspace, logo_source)
+    second = await _edited(client, session, first.id, "Make it night")
+
+    await _edited(client, session, second.id, "Add stars")
+
+    assert painter.drawn[-1] == (
+        "a lighthouse at dusk\n\nChange: Make it night\n\nChange: Add stars"
+    )
+
+
+async def test_an_edit_keeps_the_prompt_a_later_redraw_starts_from(
     client: AsyncClient,
     session: Session,
     workspace: Workspace,
@@ -280,20 +337,19 @@ async def test_editing_with_no_edit_model_says_so_as_a_code(
     painter: Painter,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The box shows the interface's own sentence, as Refine does for a chat model."""
+    """Edited by a model that takes pictures, then redrawn after a switch to one
+    that does not: the redraw still knows what was changed."""
     first = await _drawn(session, workspace, logo_source)
+    second = await _edited(client, session, first.id, "Make it night")
     monkeypatch.setattr(
-        "modules.artifacts.image_edits.model.resolve_image_edit", resolve_image_edit
+        "modules.llm.pictures_in.model.picture_model", lambda _session: None
     )
-    session.delete(session.get(SelectedModel, ModelType.IMAGE_EDIT))
 
-    response = await _edit(client, session, first.id, "Make it night")
+    await _edited(client, session, second.id, "Add stars")
 
-    assert response.status_code == 409
-    assert response.json()["detail"] == {
-        "message": "Needs an image editing model",
-        "code": "needs_image_edit",
-    }
+    assert painter.drawn[-1] == (
+        "a lighthouse at dusk\n\nChange: Make it night\n\nChange: Add stars"
+    )
 
 
 async def test_only_a_ready_image_or_infographic_can_be_edited(
