@@ -367,6 +367,25 @@ def test_a_question_whose_options_repeat_is_dropped() -> None:
     assert [q["question_text"] for q in kept] == ["R?"]
 
 
+def test_a_question_without_exactly_four_options_is_dropped() -> None:
+    """An unconstrained reply, from an endpoint that ignores the schema or the
+    400 retry, can carry four distractors: one repeating the answer, or a blank."""
+    raw = json.dumps(
+        {
+            "title": "T",
+            "questions": [
+                {"question": "Q?", "correct": "a", "distractors": ["b", "c", "d", "A"]},
+                {"question": "S?", "correct": "a", "distractors": ["b", "c", "d", ""]},
+                {"question": "R?", "correct": "a", "distractors": ["b", "c", "d"]},
+            ],
+        }
+    )
+
+    kept = json.loads(quiz.build(raw, []).primary)["questions"]
+
+    assert [q["question_text"] for q in kept] == ["R?"]
+
+
 def test_a_quiz_with_no_usable_question_fails_rather_than_opening_empty() -> None:
     """An empty quiz opened as ready; failing says why and lets the job try again."""
     with pytest.raises(ValueError, match="no usable questions"):

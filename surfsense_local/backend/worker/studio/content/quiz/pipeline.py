@@ -63,7 +63,14 @@ def build(raw: str, _sources: list[Source]) -> Built:
         answer = as_text(item.get("correct"))
         options = [answer, *map(as_text, as_list(item.get("distractors")))]
         distinct = {" ".join(option.casefold().split()) for option in options}
-        if not question or len(distinct - {""}) != OPTIONS:
+        # Exactly OPTIONS, all distinct and none blank: an unconstrained reply
+        # can carry more distractors than the schema allows.
+        if (
+            not question
+            or len(options) != OPTIONS
+            or len(distinct) != OPTIONS
+            or "" in distinct
+        ):
             continue
         # Seeded by the question, so the same question keeps its order.
         random.Random(question).shuffle(options)
