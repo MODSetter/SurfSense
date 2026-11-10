@@ -13,6 +13,7 @@ from worker.studio.content.quiz import pipeline as quiz
 from worker.studio.content.quiz import schema as quiz_schema
 from worker.studio.content.summary import pipeline as summary
 from worker.studio.shared import generate
+from worker.studio.shared.artifact import Source
 from worker.studio.shared.text import parse_json
 
 pytestmark = pytest.mark.unit
@@ -34,19 +35,13 @@ def test_a_quiz_carries_the_users_focus_and_its_own_numbers_at_every_tier() -> N
         filled = quiz.prompt(tier, "  the 2031 rainfall figures  ")
 
         assert "Focus on: the 2031 rainfall figures" in filled
-        assert f"exactly {quiz.OPTIONS}" in filled
+        assert f"exactly {quiz.DISTRACTORS}" in filled
         assert "$" not in filled
 
 
 def test_a_quiz_is_capped_where_its_prompt_says_it_is() -> None:
     """Open counts are a prompt's request; the ceiling is the builder's contract."""
-    question = {
-        "question": "Q?",
-        "options": ["a", "b", "c", "d"],
-        "answer": "a",
-        "explanation": "Because.",
-    }
-    raw = json.dumps({"title": "Long", "questions": [question] * 40})
+    raw = _quiz(40)
 
     built = quiz.build(raw, [])
 
@@ -56,51 +51,52 @@ def test_a_quiz_is_capped_where_its_prompt_says_it_is() -> None:
 def test_a_quiz_asks_the_model_for_its_schema(monkeypatch: pytest.MonkeyPatch) -> None:
     """The shape the builder reads is enforced while the model writes, so a
     small model cannot drift off it; the prompt still says it in prose."""
-    sent: list[dict | None] = []
+    sent = _asked(monkeypatch, _quiz(1))
 
-    def fake_run_model(*_args: object, json_schema: dict | None = None, **_kw: object):
-        sent.append(json_schema)
-        return '{"title": "T", "questions": []}'
+    quiz.render(SimpleNamespace(tier=Tier.COMPACT), [], None)
 
-    monkeypatch.setattr(generate, "run_model", fake_run_model)
-    model = SimpleNamespace(tier=Tier.COMPACT)
-
-    quiz.render(model, [], None)
-
-    assert sent == [quiz_schema.REPLY]
+    assert [schema for _, schema in sent] == [
+        quiz_schema.reply(at_least=1, at_most=quiz.QUESTIONS)
+    ]
 
 
 def test_the_quiz_schema_asks_for_what_the_builder_keeps() -> None:
     """A question the builder would drop is one the grammar should not allow."""
-    question = quiz_schema.REPLY["properties"]["questions"]["items"]
-    options = question["properties"]["options"]
+    reply = quiz_schema.reply(at_least=3, at_most=quiz.QUESTIONS)
+    questions = reply["properties"]["questions"]
+    question = questions["items"]
+    distractors = question["properties"]["distractors"]
 
-    assert set(quiz_schema.REPLY["required"]) == {"title", "questions"}
-    assert set(question["required"]) == {"question", "options", "answer", "explanation"}
-    assert options["minItems"] == options["maxItems"] == quiz.OPTIONS
+    assert set(reply["required"]) == {"title", "questions"}
+    assert set(question["required"]) == {
+        "question",
+        "correct",
+        "distractors",
+        "explanation",
+    }
+    assert distractors["minItems"] == distractors["maxItems"] == quiz.DISTRACTORS
+    assert (questions["minItems"], questions["maxItems"]) == (3, quiz.QUESTIONS)
 
 
 def test_a_deck_asks_the_model_for_its_schema(monkeypatch: pytest.MonkeyPatch) -> None:
     """A small model that drifts off the shape loses the whole deck, not a card."""
-    sent: list[dict | None] = []
-
-    def fake_run_model(*_args: object, json_schema: dict | None = None, **_kw: object):
-        sent.append(json_schema)
-        return '{"title": "T", "cards": []}'
-
-    monkeypatch.setattr(generate, "run_model", fake_run_model)
+    sent = _asked(monkeypatch, _deck(1))
 
     flashcards.render(SimpleNamespace(tier=Tier.COMPACT), [], None)
 
-    assert sent == [flashcards_schema.REPLY]
+    assert [schema for _, schema in sent] == [
+        flashcards_schema.reply(at_least=1, at_most=flashcards.CARDS)
+    ]
 
 
 def test_the_deck_schema_asks_for_what_the_builder_keeps() -> None:
     """A card without both sides is dropped, so the grammar asks for both."""
-    card = flashcards_schema.REPLY["properties"]["cards"]["items"]
+    reply = flashcards_schema.reply(at_least=4, at_most=flashcards.CARDS)
+    cards = reply["properties"]["cards"]
 
-    assert set(flashcards_schema.REPLY["required"]) == {"title", "cards"}
-    assert set(card["required"]) == {"front", "back"}
+    assert set(reply["required"]) == {"title", "cards"}
+    assert set(cards["items"]["required"]) == {"front", "back"}
+    assert (cards["minItems"], cards["maxItems"]) == (4, flashcards.CARDS)
 
 
 def test_every_content_kind_is_asked_for_in_its_own_words_at_every_tier() -> None:
@@ -118,8 +114,7 @@ def test_every_content_kind_is_asked_for_in_its_own_words_at_every_tier() -> Non
 
 def test_a_deck_and_a_map_are_capped_where_their_prompts_say_they_are() -> None:
     """Open counts are a prompt's request; the ceiling is the builder's contract."""
-    card = {"front": "Q?", "back": "A."}
-    deck = flashcards.build(json.dumps({"cards": [card] * 40}), [])
+    deck = flashcards.build(_deck(40), [])
 
     branch = {"label": "Branch", "children": [{"label": "Leaf"}]}
     map_body = mindmap.build(json.dumps({"nodes": [branch] * 40}), []).markdown
@@ -186,7 +181,195 @@ def test_flashcards_and_quiz_project_to_readable_markdown() -> None:
 
     test = quiz.build(
         '{"title": "Test", "questions": [{"question": "Q?", '
-        '"options": ["a", "b", "c", "d"], "answer": "a"}]}',
+        '"correct": "a", "distractors": ["b", "c", "d"]}]}',
         [],
     )
     assert "Q?" in test.markdown and "Answer: a" in test.markdown
+
+
+def _asked(monkeypatch: pytest.MonkeyPatch, reply: str) -> list[tuple[str, dict]]:
+    """Every system prompt and schema a pipeline sends, each answered with `reply`."""
+    sent: list[tuple[str, dict]] = []
+
+    def fake_run_model(_model: object, system: str, *_a: object, **kw: object) -> str:
+        sent.append((system, kw["json_schema"]))
+        return reply
+
+    monkeypatch.setattr(generate, "run_model", fake_run_model)
+    return sent
+
+
+def _source(chars: int) -> list[Source]:
+    return [Source(1, "Notes", "x" * chars)]
+
+
+def _deck(count: int) -> str:
+    cards = [{"front": f"Q{n}?", "back": "A."} for n in range(count)]
+    return json.dumps({"title": "T", "cards": cards})
+
+
+def _quiz(count: int) -> str:
+    questions = [
+        {
+            "question": f"Q{n}?",
+            "correct": "right",
+            "distractors": ["w1", "w2", "w3"],
+            "explanation": "E.",
+        }
+        for n in range(count)
+    ]
+    return json.dumps({"title": "T", "questions": questions})
+
+
+# The sources' room at the 8,192-token window a local model loads at, in characters.
+SMALLEST_WINDOW_CHARS = 12_276
+
+
+def test_a_small_model_is_held_to_as_many_cards_as_its_sources_hold(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A small model left to stop on its own closed a deck after one card."""
+    sent = _asked(monkeypatch, _deck(5))
+    sources = _source(5 * flashcards.CHARS_PER_CARD)
+
+    flashcards.render(SimpleNamespace(tier=Tier.COMPACT), sources, None)
+
+    system, schema = sent[0]
+    assert "Make 5 study flashcards" in system
+    assert schema["properties"]["cards"]["minItems"] == 5
+
+
+def test_a_small_model_given_the_smallest_window_is_asked_for_a_full_deck(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """At the 8,192-token window a local model loads at, the sources carry all 20."""
+    sent = _asked(monkeypatch, _deck(flashcards.CARDS))
+
+    flashcards.render(
+        SimpleNamespace(tier=Tier.COMPACT), _source(SMALLEST_WINDOW_CHARS), None
+    )
+
+    system, schema = sent[0]
+    assert f"Make {flashcards.CARDS} study flashcards" in system
+    assert schema["properties"]["cards"]["minItems"] == flashcards.CARDS
+
+
+def test_a_larger_model_still_chooses_how_many_cards(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Only the small prompt states a count; a larger model is never padded to one."""
+    for tier in (Tier.CAPABLE, Tier.FRONTIER):
+        sent = _asked(monkeypatch, _deck(3))
+
+        flashcards.render(SimpleNamespace(tier=tier), _source(50_000), None)
+
+        assert sent[0][1]["properties"]["cards"]["minItems"] == 1
+
+
+def test_a_small_model_is_held_to_as_many_questions_as_its_sources_hold(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The quiz takes the deck's rule: a stated count the grammar holds."""
+    sent = _asked(monkeypatch, _quiz(quiz.QUESTIONS))
+
+    quiz.render(
+        SimpleNamespace(tier=Tier.COMPACT), _source(SMALLEST_WINDOW_CHARS), None
+    )
+
+    system, schema = sent[0]
+    assert f"quiz of {quiz.QUESTIONS} questions" in system
+    assert schema["properties"]["questions"]["minItems"] == quiz.QUESTIONS
+
+
+def test_a_repeated_card_is_kept_once() -> None:
+    """A small model writes the same front twice; it is one card."""
+    raw = json.dumps(
+        {
+            "title": "T",
+            "cards": [
+                {"front": "What is ATP?", "back": "Energy."},
+                {"front": "what is  ATP?", "back": "Energy again."},
+            ],
+        }
+    )
+
+    assert len(json.loads(flashcards.build(raw, []).primary)["cards"]) == 1
+
+
+def test_a_deck_with_no_usable_card_fails_rather_than_opening_empty() -> None:
+    """An empty deck opened as ready; failing says why and lets the job try again."""
+    with pytest.raises(ValueError, match="no usable cards"):
+        flashcards.build('{"title": "T", "cards": [{"front": "Q?", "back": ""}]}', [])
+
+
+def test_a_card_whose_back_repeats_its_front_is_dropped() -> None:
+    """Qwen3 0.6B copied one source sentence onto both sides of 9 to 19 cards in
+    3 decks of 12; such a card asks nothing."""
+    sentence = (
+        "The transformer was proposed in the 2017 paper Attention Is All You Need"
+    )
+    raw = json.dumps(
+        {
+            "title": "T",
+            "cards": [
+                {"front": sentence, "back": sentence},
+                {"front": f"{sentence}.", "back": f"{sentence.lower()}!"},
+                {"front": "When was the transformer proposed?", "back": "In 2017."},
+            ],
+        }
+    )
+
+    cards = json.loads(flashcards.build(raw, []).primary)["cards"]
+
+    assert [card["front_text"] for card in cards] == [
+        "When was the transformer proposed?"
+    ]
+
+
+def test_a_quiz_question_offers_its_answer_among_the_distractors() -> None:
+    """The answer is a field of its own, so it cannot fail to match an option."""
+    built = quiz.build(_quiz(1), [])
+    question = json.loads(built.primary)["questions"][0]
+
+    assert sorted(question["options"]) == ["right", "w1", "w2", "w3"]
+    assert question["options"][question["correct_option_index"]] == "right"
+    assert "Answer: right" in built.markdown
+
+
+def test_the_answer_is_not_always_in_the_same_place() -> None:
+    """The model writes the answer first, so the builder moves it."""
+    questions = json.loads(quiz.build(_quiz(quiz.QUESTIONS), []).primary)["questions"]
+
+    assert len({q["correct_option_index"] for q in questions}) > 1
+
+
+def test_a_question_is_shuffled_the_same_way_every_time() -> None:
+    """A regenerate that writes the same question keeps its options in place."""
+    assert quiz.build(_quiz(3), []).primary == quiz.build(_quiz(3), []).primary
+
+
+def test_a_question_whose_options_repeat_is_dropped() -> None:
+    """A small model wrote four identical options, which cannot be answered."""
+    raw = json.dumps(
+        {
+            "title": "T",
+            "questions": [
+                {
+                    "question": "Q?",
+                    "correct": "Same",
+                    "distractors": ["same", "b", "c"],
+                },
+                {"question": "R?", "correct": "a", "distractors": ["b", "c", "d"]},
+            ],
+        }
+    )
+
+    kept = json.loads(quiz.build(raw, []).primary)["questions"]
+
+    assert [q["question_text"] for q in kept] == ["R?"]
+
+
+def test_a_quiz_with_no_usable_question_fails_rather_than_opening_empty() -> None:
+    """An empty quiz opened as ready; failing says why and lets the job try again."""
+    with pytest.raises(ValueError, match="no usable questions"):
+        quiz.build('{"title": "T", "questions": []}', [])

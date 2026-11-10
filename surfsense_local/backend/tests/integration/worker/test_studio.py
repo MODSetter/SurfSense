@@ -286,7 +286,7 @@ def test_quiz_becomes_a_question_file_and_a_question_list_body(
     seen = _capture_model(
         monkeypatch,
         '{"title": "Cassini", "questions": [{"question": "Arrival?", '
-        '"options": ["1997", "2004", "2010", "2017"], "answer": "2004", '
+        '"correct": "2004", "distractors": ["1997", "2010", "2017"], '
         '"explanation": "Cassini reached Saturn in July 2004."}]}',
     )
     artifact = make_artifact(session, fmt="quiz", prompt="arrival facts")
@@ -298,18 +298,13 @@ def test_quiz_becomes_a_question_file_and_a_question_list_body(
         artifact.document.error_message
     )
     _one_file(artifact, "application/json", b"{")
-    assert json.loads(_primary_bytes(artifact)) == {
-        "schema_version": 1,
-        "title": "Cassini",
-        "questions": [
-            {
-                "question_text": "Arrival?",
-                "options": ["1997", "2004", "2010", "2017"],
-                "correct_option_index": 1,
-                "explanation_text": "Cassini reached Saturn in July 2004.",
-            }
-        ],
-    }
+    body = json.loads(_primary_bytes(artifact))
+    question = body["questions"][0]
+    assert (body["schema_version"], body["title"]) == (1, "Cassini")
+    assert question["question_text"] == "Arrival?"
+    assert sorted(question["options"]) == ["1997", "2004", "2010", "2017"]
+    assert question["options"][question["correct_option_index"]] == "2004"
+    assert question["explanation_text"] == "Cassini reached Saturn in July 2004."
     assert "Answer: 2004" in artifact.document.content
     assert "arrival facts" in seen[0]
 

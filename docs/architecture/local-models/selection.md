@@ -329,6 +329,8 @@ Studio passes a schema through `run_model()`
 ([`generate.py`](../../../surfsense_local/backend/worker/studio/shared/generate.py)),
 each format's beside its prompts, as the quiz's
 ([`schema.py`](../../../surfsense_local/backend/worker/studio/content/quiz/schema.py)).
+Every list in a schema has a `maxItems`, so a model that repeats stops at the
+ceiling instead of filling the window and cutting its JSON short.
 A reply that arrives unconstrained, from an endpoint that ignores
 `response_format` or from the 400 retry, is still read by `parse_json()`.
 
