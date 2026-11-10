@@ -3,6 +3,7 @@ import type { MetadataRoute } from "next";
 import { blog } from "@/.source/server";
 import { FREE_MODELS } from "@/app/(home)/free/free-models";
 import { allPlugins } from "@/app/(home)/plugins/all-plugins";
+import { STUDY_PAGES } from "@/components/site/site-content";
 import { getPublishedAnnouncementPosts } from "@/features/announcements/announcements-source";
 import { announcementPath } from "@/features/announcements/announcements-utils";
 import { BUSINESS_LAUNCHED } from "@/features/business-launch/business-launched.mts";
@@ -37,6 +38,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 			changeFrequency: "weekly",
 			priority: 0.9,
 		},
+		// The student, teacher and study pages, which name no paid job.
+		...STUDY_PAGES.map((path) => ({
+			url: `${BASE_URL}${path}`,
+			lastModified,
+			changeFrequency: "weekly" as const,
+			priority: 0.9,
+		})),
 		// The audience and job pages: 404s until Business is on sale (`site-navigation.ts`).
 		...(BUSINESS_LAUNCHED ? BUSINESS_PAGES : []).map((path) => ({
 			url: `${BASE_URL}${path}`,

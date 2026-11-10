@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { HomeButton } from "@/components/site/home-button";
-import { DOWNLOADS_URL, type SiteLink } from "@/components/site/site-content";
+import { DOWNLOADS_URL, type SiteLink, type SiteMenuItem } from "@/components/site/site-content";
 import { SiteStars } from "@/components/site/site-stars";
 import { siteText } from "@/components/site/site-text";
 import { cn } from "@/components/ui/cn";
@@ -13,6 +13,7 @@ import { BUSINESS_LAUNCHED } from "@/features/business-launch/business-launched.
 import {
 	isNavMenu,
 	type NavEntry,
+	type NavGroup,
 	type NavMenu,
 	siteNavigation,
 } from "@/features/site-navigation/site-navigation";
@@ -37,8 +38,8 @@ import {
  * and the menu motion in `home.css`.
  *
  * What it links comes from `siteNavigation`, which changes with the Business
- * launch switch: plain links and dropdown menus, in order. One menu is open at a
- * time.
+ * launch switch: plain links and dropdown menus, in order, the For menu first.
+ * One menu is open at a time.
  *
  * The star count arrives as a prop rather than being fetched here: it is read
  * and cached on the server, so it is already in the HTML on first paint.
@@ -48,14 +49,20 @@ const MENU_ID = "site-nav-menu";
 
 const NAV = siteNavigation(BUSINESS_LAUNCHED);
 
-/** The drawer's runs: each menu under its own heading, and the plain links between them together. */
+/**
+ * The drawer's runs: each group of a menu under its own heading (a menu of one group under
+ * the menu's name), and the plain links between menus together.
+ */
 type DrawerGroup = { key: string; heading?: string; links: SiteLink[] };
 
 function drawerGroups(entries: NavEntry[]): DrawerGroup[] {
 	const groups: DrawerGroup[] = [];
 	for (const entry of entries) {
 		if (isNavMenu(entry)) {
-			groups.push({ key: entry.name, heading: entry.name, links: entry.items });
+			for (const group of entry.groups) {
+				const heading = group.heading ?? entry.name;
+				groups.push({ key: `${entry.name}/${heading}`, heading, links: group.items });
+			}
 			continue;
 		}
 		const last = groups.at(-1);
@@ -106,6 +113,41 @@ function DownloadLink({ onClick, className }: { onClick?: () => void; className?
 	);
 }
 
+function MenuLink({ item, onNavigate }: { item: SiteMenuItem; onNavigate: () => void }) {
+	return (
+		<Link
+			href={item.href}
+			onClick={onNavigate}
+			className="flex items-center gap-3 rounded-md px-3 py-2.5 transition-colors duration-100 hover:bg-accent focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+		>
+			<span className="grid size-9 shrink-0 place-items-center rounded-lg bg-secondary text-foreground">
+				<item.icon aria-hidden="true" className="size-[1.125rem]" />
+			</span>
+			<span className="flex min-w-0 flex-col gap-0.5">
+				<span className="text-sm font-medium text-foreground">{item.name}</span>
+				<span className="text-xs text-muted-foreground">{item.description}</span>
+			</span>
+		</Link>
+	);
+}
+
+function MenuGroup({ group, onNavigate }: { group: NavGroup; onNavigate: () => void }) {
+	return (
+		<div className="flex flex-col">
+			{group.heading ? (
+				<p className={cn(siteText.eyebrow, "px-3 pt-2.5 pb-1")}>{group.heading}</p>
+			) : null}
+			{group.items.map((item) => (
+				<MenuLink key={item.href} item={item} onNavigate={onNavigate} />
+			))}
+		</div>
+	);
+}
+
+/**
+ * One dropdown. A menu of one group is a single list, as Resources is; a menu of several
+ * groups, as For is, puts its first group in one column and the rest in the other.
+ */
 function MenuDropdown({
 	menu,
 	open,
@@ -117,6 +159,7 @@ function MenuDropdown({
 	onToggle: () => void;
 	onNavigate: () => void;
 }) {
+	const [first, ...rest] = menu.groups;
 	return (
 		<div className="relative">
 			<button type="button" className={LINK_CLASS} aria-expanded={open} onClick={onToggle}>
@@ -129,24 +172,21 @@ function MenuDropdown({
 				/>
 			</button>
 
-			{open ? (
-				<div className="absolute top-full left-1/2 mt-7 w-72 -translate-x-1/2 rounded-xl bg-popover p-1.5 text-popover-foreground shadow-(--nav-surface)">
-					{menu.items.map((item) => (
-						<Link
-							key={item.href}
-							href={item.href}
-							onClick={onNavigate}
-							className="flex items-center gap-3 rounded-md px-3 py-2.5 transition-colors duration-100 hover:bg-accent focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
-						>
-							<span className="grid size-9 shrink-0 place-items-center rounded-lg bg-secondary text-foreground">
-								<item.icon aria-hidden="true" className="size-[1.125rem]" />
-							</span>
-							<span className="flex min-w-0 flex-col gap-0.5">
-								<span className="text-sm font-medium text-foreground">{item.name}</span>
-								<span className="text-xs text-muted-foreground">{item.description}</span>
-							</span>
-						</Link>
-					))}
+			{open && first ? (
+				<div
+					className={cn(
+						"absolute top-full left-1/2 mt-7 -translate-x-1/2 rounded-xl bg-popover p-1.5 text-popover-foreground shadow-(--nav-surface)",
+						rest.length > 0 ? "grid w-[36rem] grid-cols-2 gap-x-1.5" : "w-72"
+					)}
+				>
+					<MenuGroup group={first} onNavigate={onNavigate} />
+					{rest.length > 0 ? (
+						<div className="flex flex-col gap-1">
+							{rest.map((group) => (
+								<MenuGroup key={group.heading} group={group} onNavigate={onNavigate} />
+							))}
+						</div>
+					) : null}
 				</div>
 			) : null}
 		</div>

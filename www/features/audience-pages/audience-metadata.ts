@@ -58,7 +58,9 @@ export function businessPageMetadata(launched: boolean, page: AudiencePageMeta):
  */
 export function audiencePageSchema(
 	page: Pick<AudiencePageMeta, "path" | "description">,
-	business?: { price: number; checkoutPath: string }
+	business?: { price: number; checkoutPath: string },
+	/** `EducationalApplication` on the study pages. */
+	category = "BusinessApplication"
 ) {
 	const free = {
 		"@type": "Offer",
@@ -70,7 +72,7 @@ export function audiencePageSchema(
 		"@context": "https://schema.org",
 		"@type": "SoftwareApplication",
 		name: "SurfSense",
-		applicationCategory: "BusinessApplication",
+		applicationCategory: category,
 		operatingSystem: "Windows, macOS, Linux",
 		description: page.description,
 		url: `${SITE}${page.path}`,
