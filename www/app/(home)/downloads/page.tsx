@@ -3,7 +3,6 @@ import { HomeBadge } from "@/components/site/home-badge";
 import { sectionSpacing } from "@/components/site/home-section-spacing";
 import { siteText } from "@/components/site/site-text";
 import { cn } from "@/components/ui/cn";
-import { BUSINESS_LAUNCHED } from "@/features/business-launch/business-launched.mts";
 import { getReleaseAssets } from "@/features/downloads/release-assets";
 import { TrialForm } from "@/features/license/license-forms";
 import { AllReleasesLink, OSDownloadGrid } from "./download-panels";
@@ -15,12 +14,11 @@ import { AllReleasesLink, OSDownloadGrid } from "./download-panels";
  */
 
 /**
- * From Business on, the emailed trial is the paid jobs', which most visitors to this page do
- * not need, so the form says what it sends. Until then it needs no note.
+ * The emailed trial is the paid jobs', which most visitors to this page do not need, so
+ * the form says what it sends.
  */
-const TRIAL_NOTE = BUSINESS_LAUNCHED
-	? "Your email gets a 14-day trial of the paid security questionnaire and contract redline jobs, one per address. The app itself needs no license."
-	: "";
+const TRIAL_NOTE =
+	"Your email gets a 14-day trial of the paid security questionnaire and contract redline jobs, one per address. The app itself needs no license.";
 
 export const metadata: Metadata = {
 	title: "Download SurfSense | Windows, macOS, Linux",

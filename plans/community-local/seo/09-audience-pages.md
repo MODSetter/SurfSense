@@ -12,6 +12,11 @@ or en dash.
 Page status lives in [`../portal/02-pages.md`](../portal/02-pages.md) and in
 the PRs; this file says only what each page should contain.
 
+**The switch is gone (10 Nov 2026).** The maintainer removed www's
+`NEXT_PUBLIC_BUSINESS_LAUNCHED`, so every page here ships in every build. Where
+a brief below says "behind the switch", read "live from the release that puts
+Business on sale".
+
 ## Decided on 9 Nov 2026
 
 - Audience pages replace "For business" in the nav. Order: lawyers and
@@ -93,10 +98,10 @@ hosted model does better, the page says so.
   keeps "Legal marketing still waits for one", and the
   [file-agent proposal](../../../docs/proposals/file-agent/README.md) holds
   public redline pages, legal SEO pages and legal marketing for that review.
-  `/ai-for-lawyers` and `/jobs/contract-redline` are all three. Recommended:
-  build both now, behind `NEXT_PUBLIC_BUSINESS_LAUNCHED`; have the lawyer who
-  reads the Business terms read them before switch day; record who signed off
-  in the PR. Publishing without that read needs a decision that supersedes that
+  `/ai-for-lawyers` and `/jobs/contract-redline` are all three. Both are
+  built, and with the switch gone they go live with the release that sells
+  Business, so the lawyer who reads the Business terms reads them before that
+  release; record who signed off in its PR. Publishing without that read needs a decision that supersedes that
   line of ADR 0086.
 - **Compliance-adjacent copy** follows `02`'s compliance-page rule: say only
   where the bytes are, and have it read before publishing. It covers the whole
@@ -106,35 +111,35 @@ hosted model does better, the page says so.
   decision of 5 Nov 2026. Their pages may publish the measured rows; the
   redline's rows are quoted only after the maintainer has checked the eval's
   stance file.
-- **The switch.** Everything that names a paid job, the Business price or the
-  trial ships behind the switch flag, as the pricing pages already do. The
-  student and teacher pages name no job and can ship at any time.
+- **The release.** With the switch gone, the release that carries this site
+  puts Business on sale on it. The Business terms, the lawyer's read and the
+  launch-day steps in `docs/architecture/license/portal.md` all come before
+  it.
 
 ## The nav
 
-A "For" menu takes the place of the "For business" link, on both sites (the
-maintainer's ask, 10 Nov 2026). It holds only the pages that exist:
+A "For" menu takes the place of the "For business" link (the maintainer's ask,
+10 Nov 2026), in three groups:
 
-| group in For | before the switch | after the switch |
-|---|---|---|
-| Who it's for | Students, Teachers, Business (`/private-ai-for-business`) | Lawyers, Accountants, Students, Teachers, Business |
-| Jobs | none | Contract redline, Security questionnaire |
-| Study tools | Study guide maker, Flashcard generator, Quiz generator, Podcast generator | the same |
+| group in For | pages |
+|---|---|
+| Who it's for | Lawyers, Accountants, Students, Teachers, Business (`/private-ai-for-business`) |
+| Jobs | Contract redline, Security questionnaire |
+| Study tools | Study guide maker, Flashcard generator, Quiz generator, Podcast generator |
 
-The bar reads For, Plugins, Docs, Pricing, Resources before the switch, and
-For, Docs, Pricing, Resources after it.
+The bar reads For, Docs, Pricing, Resources.
 
-- **Plugins** moves from the bar into the Resources menu. After the switch,
+- **Plugins** moves from the bar into the Resources menu. Since the scrapers retired,
   `first-party-plugins.json` is empty, so the page shows the three built-in
   sources and third-party plugins: too little for the top bar.
-- **The footer**, after the switch, has a "Who it's for" column of the five
+- **The footer** has a "Who it's for" column of the five
   audience pages, each anchored with its keyword ("AI for lawyers"), and lists
-  the two jobs under Product. Before the switch it is as it was.
+  the two jobs under Product.
 - **`/private-ai-for-business` stays**, as the page for consultants and other
   professions. Its legal and accounting cards link the new pages, and the header
   comment in its `page.tsx` that forbade vertical pages now points here.
-- Built in `features/site-navigation/site-navigation.ts`, a function of the
-  switch, with tests for both sites and for every link leading to a page.
+- Built in `features/site-navigation/site-navigation.ts`, with tests for its
+  menus and for every link leading to a page.
 
 ## `/` homepage
 

@@ -9,13 +9,12 @@ import { SiteStars } from "@/components/site/site-stars";
 import { siteText } from "@/components/site/site-text";
 import { cn } from "@/components/ui/cn";
 import { ChevronDownIcon, MenuTwoLineIcon } from "@/components/ui/icons";
-import { BUSINESS_LAUNCHED } from "@/features/business-launch/business-launched.mts";
 import {
 	isNavMenu,
 	type NavEntry,
 	type NavGroup,
 	type NavMenu,
-	siteNavigation,
+	SITE_NAVIGATION,
 } from "@/features/site-navigation/site-navigation";
 
 /**
@@ -37,8 +36,8 @@ import {
  * `ss-home-nav*` classes left on the markup are hooks for the surface shadow
  * and the menu motion in `home.css`.
  *
- * What it links comes from `siteNavigation`, which changes with the Business
- * launch switch: plain links and dropdown menus, in order, the For menu first.
+ * What it links comes from `SITE_NAVIGATION`: plain links and dropdown menus, in
+ * order, the For menu first.
  * One menu is open at a time.
  *
  * The star count arrives as a prop rather than being fetched here: it is read
@@ -47,7 +46,7 @@ import {
 
 const MENU_ID = "site-nav-menu";
 
-const NAV = siteNavigation(BUSINESS_LAUNCHED);
+const NAV = SITE_NAVIGATION;
 
 /**
  * The drawer's runs: each group of a menu under its own heading (a menu of one group under

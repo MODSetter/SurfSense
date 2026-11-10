@@ -3,12 +3,11 @@ import { readdirSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import {
-	BUSINESS_PAGES,
-	footerColumns,
+	FOOTER_COLUMNS,
 	isNavMenu,
 	menuItems,
 	type NavEntry,
-	siteNavigation,
+	SITE_NAVIGATION,
 } from "./site-navigation";
 
 // Run with: pnpm exec tsx --test features/site-navigation/site-navigation.test.ts
@@ -47,90 +46,57 @@ function isPage(href: string): boolean {
 	return ROUTES.some((route) => routeMatches(route, parts));
 }
 
-function names(entries: NavEntry[]): string[] {
-	return entries.map((entry) => entry.name);
-}
-
 function menu(entries: NavEntry[], name: string) {
 	const found = entries.filter(isNavMenu).find((entry) => entry.name === name);
 	assert.ok(found, `no ${name} menu`);
 	return found;
 }
 
-/** A menu as its groups' headings and the pages each one links. */
-function groups(entries: NavEntry[], name: string) {
-	return menu(entries, name).groups.map((group) => [
-		group.heading,
-		group.items.map((item) => item.href),
-	]);
-}
-
-/** Every link on this site that the nav and the footer carry, menus included. */
-function siteHrefs(launched: boolean): string[] {
-	const nav = siteNavigation(launched).flatMap((entry) =>
-		isNavMenu(entry) ? menuItems(entry) : [entry]
-	);
-	const footer = footerColumns(launched).flatMap((column) => column.links);
-	return [...nav, ...footer].filter((link) => !link.external).map((link) => link.href);
-}
-
-const STUDY_TOOLS = [
-	"/features/study-guide-maker",
-	"/features/flashcard-generator",
-	"/features/quiz-generator",
-	"/features/podcast-generator",
-];
-
-test("switched off, a For menu takes the place of For business, and the rest of the nav stays", () => {
-	const nav = siteNavigation(false);
-	assert.deepEqual(names(nav), ["For", "Plugins", "Docs", "Pricing", "Resources"]);
-	assert.deepEqual(groups(nav, "For"), [
-		["Who it's for", ["/ai-for-students", "/ai-for-teachers", "/private-ai-for-business"]],
-		["Study tools", STUDY_TOOLS],
-	]);
+test("the bar opens on the For menu: who it's for, the jobs, then the study tools", () => {
 	assert.deepEqual(
-		menuItems(menu(nav, "Resources")).map((item) => item.href),
-		["/blog", "/announcements", "/changelog", "/contact"]
+		SITE_NAVIGATION.map((entry) => entry.name),
+		["For", "Docs", "Pricing", "Resources"]
 	);
-});
-
-test("switched on, the For menu adds the paid audiences and the jobs, and Plugins moves under Resources", () => {
-	const nav = siteNavigation(true);
-	assert.deepEqual(names(nav), ["For", "Docs", "Pricing", "Resources"]);
-	assert.deepEqual(groups(nav, "For"), [
+	assert.deepEqual(
+		menu(SITE_NAVIGATION, "For").groups.map((group) => [
+			group.heading,
+			group.items.map((item) => item.href),
+		]),
 		[
-			"Who it's for",
 			[
-				"/ai-for-lawyers",
-				"/ai-for-accountants",
-				"/ai-for-students",
-				"/ai-for-teachers",
-				"/private-ai-for-business",
+				"Who it's for",
+				[
+					"/ai-for-lawyers",
+					"/ai-for-accountants",
+					"/ai-for-students",
+					"/ai-for-teachers",
+					"/private-ai-for-business",
+				],
 			],
-		],
-		["Jobs", ["/jobs/contract-redline", "/jobs/security-questionnaire"]],
-		["Study tools", STUDY_TOOLS],
-	]);
-	assert.deepEqual(
-		menuItems(menu(nav, "Resources")).map((item) => item.href),
-		["/blog", "/announcements", "/changelog", "/plugins", "/contact"]
-	);
-});
-
-test("switched off, the footer is the one the site had before Business", () => {
-	assert.deepEqual(
-		footerColumns(false).map((column) => [column.heading, column.links.map((link) => link.href)]),
-		[
-			["Product", ["/downloads", "/private-ai-for-business", "/plugins", "/pricing", "/docs"]],
-			["Resources", ["/blog", "/announcements", "/changelog", "/contact"]],
-			["Company", ["/privacy", "/terms"]],
+			["Jobs", ["/jobs/contract-redline", "/jobs/security-questionnaire"]],
+			[
+				"Study tools",
+				[
+					"/features/study-guide-maker",
+					"/features/flashcard-generator",
+					"/features/quiz-generator",
+					"/features/podcast-generator",
+				],
+			],
 		]
 	);
 });
 
-test("switched on, the footer groups the pages by who they are for, and the jobs sit under Product", () => {
+test("Plugins sits under Resources, since the scrapers retired", () => {
 	assert.deepEqual(
-		footerColumns(true).map((column) => [column.heading, column.links.map((link) => link.href)]),
+		menuItems(menu(SITE_NAVIGATION, "Resources")).map((item) => item.href),
+		["/blog", "/announcements", "/changelog", "/plugins", "/contact"]
+	);
+});
+
+test("the footer groups the pages by who they are for, and the jobs sit under Product", () => {
+	assert.deepEqual(
+		FOOTER_COLUMNS.map((column) => [column.heading, column.links.map((link) => link.href)]),
 		[
 			[
 				"Product",
@@ -159,21 +125,11 @@ test("switched on, the footer groups the pages by who they are for, and the jobs
 	);
 });
 
-test("every page the nav and the footer link to exists, switched on or off", () => {
-	for (const launched of [false, true]) {
-		for (const href of siteHrefs(launched)) {
-			assert.ok(isPage(href), `${href} has no page (switched ${launched ? "on" : "off"})`);
-		}
-	}
-});
-
-test("until Business is on sale, nothing in the nav or the footer leads to its pages", () => {
-	const before = new Set(siteHrefs(false));
-	for (const href of BUSINESS_PAGES) {
-		assert.ok(!before.has(href), `${href} is linked before the switch`);
-	}
-	const after = new Set(siteHrefs(true));
-	for (const href of BUSINESS_PAGES) {
-		assert.ok(after.has(href), `${href} is not linked after the switch`);
+test("every page the nav and the footer link to exists", () => {
+	const nav = SITE_NAVIGATION.flatMap((entry) => (isNavMenu(entry) ? menuItems(entry) : [entry]));
+	const footer = FOOTER_COLUMNS.flatMap((column) => column.links);
+	for (const link of [...nav, ...footer]) {
+		if (link.external) continue;
+		assert.ok(isPage(link.href), `${link.href} has no page`);
 	}
 });

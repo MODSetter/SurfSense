@@ -16,8 +16,7 @@ function isPlainClick(event: React.MouseEvent<HTMLAnchorElement>): boolean {
 }
 
 /**
- * A checkout page's one primary action, shared by `/pricing/individual` and
- * `/pricing/business`. A plain anchor, so it still reaches checkout with scripts
+ * A checkout page's one primary action, on `/pricing/business`. A plain anchor, so it still reaches checkout with scripts
  * off or opened in a new tab; the channel tag is added once the page is
  * interactive and recomputed at click time, when PostHog has loaded.
  */

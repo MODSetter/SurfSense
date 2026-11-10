@@ -6,7 +6,6 @@ import { allPlugins } from "@/app/(home)/plugins/all-plugins";
 import { STUDY_PAGES } from "@/components/site/site-content";
 import { getPublishedAnnouncementPosts } from "@/features/announcements/announcements-source";
 import { announcementPath } from "@/features/announcements/announcements-utils";
-import { BUSINESS_LAUNCHED } from "@/features/business-launch/business-launched.mts";
 import { source as docsSource } from "@/features/docs/source";
 import { BUSINESS_PAGES } from "@/features/site-navigation/site-navigation";
 
@@ -45,8 +44,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 			changeFrequency: "weekly" as const,
 			priority: 0.9,
 		})),
-		// The audience and job pages: 404s until Business is on sale (`site-navigation.ts`).
-		...(BUSINESS_LAUNCHED ? BUSINESS_PAGES : []).map((path) => ({
+		// The audience and job pages that sell Business's jobs.
+		...BUSINESS_PAGES.map((path) => ({
 			url: `${BASE_URL}${path}`,
 			lastModified,
 			changeFrequency: "weekly" as const,
@@ -62,8 +61,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 		},
 		{ url: `${BASE_URL}/pricing`, lastModified, changeFrequency: "weekly", priority: 0.9 },
 		{
-			// The checkout page on sale: Individual's redirects to Business's once Business launches.
-			url: `${BASE_URL}/pricing/${BUSINESS_LAUNCHED ? "business" : "individual"}`,
+			// Business's checkout page; Individual's redirects to it.
+			url: `${BASE_URL}/pricing/business`,
 			lastModified,
 			changeFrequency: "weekly",
 			priority: 0.8,

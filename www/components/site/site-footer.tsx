@@ -4,8 +4,7 @@ import { REPO_URL } from "@/components/site/site-content";
 import footerScene from "@/components/site/site-footer-scene.webp";
 import { SiteSocials } from "@/components/site/site-socials";
 import { cn } from "@/components/ui/cn";
-import { BUSINESS_LAUNCHED } from "@/features/business-launch/business-launched.mts";
-import { footerColumns } from "@/features/site-navigation/site-navigation";
+import { FOOTER_COLUMNS } from "@/features/site-navigation/site-navigation";
 
 /**
  * Site footer: the site's links set straight on the page's ground, which fades
@@ -16,8 +15,7 @@ import { footerColumns } from "@/features/site-navigation/site-navigation";
 const LINK_CLASS =
 	"text-[0.9375rem] text-muted-foreground transition-colors duration-100 hover:text-foreground focus-visible:rounded-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
-/** Before and after the Business launch switch; the switch adds a column of its pages. */
-const COLUMNS = footerColumns(BUSINESS_LAUNCHED);
+const COLUMNS = FOOTER_COLUMNS;
 
 const WORDMARK_CLASS =
 	"font-[family-name:var(--font-brand)] font-semibold [font-variation-settings:'SOFT'_75,'WONK'_0]";

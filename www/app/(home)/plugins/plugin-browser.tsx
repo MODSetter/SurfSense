@@ -6,7 +6,6 @@ import { HomeButton } from "@/components/site/home-button";
 import { siteText } from "@/components/site/site-text";
 import { cn } from "@/components/ui/cn";
 import { Search01Icon } from "@/components/ui/icons";
-import { BUSINESS_LAUNCHED } from "@/features/business-launch/business-launched.mts";
 import { PluginCard } from "./plugin-card";
 import { PluginLine } from "./plugin-line";
 import { FEATURED_IDS, type PluginListing, SURFSENSE_PLUGINS } from "./plugin-list";
@@ -141,19 +140,7 @@ export function PluginBrowser({
 					<PluginRow
 						id="plugins-surfsense-label"
 						title="By SurfSense"
-						subtitle={
-							BUSINESS_LAUNCHED ? (
-								"Made by us, built into the app and free. No licence needed."
-							) : (
-								<>
-									Made by us. One licence for all.{" "}
-									<Link className={siteText.link} href="/pricing">
-										See pricing
-									</Link>
-									.
-								</>
-							)
-						}
+						subtitle={"Made by us, built into the app and free. No licence needed."}
 						plugins={SURFSENSE_PLUGINS}
 					/>
 					{registryPlugins.length > 0 ? (

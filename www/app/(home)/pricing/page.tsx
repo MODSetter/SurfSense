@@ -8,7 +8,6 @@ import {
 	BUSINESS_PRICING_SCHEMA,
 	LICENCE_COMPARISON,
 } from "@/app/(home)/pricing/business-pricing-content";
-import { PLANS, PRICING_FAQ, PRICING_LEDE } from "@/app/(home)/pricing/pricing-content";
 import {
 	PricingComparison,
 	PricingHero,
@@ -16,7 +15,6 @@ import {
 	PricingQuestions,
 } from "@/app/(home)/pricing/pricing-sections";
 import { JsonLd } from "@/components/site/json-ld";
-import { BUSINESS_LAUNCHED } from "@/features/business-launch/business-launched.mts";
 
 /**
  * Pricing page.
@@ -25,10 +23,9 @@ import { BUSINESS_LAUNCHED } from "@/features/business-launch/business-launched.
  * all come from `app/(home)/layout.tsx`, and every style on this page resolves
  * from `app/(home)/home.css`.
  *
- * Copy is sourced from `plans/community-local/` — see `pricing-content.ts` for
- * what came from where, and for the two items the brief asks for that are
- * deliberately left out. Once Business is on sale (`NEXT_PUBLIC_BUSINESS_LAUNCHED`)
- * the copy is `business-pricing-content.ts`.
+ * The copy is `business-pricing-content.ts`; `pricing-content.ts` holds what the
+ * pricing pages share, and the two items the brief asks for that are
+ * deliberately left out.
  *
  * A server component with no client JavaScript — the FAQ uses native
  * details/summary and the only interactive elements are links.
@@ -38,12 +35,8 @@ const canonicalUrl = "https://www.surfsense.com/pricing";
 
 /** Title, meta and the lead-with-free rule come from the `/pricing` brief in
  *  `plans/community-local/seo/02-page-briefs.md` (B5). */
-const metaTitle = BUSINESS_LAUNCHED
-	? BUSINESS_META_TITLE
-	: "SurfSense Pricing: Free App, Paid Plugins";
-const metaDescription = BUSINESS_LAUNCHED
-	? BUSINESS_META_DESCRIPTION
-	: "The app and its updates are free forever, with a 14-day licence included and no account. Licences add scraper plugins and priority support, from $60 a year.";
+const metaTitle = BUSINESS_META_TITLE;
+const metaDescription = BUSINESS_META_DESCRIPTION;
 
 export const metadata: Metadata = {
 	title: metaTitle,
@@ -76,56 +69,14 @@ export const metadata: Metadata = {
 	},
 };
 
-/**
- * `Product` with an offer per priced tier, per the brief's schema note.
- *
- * The free tier is the product itself, so `price: 0` is the honest figure for
- * it; the paid offer is the licence. Individual carries the early-bird $60
- * rather than the $120 list price, because structured data that disagrees with
- * the price on the page is a rich-result penalty. `priceValidUntil` stays out
- * until launch day fixes the window's end.
- *
- * Enterprise has no offer here. An `Offer` without a price is invalid, and a
- * made-up figure on a tier that is quoted per deployment would be worse than
- * its absence.
- */
-const PRICING_SCHEMA = {
-	"@context": "https://schema.org",
-	"@type": "Product",
-	name: "SurfSense",
-	description:
-		"A private, open-source research notebook that runs on your own machine. The app is free; licences add the scraper plugins and priority support.",
-	url: canonicalUrl,
-	brand: { "@type": "Brand", name: "SurfSense" },
-	offers: [
-		{
-			"@type": "Offer",
-			name: "Free",
-			price: 0,
-			priceCurrency: "USD",
-			description:
-				"The full app and every update on Windows, macOS and Linux, forever, plus a 14-day licence for the plugins. No account, runs offline, bring your own model keys.",
-		},
-		{
-			"@type": "Offer",
-			name: "Individual",
-			price: 60,
-			priceCurrency: "USD",
-			url: "https://www.surfsense.com/pricing/individual",
-			description:
-				"Adds every scraper plugin, unlimited and unmetered, plus priority support and one feature build request a year. The early-bird price for the first year, down from $120.",
-		},
-	],
-};
-
 export default function PricingPage() {
 	return (
 		<>
-			<JsonLd data={BUSINESS_LAUNCHED ? BUSINESS_PRICING_SCHEMA : PRICING_SCHEMA} />
-			<PricingHero lede={BUSINESS_LAUNCHED ? BUSINESS_PRICING_LEDE : PRICING_LEDE} />
-			<PricingPlans plans={BUSINESS_LAUNCHED ? BUSINESS_PLANS : PLANS} />
-			{BUSINESS_LAUNCHED ? <PricingComparison rows={LICENCE_COMPARISON} /> : null}
-			<PricingQuestions questions={BUSINESS_LAUNCHED ? BUSINESS_PRICING_FAQ : PRICING_FAQ} />
+			<JsonLd data={BUSINESS_PRICING_SCHEMA} />
+			<PricingHero lede={BUSINESS_PRICING_LEDE} />
+			<PricingPlans plans={BUSINESS_PLANS} />
+			<PricingComparison rows={LICENCE_COMPARISON} />
+			<PricingQuestions questions={BUSINESS_PRICING_FAQ} />
 		</>
 	);
 }

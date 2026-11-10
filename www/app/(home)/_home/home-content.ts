@@ -9,7 +9,6 @@ import {
 	STUDENTS_URL,
 	TEACHERS_URL,
 } from "@/components/site/site-content";
-import { BUSINESS_LAUNCHED } from "@/features/business-launch/business-launched.mts";
 
 /**
  * Homepage copy and data.
@@ -151,17 +150,12 @@ export const FORMATS: Format[] = [
  * a card per reader, each linking the page written for them, and the paid jobs in a strip
  * below. Like `HomePillars` and `HomeCompare`, a band of its own whose headline is a `<p>`
  * styled like an H2, so the brief's eight H2s keep their count and order.
- *
- * A card shows once its page exists. The lawyers' and accountants' pages name the paid
- * jobs, so their cards, marked `forSale`, and the jobs strip wait for the Business switch;
- * the students', teachers' and business cards show on both sites.
  */
 export type AudienceCard = {
 	key: "lawyers" | "accountants" | "students" | "teachers" | "business";
 	title: string;
 	body: string;
 	action: Action;
-	forSale?: boolean;
 };
 
 export const AUDIENCES: { eyebrow: string; headline: string; cards: AudienceCard[] } = {
@@ -173,14 +167,12 @@ export const AUDIENCES: { eyebrow: string; headline: string; cards: AudienceCard
 			title: "Lawyers",
 			body: "Ask across a matter with a citation for every point, draft memos and decks, and review contracts against your playbook.",
 			action: { label: "AI for lawyers", href: LAWYERS_URL },
-			forSale: true,
 		},
 		{
 			key: "accountants",
 			title: "Accountants",
 			body: "Work through client statements and returns, build reports and spreadsheets, and answer clients' security questionnaires.",
 			action: { label: "AI for accountants", href: ACCOUNTANTS_URL },
-			forSale: true,
 		},
 		{
 			key: "students",
@@ -266,24 +258,14 @@ export const FEATURES: {
 	},
 	{
 		key: "plugins",
-		// Its plugins retire with the switch, so the heading names what is built in instead.
-		heading: BUSINESS_LAUNCHED
-			? "Open source, with web search built in"
-			: "Open source, extended by plugins",
-		// From Business on, the platform scrapers are retired and SurfSense's three are built in.
-		body: BUSINESS_LAUNCHED
-			? "Reading web pages, YouTube and web search is built in and free. Plugins add more."
-			: "Each plugin gives the agent live data from one platform. Ten ship today.",
+		heading: "Open source, with web search built in",
+		// The platform scrapers retired with Business; web search, YouTube and Web Crawl are built in.
+		body: "Reading web pages, YouTube and web search is built in and free. Plugins add more.",
 		points: [
-			BUSINESS_LAUNCHED
-				? {
-						title: "Built in, free",
-						body: "Web search, YouTube and Web Crawl, with no licence and nothing to connect.",
-					}
-				: {
-						title: "More places to search",
-						body: "Google Search, Reddit, YouTube, Instagram, TikTok, Google Maps, Amazon, Walmart, Indeed and the open web.",
-					},
+			{
+				title: "Built in, free",
+				body: "Web search, YouTube and Web Crawl, with no licence and nothing to connect.",
+			},
 			{
 				title: "Open to everyone",
 				body: "Every plugin is open source, and anyone can add their own MCP server to the registry.",

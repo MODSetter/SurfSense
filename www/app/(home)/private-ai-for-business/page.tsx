@@ -18,7 +18,6 @@ import {
 	PodcastIcon,
 	Presentation02Icon,
 } from "@/components/ui/icons";
-import { BUSINESS_LAUNCHED } from "@/features/business-launch/business-launched.mts";
 import { HomeDownloadButton } from "@/features/downloads/home-download-button";
 
 /**
@@ -40,7 +39,7 @@ import { HomeDownloadButton } from "@/features/downloads/home-download-button";
  * - **Lawyers and accountants have pages of their own** since 9 Nov 2026
  *   (`plans/community-local/seo/09-audience-pages.md`), which reversed the brief's
  *   one-page rule. This page keeps consultants and other professions; its legal and
- *   accounting cards link those pages once Business is on sale, and nothing here
+ *   accounting cards link those pages, and nothing here
  *   should grow into a copy of them.
  * - **Say where the bytes are, not what regulation that satisfies.** "HIPAA
  *   compliant" and "GDPR compliant" are claims about the deployer's controls,
@@ -109,18 +108,18 @@ const PROFESSIONS: {
 	heading: string;
 	body: string;
 	icon: ReactNode;
-	/** The profession's own page, which exists once Business is on sale. */
+	/** The profession's own page. */
 	link?: { label: string; href: string };
 }[] = [
 	{
 		heading: "For lawyers and legal teams",
-		link: BUSINESS_LAUNCHED ? { label: "AI for lawyers", href: LAWYERS_URL } : undefined,
+		link: { label: "AI for lawyers", href: LAWYERS_URL },
 		icon: <Agreement01Icon className="size-5" />,
 		body: "Point it at a discovery folder and get an indexed evidence bundle, a chronology or a client letter back. Contract review runs against the executed copy sitting on your disk, and because nothing was sent to a vendor there is no third-party custodian holding it and no retention policy to read.",
 	},
 	{
 		heading: "For accountants and auditors",
-		link: BUSINESS_LAUNCHED ? { label: "AI for accountants", href: ACCOUNTANTS_URL } : undefined,
+		link: { label: "AI for accountants", href: ACCOUNTANTS_URL },
 		icon: <Calculator01Icon className="size-5" />,
 		body: "Add the statements, the ledger export and last year's working file, and get a reconciliation summary, a variance note or a board pack back. Client figures stay in the folder they arrived in and nowhere else.",
 	},

@@ -1,4 +1,3 @@
-import { notFound } from "next/navigation";
 import { JsonLd } from "@/components/site/json-ld";
 import { ACCOUNTANTS_URL, SECURITY_QUESTIONNAIRE_URL } from "@/components/site/site-content";
 import {
@@ -9,8 +8,8 @@ import {
 } from "@/components/ui/icons";
 import {
 	type AudiencePageMeta,
+	audiencePageMetadata,
 	audiencePageSchema,
-	businessPageMetadata,
 } from "@/features/audience-pages/audience-metadata";
 import {
 	AudienceAnswer,
@@ -20,7 +19,6 @@ import {
 	type AudienceQuestion,
 	AudienceQuestions,
 } from "@/features/audience-pages/audience-sections";
-import { BUSINESS_LAUNCHED } from "@/features/business-launch/business-launched.mts";
 import { FIRST_PERSON_PRICE, yearlyPriceLabel } from "../pricing/business-price";
 
 /**
@@ -31,8 +29,7 @@ import { FIRST_PERSON_PRICE, yearlyPriceLabel } from "../pricing/business-price"
  * `ai for accountants` has absorbed accounting-software searches), so this page is where
  * outreach, trial emails and demos send accounting firms as much as a search page.
  *
- * A 404 until Business is on sale (`NEXT_PUBLIC_BUSINESS_LAUNCHED`), because it sells the
- * security questionnaire. Any line on what a regulator requires of a firm goes through a
+ * It sells the security questionnaire. Any line on what a regulator requires of a firm goes through a
  * compliance read first; this page says only where the data is.
  */
 
@@ -55,7 +52,7 @@ const PAGE: AudiencePageMeta = {
 	imageAlt: "SurfSense, private AI for accountants",
 };
 
-export const metadata = businessPageMetadata(BUSINESS_LAUNCHED, PAGE);
+export const metadata = audiencePageMetadata(PAGE);
 
 const QUESTIONS: AudienceQuestion[] = [
 	{
@@ -80,8 +77,6 @@ const QUESTIONS: AudienceQuestion[] = [
 ];
 
 export default function AiForAccountantsPage() {
-	if (!BUSINESS_LAUNCHED) notFound();
-
 	return (
 		<>
 			<JsonLd data={audiencePageSchema(PAGE)} />

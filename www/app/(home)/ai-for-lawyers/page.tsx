@@ -1,11 +1,10 @@
-import { notFound } from "next/navigation";
 import { JsonLd } from "@/components/site/json-ld";
 import { CONTRACT_REDLINE_URL, LAWYERS_URL } from "@/components/site/site-content";
 import { BubbleChatIcon, CpuIcon, File02Icon, LegalDocument01Icon } from "@/components/ui/icons";
 import {
 	type AudiencePageMeta,
+	audiencePageMetadata,
 	audiencePageSchema,
-	businessPageMetadata,
 } from "@/features/audience-pages/audience-metadata";
 import {
 	AudienceAnswer,
@@ -15,15 +14,13 @@ import {
 	type AudienceQuestion,
 	AudienceQuestions,
 } from "@/features/audience-pages/audience-sections";
-import { BUSINESS_LAUNCHED } from "@/features/business-launch/business-launched.mts";
 import { FIRST_PERSON_PRICE, yearlyPriceLabel } from "../pricing/business-price";
 
 /**
  * AI for lawyers. Brief: `plans/community-local/seo/09-audience-pages.md`, `/ai-for-lawyers`.
  *
- * A 404 until Business is on sale (`NEXT_PUBLIC_BUSINESS_LAUNCHED`), because it sells the
- * contract redline. ADR 0086 holds legal marketing for a lawyer's review, so the PR that
- * turns this page on records who read it.
+ * It sells the contract redline. ADR 0086 holds legal marketing for a lawyer's review:
+ * record who read this page before the release that ships it.
  *
  * Two rules from the brief constrain edits: say where the bytes are, never what professional
  * rule that satisfies, and quote no accuracy figure for the redline before the maintainer has
@@ -49,7 +46,7 @@ const PAGE: AudiencePageMeta = {
 	imageAlt: "SurfSense, private AI for lawyers",
 };
 
-export const metadata = businessPageMetadata(BUSINESS_LAUNCHED, PAGE);
+export const metadata = audiencePageMetadata(PAGE);
 
 const QUESTIONS: AudienceQuestion[] = [
 	{
@@ -79,8 +76,6 @@ const QUESTIONS: AudienceQuestion[] = [
 ];
 
 export default function AiForLawyersPage() {
-	if (!BUSINESS_LAUNCHED) notFound();
-
 	return (
 		<>
 			<JsonLd data={audiencePageSchema(PAGE)} />

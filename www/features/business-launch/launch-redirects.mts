@@ -1,9 +1,9 @@
 /**
- * Redirects that change with the Business launch switch, for `next.config.mts`. Kept out of
- * it, like `docs-redirects.mts`, so `launch-redirects.test.ts` can check them.
+ * Redirects for what retired when Business went on sale, the platform scrapers and the
+ * Individual licence, for `next.config.mts`. Kept out of it, like `docs-redirects.mts`, so
+ * `launch-redirects.test.ts` can check them.
  *
- * Permanent: once Business is on sale, the Individual licence and the retired scrapers do not
- * come back, and browsers cache the redirect, so turning the switch off again would not undo it.
+ * Permanent: the Individual licence and the retired scrapers do not come back.
  */
 
 type Redirect = { source: string; destination: string; permanent: boolean };
@@ -22,7 +22,7 @@ const SCRAPER_PAGES = [
 	"indeed",
 ];
 
-/** The platform scrapers that retire when Business goes on sale. */
+/** The platform scrapers that retired when Business went on sale. */
 export const RETIRED_PLUGIN_IDS = [
 	"reddit",
 	"instagram",
@@ -37,15 +37,13 @@ export const RETIRED_PLUGIN_IDS = [
  * A retired scraper's page and its old address go to `/plugins`, which lists what replaced
  * them, rather than through a page that no longer exists.
  */
-function pluginRedirects(launched: boolean): Redirect[] {
-	const scraperPages = SCRAPER_PAGES.map((id) => ({
-		source: `/${id}`,
-		destination: launched && RETIRED_PLUGIN_IDS.includes(id) ? "/plugins" : `/plugins/${id}`,
-		permanent: true,
-	}));
-	if (!launched) return scraperPages;
+function pluginRedirects(): Redirect[] {
 	return [
-		...scraperPages,
+		...SCRAPER_PAGES.map((id) => ({
+			source: `/${id}`,
+			destination: RETIRED_PLUGIN_IDS.includes(id) ? "/plugins" : `/plugins/${id}`,
+			permanent: true,
+		})),
 		...RETIRED_PLUGIN_IDS.map((id) => ({
 			source: `/plugins/${id}`,
 			destination: "/plugins",
@@ -55,12 +53,10 @@ function pluginRedirects(launched: boolean): Redirect[] {
 }
 
 /** Individual is no longer sold, so its checkout page hands over to Business's. */
-function pricingRedirects(launched: boolean): Redirect[] {
-	return launched
-		? [{ source: "/pricing/individual", destination: "/pricing/business", permanent: true }]
-		: [];
-}
+const PRICING_REDIRECTS: Redirect[] = [
+	{ source: "/pricing/individual", destination: "/pricing/business", permanent: true },
+];
 
-export function launchRedirects(launched: boolean): Redirect[] {
-	return [...pluginRedirects(launched), ...pricingRedirects(launched)];
+export function launchRedirects(): Redirect[] {
+	return [...pluginRedirects(), ...PRICING_REDIRECTS];
 }
