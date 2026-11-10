@@ -12,6 +12,7 @@ import pytest
 from PIL import Image
 from pypdf import PdfReader
 
+from modules.agent.engines.claude_code.skills_plugin import build_skills_plugin
 from modules.agent.opencode_config import PICTURES_SKILL, skills_folder
 from modules.agent.tool_endpoint.make_image import LISTING
 
@@ -43,14 +44,98 @@ def test_the_skill_never_sends_the_user_to_settings() -> None:
         assert "Settings >" not in _file(name), name
 
 
-def _script(pages: list[tuple[str, list[str]]]) -> str:
+def test_a_claude_plan_thread_gets_the_skill_with_its_own_tool_names(
+    tmp_path: Path,
+) -> None:
+    """Claude Code reads the same skill, its SurfSense tools named as it lists them."""
+    plugin = build_skills_plugin(skills_folder(), tmp_path / "plugin")
+
+    assert f"surfsense:{PICTURES_SKILL}" in plugin.names
+    for name in ("SKILL.md", "comics.md", "pdf.md"):
+        text = (plugin.skills / PICTURES_SKILL / name).read_text(encoding="utf-8")
+        assert not re.search(
+            r"surfsense_(make_image|render_document|read_document)", text
+        )
+    skill = (plugin.skills / PICTURES_SKILL / "SKILL.md").read_text(encoding="utf-8")
+    assert "mcp__surfsense__make_image" in skill
+
+
+def test_comics_cover_every_kind_the_user_may_ask_for() -> None:
+    """Each reads and is laid out its own way; a manga is not a Western comic."""
+    comics = _file("comics.md").lower()
+
+    for kind in (
+        "manga",
+        "manhwa",
+        "webtoon",
+        "manhua",
+        "comic strip",
+        "yonkoma",
+        "graphic novel",
+        "bande dessinée",
+        "picture book",
+        "storyboard",
+    ):
+        assert kind in comics, kind
+
+
+def _script(
+    pages: list[tuple[str, list[str]]],
+    direction: str = "ltr",
+    layout: str = "pages",
+) -> str:
     """The script the skill gives, filled as the agent fills it."""
     (script,) = re.findall(r"```python\n(.*?)```", _file("pdf.md"), re.S)
     filled = re.sub(
         r"PAGES = \[\n.*?\n\]", f"PAGES = {pages!r}", script, count=1, flags=re.S
     )
+    filled = filled.replace('DIRECTION = "ltr"', f"DIRECTION = {direction!r}", 1)
+    filled = filled.replace('LAYOUT = "pages"', f"LAYOUT = {layout!r}", 1)
     assert filled != script
+    assert f"DIRECTION = {direction!r}" in filled
+    assert f"LAYOUT = {layout!r}" in filled
     return filled
+
+
+def _bind(tmp_path: Path, script: str, count: int) -> PdfReader:
+    images, work = tmp_path / "images", tmp_path / "work"
+    images.mkdir()
+    work.mkdir()
+    # A colour each: ReportLab stores one copy of pictures that are the same.
+    for n, colour in zip(
+        range(1, count + 1), ("red", "green", "blue", "white"), strict=False
+    ):
+        (images / f"image-{n}.png").write_bytes(_page(colour, (1024, 1536)))
+    output = tmp_path / "comic.pdf"
+    subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=work,
+        env={**os.environ, "OUTPUT_PATH": str(output), "IMAGES_DIR": str(images)},
+        check=True,
+    )
+    return PdfReader(output)
+
+
+def test_a_manga_reads_right_to_left(tmp_path: Path) -> None:
+    """A reader then lays its spreads out as a manga's are."""
+    pages = [(f"image-{n}", []) for n in range(1, 3)]
+
+    pdf = _bind(tmp_path, _script(pages, direction="rtl"), 2)
+
+    assert pdf.trailer["/Root"]["/ViewerPreferences"]["/Direction"] == "/R2L"
+    assert len(pdf.pages) == 2
+
+
+def test_a_webtoon_scrolls_down_one_long_page(tmp_path: Path) -> None:
+    """Its panels stack in one column, read by scrolling, not page by page."""
+    pages = [(f"image-{n}", []) for n in range(1, 4)]
+
+    pdf = _bind(tmp_path, _script(pages, layout="scroll"), 3)
+
+    (page,) = pdf.pages
+    assert len(page.images) == 3
+    width, height = float(page.mediabox.width), float(page.mediabox.height)
+    assert height > 3 * width * 1.5
 
 
 def _page(colour: str, size: tuple[int, int]) -> bytes:

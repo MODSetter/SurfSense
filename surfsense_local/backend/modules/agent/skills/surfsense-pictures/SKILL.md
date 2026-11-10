@@ -1,6 +1,6 @@
 ---
 name: surfsense-pictures
-description: Draw pictures with surfsense_make_image - one picture or infographic, or a set that belongs together, such as a comic, a manga, a comic strip, a storyboard or a picture book, bound into one PDF. Load it whenever the user asks for a picture, an illustration, or any set of pictures, or for a change to one you drew. Not for charts of numbers, and not for a web page.
+description: Draw pictures with surfsense_make_image - one picture or infographic, or a set that belongs together, such as a comic, a manga, a manhwa or webtoon, a comic strip, a graphic novel, a storyboard or a picture book, bound into one PDF. Load it whenever the user asks for a picture, an illustration, or any set of pictures, or for a change to one you drew. Not for charts of numbers, and not for a web page.
 ---
 
 # Pictures
@@ -11,7 +11,7 @@ description: Draw pictures with surfsense_make_image - one picture or infographi
 
 | File | Read it |
 |---|---|
-| `comics.md` | For a comic, a manga, a strip, a storyboard or a picture book: pages, panels and lettering. |
+| `comics.md` | For any kind of comic (Western, manga, manhwa and webtoon, manhua, strip, yonkoma, graphic novel, bande dessinée), a picture book or a storyboard: how each reads, is laid out and is lettered. |
 | `pdf.md` | When you bind pictures into a PDF: the script to copy and fill. |
 
 ## One picture
