@@ -94,6 +94,8 @@ try {
 		});
 		await context.addInitScript(installOverlay);
 		const page = await context.newPage();
+		// Answers the app's own requests where a capture can't have the real answer, such as a license.
+		await walkthrough.intercept?.({ page, apiUrl: app.apiUrl });
 		const startedAt = Date.now();
 		await page.goto(app.appUrl);
 		await page.locator("main").first().waitFor();

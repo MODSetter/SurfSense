@@ -27,6 +27,8 @@ export function createWalkthroughSession({ page, slug, shotsDir, scratchDir, doc
 		page,
 		slug,
 		docsDir,
+		// For files a walkthrough makes on the spot, which never reach the site.
+		scratchDir,
 		marks,
 		shots,
 
