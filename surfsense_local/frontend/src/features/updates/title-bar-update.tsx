@@ -153,7 +153,7 @@ export function TitleBarUpdate() {
                 defaultMessage: "SurfSense is up to date",
               })
         }
-        className={cn(QUIET_PILL, "w-auto")}
+        className={cn(QUIET_PILL, "w-auto bg-muted")}
       >
         <span className={cn(QUIET_LABEL, "translate-x-0 opacity-100")}>
           {failed
