@@ -82,6 +82,7 @@ export default function PodcastGeneratorPage() {
 			<AudienceSteps
 				badge="How it works"
 				heading="How to make a podcast with SurfSense"
+				video="podcast"
 				steps={[
 					{
 						title: "Add your sources",

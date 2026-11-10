@@ -19,6 +19,7 @@ import {
 	Presentation02Icon,
 } from "@/components/ui/icons";
 import { HomeDownloadButton } from "@/features/downloads/home-download-button";
+import { UseCaseSection } from "@/features/guides/use-case-section";
 
 /**
  * Confidential documents into deliverables — the cross-cutting professional page.
@@ -224,6 +225,13 @@ export default function PrivateAiForBusinessPage() {
 					<HomeDownloadButton tone="dark" />
 				</div>
 			</section>
+
+			<UseCaseSection
+				badge="See it work"
+				headline="Watch confidential files become finished work"
+				slugs={["agent-documents", "studio-documents", "analyse-a-spreadsheet", "privacy-network"]}
+				placement="for-page"
+			/>
 
 			<section className={sectionSpacing.foot}>
 				{/* A `<p>` styled like an H2, so the three real H2s in this section are

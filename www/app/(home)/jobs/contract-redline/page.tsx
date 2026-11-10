@@ -106,6 +106,7 @@ export default function ContractRedlinePage() {
 			<AudienceSteps
 				badge="How it works"
 				heading="How to review a contract with SurfSense"
+				video="contract-redline"
 				steps={[
 					{
 						title: "Add the contract and your playbook",

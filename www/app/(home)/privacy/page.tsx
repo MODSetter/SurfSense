@@ -62,7 +62,7 @@ export const metadata: Metadata = {
  * `new Date()`: a render-time date causes a hydration mismatch and tells every
  * reader the document changed the moment they opened it.
  */
-const LAST_UPDATED = "November 5, 2026";
+const LAST_UPDATED = "November 10, 2026";
 
 /** Matches the `prose` treatment used for blog posts. */
 const PROSE =
@@ -382,6 +382,11 @@ export default function PrivacyPolicy() {
 						pseudonymous identifier: requesting a trial licence, with whether it was sent, already
 						claimed, refused or failed, and pressing Continue to checkout. Both carry the channel
 						tag, and neither includes the email address you type.
+					</p>
+					<p>
+						The short videos on our homepage and on the pages for each profession, job and study
+						tool are recorded the same way: which video started, whether it started by itself as you
+						scrolled to it or because you pressed play, and whether it played to the end.
 					</p>
 					<p>
 						Analytics is enabled by default and we do not display a consent banner. Because the

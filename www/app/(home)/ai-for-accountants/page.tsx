@@ -19,6 +19,7 @@ import {
 	type AudienceQuestion,
 	AudienceQuestions,
 } from "@/features/audience-pages/audience-sections";
+import { UseCaseSection } from "@/features/guides/use-case-section";
 import { FIRST_PERSON_PRICE, yearlyPriceLabel } from "../pricing/business-price";
 
 /**
@@ -88,6 +89,18 @@ export default function AiForAccountantsPage() {
 				lede="SurfSense is a free, open-source AI app that runs on your own computer. Add returns, statements, ledgers and engagement letters, ask questions with a citation for every point, and turn them into reports, spreadsheets and client decks. With a local model, nothing is sent anywhere."
 				note="Business adds the security questionnaire, for the clients who send you one, with a 14-day free trial."
 				link={{ label: "See pricing", href: "/pricing" }}
+			/>
+
+			<UseCaseSection
+				badge="See it work"
+				headline="Watch it work through a client's files"
+				slugs={[
+					"ask-and-cite",
+					"analyse-a-spreadsheet",
+					"agent-documents",
+					"security-questionnaire",
+				]}
+				placement="for-page"
 			/>
 
 			<AudienceAnswer
