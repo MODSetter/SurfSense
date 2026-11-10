@@ -1,9 +1,8 @@
 import { useEffect } from "react"
-import { toast } from "sonner"
 
-import { intl } from "@/i18n/intl"
 import type { UpdateState } from "@/lib/api"
 
+import { showCheckOutcome } from "./check-outcome"
 import { useCheckForUpdates } from "./use-check-for-updates"
 import { updatesBridge } from "./use-update-state"
 
@@ -31,9 +30,8 @@ function reportingFor(updates: Updates) {
 }
 
 /**
- * A check whose result comes back as a toast, up to date or failed, for the
- * app menu and the title bar, where Settings may be closed. A found update
- * shows in the title bar instead.
+ * A check from the app menu or the title bar, where Settings may be closed.
+ * Its outcome, up to date, failed or an update found, shows in the title bar.
  */
 export function useReportedCheck() {
   const check = useCheckForUpdates()
@@ -50,21 +48,8 @@ export function useReportedCheck() {
       }
       if (shared.phase !== "running") return
       shared.phase = "none"
-      if (state.status === "up-to-date")
-        toast.success(
-          intl.formatMessage({
-            id: "updates_check_up_to_date_toast",
-            defaultMessage: "SurfSense is up to date",
-          })
-        )
-      else if (state.status === "error")
-        toast.error(
-          intl.formatMessage({
-            id: "updates_check_failed_toast",
-            defaultMessage: "Couldn’t check for updates",
-          }),
-          { description: state.message }
-        )
+      if (state.status === "up-to-date") showCheckOutcome(updates, "up-to-date")
+      else if (state.status === "error") showCheckOutcome(updates, "failed")
     })
   }, [])
 

@@ -84,6 +84,7 @@ export default function FlashcardGeneratorPage() {
 			<AudienceSteps
 				badge="How it works"
 				heading="How to make flashcards with SurfSense"
+				video="study-materials"
 				steps={[
 					{
 						title: "Add your material",

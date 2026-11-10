@@ -2,12 +2,18 @@ import { useEffect, useRef, useState, type ReactNode } from "react"
 
 import { Button } from "@/components/ui/button"
 import { DownloadRing } from "@/components/ui/download-ring"
-import { ArrowDown02Icon, CircleArrowUp02Icon } from "@/components/ui/icons"
+import {
+  ArrowDown02Icon,
+  CheckCircle2Icon,
+  CircleArrowUp02Icon,
+  InformationCircleIcon,
+} from "@/components/ui/icons"
 import { Spinner } from "@/components/ui/spinner"
 import { usePrivacyState } from "@/features/privacy-choices/use-privacy-state"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
+import { useCheckOutcome } from "./check-outcome"
 import { useReportedCheck } from "./use-reported-check"
 import { updatesBridge, useUpdateState } from "./use-update-state"
 
@@ -46,6 +52,7 @@ function Slot({ children }: { children: ReactNode }) {
 export function TitleBarUpdate() {
   const state = useUpdateState()
   const check = useReportedCheck()
+  const outcome = useCheckOutcome()
   const { state: privacy } = usePrivacyState()
   const [restarting, setRestarting] = useState(false)
   const settle = useRef<number | undefined>(undefined)
@@ -124,6 +131,53 @@ export function TitleBarUpdate() {
             aria-hidden="true"
             className="size-3 text-muted-foreground"
           />
+        </Slot>
+      </div>
+    )
+
+  // Opened without a hover, so the answer to a click needs no second look.
+  const failed = outcome === "failed" && state.status === "error"
+  if (failed || (outcome === "up-to-date" && state.status === "up-to-date"))
+    return (
+      <div
+        role="status"
+        tabIndex={0}
+        aria-label={
+          failed
+            ? intl.formatMessage({
+                id: "updates_title_bar_check_failed_aria",
+                defaultMessage: "Couldn’t check for updates",
+              })
+            : intl.formatMessage({
+                id: "updates_title_bar_up_to_date_aria",
+                defaultMessage: "SurfSense is up to date",
+              })
+        }
+        className={cn(QUIET_PILL, "w-auto bg-muted")}
+      >
+        <span className={cn(QUIET_LABEL, "translate-x-0 opacity-100")}>
+          {failed
+            ? intl.formatMessage({
+                id: "updates_title_bar_check_failed_label",
+                defaultMessage: "Couldn’t check",
+              })
+            : intl.formatMessage({
+                id: "updates_title_bar_up_to_date_label",
+                defaultMessage: "Up to date",
+              })}
+        </span>
+        <Slot>
+          {failed ? (
+            <InformationCircleIcon
+              aria-hidden="true"
+              className="size-3 text-warning"
+            />
+          ) : (
+            <CheckCircle2Icon
+              aria-hidden="true"
+              className="size-3 text-muted-foreground"
+            />
+          )}
         </Slot>
       </div>
     )

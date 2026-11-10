@@ -53,3 +53,6 @@ next-env.d.ts
 /.source/
 
 .pnpm-store/
+
+# guide videos copied in for next dev before they are uploaded (scripts/guides/preview-videos.mjs)
+/public/guide-videos-local/

@@ -9,6 +9,7 @@ import {
 	STUDENTS_URL,
 	TEACHERS_URL,
 } from "@/components/site/site-content";
+import type { UseCaseSlug } from "@/features/guides/use-cases";
 
 /**
  * Homepage copy and data.
@@ -192,6 +193,24 @@ export const AUDIENCES: { eyebrow: string; headline: string; cards: AudienceCard
 			body: "Turn confidential research into client-ready decks, reports and briefings, on the machine the files are on.",
 			action: { label: "Private AI for business", href: BUSINESS_URL },
 		},
+	],
+};
+
+/**
+ * The use-case videos under the logos: the app doing the work, before any argument for
+ * it. A tab per video, the free work first and the paid jobs last. Its headline is a `<p>`,
+ * like `AUDIENCES`, so the H2s keep their count and order.
+ */
+export const USE_CASES: { eyebrow: string; headline: string; slugs: UseCaseSlug[] } = {
+	eyebrow: "See it work",
+	headline: "Watch it work on real documents",
+	slugs: [
+		"ask-and-cite",
+		"agent-documents",
+		"study-materials",
+		"podcast",
+		"contract-redline",
+		"security-questionnaire",
 	],
 };
 

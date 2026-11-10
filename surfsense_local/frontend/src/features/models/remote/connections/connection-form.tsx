@@ -100,10 +100,13 @@ function messageFrom(error: unknown) {
  */
 export function ConnectionForm({
   connection,
+  startWithProvider,
   onCancel,
   onSaved,
 }: {
   connection?: Connection
+  /** A new server's provider, chosen already by the row that opened the form. */
+  startWithProvider?: string
   onCancel: () => void
   onSaved: (connection: Connection) => void
 }) {
@@ -225,6 +228,25 @@ export function ConnectionForm({
       next.connect.status === "ready" ? (next.connect.base_url ?? "") : ""
     )
     if (!label.trim()) setLabel(next.name)
+  }
+
+  // Chosen as a click would choose it, once the provider list has arrived.
+  const [startPending, setStartPending] = useState(
+    Boolean(startWithProvider) && !connection
+  )
+  if (startPending && providers.data) {
+    setStartPending(false)
+    const start = sortedProviders.find(
+      (entry) => entry.id === startWithProvider
+    )
+    if (start)
+      choose({
+        value: start.id,
+        label: start.name,
+        hint: null,
+        keywords: [],
+        disabled: false,
+      })
   }
 
   const setAccountValue = (name: string, value: string) => {

@@ -47,6 +47,9 @@ export const FLASHCARDS_URL = "/features/flashcard-generator";
 export const QUIZ_URL = "/features/quiz-generator";
 export const PODCAST_URL = "/features/podcast-generator";
 
+/** The step-by-step guides, with their videos, in the user docs. */
+export const GUIDES_URL = "/docs/v2/guides";
+
 /** Every page round two adds, for the sitemap. */
 export const STUDY_PAGES = [
 	STUDENTS_URL,

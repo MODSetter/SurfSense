@@ -2,6 +2,7 @@ import { RelativeTime } from "@/components/relative-time"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { GuideLink } from "@/features/guides/guide-link"
 import { intl } from "@/i18n/intl"
 
 import type { JobRunSummary, PackInfo } from "../api"
@@ -137,13 +138,21 @@ export function JobRunsList({
     )
   } else if (listed.length === 0) {
     body = (
-      <p className="text-sm text-pretty text-muted-foreground">
-        {intl.formatMessage({
-          id: "jobs_runs_empty",
-          defaultMessage:
-            "No runs yet. Each run shows here, and its copy in Studio.",
-        })}
-      </p>
+      <div className="flex flex-col gap-1.5">
+        <p className="text-sm text-pretty text-muted-foreground">
+          {intl.formatMessage({
+            id: "jobs_runs_empty",
+            defaultMessage:
+              "No runs yet. Each run shows here, and its copy in Studio.",
+          })}
+        </p>
+        <GuideLink guide="security-questionnaire" surface="jobs_runs_empty">
+          {intl.formatMessage({
+            id: "jobs_runs_guide_link",
+            defaultMessage: "How to fill in a security questionnaire",
+          })}
+        </GuideLink>
+      </div>
     )
   } else {
     body = (

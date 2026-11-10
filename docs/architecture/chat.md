@@ -299,7 +299,7 @@ A note that fails to save reads as `interrupted`, which offers Retry rather than
 
 ## Known gaps
 
-- The sources panel's ticks belong to the workspace for the session, not to a thread: opening a thread does not load its stored `source_scope`, and a new chat's draft is not kept across a reload. Each turn sends the ticks on screen, which the server then stores on that thread.
+- The sources panel's ticks belong to the workspace, saved on the device, not to a thread: opening a thread does not load its stored `source_scope`, and a new chat's draft is not kept across a reload. Each turn sends the ticks on screen, which the server then stores on that thread.
 - The composer's and Studio's source counts come from the client's own listing, not from `POST /source-scope/resolve`, so they show ready sources only, never how many are still indexing or failed.
 - A scope list past 50,000 ids is refused with `422`. The panel sends folders where it can, so only more than 50,000 sources ticked or unticked one by one reach it.
 - The images `409` prices each image at Gemma 3's 256, so a dearer projector can still overflow unrefused: four Qwen2.5-VL images at the 1,024 px cap with five excerpts outgrow the 8,192 floor and fail as `context_too_long`.

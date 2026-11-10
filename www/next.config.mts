@@ -14,6 +14,9 @@ const nextConfig: NextConfig = {
 			// The connectors index was renamed to /plugins, which is what the
 			// product calls them everywhere else.
 			{ source: "/connectors", destination: "/plugins", permanent: true },
+			// A short address for the step-by-step guides, to say aloud or put in a post.
+			// Not permanent, so the guides can move to a page of their own later.
+			{ source: "/tutorials", destination: "/docs/v2/guides", permanent: false },
 			// The scraper pages, the retired ones and Individual's checkout page.
 			...launchRedirects(),
 			...docsRedirects,

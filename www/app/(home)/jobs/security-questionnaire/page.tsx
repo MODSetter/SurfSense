@@ -104,6 +104,7 @@ export default function SecurityQuestionnairePage() {
 			<AudienceSteps
 				badge="How it works"
 				heading="How to answer a security questionnaire with SurfSense"
+				video="security-questionnaire"
 				steps={[
 					{
 						title: "Add the questionnaire and your policies",

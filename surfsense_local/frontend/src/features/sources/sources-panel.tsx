@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button"
 import {
   Empty,
+  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
@@ -22,6 +23,7 @@ import {
 } from "@/components/ui/empty"
 import { ScrollFade } from "@/components/ui/scroll-fade"
 import { SkeletonSlabs } from "@/components/ui/skeleton"
+import { GuideLink } from "@/features/guides/guide-link"
 import { AddSourcesMenu, type SourceUploads } from "./add-sources-menu"
 import type { WorkspaceDocument } from "./api"
 import type { UploadEntry } from "./folder-upload/upload-plan"
@@ -466,6 +468,14 @@ export const SourcesPanel = memo(function SourcesPanel({
                   })}
                 </EmptyDescription>
               </EmptyHeader>
+              <EmptyContent>
+                <GuideLink guide="add-sources" surface="sources_empty">
+                  {intl.formatMessage({
+                    id: "sources_list_guide_link",
+                    defaultMessage: "How to add sources",
+                  })}
+                </GuideLink>
+              </EmptyContent>
             </Empty>
           )}
         </ScrollFade>

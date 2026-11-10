@@ -5,6 +5,7 @@ import {
 	DOWNLOADS_URL,
 	FLASHCARDS_URL,
 	type FooterLink,
+	GUIDES_URL,
 	LAWYERS_URL,
 	PODCAST_URL,
 	QUIZ_URL,
@@ -27,6 +28,7 @@ import {
 	Megaphone01Icon,
 	Mortarboard01Icon,
 	Notebook01Icon,
+	PlayCircleIcon,
 	Plug01Icon,
 	PodcastIcon,
 	Quiz02Icon,
@@ -146,6 +148,12 @@ const BLOG: SiteMenuItem = {
 	description: "Guides, comparisons and deep dives",
 	icon: BookOpen01Icon,
 };
+const TUTORIALS: SiteMenuItem = {
+	name: "Tutorials",
+	href: GUIDES_URL,
+	description: "Step-by-step guides with videos",
+	icon: PlayCircleIcon,
+};
 const ANNOUNCEMENTS: SiteMenuItem = {
 	name: "Announcements",
 	href: "/announcements",
@@ -187,13 +195,13 @@ export const SITE_NAVIGATION: NavEntry[] = [
 	{ name: "Pricing", href: "/pricing" },
 	{
 		name: "Resources",
-		groups: [{ items: [BLOG, ANNOUNCEMENTS, CHANGELOG, PLUGINS, CONTACT] }],
+		groups: [{ items: [TUTORIALS, BLOG, ANNOUNCEMENTS, CHANGELOG, PLUGINS, CONTACT] }],
 	},
 ];
 
 const RESOURCES_COLUMN: FooterColumn = {
 	heading: "Resources",
-	links: [BLOG, ANNOUNCEMENTS, CHANGELOG, CONTACT].map((item) => ({
+	links: [TUTORIALS, BLOG, ANNOUNCEMENTS, CHANGELOG, CONTACT].map((item) => ({
 		title: item.name,
 		href: item.href,
 	})),

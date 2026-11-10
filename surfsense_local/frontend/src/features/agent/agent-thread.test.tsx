@@ -4,6 +4,8 @@ import userEvent from "@testing-library/user-event"
 
 import { DashboardPage } from "@/features/dashboard/dashboard-page"
 import type { ModelSelection } from "@/features/models/selection/api"
+import { rememberTicks } from "@/features/sources/tree/remembered-ticks"
+import { everySource } from "@/features/sources/tree/scope-state"
 import { render } from "@/test-utils"
 
 const workspace = {
@@ -398,6 +400,8 @@ describe("an agent thread", () => {
         },
       ],
     })
+    // The user ticked every source last session.
+    rememberTicks(1, everySource(true))
     renderAgentThread()
     await screen.findByText("Plan.pdf")
     await ask("When do we ship?")
@@ -446,6 +450,8 @@ describe("an agent thread", () => {
       ],
       waitFor: ["never"],
     })
+    // The user ticked every source last session.
+    rememberTicks(1, everySource(true))
     renderAgentThread()
     await ask("When do we ship?")
 

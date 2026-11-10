@@ -16,8 +16,8 @@ import {
 
 /**
  * Who it's for: a card per reader, each linking the page written for them, with the paid
- * jobs in a strip below. Sits under the logos so a visitor can pick their page before the
- * argument starts. See `AUDIENCES` in `home-content.ts`.
+ * jobs in a strip below. Sits under the use-case videos so a visitor can pick their page
+ * before the argument starts. See `AUDIENCES` in `home-content.ts`.
  */
 
 const ICONS: Record<AudienceCard["key"], Icon> = {

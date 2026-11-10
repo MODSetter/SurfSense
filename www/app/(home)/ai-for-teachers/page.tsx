@@ -23,6 +23,7 @@ import {
 	type AudienceQuestion,
 	AudienceQuestions,
 } from "@/features/audience-pages/audience-sections";
+import { UseCaseSection } from "@/features/guides/use-case-section";
 
 /**
  * AI for teachers. Brief: `plans/community-local/seo/09-audience-pages.md`, `/ai-for-teachers`.
@@ -88,6 +89,13 @@ export default function AiForTeachersPage() {
 				lede="SurfSense is a free, open-source app that runs on your own computer. Add your syllabus, readings and slides, then make quizzes, worksheets, lesson plans and slide decks from them, or ask questions across them with a citation for every point."
 				note="No account, no school sign-up and no subscription."
 				link={{ label: "How the quiz generator works", href: QUIZ_URL }}
+			/>
+
+			<UseCaseSection
+				badge="See it work"
+				headline="Watch it make quizzes, worksheets and podcasts"
+				slugs={["study-materials", "studio-documents", "podcast"]}
+				placement="for-page"
 			/>
 
 			<AudienceCards

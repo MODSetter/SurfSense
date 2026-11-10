@@ -85,6 +85,7 @@ export default function QuizGeneratorPage() {
 			<AudienceSteps
 				badge="How it works"
 				heading="How to make a quiz with SurfSense"
+				video="study-materials"
 				steps={[
 					{
 						title: "Add your material",

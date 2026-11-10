@@ -8,6 +8,9 @@ import { siteText } from "@/components/site/site-text";
 import { cn } from "@/components/ui/cn";
 import { ArrowRightIcon, CheckIcon, type Icon } from "@/components/ui/icons";
 import { HomeDownloadButton } from "@/features/downloads/home-download-button";
+import { shownUseCases } from "@/features/guides/shown-use-cases";
+import { UseCaseVideo } from "@/features/guides/use-case-video";
+import type { UseCaseSlug } from "@/features/guides/use-cases";
 
 /**
  * The blocks the audience and job pages are built from, in `/private-ai-for-business`'s
@@ -167,22 +170,44 @@ export function AudienceCards({
 	);
 }
 
-/** A job's run, numbered, as the app walks it. Step titles are H3s under the section's H2. */
+/**
+ * A job's run, numbered, as the app walks it. Step titles are H3s under the section's H2.
+ * With `video`, that guide's video plays above the steps and the download follows them,
+ * once the video is hosted.
+ */
 export function AudienceSteps({
 	badge,
 	heading,
 	steps,
+	video,
 }: {
 	badge: string;
 	heading: string;
 	steps: AudienceStep[];
+	video?: UseCaseSlug;
 }) {
+	const [shown] = video ? shownUseCases([video]) : [];
 	return (
 		<section className={sectionSpacing.foot}>
 			<div className={cn("text-center", sectionSpacing.head)}>
 				<HomeBadge>{badge}</HomeBadge>
 				<h2 className={cn(siteText.h2, "mt-4")}>{heading}</h2>
 			</div>
+
+			{shown ? (
+				<figure className="mx-auto mt-10 max-w-5xl lg:mt-14">
+					<UseCaseVideo
+						slug={shown.slug}
+						src={shown.src}
+						poster={shown.poster}
+						title={shown.title}
+						placement="how-it-works"
+					/>
+					<figcaption className={cn(siteText.body, "mt-3 text-center text-sm")}>
+						{shown.caption}
+					</figcaption>
+				</figure>
+			) : null}
 
 			<ol className="m-0 mt-10 grid list-none gap-4 p-0 md:grid-cols-2 lg:mt-14 lg:grid-cols-4">
 				{steps.map((step, index) => (
@@ -195,6 +220,13 @@ export function AudienceSteps({
 					</li>
 				))}
 			</ol>
+
+			{shown ? (
+				<div className="mt-10 flex flex-wrap items-center justify-center gap-x-8 gap-y-5 lg:mt-14">
+					<HomeDownloadButton tone="dark" placement="use-case-video" />
+					<ForwardLink link={{ label: "Read the full guide", href: shown.guideHref }} />
+				</div>
+			) : null}
 		</section>
 	);
 }
