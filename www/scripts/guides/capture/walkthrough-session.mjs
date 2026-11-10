@@ -67,6 +67,18 @@ export function createWalkthroughSession({ page, slug, shotsDir, scratchDir, doc
 			await page.waitForTimeout(300);
 		},
 
+		/**
+		 * Waits for "is ready" notices to close, before clicking anything under
+		 * them: a pointer resting on a notice keeps it open.
+		 */
+		async noticesGone(timeout = 20_000) {
+			await page
+				.locator("[data-sonner-toast]")
+				.first()
+				.waitFor({ state: "detached", timeout })
+				.catch(() => {});
+		},
+
 		/** Leaves the screen still long enough to read. */
 		async hold(ms = 1400) {
 			await page.waitForTimeout(ms);
@@ -84,7 +96,7 @@ export function createWalkthroughSession({ page, slug, shotsDir, scratchDir, doc
 		 * Saves a screenshot as `<nn>-<name>.webp` in the guide's folder: the window,
 		 * or the box around `clip` (a locator, or several), or `region` in CSS pixels.
 		 */
-		async shot(name, { clip, region, pad = 12, quality } = {}) {
+		async shot(name, { clip, region, pad = 12, quality, keepNotices = false } = {}) {
 			const viewport = page.viewportSize();
 			let box = region;
 			if (clip) {
@@ -117,7 +129,7 @@ export function createWalkthroughSession({ page, slug, shotsDir, scratchDir, doc
 			const file = `${String(shots.length + 1).padStart(2, "0")}-${name}`;
 			const png = join(scratchDir, `${file}.png`);
 			const from = seconds();
-			await page.evaluate(() => window.__guide.hide());
+			await page.evaluate((keep) => window.__guide.hide({ keepNotices: keep }), keepNotices);
 			await page.screenshot({
 				path: png,
 				...(box && { clip: box }),

@@ -1,0 +1,62 @@
+---
+title: Make and edit images and infographics
+description: Download an image model, draw a picture from your sources in Studio, and edit it into a new version
+---
+
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+
+<GuideVideo slug="images" poster="/guides/images/poster.webp" title="Downloading an image model, drawing a picture and editing it" />
+
+**Image** and **Infographic** in Studio need an image model. A model on your computer works offline and runs only while Studio needs it; with a graphics card a picture takes seconds, without one several minutes. See [Image models](/docs/v2/studio#image-models).
+
+<Steps>
+<Step>
+
+### Choose an image model
+
+Open **Settings**, then **Image gen**, and click **Add model**. Pick a model under **On this computer** and click **Download**, or use one from a server you connected.
+
+![Image models to download on this computer, starting with FLUX.2 klein 4B](/guides/images/01-image-models.webp)
+
+</Step>
+<Step>
+
+### Use it for editing too
+
+When the download is done, click **Use**. FLUX.2 klein 4B both draws and edits from one download: open **Image edit** and click **Use** on it there as well.
+
+![Image edit, with FLUX.2 klein 4B in use](/guides/images/02-image-edit-model.webp)
+
+</Step>
+<Step>
+
+### Draw a picture
+
+In Studio, click **Image** or **Infographic**, describe what you want under **Prompt (optional)**, and click **Generate**. Open it when it's ready.
+
+![The picture Studio drew, open in the right panel](/guides/images/03-picture.webp)
+
+</Step>
+<Step>
+
+### Describe a change
+
+Click the round button at the bottom right, describe a change, such as "make it night time", and click **Edit**. An edit applies to the whole picture.
+
+![The edit box over the picture, with a change typed in](/guides/images/04-edit-box.webp)
+
+</Step>
+<Step>
+
+### Get the new version
+
+The edited picture is the next version, and the earlier one stays under the version button. Edits chain: each one starts from the version you have open.
+
+![The edited picture, shown as version 2](/guides/images/05-edited.webp)
+
+</Step>
+</Steps>
+
+## Next
+
+- The [agent](/docs/v2/agent#pictures) can draw a picture you ask for and place it in a document it makes.

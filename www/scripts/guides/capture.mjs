@@ -123,6 +123,8 @@ try {
 		session.end();
 		// After the end mark, so the hidden overlay never reaches the video.
 		await session.poster();
+		// Undoes what only this walkthrough needed, such as another chat model; the video has ended.
+		await walkthrough.after?.(session);
 
 		const privacy = await page.evaluate(() => window.surfsense.privacy.getState());
 		writeFileSync(BRIDGE_STATE, JSON.stringify({ firstRunAsked: privacy.firstRunAsked }));

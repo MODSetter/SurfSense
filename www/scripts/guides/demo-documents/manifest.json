@@ -1,5 +1,5 @@
 {
-	"$comment": "Public documents the guides are captured with. Each is fetched from its source and checked against its sha256 before a capture, and none is committed.",
+	"$comment": "Public documents the guides are captured with, each checked against its sha256 before a capture. A `url` is fetched from its source and never committed; a `kept` file is in files/: a public template filled in for a made-up firm, which no source serves as it is.",
 	"documents": [
 		{
 			"file": "Security guides/NIST CSF 2.0.pdf",
@@ -30,6 +30,48 @@
 			"retrieved": "2026-11-10",
 			"bytes": 934230,
 			"sha256": "1e77c1bd63d1e15c48c870b7c17b7c9a2edf6bd5103b0940e72828515c9f1881"
+		},
+		{
+			"file": "Data/known-exploited-vulnerabilities.csv",
+			"title": "Known Exploited Vulnerabilities Catalog, as of 12 November 2025",
+			"publisher": "Cybersecurity and Infrastructure Security Agency (CISA)",
+			"url": "https://web.archive.org/web/20251112183947id_/https://www.cisa.gov/sites/default/files/csv/known_exploited_vulnerabilities.csv",
+			"licence": "Public domain in the United States: a work of the US federal government (17 U.S.C. 105). The Internet Archive's copy, so the bytes stay fixed while CISA's list grows.",
+			"retrieved": "2026-11-10",
+			"bytes": 762331,
+			"sha256": "01bf09c7968c483802890a444d9b0bb0c3a00cb3cf025e9702304ba122ec2d42"
+		},
+		{
+			"file": "Recordings/The Art of War, chapters 1 and 2.mp3",
+			"title": "The Art of War by Sun Tzu, chapters 1 and 2, read for LibriVox",
+			"publisher": "LibriVox, through the Internet Archive",
+			"url": "https://archive.org/download/art_of_war_librivox/art_of_war_01-02_sun_tzu_64kb.mp3",
+			"licence": "Public domain: LibriVox recordings are dedicated to the public domain, and the Lionel Giles translation (1910) is out of copyright",
+			"retrieved": "2026-11-10",
+			"bytes": 4055167,
+			"sha256": "6cb289fa9a13cfc94b18e8a89159da687c60db88c2b6377311f9bc5664d5492f"
+		},
+		{
+			"file": "Firm policies/Written Information Security Plan.docx",
+			"title": "Written Information Security Plan for Example Tax & Accounting, LLC (a made-up firm)",
+			"publisher": "Internal Revenue Service: the sample WISP in Publication 5708, pages 5 to 12 and Attachments A to F, with its blanks filled for a made-up firm",
+			"kept": "Written Information Security Plan.docx",
+			"source": "https://www.irs.gov/pub/irs-pdf/p5708.pdf",
+			"licence": "Public domain in the United States: a work of the US federal government (17 U.S.C. 105)",
+			"retrieved": "2026-10-29",
+			"bytes": 48946,
+			"sha256": "4f5acf7850d15b19384af1583944a8b882a0df9e59e02c843981b38d4dad9ca8"
+		},
+		{
+			"file": "Questionnaires/Supplier security questionnaire.xlsx",
+			"title": "Supplier security questionnaire from a made-up credit union, 15 questions",
+			"publisher": "UK National Cyber Security Centre: the questions are its Supplier assurance questions, word for word",
+			"kept": "Supplier security questionnaire.xlsx",
+			"source": "https://www.ncsc.gov.uk/collection/supply-chain-security/supplier-assurance-questions",
+			"licence": "Contains public sector information licensed under the Open Government Licence v3.0",
+			"retrieved": "2026-10-29",
+			"bytes": 7495,
+			"sha256": "5edb3314e2b07abbca09e41f7929a14f03b33b4a0995eac764c7136398155e50"
 		}
 	]
 }
