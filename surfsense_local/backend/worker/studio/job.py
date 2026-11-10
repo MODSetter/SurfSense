@@ -76,6 +76,7 @@ from worker.studio.script_document.pipeline import ScriptRunFailedError
 from worker.studio.shared import gather, persist, window_budget
 from worker.studio.shared.artifact import Built, Source
 from worker.studio.web.html.written import page as written_page
+from worker.waiting_renders import settle_after_job
 
 logger = logging.getLogger(__name__)
 
@@ -107,6 +108,8 @@ def run(artifact_id: int) -> None:
             _generate(session, artifact)
     finally:
         engine.dispose()
+        # However it ended: a document waiting on this picture may now go.
+        settle_after_job(artifact_id)
 
 
 def _generate(session: Session, artifact: Artifact) -> None:

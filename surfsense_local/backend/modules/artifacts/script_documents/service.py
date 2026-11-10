@@ -30,6 +30,8 @@ from modules.artifacts.script_documents.version import (
     version_of,
 )
 from modules.artifacts.studio_documents.recipe import studio_made
+from modules.artifacts.waiting_renders.settle import settle_waiting_renders
+from modules.artifacts.waiting_renders.waits import KEY as WAITS_FOR
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.documents.source_figures import parse_figure_name
 from modules.embedding.active import EmbeddingNotChosenError, require_active_index
@@ -87,7 +89,7 @@ def create_script_document(
         ) from error
 
     images = tuple(dict.fromkeys(image_names))
-    source_ids = _image_sources(session, workspace.id, chat_thread_id, images)
+    source_ids, waiting = _image_sources(session, workspace.id, chat_thread_id, images)
     base = (
         None
         if base_artifact_id is None
@@ -132,8 +134,14 @@ def create_script_document(
         "version": version.as_metadata(),
         "source_document_ids": source_ids,
         "prompt": None,
+        **({WAITS_FOR: list(waiting)} if waiting else {}),
     }
-    queue_job(session, artifact)
+    if waiting:
+        session.commit()
+        # A picture may have ended between the check and the commit.
+        settle_waiting_renders(session, render_id=artifact.id)
+    else:
+        queue_job(session, artifact)
     logger.info(
         "studio: enqueued script document %s format=%s root=%s v%s",
         artifact.id,
@@ -149,22 +157,22 @@ def _image_sources(
     workspace_id: int,
     chat_thread_id: int | None,
     names: tuple[str, ...],
-) -> list[int]:
-    """The sources the named figures come from, refusing a name none of them, nor
-    the chat's analyses, has. A chart is the chat's own output, made from no one source."""
+) -> tuple[list[int], tuple[int, ...]]:
+    """The sources the named figures come from, and the pictures still being drawn
+    that the document waits for; refusing a name none of them, nor the chat's
+    analyses, has. A chart is the chat's own output, made from no one source."""
+    waiting: list[int] = []
     for name in names:
         try:
             script_image(session, workspace_id, chat_thread_id, name)
-        except ImageStillDrawingError as error:
-            raise ScriptDocumentRefusedError(
-                f'The picture "{name}" is still being drawn. Tell the user it will be '
-                "placed once it appears in Studio, and stop."
-            ) from error
+        except ImageStillDrawingError:
+            waiting.append(int(name.removeprefix("image-")))
         except LookupError as error:
             raise ScriptDocumentRefusedError(_no_image(name)) from error
     figures = [parse_figure_name(name) for name in names if not is_chart_name(name)]
     # script_image accepted each name, so each figure's parses.
-    return list(dict.fromkeys(parsed[0] for parsed in figures if parsed is not None))
+    sources = list(dict.fromkeys(p[0] for p in figures if p is not None))
+    return sources, tuple(waiting)
 
 
 def _no_image(name: str) -> str:

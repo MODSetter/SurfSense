@@ -46,6 +46,7 @@ from modules.artifacts.script_documents.service import (
 )
 from modules.artifacts.script_documents.spec import DOCUMENT_FORMATS, FORMAT_NAMES
 from modules.artifacts.script_documents.version import version_of
+from modules.artifacts.waiting_renders.waits import waiting_sentence, waits_for
 from modules.documents.models import DocumentStatus
 from modules.workspaces.models import Workspace
 
@@ -148,6 +149,8 @@ class _Started:
     artifact_id: int
     version: int
     title: str
+    # The pictures still being drawn it waits for; it is queued once they are.
+    waits_for: tuple[int, ...] = ()
 
 
 def render(
@@ -166,6 +169,9 @@ def render(
     if request.base_artifact_id is None and scope.known:
         refuse_same_title(session, scope.thread_id, request.title, request.format)
     started = _start(session, scope, request)
+    if started.waits_for:
+        waiting = RenderedArtifact(started.artifact_id, started.title, started.version)
+        return f"{queued_line(waiting)}\n{waiting_sentence(started.waits_for)}"
     wait = min(WAIT_SECONDS, deadline - time.monotonic())
     outcome = wait_for_outcome(session, started.artifact_id, wait)
     if outcome is None:
@@ -253,7 +259,12 @@ def _start(session: Session, scope: TurnScope, request: _Request) -> _Started:
         raise
     version = version_of(artifact.artifact_metadata)
     assert version is not None  # the service gave it one
-    return _Started(artifact.id, version.number, request.title.strip())
+    return _Started(
+        artifact.id,
+        version.number,
+        request.title.strip(),
+        waits_for(artifact.artifact_metadata),
+    )
 
 
 def _create(session: Session, scope: TurnScope, request: _Request) -> Artifact:
