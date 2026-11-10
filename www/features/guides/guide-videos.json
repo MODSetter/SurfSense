@@ -1,0 +1,4 @@
+{
+	"$comment": "Each guide's video, by the guide's slug: where it is hosted and how long it runs. Written by scripts/guides/upload-videos.mjs.",
+	"videos": {}
+}
