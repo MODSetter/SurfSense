@@ -1,22 +1,30 @@
-from typing import Any
-
 from modules.llm import prompting
 from modules.llm.profile import Tier
 from modules.llm.resolution import ResolvedGeneration
+from worker.studio.content.mindmap import outline
+from worker.studio.content.mindmap.outline import BRANCHES, CHILDREN
 from worker.studio.shared import generate
 from worker.studio.shared.artifact import Built, Source
-from worker.studio.shared.text import as_list, as_text, parse_json
+from worker.studio.shared.window_budget import REPLY_SHARE
 
-# The frontier prompt leaves the count to the material, so the ceiling is kept here.
-BRANCHES = 10
+# The reply's share of the 8,192-token window a local model loads at. Unconstrained,
+# a model that repeats would otherwise write until the window is full.
+REPLY_TOKENS = int(8_192 * REPLY_SHARE)
+
+NO_BRANCHES = "The model wrote no usable branches. Try again, or choose a larger model."
+
+__all__ = ["BRANCHES", "CHILDREN", "REPLY_TOKENS", "build", "prompt", "render"]
 
 
 def render(
     model: ResolvedGeneration, sources: list[Source], user_prompt: str | None
 ) -> Built:
-    return build(
-        generate.run_model(model, prompt(model.tier, user_prompt), sources), sources
+    # No schema: the shape is the model's. A JSON map broke on Qwen3 4B in 9 of 9,
+    # and a schema allowing any depth crashed llama-server at b11050.
+    raw = generate.run_model(
+        model, prompt(model.tier, user_prompt), sources, max_tokens=REPLY_TOKENS
     )
+    return build(raw, sources)
 
 
 def prompt(tier: Tier, user_prompt: str | None) -> str:
@@ -28,19 +36,8 @@ def prompt(tier: Tier, user_prompt: str | None) -> str:
 def build(raw: str, _sources: list[Source]) -> Built:
     # A markdown outline: an H1 root over nested bullets, which Markmap reads
     # directly on the client and which stays readable as plain text.
-    spec = parse_json(raw)
-    title = as_text(spec.get("title")) or "Mind map"
-    lines = [f"# {title}"]
-    _render(as_list(spec.get("nodes"))[:BRANCHES], lines, depth=0)
-    return Built(title=title, markdown="\n".join(lines))
-
-
-def _render(nodes: list[Any], lines: list[str], depth: int) -> None:
-    for node in nodes:
-        if not isinstance(node, dict):
-            continue
-        label = as_text(node.get("label"))
-        if not label:
-            continue
-        lines.append(f"{'  ' * depth}- {label}")
-        _render(as_list(node.get("children")), lines, depth + 1)
+    title, lines = outline.read(raw)
+    if not lines:
+        raise ValueError(NO_BRANCHES)
+    title = title or "Mind map"
+    return Built(title=title, markdown="\n".join([f"# {title}", *lines]))

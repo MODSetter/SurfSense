@@ -116,8 +116,7 @@ def test_a_deck_and_a_map_are_capped_where_their_prompts_say_they_are() -> None:
     """Open counts are a prompt's request; the ceiling is the builder's contract."""
     deck = flashcards.build(_deck(40), [])
 
-    branch = {"label": "Branch", "children": [{"label": "Leaf"}]}
-    map_body = mindmap.build(json.dumps({"nodes": [branch] * 40}), []).markdown
+    map_body = mindmap.build("# T\n" + "- Branch\n  - Leaf\n" * 40, []).markdown
 
     assert len(json.loads(deck.primary)["cards"]) == flashcards.CARDS
     assert map_body.count("\n- ") == mindmap.BRANCHES
@@ -162,8 +161,7 @@ def test_parse_json_rejects_a_non_object() -> None:
 
 def test_mindmap_renders_a_nested_outline_and_no_file() -> None:
     """A mind map is a markdown body Markmap reads; there is nothing to download."""
-    raw = '{"title": "Saturn", "nodes": [{"label": "Rings", "children": [{"label": "Ice"}]}]}'
-    built = mindmap.build(raw, [])
+    built = mindmap.build("# Saturn\n- Rings\n  - Ice", [])
 
     assert built.primary is None
     assert "# Saturn" in built.markdown
@@ -373,3 +371,78 @@ def test_a_quiz_with_no_usable_question_fails_rather_than_opening_empty() -> Non
     """An empty quiz opened as ready; failing says why and lets the job try again."""
     with pytest.raises(ValueError, match="no usable questions"):
         quiz.build('{"title": "T", "questions": []}', [])
+
+
+def test_a_map_is_written_free_and_its_reply_capped(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """No schema: the model chooses the map's shape. A JSON map broke on a 4B
+    model in 9 of 9, and a schema that allows any depth crashed llama-server."""
+    sent: list[dict] = []
+
+    def fake_run_model(*_a: object, **kw: object) -> str:
+        sent.append(kw)
+        return "# T\n- A"
+
+    monkeypatch.setattr(generate, "run_model", fake_run_model)
+
+    mindmap.render(SimpleNamespace(tier=Tier.COMPACT), [], None)
+
+    assert sent[0].get("json_schema") is None
+    assert sent[0]["max_tokens"] == mindmap.REPLY_TOKENS
+
+
+def test_a_map_keeps_whatever_depth_the_model_writes() -> None:
+    """Depth is the model's to choose; nothing flattens a deep branch."""
+    raw = "# T\n- a\n  - b\n    - c\n      - d\n        - e\n          - f"
+
+    body = mindmap.build(raw, []).markdown
+
+    assert "          - f" in body
+
+
+def test_a_map_evens_out_how_the_model_indented_and_bulleted() -> None:
+    """Four spaces, a tab, `*` and numbers all mean one level down."""
+    raw = "```markdown\n# T\n* a\n    1. b\n\t\t- c\n* d\n```"
+
+    body = mindmap.build(raw, []).markdown
+
+    assert body == "# T\n- a\n  - b\n    - c\n- d"
+
+
+def test_a_map_reads_headings_as_branches() -> None:
+    """Some models write each branch as a heading with its bullets beneath."""
+    body = mindmap.build(
+        "# T\n## Causes\n- Debt\n  - War loans\n## Results", []
+    ).markdown
+
+    assert body == "# T\n- Causes\n  - Debt\n    - War loans\n- Results"
+
+
+def test_a_map_drops_prose_around_the_outline() -> None:
+    """Small models add a sentence before or after; only the outline is kept."""
+    body = mindmap.build("Here is your map:\n# T\n- a\nHope it helps!", []).markdown
+
+    assert body == "# T\n- a"
+
+
+def test_a_label_loses_the_markup_wrapped_around_it() -> None:
+    """Qwen3 0.6B wrote its branches as `**# Causes**`."""
+    body = mindmap.build("# T\n- **# Causes**\n  - __Debt__\n  - War **loans**", [])
+
+    assert body.markdown == "# T\n- Causes\n  - Debt\n  - War **loans**"
+
+
+def test_a_run_on_list_under_one_label_is_cut() -> None:
+    """One 4B map hung 300 labels under one branch until its reply ran out."""
+    raw = "# T\n- a\n" + "".join(f"  - leaf {n}\n" for n in range(40))
+
+    body = mindmap.build(raw, []).markdown
+
+    assert body.count("\n  - ") == mindmap.CHILDREN
+
+
+def test_a_map_with_no_branch_fails_rather_than_opening_empty() -> None:
+    """A map of a title alone shows nothing; failing says why."""
+    with pytest.raises(ValueError, match="no usable branches"):
+        mindmap.build("# T\nNothing to map.", [])

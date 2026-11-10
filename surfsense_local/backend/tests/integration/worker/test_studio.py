@@ -233,12 +233,8 @@ def test_a_model_at_the_bar_writes_the_web_page_itself(
 def test_mindmap_becomes_a_nested_outline_body(
     session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Mind map: the model's node tree becomes a nested markdown outline, no file."""
-    seen = _capture_model(
-        monkeypatch,
-        '{"title": "Cassini", "nodes": '
-        '[{"label": "Mission", "children": [{"label": "2004"}]}]}',
-    )
+    """Mind map: the model's outline becomes the nested markdown body, no file."""
+    seen = _capture_model(monkeypatch, "# Cassini\n- Mission\n  - 2004")
     artifact = make_artifact(session, fmt="mindmap", prompt="key milestones")
 
     run(artifact.id)
