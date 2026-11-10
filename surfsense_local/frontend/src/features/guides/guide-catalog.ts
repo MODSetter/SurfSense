@@ -260,6 +260,14 @@ export const GUIDE_AREAS: readonly GuideArea[] = [
               "Fill in a security questionnaire from your policies",
           }),
       },
+      {
+        slug: "contract-redline",
+        title: () =>
+          intl.formatMessage({
+            id: "guides_dialog_contract_redline_link",
+            defaultMessage: "Redline a contract against your playbook",
+          }),
+      },
     ],
   },
   {

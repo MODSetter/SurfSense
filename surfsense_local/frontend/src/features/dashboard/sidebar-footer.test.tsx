@@ -134,8 +134,8 @@ describe("the guides row", () => {
       .getAllByRole("link")
       .map((link) => new URL(link.getAttribute("href") ?? "").pathname)
       .filter((path) => path !== "/docs/v2/guides")
-    expect(pages).toHaveLength(26)
-    expect(new Set(pages).size).toBe(26)
+    expect(pages).toHaveLength(27)
+    expect(new Set(pages).size).toBe(27)
   })
 })
 

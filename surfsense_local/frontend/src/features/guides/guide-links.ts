@@ -30,6 +30,7 @@ export type GuideSlug =
   | "voice-input"
   | "business-trial"
   | "security-questionnaire"
+  | "contract-redline"
   | "privacy-network"
   | "updates"
 
