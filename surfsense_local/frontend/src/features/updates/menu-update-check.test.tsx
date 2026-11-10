@@ -33,6 +33,8 @@ function renderMenuCheck() {
 
 const upToDate = () =>
   screen.queryByRole("status", { name: "SurfSense is up to date" })
+const failed = () =>
+  screen.queryByRole("status", { name: "Couldn’t check for updates" })
 
 describe("Check for Updates… in the app menu", () => {
   it("checks straight away once update checks are allowed", async () => {
@@ -87,7 +89,7 @@ describe("Check for Updates… in the app menu", () => {
     expect(toast.success).not.toHaveBeenCalled()
   })
 
-  it("says when the check failed", async () => {
+  it("says in the title bar when the check failed", async () => {
     const bridge = stubUpdateBridge({
       automatic: true,
       state: { status: "idle" },
@@ -103,9 +105,8 @@ describe("Check for Updates… in the app menu", () => {
       })
     )
 
-    expect(toast.error).toHaveBeenCalledWith("Couldn’t check for updates", {
-      description: "net::ERR_INTERNET_DISCONNECTED",
-    })
+    expect(failed()).not.toBeNull()
+    expect(toast.error).not.toHaveBeenCalled()
   })
 
   it("leaves a found update to the title bar", async () => {

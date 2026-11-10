@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react"
 import { Button } from "@/components/ui/button"
 import { DownloadRing } from "@/components/ui/download-ring"
 import {
+  Alert02Icon,
   ArrowDown02Icon,
   CheckCircle2Icon,
   CircleArrowUp02Icon,
@@ -12,7 +13,7 @@ import { usePrivacyState } from "@/features/privacy-choices/use-privacy-state"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
-import { useUpToDateConfirmed } from "./up-to-date-confirmation"
+import { useCheckOutcome } from "./check-outcome"
 import { useReportedCheck } from "./use-reported-check"
 import { updatesBridge, useUpdateState } from "./use-update-state"
 
@@ -51,7 +52,7 @@ function Slot({ children }: { children: ReactNode }) {
 export function TitleBarUpdate() {
   const state = useUpdateState()
   const check = useReportedCheck()
-  const confirmed = useUpToDateConfirmed()
+  const outcome = useCheckOutcome()
   const { state: privacy } = usePrivacyState()
   const [restarting, setRestarting] = useState(false)
   const settle = useRef<number | undefined>(undefined)
@@ -135,28 +136,45 @@ export function TitleBarUpdate() {
     )
 
   // Opened without a hover, so the answer to a click needs no second look.
-  if (confirmed && state.status === "up-to-date")
+  const failed = outcome === "failed" && state.status === "error"
+  if (failed || (outcome === "up-to-date" && state.status === "up-to-date"))
     return (
       <div
         role="status"
         tabIndex={0}
-        aria-label={intl.formatMessage({
-          id: "updates_title_bar_up_to_date_aria",
-          defaultMessage: "SurfSense is up to date",
-        })}
+        aria-label={
+          failed
+            ? intl.formatMessage({
+                id: "updates_title_bar_check_failed_aria",
+                defaultMessage: "Couldn’t check for updates",
+              })
+            : intl.formatMessage({
+                id: "updates_title_bar_up_to_date_aria",
+                defaultMessage: "SurfSense is up to date",
+              })
+        }
         className={cn(QUIET_PILL, "w-auto")}
       >
         <span className={cn(QUIET_LABEL, "translate-x-0 opacity-100")}>
-          {intl.formatMessage({
-            id: "updates_title_bar_up_to_date_label",
-            defaultMessage: "Up to date",
-          })}
+          {failed
+            ? intl.formatMessage({
+                id: "updates_title_bar_check_failed_label",
+                defaultMessage: "Couldn’t check",
+              })
+            : intl.formatMessage({
+                id: "updates_title_bar_up_to_date_label",
+                defaultMessage: "Up to date",
+              })}
         </span>
         <Slot>
-          <CheckCircle2Icon
-            aria-hidden="true"
-            className="size-3 text-muted-foreground"
-          />
+          {failed ? (
+            <Alert02Icon aria-hidden="true" className="size-3 text-warning" />
+          ) : (
+            <CheckCircle2Icon
+              aria-hidden="true"
+              className="size-3 text-muted-foreground"
+            />
+          )}
         </Slot>
       </div>
     )

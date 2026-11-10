@@ -16,7 +16,7 @@ import { toast } from "sonner"
 import { MenuUpdateCheck } from "./menu-update-check"
 import { stubUpdateBridge as stubBridge } from "./stub-bridge"
 import { TitleBarUpdate } from "./title-bar-update"
-import { UP_TO_DATE_SHOWN_MS } from "./up-to-date-confirmation"
+import { CHECK_OUTCOME_SHOWN_MS } from "./check-outcome"
 
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
@@ -65,22 +65,42 @@ describe("the title bar's update pill", () => {
     expect(toast.success).not.toHaveBeenCalled()
   })
 
-  it("offers a check again once it has said so", async () => {
+  it.each([
+    { result: { status: "up-to-date" }, says: "SurfSense is up to date" },
+    {
+      result: { status: "error", message: "net::ERR_INTERNET_DISCONNECTED" },
+      says: "Couldn’t check for updates",
+    },
+  ] as const)(
+    'offers a check again 2.5 seconds after saying "$says"',
+    async ({ result, says }) => {
+      const bridge = stubBridge({ automatic: true, state: { status: "idle" } })
+      render(<TitleBarUpdate />)
+      const button = await screen.findByRole("button", {
+        name: "Check for updates",
+      })
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] })
+
+      fireEvent.click(button)
+      act(() => bridge.push({ status: "checking" }))
+      act(() => bridge.push(result))
+      expect(screen.getByRole("status", { name: says }))
+      act(() => vi.advanceTimersByTime(CHECK_OUTCOME_SHOWN_MS))
+
+      expect(screen.queryByRole("status")).toBeNull()
+      expect(screen.getByRole("button", { name: "Check for updates" }))
+    }
+  )
+
+  it("says nothing when a check it did not start fails", async () => {
     const bridge = stubBridge({ automatic: true, state: { status: "idle" } })
     render(<TitleBarUpdate />)
-    const button = await screen.findByRole("button", {
-      name: "Check for updates",
-    })
-    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] })
+    await screen.findByRole("button", { name: "Check for updates" })
 
-    fireEvent.click(button)
     act(() => bridge.push({ status: "checking" }))
-    act(() => bridge.push({ status: "up-to-date" }))
-    expect(screen.getByRole("status", { name: "SurfSense is up to date" }))
-    act(() => vi.advanceTimersByTime(UP_TO_DATE_SHOWN_MS))
+    act(() => bridge.push({ status: "error", message: "offline" }))
 
     expect(screen.queryByRole("status")).toBeNull()
-    expect(screen.getByRole("button", { name: "Check for updates" }))
   })
 
   it("says nothing when a check it did not start finds nothing newer", async () => {
@@ -111,9 +131,11 @@ describe("the title bar's update pill", () => {
       })
     )
 
-    expect(toast.error).toHaveBeenCalledWith("Couldn’t check for updates", {
-      description: "net::ERR_INTERNET_DISCONNECTED",
+    const pill = screen.getByRole("status", {
+      name: "Couldn’t check for updates",
     })
+    expect(pill.textContent).toBe("Couldn’t check")
+    expect(toast.error).not.toHaveBeenCalled()
   })
 
   it("asks once, however often it is clicked while asking", async () => {

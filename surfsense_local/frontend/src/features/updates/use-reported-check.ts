@@ -1,10 +1,8 @@
 import { useEffect } from "react"
-import { toast } from "sonner"
 
-import { intl } from "@/i18n/intl"
 import type { UpdateState } from "@/lib/api"
 
-import { confirmUpToDate } from "./up-to-date-confirmation"
+import { showCheckOutcome } from "./check-outcome"
 import { useCheckForUpdates } from "./use-check-for-updates"
 import { updatesBridge } from "./use-update-state"
 
@@ -33,7 +31,7 @@ function reportingFor(updates: Updates) {
 
 /**
  * A check from the app menu or the title bar, where Settings may be closed.
- * Up to date and a found update show in the title bar; a failure is a toast.
+ * Its outcome, up to date, failed or an update found, shows in the title bar.
  */
 export function useReportedCheck() {
   const check = useCheckForUpdates()
@@ -50,15 +48,8 @@ export function useReportedCheck() {
       }
       if (shared.phase !== "running") return
       shared.phase = "none"
-      if (state.status === "up-to-date") confirmUpToDate(updates)
-      else if (state.status === "error")
-        toast.error(
-          intl.formatMessage({
-            id: "updates_check_failed_toast",
-            defaultMessage: "Couldn’t check for updates",
-          }),
-          { description: state.message }
-        )
+      if (state.status === "up-to-date") showCheckOutcome(updates, "up-to-date")
+      else if (state.status === "error") showCheckOutcome(updates, "failed")
     })
   }, [])
 
