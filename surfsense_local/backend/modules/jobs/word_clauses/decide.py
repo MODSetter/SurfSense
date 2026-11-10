@@ -14,6 +14,7 @@ from modules.jobs.word_clauses.ask import Draft, PointPrompt, ask_point
 from modules.jobs.word_clauses.check import check_change
 from modules.jobs.word_clauses.config import ClauseConfig, ReviewPoint
 from modules.jobs.word_clauses.contract import Contract
+from modules.jobs.word_clauses.markup import stray_markup
 from modules.jobs.word_clauses.placement import (
     locate,
     narrowed,
@@ -32,6 +33,7 @@ REASONS = {
     "IN_FIELD": "The words it would change are inside a field Word fills in.",
     "NO_CHANGE": "It found the contract departs from your playbook but proposed no change.",
     "SAME_TEXT": "Its change would leave the text as it is.",
+    "MARKUP": "Its new words hold formatting the contract does not use, such as a tag or a link.",
     "NOT_SUPPORTED": "A second check found your playbook does not call for this change.",
     "ANCHOR_NOT_UNIQUE": "The words it would change occur more than once in the contract.",
     "CHANGES_OVERLAP": "Another point's change, made first, rewrites the same words.",
@@ -174,6 +176,7 @@ def _problems(
         problems.append(_Problem("QUOTE_NOT_FOUND", _quote_ask(draft, passages, texts)))
     if draft.said in _NEEDS_CHANGE:
         problems += _placement(draft, contract)
+        problems += _formatting(draft, contract)
     return problems
 
 
@@ -248,6 +251,25 @@ def _placement(draft: Draft, contract: Contract) -> list[_Problem]:
     if edit.kind == "replace" and _flat(edit.new_text) == _flat(old):
         return [_Problem("SAME_TEXT", "Your new_text is the same as old_text.")]
     return []
+
+
+def _formatting(draft: Draft, contract: Contract) -> list[_Problem]:
+    """New words go into the contract as they are, so they may hold only contract text."""
+    edit = draft.edit
+    if edit.kind not in ("replace", "insert_after") or not edit.new_text:
+        return []
+    replaced = edit.old_text if edit.kind == "replace" else ""
+    found = stray_markup(edit.new_text, replaced, [c.text for c in contract.clauses])
+    if found is None:
+        return []
+    return [
+        _Problem(
+            "MARKUP",
+            f'Your new_text is not only contract words: it holds {found.kind}, "{found.word}". '
+            "Give new_text as the words the contract will read and nothing else: no Markdown, "
+            "tags, code or JSON.",
+        )
+    ]
 
 
 def _change(draft: Draft, contract: Contract) -> Change:
