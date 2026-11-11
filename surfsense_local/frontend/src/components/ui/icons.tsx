@@ -258,3 +258,6 @@ export const Xls01Icon = createIcon(Xls01IconData)
 export const YoutubeIcon = createIcon(YoutubeIconData)
 export const ZoomInIcon = createIcon(ZoomInIconData)
 export const ZoomOutIcon = createIcon(ZoomOutIconData)
+
+// Studio's picture types, drawn for their cards rather than taken from the icon set.
+export { ImageTypeIcon, InfographicTypeIcon } from "./picture-type-icons"

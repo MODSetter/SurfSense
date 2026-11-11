@@ -1,12 +1,23 @@
-import { SegmentedControl } from "@/components/ui/segmented-control"
+import type { ComponentType } from "react"
+
+import {
+  CheckIcon,
+  ImageTypeIcon,
+  InfographicTypeIcon,
+} from "@/components/ui/icons"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
 import type { StudioFormat } from "../api"
 import { formatLabel } from "../studio-formats"
 
-/** Image or infographic, as one choice. Both need the same models, so a type is
- *  closed only if the server ever says so. */
+const TYPE_ART: Record<string, ComponentType<{ className?: string }>> = {
+  image: ImageTypeIcon,
+  infographic: InfographicTypeIcon,
+}
+
+/** Image or infographic as cards, each shown by its picture, the chosen one ticked.
+ *  Both need the same models, so a type is closed only if the server ever says so. */
 export function PictureTypePicker({
   types,
   value,
@@ -23,41 +34,53 @@ export function PictureTypePicker({
   return (
     <div className="space-y-2">
       <p className="text-xs font-medium text-muted-foreground">{label}</p>
-      <SegmentedControl
-        count={types.length}
-        selectedIndex={Math.max(
-          0,
-          types.findIndex((entry) => entry.key === value)
-        )}
+      <div
         role="radiogroup"
         aria-label={label}
-        className="flex w-full"
+        className="grid grid-cols-2 gap-2"
       >
-        {types.map((entry) => (
-          <label
-            key={entry.key}
-            className={cn(
-              "relative min-w-0 flex-1",
-              entry.available
-                ? "cursor-pointer"
-                : "cursor-not-allowed opacity-50"
-            )}
-          >
-            <input
-              type="radio"
-              name="studio-picture-type"
-              value={entry.key}
-              checked={value === entry.key}
-              disabled={!entry.available}
-              className="peer sr-only"
-              onChange={() => onChange(entry.key)}
-            />
-            <span className="relative flex h-8 items-center justify-center truncate rounded-md px-3 text-sm peer-focus-visible:z-10 peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:outline-none">
-              {formatLabel(entry)}
-            </span>
-          </label>
-        ))}
-      </SegmentedControl>
+        {types.map((entry) => {
+          const Art = TYPE_ART[entry.key]
+          const checked = value === entry.key
+          return (
+            <label
+              key={entry.key}
+              className={cn(
+                "group relative flex min-w-0 flex-col gap-1.5",
+                entry.available
+                  ? "cursor-pointer"
+                  : "cursor-not-allowed opacity-50"
+              )}
+            >
+              <input
+                type="radio"
+                name="studio-picture-type"
+                value={entry.key}
+                checked={checked}
+                disabled={!entry.available}
+                className="peer sr-only"
+                onChange={() => onChange(entry.key)}
+              />
+              <span
+                className={cn(
+                  "relative flex aspect-3/2 items-center justify-center overflow-hidden rounded-lg border bg-muted/40 px-5 py-3 transition-colors duration-150 ease-out peer-focus-visible:ring-2 peer-focus-visible:ring-ring motion-reduce:transition-none",
+                  checked
+                    ? "border-primary bg-primary/5"
+                    : "border-border group-hover:bg-accent"
+                )}
+              >
+                {Art ? <Art /> : null}
+                {checked ? (
+                  <span className="absolute top-1.5 right-1.5 flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                    <CheckIcon className="size-3" strokeWidth={2.5} />
+                  </span>
+                ) : null}
+              </span>
+              <span className="truncate text-sm">{formatLabel(entry)}</span>
+            </label>
+          )
+        })}
+      </div>
     </div>
   )
 }

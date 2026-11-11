@@ -332,6 +332,10 @@ describe("studio panel", () => {
     await user.click(within(formats).getByRole("button", { name: "Image" }))
     const dialog = screen.getByRole("dialog", { name: "Image" })
     const type = within(dialog).getByRole("radiogroup", { name: "Type" })
+    // A card for each type, shown by its own picture.
+    expect(type.querySelectorAll("[data-slot=picture-type-art]")).toHaveLength(
+      2
+    )
     expect(
       (within(type).getByRole("radio", { name: "Image" }) as HTMLInputElement)
         .checked
