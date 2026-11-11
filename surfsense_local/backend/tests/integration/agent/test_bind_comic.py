@@ -203,3 +203,135 @@ async def test_binding_a_comic_does_not_start_the_local_image_model(
 
         assert local_image_demand(session, datetime.now(UTC)) is None
 
+
+async def _listed_ids(tools: ToolEndpoint, workspace_id: int) -> set[int]:
+    listed = await tools.client.get(f"/workspaces/{workspace_id}/artifacts")
+    return {row["id"] for row in listed.json()}
+
+
+async def _page(tools: ToolEndpoint, workspace_id: int, title: str) -> str:
+    text, is_error = await tools.call(
+        workspace_id,
+        "make_image",
+        {"prompt": f"A page: {title}", "title": title, "comic_page": True},
+    )
+    assert is_error is False, text
+    return f"image-{_artifact_id(text)}"
+
+
+def _id(name: str) -> int:
+    return int(name.removeprefix("image-"))
+
+
+async def test_only_the_comic_is_listed_never_its_pages(
+    tools: ToolEndpoint,
+    painter: Painter,  # noqa: F811
+) -> None:
+    """A comic is one artifact in Studio, from its first page drawn to its binding."""
+    workspace_id = await tools.workspace()
+    first = await _page(tools, workspace_id, "Cat · page 1")
+    assert _id(first) not in await _listed_ids(tools, workspace_id)
+    second = await _page(tools, workspace_id, "Cat · page 2")
+
+    made, _ = await tools.call(
+        workspace_id,
+        "bind_comic",
+        {"title": "Cat", "pages": [{"image": first}, {"image": second}]},
+    )
+
+    assert await _listed_ids(tools, workspace_id) == {_artifact_id(made)}
+
+
+async def test_a_page_the_agent_changes_stays_out_of_the_list(
+    tools: ToolEndpoint,
+    painter: Painter,  # noqa: F811
+) -> None:
+    """Page 3 again is the page's next version, and a page all the same."""
+    workspace_id = await tools.workspace()
+    page = await _page(tools, workspace_id, "Cat · page 1")
+
+    changed, is_error = await tools.call(
+        workspace_id,
+        "make_image",
+        {"prompt": "Make it night", "artifact_id": _id(page)},
+    )
+
+    assert is_error is False, changed
+    assert await _listed_ids(tools, workspace_id) == set()
+
+
+async def test_binding_hides_a_page_drawn_without_the_mark(
+    tools: ToolEndpoint,
+    painter: Painter,  # noqa: F811
+) -> None:
+    """A page the agent forgot to mark leaves the list once its comic binds it."""
+    workspace_id = await tools.workspace()
+    page = await _picture(tools, workspace_id, "Cat · page 1")
+
+    made, _ = await tools.call(
+        workspace_id, "bind_comic", {"title": "Cat", "pages": [{"image": page}]}
+    )
+
+    assert await _listed_ids(tools, workspace_id) == {_artifact_id(made)}
+
+
+async def test_deleting_a_comic_deletes_the_pages_no_other_version_binds(
+    tools: ToolEndpoint,
+    painter: Painter,  # noqa: F811
+    engine: Engine,
+) -> None:
+    """Pages cannot be deleted from the list, so they go with the comic, last of all."""
+    workspace_id = await tools.workspace()
+    first = await _page(tools, workspace_id, "Cat · page 1")
+    v1, _ = await tools.call(
+        workspace_id, "bind_comic", {"title": "Cat", "pages": [{"image": first}]}
+    )
+    second = await _page(tools, workspace_id, "Cat · page 2")
+    v2, _ = await tools.call(
+        workspace_id,
+        "bind_comic",
+        {
+            "title": "Cat",
+            "pages": [{"image": first}, {"image": second}],
+            "artifact_id": _artifact_id(v1),
+        },
+    )
+
+    deleted = await tools.client.delete(f"/artifacts/{_artifact_id(v2)}")
+    assert deleted.status_code == 204, deleted.text
+    with create_session_factory(engine)() as session:
+        assert session.get(Artifact, _id(second)) is None
+        assert session.get(Artifact, _id(first)) is not None
+
+    deleted = await tools.client.delete(f"/artifacts/{_artifact_id(v1)}")
+    assert deleted.status_code == 204, deleted.text
+    with create_session_factory(engine)() as session:
+        assert session.get(Artifact, _id(first)) is None
+
+
+async def test_deleting_a_comic_takes_a_pages_earlier_versions_too(
+    tools: ToolEndpoint,
+    painter: Painter,  # noqa: F811
+    engine: Engine,
+) -> None:
+    """A changed page's first drawing is still kept: nothing else would remove it."""
+    workspace_id = await tools.workspace()
+    page = await _page(tools, workspace_id, "Cat · page 1")
+    changed, _ = await tools.call(
+        workspace_id,
+        "make_image",
+        {"prompt": "Make it night", "artifact_id": _id(page)},
+    )
+    made, _ = await tools.call(
+        workspace_id,
+        "bind_comic",
+        {"title": "Cat", "pages": [{"image": f"image-{_artifact_id(changed)}"}]},
+    )
+
+    deleted = await tools.client.delete(f"/artifacts/{_artifact_id(made)}")
+
+    assert deleted.status_code == 204, deleted.text
+    with create_session_factory(engine)() as session:
+        assert session.get(Artifact, _id(page)) is None
+        assert session.get(Artifact, _artifact_id(changed)) is None
+

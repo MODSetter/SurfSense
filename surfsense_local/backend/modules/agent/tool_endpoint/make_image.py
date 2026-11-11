@@ -124,6 +124,14 @@ LISTING: dict[str, Any] = {
                     "Left out, the model's own."
                 ),
             },
+            "comic_page": {
+                "type": "boolean",
+                "description": (
+                    "true for a page of a comic, storyboard or picture book you "
+                    "will bind with surfsense_bind_comic: Studio lists the comic, "
+                    "not its pages."
+                ),
+            },
             "references": {
                 "type": "array",
                 "items": {"type": "string"},
@@ -148,6 +156,7 @@ class _Request:
     base_artifact_id: int | None
     shape: Shape | None = None
     references: tuple[str, ...] = ()
+    comic_page: bool = False
 
 
 def make(
@@ -244,6 +253,7 @@ def _request(arguments: dict[str, Any]) -> _Request:
         base,
         cast(Shape, shape) if shape is not None else None,
         tuple(dict.fromkeys(name.strip() for name in references)),
+        arguments.get("comic_page") is True,
     )
 
 
@@ -289,6 +299,7 @@ def _new_picture(session: Session, scope: TurnScope, request: _Request) -> Artif
         chat_thread_id=scope.thread_id,
         shape=request.shape,
         references=_reference_ids(session, scope, request.references),
+        comic_page=request.comic_page,
     )
 
 

@@ -30,7 +30,7 @@ A comic, a storyboard, a picture book, or any pictures that must look like one s
 2. **Confirm once.** Say how many pictures, the plan in short, and that each is billed by their provider, or takes minutes on their computer. On yes, draw every picture without asking again. A single picture needs no confirmation.
 3. **Draw the first alone,** and look at it. When it is wrong, change it before going on: every later picture copies its characters.
 4. **Draw the rest with the first as their reference**: `references: ["image-<first>"]`. Give each its own call, all in one step, so a remote model draws them side by side. A character picture the user gave, or a character sheet they asked for first, is the reference instead.
-5. **Title each** "<title> · page <n>", or "· scene <n>": a chat cannot reuse a picture's title.
+5. **Title each** "<title> · page <n>", or "· scene <n>": a chat cannot reuse a picture's title. For a comic, a storyboard or a picture book, give every page `comic_page: true`, from page 1 on: Studio lists the comic, never its pages.
 6. **Bind them** with `surfsense_bind_comic`, every picture's name in reading order, with the `layout` and `direction` [`comics.md`](comics.md#which-kind) gives its kind. The comic is what the user keeps: one artifact in Studio, a PDF.
 7. **Answer** with the comic and one line per picture, so the user can ask for "page 3 again".
 

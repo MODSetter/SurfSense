@@ -80,3 +80,7 @@ def test_a_comic_is_bound_by_its_own_tool_not_a_script() -> None:
         assert "surfsense_bind_comic" in text, name
         assert "surfsense_render_document" not in text, name
 
+
+def test_a_comics_pages_are_drawn_as_its_pages() -> None:
+    """Marked from the first, a page is never listed in Studio apart from its comic."""
+    assert "comic_page: true" in _file("SKILL.md")

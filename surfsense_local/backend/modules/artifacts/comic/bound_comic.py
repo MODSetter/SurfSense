@@ -13,6 +13,7 @@ from modules.artifacts.comic.binding_recipe import (
     comic_bound,
 )
 from modules.artifacts.comic.kinds import MAX_PAGES
+from modules.artifacts.comic.pages import mark_comic_pages
 from modules.artifacts.comic.reading import Direction, Layout
 from modules.artifacts.drawn_images.names import (
     ImageStillDrawingError,
@@ -117,6 +118,7 @@ def create_bound_comic(
         layout=layout,
         direction=direction,
     )
+    mark_comic_pages(session, [page.picture for page in binding.pages])
     artifact.artifact_metadata = {
         RECIPE_KEY: comic_bound(binding),
         "version": version.as_metadata(),

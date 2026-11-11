@@ -4,6 +4,7 @@ import logging
 
 from sqlalchemy.orm import Session
 
+from modules.artifacts.comic.pages import COMIC_PAGE
 from modules.artifacts.drawn_images.model import require_image_model
 from modules.artifacts.drawn_images.recipe import image_drawn
 from modules.artifacts.models import Artifact
@@ -26,6 +27,7 @@ def create_drawn_image(
     chat_thread_id: int | None,
     shape: Shape | None = None,
     references: tuple[int, ...] = (),
+    comic_page: bool = False,
 ) -> Artifact:
     """Pending until Studio's job paints it. Commits before enqueueing: the worker
     is another process and must find the row."""
@@ -49,6 +51,7 @@ def create_drawn_image(
             RECIPE_KEY: image_drawn(prompt, shape, references),
             "source_document_ids": [],
             "prompt": prompt,
+            **({COMIC_PAGE: True} if comic_page else {}),
         },
     )
     session.add(artifact)
