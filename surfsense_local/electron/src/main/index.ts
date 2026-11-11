@@ -5,6 +5,7 @@ import { pathToFileURL } from "node:url"
 import {
   app,
   BrowserWindow,
+  dialog,
   ipcMain,
   Menu,
   nativeTheme,
@@ -26,6 +27,7 @@ import { allowedExternalUrl, confirmedExternalUrl } from "./external-url.ts"
 import { frameMayNavigate } from "./framed-navigation.ts"
 import { pluginPageUrl, type PluginPage } from "./plugin-page-url.ts"
 import { loadSecret } from "./secret.ts"
+import { describeStartupFailure } from "./startup-failure/describe-startup-failure.ts"
 import { bootSidecars, type BootContext } from "../../../sidecars/boot.ts"
 import { stopOnce } from "../../../sidecars/stop-once.ts"
 import { stopAll, type Sidecars } from "../../../sidecars/supervisor.ts"
@@ -590,6 +592,12 @@ function main(): void {
     })
     .catch((err: unknown) => {
       warnMain(sessionLog, `failed to start: ${String(err)}`)
+      // No window exists yet, so without this the app just vanishes. English,
+      // like the application menu: main's own text is not translated.
+      if (!shuttingDown) {
+        const { title, detail } = describeStartupFailure(err, sessionLog.lines())
+        dialog.showErrorBox(title, detail)
+      }
       void shutdown().finally(() => app.exit(1))
     })
 
