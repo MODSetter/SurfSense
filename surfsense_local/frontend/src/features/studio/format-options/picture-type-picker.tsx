@@ -63,10 +63,10 @@ export function PictureTypePicker({
               />
               <span
                 className={cn(
-                  "relative flex aspect-3/2 items-center justify-center overflow-hidden rounded-lg border bg-muted/40 px-5 py-3 transition-colors duration-150 ease-out peer-focus-visible:ring-2 peer-focus-visible:ring-ring motion-reduce:transition-none",
+                  "relative flex aspect-3/2 items-center justify-center overflow-hidden rounded-lg border transition-colors duration-150 ease-out peer-focus-visible:ring-2 peer-focus-visible:ring-ring motion-reduce:transition-none",
                   checked
-                    ? "border-primary bg-primary/5"
-                    : "border-border group-hover:bg-accent"
+                    ? "border-primary ring-1 ring-primary"
+                    : "border-border group-hover:border-foreground/30"
                 )}
               >
                 {Art ? <Art /> : null}
