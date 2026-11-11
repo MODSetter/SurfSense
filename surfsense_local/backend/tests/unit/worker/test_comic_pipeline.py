@@ -107,7 +107,7 @@ def asked(monkeypatch: pytest.MonkeyPatch) -> list[str]:
     """The chat model answers with PLAN; what it was asked is recorded."""
     seen: list[str] = []
 
-    def writer(_model: object, system: str, _sources: object) -> str:
+    def writer(_model: object, system: str, _sources: object, **_asked: object) -> str:
         seen.append(system)
         return json.dumps(PLAN)
 
@@ -235,6 +235,79 @@ def test_a_plan_longer_than_asked_is_cut_to_the_page_count(asked: list[str]) -> 
 
     assert len(artist.drawn) + len(artist.with_reference) == 2
     assert len(PdfReader(io.BytesIO(built.primary)).pages) == 2
+
+
+REFUSAL = (
+    "I can't turn this document into a comic.\n\n"
+    "It glorifies real violence, and a dramatised version would spread it."
+)
+
+
+def _replying(monkeypatch: pytest.MonkeyPatch, *replies: str) -> list[dict]:
+    """The chat model answers `replies` in turn; each call's keywords are recorded."""
+    calls: list[dict] = []
+
+    def writer(_model: object, _system: str, _sources: object, **asked: object) -> str:
+        calls.append(asked)
+        return replies[len(calls) - 1]
+
+    monkeypatch.setattr("worker.studio.shared.generate.run_model", writer)
+    return calls
+
+
+def _render_three(artist: Artist) -> object:
+    return comic.render(
+        _painter(artist),
+        _writer(),
+        [Source(1, "Lighthouse", "A cat keeps the light.")],
+        None,
+        {"kind": "western", "pages": 3},
+        keeper=_keeper(artist),
+    )
+
+
+def test_the_plan_is_asked_for_in_its_json_shape(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An endpoint that takes a schema cannot answer outside it."""
+    calls = _replying(monkeypatch, json.dumps(PLAN))
+
+    _render_three(Artist())
+
+    schema = calls[0]["json_schema"]
+    assert schema["required"] == ["title", "style", "characters", "pages"]
+
+
+def test_a_plan_that_is_not_json_is_asked_for_once_more(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Nothing is drawn yet, so asking again costs one text reply, not pages."""
+    calls = _replying(
+        monkeypatch, "Here is the plan: title The Lighthouse Cat", json.dumps(PLAN)
+    )
+    artist = Artist()
+
+    built = _render_three(artist)
+
+    assert calls[1]["repair"].reply == "Here is the plan: title The Lighthouse Cat"
+    assert built.title == "The Lighthouse Cat"
+
+
+def test_a_model_that_declines_twice_fails_with_what_it_said(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A refusal reads as one, not as a JSON parse error, and no page is drawn."""
+    _replying(monkeypatch, REFUSAL, REFUSAL)
+    artist = Artist()
+
+    with pytest.raises(ValueError) as failed:
+        _render_three(artist)
+
+    assert str(failed.value).splitlines()[0] == (
+        "The model did not plan the comic. It said: "
+        "I can't turn this document into a comic."
+    )
+    assert artist.drawn == []
 
 
 def test_a_webtoon_is_one_scroll_of_beats() -> None:

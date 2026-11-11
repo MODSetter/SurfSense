@@ -7,13 +7,12 @@ from modules.artifacts.comic.kinds import KINDS
 from modules.llm.pictures_in.model import PictureModel
 from modules.llm.providers.sdcpp import provider as sdcpp
 from modules.llm.resolution import ResolvedGeneration, ResolvedImageGeneration
-from worker.studio.media.visual.comic import plan as planning
+from worker.studio.media.visual.comic.asking import ask_for_plan
 from worker.studio.media.visual.comic.draw import draw_pages
 from worker.studio.media.visual.comic.page_prompt import page_prompt, strip_lines
 from worker.studio.media.visual.comic.plan import Plan
 from worker.studio.media.visual.comic_binding.bind import BoundPage, bind
 from worker.studio.media.visual.drawn.pipeline import DRAWN_FROM_WORDS
-from worker.studio.shared import generate
 from worker.studio.shared.artifact import Built, Source, fallback_title
 from worker.studio.shared.text import slug
 
@@ -28,14 +27,13 @@ def render(
     keeper: PictureModel | None,
 ) -> Built:
     kind = KINDS[options["kind"]]
-    plan = planning.parse(
-        generate.run_model(
-            writer,
-            planning.prompt(writer.tier, user_prompt, kind, options["pages"]),
-            sources,
-        ),
-        fallback_title(user_prompt, sources, "Comic"),
+    plan = ask_for_plan(
+        writer,
+        sources,
+        user_prompt,
+        kind,
         options["pages"],
+        fallback_title(user_prompt, sources, "Comic"),
     )
     if not plan.pages:
         raise ValueError("the writer planned no pages")
