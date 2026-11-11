@@ -373,7 +373,8 @@ async def test_regenerating_paints_the_same_prompt_with_no_chat_model(
 
 
 async def test_the_studio_tool_does_not_offer_a_picture(tools: ToolEndpoint) -> None:
-    """One way to make a picture: Studio's draft takes sources, and hands nothing back."""
+    """One way to make a picture: Studio's draft takes sources, and hands nothing back.
+    A comic too: the agent draws its pages and looks at each, then binds them."""
     workspace_id = await tools.workspace()
 
     listed = await tools.request(workspace_id, "tools/list")
@@ -385,7 +386,7 @@ async def test_the_studio_tool_does_not_offer_a_picture(tools: ToolEndpoint) -> 
     )
 
     offered = studio["inputSchema"]["properties"]["format"]["enum"]
-    assert not {"image", "infographic"} & set(offered)
+    assert not {"image", "infographic", "comic"} & set(offered)
     assert is_error is True
     assert text.startswith("Name a format, one of:")
 
