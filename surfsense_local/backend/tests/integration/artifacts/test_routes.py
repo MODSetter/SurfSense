@@ -32,7 +32,11 @@ def choose_model(engine: Engine) -> None:
     """A generation model must be selected before a job can run."""
     with create_session_factory(engine)() as session:
         session.add(
-            SelectedModel(model_type=ModelType.TEXT_GEN, provider="llamacpp", name="Qwen3-4B-Q4_K_M")
+            SelectedModel(
+                model_type=ModelType.TEXT_GEN,
+                provider="llamacpp",
+                name="Qwen3-4B-Q4_K_M",
+            )
         )
         session.commit()
 
@@ -218,7 +222,9 @@ async def test_a_server_that_lists_no_voices_takes_the_ones_added_for_it(
     assert "Settings" in refused.json()["detail"]
 
     for voice in ("alloy", "echo"):
-        added = await client.post("/llm/selection/audio_gen/voices", json={"voice": voice})
+        added = await client.post(
+            "/llm/selection/audio_gen/voices", json={"voice": voice}
+        )
         assert added.status_code == 201, added.text
 
     opened = (await client.get(brief_url)).json()
@@ -671,3 +677,51 @@ async def test_a_ready_artifact_cannot_be_cancelled(
     response = await client.post(f"/artifacts/{artifact_id}/cancel")
 
     assert response.status_code == 409
+
+
+async def test_a_comic_job_checks_and_stores_its_kind_and_page_count(
+    client: AsyncClient, engine: Engine, workspace_id: int, choose_model: None
+) -> None:
+    """A kind Studio has no table for, or a thirteenth page, is refused at the door."""
+    with create_session_factory(engine)() as session:
+        connection = ProviderConnection(
+            label="Images", provider="openai_compatible", base_url="http://127.0.0.1:9"
+        )
+        session.add(connection)
+        session.flush()
+        session.add(
+            SelectedModel(
+                model_type=ModelType.IMAGE_GEN,
+                provider="openai_compatible",
+                connection_id=connection.id,
+                name="flux",
+            )
+        )
+        session.commit()
+    source_id = make_ready_source(engine, workspace_id)
+    url = f"/workspaces/{workspace_id}/studio/jobs"
+
+    for options, words in (
+        ({"kind": "opera", "pages": 4}, "kind"),
+        ({"kind": "manga", "pages": 13}, "pages"),
+    ):
+        refused = await client.post(
+            url,
+            json={"format": "comic", "document_ids": [source_id], "options": options},
+        )
+        assert refused.status_code == 422, refused.text
+        assert words in refused.json()["detail"]
+
+    created = await client.post(
+        url,
+        json={
+            "format": "comic",
+            "document_ids": [source_id],
+            "options": {"kind": "manga", "pages": 6},
+        },
+    )
+    assert created.status_code == 201, created.text
+    with create_session_factory(engine)() as session:
+        stored = session.get(Artifact, created.json()["id"])
+        assert stored.format == "comic"
+        assert stored.artifact_metadata["options"] == {"kind": "manga", "pages": 6}

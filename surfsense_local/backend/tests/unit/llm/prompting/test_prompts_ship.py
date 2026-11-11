@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from modules.artifacts.comic.kinds import KINDS
 from modules.artifacts.podcast.brief import Duration, PodcastBrief, Speaker, Style
 from modules.llm.profile import Tier
 from modules.llm.prompting import load
@@ -13,6 +14,7 @@ from worker.studio.content.quiz import pipeline as quiz
 from worker.studio.content.summary import pipeline as summary
 from worker.studio.media.audio.podcast import draft, outline
 from worker.studio.media.audio.podcast.outline import Segment
+from worker.studio.media.visual.comic import plan as comic
 from worker.studio.media.visual.image import pipeline as image
 from worker.studio.media.visual.infographic import pipeline as infographic
 from worker.studio.office import prompt as office
@@ -69,6 +71,8 @@ def _every_prompt(tier: Tier) -> dict[str, str]:
         "html": html.prompt(tier, FOCUS),
         "image": image.prompt(tier, FOCUS),
         "infographic": infographic.prompt(tier, FOCUS),
+        "comic": comic.prompt(tier, FOCUS, KINDS["western"], 4),
+        "picture book": comic.prompt(tier, FOCUS, KINDS["picture_book"], 4),
         "outline": outline.prompt(tier, BRIEF, FOCUS),
         "draft": draft.prompt(tier, BRIEF, SEGMENT, 1, 2, "Sam: Welcome."),
     } | {spec.key: office.build(tier, spec, FOCUS) for spec in (docx, pptx, xlsx, pdf)}

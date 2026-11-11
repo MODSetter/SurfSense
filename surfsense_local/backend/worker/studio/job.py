@@ -230,6 +230,9 @@ def _generate(session: Session, artifact: Artifact) -> None:
         # The agent's tool reads this FAILED; a retry could bill the picture twice.
         if image_drawing_of(artifact.artifact_metadata) is not None:
             return
+        # Every page of a comic would be drawn, and billed, again.
+        if artifact.format == job_router.Kind.COMIC:
+            return
         raise  # Huey retries; a later success clears the message.
 
 
@@ -278,6 +281,9 @@ def _draft(session: Session, artifact: Artifact, document: Document) -> Built:
     )
     # Options were checked at job creation; only formats that take them get them.
     extras = [meta.get("options")] if fmt.validate_options else []
+    references = (
+        {"keeper": _picture_model(session)} if fmt.draws_with_references else {}
+    )
     # Generation runs for minutes; the write lock must not be held across it.
     session.commit()
     raise_if_cancelled(session, document)
@@ -285,7 +291,9 @@ def _draft(session: Session, artifact: Artifact, document: Document) -> Built:
     # A cancel hangs up on a model mid-reply; other stages still finish first.
     with cancellation.watching(lambda: _check_cancelled(session, document)):
         try:
-            return job_router.pipeline_for(kind)(*models, sources, prompt, *extras)
+            return job_router.pipeline_for(kind)(
+                *models, sources, prompt, *extras, **references
+            )
         except ContextOverflowError as refused:
             raise window_budget.SourcesDoNotFitError(
                 window_budget.DOES_NOT_FIT
@@ -489,6 +497,13 @@ def _window(model: ResolvedGeneration) -> int | None:
             exc_info=True,
         )
         return None
+
+
+def _picture_model(session: Session) -> pictures_in.PictureModel | None:
+    try:
+        return pictures_in.picture_model(session)
+    except ModelResolutionError as error:
+        raise NoModelSelectedError(str(error)) from error
 
 
 def _choose_model(
