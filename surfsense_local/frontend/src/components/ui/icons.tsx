@@ -16,6 +16,7 @@ import {
   ChartScatterIcon as ChartScatterIconData,
   AudioWaveformIcon as AudioWaveformIconData,
   BanIcon as BanIconData,
+  BookImageIcon as BookImageIconData,
   BotIcon as BotIconData,
   Bug01Icon as Bug01IconData,
   CancelCircleHalfDotIcon as CancelCircleHalfDotIconData,
@@ -154,6 +155,7 @@ export const ArrowRightIcon = createIcon(ArrowRightIconData)
 export const ArrowRight02Icon = createIcon(ArrowRight02IconData)
 export const ArrowUp02Icon = createIcon(ArrowUp02IconData)
 export const BanIcon = createIcon(BanIconData)
+export const BookImageIcon = createIcon(BookImageIconData)
 export const BotIcon = createIcon(BotIconData)
 export const BugIcon = createIcon(Bug01IconData)
 export const CancelCircleHalfDotIcon = createIcon(CancelCircleHalfDotIconData)

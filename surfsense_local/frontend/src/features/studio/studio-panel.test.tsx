@@ -351,6 +351,64 @@ describe("studio panel", () => {
     })
   })
 
+  it("makes a comic of the kind and length chosen, and says what it costs", async () => {
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = String(input)
+        if (path === "/workspaces/1/studio/formats") {
+          return Response.json([
+            {
+              key: "comic",
+              label: "Comic",
+              requires_model_types: ["image_gen", "text_gen"],
+              available: true,
+              unavailable_reason: null,
+            },
+          ])
+        }
+        if (path === "/workspaces/1/studio/jobs" && init?.method === "POST") {
+          return Response.json(
+            { ...pendingArtifact, format: "comic", title: "Comic" },
+            { status: 201 }
+          )
+        }
+        if (path === "/workspaces/1/artifacts") return Response.json([])
+        return Response.json({ detail: "not found" }, { status: 404 })
+      }
+    )
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+
+    renderStudio()
+
+    await user.click(await screen.findByRole("button", { name: "Comic" }))
+    const dialog = screen.getByRole("dialog", { name: "Comic" })
+    const kind = within(dialog).getByLabelText("Kind") as HTMLSelectElement
+    const pages = within(dialog).getByLabelText("Pages") as HTMLSelectElement
+    expect([kind.value, pages.value]).toEqual(["western", "4"])
+    expect(within(dialog).getByText(/Draws 4 pictures/)).toBeTruthy()
+
+    // A webtoon counts beats, and starts at its own length.
+    await user.selectOptions(kind, "webtoon")
+    expect(pages.value).toBe("8")
+    await user.selectOptions(kind, "manga")
+    await user.selectOptions(pages, "6")
+    expect(within(dialog).getByText(/Draws 6 pictures/)).toBeTruthy()
+    await user.click(within(dialog).getByRole("button", { name: /Generate/ }))
+
+    const jobCall = await vi.waitFor(() =>
+      fetchMock.mock.calls.find(
+        ([path, init]) =>
+          path === "/workspaces/1/studio/jobs" && init?.method === "POST"
+      )
+    )
+    expect(JSON.parse(String(jobCall?.[1]?.body))).toEqual({
+      format: "comic",
+      document_ids: [4],
+      options: { kind: "manga", pages: 6 },
+    })
+  })
+
   it("opens the podcast brief for review and sends it with the job", async () => {
     const brief = {
       language: "en-US",

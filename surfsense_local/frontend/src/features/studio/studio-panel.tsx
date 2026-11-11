@@ -92,6 +92,11 @@ const FORMAT_HINTS: Record<string, () => string> = {
       id: "studio_format_image_tooltip",
       defaultMessage: "Generate an AI image based on your sources",
     }),
+  comic: () =>
+    intl.formatMessage({
+      id: "studio_format_comic_tooltip",
+      defaultMessage: "Generate an AI comic based on your sources",
+    }),
 }
 
 function catalogFormats(formats: StudioFormat[]) {

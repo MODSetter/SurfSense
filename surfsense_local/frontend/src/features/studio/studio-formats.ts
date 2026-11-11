@@ -2,6 +2,7 @@ import type { ComponentType } from "react"
 
 import {
   AiSearchLinesIcon,
+  BookImageIcon,
   Cards01Icon,
   ChartHistogramIcon,
   File02Icon,
@@ -37,6 +38,7 @@ export const FORMAT_ICONS: Record<
   podcast: PodcastIcon,
   image: Image01Icon,
   infographic: ChartHistogramIcon,
+  comic: BookImageIcon,
 }
 
 // The backend's catalog sends English labels; a known key shows its own.
@@ -101,11 +103,18 @@ const FORMAT_LABELS: Record<string, () => string> = {
       id: "studio_format_infographic_label",
       defaultMessage: "Infographic",
     }),
+  comic: () =>
+    intl.formatMessage({
+      id: "studio_format_comic_label",
+      defaultMessage: "Comic",
+    }),
 }
 
 export function formatLabel(entry: { key: string; label: string }): string {
   return FORMAT_LABELS[entry.key]?.() ?? entry.label
 }
+
+const DRAWN_FORMATS = new Set(["image", "infographic", "comic"])
 
 // The formats offered before the API answers, and if it never does. The
 // backend's catalog replaces this as soon as it loads.
@@ -113,10 +122,9 @@ export function studioCatalog(): StudioFormat[] {
   return Object.keys(FORMAT_LABELS).map((key) => ({
     key,
     label: FORMAT_LABELS[key](),
-    requires_model_types:
-      key === "image" || key === "infographic"
-        ? ["image_gen", "text_gen"]
-        : ["text_gen"],
+    requires_model_types: DRAWN_FORMATS.has(key)
+      ? ["image_gen", "text_gen"]
+      : ["text_gen"],
     available: true,
     unavailable_reason: null,
   }))
