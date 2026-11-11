@@ -52,6 +52,7 @@ Asked for a comic, the agent wrote a web page and drew the panels as SVG, or dre
 | **Comics** | [`03-comics.md`](03-comics.md) | the `surfsense-pictures` skill, the routing, the PDF |
 | **The render that waits** | [`04-waiting-render.md`](04-waiting-render.md) | a document that renders once its pictures are drawn |
 | **In the app** | [`05-in-the-app.md`](05-in-the-app.md) | Settings' label, Studio's Edit, the words users see |
+| **The comic artifact** | [`06-comic-artifact.md`](06-comic-artifact.md) | `comic` as a Studio format, `surfsense_bind_comic`, one binder, Image's infographic type |
 
 ## The spike
 

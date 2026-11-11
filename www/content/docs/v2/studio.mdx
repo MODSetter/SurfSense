@@ -32,8 +32,8 @@ The result appears in the **Artifacts** list below, and a notice says when it's 
 | **Flashcards** | A deck you go through one card at a time, marking **Got it** or **Needs review**, with **Shuffle** | none |
 | **Quiz** | Questions with explanations, a score, and **Retake quiz** for all or only the missed questions | none |
 | **Podcast** | An audio episode with its transcript | `.mp3` |
-| **Image** | A picture drawn from your sources | the image |
-| **Infographic** | A picture that lays out your sources' key points | the image |
+| **Image** | A picture drawn from your sources; choose **Infographic** under **Type** for one that lays out their key points | the image |
+| **Comic** | A comic, manga, webtoon, strip, picture book or storyboard drawn from your sources, its pages in one PDF | `.pdf` |
 
 Word, Slides and Spreadsheet files are real Office files: open and edit them in Word, PowerPoint, Excel or LibreOffice. Flashcard marks and quiz answers are saved as you go.
 
@@ -42,7 +42,7 @@ Word, Slides and Spreadsheet files are real Office files: open and edit them in 
 Every format needs a chat model. A format that can't run says what it needs, such as "Needs an image model."
 
 - **Podcast** also needs an audio model. SurfSense ships one and picks it for you.
-- **Image** and **Infographic** also need an image model. See [Image models](#image-models).
+- **Image**, of either type, and **Comic** also need an image model. See [Image models](#image-models).
 
 Studio uses the chat model selected in Settings at the time you click **Generate**. Strong models make Word documents and PDFs with richer layout; small local models make simpler ones from Markdown.
 
@@ -58,6 +58,15 @@ Click **Podcast** to open its brief before you generate:
 - The language of the episode.
 
 See [Voice](/docs/v2/voice#podcast-voices) for voices and audio models.
+
+### Comics
+
+Click **Comic**, then choose:
+
+- **Kind**: Western comic, graphic novel, bande dessinée, manga, manhua, webtoon, comic strip, yonkoma, picture book or storyboard. A manga reads right to left, and a webtoon scrolls down one long page.
+- **Pages**: 1 to 12. Each kind starts at its own length, such as 4 pages, or 8 for a webtoon.
+
+Studio draws one picture per page, keeping the characters from the first page. Each picture is billed by your image model's provider, or takes minutes on this computer. With a model on this computer, the pages are drawn without words and every line is printed under its page. To change a comic, regenerate it, which draws every page again, or ask the agent, which can change one page.
 
 ## Open, download and delete
 
