@@ -18,7 +18,7 @@ description: Draw pictures with surfsense_make_image - one picture or infographi
 
 1. Read any sources the picture draws on first.
 2. Write one self-contained prompt: the subject, the setting, the style, the light, what is in front and what is behind. As short as it can be while still saying what to draw.
-3. Choose `shape` when it matters: `portrait` for a page or a poster, `landscape` for a banner or a strip, `square` for an icon.
+3. Choose `shape` when it matters: `portrait` for a page or a poster, `landscape` for a banner or a strip, `square` for an icon. Choose `type: infographic` when the picture sets out facts, in Studio's sketchnote style; leave `type` out for any other picture.
 4. Look at what comes back. Image models get hands, counts and lettering wrong. Change it once with its `artifact_id` when it is plainly wrong, and say what you changed; otherwise tell the user what is off.
 
 No picture for numbers: a chart stays a chart, in a document. Keep any words in a picture short, a title or a label; text that must be exact goes in the document around it.

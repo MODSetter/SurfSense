@@ -100,12 +100,13 @@ LISTING: dict[str, Any] = {
                     "The picture's title, as Studio lists it. Needed for a new picture."
                 ),
             },
-            "style": {
+            "type": {
                 "type": "string",
                 "enum": sorted(EDITABLE_FORMATS),
                 "description": (
-                    "infographic to give the prompt's facts Studio's sketchnote "
-                    "style; image, the default, to draw the prompt alone."
+                    "The type of picture: image, the default, draws the prompt "
+                    "alone; infographic gives the prompt's facts Studio's "
+                    "sketchnote style."
                 ),
             },
             "artifact_id": {
@@ -143,7 +144,7 @@ LISTING: dict[str, Any] = {
 class _Request:
     prompt: str
     title: str | None
-    style: str
+    picture_type: str
     base_artifact_id: int | None
     shape: Shape | None = None
     references: tuple[str, ...] = ()
@@ -162,7 +163,9 @@ def make(
     with _starting:
         if request.base_artifact_id is None:
             assert request.title is not None  # _request asked for it
-            refuse_same_title(session, scope.thread_id, request.title, request.style)
+            refuse_same_title(
+                session, scope.thread_id, request.title, request.picture_type
+            )
         made = _start(session, scope, request)
 
     outcome = wait_for_outcome(
@@ -199,7 +202,7 @@ def _request(arguments: dict[str, Any]) -> _Request:
     """The call's arguments, refused in a sentence naming the one to fix."""
     prompt, title = arguments.get("prompt"), arguments.get("title")
     # Null is how many models leave an optional field out.
-    style = arguments.get("style") or "image"
+    picture_type = arguments.get("type") or "image"
     base = arguments.get("artifact_id")
     if not isinstance(prompt, str) or not prompt.strip():
         raise ToolCallError("Give the prompt: what to draw, or how to change it.")
@@ -208,9 +211,9 @@ def _request(arguments: dict[str, Any]) -> _Request:
             f"The prompt is {len(prompt.strip()):,} characters; the limit is "
             f"{PROMPT_CHARS:,}. Shorten it and call this tool again."
         )
-    if style not in EDITABLE_FORMATS:
+    if picture_type not in EDITABLE_FORMATS:
         raise ToolCallError(
-            f"style must be one of: {', '.join(sorted(EDITABLE_FORMATS))}."
+            f"type must be one of: {', '.join(sorted(EDITABLE_FORMATS))}."
         )
     if base is not None and (not isinstance(base, int) or isinstance(base, bool)):
         raise ToolCallError(
@@ -237,7 +240,7 @@ def _request(arguments: dict[str, Any]) -> _Request:
     return _Request(
         prompt.strip(),
         title.strip() if isinstance(title, str) else None,
-        style,
+        picture_type,
         base,
         cast(Shape, shape) if shape is not None else None,
         tuple(dict.fromkeys(name.strip() for name in references)),
@@ -282,7 +285,7 @@ def _new_picture(session: Session, scope: TurnScope, request: _Request) -> Artif
         scope.workspace_id,
         title=request.title,
         prompt=request.prompt,
-        format=request.style,
+        format=request.picture_type,
         chat_thread_id=scope.thread_id,
         shape=request.shape,
         references=_reference_ids(session, scope, request.references),

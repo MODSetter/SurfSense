@@ -128,7 +128,7 @@ async def test_a_picture_is_drawn_from_the_prompt_as_written_with_no_sources(
     text, images, is_error = await tools.call_content(
         workspace_id,
         "make_image",
-        {"prompt": "A lighthouse at dusk", "title": "Lighthouse", "style": "image"},
+        {"prompt": "A lighthouse at dusk", "title": "Lighthouse", "type": "image"},
     )
 
     assert is_error is False, text
@@ -152,13 +152,13 @@ async def test_a_picture_is_drawn_from_the_prompt_as_written_with_no_sources(
 async def test_an_infographic_paints_the_agents_facts_in_studios_style(
     tools: ToolEndpoint, studio_worker: None, painter: Painter
 ) -> None:
-    """The style is Studio's own, so both paths draw alike."""
+    """An infographic is a type of picture, in Studio's own style, so both paths draw alike."""
     workspace_id = await tools.workspace()
 
     text, is_error = await tools.call(
         workspace_id,
         "make_image",
-        {"prompt": "Revenue rose 12%", "title": "Q3", "style": "infographic"},
+        {"prompt": "Revenue rose 12%", "title": "Q3", "type": "infographic"},
     )
 
     assert is_error is False, text
@@ -276,7 +276,7 @@ async def test_the_same_title_again_is_refused_so_a_retry_does_not_bill_twice(
             {"prompt": "x" * 32_001, "title": "Boat"},
             "The prompt is 32,001 characters; the limit is 32,000. Shorten it",
         ),
-        ({"prompt": "A boat", "title": "Boat", "style": "mural"}, "style must be"),
+        ({"prompt": "A boat", "title": "Boat", "type": "mural"}, "type must be"),
     ],
 )
 async def test_a_call_missing_something_says_what_to_fix(
