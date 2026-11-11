@@ -1,7 +1,6 @@
 import asyncio
 import logging
 import time
-from pathlib import Path
 from typing import cast
 
 import httpx
@@ -68,6 +67,7 @@ from worker.studio.media.visual.drawn.references import reference_pictures
 from worker.studio.media.visual.edit import pipeline as image_edit
 from worker.studio.media.visual.edit.base import base_image
 from worker.studio.media.visual.redraw import pipeline as image_redraw
+from worker.studio.media.visual.redraw.drawing_prompt import drawing_prompt_of
 from worker.studio.office.document import figure_shelf
 from worker.studio.office.document.refine import refine
 from worker.studio.office.docx import docx
@@ -433,14 +433,15 @@ def _draw_image(
 
 def _bind_comic(session: Session, document: Document, binding: ComicBinding) -> Built:
     """The agent's pages, as drawn when it bound them; no model is asked."""
-    pictures = [_picture_file(session, page.picture) for page in binding.pages]
+    pages = [_kept_page(session, page.picture) for page in binding.pages]
     title = document.title
     session.commit()
     raise_if_cancelled(session, document)
-    return bound_pages.render(title, binding, pictures)
+    return bound_pages.render(title, binding, pages)
 
 
-def _picture_file(session: Session, picture_id: int) -> Path:
+def _kept_page(session: Session, picture_id: int) -> bound_pages.KeptPage:
+    """Its file to bind, and the words it was drawn from, for the comic's search."""
     picture = session.get(Artifact, picture_id)
     primary = (
         None
@@ -449,9 +450,12 @@ def _picture_file(session: Session, picture_id: int) -> Path:
             (f for f in picture.files if f.role is ArtifactFileRole.PRIMARY), None
         )
     )
-    if primary is None:
+    if picture is None or primary is None:
         raise ValueError(f"image-{picture_id} is gone, so its page cannot be bound")
-    return get_storage_settings().data_dir / primary.storage_key
+    return bound_pages.KeptPage(
+        get_storage_settings().data_dir / primary.storage_key,
+        drawing_prompt_of(picture),
+    )
 
 
 def _keep_spec(artifact: Artifact, spec: dict) -> None:

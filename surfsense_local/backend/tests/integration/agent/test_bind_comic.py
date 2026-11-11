@@ -8,13 +8,14 @@ from datetime import UTC, datetime
 
 import pytest
 from pypdf import PdfReader
-from sqlalchemy import Engine
+from sqlalchemy import Engine, select
 
 from modules.artifacts.local_image_demand import local_image_demand
 from modules.artifacts.models import Artifact, ArtifactFileRole
 from modules.documents.models import DocumentStatus
 from shared.config import get_storage_settings
 from shared.db import create_session_factory
+from shared.search import retrieve
 from tests.integration.agent.test_make_image import (  # noqa: F401 - fixtures
     Painter,
     _artifact_id,
@@ -335,3 +336,87 @@ async def test_deleting_a_comic_takes_a_pages_earlier_versions_too(
         assert session.get(Artifact, _id(page)) is None
         assert session.get(Artifact, _artifact_id(changed)) is None
 
+
+def _found(engine: Engine, workspace_id: int, query: str) -> set[int]:
+    """The artifacts a workspace search finds, as a chat's sources would."""
+    with create_session_factory(engine)() as session:
+        hits = retrieve(session, workspace_id, query, top_k=20)
+        return {
+            artifact.id
+            for hit in hits
+            if (
+                artifact := session.scalar(
+                    select(Artifact).where(Artifact.document_id == hit.document_id)
+                )
+            )
+            is not None
+        }
+
+
+async def test_search_finds_the_comic_never_its_pages(
+    tools: ToolEndpoint,
+    painter: Painter,  # noqa: F811
+    engine: Engine,
+) -> None:
+    """A comic is found as a PDF is, by what it says, not page by page by its prompts."""
+    workspace_id = await tools.workspace()
+    marked = await _page(tools, workspace_id, "Lighthouse storm page")
+    unmarked = await _picture(tools, workspace_id, "Lighthouse keeper page")
+
+    made, _ = await tools.call(
+        workspace_id,
+        "bind_comic",
+        {
+            "title": "Lighthouse",
+            "pages": [
+                {"image": marked},
+                {"image": unmarked, "lines": ["NORA: The lighthouse is dark!"]},
+            ],
+        },
+    )
+
+    assert _found(engine, workspace_id, "lighthouse") == {_artifact_id(made)}
+
+
+async def test_a_comic_is_found_by_what_its_pages_were_drawn_from(
+    tools: ToolEndpoint,
+    painter: Painter,  # noqa: F811
+    engine: Engine,
+) -> None:
+    """Its story and bubbles are in its pages' prompts, not in any text the PDF holds."""
+    workspace_id = await tools.workspace()
+    style = "Bold ink lines, flat colours.\nCharacters: NORA, seventy, yellow raincoat."
+    names = []
+    for number, panel in enumerate(
+        (
+            'NORA taps the dead lamp. NORA says: "THE BULB IS BROKEN!"',
+            "MILO finds spare bulbs on a high shelf.",
+        ),
+        start=1,
+    ):
+        text, _ = await tools.call(
+            workspace_id,
+            "make_image",
+            {
+                "prompt": f"{style}\nPage {number} of 2.\nPanel 1: {panel}",
+                "title": f"Cat · page {number}",
+                "comic_page": True,
+            },
+        )
+        names.append(f"image-{_artifact_id(text)}")
+
+    made, _ = await tools.call(
+        workspace_id,
+        "bind_comic",
+        {"title": "The Lighthouse Cat", "pages": [{"image": n} for n in names]},
+    )
+
+    comic = _artifact_id(made)
+    assert _found(engine, workspace_id, "broken bulb") == {comic}
+    assert _found(engine, workspace_id, "shelf") == {comic}
+    with create_session_factory(engine)() as session:
+        body = session.get(Artifact, comic).document.content or ""
+    assert 'NORA says: "THE BULB IS BROKEN!"' in body
+    assert "MILO finds spare bulbs on a high shelf." in body
+    # Said once, though every page's prompt repeats it.
+    assert body.count("yellow raincoat") == 1
