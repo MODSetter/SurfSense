@@ -232,6 +232,50 @@ describe("agent steps", () => {
     expect(screen.getByText("Asked for a picture")).toBeTruthy()
   })
 
+  it("opens the comic a bind_comic step made", async () => {
+    const openArtifact = vi.fn()
+    const user = userEvent.setup()
+    render(
+      <OpenArtifactContext.Provider value={openArtifact}>
+        <AgentSteps
+          steps={[
+            rendered({
+              tool: "surfsense_bind_comic",
+              input: { title: "The Lighthouse Cat", pages: [] },
+              artifact: { id: 70, title: "The Lighthouse Cat", version: 2 },
+            }),
+          ]}
+        />
+      </OpenArtifactContext.Provider>
+    )
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Updated The Lighthouse Cat to v2",
+      })
+    )
+    expect(openArtifact).toHaveBeenCalledExactlyOnceWith(70)
+  })
+
+  it("names a comic still waiting for its pages by its title", () => {
+    render(
+      <AgentSteps
+        steps={[
+          rendered({
+            tool: "surfsense_bind_comic",
+            input: { title: "The Lighthouse Cat", pages: [] },
+            artifact: undefined,
+            output: "Queued artifact 70, version 1: The Lighthouse Cat",
+          }),
+        ]}
+      />
+    )
+
+    expect(screen.getByText(/Binding the comic/).textContent).toBe(
+      "Binding the comic The Lighthouse Cat"
+    )
+  })
+
   it("names reading a document’s script and listing source images", () => {
     render(
       <AgentSteps
