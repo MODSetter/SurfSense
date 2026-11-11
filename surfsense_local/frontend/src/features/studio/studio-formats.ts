@@ -2,7 +2,7 @@ import type { ComponentType } from "react"
 
 import {
   AiSearchLinesIcon,
-  BookImageIcon,
+  CanvasIcon,
   Cards01Icon,
   ChartHistogramIcon,
   File02Icon,
@@ -38,7 +38,7 @@ export const FORMAT_ICONS: Record<
   podcast: PodcastIcon,
   image: Image01Icon,
   infographic: ChartHistogramIcon,
-  comic: BookImageIcon,
+  comic: CanvasIcon,
 }
 
 // The backend's catalog sends English labels; a known key shows its own.

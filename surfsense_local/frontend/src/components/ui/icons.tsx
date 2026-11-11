@@ -16,7 +16,6 @@ import {
   ChartScatterIcon as ChartScatterIconData,
   AudioWaveformIcon as AudioWaveformIconData,
   BanIcon as BanIconData,
-  BookImageIcon as BookImageIconData,
   BotIcon as BotIconData,
   Bug01Icon as Bug01IconData,
   CancelCircleHalfDotIcon as CancelCircleHalfDotIconData,
@@ -29,6 +28,7 @@ import {
   CheckmarkBadge02Icon as CheckmarkBadge02IconData,
   CheckmarkCircle02Icon,
   ChevronDownIcon as ChevronDownIconData,
+  CanvasIcon as CanvasIconData,
   ChevronLeftIcon as ChevronLeftIconData,
   ChevronRightIcon as ChevronRightIconData,
   Clock01Icon as Clock01IconData,
@@ -156,7 +156,6 @@ export const ArrowRightIcon = createIcon(ArrowRightIconData)
 export const ArrowRight02Icon = createIcon(ArrowRight02IconData)
 export const ArrowUp02Icon = createIcon(ArrowUp02IconData)
 export const BanIcon = createIcon(BanIconData)
-export const BookImageIcon = createIcon(BookImageIconData)
 export const BotIcon = createIcon(BotIconData)
 export const BugIcon = createIcon(Bug01IconData)
 export const CancelCircleHalfDotIcon = createIcon(CancelCircleHalfDotIconData)
@@ -169,6 +168,7 @@ export const CheckCircle2Icon = createIcon(CheckmarkCircle02Icon)
 export const CheckIcon = createIcon(CheckIconData)
 export const CheckmarkBadgeIcon = createIcon(CheckmarkBadge02IconData)
 export const ChevronDownIcon = createIcon(ChevronDownIconData)
+export const CanvasIcon = createIcon(CanvasIconData)
 export const ChevronLeftIcon = createIcon(ChevronLeftIconData)
 export const ChevronRightIcon = createIcon(ChevronRightIconData)
 export const ClockIcon = createIcon(Clock01IconData)
