@@ -1,12 +1,14 @@
 import asyncio
 import logging
 import time
+from pathlib import Path
 from typing import cast
 
 import httpx
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
+from modules.artifacts.comic.binding_recipe import ComicBinding, comic_binding_of
 from modules.artifacts.converted_documents.conversion import (
     Conversion,
     conversion_of,
@@ -17,7 +19,7 @@ from modules.artifacts.formats import FORMATS_BY_KEY, Grounding
 from modules.artifacts.image_edits.editable import EDITABLE_FORMATS
 from modules.artifacts.image_edits.recipe import ImageEdit, image_edit_of
 from modules.artifacts.made_file import made_by
-from modules.artifacts.models import Artifact
+from modules.artifacts.models import Artifact, ArtifactFileRole
 from modules.artifacts.revised_copies.revision import revision_of
 from modules.artifacts.script_documents.script_error import PREFIX, script_error
 from modules.artifacts.script_documents.spec import (
@@ -60,6 +62,7 @@ from worker.studio import job_router
 from worker.studio.converted_document import pipeline as converted_document
 from worker.studio.job_run import pipeline as job_run
 from worker.studio.made_file import pipeline as made_file
+from worker.studio.media.visual.comic_binding import bound_pages
 from worker.studio.media.visual.drawn import pipeline as drawn_image
 from worker.studio.media.visual.drawn.references import reference_pictures
 from worker.studio.media.visual.edit import pipeline as image_edit
@@ -125,6 +128,7 @@ def _generate(session: Session, artifact: Artifact) -> None:
         refining = refinement(meta)
         editing = image_edit_of(meta)
         drawing = image_drawing_of(meta)
+        binding = comic_binding_of(meta)
         script = document_script(meta) if renders_as_stored(meta) else None
         converting = conversion_of(meta)
         revised: revised_copy.Made | None = None
@@ -139,6 +143,8 @@ def _generate(session: Session, artifact: Artifact) -> None:
             built = _edit_image(session, artifact, document, editing)
         elif drawing is not None:
             built = _draw_image(session, artifact, document, drawing)
+        elif binding is not None:
+            built = _bind_comic(session, document, binding)
         elif made_by(meta) is not None:
             built = made_file.built(artifact, document.title)
         elif script is not None:
@@ -423,6 +429,29 @@ def _draw_image(
             references=references,
             keeper=keeper,
         )
+
+
+def _bind_comic(session: Session, document: Document, binding: ComicBinding) -> Built:
+    """The agent's pages, as drawn when it bound them; no model is asked."""
+    pictures = [_picture_file(session, page.picture) for page in binding.pages]
+    title = document.title
+    session.commit()
+    raise_if_cancelled(session, document)
+    return bound_pages.render(title, binding, pictures)
+
+
+def _picture_file(session: Session, picture_id: int) -> Path:
+    picture = session.get(Artifact, picture_id)
+    primary = (
+        None
+        if picture is None
+        else next(
+            (f for f in picture.files if f.role is ArtifactFileRole.PRIMARY), None
+        )
+    )
+    if primary is None:
+        raise ValueError(f"image-{picture_id} is gone, so its page cannot be bound")
+    return get_storage_settings().data_dir / primary.storage_key
 
 
 def _keep_spec(artifact: Artifact, spec: dict) -> None:

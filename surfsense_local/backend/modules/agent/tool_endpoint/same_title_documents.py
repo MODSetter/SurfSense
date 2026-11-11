@@ -22,7 +22,7 @@ def refuse_same_title(
     session: Session, thread_id: int, title: str, format: object
 ) -> None:
     """Refuse a new document whose title and format match one the thread rendered."""
-    if format not in (*DOCUMENT_FORMATS, "html", *EDITABLE_FORMATS):
+    if format not in (*DOCUMENT_FORMATS, "html", *EDITABLE_FORMATS, "comic"):
         return  # the service refuses it, naming the formats
     wanted = _key(title)
     rendered = session.execute(

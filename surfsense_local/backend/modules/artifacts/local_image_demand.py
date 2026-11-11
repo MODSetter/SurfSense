@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import Row, select
 from sqlalchemy.orm import Session
 
+from modules.artifacts.comic.binding_recipe import comic_binding_of
 from modules.artifacts.formats import FORMATS, Format
 from modules.artifacts.image_edits.recipe import image_edit_of
 from modules.artifacts.models import Artifact
@@ -57,10 +58,13 @@ def local_image_demand(session: Session, now: datetime) -> ModelType | None:
     return _job_type(last, needs) if now - last.updated_at < IDLE else None
 
 
-def _job_type(job: Row, needs: dict[str, ModelType]) -> ModelType:
-    """By the job, not its format: an edit is still an `image` or an `infographic`."""
+def _job_type(job: Row, needs: dict[str, ModelType]) -> ModelType | None:
+    """By the job, not its format: an edit is still an `image` or an `infographic`,
+    and a comic the agent bound draws nothing."""
     if image_edit_of(job.artifact_metadata) is not None:
         return ModelType.IMAGE_EDIT
+    if comic_binding_of(job.artifact_metadata) is not None:
+        return None
     return needs[job.format]
 
 

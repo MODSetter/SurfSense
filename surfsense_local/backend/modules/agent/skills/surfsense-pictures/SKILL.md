@@ -1,6 +1,6 @@
 ---
 name: surfsense-pictures
-description: Draw pictures with surfsense_make_image - one picture or infographic, or a set that belongs together, such as a comic, a manga, a manhwa or webtoon, a comic strip, a graphic novel, a storyboard or a picture book, bound into one PDF. Load it whenever the user asks for a picture, an illustration, or any set of pictures, or for a change to one you drew. Not for charts of numbers, and not for a web page.
+description: Draw pictures with surfsense_make_image - one picture or infographic, or a set that belongs together, such as a comic, a manga, a manhwa or webtoon, a comic strip, a graphic novel, a storyboard or a picture book, bound into one comic with surfsense_bind_comic. Load it whenever the user asks for a picture, an illustration, or any set of pictures, or for a change to one you drew. Not for charts of numbers, and not for a web page.
 ---
 
 # Pictures
@@ -11,8 +11,7 @@ description: Draw pictures with surfsense_make_image - one picture or infographi
 
 | File | Read it |
 |---|---|
-| `comics.md` | For any kind of comic (Western, manga, manhwa and webtoon, manhua, strip, yonkoma, graphic novel, bande dessinée), a picture book or a storyboard: how each reads, is laid out and is lettered. |
-| `pdf.md` | When you bind pictures into a PDF: the script to copy and fill. |
+| `comics.md` | For any kind of comic (Western, manga, manhwa and webtoon, manhua, strip, yonkoma, graphic novel, bande dessinée), a picture book or a storyboard: how each reads, is laid out, is lettered and is bound. |
 
 ## One picture
 
@@ -32,8 +31,8 @@ A comic, a storyboard, a picture book, or any pictures that must look like one s
 3. **Draw the first alone,** and look at it. When it is wrong, change it before going on: every later picture copies its characters.
 4. **Draw the rest with the first as their reference**: `references: ["image-<first>"]`. Give each its own call, all in one step, so a remote model draws them side by side. A character picture the user gave, or a character sheet they asked for first, is the reference instead.
 5. **Title each** "<title> · page <n>", or "· scene <n>": a chat cannot reuse a picture's title.
-6. **Bind them** into one PDF with `surfsense_render_document` ([`pdf.md`](pdf.md)). The PDF is what the user keeps.
-7. **Answer** with the PDF and one line per picture, so the user can ask for "page 3 again".
+6. **Bind them** with `surfsense_bind_comic`, every picture's name in reading order, with the `layout` and `direction` [`comics.md`](comics.md#which-kind) gives its kind. The comic is what the user keeps: one artifact in Studio, a PDF.
+7. **Answer** with the comic and one line per picture, so the user can ask for "page 3 again".
 
 ## When the model cannot take a picture in
 
@@ -46,4 +45,4 @@ Never send the user to Settings for this.
 
 ## Changing a set later
 
-Change one picture with its `artifact_id`, then read the PDF's script with `surfsense_read_document`, put the new name in place of the old, and render the PDF's next version. To add a picture, draw it with the first as reference and render again.
+Change one picture with its `artifact_id`, then call `surfsense_bind_comic` with the comic's `artifact_id` and every page, the new picture's name in place of the old: that is the comic's next version. To add a picture, draw it with the first as reference and bind again.
