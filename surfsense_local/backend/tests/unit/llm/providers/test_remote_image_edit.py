@@ -178,3 +178,47 @@ async def test_a_server_error_on_the_edit_route_is_not_tried_elsewhere() -> None
     with pytest.raises(NonRetryableImageError, match="502"):
         await _editor(httpx.Response(502, json={}), asked).edit("m", "x", (BASE,))
     assert len(asked) == 1
+
+
+class _CutOff(httpx.AsyncByteStream):
+    """A body the server stops sending partway, as OpenRouter did after a 404."""
+
+    async def __aiter__(self):
+        yield b'{"error": {"message": "Not Fou'
+        raise httpx.RemoteProtocolError(
+            "peer closed connection without sending complete message body "
+            "(incomplete chunked read)"
+        )
+
+
+async def test_a_missing_edit_route_cut_off_mid_reply_still_sends_references() -> None:
+    """Its 404 says there is no such route before any work; the body adds nothing,
+    so a server that hangs up while sending it is no reason to fail the page."""
+    _routes.clear()
+    asked: list[httpx.Request] = []
+
+    def answer(request: httpx.Request) -> httpx.Response:
+        asked.append(request)
+        if request.url.path.endswith("/images/edits"):
+            return httpx.Response(404, stream=_CutOff())
+        return httpx.Response(200, json=DONE)
+
+    editor = OpenAICompatibleImageEditor(
+        "https://cutoff.test/v1", "sk-test", transport=httpx.MockTransport(answer)
+    )
+    image = await editor.edit("google/gemini-2.5-flash-image", "page two", (PAGE_ONE,))
+
+    assert image.content == EDITED
+    assert [r.url.path for r in asked] == ["/v1/images/edits", "/v1/images"]
+
+
+async def test_a_picture_cut_off_mid_reply_still_fails() -> None:
+    """A success must arrive whole: half a picture is no picture."""
+    _routes.clear()
+    asked: list[httpx.Request] = []
+
+    with pytest.raises(NonRetryableImageError, match="incomplete chunked read"):
+        await _editor(httpx.Response(200, stream=_CutOff()), asked).edit(
+            "m", "x", (BASE,)
+        )
+    assert len(asked) == 1

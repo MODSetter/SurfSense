@@ -1,5 +1,6 @@
 import base64
 
+import httpx
 import pytest
 
 from modules.llm.connections.service import normalize_base_url, parse_models
@@ -332,3 +333,42 @@ async def test_a_shape_reaches_a_server_that_takes_it(
     await provider.generate("gpt-image-1", "a picture")
 
     assert sizes == ["1536x1024", None]
+
+
+class _CutOff(httpx.AsyncByteStream):
+    """A body the server stops sending partway, as OpenRouter did after a 404."""
+
+    async def __aiter__(self):
+        yield b'{"error": {"message": "Not Fou'
+        raise httpx.RemoteProtocolError(
+            "peer closed connection without sending complete message body "
+            "(incomplete chunked read)"
+        )
+
+
+async def test_a_missing_route_cut_off_mid_reply_still_falls_back(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The 404 is the answer; a server that hangs up while sending its body has
+    still said the route is missing, so the picture goes to the other route."""
+    _route_cache.clear()
+    asked: list[str] = []
+
+    def answer(request: httpx.Request) -> httpx.Response:
+        asked.append(request.url.path)
+        if request.url.path.endswith("/images/generations"):
+            return httpx.Response(404, stream=_CutOff())
+        return httpx.Response(200, json=PAYLOAD)
+
+    real_client = httpx.AsyncClient
+
+    def client(**kwargs: object) -> httpx.AsyncClient:
+        return real_client(transport=httpx.MockTransport(answer), **kwargs)
+
+    monkeypatch.setattr(
+        "modules.llm.providers.openai_compatible.image.httpx.AsyncClient", client
+    )
+    image = await _provider(5).generate("image", "draw")
+
+    assert image.content == PNG
+    assert asked == ["/v1/images/generations", "/v1/images"]

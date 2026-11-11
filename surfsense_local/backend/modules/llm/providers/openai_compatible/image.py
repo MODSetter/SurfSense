@@ -4,11 +4,10 @@ import httpx
 
 from modules.llm.connections.key_headers import key_headers
 from modules.llm.providers.openai_compatible.image_response import (
-    MAX_RESPONSE_BYTES,
     PICTURE_ITSELF,
     NonRetryableImageError,
-    bounded_body,
     read_image,
+    reply_payload,
 )
 from modules.llm.providers.picture_shape import SIZE, Shape
 from modules.llm.providers.protocols import GeneratedImage
@@ -117,12 +116,4 @@ class OpenAICompatibleImageProvider:
                 },
             ) as reply,
         ):
-            content = await bounded_body(reply, MAX_RESPONSE_BYTES)
-            try:
-                payload = json.loads(content)
-            except json.JSONDecodeError:
-                if reply.status_code >= 400:
-                    payload = {}
-                else:
-                    raise
-            return reply.status_code, payload
+            return reply.status_code, await reply_payload(reply)
