@@ -181,7 +181,8 @@ describe("studio panel", () => {
     )
 
     expect(screen.getByRole("button", { name: "Markdown" })).toBeTruthy()
-    expect(screen.getByRole("button", { name: "Infographic" })).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Image" })).toBeTruthy()
+    expect(screen.queryByRole("button", { name: "Infographic" })).toBeNull()
     expect(document.querySelector("[data-slot=skeleton]")).toBeNull()
   })
 
@@ -288,6 +289,66 @@ describe("studio panel", () => {
     expect(
       screen.getByRole("status", { name: "Processing Summary" })
     ).toBeTruthy()
+  })
+
+  it("offers an infographic as a type of image, and makes the type chosen", async () => {
+    const picture = (key: string, label: string) => ({
+      key,
+      label,
+      requires_model_types: ["image_gen", "text_gen"],
+      available: true,
+      unavailable_reason: null,
+    })
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = String(input)
+        if (path === "/workspaces/1/studio/formats") {
+          return Response.json([
+            picture("image", "Image"),
+            picture("infographic", "Infographic"),
+          ])
+        }
+        if (path === "/workspaces/1/studio/jobs" && init?.method === "POST") {
+          return Response.json(
+            { ...pendingArtifact, format: "infographic", title: "Infographic" },
+            { status: 201 }
+          )
+        }
+        if (path === "/workspaces/1/artifacts") return Response.json([])
+        return Response.json({ detail: "not found" }, { status: 404 })
+      }
+    )
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+
+    renderStudio()
+
+    const formats = screen.getByRole("region", { name: "Studio formats" })
+    await within(formats).findByRole("button", { name: "Image" })
+    expect(
+      within(formats).queryByRole("button", { name: "Infographic" })
+    ).toBeNull()
+
+    await user.click(within(formats).getByRole("button", { name: "Image" }))
+    const dialog = screen.getByRole("dialog", { name: "Image" })
+    const type = within(dialog).getByRole("radiogroup", { name: "Type" })
+    expect(
+      (within(type).getByRole("radio", { name: "Image" }) as HTMLInputElement)
+        .checked
+    ).toBe(true)
+    await user.click(within(type).getByRole("radio", { name: "Infographic" }))
+    await user.click(within(dialog).getByRole("button", { name: /Generate/ }))
+
+    const jobCall = await vi.waitFor(() =>
+      fetchMock.mock.calls.find(
+        ([path, init]) =>
+          path === "/workspaces/1/studio/jobs" && init?.method === "POST"
+      )
+    )
+    expect(JSON.parse(String(jobCall?.[1]?.body))).toEqual({
+      format: "infographic",
+      document_ids: [4],
+    })
   })
 
   it("opens the podcast brief for review and sends it with the job", async () => {

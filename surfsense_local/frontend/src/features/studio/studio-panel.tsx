@@ -30,10 +30,10 @@ import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
 import type { StudioFormat, StudioJobCreate } from "./api"
-import { PodcastBriefForm } from "./podcast-brief-form"
+import { useFormatOptions } from "./format-options/use-format-options"
+import { formatCards } from "./picture-types"
 import { FORMAT_ICONS, formatLabel, studioCatalog } from "./studio-formats"
 import { translatedUnavailable } from "./studio-unavailable-text"
-import { usePodcastBrief } from "./use-podcast-brief"
 
 const FORMAT_HINTS: Record<string, () => string> = {
   summary: () =>
@@ -92,11 +92,6 @@ const FORMAT_HINTS: Record<string, () => string> = {
       id: "studio_format_image_tooltip",
       defaultMessage: "Generate an AI image based on your sources",
     }),
-  infographic: () =>
-    intl.formatMessage({
-      id: "studio_format_infographic_tooltip",
-      defaultMessage: "Generate an AI infographic based on your sources",
-    }),
 }
 
 function catalogFormats(formats: StudioFormat[]) {
@@ -136,6 +131,7 @@ function formatHint(entry: StudioFormat) {
 function Composer({
   workspaceId,
   format,
+  catalog,
   documents,
   selectedDocumentIds,
   sourceScope,
@@ -147,6 +143,7 @@ function Composer({
 }: {
   workspaceId: number
   format: string
+  catalog: StudioFormat[]
   documents: WorkspaceDocument[]
   selectedDocumentIds: number[]
   sourceScope?: SourceScope
@@ -160,17 +157,9 @@ function Composer({
   const selected = new Set(selectedDocumentIds)
   const [prompt, setPrompt] = useState("")
   const [view, setView] = useState<"main" | "sources">("main")
-  const podcast = usePodcastBrief(format === "podcast" ? workspaceId : null)
+  const options = useFormatOptions(format, workspaceId, catalog, onSetUpVoices)
   const allSelected = ready.length > 0 && selected.size === ready.length
-
-  // A podcast is generated from its reviewed brief, so it waits for the brief.
-  // A server model with no voices yet can voice nothing: set them up first.
-  const needsVoices =
-    podcast.opened?.voices_source === "saved" &&
-    podcast.opened.voices.length === 0
-  const briefReady =
-    format !== "podcast" || (podcast.brief != null && !needsVoices)
-  const canGenerate = selected.size > 0 && !isCreating && briefReady
+  const canGenerate = selected.size > 0 && !isCreating && options.ready
 
   return (
     // A taller dialog for every format: Generate stays at the bottom, and the
@@ -186,28 +175,7 @@ function Composer({
         aria-hidden={view !== "main"}
       >
         <div className="space-y-3">
-          {format === "podcast" ? (
-            podcast.brief && podcast.opened ? (
-              <PodcastBriefForm
-                brief={podcast.brief}
-                voices={podcast.opened.voices}
-                languages={podcast.opened.languages}
-                voicesSource={podcast.opened.voices_source}
-                voicesProblem={podcast.opened.problem}
-                voicedBy={podcast.opened.voiced_by}
-                onSetUpVoices={onSetUpVoices}
-                onChange={podcast.setBrief}
-              />
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                {podcast.error ??
-                  intl.formatMessage({
-                    id: "studio_composer_brief_status",
-                    defaultMessage: "Preparing the brief…",
-                  })}
-              </p>
-            )
-          ) : null}
+          {options.panel}
 
           {ready.length === 0 ? (
             <div className="space-y-2">
@@ -275,11 +243,10 @@ function Composer({
             disabled={!canGenerate}
             onClick={() => {
               onGenerate({
-                format,
+                ...options.job,
                 document_ids: [...selected],
                 ...(sourceScope ? { source_scope: sourceScope } : {}),
                 prompt: prompt.trim() || undefined,
-                options: podcast.brief ?? undefined,
               })
             }}
           >
@@ -430,6 +397,7 @@ export const StudioPanel = memo(function StudioPanel({
   const [format, setFormat] = useState<string | null>(null)
   const [formatOpen, setFormatOpen] = useState(false)
   const catalog = useMemo(() => catalogFormats(formats), [formats])
+  const cards = useMemo(() => formatCards(catalog), [catalog])
   const selectedFormat = catalog.find((entry) => entry.key === format)
   const selectFormat = useCallback((key: string) => {
     setFormat(key)
@@ -458,7 +426,7 @@ export const StudioPanel = memo(function StudioPanel({
         })}
       >
         <div className="grid grid-cols-3 gap-1.5">
-          {catalog.map((entry) => (
+          {cards.map((entry) => (
             <FormatCard
               key={entry.key}
               entry={entry}
@@ -489,6 +457,7 @@ export const StudioPanel = memo(function StudioPanel({
                 key={selectedFormat.key}
                 workspaceId={workspaceId}
                 format={selectedFormat.key}
+                catalog={catalog}
                 documents={documents}
                 selectedDocumentIds={selectedDocumentIds}
                 sourceScope={sourceScope}
