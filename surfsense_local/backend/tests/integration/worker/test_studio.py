@@ -707,6 +707,47 @@ def test_studio_threads_persist_side_by_side_with_a_busy_api(
     assert all(a.document.status is DocumentStatus.READY for a in artifacts)
 
 
+def test_the_api_can_write_while_the_job_reads_the_models_window(
+    session: Session, engine: Engine, stub_model: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The window is read over HTTP from the API, which writes in the same file."""
+    import sqlite3
+
+    api_could_write: list[bool] = []
+
+    class Generator:
+        async def context_tokens(self, _model: str) -> int:
+            api = sqlite3.connect(str(engine.url.database), timeout=0.1)
+            try:
+                api.execute("BEGIN IMMEDIATE")
+                api.rollback()
+                api_could_write.append(True)
+            except sqlite3.OperationalError:
+                api_could_write.append(False)
+            finally:
+                api.close()
+            return 32_000
+
+    selection = type(
+        "Selection",
+        (),
+        {"provider": "fake", "name": "fake", "connection": None, "tier": Tier.COMPACT},
+    )()
+
+    def resolve(job_session: Session) -> ResolvedGeneration:
+        # The real lookup reads the selection, which opens the job's transaction.
+        job_session.execute(text("SELECT 1"))
+        return ResolvedGeneration(selection, Generator())
+
+    monkeypatch.setattr("worker.studio.job.resolve_routed_generation", resolve)
+    _capture_model(monkeypatch, SUMMARY)
+    artifact = make_artifact(session)
+
+    run(artifact.id)
+
+    assert api_could_write == [True]
+
+
 def test_a_generation_failure_leaves_a_reason(
     session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:

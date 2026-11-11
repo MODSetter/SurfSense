@@ -254,6 +254,8 @@ def _draft(session: Session, artifact: Artifact, document: Document) -> Built:
     writer = cast(
         ResolvedGeneration, models[fmt.requires_model_types.index(ModelType.TEXT_GEN)]
     )
+    # The window is asked of the API, which needs the write lock to answer.
+    session.commit()
     window = _window(writer)
     # The prompt is what to search for, where the format reads passages.
     query = prompt if fmt.grounding is Grounding.PASSAGES else None
