@@ -1903,6 +1903,8 @@
   "studio_comic_kind_manga_label": "Manga",
   "studio_comic_kind_manhua_label": "Manhua",
   "studio_comic_kind_picture_book_label": "Libro ilustrado",
+  "studio_comic_kind_scroll_ahead_aria": "Mostrar más tipos",
+  "studio_comic_kind_scroll_back_aria": "Mostrar tipos anteriores",
   "studio_comic_kind_storyboard_label": "Guion gráfico",
   "studio_comic_kind_webtoon_label": "Webtoon",
   "studio_comic_kind_western_label": "Cómic occidental",

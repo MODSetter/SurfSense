@@ -1903,6 +1903,8 @@
   "studio_comic_kind_manga_label": "日本漫画",
   "studio_comic_kind_manhua_label": "国漫",
   "studio_comic_kind_picture_book_label": "绘本",
+  "studio_comic_kind_scroll_ahead_aria": "显示更多类型",
+  "studio_comic_kind_scroll_back_aria": "显示前面的类型",
   "studio_comic_kind_storyboard_label": "分镜",
   "studio_comic_kind_webtoon_label": "条漫",
   "studio_comic_kind_western_label": "欧美漫画",

@@ -387,15 +387,22 @@ describe("studio panel", () => {
 
     await user.click(await screen.findByRole("button", { name: "Comic" }))
     const dialog = screen.getByRole("dialog", { name: "Comic" })
-    const kind = within(dialog).getByLabelText("Kind") as HTMLSelectElement
+    // Every kind is a card shown by its own picture, a Western comic first.
+    const kind = within(dialog).getByRole("radiogroup", { name: "Kind" })
+    expect(within(kind).getAllByRole("radio")).toHaveLength(10)
+    expect(kind.querySelectorAll("[data-slot=picture-type-art]")).toHaveLength(
+      10
+    )
+    const western = within(kind).getByRole("radio", { name: "Western comic" })
+    expect((western as HTMLInputElement).checked).toBe(true)
     const pages = within(dialog).getByLabelText("Pages") as HTMLSelectElement
-    expect([kind.value, pages.value]).toEqual(["western", "4"])
+    expect(pages.value).toBe("4")
     expect(within(dialog).getByText(/Draws 4 pictures/)).toBeTruthy()
 
     // A webtoon counts beats, and starts at its own length.
-    await user.selectOptions(kind, "webtoon")
+    await user.click(within(kind).getByRole("radio", { name: "Webtoon" }))
     expect(pages.value).toBe("8")
-    await user.selectOptions(kind, "manga")
+    await user.click(within(kind).getByRole("radio", { name: "Manga" }))
     await user.selectOptions(pages, "6")
     expect(within(dialog).getByText(/Draws 6 pictures/)).toBeTruthy()
     await user.click(within(dialog).getByRole("button", { name: /Generate/ }))

@@ -29,6 +29,7 @@ import {
   CheckmarkBadge02Icon as CheckmarkBadge02IconData,
   CheckmarkCircle02Icon,
   ChevronDownIcon as ChevronDownIconData,
+  ChevronLeftIcon as ChevronLeftIconData,
   ChevronRightIcon as ChevronRightIconData,
   Clock01Icon as Clock01IconData,
   CircleArrowUp02Icon as CircleArrowUp02IconData,
@@ -168,6 +169,7 @@ export const CheckCircle2Icon = createIcon(CheckmarkCircle02Icon)
 export const CheckIcon = createIcon(CheckIconData)
 export const CheckmarkBadgeIcon = createIcon(CheckmarkBadge02IconData)
 export const ChevronDownIcon = createIcon(ChevronDownIconData)
+export const ChevronLeftIcon = createIcon(ChevronLeftIconData)
 export const ChevronRightIcon = createIcon(ChevronRightIconData)
 export const ClockIcon = createIcon(Clock01IconData)
 export const CircleArrowUp02Icon = createIcon(CircleArrowUp02IconData)
@@ -261,3 +263,16 @@ export const ZoomOutIcon = createIcon(ZoomOutIconData)
 
 // Studio's picture types, drawn for their cards rather than taken from the icon set.
 export { ImageTypeIcon, InfographicTypeIcon } from "./picture-type-icons"
+// The kinds of comic Studio draws, drawn for their cards in the same way.
+export {
+  BandeDessineeIcon,
+  ComicStripIcon,
+  GraphicNovelIcon,
+  MangaIcon,
+  ManhuaIcon,
+  PictureBookIcon,
+  StoryboardIcon,
+  WebtoonIcon,
+  WesternComicIcon,
+  YonkomaIcon,
+} from "./comic-kind-icons"

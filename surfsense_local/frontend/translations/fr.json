@@ -1903,6 +1903,8 @@
   "studio_comic_kind_manga_label": "Manga",
   "studio_comic_kind_manhua_label": "Manhua",
   "studio_comic_kind_picture_book_label": "Album illustré",
+  "studio_comic_kind_scroll_ahead_aria": "Afficher plus de genres",
+  "studio_comic_kind_scroll_back_aria": "Afficher les genres précédents",
   "studio_comic_kind_storyboard_label": "Storyboard",
   "studio_comic_kind_webtoon_label": "Webtoon",
   "studio_comic_kind_western_label": "Comics",
