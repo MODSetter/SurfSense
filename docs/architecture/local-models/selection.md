@@ -345,5 +345,6 @@ language, and `test_connections.py` that no connection fills it.
 
 ## Known gaps
 
+- Settings shows the edit override as its own section, "Use a different model for edits", not folded under Image gen; and the **Image editing** badge is on server models only, not on local models to download.
 - Only the quiz and flashcards pass `json_schema`: mind map, HTML, image, infographic and the podcast's outline and draft still ask for JSON in the prompt alone, so their format compliance depends on it.
 - Nothing measures whether three tiers are still needed; once constrained decoding carries format compliance, a tier would carry reasoning depth only, which plausibly collapses three tiers to two.
