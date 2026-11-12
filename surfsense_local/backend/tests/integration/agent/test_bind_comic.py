@@ -4,7 +4,7 @@ import asyncio
 import io
 import threading
 import time
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from pypdf import PdfReader
@@ -13,6 +13,7 @@ from sqlalchemy import Engine, select
 from modules.artifacts.local_image_demand import local_image_demand
 from modules.artifacts.models import Artifact, ArtifactFileRole
 from modules.documents.models import DocumentStatus
+from modules.llm.model_type import ModelType
 from shared.config import get_storage_settings
 from shared.db import create_session_factory
 from shared.search import retrieve
@@ -203,6 +204,31 @@ async def test_binding_a_comic_does_not_start_the_local_image_model(
         session.commit()
 
         assert local_image_demand(session, datetime.now(UTC)) is None
+
+
+async def test_a_picture_drawn_beside_a_binding_keeps_the_local_image_model(
+    tools: ToolEndpoint,
+    painter: Painter,  # noqa: F811
+    engine: Engine,
+) -> None:
+    """A binding that started first must not stop sd-server under the picture."""
+    workspace_id = await tools.workspace()
+    first = await _picture(tools, workspace_id, "Cat · page 1")
+    second = await _picture(tools, workspace_id, "Cat · page 2")
+    made, _ = await tools.call(
+        workspace_id, "bind_comic", {"title": "Cat", "pages": [{"image": first}]}
+    )
+    with create_session_factory(engine)() as session:
+        comic = session.get(Artifact, _artifact_id(made))
+        picture = session.get(Artifact, _id(second))
+        started = datetime.now(UTC)
+        comic.document.status = DocumentStatus.PROCESSING
+        comic.document.updated_at = started - timedelta(seconds=30)
+        picture.document.status = DocumentStatus.PROCESSING
+        picture.document.updated_at = started
+        session.commit()
+
+        assert local_image_demand(session, started) is ModelType.IMAGE_GEN
 
 
 async def _listed_ids(tools: ToolEndpoint, workspace_id: int) -> set[int]:

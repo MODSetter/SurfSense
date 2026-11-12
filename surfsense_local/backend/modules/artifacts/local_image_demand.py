@@ -36,12 +36,14 @@ def local_image_demand(session: Session, now: datetime) -> ModelType | None:
     ).join(Document, Artifact.document_id == Document.id)
     jobs = studio.where(Artifact.format.in_(needs))
     running = session.execute(
-        jobs.where(Document.status == DocumentStatus.PROCESSING)
-        .order_by(Document.updated_at)
-        .limit(1)
-    ).first()
-    if running is not None:
-        return _job_type(running, needs)
+        jobs.where(Document.status == DocumentStatus.PROCESSING).order_by(
+            Document.updated_at
+        )
+    ).all()
+    # A bound comic draws nothing, so a picture running beside it still decides.
+    drawing = (slot for job in running if (slot := _job_type(job, needs)))
+    if (slot := next(drawing, None)) is not None:
+        return slot
     # A podcast voices on the processor and a text job loads the chat model;
     # either needs the memory more than a second image would.
     if session.execute(

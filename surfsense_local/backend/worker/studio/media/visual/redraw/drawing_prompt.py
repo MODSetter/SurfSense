@@ -28,12 +28,15 @@ def drawing_prompt_of(artifact: Artifact) -> str:
     if isinstance(kept, str) and kept.strip():
         return kept
     drawing = image_drawing_of(meta)
-    if drawing is not None:
-        # Drawn as the agent wrote it, in Studio's style for an infographic.
-        if artifact.format == "infographic":
-            return in_infographic_style(drawing.prompt)
-        return drawing.prompt
-    return _below_title(artifact.document.content or "", artifact.document.title)
+    written = (
+        drawing.prompt
+        if drawing is not None
+        else _below_title(artifact.document.content or "", artifact.document.title)
+    )
+    # Neither the agent's prompt nor Studio's body carries the infographic's style.
+    if artifact.format == "infographic":
+        return in_infographic_style(written)
+    return written
 
 
 def _below_title(body: str, title: str) -> str:

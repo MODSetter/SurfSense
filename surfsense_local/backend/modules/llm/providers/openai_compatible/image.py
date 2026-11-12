@@ -9,7 +9,7 @@ from modules.llm.providers.openai_compatible.image_response import (
     read_image,
     reply_payload,
 )
-from modules.llm.providers.picture_shape import SIZE, Shape
+from modules.llm.providers.picture_shape import ASPECT_RATIO, SHAPES, SIZE, Shape
 from modules.llm.providers.protocols import GeneratedImage
 
 __all__ = ["NonRetryableImageError", "OpenAICompatibleImageProvider"]
@@ -23,6 +23,8 @@ _route_cache: dict[tuple[int, str], str] = {}
 _asks_for_picture: dict[tuple[int, str], bool] = {}
 # Endpoints that refuse a size: they draw their own.
 _refuses_size: set[tuple[int, str]] = set()
+# OpenRouter's /images names a shape by its ratio, as it does for references.
+_RATIO_OF_SIZE = {SIZE[shape]: ASPECT_RATIO[shape] for shape in SHAPES}
 
 
 class OpenAICompatibleImageProvider:
@@ -112,8 +114,14 @@ class OpenAICompatibleImageProvider:
                     "model": model,
                     "prompt": prompt,
                     **(PICTURE_ITSELF if picture else {}),
-                    **({"size": size} if size else {}),
+                    **(_shape_field(route, size) if size else {}),
                 },
             ) as reply,
         ):
             return reply.status_code, await reply_payload(reply)
+
+
+def _shape_field(route: str, size: str) -> dict[str, str]:
+    if route == EXTENSION_ROUTE:
+        return {"aspect_ratio": _RATIO_OF_SIZE[size]}
+    return {"size": size}

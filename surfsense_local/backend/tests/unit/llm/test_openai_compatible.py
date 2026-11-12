@@ -1,4 +1,5 @@
 import base64
+import json
 
 import httpx
 import pytest
@@ -372,3 +373,32 @@ async def test_a_missing_route_cut_off_mid_reply_still_falls_back(
 
     assert image.content == PNG
     assert asked == ["/v1/images/generations", "/v1/images"]
+
+
+async def test_a_shape_on_the_images_route_is_an_aspect_ratio(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """OpenRouter's /images takes `aspect_ratio`, not OpenAI's `size`."""
+    _route_cache.clear()
+    _asks_for_picture.clear()
+    sent: dict[str, dict] = {}
+
+    def answer(request: httpx.Request) -> httpx.Response:
+        sent[request.url.path] = json.loads(request.read())
+        if request.url.path.endswith("/images/generations"):
+            return httpx.Response(404, json={})
+        return httpx.Response(200, json=PAYLOAD)
+
+    real_client = httpx.AsyncClient
+
+    def client(**kwargs: object) -> httpx.AsyncClient:
+        return real_client(transport=httpx.MockTransport(answer), **kwargs)
+
+    monkeypatch.setattr(
+        "modules.llm.providers.openai_compatible.image.httpx.AsyncClient", client
+    )
+    await _provider(8).generate("flux", "page one", shape="portrait")
+
+    assert sent["/v1/images/generations"]["size"] == "1024x1536"
+    assert sent["/v1/images"]["aspect_ratio"] == "2:3"
+    assert "size" not in sent["/v1/images"]

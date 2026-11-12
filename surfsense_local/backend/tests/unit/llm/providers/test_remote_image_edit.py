@@ -170,6 +170,28 @@ async def test_a_server_with_no_edit_route_is_sent_references_instead() -> None:
     assert "aspect_ratio" not in json.loads(asked[2].read())
 
 
+async def test_a_refusal_on_references_is_not_resent_unchanged() -> None:
+    """/images is sent no response_format, so dropping it changes nothing to resend."""
+    _routes.clear()
+    _refused.clear()
+    asked: list[httpx.Request] = []
+
+    def answer(request: httpx.Request) -> httpx.Response:
+        asked.append(request)
+        if request.url.path.endswith("/images/edits"):
+            return httpx.Response(404, json={})
+        return httpx.Response(400, json={})
+
+    editor = OpenAICompatibleImageEditor(
+        "https://gateway.test/v1", "sk-test", transport=httpx.MockTransport(answer)
+    )
+    with pytest.raises(NonRetryableImageError, match="400"):
+        await editor.edit("m", "page two", (PAGE_ONE,), shape="portrait")
+
+    bodies = [r.read() for r in asked[1:]]
+    assert len(bodies) == len(set(bodies)) == 2
+
+
 async def test_a_server_error_on_the_edit_route_is_not_tried_elsewhere() -> None:
     """A 5xx may follow billed work: no second route, no second picture."""
     _routes.clear()

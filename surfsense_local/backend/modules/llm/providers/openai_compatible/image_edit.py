@@ -68,7 +68,7 @@ class OpenAICompatibleImageEditor:
                 )
             # Without each optional field in turn if refused: a 400 comes before any work.
             for field in _OPTIONAL:
-                if status != 400 or field in refused:
+                if status != 400 or field not in _sent(route, shape, refused):
                     continue
                 refused = refused | {field}
                 status, payload = await self._post(
@@ -114,6 +114,14 @@ class OpenAICompatibleImageEditor:
                 )
             async with request as reply:
                 return reply.status_code, await reply_payload(reply)
+
+
+def _sent(route: str, shape: Shape | None, refused: frozenset[str]) -> set[str]:
+    """The optional fields a request carries: dropping one it lacks resends it unchanged."""
+    carried = {PICTURE} if route == EDITS else set()
+    if shape is not None:
+        carried.add(SHAPE)
+    return carried - refused
 
 
 def _edits_fields(
