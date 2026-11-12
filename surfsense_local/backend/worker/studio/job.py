@@ -7,6 +7,7 @@ import httpx
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
+from modules.artifacts.comic.binding_recipe import ComicBinding, comic_binding_of
 from modules.artifacts.converted_documents.conversion import (
     Conversion,
     conversion_of,
@@ -17,7 +18,7 @@ from modules.artifacts.formats import FORMATS_BY_KEY, Grounding
 from modules.artifacts.image_edits.editable import EDITABLE_FORMATS
 from modules.artifacts.image_edits.recipe import ImageEdit, image_edit_of
 from modules.artifacts.made_file import made_by
-from modules.artifacts.models import Artifact
+from modules.artifacts.models import Artifact, ArtifactFileRole
 from modules.artifacts.revised_copies.revision import revision_of
 from modules.artifacts.script_documents.script_error import PREFIX, script_error
 from modules.artifacts.script_documents.spec import (
@@ -38,6 +39,7 @@ from modules.jobs.asking.stopped import FillStoppedError
 from modules.jobs.runs.record import job_run_of
 from modules.llm.model_route.client import resolve_routed_generation
 from modules.llm.model_type import ModelType
+from modules.llm.pictures_in import model as pictures_in
 from modules.llm.providers.audiocpp.memory import NotEnoughMemoryError
 from modules.llm.providers.context_overflow import ContextOverflowError
 from modules.llm.providers.openai_compatible import NonRetryableImageError
@@ -47,7 +49,6 @@ from modules.llm.resolution import (
     ModelResolutionError,
     ResolvedGeneration,
     ResolvedImageGeneration,
-    resolve_image_edit,
     resolve_image_generation,
     resolve_text_to_speech,
 )
@@ -60,9 +61,13 @@ from worker.studio import job_router
 from worker.studio.converted_document import pipeline as converted_document
 from worker.studio.job_run import pipeline as job_run
 from worker.studio.made_file import pipeline as made_file
+from worker.studio.media.visual.comic_binding import bound_pages
 from worker.studio.media.visual.drawn import pipeline as drawn_image
+from worker.studio.media.visual.drawn.references import reference_pictures
 from worker.studio.media.visual.edit import pipeline as image_edit
 from worker.studio.media.visual.edit.base import base_image
+from worker.studio.media.visual.redraw import pipeline as image_redraw
+from worker.studio.media.visual.redraw.drawing_prompt import drawing_prompt_of
 from worker.studio.office.document import figure_shelf
 from worker.studio.office.document.refine import refine
 from worker.studio.office.docx import docx
@@ -74,6 +79,7 @@ from worker.studio.script_document.pipeline import ScriptRunFailedError
 from worker.studio.shared import gather, persist, window_budget
 from worker.studio.shared.artifact import Built, Source
 from worker.studio.web.html.written import page as written_page
+from worker.waiting_renders import settle_after_job
 
 logger = logging.getLogger(__name__)
 
@@ -105,6 +111,8 @@ def run(artifact_id: int) -> None:
             _generate(session, artifact)
     finally:
         engine.dispose()
+        # However it ended: a document waiting on this picture may now go.
+        settle_after_job(artifact_id)
 
 
 def _generate(session: Session, artifact: Artifact) -> None:
@@ -120,6 +128,7 @@ def _generate(session: Session, artifact: Artifact) -> None:
         refining = refinement(meta)
         editing = image_edit_of(meta)
         drawing = image_drawing_of(meta)
+        binding = comic_binding_of(meta)
         script = document_script(meta) if renders_as_stored(meta) else None
         converting = conversion_of(meta)
         revised: revised_copy.Made | None = None
@@ -134,6 +143,8 @@ def _generate(session: Session, artifact: Artifact) -> None:
             built = _edit_image(session, artifact, document, editing)
         elif drawing is not None:
             built = _draw_image(session, artifact, document, drawing)
+        elif binding is not None:
+            built = _bind_comic(session, document, binding)
         elif made_by(meta) is not None:
             built = made_file.built(artifact, document.title)
         elif script is not None:
@@ -225,6 +236,9 @@ def _generate(session: Session, artifact: Artifact) -> None:
         # The agent's tool reads this FAILED; a retry could bill the picture twice.
         if image_drawing_of(artifact.artifact_metadata) is not None:
             return
+        # Every page of a comic would be drawn, and billed, again.
+        if artifact.format == job_router.Kind.COMIC:
+            return
         raise  # Huey retries; a later success clears the message.
 
 
@@ -240,6 +254,8 @@ def _draft(session: Session, artifact: Artifact, document: Document) -> Built:
     writer = cast(
         ResolvedGeneration, models[fmt.requires_model_types.index(ModelType.TEXT_GEN)]
     )
+    # The window is asked of the API, which needs the write lock to answer.
+    session.commit()
     window = _window(writer)
     # The prompt is what to search for, where the format reads passages.
     query = prompt if fmt.grounding is Grounding.PASSAGES else None
@@ -273,6 +289,9 @@ def _draft(session: Session, artifact: Artifact, document: Document) -> Built:
     )
     # Options were checked at job creation; only formats that take them get them.
     extras = [meta.get("options")] if fmt.validate_options else []
+    references = (
+        {"keeper": _picture_model(session)} if fmt.draws_with_references else {}
+    )
     # Generation runs for minutes; the write lock must not be held across it.
     session.commit()
     raise_if_cancelled(session, document)
@@ -280,7 +299,9 @@ def _draft(session: Session, artifact: Artifact, document: Document) -> Built:
     # A cancel hangs up on a model mid-reply; other stages still finish first.
     with cancellation.watching(lambda: _check_cancelled(session, document)):
         try:
-            return job_router.pipeline_for(kind)(*models, sources, prompt, *extras)
+            return job_router.pipeline_for(kind)(
+                *models, sources, prompt, *extras, **references
+            )
         except ContextOverflowError as refused:
             raise window_budget.SourcesDoNotFitError(
                 window_budget.DOES_NOT_FIT
@@ -363,32 +384,80 @@ def _refine(
 def _edit_image(
     session: Session, artifact: Artifact, document: Document, editing: ImageEdit
 ) -> Built:
-    """One call to the edit model, from the picture of the version it names."""
+    """One call: the picture to the model that takes pictures, or, with none,
+    the image model drawing it again from the words it was drawn with."""
     try:
-        editor = resolve_image_edit(session)
+        editor = pictures_in.picture_model(session)
     except ModelResolutionError as error:
         raise NoModelSelectedError(str(error)) from error
+    painter = _choose_model(session, ModelType.IMAGE_GEN) if editor is None else None
     base = base_image(session, editing)
     session.commit()
     raise_if_cancelled(session, document)
 
-    # The local editor polls; each poll looks for a cancel.
+    # The local clients poll; each poll looks for a cancel.
     with cancellation.watching(lambda: _check_cancelled(session, document)):
-        return image_edit.render(editor, base, editing.instruction)
+        if editor is not None:
+            return image_edit.render(editor, base, editing.instruction)
+        assert painter is not None
+        return image_redraw.render(painter, base, editing.instruction)
 
 
 def _draw_image(
     session: Session, artifact: Artifact, document: Document, drawing: ImageDrawing
 ) -> Built:
-    """One call to the image model, with the prompt the agent wrote."""
+    """One call to the image model, with the prompt the agent wrote; with
+    reference pictures, to the model that takes them, when one does."""
     painter = _choose_model(session, ModelType.IMAGE_GEN)
+    keeper = None
+    if drawing.references:
+        try:
+            keeper = pictures_in.picture_model(session)
+        except ModelResolutionError as error:
+            raise NoModelSelectedError(str(error)) from error
+    references = reference_pictures(session, drawing.references)
     title, format = document.title, artifact.format
     session.commit()
     raise_if_cancelled(session, document)
 
-    # The local generator polls; each poll looks for a cancel.
+    # The local clients poll; each poll looks for a cancel.
     with cancellation.watching(lambda: _check_cancelled(session, document)):
-        return drawn_image.render(painter, drawing.prompt, title, format)
+        return drawn_image.render(
+            painter,
+            drawing.prompt,
+            title,
+            format,
+            shape=drawing.shape,
+            references=references,
+            keeper=keeper,
+        )
+
+
+def _bind_comic(session: Session, document: Document, binding: ComicBinding) -> Built:
+    """The agent's pages, as drawn when it bound them; no model is asked."""
+    pages = [_kept_page(session, page.picture) for page in binding.pages]
+    title = document.title
+    session.commit()
+    raise_if_cancelled(session, document)
+    return bound_pages.render(title, binding, pages)
+
+
+def _kept_page(session: Session, picture_id: int) -> bound_pages.KeptPage:
+    """Its file to bind, and the words it was drawn from, for the comic's search."""
+    picture = session.get(Artifact, picture_id)
+    primary = (
+        None
+        if picture is None
+        else next(
+            (f for f in picture.files if f.role is ArtifactFileRole.PRIMARY), None
+        )
+    )
+    if picture is None or primary is None:
+        raise ValueError(f"image-{picture_id} is gone, so its page cannot be bound")
+    return bound_pages.KeptPage(
+        get_storage_settings().data_dir / primary.storage_key,
+        drawing_prompt_of(picture),
+    )
 
 
 def _keep_spec(artifact: Artifact, spec: dict) -> None:
@@ -463,6 +532,13 @@ def _window(model: ResolvedGeneration) -> int | None:
             exc_info=True,
         )
         return None
+
+
+def _picture_model(session: Session) -> pictures_in.PictureModel | None:
+    try:
+        return pictures_in.picture_model(session)
+    except ModelResolutionError as error:
+        raise NoModelSelectedError(str(error)) from error
 
 
 def _choose_model(

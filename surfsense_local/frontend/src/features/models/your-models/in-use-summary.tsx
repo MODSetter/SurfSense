@@ -47,7 +47,7 @@ export function InUseSummary({
             {
               id: "models_in_use_summary_empty",
               defaultMessage:
-                "{slot, select, chat {No chat model chosen} image {No image model chosen} image_edit {No image editing model chosen} video {No video model chosen} audio {No audio model chosen} speech {No speech recognition model chosen} other {No model chosen}}",
+                "{slot, select, chat {No chat model chosen} image {No image model chosen} image_edit {Same as the image model} video {No video model chosen} audio {No audio model chosen} speech {No speech recognition model chosen} other {No model chosen}}",
             },
             { slot }
           )}

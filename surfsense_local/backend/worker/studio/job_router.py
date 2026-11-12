@@ -14,6 +14,7 @@ from worker.studio.content.mindmap import pipeline as mindmap
 from worker.studio.content.quiz import pipeline as quiz
 from worker.studio.content.summary import pipeline as summary
 from worker.studio.media.audio.podcast import pipeline as podcast
+from worker.studio.media.visual.comic import pipeline as comic
 from worker.studio.media.visual.image import pipeline as image
 from worker.studio.media.visual.infographic import pipeline as infographic
 from worker.studio.office import pipeline as office
@@ -40,6 +41,7 @@ class Kind(enum.StrEnum):
     PDF = "pdf"
     IMAGE = "image"
     INFOGRAPHIC = "infographic"
+    COMIC = "comic"
     PODCAST = "podcast"
 
 
@@ -71,5 +73,7 @@ def pipeline_for(kind: Kind) -> Render:
             return image.render
         case Kind.INFOGRAPHIC:
             return infographic.render
+        case Kind.COMIC:
+            return comic.render
         case Kind.PODCAST:
             return podcast.render

@@ -111,7 +111,13 @@ export type StudioJobCreate = {
   // What the server resolves into the job's sources, folders included.
   source_scope?: SourceScope
   prompt?: string
-  options?: PodcastBrief
+  options?: PodcastBrief | ComicOptions
+}
+
+/** A comic job's options, checked by the server against its kinds (modules/artifacts/comic/). */
+export type ComicOptions = {
+  kind: string
+  pages: number
 }
 
 export const PODCAST_STYLES = [

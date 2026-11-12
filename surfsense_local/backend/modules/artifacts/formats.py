@@ -4,6 +4,7 @@ from enum import StrEnum
 
 from sqlalchemy.orm import Session
 
+from modules.artifacts.comic import options as comic_options
 from modules.artifacts.podcast import brief
 from modules.llm.model_type import ModelType
 
@@ -31,6 +32,9 @@ class Format:
     grounding: Grounding = Grounding.PASSAGES
     # What to search a selection too big to share for, when no prompt says.
     default_focus: str = "the main points, findings, figures and conclusions"
+    # Its pipeline also takes the model that draws from a reference picture, as
+    # `keeper`: None when no chosen model takes pictures in.
+    draws_with_references: bool = False
 
 
 # worker/studio/job_router.py must name every key here and nothing else
@@ -64,6 +68,14 @@ FORMATS: tuple[Format, ...] = (
         "infographic",
         "Infographic",
         requires_model_types=(ModelType.IMAGE_GEN, ModelType.TEXT_GEN),
+    ),
+    Format(
+        "comic",
+        "Comic",
+        requires_model_types=(ModelType.IMAGE_GEN, ModelType.TEXT_GEN),
+        validate_options=comic_options.validate_options,
+        draws_with_references=True,
+        default_focus="the story: who, what happens, and how it ends",
     ),
 )
 

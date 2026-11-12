@@ -10,6 +10,7 @@ from starlette.concurrency import run_in_threadpool
 from api.dependencies import transact
 from modules.agent.tool_endpoint import replies
 from modules.agent.tool_endpoint.analyze_data import ANALYZE_DATA
+from modules.agent.tool_endpoint.bind_comic import BIND_COMIC
 from modules.agent.tool_endpoint.confirm_job import CONFIRM_JOB, confirm_listing
 from modules.agent.tool_endpoint.convert_document import CONVERT_DOCUMENT
 from modules.agent.tool_endpoint.create_artifact import CREATE_ARTIFACT
@@ -54,6 +55,7 @@ TOOLS: dict[str, Tool] = {
         RENDER_DOCUMENT,
         SAVE_PAGE,
         MAKE_IMAGE,
+        BIND_COMIC,
         READ_DOCUMENT,
         LIST_IMAGES,
         SOURCE_PAGES,

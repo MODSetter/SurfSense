@@ -909,12 +909,12 @@ describe("artifact panel image edit", () => {
     expect(onRefine).not.toHaveBeenCalled()
   })
 
-  it("says an image editing model is needed, and links to its settings", async () => {
+  it("says an image model is needed when none is chosen, and links to it", async () => {
     const v1 = picture()
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string) =>
-        String(url).includes("/llm/selection/image_edit")
+        String(url).includes("/llm/selection/image_gen")
           ? Response.json({ detail: "no selection" }, { status: 404 })
           : Response.json({
               ...v1,
@@ -945,9 +945,7 @@ describe("artifact panel image edit", () => {
     await user.click(
       await screen.findByRole("button", { name: "Edit this image" })
     )
-    expect(
-      await screen.findByText("Needs an image editing model.")
-    ).toBeTruthy()
+    expect(await screen.findByText("Needs an image model.")).toBeTruthy()
     expect(
       screen
         .getByRole("textbox", { name: "How to change this image" })
@@ -955,24 +953,23 @@ describe("artifact panel image edit", () => {
     ).toBe(true)
     await user.click(screen.getByRole("button", { name: "Choose a model" }))
 
-    expect(onOpenModelSettings).toHaveBeenCalledExactlyOnceWith(
-      "image-edit-models"
-    )
+    // Never the editing models: every image model can change a picture.
+    expect(onOpenModelSettings).toHaveBeenCalledExactlyOnceWith("image-models")
     expect(onImageEdit).not.toHaveBeenCalled()
   })
 
-  it("holds the instruction until it is known whether the edit model is chosen", async () => {
+  it("holds the instruction until it is known whether an image model is chosen", async () => {
     const v1 = picture()
     let answer = () => {}
     vi.stubGlobal(
       "fetch",
       vi.fn((url: string) =>
-        String(url).includes("/llm/selection/image_edit")
+        String(url).includes("/llm/selection/image_gen")
           ? new Promise<Response>((resolve) => {
               answer = () =>
                 resolve(
                   Response.json({
-                    model_type: "image_edit",
+                    model_type: "image_gen",
                     provider: "sdcpp",
                     connection_id: null,
                     name: "flux-2-klein-4b-Q4_0",
@@ -1002,11 +999,50 @@ describe("artifact panel image edit", () => {
       name: "How to change this image",
     })
     expect(field.hasAttribute("disabled")).toBe(true)
-    expect(screen.queryByText("Needs an image editing model.")).toBeNull()
+    expect(screen.queryByText("Needs an image model.")).toBeNull()
 
     answer()
     await vi.waitFor(() => expect(field.hasAttribute("disabled")).toBe(false))
     await vi.waitFor(() => expect(document.activeElement).toBe(field))
+  })
+
+  it("says a change is drawn again when the image model takes no picture in", async () => {
+    const v1 = picture()
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        String(url).includes("/llm/pictures-in")
+          ? Response.json({ source: null })
+          : Response.json({
+              ...v1,
+              format: "summary",
+              content: "A lighthouse at dusk",
+              files: [],
+              quiz_state: null,
+              flashcard_state: null,
+            })
+      )
+    )
+    const onImageEdit = vi.fn(async () => {})
+    const user = userEvent.setup()
+
+    render(panel([v1], vi.fn(), onImageEdit))
+    await user.click(
+      await screen.findByRole("button", { name: "Edit this image" })
+    )
+    const field = screen.getByRole("textbox", {
+      name: "How to change this image",
+    })
+
+    // Plain, not a warning: the edit still works, as a redraw.
+    await vi.waitFor(() =>
+      expect(field.getAttribute("placeholder")).toBe(
+        "Describe a change: the picture is drawn again"
+      )
+    )
+    expect(screen.queryByRole("button", { name: "Choose a model" })).toBeNull()
+    await user.type(field, "Make it night{Enter}")
+    expect(onImageEdit).toHaveBeenCalledExactlyOnceWith(40, "Make it night")
   })
 
   it("offers no edit on a picture that is not ready", async () => {

@@ -1,6 +1,6 @@
 ---
 name: surfsense-html
-description: Make or change a web page from the user's sources - a report, a briefing, a dashboard, a comparison, a timeline, an explainer, an interactive calculator or a figure that shows how something works - by writing an HTML file and keeping it with surfsense_save_page. Load it whenever the user asks for a web page, an HTML page, an interactive page, or a change to one you made.
+description: Make or change a web page from the user's sources - a report, a briefing, a dashboard, a comparison, a timeline, an explainer, an interactive calculator or a figure that shows how something works - by writing an HTML file and keeping it with surfsense_save_page. Load it whenever the user asks for a web page, an HTML page, an interactive page, or a change to one you made. Not for a comic, a storyboard or a picture: those are drawn pictures, with the surfsense-pictures skill.
 ---
 
 # Web pages

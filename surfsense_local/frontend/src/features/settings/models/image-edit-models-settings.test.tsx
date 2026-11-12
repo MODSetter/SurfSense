@@ -122,7 +122,9 @@ describe("image editing model settings", () => {
     render(<ImageEditModelsSettings onModelUnavailable={() => undefined} />)
 
     expect(
-      await screen.findByRole("heading", { name: "Image editing models" })
+      await screen.findByRole("heading", {
+        name: "Use a different model for edits",
+      })
     ).toBeTruthy()
     await user.click(
       await screen.findByRole("button", { name: "Use FLUX.2 klein 4B" })

@@ -224,6 +224,41 @@ export function stepLabel(
             defaultMessage: "Asked for a picture",
           })
     }
+    case "surfsense_bind_comic": {
+      const made = step.artifact
+      if (made) {
+        return (made.created ?? made.version === 1)
+          ? intl.formatMessage(
+              {
+                id: "agent_steps_bind_comic_created_label",
+                defaultMessage: "Created <doc>{title}</doc> v{version, number}",
+              },
+              { title: made.title, version: made.version, doc: documentTitle }
+            )
+          : intl.formatMessage(
+              {
+                id: "agent_steps_bind_comic_updated_label",
+                defaultMessage:
+                  "Updated <doc>{title}</doc> to v{version, number}",
+              },
+              { title: made.title, version: made.version, doc: documentTitle }
+            )
+      }
+      // Running, waiting for its pages, refused or failed: the title it was given.
+      const title = text(input.title)
+      return title
+        ? intl.formatMessage(
+            {
+              id: "agent_steps_bind_comic_label",
+              defaultMessage: "Binding the comic <doc>{title}</doc>",
+            },
+            { title, doc: documentTitle }
+          )
+        : intl.formatMessage({
+            id: "agent_steps_bind_comic_unnamed_label",
+            defaultMessage: "Binding a comic",
+          })
+    }
     case "surfsense_convert_document": {
       const made = step.artifact
       return made

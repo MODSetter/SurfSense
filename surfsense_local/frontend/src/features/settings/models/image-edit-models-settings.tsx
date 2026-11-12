@@ -25,12 +25,12 @@ export function ImageEditModelsSettings({
     <ModelSlotSettings
       title={intl.formatMessage({
         id: "settings_image_edit_models_title",
-        defaultMessage: "Image editing models",
+        defaultMessage: "Use a different model for edits",
       })}
       description={intl.formatMessage({
         id: "settings_image_edit_models_body",
         defaultMessage:
-          "The model that edits images. Run one on this computer, or use one from a server.",
+          "Optional. Your image model edits pictures when it can, and draws them again when it cannot. Choose a model here only to edit with a different one.",
       })}
       slot="image_edit"
       modelType="image_edit"

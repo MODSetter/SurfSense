@@ -1,16 +1,19 @@
 import contextlib
+import io
 import json
 import time
 from collections.abc import Iterator
 
 import httpx
 import pytest
+from PIL import Image
 from sqlalchemy import Engine, text
 from sqlalchemy.orm import Session
 
 from modules.artifacts.models import Artifact, ArtifactFileRole
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.llm.catalog.local.manifest import load_local_manifest
+from modules.llm.pictures_in.model import PictureModel
 from modules.llm.profile import Fingerprint, Tier
 from modules.llm.providers.audiocpp.memory import NotEnoughMemoryError
 from modules.llm.providers.audiocpp.speech import AudioCppSpeech, VoicedModel
@@ -119,9 +122,11 @@ def _capture_image(monkeypatch: pytest.MonkeyPatch) -> list[str]:
     seen: list[str] = []
 
     class FakeImageGenerator:
-        async def generate(self, _model: str, content: str) -> GeneratedImage:
+        async def generate(
+            self, _model: str, content: str, *, shape: str | None = None
+        ) -> GeneratedImage:
             seen.append(content)
-            return GeneratedImage(b"\x89PNG\r\n\x1a\n" + b"\x00" * 8, "image/png")
+            return GeneratedImage(_tiny_png(), "image/png")
 
     selection = type("Selection", (), {"provider": "fake", "name": "flux"})()
     monkeypatch.setattr(
@@ -129,6 +134,13 @@ def _capture_image(monkeypatch: pytest.MonkeyPatch) -> list[str]:
         lambda _session: ResolvedImageGeneration(selection, FakeImageGenerator()),
     )
     return seen
+
+
+def _tiny_png() -> bytes:
+    """A real picture: a comic's binder opens every page it places."""
+    out = io.BytesIO()
+    Image.new("RGB", (8, 12), "teal").save(out, "PNG")
+    return out.getvalue()
 
 
 def _primary_bytes(artifact: Artifact) -> bytes:
@@ -686,6 +698,65 @@ def test_studio_threads_persist_side_by_side_with_a_busy_api(
     assert all(a.document.status is DocumentStatus.READY for a in artifacts)
 
 
+def test_the_api_can_write_while_the_job_reads_the_models_window(
+    session: Session, engine: Engine, stub_model: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The window is read over HTTP from the API, which writes in the same file."""
+    import sqlite3
+
+    api_could_write: list[bool] = []
+
+    class Generator:
+        async def context_tokens(self, _model: str) -> int:
+            api = sqlite3.connect(str(engine.url.database), timeout=0.1)
+            try:
+                api.execute("BEGIN IMMEDIATE")
+                api.rollback()
+                api_could_write.append(True)
+            except sqlite3.OperationalError:
+                api_could_write.append(False)
+            finally:
+                api.close()
+            return 32_000
+
+    selection = type(
+        "Selection",
+        (),
+        {"provider": "fake", "name": "fake", "connection": None, "tier": Tier.COMPACT},
+    )()
+
+    def resolve(job_session: Session) -> ResolvedGeneration:
+        # The real lookup reads the selection, which opens the job's transaction.
+        job_session.execute(text("SELECT 1"))
+        return ResolvedGeneration(selection, Generator())
+
+    monkeypatch.setattr("worker.studio.job.resolve_routed_generation", resolve)
+    _capture_model(monkeypatch, SUMMARY)
+    artifact = make_artifact(session)
+
+    run(artifact.id)
+
+    assert api_could_write == [True]
+
+
+def test_a_settle_that_fails_after_the_job_does_not_ask_for_a_retry(
+    session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A raise here would make Huey run the job, and bill its picture, again."""
+
+    def locked(*_args: object, **_kwargs: object) -> list:
+        raise RuntimeError("database is locked")
+
+    monkeypatch.setattr("worker.waiting_renders.settle_waiting_renders", locked)
+    _capture_model(monkeypatch, SUMMARY)
+    artifact = make_artifact(session)
+
+    run(artifact.id)
+
+    session.expire_all()
+    assert artifact.document.status is DocumentStatus.READY
+
+
 def test_a_generation_failure_leaves_a_reason(
     session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -723,6 +794,95 @@ def test_an_image_failure_is_recorded_without_requesting_a_huey_retry(
     session.expire_all()
     assert artifact.document.status is DocumentStatus.FAILED
     assert "HTTP 500" in (artifact.document.error_message or "")
+
+
+def test_a_comic_job_binds_its_drawn_pages_into_one_pdf(
+    session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The chat model plans it, the image model draws page 1, the model that takes
+    pictures draws the rest from it, and the PDF is the comic's one file."""
+    plan = {
+        "title": "Cassini's Last Dive",
+        "style": "Bold ink.",
+        "characters": "CASSINI, a gold-foil probe with a white dish.",
+        "pages": [
+            {
+                "panels": [
+                    {
+                        "where": "top",
+                        "shows": "Cassini reaches Saturn.",
+                        "lines": ["Caption: 2004."],
+                    }
+                ]
+            },
+            {
+                "panels": [
+                    {
+                        "where": "top",
+                        "shows": "Cassini dives.",
+                        "lines": ["Caption: 2017."],
+                    }
+                ]
+            },
+        ],
+    }
+    asked = _capture_model(monkeypatch, json.dumps(plan))
+    drawn = _capture_image(monkeypatch)
+    from_page_one: list[bytes] = []
+
+    class Keeper:
+        async def edit(
+            self, _model: str, _prompt: str, images, *, shape=None
+        ) -> GeneratedImage:
+            from_page_one.extend(image.content for image in images)
+            return GeneratedImage(_tiny_png(), "image/png")
+
+    keeper_selection = type("Selection", (), {"provider": "fake", "name": "flux"})()
+    monkeypatch.setattr(
+        "worker.studio.job.pictures_in.picture_model",
+        lambda _session: PictureModel("image_model", keeper_selection, Keeper()),
+    )
+    artifact = make_artifact(
+        session,
+        fmt="comic",
+        prompt="the finale",
+        options={"kind": "western", "pages": 2},
+    )
+
+    run(artifact.id)
+
+    session.expire_all()
+    assert artifact.document.status is DocumentStatus.READY, (
+        artifact.document.error_message
+    )
+    assert "the finale" in asked[0]
+    assert len(drawn) == 1
+    assert len(from_page_one) == 1
+    assert artifact.document.title == "Cassini's Last Dive"
+    assert "Cassini dives." in (artifact.document.content or "")
+    _one_file(artifact, "application/pdf", b"%PDF")
+    assert artifact.artifact_metadata["comic"]["pages"] == 2
+
+
+def test_a_failed_comic_is_never_retried_since_every_page_is_billed_again(
+    session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A comic's failure ends the task: a retry would draw every page again."""
+
+    def fail(*_args: object, **_kwargs: object) -> Built:
+        raise RuntimeError("the image model hung up on page 3")
+
+    monkeypatch.setattr("worker.studio.media.visual.comic.pipeline.render", fail)
+    monkeypatch.setattr("worker.studio.job.pictures_in.picture_model", lambda _s: None)
+    artifact = make_artifact(
+        session, fmt="comic", options={"kind": "western", "pages": 4}
+    )
+
+    run(artifact.id)  # returns: a raise here would ask Huey for a retry
+
+    session.expire_all()
+    assert artifact.document.status is DocumentStatus.FAILED
+    assert "page 3" in (artifact.document.error_message or "")
 
 
 def test_persist_stores_a_primary_blob(session: Session, stub_model: None) -> None:

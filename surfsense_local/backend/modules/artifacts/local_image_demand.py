@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import Row, select
 from sqlalchemy.orm import Session
 
+from modules.artifacts.comic.binding_recipe import comic_binding_of
 from modules.artifacts.formats import FORMATS, Format
 from modules.artifacts.image_edits.recipe import image_edit_of
 from modules.artifacts.models import Artifact
@@ -35,12 +36,14 @@ def local_image_demand(session: Session, now: datetime) -> ModelType | None:
     ).join(Document, Artifact.document_id == Document.id)
     jobs = studio.where(Artifact.format.in_(needs))
     running = session.execute(
-        jobs.where(Document.status == DocumentStatus.PROCESSING)
-        .order_by(Document.updated_at)
-        .limit(1)
-    ).first()
-    if running is not None:
-        return _job_type(running, needs)
+        jobs.where(Document.status == DocumentStatus.PROCESSING).order_by(
+            Document.updated_at
+        )
+    ).all()
+    # A bound comic draws nothing, so a picture running beside it still decides.
+    drawing = (slot for job in running if (slot := _job_type(job, needs)))
+    if (slot := next(drawing, None)) is not None:
+        return slot
     # A podcast voices on the processor and a text job loads the chat model;
     # either needs the memory more than a second image would.
     if session.execute(
@@ -57,10 +60,13 @@ def local_image_demand(session: Session, now: datetime) -> ModelType | None:
     return _job_type(last, needs) if now - last.updated_at < IDLE else None
 
 
-def _job_type(job: Row, needs: dict[str, ModelType]) -> ModelType:
-    """By the job, not its format: an edit is still an `image` or an `infographic`."""
+def _job_type(job: Row, needs: dict[str, ModelType]) -> ModelType | None:
+    """By the job, not its format: an edit is still an `image` or an `infographic`,
+    and a comic the agent bound draws nothing."""
     if image_edit_of(job.artifact_metadata) is not None:
         return ModelType.IMAGE_EDIT
+    if comic_binding_of(job.artifact_metadata) is not None:
+        return None
     return needs[job.format]
 
 

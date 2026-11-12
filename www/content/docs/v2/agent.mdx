@@ -31,12 +31,14 @@ Documents the agent made are changed in its chat, not with Studio's **Refine**.
 
 ### Pictures
 
-Ask for a picture, an infographic or a document with a picture in it. The agent reads what it needs from your sources, writes the prompt itself and draws with the model in **Settings › Image gen**. To change a picture, ask in the same chat, which uses **Settings › Image edit** and makes its next version. Each picture appears in [Studio](/docs/v2/studio).
+Ask for a picture, an infographic or a document with a picture in it. The agent reads what it needs from your sources, writes the prompt itself and draws with the model in **Settings › Image gen**. To change a picture, ask in the same chat, and it makes its next version. Each picture appears in [Studio](/docs/v2/studio).
+
+Ask for a comic, a manga, a webtoon, a comic strip, a storyboard or a picture book and the agent plans the pages, tells you how many it will draw, and asks once before it starts. It draws one picture per page, keeps the characters from page to page, and binds the pages into one comic in Studio, a PDF. Studio lists the comic, not its pages; deleting the comic deletes them too. To change a page, ask, and it redraws that page and binds the comic again. With an image model that can't take a picture in, each page is drawn from a description of the characters, so they may look a little different from page to page.
 
 - **It draws only when you ask.** A remote model bills each picture. A model on a computer without a graphics card takes several minutes each.
-- **A slow picture may finish after the agent replies.** It appears in Studio when it's ready. To place it in a document, ask again in the same chat.
+- **A slow picture may finish after the agent replies.** It appears in Studio when it's ready. A document that uses it, such as a comic, waits for it and appears in Studio once its pictures are drawn.
 - **Pictures used in a document stay until the document is gone.** If the agent placed a picture in a Word document, PDF, deck or workbook, delete that document before deleting the picture, because SurfSense needs the picture to make the document again.
-- **Exact words go in the document.** Image models can garble lettering, so check any words in a picture. Data charts stay real charts.
+- **Exact words go in the document.** Image models can garble lettering, so check any words in a picture. When a comic page's speech bubbles come out wrong, the comic prints that page's lines under it. Data charts stay real charts.
 
 ### Start from your own template
 
