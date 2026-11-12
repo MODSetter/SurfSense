@@ -16,7 +16,8 @@ pytestmark = pytest.mark.integration
 
 ANSWER = "The probe carried a generator catalogued as RTGX7."
 REPLIES = {
-    "quiz": '{"title": "T", "questions": []}',
+    "quiz": '{"title": "T", "questions": [{"question": "Q?", "correct": "a", '
+    '"distractors": ["b", "c", "d"], "explanation": "E."}]}',
     "summary": "# T\n\nBody.",
 }
 

@@ -17,7 +17,8 @@ PROMPT_TOKENS = 1_200
 # The system prompt and the sources, and a repair's two turns after them.
 MESSAGES = 4
 # The reply shares the window, so a quarter is kept: 2,048 tokens at the 8,192
-# floor a local model loads at, for the 8 questions or 12 cards a compact prompt asks.
+# floor a local model loads at, for the 10 questions or 20 cards a compact prompt
+# asks there (Qwen3 4B wrote them in about 1,100 and 1,500).
 REPLY_SHARE = 0.25
 # The estimate is not the model's tokenizer, and a chat template adds words of its own.
 MARGIN_SHARE = 0.1

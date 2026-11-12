@@ -10,11 +10,14 @@ from worker.studio.shared import generate
 from worker.studio.shared.artifact import Built, Source
 from worker.studio.shared.text import as_list, as_text, parse_json, slug
 from worker.studio.web.html.page_style import PAGE_STYLE
+from worker.studio.web.html.schema import SECTIONS, reply
 from worker.studio.web.html.written import page as written
 
 MIME = "text/html"
-# The frontier prompt leaves the count to the material, so the ceiling is kept here.
-SECTIONS = 10
+
+NO_SECTIONS = "The model wrote no usable sections. Try again, or choose a larger model."
+
+__all__ = ["MIME", "SECTIONS", "build", "prompt", "render", "writes_script"]
 
 
 def render(
@@ -23,9 +26,13 @@ def render(
     # The same measure that lets a model write a Word script lets it write a page.
     if writes_script(model.selection):
         return written.draft(model, sources, user_prompt)
-    return build(
-        generate.run_model(model, prompt(model.tier, user_prompt), sources), sources
+    raw = generate.run_model(
+        model,
+        prompt(model.tier, user_prompt),
+        sources,
+        json_schema=reply(model.tier),
     )
+    return build(raw, sources)
 
 
 def prompt(tier: Tier, user_prompt: str | None) -> str:
@@ -70,6 +77,8 @@ def build(raw: str, _sources: list[Source]) -> Built:
         if parts:
             body.append("<section>\n" + "\n".join(parts) + "\n</section>")
 
+    if not any(part.startswith("<section>") for part in body):
+        raise ValueError(NO_SECTIONS)
     page = (
         '<!doctype html>\n<html lang="en">\n<head>\n'
         '<meta charset="utf-8">\n'

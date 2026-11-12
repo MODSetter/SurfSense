@@ -1,24 +1,28 @@
 """The deck reply's shape, enforced as a grammar while the model writes.
 
-Only types and `required`, like the quiz's. The card count stays the
-prompt's to ask for and the builder's to cap.
+Only types, `required` and array bounds, like the quiz's. The bounds hold a
+small model to its count and stop one that repeats from filling the window.
 """
 
-REPLY = {
-    "type": "object",
-    "properties": {
-        "title": {"type": "string"},
-        "cards": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "front": {"type": "string"},
-                    "back": {"type": "string"},
+
+def reply(*, at_least: int, at_most: int) -> dict:
+    return {
+        "type": "object",
+        "properties": {
+            "title": {"type": "string"},
+            "cards": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "front": {"type": "string"},
+                        "back": {"type": "string"},
+                    },
+                    "required": ["front", "back"],
                 },
-                "required": ["front", "back"],
+                "minItems": at_least,
+                "maxItems": at_most,
             },
         },
-    },
-    "required": ["title", "cards"],
-}
+        "required": ["title", "cards"],
+    }
