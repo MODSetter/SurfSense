@@ -95,10 +95,8 @@ def _painter(
     return ResolvedImageGeneration(selection, artist)
 
 
-def _keeper(artist: Artist) -> PictureModel:
-    selection = type(
-        "Selection", (), {"name": "flux", "provider": "openai_compatible"}
-    )()
+def _keeper(artist: Artist, provider: str = "openai_compatible") -> PictureModel:
+    selection = type("Selection", (), {"name": "flux", "provider": provider})()
     return PictureModel("image_model", selection, artist)
 
 
@@ -177,6 +175,26 @@ def test_a_local_model_draws_no_words_and_every_line_goes_in_the_strip(
     prompts = artist.drawn + [prompt for prompt, _ in artist.with_reference]
     assert all("no text, no lettering, no speech bubbles" in p for p in prompts)
     assert not any("The light is out!" in p for p in prompts)
+    assert "MILO: The light is out!" in _text(built.primary)
+
+
+def test_later_pages_drawn_on_this_computer_leave_every_line_to_the_strip(
+    asked: list[str],
+) -> None:
+    """A local edit model draws pages 2 on; one comic is lettered one way throughout."""
+    artist = Artist()
+
+    built = comic.render(
+        _painter(artist),
+        _writer(),
+        [Source(1, "Lighthouse", "A cat keeps the light.")],
+        None,
+        {"kind": "western", "pages": 3},
+        keeper=_keeper(artist, provider="sdcpp"),
+    )
+
+    prompts = artist.drawn + [prompt for prompt, _ in artist.with_reference]
+    assert all("no text, no lettering, no speech bubbles" in p for p in prompts)
     assert "MILO: The light is out!" in _text(built.primary)
 
 
@@ -291,6 +309,27 @@ def test_a_plan_that_is_not_json_is_asked_for_once_more(
 
     assert calls[1]["repair"].reply == "Here is the plan: title The Lighthouse Cat"
     assert built.title == "The Lighthouse Cat"
+
+
+def test_a_plan_short_of_the_pages_asked_for_is_asked_for_again(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Four pages asked for are four drawn, not a one-page comic marked ready."""
+    four = {**PLAN, "pages": [*PLAN["pages"], PLAN["pages"][0]]}
+    calls = _replying(monkeypatch, json.dumps(PLAN), json.dumps(four))
+    artist = Artist()
+
+    built = comic.render(
+        _painter(artist),
+        _writer(),
+        [Source(1, "Lighthouse", "A cat keeps the light.")],
+        None,
+        {"kind": "western", "pages": 4},
+        keeper=_keeper(artist),
+    )
+
+    assert "3 of the 4 pages" in calls[1]["repair"].instruction
+    assert len(PdfReader(io.BytesIO(built.primary)).pages) == 4
 
 
 def test_a_model_that_declines_twice_fails_with_what_it_said(

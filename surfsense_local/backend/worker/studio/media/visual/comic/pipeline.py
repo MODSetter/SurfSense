@@ -35,11 +35,13 @@ def render(
         options["pages"],
         fallback_title(user_prompt, sources, "Comic"),
     )
-    if not plan.pages:
-        raise ValueError("the writer planned no pages")
     # Studio cannot look at a page to check its lettering; a local model's is not
     # measured at all, so its pages are drawn without words and lettered below.
-    lettered = kind.bubbles and painter.selection.provider != sdcpp.PROVIDER
+    # Any page drawn locally letters them all so, keeping one comic one way.
+    drawers = [painter.selection.provider]
+    if keeper is not None and len(plan.pages) > 1:
+        drawers.append(keeper.selection.provider)
+    lettered = kind.bubbles and sdcpp.PROVIDER not in drawers
     prompts = [
         page_prompt(
             kind,

@@ -47,13 +47,18 @@ def prompt(tier: Tier, user_prompt: str | None, kind: Kind, count: int) -> str:
 
 
 def parse(raw: str, untitled: str, count: int) -> Plan:
-    """The plan, cut to the pages asked for: each one drawn is billed or takes minutes."""
+    """The plan, cut to the pages asked for: each one drawn is billed or takes minutes.
+
+    One short of them is refused, so it is asked for again before any is drawn.
+    """
     spec = parse_json(raw)
     pages = tuple(
         panels
-        for page in as_list(spec.get("pages"))[:count]
+        for page in as_list(spec.get("pages"))
         if isinstance(page, dict) and (panels := _panels(page))
-    )
+    )[:count]
+    if len(pages) < count:
+        raise ValueError(f"the plan has {len(pages)} of the {count} pages asked for")
     return Plan(
         title=as_text(spec.get("title")) or untitled,
         style=as_text(spec.get("style")),

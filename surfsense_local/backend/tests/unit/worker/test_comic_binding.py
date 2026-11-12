@@ -6,7 +6,13 @@ import pytest
 from PIL import Image
 from pypdf import PdfReader
 
-from worker.studio.media.visual.comic_binding.bind import BoundPage, bind
+from worker.studio.media.visual.comic_binding.bind import (
+    MARGIN,
+    WIDTH,
+    BoundPage,
+    _wrapped,
+    bind,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -98,3 +104,47 @@ def test_pages_are_placed_as_jpeg_so_a_book_stays_small() -> None:
     pdf = bind("Noise", [BoundPage(out.getvalue())], layout="pages", direction="ltr")
 
     assert len(pdf) < len(out.getvalue())
+
+
+def _fonts(pdf: bytes) -> set[str]:
+    page = PdfReader(io.BytesIO(pdf)).pages[0]
+    return {str(font["/BaseFont"]) for font in page["/Resources"]["/Font"].values()}
+
+
+def test_a_mangas_japanese_lines_are_set_in_a_font_that_has_them() -> None:
+    """Helvetica draws a box for every kana and kanji."""
+    pdf = bind(
+        "猫",
+        [BoundPage(_png(400, 400), ("ノラ: 電球が壊れた!",))],
+        layout="pages",
+        direction="rtl",
+    )
+
+    assert "/HeiseiKakuGo-W5" in _fonts(pdf)
+
+
+def test_a_line_with_no_spaces_wraps_inside_the_page() -> None:
+    """Japanese and Chinese have no spaces to break at; the strip grows instead."""
+    short = bind(
+        "猫", [BoundPage(_png(400, 400), ("猫",))], layout="pages", direction="rtl"
+    )
+    long = bind(
+        "猫",
+        [BoundPage(_png(400, 400), ("猫" * 200,))],
+        layout="pages",
+        direction="rtl",
+    )
+
+    assert _sizes(long)[0][1] > _sizes(short)[0][1]
+
+
+def test_a_word_too_wide_is_cut_with_no_spaces_added() -> None:
+    """Letters of a cut word join as written; a real space between words stays."""
+    line = "電球" * 60 + " 猫"
+
+    wrapped = _wrapped(line, WIDTH - 2 * MARGIN)
+
+    assert len(wrapped) > 1
+    # No space is added inside the cut word; the break takes the real one's place.
+    assert " " not in "".join(wrapped[:-1])
+    assert "".join(wrapped).replace(" ", "") == line.replace(" ", "")

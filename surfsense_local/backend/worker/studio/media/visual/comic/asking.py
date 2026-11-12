@@ -11,9 +11,6 @@ from worker.studio.shared.artifact import Source
 
 logger = logging.getLogger(__name__)
 
-_JSON_NUDGE = (
-    "Your previous reply was not the plan as JSON. Return only the JSON object."
-)
 # Enough of a reply to tell a refusal from broken JSON in the log.
 _LOGGED_CHARS = 500
 
@@ -32,6 +29,7 @@ def ask_for_plan(
     try:
         return planning.parse(reply, untitled, count)
     except ValueError as first:
+        first_error = first
         logger.warning(
             "studio: comic plan unreadable (%s); asking again. It began: %r",
             first,
@@ -42,7 +40,11 @@ def ask_for_plan(
         system,
         sources,
         json_schema=REPLY,
-        repair=generate.Repair(reply, _JSON_NUDGE),
+        repair=generate.Repair(
+            reply,
+            f"Your previous reply could not be used: {first_error}. Return only "
+            f"the plan as one JSON object, with exactly {count} pages.",
+        ),
     )
     try:
         return planning.parse(retry, untitled, count)

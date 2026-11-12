@@ -10,6 +10,7 @@ from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.pdfgen import canvas
 
 from modules.artifacts.comic.reading import Direction, Layout
+from worker.studio.office.markdown.pdf_fonts import font_runs
 
 # Comic-book trim width; each page is as tall as its picture.
 WIDTH = 6.625 * inch
@@ -72,14 +73,35 @@ def _block(page: BoundPage) -> _Block:
 def _wrapped(text: str, width: float) -> list[str]:
     lines: list[str] = []
     line = ""
-    for word in text.split():
-        trial = f"{line} {word}".strip()
-        if line and stringWidth(trial, FONT, SIZE) > width:
+    for piece, glued in _breakable(text, width):
+        trial = f"{line}{'' if glued else ' '}{piece}" if line else piece
+        if line and _width(trial) > width:
             lines.append(line)
-            line = word
+            line = piece
         else:
             line = trial
     return [*lines, line] if line else lines
+
+
+def _breakable(text: str, width: float) -> list[tuple[str, bool]]:
+    """Words, with one too wide for a line, as Chinese or Japanese is, cut into
+    letters; each piece says whether it joins the one before with no space."""
+    pieces: list[tuple[str, bool]] = []
+    for word in text.split():
+        cut = list(word) if _width(word) > width else [word]
+        pieces += [(piece, n > 0) for n, piece in enumerate(cut)]
+    return pieces
+
+
+def _width(text: str) -> float:
+    return sum(stringWidth(run, font or FONT, SIZE) for font, run in font_runs(text))
+
+
+def _set_line(pdf: canvas.Canvas, x: float, y: float, line: str) -> None:
+    for font, run in font_runs(line):
+        pdf.setFont(font or FONT, SIZE)
+        pdf.drawString(x, y, run)
+        x += stringWidth(run, font or FONT, SIZE)
 
 
 def _draw(pdf: canvas.Canvas, blocks: list[_Block], gutter: float) -> None:
@@ -89,10 +111,9 @@ def _draw(pdf: canvas.Canvas, blocks: list[_Block], gutter: float) -> None:
     top = height
     for block in blocks:
         pdf.drawImage(block.image, 0, top - block.height, WIDTH, block.height)
-        pdf.setFont(FONT, SIZE)
         y = top - block.height - MARGIN - SIZE
         for line in block.lines:
-            pdf.drawString(MARGIN, y, line)
+            _set_line(pdf, MARGIN, y, line)
             y -= LEADING
         top -= block.height + block.strip + gutter
     pdf.showPage()
