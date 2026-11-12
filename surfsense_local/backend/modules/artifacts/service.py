@@ -14,6 +14,7 @@ from modules.artifacts.queued_job import queue_job
 from modules.artifacts.refused import refused
 from modules.artifacts.schemas import FormatRead, StudioJobCreate
 from modules.artifacts.studio_documents.recipe import refinement, renders_as_stored
+from modules.artifacts.waiting_renders.settle import settle_waiting_renders
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.documents.sources import load_selected_sources
 from modules.llm.model_type import ModelType
@@ -145,6 +146,8 @@ def cancel_artifact(session: Session, artifact: Artifact) -> Artifact:
     """Stop a queued or running generation. The worker exits without writing ready."""
     if not cancel_studio_job(session, artifact.document, artifact.id):
         raise refused(status.HTTP_409_CONFLICT, "nothing is running", "nothing_running")
+    # A queued job is revoked and never runs its end, so what waits on it settles here.
+    settle_waiting_renders(session, picture_id=artifact.id)
     return artifact
 
 

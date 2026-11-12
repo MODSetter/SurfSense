@@ -202,8 +202,9 @@ def make(
         f"{queued_line(made)}\n"
         f"The picture is still being made after {time.monotonic() - began:.0f} s. Do "
         "not make it again: it appears in Studio when it is ready. Its name is "
-        f"{name}, and a document or page can place it once it is ready: if one says "
-        "it is still being drawn, tell the user so and stop."
+        f"{name}. A document or comic can place it now and is made once it is "
+        "drawn. A web page can place it only once it is ready: if one says it is "
+        "still being drawn, tell the user so and stop."
     )
 
 

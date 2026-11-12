@@ -748,6 +748,24 @@ def test_the_api_can_write_while_the_job_reads_the_models_window(
     assert api_could_write == [True]
 
 
+def test_a_settle_that_fails_after_the_job_does_not_ask_for_a_retry(
+    session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A raise here would make Huey run the job, and bill its picture, again."""
+
+    def locked(*_args: object, **_kwargs: object) -> list:
+        raise RuntimeError("database is locked")
+
+    monkeypatch.setattr("worker.waiting_renders.settle_waiting_renders", locked)
+    _capture_model(monkeypatch, SUMMARY)
+    artifact = make_artifact(session)
+
+    run(artifact.id)
+
+    session.expire_all()
+    assert artifact.document.status is DocumentStatus.READY
+
+
 def test_a_generation_failure_leaves_a_reason(
     session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:

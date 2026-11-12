@@ -350,6 +350,9 @@ async def test_a_slow_picture_answers_queued_with_the_name_it_will_have(
     assert text.splitlines()[0] == f"Queued artifact {artifact_id}, version 1: Boat"
     assert f"image-{artifact_id}" in text
     assert "Do not make it again" in text
+    # A document or comic waits for it on the server; a web page cannot.
+    assert "A document or comic can place it now" in text
+    assert "A web page can place it only once it is ready" in text
 
 
 async def test_regenerating_paints_the_same_prompt_with_no_chat_model(

@@ -157,3 +157,24 @@ async def test_a_picture_that_ended_while_the_worker_was_down_is_settled_at_star
     assert error is not None and f"image-{picture} failed" in error
     assert slow.hold is not None
     slow.hold.set()
+
+
+async def test_a_picture_cancelled_while_queued_fails_the_render_at_once(
+    tools: ToolEndpoint, slow: Painter, engine: Engine
+) -> None:
+    """A revoked job never runs, so nothing at its end would settle the render."""
+    workspace_id = await tools.workspace()
+    queued, _ = await tools.call(
+        workspace_id, "make_image", {"prompt": "A boat", "title": "Boat"}
+    )
+    picture = _artifact_id(queued)
+    text, _ = await tools.call(
+        workspace_id, "render_document", _placing(f"image-{picture}")
+    )
+
+    cancelled = await tools.client.post(f"/artifacts/{picture}/cancel")
+
+    assert cancelled.status_code == 200, cancelled.text
+    status, error = _status(engine, _artifact_id(text))
+    assert status is DocumentStatus.FAILED
+    assert error is not None and f"image-{picture} failed" in error
