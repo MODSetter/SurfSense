@@ -1941,7 +1941,6 @@
   "studio_error_needs_chat_audio": "Требуются модель для чата и модель для аудио.",
   "studio_error_needs_chat_image": "Требуются модель для чата и модель для изображений.",
   "studio_error_needs_image": "Требуется модель для изображений.",
-  "studio_error_needs_image_edit": "Требуется модель редактирования изображений.",
   "studio_error_no_sources": "Выберите хотя бы один источник.",
   "studio_error_not_editable": "Изменить можно только изображение или инфографику, созданные в Studio.",
   "studio_error_not_refinable": "Доработать можно только документ Word, PDF или веб-страницу, созданные в Studio.",

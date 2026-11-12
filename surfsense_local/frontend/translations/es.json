@@ -1941,7 +1941,6 @@
   "studio_error_needs_chat_audio": "Se necesitan un modelo de chat y uno de audio.",
   "studio_error_needs_chat_image": "Se necesitan un modelo de chat y uno de imagen.",
   "studio_error_needs_image": "Se necesita un modelo de imagen.",
-  "studio_error_needs_image_edit": "Se necesita un modelo de edición de imágenes.",
   "studio_error_no_sources": "Elige al menos una fuente.",
   "studio_error_not_editable": "Solo se puede editar una imagen o una infografía creadas en Studio.",
   "studio_error_not_refinable": "Solo se puede refinar un documento de Word, un PDF o una página web creados en Studio.",

@@ -1941,7 +1941,6 @@
   "studio_error_needs_chat_audio": "एक चैट मॉडल और एक ऑडियो मॉडल चाहिए।",
   "studio_error_needs_chat_image": "एक चैट मॉडल और एक इमेज मॉडल चाहिए।",
   "studio_error_needs_image": "एक इमेज मॉडल चाहिए।",
-  "studio_error_needs_image_edit": "एक इमेज एडिटिंग मॉडल चाहिए।",
   "studio_error_no_sources": "कम से कम एक स्रोत चुनें।",
   "studio_error_not_editable": "केवल Studio में बनी इमेज या इन्फ़ोग्राफ़िक ही एडिट की जा सकती है।",
   "studio_error_not_refinable": "केवल Studio में बना Word दस्तावेज़, PDF या वेब पेज ही सुधारा जा सकता है।",
