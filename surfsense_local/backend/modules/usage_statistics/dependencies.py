@@ -4,6 +4,7 @@ import logging
 import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from datetime import UTC, date, datetime
 from typing import Annotated
 
 import psutil
@@ -34,7 +35,7 @@ def get_machine_readings() -> MachineReadings:
         holds_local_model=lambda name: (
             get_local_catalog().engine_holding(name) is not None
         ),
-        ui_language=lambda: ui_language(get_storage_settings().data_dir / "electron"),
+        ui_language=lambda: ui_language(get_storage_settings().shell_settings_dir),
     )
 
 
@@ -100,3 +101,11 @@ def _ram_total_bytes() -> int | None:
 
 
 MachineReadingsDep = Annotated[MachineReadings, Depends(get_machine_readings)]
+
+
+def get_today() -> date:
+    """The UTC day the days used count back from; a test pins it."""
+    return datetime.now(UTC).date()
+
+
+TodayDep = Annotated[date, Depends(get_today)]

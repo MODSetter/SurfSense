@@ -27,6 +27,11 @@ def _dropped(destination: str) -> bool:
     # torch's protobuf compiler, for building extensions.
     if path.startswith("torch/bin/") and name.startswith("protoc"):
         return True
+    # Babel's 33 MB of locale data, which PyInstaller's hook collects whole. courlan
+    # imports babel only to filter links by language, which reading a page never
+    # asks it to do (modules/documents/web_sources/page_reading).
+    if path.startswith("babel/locale-data/") and name.endswith(".dat"):
+        return True
     if sys.platform == "win32":
         # OpenCV's FFmpeg video plugin: RapidOCR, Docling and TableFormer only
         # decode images. On macOS and Linux FFmpeg is linked into cv2 itself.

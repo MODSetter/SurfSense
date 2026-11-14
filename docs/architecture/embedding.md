@@ -44,6 +44,7 @@ Each process that embeds, `api`, `worker-ingest` and `worker-studio`, pays for i
 
 - The first load takes 0.40 s instead of 0.18: reading 0.02 s, hashing 0.03 s, the rewrite 0.18 s and the session 0.15 s.
 - Resident memory is 52 MB higher after the load (264 MB against 212) and 18 MB higher after embedding (1,180 against 1,162), and peaks 288 MB higher during the load (511 against 223).
+- onnxruntime's arena grows to a batch's activations and keeps them, so the 1,180 MB above stayed with the process until it exited. The last batch of each `embed()` call runs with `memory.enable_memory_arena_shrinkage`, which hands the unused arena back when the run ends ([`encoder.py`](../../surfsense_local/backend/modules/embedding/encoder.py)): 96 passages of about 480 tokens left a process at 1,230 MB resident and 1,530 MB committed with the arena kept, and at 245 and 230 MB shrunk, in the same 8.8 s. No arena at all held 217 MB but took 10.4 to 11.8 s, since every batch allocates afresh.
 - onnxruntime's wrapper keeps the model's bytes to rebuild the session on a provider fallback, which a CPU-only session never takes, so the encoder clears its private `InferenceSession._model_bytes`; holding them cost 126 MB. [`test_encoder_fp32.py`](../../surfsense_local/backend/tests/unit/embedding/test_encoder_fp32.py) fails when a session keeps any bytes, so an onnxruntime upgrade that renames it is caught, and the encoder logs a warning when the attribute is gone.
 
 ## Hugging Face

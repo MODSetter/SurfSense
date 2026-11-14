@@ -204,7 +204,10 @@ describe("what the chat model in use can do", () => {
     [
       "a model measured through a provider's host",
       capability({
-        reason: { code: "measured_elsewhere", values: { host: "openrouter.ai" } },
+        reason: {
+          code: "measured_elsewhere",
+          values: { host: "openrouter.ai" },
+        },
       }),
       "Basic and Agentic. Agentic isn’t tested with this model yet.",
       "Tested through openrouter.ai, not on your own computer or server.",

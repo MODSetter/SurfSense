@@ -52,7 +52,7 @@ def run_model(
     A JSON format passes `json_schema`, which the runtime turns into a grammar.
     An endpoint that ignores it still answers, and `parse_json` reads that.
     """
-    grounding = _grounding(sources)
+    grounding = grounding_text(sources)
     conversation = _shared_start_key(system, grounding)
     if after_sources is not None:
         grounding = f"{grounding}\n\n{after_sources}"
@@ -154,7 +154,8 @@ async def _join(stream: AsyncIterator[str]) -> str:
     return "".join([delta async for delta in stream])
 
 
-def _grounding(sources: list[Source]) -> str:
+def grounding_text(sources: list[Source]) -> str:
+    """The user message the sources are sent as, each under its title."""
     if not sources:
         return "No sources were provided."
     return "\n\n".join(f"# {source.title}\n\n{source.content}" for source in sources)

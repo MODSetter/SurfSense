@@ -132,7 +132,9 @@ describe("workspace changes", () => {
     await vi.advanceTimersByTimeAsync(2_000)
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3))
 
-    const abortAdds = addListenerSpy.mock.calls.filter(([event]) => event === "abort")
+    const abortAdds = addListenerSpy.mock.calls.filter(
+      ([event]) => event === "abort"
+    )
     const abortRemoves = removeListenerSpy.mock.calls.filter(
       ([event]) => event === "abort"
     )

@@ -10,6 +10,7 @@ import {
   PopoverTitle,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import { GuideLink } from "@/features/guides/guide-link"
 import { intl } from "@/i18n/intl"
 
 import { useSpeechSetup } from "./use-speech-setup"
@@ -133,6 +134,14 @@ function SpeechSetupBody({
               })}
         </PopoverDescription>
       </PopoverHeader>
+      {downloading ? null : (
+        <GuideLink guide="transcribe-a-recording" surface="speech_setup">
+          {intl.formatMessage({
+            id: "speech_setup_popover_guide_link",
+            defaultMessage: "How to set up speech recognition",
+          })}
+        </GuideLink>
+      )}
       <div className="flex justify-end gap-2">
         {download ? (
           // Stays open: once the feed reports it ended, this asks again.

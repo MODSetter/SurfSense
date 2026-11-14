@@ -6,10 +6,13 @@ from modules.documents.models import Document, DocumentType
 
 SOURCE_URL = "source_url"
 PULLER = "puller"
+# The host a site sent the last pull on to, which the user had not allowed:
+# Retry asks about it.
+MOVED_TO = "moved_to"
 
 
-def link_metadata(url: str, puller_id: str, plugin_id: str) -> dict[str, Any]:
-    return {SOURCE_URL: url, PULLER: puller_id, "plugin_id": plugin_id}
+def link_metadata(url: str, puller_id: str) -> dict[str, Any]:
+    return {SOURCE_URL: url, PULLER: puller_id}
 
 
 def awaiting_pull(document: Document) -> bool:

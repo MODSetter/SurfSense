@@ -8,21 +8,17 @@ import { useConnectionsServing } from "@/features/models/remote/connections/use-
 import { ServerModelPicker } from "@/features/models/remote/models/server-model-picker"
 import { intl } from "@/i18n/intl"
 
-import type { OnboardingSlot } from "../kinds/slot"
-
 /**
- * A model from a server, in Settings' own server groups. Connecting and
+ * A chat model from a server, in Settings' own server groups. Connecting and
  * editing happen in Settings' dialog; a server just added opens on its models.
  */
 export function ServerPath({
-  modelType,
   openServerId: initialOpenServerId,
 }: {
-  modelType: OnboardingSlot
   /** A server added before this page opened, whose models to show first. */
   openServerId: number | null
 }) {
-  const connections = useConnectionsServing(modelType)
+  const connections = useConnectionsServing("text_gen")
   const [dialog, setDialog] = useState<Connection | "new" | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const openDialog = (target: Connection | "new") => {
@@ -38,7 +34,7 @@ export function ServerPath({
     <div className="flex flex-col gap-5">
       {servers.length ? (
         <ServerModelPicker
-          modelType={modelType}
+          modelType="text_gen"
           openServerId={openServerId}
           onEdit={openDialog}
         />

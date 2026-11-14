@@ -13,12 +13,13 @@ from tests.license_samples import (
 )
 from tests.mcp_test_server import (
     RequiringLicense,
-    amazon_server,
+    news_server,
     plugin_host,
     serving,
 )
 
-pytestmark = pytest.mark.integration
+# The packaged list is empty: these connect a sample of SurfSense's own plugins.
+pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("first_party_sample")]
 
 
 @pytest.fixture(autouse=True)
@@ -36,7 +37,7 @@ def host(monkeypatch: pytest.MonkeyPatch) -> Iterator[RequiringLicense]:
         guarded.append(RequiringLicense(app, {TRIAL_KEY: "expired"}))
         return guarded[0]
 
-    with serving(plugin_host("amazon", amazon_server(), around)) as base:
+    with serving(plugin_host("news", news_server(), around)) as base:
         monkeypatch.setattr(get_plugin_host_settings(), "plugin_host_url", base)
         yield guarded[0]
 
@@ -48,19 +49,19 @@ async def test_surfsense_s_plugins_are_listed_before_any_is_connected(
     listed = await client.get("/plugins/first-party")
 
     assert listed.status_code == 200
-    amazon = next(entry for entry in listed.json() if entry["id"] == "amazon")
-    assert amazon["name"] == "Amazon"
-    assert amazon["access"] == "license"
-    assert amazon["connected"] is False
-    assert amazon["has_icon"] is True
-    assert amazon["tools"] == ["scrape"]
-    assert amazon["added"] == "2026-10"
-    assert amazon["about"] and amazon["about"] != amazon["description"]
+    news = next(entry for entry in listed.json() if entry["id"] == "news")
+    assert news["name"] == "News"
+    assert news["access"] == "license"
+    assert news["connected"] is False
+    assert news["has_icon"] is True
+    assert news["tools"] == ["search_articles"]
+    assert news["added"] == "2026-10"
+    assert news["about"] and news["about"] != news["description"]
 
 
 async def test_a_first_party_icon_is_served_from_the_app(client: AsyncClient) -> None:
     """Packaged beside the list, so no network; sandboxed, as the registry's are."""
-    icon = await client.get("/plugins/first-party/icons/indeed")
+    icon = await client.get("/plugins/first-party/icons/news")
     unknown = await client.get("/plugins/first-party/icons/nope")
 
     assert icon.status_code == 200
@@ -76,23 +77,23 @@ async def test_connecting_with_a_license_sends_its_key(
     """Every request to SurfSense's plugin host carries the imported license's key."""
     await import_license(client, "individual.lic")
 
-    connected = await client.post("/plugins/first-party/amazon")
+    connected = await client.post("/plugins/first-party/news")
 
     assert connected.status_code == 201, connected.text
     plugin = connected.json()
     assert plugin["source"] == "first_party"
     assert plugin["check_failure"] is None
-    assert [tool["name"] for tool in plugin["tools"]] == ["search_products"]
+    assert [tool["name"] for tool in plugin["tools"]] == ["search_articles"]
     assert set(host.authorizations) == {f"License {INDIVIDUAL_KEY}"}
     listed = (await client.get("/plugins/first-party")).json()
-    assert [entry["id"] for entry in listed if entry["connected"]] == ["amazon"]
+    assert [entry["id"] for entry in listed if entry["connected"]] == ["news"]
 
 
 async def test_connecting_without_a_license_says_one_is_needed(
     client: AsyncClient, host: RequiringLicense
 ) -> None:
     """Connect is never blocked: the server's refusal says what is missing."""
-    connected = await client.post("/plugins/first-party/amazon")
+    connected = await client.post("/plugins/first-party/news")
 
     assert connected.status_code == 201, connected.text
     assert connected.json()["check_failure"] == "needs_license"
@@ -105,7 +106,7 @@ async def test_an_expired_license_reads_as_expired(
     """The server's reason, not a generic sign-in failure."""
     await import_license(client, "trial.lic")
 
-    connected = await client.post("/plugins/first-party/amazon")
+    connected = await client.post("/plugins/first-party/news")
 
     assert connected.json()["check_failure"] == "license_expired"
 
@@ -114,10 +115,10 @@ async def test_a_new_license_is_used_at_the_next_check(
     client: AsyncClient, host: RequiringLicense
 ) -> None:
     """The key is read from the license each time, never copied onto the plugin."""
-    await client.post("/plugins/first-party/amazon")
+    await client.post("/plugins/first-party/news")
     await import_license(client, "individual.lic")
 
-    checked = await client.post("/plugins/amazon/check")
+    checked = await client.post("/plugins/news/check")
 
     assert checked.json()["check_failure"] is None
 
@@ -127,13 +128,13 @@ async def test_the_key_never_leaves_for_another_host(
 ) -> None:
     """A plugin connected on one plugin host, checked after the build points elsewhere."""
     await import_license(client, "individual.lic")
-    await client.post("/plugins/first-party/amazon")
+    await client.post("/plugins/first-party/news")
     monkeypatch.setattr(
         get_plugin_host_settings(), "plugin_host_url", "http://127.0.0.1:9"
     )
     host.authorizations.clear()
 
-    await client.post("/plugins/amazon/check")
+    await client.post("/plugins/news/check")
 
     assert set(host.authorizations) == {None}
 
@@ -142,9 +143,9 @@ async def test_connecting_twice_is_refused(
     client: AsyncClient, host: RequiringLicense
 ) -> None:
     """A stale screen gets a clear answer, not a second copy."""
-    await client.post("/plugins/first-party/amazon")
+    await client.post("/plugins/first-party/news")
 
-    again = await client.post("/plugins/first-party/amazon")
+    again = await client.post("/plugins/first-party/news")
 
     assert again.status_code == 409
     assert again.json()["detail"]["code"] == "plugin_already_connected"
@@ -160,10 +161,10 @@ async def test_a_custom_plugin_never_takes_a_first_party_id(
 ) -> None:
     """So SurfSense's own plugin can still be connected under its id."""
     added = await client.post(
-        "/plugins/custom", json={"url": notes_url, "name": "Amazon"}
+        "/plugins/custom", json={"url": notes_url, "name": "News"}
     )
 
-    assert added.json()["id"] == "amazon-plugin"
+    assert added.json()["id"] == "news-plugin"
 
 
 class LicenseHost:
@@ -190,8 +191,8 @@ def start_host(monkeypatch: pytest.MonkeyPatch) -> Iterator[Callable[..., Licens
             base = stack.enter_context(
                 serving(
                     plugin_host(
-                        "amazon",
-                        amazon_server(),
+                        "news",
+                        news_server(),
                         around,
                         license_asks=asks,
                         license_route=license_route,
@@ -204,10 +205,10 @@ def start_host(monkeypatch: pytest.MonkeyPatch) -> Iterator[Callable[..., Licens
         yield start
 
 
-async def amazon_failure(client: AsyncClient) -> str | None:
-    """The connected Amazon plugin's last check, as Settings > Plugins reads it."""
+async def news_failure(client: AsyncClient) -> str | None:
+    """The connected sample plugin's last check, as Settings > Plugins reads it."""
     plugins = (await client.get("/plugins")).json()
-    return next(p for p in plugins if p["id"] == "amazon")["check_failure"]
+    return next(p for p in plugins if p["id"] == "news")["check_failure"]
 
 
 async def test_removing_the_license_says_one_is_needed_at_once(
@@ -216,14 +217,14 @@ async def test_removing_the_license_says_one_is_needed_at_once(
     """Asked once of the plugin host, not by listing each paid plugin."""
     host = start_host()
     await import_license(client, "individual.lic")
-    await client.post("/plugins/first-party/amazon")
+    await client.post("/plugins/first-party/news")
     listings = len(host.guard.authorizations)
 
     await client.delete("/license")
     checked = await client.post("/plugins/license/check")
 
     assert checked.status_code == 204
-    assert await amazon_failure(client) == "needs_license"
+    assert await news_failure(client) == "needs_license"
     assert host.license_asks == [None]
     assert len(host.guard.authorizations) == listings
 
@@ -233,13 +234,13 @@ async def test_a_license_imported_again_clears_the_verdict_at_once(
 ) -> None:
     """No Refresh tools needed: importing asks the host straight away."""
     start_host()
-    await client.post("/plugins/first-party/amazon")
-    assert await amazon_failure(client) == "needs_license"
+    await client.post("/plugins/first-party/news")
+    assert await news_failure(client) == "needs_license"
 
     await import_license(client, "individual.lic")
     await client.post("/plugins/license/check")
 
-    assert await amazon_failure(client) is None
+    assert await news_failure(client) is None
 
 
 async def test_a_host_without_the_route_changes_nothing(
@@ -248,13 +249,13 @@ async def test_a_host_without_the_route_changes_nothing(
     """No `/license` is no answer: the verdict stays, and nothing is listed for it."""
     host = start_host(license_route="missing")
     await import_license(client, "individual.lic")
-    await client.post("/plugins/first-party/amazon")
+    await client.post("/plugins/first-party/news")
     listings = len(host.guard.authorizations)
 
     await client.delete("/license")
     await client.post("/plugins/license/check")
 
-    assert await amazon_failure(client) is None
+    assert await news_failure(client) is None
     assert len(host.guard.authorizations) == listings
 
 
@@ -263,12 +264,12 @@ async def test_no_answer_from_the_host_keeps_the_last_verdict(
 ) -> None:
     """Keygen down, or the host unreachable, never changes what the user sees."""
     start_host(license_route="down")
-    await client.post("/plugins/first-party/amazon")
+    await client.post("/plugins/first-party/news")
 
     await import_license(client, "individual.lic")
     await client.post("/plugins/license/check")
 
-    assert await amazon_failure(client) == "needs_license"
+    assert await news_failure(client) == "needs_license"
 
 
 async def test_a_fresh_verdict_is_not_asked_for_again(
@@ -277,7 +278,7 @@ async def test_a_fresh_verdict_is_not_asked_for_again(
     """Opening Plugins asks only when the last answer is older than five minutes."""
     host = start_host()
     await import_license(client, "individual.lic")
-    await client.post("/plugins/first-party/amazon")
+    await client.post("/plugins/first-party/news")
 
     await client.post("/plugins/license/check")
     await client.post("/plugins/license/check", params={"if_stale": True})

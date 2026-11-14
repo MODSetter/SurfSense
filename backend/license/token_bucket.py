@@ -8,6 +8,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager, suppress
 from dataclasses import dataclass
 
 import redis.asyncio as aioredis
@@ -42,6 +44,16 @@ else
 end
 """
 
+# A bucket idle an hour is full again, since every limit refills per hour, so
+# forgetting it changes no answer; Redis expires its keys after the same hour.
+_IDLE_SECONDS = 3600.0
+# While the portal is served, idle buckets go within this long of their hour, even
+# when no request comes after them.
+_SWEEP_SECONDS = 60.0
+# Bounds a flood of new addresses: at about 260 bytes a bucket with its name,
+# the map stays under 30 MB.
+_MAX_MEMORY_BUCKETS = 100_000
+
 _redis_client: aioredis.Redis | None = None
 
 
@@ -51,6 +63,7 @@ class _MemoryBucket:
     last_refill: float
 
 
+# Least recently refilled first: each refill moves its bucket to the end.
 _memory_buckets: dict[str, _MemoryBucket] = {}
 _memory_lock = asyncio.Lock()
 
@@ -64,6 +77,38 @@ def _redis() -> aioredis.Redis:
     return _redis_client
 
 
+def _forget_idle(now: float) -> None:
+    """Drop the buckets idle an hour; a sweep costs only the buckets it drops."""
+    idle = []
+    # Oldest refill first, so the first bucket still in use ends the sweep.
+    for scope, bucket in _memory_buckets.items():
+        if now - bucket.last_refill < _IDLE_SECONDS:
+            break
+        idle.append(scope)
+    for scope in idle:
+        del _memory_buckets[scope]
+
+
+async def _sweep_every_minute() -> None:
+    while True:
+        await asyncio.sleep(_SWEEP_SECONDS)
+        async with _memory_lock:
+            _forget_idle(time.time())
+
+
+@asynccontextmanager
+async def forgetting_idle_buckets(_: object) -> AsyncIterator[None]:
+    """The license portal's lifespan: idle memory buckets are swept every minute while it
+    is served, so a caller's counts go an hour after its last request with none after it."""
+    sweeper = asyncio.create_task(_sweep_every_minute())
+    try:
+        yield
+    finally:
+        sweeper.cancel()
+        with suppress(asyncio.CancelledError):
+            await sweeper
+
+
 async def _memory_fallback_acquire(
     scope: str,
     capacity: int,
@@ -72,10 +117,13 @@ async def _memory_fallback_acquire(
 ) -> int:
     now = time.time()
     async with _memory_lock:
-        bucket = _memory_buckets.get(scope)
+        _forget_idle(now)
+        bucket = _memory_buckets.pop(scope, None)
         if bucket is None:
+            if len(_memory_buckets) >= _MAX_MEMORY_BUCKETS:
+                del _memory_buckets[next(iter(_memory_buckets))]
             bucket = _MemoryBucket(tokens=float(capacity), last_refill=now)
-            _memory_buckets[scope] = bucket
+        _memory_buckets[scope] = bucket
 
         elapsed = max(0.0, now - bucket.last_refill)
         bucket.tokens = min(float(capacity), bucket.tokens + elapsed * refill_per_sec)

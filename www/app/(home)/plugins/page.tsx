@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { HomeButton } from "@/components/site/home-button";
 import { sectionSpacing } from "@/components/site/home-section-spacing";
-import { REPO_URL } from "@/components/site/site-content";
+import {
+	CONTRACT_REDLINE_URL,
+	REPO_URL,
+	SECURITY_QUESTIONNAIRE_URL,
+} from "@/components/site/site-content";
 import { siteText } from "@/components/site/site-text";
 import { cn } from "@/components/ui/cn";
 import { PluginBrowser } from "./plugin-browser";
@@ -21,9 +26,12 @@ const registryUrl = `${REPO_URL}/tree/main/backend/plugins/registry`;
 /** A form a bot checks and turns into the registry pull request; no git for the publisher. */
 const submitUrl = `${REPO_URL}/issues/new?template=plugin-submit.yml`;
 
-const metaTitle = "SurfSense Plugins: Google Search, Reddit, YouTube, Instagram and More";
+// Web search, YouTube and Web Crawl are built into the app and free (ADR 0081).
+const metaTitle = "SurfSense Plugins: Web Search, YouTube and Web Crawl Built In";
 const metaDescription =
-	"Plugins give SurfSense's agent live data from Google Search, Reddit, YouTube, Instagram, TikTok, Google Maps, Amazon, Walmart, Indeed and any web page. Free for 14 days, plus any MCP server you add.";
+	"Web search, YouTube and Web Crawl are built into SurfSense and free, with no licence. Plugins from other publishers, and any MCP server you add, give its agent more.";
+const lede =
+	"Plugins give SurfSense's agent live data and tools. Web search, YouTube and Web Crawl are built into the app and free; other plugins come from their publishers through the registry.";
 
 export const metadata: Metadata = {
 	title: metaTitle,
@@ -58,9 +66,18 @@ export default async function PluginsPage() {
 						{pluginCount} plugins by {publisherCount} publishers
 					</span>
 				</h1>
-				<p className={cn(siteText.lede, "mt-6 max-w-2xl")}>
-					Plugins give SurfSense's agent live data and tools. Ours read public pages without your
-					own accounts; others come from their publishers through the registry.
+				<p className={cn(siteText.lede, "mt-6 max-w-2xl")}>{lede}</p>
+				{/* The paid jobs are plugins too, but each has a page of its own; point there. */}
+				<p className={cn(siteText.body, "mt-4 max-w-2xl text-sm")}>
+					Looking for the paid jobs? The{" "}
+					<Link className={siteText.link} href={CONTRACT_REDLINE_URL}>
+						contract redline
+					</Link>{" "}
+					and the{" "}
+					<Link className={siteText.link} href={SECURITY_QUESTIONNAIRE_URL}>
+						security questionnaire
+					</Link>{" "}
+					are job plugins that come with Business.
 				</p>
 				<PluginBrowser registryPlugins={listed} submitUrl={submitUrl} docsUrl={registryUrl} />
 			</section>

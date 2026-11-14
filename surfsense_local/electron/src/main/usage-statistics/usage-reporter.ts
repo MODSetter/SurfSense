@@ -10,6 +10,7 @@ import {
   weekSince,
   type ReportTrigger,
 } from "./first-week.ts"
+import { laterAge } from "./install-age.ts"
 import { sentHardware, type PrivacyFile, type PrivacyStore } from "./privacy-file.ts"
 import { buildUsageReport, type UsageReport } from "./report-body.ts"
 import { furthestStep, setupFinished, setupReportDue, setupStep } from "./setup-progress.ts"
@@ -26,7 +27,7 @@ const HOUR_MS = 3_600_000
 // Revision 1.1, part D: how often the first week looks for a new setup step.
 const SETUP_CHECK_MS = 5 * 60_000
 // A setup report counts no one as active; only the daily report does.
-const NO_FLAGS: ActiveFlags = { first: false, week: false, month: false }
+const NO_FLAGS: ActiveFlags = { first: false, week: false, month: false, age: false }
 
 export type AttemptResult = "sent" | "failed" | "skipped"
 
@@ -68,7 +69,7 @@ export function createUsageReporter(deps: {
   /** null in a development build without SURFSENSE_TELEMETRY_DEV_ENDPOINT. */
   endpoint: string | null
   facts: { appVersion: string; platform: PlatformLabel | null; os: OsLabel | null }
-  summary: (since: Date) => Promise<unknown>
+  summary: (since: Date, firstRun: Date) => Promise<unknown>
   locale: () => string
   totalMemoryBytes: () => number
   fetch: typeof fetch
@@ -94,13 +95,14 @@ export function createUsageReporter(deps: {
   ): Promise<UsageReport | null> => {
     if (platform === null || os === null) return null
     const firstWeek = inFirstWeek(file.firstRunAt, at)
-    const flags = trigger === "daily" ? activeFlags(file.lastReport, at) : NO_FLAGS
-    const summary = await deps.summary(weekSince(file.firstRunAt, at))
+    const flags = trigger === "daily" ? activeFlags(file.lastReport, at, file.firstRunAt) : NO_FLAGS
+    const summary = await deps.summary(weekSince(file.firstRunAt, at), new Date(file.firstRunAt))
     const report = buildUsageReport({
       appVersion,
       platform,
       os,
       firstRunAt: file.firstRunAt,
+      at,
       trigger,
       flags,
       withHardware: carriesHardware({ trigger, flags, firstWeek, sent: file.hardwareSent }),
@@ -195,7 +197,10 @@ export function createUsageReporter(deps: {
       if (body === null) return "skipped"
       const result = await post(body, { failed: `try ${tries + 1} of 3 today` })
       if (result !== "sent") return result === "refused" ? "failed" : result
-      deps.store.update((current) => ({ ...accepted(current, body, at), lastReport: reportPeriod(at) }))
+      deps.store.update((current) => ({
+        ...accepted(current, body, at),
+        lastReport: { ...reportPeriod(at), age: laterAge(current.lastReport?.age, body.install_age) },
+      }))
       log(`daily usage report sent to ${host}`)
       deps.onSent?.()
       return "sent"

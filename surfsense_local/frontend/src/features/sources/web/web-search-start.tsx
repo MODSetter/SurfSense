@@ -8,12 +8,13 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty"
 import { GlobalSearchIcon } from "@/components/ui/icons"
+import { GuideLink } from "@/features/guides/guide-link"
 import { intl } from "@/i18n/intl"
 
 import { SearchSiteLogo } from "./search-site-logo"
 import { SEARCH_SITES, searchSiteName, type SearchSite } from "./search-sites"
 
-/** Before the first search: what the box can do, and every site one click away. */
+/** Before the first search: what the box can do, and where it searches, one click away. */
 export function WebSearchStart({
   site,
   onSiteChange,
@@ -24,7 +25,6 @@ export function WebSearchStart({
   return (
     <Empty className="border border-dashed">
       <EmptyHeader>
-        {/* The license offer's icon, so both states of this space read as one. */}
         <EmptyMedia variant="icon">
           <GlobalSearchIcon />
         </EmptyMedia>
@@ -38,7 +38,7 @@ export function WebSearchStart({
           {intl.formatMessage({
             id: "sources_web_start_body",
             defaultMessage:
-              "Pick where to search, or paste links to pages, videos, posts, channels and products.",
+              "Search the web or YouTube, or paste links to pages and videos. A video comes with its transcript.",
           })}
         </EmptyDescription>
       </EmptyHeader>
@@ -57,6 +57,12 @@ export function WebSearchStart({
           </Button>
         ))}
       </EmptyContent>
+      <GuideLink guide="add-from-the-web" surface="web_search_start">
+        {intl.formatMessage({
+          id: "sources_web_start_guide_link",
+          defaultMessage: "How to add pages and videos",
+        })}
+      </GuideLink>
     </Empty>
   )
 }

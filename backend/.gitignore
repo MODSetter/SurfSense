@@ -4,3 +4,5 @@ __pycache__/
 .ruff_cache/
 # The usage meter's file from a local run of python -m server.
 /usage/
+# A local JOB_PACKS_DIR: packs are private and never committed.
+/job-packs/

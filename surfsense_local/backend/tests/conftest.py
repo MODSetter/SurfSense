@@ -30,6 +30,7 @@ from shared.db import (
 )
 from shared.migrations import upgrade_to_head
 from shared.queue import ingest_queue, plugins_queue, studio_queue
+from tests.first_party_sample import use_sample_first_party_list
 from tests.office_stand_in import office_off
 
 # A feature missing from Base.metadata is one the drift test cannot check.
@@ -110,6 +111,31 @@ def data_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
 
 
 @pytest.fixture(autouse=True)
+def no_codes_held_back() -> Iterator[None]:
+    """The job codes a run held back are recorded process-wide too: each test starts and
+    ends with none, so no test's deferral is checked again in another's schedule."""
+    from modules.jobs.packs.delivery.held_back import HELD_BACK
+
+    HELD_BACK.release(HELD_BACK.held())
+    yield
+    HELD_BACK.release(HELD_BACK.held())
+
+
+@pytest.fixture(autouse=True)
+def test_pack_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    """While tests run, the app trusts the test key for job packs besides the shipped keys, so
+    a live test still installs a pack SurfSense signed."""
+    from modules.jobs.packs import signature
+    from tests.job_pack_samples import TEST_PACK_PUBLIC_KEY_HEX
+
+    monkeypatch.setattr(
+        signature,
+        "PACK_PUBLIC_KEYS_HEX",
+        (TEST_PACK_PUBLIC_KEY_HEX, *signature.PACK_PUBLIC_KEYS_HEX),
+    )
+
+
+@pytest.fixture(autouse=True)
 def no_office_support(monkeypatch: pytest.MonkeyPatch) -> None:
     """Office support starts off in every test, whatever LibreOffice this machine has;
     a test of the Office path turns it on (tests/office_stand_in.py)."""
@@ -121,6 +147,12 @@ def no_system_ocr(monkeypatch: pytest.MonkeyPatch) -> None:
     """Scans and photos go to Docling, as the tests of Docling's readings expect,
     whatever OCR this machine has; a test of the system's OCR turns it on."""
     monkeypatch.setenv("SURFSENSE_LOCAL_SCAN_OCR", "off")
+
+
+@pytest.fixture
+def first_party_sample(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
+    """One sample first-party plugin, `news`: the packaged list is empty."""
+    return use_sample_first_party_list(monkeypatch, tmp_path / "first_party")
 
 
 @pytest.fixture

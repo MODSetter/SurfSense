@@ -26,5 +26,8 @@ def child_environment(folder: Path, contract: dict[str, str]) -> dict[str, str]:
             "MPLCONFIGDIR": str(folder / ".mpl"),
             "PYTHONUTF8": "1",
             "PYTHONDONTWRITEBYTECODE": "1",
+            # numpy's OpenBLAS commits a buffer per CPU thread as it loads, about
+            # 0.5 GB on 16 threads; a script's arrays never need more than one.
+            "OPENBLAS_NUM_THREADS": "1",
         }
     )

@@ -55,11 +55,16 @@ def keygen_store(monkeypatch: pytest.MonkeyPatch) -> dict[str, IssuedLicense]:
     async def checkout_license(license_id):
         return store[license_id].certificate
 
+    async def validate_license(license_id):
+        # Every check-out follows a validation (``fresh_file``).
+        return keygen.Validation("VALID", {"id": license_id})
+
     async def issued_for_id(license_id):
         return store.get(license_id)
 
     monkeypatch.setattr(keygen, "create_license", create_license)
     monkeypatch.setattr(keygen, "checkout_license", checkout_license)
+    monkeypatch.setattr(keygen, "validate_license", validate_license)
     monkeypatch.setattr(issue, "issued_for_id", issued_for_id)
     return store
 

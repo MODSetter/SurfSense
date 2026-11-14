@@ -1,9 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
-import { FOOTER_COLUMNS, REPO_URL } from "@/components/site/site-content";
+import { REPO_URL } from "@/components/site/site-content";
 import footerScene from "@/components/site/site-footer-scene.webp";
 import { SiteSocials } from "@/components/site/site-socials";
 import { cn } from "@/components/ui/cn";
+import { FOOTER_COLUMNS } from "@/features/site-navigation/site-navigation";
 
 /**
  * Site footer: the site's links set straight on the page's ground, which fades
@@ -13,6 +14,8 @@ import { cn } from "@/components/ui/cn";
 
 const LINK_CLASS =
 	"text-[0.9375rem] text-muted-foreground transition-colors duration-100 hover:text-foreground focus-visible:rounded-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
+
+const COLUMNS = FOOTER_COLUMNS;
 
 const WORDMARK_CLASS =
 	"font-[family-name:var(--font-brand)] font-semibold [font-variation-settings:'SOFT'_75,'WONK'_0]";
@@ -57,8 +60,15 @@ export function SiteFooter() {
 						</div>
 					</div>
 
-					<div className="grid grid-cols-2 gap-x-8 gap-y-10 sm:grid-cols-3 sm:gap-x-16 lg:gap-x-24">
-						{FOOTER_COLUMNS.map((column) => (
+					<div
+						className={cn(
+							"grid grid-cols-2 gap-x-8 gap-y-10",
+							COLUMNS.length > 3
+								? "sm:grid-cols-4 sm:gap-x-10 lg:gap-x-14"
+								: "sm:grid-cols-3 sm:gap-x-16 lg:gap-x-24"
+						)}
+					>
+						{COLUMNS.map((column) => (
 							<div key={column.heading}>
 								<p className="text-base font-medium text-foreground">{column.heading}</p>
 								<ul className="mt-5 flex list-none flex-col gap-3.5 p-0">

@@ -189,7 +189,7 @@ export function useSources(workspaceId: number) {
     () => indexSources(folders.folders, documents),
     [documents, folders.folders]
   )
-  const scope = useSourceScope(index, documents)
+  const scope = useSourceScope(workspaceId, index, documents)
 
   const refresh = useStableCallback(async () => {
     listController.current?.abort()

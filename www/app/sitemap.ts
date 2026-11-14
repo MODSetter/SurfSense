@@ -3,9 +3,11 @@ import type { MetadataRoute } from "next";
 import { blog } from "@/.source/server";
 import { FREE_MODELS } from "@/app/(home)/free/free-models";
 import { allPlugins } from "@/app/(home)/plugins/all-plugins";
+import { STUDY_PAGES } from "@/components/site/site-content";
 import { getPublishedAnnouncementPosts } from "@/features/announcements/announcements-source";
 import { announcementPath } from "@/features/announcements/announcements-utils";
 import { source as docsSource } from "@/features/docs/source";
+import { BUSINESS_PAGES } from "@/features/site-navigation/site-navigation";
 
 const blogSource = loader({
 	baseUrl: "/blog",
@@ -35,6 +37,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 			changeFrequency: "weekly",
 			priority: 0.9,
 		},
+		// The student, teacher and study pages, which name no paid job.
+		...STUDY_PAGES.map((path) => ({
+			url: `${BASE_URL}${path}`,
+			lastModified,
+			changeFrequency: "weekly" as const,
+			priority: 0.9,
+		})),
+		// The audience and job pages that sell Business's jobs.
+		...BUSINESS_PAGES.map((path) => ({
+			url: `${BASE_URL}${path}`,
+			lastModified,
+			changeFrequency: "weekly" as const,
+			priority: 0.9,
+		})),
 		{ url: `${BASE_URL}/plugins`, lastModified, changeFrequency: "weekly", priority: 0.9 },
 		{ url: `${BASE_URL}/mcp-server`, lastModified, changeFrequency: "weekly", priority: 0.85 },
 		{
@@ -45,7 +61,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 		},
 		{ url: `${BASE_URL}/pricing`, lastModified, changeFrequency: "weekly", priority: 0.9 },
 		{
-			url: `${BASE_URL}/pricing/individual`,
+			// Business's checkout page; Individual's redirects to it.
+			url: `${BASE_URL}/pricing/business`,
 			lastModified,
 			changeFrequency: "weekly",
 			priority: 0.8,

@@ -61,7 +61,6 @@ from modules.agent.plugin_tools.changed_tools import (
     check_after_turn,
     check_changed_tools,
 )
-from modules.agent.plugin_tools.mentions import mention_note, mentioned_plugins
 from modules.agent.plugin_tools.refreshed_sign_ins import refresh_sign_ins
 from modules.agent.plugin_tools.stop_plugin_calls import stop_plugin_calls
 from modules.agent.plugin_tools.turn_plugins import TurnPlugin, turn_plugins
@@ -124,13 +123,14 @@ class _Sending:
     thinking: bool
     # What opencode did in this thread while Claude Code was away.
     handover: str | None = None
+    # The sources the message named with `@`.
+    mention_note: str | None = None
 
 
 @dataclass
 class _Tools:
     plugins: list[TurnPlugin] = field(default_factory=list)
     unavailable: list[UnavailablePlugin] = field(default_factory=list)
-    mentions: list[Any] = field(default_factory=list)
     hidden: list[str] = field(default_factory=list)
     # A digest of each plugin's offered tools, as SurfSense last listed them.
     listings: dict[str, str] = field(default_factory=dict)
@@ -177,6 +177,7 @@ async def claude_turn(
         model,
         payload.thinking,
         handover,
+        sources.mention_note,
     )
     thread_id, workspace_id = thread.id, thread.workspace_id
     session_id = thread.claude_session_id
@@ -302,7 +303,7 @@ async def _stream(
         events: asyncio.Queue[Any] = asyncio.Queue()
         held.link.begin(gate, events, session_id)
         pump = asyncio.create_task(
-            _pump(held.run, _blocks(sending, tools.mentions), user_id, events)
+            _pump(held.run, _blocks(sending), user_id, events)
         )
         for event in shape.user(user_id, int(time.time() * 1000)):
             for frame in frames.frames(event):
@@ -421,13 +422,12 @@ async def _prepare_tools(
             UnavailablePlugin(title, "license")
             for title in await refresh_license_verdict(session, if_stale=True)
         ]
-        mentions = await transact(session, mentioned_plugins, text)
         await check_changed_tools(sessions)
         session.expire_all()
         plugins = await transact(session, turn_plugins, where, launch_key)
         hidden = await transact(session, _hidden_tools, plugins)
         listings = await transact(session, _listings, plugins)
-    return _Tools(plugins, signed_out + licensed_out, mentions, hidden, listings)
+    return _Tools(plugins, signed_out + licensed_out, hidden, listings)
 
 
 def _hidden_tools(session: Session, plugins: list[TurnPlugin]) -> list[str]:
@@ -483,11 +483,11 @@ def _servers(
     return servers
 
 
-def _blocks(sending: _Sending, mentions: list[Any]) -> list[dict[str, Any]]:
+def _blocks(sending: _Sending) -> list[dict[str, Any]]:
     """SurfSense's notes first, each a block of its own, then the user's words."""
     notes = [
         note
-        for note in (sending.handover, sending.note, mention_note(mentions))
+        for note in (sending.handover, sending.note, sending.mention_note)
         if note is not None
     ]
     return [

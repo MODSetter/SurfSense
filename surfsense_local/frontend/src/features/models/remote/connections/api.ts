@@ -11,9 +11,10 @@ export type Connection = {
   has_api_key: boolean
   /**
    * `chatgpt` signs in with a ChatGPT account instead of a key; `claude_plan`
-   * runs the user's own Claude Code, which keeps the sign-in.
+   * runs the user's own Claude Code, which keeps the sign-in; `elevenlabs`
+   * holds a key and speaks ElevenLabs' own API.
    */
-  auth_kind: "api_key" | "chatgpt" | "claude_plan"
+  auth_kind: "api_key" | "chatgpt" | "claude_plan" | "elevenlabs"
   signed_in: boolean
   account_email: string | null
   /** The slots it can fill, decided by the backend; pickers only read it. */

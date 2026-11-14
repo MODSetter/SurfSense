@@ -21,27 +21,24 @@ import { Separator } from "@/components/ui/separator";
 
 const canonicalUrl = "https://www.surfsense.com/mcp-server";
 
+const metaTitle = "SurfSense MCP Server: Your Knowledge Base as Agent Tools";
+
 const metaDescription =
-	"The SurfSense MCP server gives Claude, Cursor, and any MCP client native tools for your workspace: scrape Reddit, YouTube, Instagram, TikTok, Amazon, Walmart, Google Maps, Google Search, and the web, plus full knowledge base access. One API key.";
+	"The SurfSense MCP server gives Claude, Cursor, and any MCP client native tools for your workspace: search, read, and write your knowledge base. One API key.";
 
 export const metadata: Metadata = {
-	title: "SurfSense MCP Server: Scraper APIs and Knowledge Base as Agent Tools",
+	title: metaTitle,
 	description: metaDescription,
 	keywords: [
 		"surfsense mcp server",
 		"mcp server",
-		"mcp server for web scraping",
-		"reddit mcp server",
-		"youtube mcp server",
-		"google maps mcp server",
-		"serp mcp server",
 		"mcp server for claude",
 		"mcp server for cursor",
 		"knowledge base mcp server",
 	],
 	alternates: { canonical: canonicalUrl },
 	openGraph: {
-		title: "SurfSense MCP Server: Scraper APIs and Knowledge Base as Agent Tools",
+		title: metaTitle,
 		description: metaDescription,
 		url: canonicalUrl,
 		siteName: "SurfSense",
@@ -50,7 +47,7 @@ export const metadata: Metadata = {
 	},
 	twitter: {
 		card: "summary_large_image",
-		title: "SurfSense MCP Server: Scraper APIs and Knowledge Base as Agent Tools",
+		title: metaTitle,
 		description: metaDescription,
 		images: ["/og-image.png"],
 	},
@@ -85,12 +82,12 @@ const STEPS = [
 		icon: ServerStack01Icon,
 		title: "Your agent has the tools",
 		description:
-			"Every scraper and knowledge base operation shows up as a native, typed MCP tool. Your agent picks a workspace once and the server carries the context between calls.",
+			"Every knowledge base operation shows up as a native, typed MCP tool. Your agent picks a workspace once and the server carries the context between calls.",
 	},
 ] as const;
 
 /** Mirrors the tool registry in surfsense_mcp (see its README). */
-const TOOL_GROUPS = [
+const ALL_TOOL_GROUPS = [
 	{
 		icon: ServerStack01Icon,
 		title: "Live scrapers",
@@ -138,11 +135,13 @@ const TOOL_GROUPS = [
 	},
 ] as const;
 
+const TOOL_GROUPS = ALL_TOOL_GROUPS.filter((group) => group.title !== "Live scrapers");
+
 const FAQ: FaqItem[] = [
 	{
 		question: "What is the SurfSense MCP server?",
 		answer:
-			"It is a Model Context Protocol server that exposes your SurfSense workspace to MCP clients like Claude Code, Cursor, and Claude Desktop. Your agents get native tools for every scraper API (Reddit, YouTube, Instagram, TikTok, Amazon, Walmart, Google Maps, Google Search, web crawl) and for searching, reading, and writing your knowledge base.",
+			"It is a Model Context Protocol server that exposes your SurfSense workspace to MCP clients like Claude Code, Cursor, and Claude Desktop. Your agents get native tools for searching, reading, and writing your knowledge base.",
 	},
 	{
 		question: "Which MCP clients does it work with?",
@@ -152,7 +151,7 @@ const FAQ: FaqItem[] = [
 	{
 		question: "How is usage billed?",
 		answer:
-			"Exactly like the REST API, because the server is a thin layer over it. Scraper tools consume the same pay-as-you-go credits, priced per returned item, and knowledge base operations work within your plan. New accounts start with $5 of free credit.",
+			"Exactly like the REST API, because the server is a thin layer over it. Knowledge base operations work within your plan. New accounts start with $5 of free credit.",
 	},
 	{
 		question: "Does it work with a self-hosted SurfSense?",
@@ -229,10 +228,8 @@ export default function McpServerPage() {
 								Give your agents SurfSense as native tools
 							</h1>
 							<p className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-								The SurfSense MCP server hands Claude, Cursor, or any MCP client the whole platform:
-								scrape Reddit, YouTube, Instagram, TikTok, Amazon, Walmart, Google Maps, Google
-								Search, and the open web, and search, read, and write your knowledge base. One API
-								key, typed tools, pay as you go.
+								The SurfSense MCP server hands Claude, Cursor, or any MCP client your knowledge
+								base: search, read, and write it with typed tools. One API key, pay as you go.
 							</p>
 							<div className="mt-8 flex flex-wrap items-center gap-3">
 								<HomeButton asChild size="lg">
@@ -314,7 +311,7 @@ export default function McpServerPage() {
 							billing, no backend code imported. Whatever ships in the API shows up here.
 						</p>
 					</Reveal>
-					<div className="mt-8 grid gap-4 lg:grid-cols-3">
+					<div className={`mt-8 grid gap-4 lg:grid-cols-2`}>
 						{TOOL_GROUPS.map((group) => (
 							<Reveal key={group.title}>
 								<div className="h-full rounded-xl border bg-card p-6">
@@ -378,7 +375,7 @@ export default function McpServerPage() {
 					<Reveal>
 						<div className="rounded-2xl border bg-card p-8 text-center sm:p-12">
 							<h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-								Put live web data inside your agents
+								Put your knowledge base inside your agents
 							</h2>
 							<p className="mx-auto mt-3 max-w-xl text-muted-foreground leading-relaxed">
 								The MCP server is part of the SurfSense{" "}
@@ -412,13 +409,7 @@ export default function McpServerPage() {
 									<Link href="/plugins/youtube">YouTube</Link>
 								</HomeButton>
 								<HomeButton asChild variant="ghost" size="sm">
-									<Link href="/plugins/tiktok">TikTok</Link>
-								</HomeButton>
-								<HomeButton asChild variant="ghost" size="sm">
-									<Link href="/plugins/google-maps">Google Maps</Link>
-								</HomeButton>
-								<HomeButton asChild variant="ghost" size="sm">
-									<Link href="/plugins/google-search">Google Search</Link>
+									<Link href="/plugins/google-search">Web Search</Link>
 								</HomeButton>
 								<HomeButton asChild variant="ghost" size="sm">
 									<Link href="/plugins/web-crawl">Web Crawl</Link>

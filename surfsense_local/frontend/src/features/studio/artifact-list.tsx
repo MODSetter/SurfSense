@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import {
   Empty,
+  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
@@ -50,6 +51,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { GuideLink } from "@/features/guides/guide-link"
 import { useModifierHeld } from "@/hooks/use-modifier-held"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
@@ -702,6 +704,14 @@ export const ArtifactList = memo(function ArtifactList({
                 })}
               </EmptyDescription>
             </EmptyHeader>
+            <EmptyContent>
+              <GuideLink guide="studio-documents" surface="studio_empty">
+                {intl.formatMessage({
+                  id: "studio_artifact_list_guide_link",
+                  defaultMessage: "How to make a document in Studio",
+                })}
+              </GuideLink>
+            </EmptyContent>
           </Empty>
         ) : visibleLines.length === 0 ? (
           <Empty className="min-h-0 border-0 px-2">

@@ -331,6 +331,40 @@ describe("podcast brief form", () => {
     expect(setUp).toHaveBeenCalledOnce()
   })
 
+  it.each([
+    {
+      problem: { code: "no_usable_voices", message: "in English" },
+      words: /has no voices its plan can use through the API/,
+    },
+    {
+      problem: { code: "list_failed", message: "Invalid API key" },
+      words: /Invalid API key/,
+    },
+  ] as const)(
+    "says why there are no voices rather than that the server lists none: $problem.code",
+    ({ problem, words }) => {
+      render(
+        <PodcastBriefForm
+          brief={{
+            ...brief,
+            speakers: [{ name: "Host", role: "host", voice: "" }],
+          }}
+          voices={[]}
+          languages={["en"]}
+          voicesSource="saved"
+          voicesProblem={problem}
+          voicedBy={{ server: "ElevenLabs", model: "eleven_v4" }}
+          onSetUpVoices={() => undefined}
+          onChange={() => undefined}
+        />
+      )
+
+      expect(screen.getByText(words)).toBeTruthy()
+      expect(screen.queryByText(/doesn’t list/)).toBeNull()
+      expect(screen.getByRole("button", { name: "Set up voices" })).toBeTruthy()
+    }
+  )
+
   it("says nothing about a server for a model on this computer", () => {
     render(<Harness />)
 

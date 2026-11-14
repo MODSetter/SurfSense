@@ -14,6 +14,7 @@ import { useOpenArtifact } from "@/features/studio/open-artifact"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
+import { AllowRefusedHosts } from "./allow-refused-hosts"
 import { useAgentApprovals } from "./approvals-context"
 import type { AgentStep, TurnSources } from "./api"
 import { InlineApproval } from "./inline-approval"
@@ -188,7 +189,13 @@ export function AgentSteps({
             step={step}
             threadId={threadId}
             sourceTitle={sourceTitle}
-            ask={request ? askFor(request, step) : undefined}
+            ask={
+              request ? (
+                askFor(request, step)
+              ) : step.refused ? (
+                <AllowRefusedHosts refused={step.refused} />
+              ) : undefined
+            }
           />
         )
       })}

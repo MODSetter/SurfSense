@@ -5,6 +5,7 @@ import { readLocalSummary } from "./local-summary.ts"
 
 const API = "http://127.0.0.1:52341"
 const SINCE = new Date("2026-10-14T09:00:00Z")
+const FIRST_RUN = new Date("2026-10-10T08:00:00Z")
 
 type Answer = Response | Error
 
@@ -20,16 +21,17 @@ function api(answer: () => Answer) {
   return { fetchFrom, requests }
 }
 
-test("asks the backend's summary route for the window since the given instant, with a timeout", async () => {
+test("asks the backend's summary route for the window since the given instant, and the first run, with a timeout", async () => {
   const summary = { week: { chat_turns: "1-9" }, hardware: null, ui_language: "de" }
   const local = api(() => Response.json(summary))
 
-  assert.deepEqual(await readLocalSummary(API, SINCE, local.fetchFrom), summary)
+  assert.deepEqual(await readLocalSummary(API, SINCE, FIRST_RUN, local.fetchFrom), summary)
 
   assert.equal(local.requests.length, 1)
   assert.equal(
     local.requests[0]!.url,
-    "http://127.0.0.1:52341/usage-statistics/summary?since=2026-10-14T09%3A00%3A00.000Z"
+    "http://127.0.0.1:52341/usage-statistics/summary?since=2026-10-14T09%3A00%3A00.000Z" +
+      "&first_run=2026-10-10T08%3A00%3A00.000Z"
   )
   assert.ok(local.requests[0]!.init.signal instanceof AbortSignal)
 })
@@ -46,6 +48,6 @@ for (const [why, answer] of NO_SUMMARY) {
   test(`no summary when the local API ${why}`, async () => {
     const local = api(answer)
 
-    assert.equal(await readLocalSummary(API, SINCE, local.fetchFrom), null)
+    assert.equal(await readLocalSummary(API, SINCE, FIRST_RUN, local.fetchFrom), null)
   })
 }

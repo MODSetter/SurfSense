@@ -5,6 +5,7 @@ import logging
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from modules.artifacts.comic.pages import COMIC_PAGE, is_comic_page
 from modules.artifacts.image_edits.editable import EDITABLE_FORMATS, has_picture
 from modules.artifacts.image_edits.recipe import image_edited
 from modules.artifacts.models import Artifact
@@ -62,7 +63,8 @@ def create_image_edit_version(
     """The base's next version, pending until Studio's job edits its picture.
 
     An image drawn before versions were kept becomes v1 here. Commits before
-    enqueueing: the worker is another process and must find the row.
+    enqueueing: the worker is another process and must find the row. A version
+    stays in its base's chat, whichever box asked, so that chat can still place it.
     """
     base = editable_base(session, artifact_id)
     base_version = version_of(base.artifact_metadata) or ArtifactVersion(
@@ -81,7 +83,10 @@ def create_image_edit_version(
     session.add(document)
     session.flush()
     artifact = Artifact(
-        document_id=document.id, workspace_id=base.workspace_id, format=base.format
+        document_id=document.id,
+        workspace_id=base.workspace_id,
+        format=base.format,
+        chat_thread_id=base.chat_thread_id,
     )
     session.add(artifact)
     session.flush()
@@ -95,6 +100,8 @@ def create_image_edit_version(
         "version": version.as_metadata(),
         "source_document_ids": list(meta.get("source_document_ids") or []),
         "prompt": meta.get("prompt"),
+        # A comic's page changed is its page still.
+        **({COMIC_PAGE: True} if is_comic_page(meta) else {}),
     }
     queue_job(session, artifact)
     logger.info(

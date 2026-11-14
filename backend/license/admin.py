@@ -1,4 +1,4 @@
-"""Changing a license after the fact: refunds and corrected addresses."""
+"""Changing a license after the fact: corrected addresses."""
 
 from __future__ import annotations
 
@@ -7,10 +7,12 @@ from typing import cast
 
 from license import keygen
 from license.email.address import fold_email, normalize_email
+from license.fresh_file import fresh_file
+from license.jobs import jobs_of
 from license.keygen import LicensePlan
 from license.models import (
-    META_CUSTOMER,
     META_EMAIL,
+    META_FIRM,
     META_PLAN,
     META_TRIAL_KEY,
     IssuedLicense,
@@ -18,24 +20,6 @@ from license.models import (
 )
 
 logger = logging.getLogger(__name__)
-
-
-async def suspend_licenses_for_customer(
-    customer_id: str,
-    *,
-    keygen_license_id: str | None = None,
-) -> int:
-    """Suspend everything a refunded customer holds. Returns how many."""
-    if keygen_license_id:
-        await keygen.suspend_license(keygen_license_id)
-        return 1
-
-    matches = await keygen.list_licenses(metadata={META_CUSTOMER: customer_id})
-    for record in matches:
-        license_id = str(record.get("id") or "")
-        if license_id:
-            await keygen.suspend_license(license_id)
-    return len(matches)
 
 
 async def correct_license_email(
@@ -60,17 +44,25 @@ async def correct_license_email(
         metadata[META_TRIAL_KEY] = fold_email(corrected)
 
     await keygen.update_license_metadata(record.keygen_license_id, metadata)
-    certificate = await keygen.checkout_license(record.keygen_license_id)
     logger.info(
         "Corrected license %s email %r -> %r",
         record.keygen_license_id,
         record.metadata.get(META_EMAIL),
         corrected,
     )
+    certificate = await fresh_file(record.keygen_license_id)
+    if certificate is None:
+        # The address is corrected either way; a suspended license gets no file.
+        raise ValueError(
+            f"License {record.keygen_license_id} is not in good standing; "
+            "its address was corrected but no file was checked out"
+        )
     return IssuedLicense(
         keygen_license_id=record.keygen_license_id,
         certificate=certificate,
         plan=cast(LicensePlan, metadata.get(META_PLAN) or "individual"),
         email=corrected,
         max_users=record.max_users,
+        firm=str(metadata.get(META_FIRM) or "") or None,
+        jobs=jobs_of(metadata),
     )

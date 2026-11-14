@@ -1,0 +1,83 @@
+---
+title: Set up SurfSense
+description: From the welcome screen to your first workspace, with a model that runs on your computer
+---
+
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+
+<GuideVideo slug="set-up" poster="/guides/set-up/poster.webp" title="Setting up SurfSense, from the welcome screen to the first workspace" />
+
+The first time you open SurfSense, a short setup runs. You see it once, and you can change every choice in it later, except the embedding model. Haven't installed SurfSense yet? Start with [Install](/docs/v2/install).
+
+<Steps>
+<Step>
+
+### Start setting up
+
+On the welcome screen, click **Start setting up**.
+
+![The welcome screen, with the Start setting up button under the heading](/guides/set-up/01-welcome.webp)
+
+</Step>
+<Step>
+
+### Make your privacy choices
+
+Answer **Yes** or **No** to **Check for updates** and to **Share usage statistics**, then click **Continue**. Nothing is sent until you choose, and **Show exactly what’s sent** lists what each one sends. See [Privacy](/docs/v2/privacy).
+
+![Privacy choices, with Yes chosen for both questions and the Continue button](/guides/set-up/02-privacy-choices.webp)
+
+</Step>
+<Step>
+
+### Choose a text generation model
+
+This is the model that answers you in chat. Under **On this computer**, SurfSense lists the models that fit your computer and marks one **Recommended**. A smaller model downloads sooner; the recommended one answers better.
+
+To use a model from a server or a plan you already pay for instead, use the options below the list. See [Use a model from a server or provider](/docs/v2/guides/connect-a-server).
+
+![The list of models for this computer, with a Download button on each](/guides/set-up/03-text-model.webp)
+
+</Step>
+<Step>
+
+### Allow the download
+
+Click **Download** beside the model. The first time, SurfSense asks **Allow searching and downloading models?** and says what Hugging Face receives. Click **Allow**.
+
+![The question Allow searching and downloading models?, with Cancel and Allow](/guides/set-up/04-allow-download.webp)
+
+</Step>
+<Step>
+
+### Wait for the model
+
+The model downloads, and once it's done it's the one in use: its row reads **In use**, and the bar at the bottom names it. Click **Continue**.
+
+![The downloaded model marked In use, and the bar at the bottom naming it](/guides/set-up/05-model-ready.webp)
+
+</Step>
+<Step>
+
+### Choose an embedding model
+
+The embedding model finds what you ask about in your documents. The one that comes with SurfSense works well for English; pick a multilingual one if your documents are in other languages. You can't change it later. Click **Finish**.
+
+![The embedding models, with the one that comes with SurfSense in use](/guides/set-up/06-embedding-model.webp)
+
+</Step>
+<Step>
+
+### Your first workspace opens
+
+SurfSense opens a workspace called **My Workspace**: sources on the left, chat in the middle and Studio on the right.
+
+![The first workspace, empty, with Sources, the chat box and Studio](/guides/set-up/07-first-workspace.webp)
+
+</Step>
+</Steps>
+
+## Next
+
+- [Add files and folders](/docs/v2/guides/add-sources) to answer from.
+- [Ask a question and check its citations](/docs/v2/guides/ask-and-cite).

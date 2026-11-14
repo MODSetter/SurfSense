@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { PlatformsTooltip } from "@/app/(home)/pricing/platforms-tooltip";
+import type { LicenceRow } from "@/app/(home)/pricing/business-pricing-content";
 import {
-	PLANS,
 	type Plan,
-	PRICING_FAQ,
+	type PricingLede,
+	type PricingQuestion,
 	SELF_BUILD_URL,
 } from "@/app/(home)/pricing/pricing-content";
 import { HomeBadge } from "@/components/site/home-badge";
@@ -14,24 +14,6 @@ import { SiteFaqItem } from "@/components/site/site-faq-item";
 import { siteText } from "@/components/site/site-text";
 import { cn } from "@/components/ui/cn";
 import { CheckIcon } from "@/components/ui/icons";
-
-/**
- * Splits a feature string around "7 platforms" so that segment alone can be
- * wrapped in `PlatformsTooltip` — the rest of the line renders as plain text.
- */
-function renderFeature(feature: string) {
-	const marker = "7 platforms";
-	const index = feature.indexOf(marker);
-	if (index === -1) return feature;
-
-	return (
-		<>
-			{feature.slice(0, index)}
-			<PlatformsTooltip>{marker}</PlatformsTooltip>
-			{feature.slice(index + marker.length)}
-		</>
-	);
-}
 
 /**
  * Pricing sections, in the homepage's shapes: centred badge heads, rounded
@@ -48,15 +30,15 @@ function renderFeature(feature: string) {
  * table. Burying it reads as a bait-and-switch to an audience that arrived via
  * the words "open source".
  */
-export function PricingHero() {
+export function PricingHero({ lede }: { lede: PricingLede }) {
 	return (
 		<section className={cn("text-center", sectionSpacing.head)}>
 			<HomeBadge>Free forever</HomeBadge>
 			<h1 className={cn(siteText.display, "mt-4")}>Pricing</h1>
 			<p className={cn(siteText.lede, "mx-auto mt-8 max-w-2xl")}>
-				The app and every update are <span className="text-primary">free, forever</span>, with no
-				account, no trial clock and no usage cap. A licence adds the scraper plugins and priority
-				support, and a 30-day one comes with the app.
+				{lede.before}
+				<span className="text-primary">{lede.highlight}</span>
+				{lede.after}
 			</p>
 			<p className={cn(siteText.body, "mx-auto mt-5 max-w-2xl text-sm")}>
 				Prefer to build it yourself?{" "}
@@ -87,7 +69,7 @@ function PlanCard({ plan }: { plan: Plan }) {
 					<span className={siteText.eyebrow}>{plan.name}</span>
 					{plan.featured ? (
 						<span className="rounded-full bg-foreground px-2.5 py-1 text-xs font-medium whitespace-nowrap text-background">
-							Most popular
+							{plan.badge ?? "Most popular"}
 						</span>
 					) : null}
 				</p>
@@ -137,7 +119,7 @@ function PlanCard({ plan }: { plan: Plan }) {
 						>
 							<CheckIcon className="size-3" />
 						</span>
-						<span className="text-muted-foreground">{renderFeature(feature)}</span>
+						<span className="text-muted-foreground">{feature}</span>
 					</li>
 				))}
 			</ul>
@@ -145,11 +127,11 @@ function PlanCard({ plan }: { plan: Plan }) {
 	);
 }
 
-export function PricingPlans() {
+export function PricingPlans({ plans }: { plans: Plan[] }) {
 	return (
 		<section className={sectionSpacing.foot}>
 			<div className="ss-home-plans mt-12 grid gap-4 md:grid-cols-3 lg:mt-16">
-				{PLANS.map((plan) => (
+				{plans.map((plan) => (
 					<PlanCard key={plan.name} plan={plan} />
 				))}
 			</div>
@@ -157,8 +139,58 @@ export function PricingPlans() {
 	);
 }
 
+/**
+ * "What each licence gets": the plan cards' facts as one table, for a reader comparing all
+ * three. On a narrow screen the table scrolls inside its own frame, never the page.
+ */
+export function PricingComparison({ rows }: { rows: LicenceRow[] }) {
+	return (
+		<section className={sectionSpacing.foot} aria-labelledby="ss-pricing-compare-label">
+			<div className={cn("text-center", sectionSpacing.head)}>
+				<HomeBadge>Compare</HomeBadge>
+				<h2 id="ss-pricing-compare-label" className={cn(siteText.h2, "mt-4")}>
+					What each licence gets
+				</h2>
+			</div>
+
+			<div className="mt-10 overflow-x-auto rounded-3xl border border-border lg:mt-14">
+				<table className="w-full min-w-[42rem] border-collapse text-left text-sm">
+					<thead>
+						<tr className="border-b border-border bg-muted">
+							<th scope="col" className="px-5 py-4 font-medium text-foreground">
+								What you get
+							</th>
+							<th scope="col" className="px-5 py-4 font-medium text-foreground">
+								Free
+							</th>
+							<th scope="col" className="px-5 py-4 font-medium text-foreground">
+								Business
+							</th>
+							<th scope="col" className="px-5 py-4 font-medium text-foreground">
+								Enterprise
+							</th>
+						</tr>
+					</thead>
+					<tbody>
+						{rows.map((row) => (
+							<tr key={row.feature} className="border-b border-border align-top last:border-b-0">
+								<th scope="row" className="px-5 py-4 font-medium text-foreground">
+									{row.feature}
+								</th>
+								<td className="px-5 py-4 text-muted-foreground">{row.free}</td>
+								<td className="px-5 py-4 text-muted-foreground">{row.business}</td>
+								<td className="px-5 py-4 text-muted-foreground">{row.enterprise}</td>
+							</tr>
+						))}
+					</tbody>
+				</table>
+			</div>
+		</section>
+	);
+}
+
 /** Headed and ruled like the homepage FAQ, one flat list. */
-export function PricingQuestions() {
+export function PricingQuestions({ questions }: { questions: PricingQuestion[] }) {
 	return (
 		<section className={sectionSpacing.foot} aria-labelledby="ss-pricing-faq-label">
 			<div className={cn("text-center", sectionSpacing.head)}>
@@ -169,14 +201,14 @@ export function PricingQuestions() {
 			</div>
 
 			<div className="ss-home-grid mt-10 border-t border-border lg:mt-14">
-				{PRICING_FAQ.map((item) => (
+				{questions.map((item) => (
 					<SiteFaqItem key={item.question} question={item.question}>
 						<p className={siteText.body}>{item.answer}</p>
 					</SiteFaqItem>
 				))}
 			</div>
 
-			<FAQJsonLd questions={PRICING_FAQ} />
+			<FAQJsonLd questions={questions} />
 		</section>
 	);
 }

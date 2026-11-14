@@ -2,6 +2,7 @@
 
 import base64
 import binascii
+import json
 from urllib.parse import urlsplit
 
 import httpx
@@ -40,6 +41,18 @@ async def read_image(payload: object) -> GeneratedImage:
     if url.startswith("data:"):
         return _decode_data_url(url)
     return await download_image(url)
+
+
+async def reply_payload(reply: httpx.Response) -> object:
+    """The reply's JSON. A refusal is decided by its status, so one whose body is
+    cut off, or is not JSON, still answers with its status: OpenRouter has hung up
+    partway through a 404's body. Only a success must arrive whole."""
+    if reply.status_code < 400:
+        return json.loads(await bounded_body(reply, MAX_RESPONSE_BYTES))
+    try:
+        return json.loads(await bounded_body(reply, MAX_RESPONSE_BYTES))
+    except (httpx.TransportError, ValueError):
+        return {}
 
 
 async def bounded_body(reply: httpx.Response, limit: int) -> bytes:

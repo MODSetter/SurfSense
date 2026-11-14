@@ -65,6 +65,38 @@ def test_every_deb_lands_in_one_tree_and_the_root_is_found(tmp_path: Path) -> No
     assert not (tmp_path / "staging.debs").exists()
 
 
+def _deb_with_link(name: str, target: str) -> bytes:
+    """A .deb whose data holds one symlink, as TDF's menus package does."""
+    buffer = io.BytesIO()
+    with tarfile.open(fileobj=buffer, mode="w:xz") as archive:
+        info = tarfile.TarInfo(name)
+        info.type = tarfile.SYMTYPE
+        info.linkname = target
+        archive.addfile(info)
+    return (
+        b"!<arch>\n"
+        + _ar_member("debian-binary", b"2.0\n")
+        + _ar_member("data.tar.xz", buffer.getvalue())
+    )
+
+
+def test_tdfs_menus_package_is_left_out(tmp_path: Path) -> None:
+    """Its link into /usr/local/bin sits beside the other .debs in the real tarball."""
+    tarball = _tarball(
+        tmp_path / "lo.tar.gz",
+        {
+            "libreoffice26.8-debian-menus_26.8.1-1_all.deb": _deb_with_link(
+                "./usr/local/bin/libreoffice26.8",
+                "/opt/libreoffice26.8/program/soffice",
+            ),
+            "core.deb": _deb({"./opt/libreoffice26.8/program/soffice": b"#!"}),
+        },
+    )
+    root = unpack_debs(tarball, tmp_path / "staging")
+    assert (root / "program" / "soffice").exists()
+    assert not (tmp_path / "staging" / "usr").exists()
+
+
 def test_a_path_leaving_the_tree_is_refused(tmp_path: Path) -> None:
     """The data filter rejects `..`."""
     tarball = _tarball(

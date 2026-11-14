@@ -1,1 +1,1 @@
-"""A link's source from its pending note to its text, pulled on the plugins queue."""
+"""A link's source from its pending note to its text, read on the plugins queue."""

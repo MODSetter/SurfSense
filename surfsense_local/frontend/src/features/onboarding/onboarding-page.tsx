@@ -19,17 +19,14 @@ import { useFinishOnboarding } from "./use-finish-onboarding"
  * The model steps, in order. The privacy choices come before them as the first
  * step the progress bar counts. The welcome is still onboarding, and still gated
  * by the same marker, but it is an introduction, not a step to complete.
- * Whichever step is last finishes onboarding.
+ * Whichever step is last finishes onboarding. Every other kind of model is
+ * chosen later, in Settings.
  *
- * The embedding model comes last and is the one step that is not a slot: its
- * choice is sent with the finish that fixes it, never held across steps.
+ * The embedding model comes last and is not a slot: its choice is sent with the
+ * finish that fixes it, never held across steps.
  */
 const MODEL_STEPS = [
   "text_gen",
-  "image_gen",
-  "image_edit",
-  "audio_gen",
-  "video_gen",
   "embedding",
 ] as const satisfies readonly OnboardingStepKind[]
 

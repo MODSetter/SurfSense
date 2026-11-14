@@ -9,10 +9,12 @@ You can use models from a hosted provider, such as OpenAI, Anthropic, OpenRouter
 
 ## Add a provider
 
+To watch it first, see the step-by-step guide [Use a model from a server or provider](/docs/v2/guides/connect-a-server), with a video.
+
 <Steps>
 <Step>
 
-Open **Settings** and the model section you want, such as **Text gen**. Click **Add model**, then **Use a server**. In onboarding, click **Connect** under **Use a server**.
+Open **Settings** and the model section you want, such as **Text gen**. Click **Add model**, then **Use a server**. In onboarding, the text generation step has **Use a server**: click **Connect**.
 
 </Step>
 <Step>
@@ -29,6 +31,8 @@ Under **Provider**, search for your provider and pick it. SurfSense fills in its
 - A provider SurfSense can't connect to, such as one that needs a cloud account sign-in instead of a key, is listed but can't be picked, with the reason.
 
 Not in the list? Pick **Local or custom server** and enter its OpenAI-compatible URL.
+
+ElevenLabs isn't in this list. To use your own ElevenLabs account for audio, use its own option instead: see [Audio models](/docs/v2/models/other-models#audio-models).
 
 </Step>
 <Step>
@@ -49,6 +53,14 @@ Find a model and click **Use**. Test it, then click **Use this model**.
 </Steps>
 
 The provider now appears as its own group in each model section it can fill: text, image, image editing, audio and video. Open the group to pick a model for that section. One key serves all of them.
+
+## OpenCode Zen and OpenCode Go
+
+Pick **OpenCode Zen** for pay-as-you-go or **OpenCode Go** for a Go plan, then paste an API key from the [OpenCode Console](https://opencode.ai/console). OpenCode has no sign-in for this, only a key. For a Go plan you can also click **Connect** beside **Use your OpenCode Go plan**, which opens the same form with **OpenCode Go** chosen. Once a Go server is connected, that row reads **Connected as** its name, and **Show models** opens its models.
+
+- **OpenCode Go** needs a Go subscription on the key's workspace. OpenCode designed Go for coding agents and monitors its traffic for abuse.
+- **Free models** can be picked with **OpenCode Go**, though some need a privacy setting turned on in the Console. With **OpenCode Zen** they are listed but can't be picked, because OpenCode refuses them there.
+- **When OpenCode refuses a request**, chat shows its reason, such as an account out of funds or a privacy setting to change. Fix it in the Console or pick another model. Retrying won't help.
 
 ## Choosing a model from a provider
 

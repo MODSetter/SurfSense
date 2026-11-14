@@ -1,6 +1,6 @@
 """The on-device counts: hourly, pruned, never content, and honest about when they began."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 
@@ -70,6 +70,26 @@ def test_a_window_counts_only_the_hours_inside_it() -> None:
     counts = read_counts()
     assert counts is not None
     assert counts.total(Activity.PLUGIN_CALL, NOW - timedelta(days=7)) == 4
+
+
+def test_the_days_counted_are_the_days_with_any_count_inside_the_window() -> None:
+    """Any activity marks its UTC day; the window's end, today, is left out."""
+    start_counting(had_chats=False, now=NOW)
+    add({Activity.AGENT_TURN: 1}, now=NOW - timedelta(days=8))
+    add({Activity.REMOTE_ANSWER: 1}, now=NOW - timedelta(days=3, hours=1))
+    add({Activity.PLUGIN_CALL: 4}, now=NOW - timedelta(days=3))
+    add({Activity.LOCAL_ANSWER: 1}, now=NOW)
+
+    counts = read_counts()
+    assert counts is not None
+    assert counts.days_counted(date(2026, 10, 14), date(2026, 10, 21)) == {
+        date(2026, 10, 18)
+    }
+    assert counts.days_counted(date(2026, 10, 13), date(2026, 10, 22)) == {
+        date(2026, 10, 13),
+        date(2026, 10, 18),
+        date(2026, 10, 21),
+    }
 
 
 def test_hours_older_than_forty_days_are_dropped() -> None:

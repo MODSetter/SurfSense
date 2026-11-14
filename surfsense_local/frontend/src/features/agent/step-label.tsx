@@ -182,6 +182,83 @@ export function stepLabel(
       }
       break
     }
+    case "surfsense_make_image": {
+      const made = step.artifact
+      if (made) {
+        return (made.created ?? made.version === 1)
+          ? intl.formatMessage(
+              {
+                id: "agent_steps_make_image_created_label",
+                defaultMessage: "Created <doc>{title}</doc> v{version, number}",
+              },
+              { title: made.title, version: made.version, doc: documentTitle }
+            )
+          : intl.formatMessage(
+              {
+                id: "agent_steps_make_image_updated_label",
+                defaultMessage:
+                  "Updated <doc>{title}</doc> to v{version, number}",
+              },
+              { title: made.title, version: made.version, doc: documentTitle }
+            )
+      }
+      // Running, still being drawn, refused or failed: what it was asked for.
+      const title = text(input.title)
+      if (title) {
+        return intl.formatMessage(
+          {
+            id: "agent_steps_make_image_label",
+            defaultMessage: "Asked for the picture <doc>{title}</doc>",
+          },
+          { title, doc: documentTitle }
+        )
+      }
+      // While its input streams, a new picture has neither yet.
+      return input.artifact_id
+        ? intl.formatMessage({
+            id: "agent_steps_make_image_edit_label",
+            defaultMessage: "Asked to change a picture",
+          })
+        : intl.formatMessage({
+            id: "agent_steps_make_image_unnamed_label",
+            defaultMessage: "Asked for a picture",
+          })
+    }
+    case "surfsense_bind_comic": {
+      const made = step.artifact
+      if (made) {
+        return (made.created ?? made.version === 1)
+          ? intl.formatMessage(
+              {
+                id: "agent_steps_bind_comic_created_label",
+                defaultMessage: "Created <doc>{title}</doc> v{version, number}",
+              },
+              { title: made.title, version: made.version, doc: documentTitle }
+            )
+          : intl.formatMessage(
+              {
+                id: "agent_steps_bind_comic_updated_label",
+                defaultMessage:
+                  "Updated <doc>{title}</doc> to v{version, number}",
+              },
+              { title: made.title, version: made.version, doc: documentTitle }
+            )
+      }
+      // Running, waiting for its pages, refused or failed: the title it was given.
+      const title = text(input.title)
+      return title
+        ? intl.formatMessage(
+            {
+              id: "agent_steps_bind_comic_label",
+              defaultMessage: "Binding the comic <doc>{title}</doc>",
+            },
+            { title, doc: documentTitle }
+          )
+        : intl.formatMessage({
+            id: "agent_steps_bind_comic_unnamed_label",
+            defaultMessage: "Binding a comic",
+          })
+    }
     case "surfsense_convert_document": {
       const made = step.artifact
       return made
@@ -213,6 +290,74 @@ export function stepLabel(
         id: "agent_steps_revise_pending_label",
         defaultMessage: "Edited a copy of a source file",
       })
+    }
+    case "surfsense_run_job": {
+      const made = step.artifact
+      // The file as the turn named it, else the copy the run made of it.
+      const workbook =
+        (typeof input.document_id === "number"
+          ? sourceTitle(input.document_id)
+          : null) ?? text(made?.title)
+      // A Word file is a contract a redline reviews; any other, a workbook.
+      if (workbook && /\.docx$/i.test(workbook))
+        return made
+          ? intl.formatMessage(
+              {
+                id: "agent_steps_run_job_review_label",
+                defaultMessage: "Reviewed <doc>{contract}</doc>",
+              },
+              { contract: workbook, doc: documentTitle }
+            )
+          : intl.formatMessage(
+              {
+                id: "agent_steps_run_job_review_pending_label",
+                defaultMessage: "Started reviewing <doc>{contract}</doc>",
+              },
+              { contract: workbook, doc: documentTitle }
+            )
+      if (made) {
+        return workbook
+          ? intl.formatMessage(
+              {
+                id: "agent_steps_run_job_label",
+                defaultMessage: "Filled in <doc>{workbook}</doc>",
+              },
+              { workbook, doc: documentTitle }
+            )
+          : intl.formatMessage({
+              id: "agent_steps_run_job_untitled_label",
+              defaultMessage: "Filled in a workbook",
+            })
+      }
+      // Still answering, refused or failed: no copy to open yet.
+      return workbook
+        ? intl.formatMessage(
+            {
+              id: "agent_steps_run_job_pending_label",
+              defaultMessage: "Started filling in <doc>{workbook}</doc>",
+            },
+            { workbook, doc: documentTitle }
+          )
+        : intl.formatMessage({
+            id: "agent_steps_run_job_pending_untitled_label",
+            defaultMessage: "Started filling in a workbook",
+          })
+    }
+    case "surfsense_confirm_job_suggestions": {
+      const made = step.artifact
+      return made
+        ? intl.formatMessage(
+            {
+              id: "agent_steps_confirm_job_label",
+              defaultMessage:
+                "Confirmed suggested answers in <doc>{title}</doc>",
+            },
+            { title: made.title, doc: documentTitle }
+          )
+        : intl.formatMessage({
+            id: "agent_steps_confirm_job_pending_label",
+            defaultMessage: "Started confirming suggested answers",
+          })
     }
     case "surfsense_read_document": {
       const workbook =
@@ -304,6 +449,45 @@ export function stepLabel(
         },
         { kind: text(input.kind) ?? "other" }
       )
+    case "surfsense_search_web": {
+      const query = text(input.query)
+      if (query) {
+        return intl.formatMessage(
+          {
+            id: "agent_steps_search_web_label",
+            defaultMessage: "Searched the web for {query}",
+          },
+          { query: subject(query) }
+        )
+      }
+      break
+    }
+    case "surfsense_read_web_page": {
+      const url = text(input.url)
+      if (url) {
+        return intl.formatMessage(
+          {
+            id: "agent_steps_read_web_page_label",
+            defaultMessage: "Read the web page {url}",
+          },
+          { url: subject(url) }
+        )
+      }
+      break
+    }
+    case "surfsense_read_youtube_transcript": {
+      const url = text(input.url)
+      if (url) {
+        return intl.formatMessage(
+          {
+            id: "agent_steps_read_youtube_transcript_label",
+            defaultMessage: "Read the transcript of {url}",
+          },
+          { url: subject(url) }
+        )
+      }
+      break
+    }
     case "surfsense_pdf_form":
       return intl.formatMessage(
         {

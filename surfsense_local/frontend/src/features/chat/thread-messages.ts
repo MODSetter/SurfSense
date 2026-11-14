@@ -4,6 +4,7 @@ import type { AgentStep } from "@/features/agent/api"
 
 import type { ChatMessage, MessageContent } from "./api"
 import { attachmentsOf } from "./image-attachments"
+import type { ShownMention } from "./mentions/mention-text"
 import type { LivePair } from "./runs/apply-frame"
 import type { Citation } from "./sse"
 import type { ChatTurnError } from "./use-chat-runtime"
@@ -60,6 +61,7 @@ function errorOf(
 // Shared, so a reply without them selects the same value at every frame.
 const NO_CITATIONS: Citation[] = []
 const NO_STEPS: AgentStep[] = []
+const NO_MENTIONS: ShownMention[] = []
 
 type ShownReasoning = { text: string; durationMs: number | null }
 
@@ -126,6 +128,7 @@ export function toRuntimeMessage(
         queue: message.content.queue ?? null,
         preparing: message.content.preparing ?? null,
         scope: message.content.scope ?? null,
+        mentions: message.content.mentions ?? NO_MENTIONS,
         unavailablePlugins: message.content.unavailable_plugins ?? null,
         threadId,
       },

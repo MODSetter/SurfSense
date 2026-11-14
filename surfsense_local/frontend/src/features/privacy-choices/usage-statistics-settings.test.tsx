@@ -171,13 +171,7 @@ describe("App updates in Settings › About", () => {
       screen.getByRole("button", { name: "What usage statistics send" })
     )
     const usageDetails = (await screen.findByRole("tooltip")).textContent
-    expect(usageDetails).toContain(
-      "During the install’s first week it sends one more each time setup reaches a new step, at most four more."
-    )
-    expect(usageDetails).toContain("whether the model runtime can use the card")
-    expect(usageDetails).toContain(
-      "in the first week they go again only while part of them is unknown"
-    )
+    expect(usageDetails).toContain("your system and hardware")
     expect(usageDetails).toContain(
       "Never documents, prompts, file names, model names, hosts, your license key or an ID."
     )

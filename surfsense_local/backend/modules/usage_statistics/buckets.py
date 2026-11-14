@@ -38,6 +38,18 @@ def plugin_calls_bucket(count: int) -> str:
     return _bucket(count, ((10, "1-9"),), "10+")
 
 
+def days_used_7_bucket(days: int) -> str:
+    if days == 0:
+        return "0"
+    return _bucket(days, ((2, "1"), (4, "2-3"), (7, "4-6")), "7")
+
+
+def days_used_28_bucket(days: int) -> str:
+    if days == 0:
+        return "0"
+    return _bucket(days, ((2, "1"), (4, "2-3"), (8, "4-7"), (15, "8-14")), "15-28")
+
+
 # Installed memory reads up to about 1.5 GiB short once firmware and an
 # integrated GPU keep their share: a 16 GB laptop reports 14.5-15.8 GiB.
 _RAM_SLACK_GIB = 1.5

@@ -10,7 +10,7 @@ import os
 import threading
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
@@ -56,6 +56,18 @@ class ActivityCounts:
             for hour, counts in self.hours.items()
             if hour >= first
         )
+
+    def days_counted(self, first: date, before: date) -> set[date]:
+        """The UTC days from `first` up to `before` with any count in one of their hours."""
+        days = set()
+        for hour, counts in self.hours.items():
+            try:
+                day = date.fromisoformat(hour[:10])
+            except ValueError:
+                continue
+            if first <= day < before and any(counts.values()):
+                days.add(day)
+        return days
 
 
 def counts_path() -> Path:

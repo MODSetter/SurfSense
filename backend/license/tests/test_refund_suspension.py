@@ -32,15 +32,19 @@ def charge(amount_refunded: int, *, amount: int = 4900) -> SimpleNamespace:
 
 
 def stripe_client(sessions: dict[str, str]) -> SimpleNamespace:
-    """Stripe's checkout session list, keyed by payment intent."""
+    """Stripe's checkout session list, keyed by payment intent; one-time payments pay no invoice."""
 
     def list_sessions(params: dict) -> SimpleNamespace:
         found = sessions.get(params["payment_intent"])
         return SimpleNamespace(data=[SimpleNamespace(id=found)] if found else [])
 
     sessions_api = SimpleNamespace(list=list_sessions)
+    no_invoices = SimpleNamespace(list=lambda params: SimpleNamespace(data=[]))
     return SimpleNamespace(
-        v1=SimpleNamespace(checkout=SimpleNamespace(sessions=sessions_api))
+        v1=SimpleNamespace(
+            checkout=SimpleNamespace(sessions=sessions_api),
+            invoice_payments=no_invoices,
+        )
     )
 
 

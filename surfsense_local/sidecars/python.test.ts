@@ -6,7 +6,13 @@ import test from "node:test"
 
 import { audiocppSpec, SERVER_CONFIG } from "./audiocpp.ts"
 import { exe, isWindows } from "./platform.ts"
-import { apiSpec, BACKEND_BINARY, WORKER_QUEUES, workerSpec } from "./python.ts"
+import {
+  apiSpec,
+  BACKEND_BINARY,
+  FRESH_START_EXIT_CODE,
+  WORKER_QUEUES,
+  workerSpec,
+} from "./python.ts"
 import type { SidecarContext } from "./types.ts"
 
 /** A packaged build with audio.cpp staged and the API's config written. */
@@ -54,6 +60,31 @@ test("the API is told the shell's pid, the root of what counts as the app", () =
   const api = apiSpec(withAudio()).env
 
   assert.equal(api.SURFSENSE_LOCAL_SHELL_PID, String(process.pid))
+})
+
+test("a worker that exits to free its memory is started again; the API never is", () => {
+  const ctx = withAudio()
+  for (const queue of WORKER_QUEUES) {
+    assert.equal(workerSpec(ctx, queue).freshStartExitCode, FRESH_START_EXIT_CODE)
+  }
+  // backend/worker/fresh_start.py exits with the same number.
+  assert.equal(FRESH_START_EXIT_CODE, 75)
+  assert.equal(apiSpec(ctx).freshStartExitCode, undefined)
+})
+
+test("every Python sidecar runs numpy's OpenBLAS on one thread unless the user chose a count", () => {
+  const ctx = withAudio()
+  const specs = () => [apiSpec(ctx), ...WORKER_QUEUES.map((queue) => workerSpec(ctx, queue))]
+  const before = process.env.OPENBLAS_NUM_THREADS
+  try {
+    delete process.env.OPENBLAS_NUM_THREADS
+    for (const spec of specs()) assert.equal(spec.env.OPENBLAS_NUM_THREADS, "1")
+    process.env.OPENBLAS_NUM_THREADS = "4"
+    for (const spec of specs()) assert.equal(spec.env.OPENBLAS_NUM_THREADS, "4")
+  } finally {
+    if (before === undefined) delete process.env.OPENBLAS_NUM_THREADS
+    else process.env.OPENBLAS_NUM_THREADS = before
+  }
 })
 
 test("under pnpm dev a worker is the app's own child, so it dies with the app", () => {
@@ -187,4 +218,29 @@ test("without a staged audio.cpp the API is told of no speech recognition server
   const api = apiSpec({ ...ctx, audioBinariesDir: join(ctx.binariesDir, "absent") }).env
 
   assert.equal(api.SURFSENSE_LOCAL_TRANSCRIPTION_BASE_URL, undefined)
+})
+
+test("the API and every worker hear where a moved models folder and the shell's settings are", () => {
+  const ctx: SidecarContext = {
+    ...withAudio(),
+    embeddingModelsDir: join("D:", "SurfSense-Models", "embeddings"),
+    shellSettingsDir: join("C:", ".surfsense", "electron"),
+  }
+
+  for (const env of [apiSpec(ctx).env, workerSpec(ctx, "ingest").env]) {
+    assert.equal(env.SURFSENSE_LOCAL_EMBEDDING_MODELS_DIR, ctx.embeddingModelsDir)
+    assert.equal(env.SURFSENSE_LOCAL_SHELL_SETTINGS_DIR, ctx.shellSettingsDir)
+    assert.equal(env.SURFSENSE_LOCAL_MODEL_STORAGE_UNAVAILABLE, undefined)
+  }
+})
+
+test("workers hear that the models drive is missing, so downloads wait for it", () => {
+  const env = apiSpec({ ...withAudio(), modelStorageUnavailable: true }).env
+  assert.equal(env.SURFSENSE_LOCAL_MODEL_STORAGE_UNAVAILABLE, "1")
+})
+
+test("an install that never moved anything sets none of the storage variables", () => {
+  const env = apiSpec(withAudio()).env
+  assert.equal(env.SURFSENSE_LOCAL_EMBEDDING_MODELS_DIR, undefined)
+  assert.equal(env.SURFSENSE_LOCAL_SHELL_SETTINGS_DIR, undefined)
 })

@@ -88,24 +88,9 @@ Les modifications, les conversions et les outils PDF créent toujours un nouveau
 
 ## Plugins
 
-Connectez-les dans **Paramètres › Plugins**.
+Connectez-les dans **Paramètres › Plugins** : des serveurs MCP issus du [registre de plugins](backend/plugins/registry), comme DeepWiki et Notion, ou tout serveur que vous ajoutez par URL. Ils restent désactivés tant que vous ne les autorisez pas.
 
-**Par SurfSense.** Ils lisent des pages publiques sans passer par vos propres comptes et nécessitent une licence SurfSense : [téléchargez l'application](https://www.surfsense.com/downloads) et saisissez-y votre adresse e-mail pour recevoir une licence gratuite de 14 jours.
-
-| Plugin | Ce qu'il fait |
-|---|---|
-| **Google Search** | Rechercher sur Google et lire ses résultats, ses annonces et les questions associées |
-| **Web Crawl** | Lire une page web, ou explorer un site entier et le convertir en texte propre |
-| **YouTube** | Lire le contenu des vidéos et des chaînes YouTube, avec leurs commentaires |
-| **TikTok** | Lire le contenu des vidéos TikTok et leurs commentaires, rechercher des utilisateurs et voir ce qui est tendance |
-| **Reddit** | Lire les publications publiques de Reddit avec leurs fils de commentaires, ou toute une communauté |
-| **Instagram** | Lire les profils, publications et reels publics d'Instagram, et rechercher des profils |
-| **Google Maps** | Trouver des lieux sur Google Maps et lire leurs avis |
-| **Amazon** | Lire les produits et les résultats de recherche d'Amazon |
-| **Walmart** | Lire les produits, les résultats de recherche et les avis de Walmart |
-| **Indeed** | Lire les offres d'emploi sur Indeed |
-
-**Tiers.** Des serveurs MCP issus du [registre de plugins](backend/plugins/registry), comme DeepWiki et Notion, ou tout serveur que vous ajoutez par URL. Aucune licence n'est nécessaire ; ils restent désactivés tant que vous ne les autorisez pas.
+**Intégré et gratuit :** l'agent et **Ajouter depuis le web**, dans les Sources, effectuent leurs recherches sur le web via SearXNG et lisent les pages et les transcriptions YouTube depuis votre propre connexion, sans plugin ni licence.
 
 ## Comparaison
 

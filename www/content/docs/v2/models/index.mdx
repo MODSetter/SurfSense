@@ -12,7 +12,7 @@ SurfSense needs a model to answer you. You can run one on your own computer, con
 | | On this computer | A server | A ChatGPT or Claude plan |
 |---|---|---|---|
 | Where it runs | Your computer | Your own server, or a provider such as OpenAI or OpenRouter | OpenAI or Anthropic |
-| What leaves your computer | Nothing, once it is downloaded, unless a chat uses [plugins](/docs/v2/plugins#what-a-plugin-can-see) | Your questions and excerpts of your documents go to that server | Your questions and excerpts of your documents go to OpenAI or Anthropic |
+| What leaves your computer | Nothing, once it is downloaded, unless a chat uses [plugins](/docs/v2/plugins#what-a-plugin-can-see) or the agent [searches and reads the web](/docs/v2/agent#search-and-read-the-web) | Your questions and excerpts of your documents go to that server | Your questions and excerpts of your documents go to OpenAI or Anthropic |
 | Cost | Free | Whatever the provider charges | Counts toward your plan's limits |
 | Works offline | Yes | Only if the server is on your computer or network | No |
 | Speed and quality | Depends on your hardware | Depends on the model | Frontier models |
@@ -47,7 +47,7 @@ Open **Settings** and look under **Models**. Each section shows the model **In u
 - Each server you connected has its own group, with **Edit** and **Disconnect**. Open the group to see its models.
 - **Add model** opens a page with **On this computer**, **Use a server**, and for text generation, **Use your ChatGPT plan** and **Use your Claude plan**.
 
-When you first open SurfSense, onboarding walks through the same choices, one kind of model per step. Everything except the text generation model can be skipped, and you can change all of it later in Settings, except the embedding model.
+When you first open SurfSense, onboarding asks for two models: a text generation model, which is required, and an embedding model, which can be skipped. You choose the others in Settings when you want them. You can change all of them later, except the embedding model.
 
 ## What fits your computer
 

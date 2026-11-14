@@ -38,7 +38,7 @@ def pending_sources(
             title=url[:500],
             document_type=DocumentType.NOTE,
             content=None,
-            document_metadata=link_metadata(url, puller.id, puller.plugin_id),
+            document_metadata=link_metadata(url, puller.id),
             folder_id=folder_id,
         )
         for url, puller in links

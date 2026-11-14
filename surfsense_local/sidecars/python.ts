@@ -19,11 +19,25 @@ function audiocppStaged(ctx: SidecarContext): boolean {
 function pythonEnv(ctx: SidecarContext): Record<string, string> {
   return {
     PYTHONUNBUFFERED: "1", // unbuffered: startup + crash logs show immediately
+    // numpy's OpenBLAS commits a buffer per CPU thread when it loads: 491 MB of
+    // page-file-backed memory per process on 16 threads, measured. No sidecar
+    // multiplies matrices large enough to need a second thread; torch, onnxruntime
+    // and OpenCV keep their own pools. A value the user set is kept.
+    OPENBLAS_NUM_THREADS: process.env.OPENBLAS_NUM_THREADS ?? "1",
     SURFSENSE_LOCAL_HOST: ctx.host,
     SURFSENSE_LOCAL_PORT: String(ctx.apiPort),
     SURFSENSE_LOCAL_DATA_DIR: ctx.dataDir,
     SURFSENSE_LOCAL_SECRET: ctx.secret,
     ...(ctx.modelsDir && { SURFSENSE_LOCAL_MODELS_DIR: ctx.modelsDir }),
+    ...(ctx.embeddingModelsDir && {
+      SURFSENSE_LOCAL_EMBEDDING_MODELS_DIR: ctx.embeddingModelsDir,
+    }),
+    ...(ctx.shellSettingsDir && {
+      SURFSENSE_LOCAL_SHELL_SETTINGS_DIR: ctx.shellSettingsDir,
+    }),
+    ...(ctx.modelStorageUnavailable && {
+      SURFSENSE_LOCAL_MODEL_STORAGE_UNAVAILABLE: "1",
+    }),
     ...(ctx.packaged && { HF_HUB_OFFLINE: "1" }),
     ...(ctx.llamacppUrl && { SURFSENSE_LOCAL_LLAMACPP_BASE_URL: ctx.llamacppUrl }),
     ...(ctx.llamacppModelsDir && {
@@ -112,10 +126,18 @@ export function apiSpec(ctx: SidecarContext): SidecarSpec {
 export const WORKER_QUEUES = ["ingest", "studio", "plugins"] as const
 export type WorkerQueue = (typeof WORKER_QUEUES)[number]
 
+/**
+ * A worker exits with this once it has sat idle holding the memory its models
+ * took (`backend/worker/fresh_start.py`), and is started again at once: only a
+ * new process gives Docling's and torch's memory back to the system.
+ */
+export const FRESH_START_EXIT_CODE = 75
+
 export function workerSpec(ctx: SidecarContext, queue: WorkerQueue): SidecarSpec {
   return {
     name: `worker-${queue}`,
     ...pythonCmd(ctx, "worker", "worker.py", [queue]),
     env: pythonEnv(ctx),
+    freshStartExitCode: FRESH_START_EXIT_CODE,
   }
 }

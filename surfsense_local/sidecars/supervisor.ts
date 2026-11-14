@@ -59,6 +59,7 @@ function spawnOne(
   spec: SidecarSpec,
   onCrash?: CrashHandler,
   echo: Echo = mirror,
+  startFresh?: () => void,
 ): ChildProcess {
   const child = spawn(spec.cmd, spec.args, {
     cwd: spec.cwd,
@@ -86,6 +87,11 @@ function spawnOne(
       note(`stopped (code=${code} signal=${signal})`)
       return
     }
+    if (startFresh && code !== null && code === spec.freshStartExitCode) {
+      note("exited to free its memory; starting a fresh one")
+      startFresh()
+      return
+    }
     note(`crashed (code=${code} signal=${signal})`)
     onCrash?.(spec.name, code)
   })
@@ -106,7 +112,7 @@ export function startAll(
   echo?: Echo,
 ): Sidecars {
   const children: Sidecars = new Map()
-  for (const spec of specs) children.set(spec.name, spawnOne(spec, onCrash, echo))
+  for (const spec of specs) startOne(children, spec, onCrash, echo)
   return children
 }
 
@@ -117,7 +123,12 @@ export function startOne(
   onCrash?: CrashHandler,
   echo?: Echo,
 ): void {
-  children.set(spec.name, spawnOne(spec, onCrash, echo))
+  const child = spawnOne(spec, onCrash, echo, () => {
+    // Only while it is still the one under its name: a child replaced or
+    // forgotten meanwhile is no longer ours to bring back.
+    if (children.get(spec.name) === child) startOne(children, spec, onCrash, echo)
+  })
+  children.set(spec.name, child)
 }
 
 /** Stop one sidecar and forget it, leaving the rest running. */

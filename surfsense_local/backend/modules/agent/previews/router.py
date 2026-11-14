@@ -49,7 +49,7 @@ class SnapshotRequestRead(BaseModel):
     # Relative to the API: the artifact's file as the in-app viewer loads it,
     # or a source's original under this request's own file route.
     file_url: str
-    # How to lay the file out: docx-preview for docx, pptx-renderer for pptx;
+    # How to lay the file out: @silurus/ooxml for docx, pptx-renderer for pptx;
     # a web page is loaded as it is and captured.
     format: SnapshotFormat
     # printToPDF's pageRanges, such as "1-4" or "2,5"; the PDF holds them in order.

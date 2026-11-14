@@ -1,22 +1,9 @@
 import path from "node:path";
 import { createMDX } from "fumadocs-mdx/next";
 import type { NextConfig } from "next";
+import { launchRedirects } from "./features/business-launch/launch-redirects.mts";
 import { docsRedirects } from "./features/docs/docs-redirects.mts";
 import { installScriptRedirects } from "./features/downloads/install-script-redirects.mts";
-
-// The per-scraper marketing pages gave way to each plugin's page under /plugins.
-const LISTED_SCRAPERS = [
-	"google-search",
-	"web-crawl",
-	"reddit",
-	"youtube",
-	"instagram",
-	"tiktok",
-	"google-maps",
-	"amazon",
-	"walmart",
-	"indeed",
-];
 
 const nextConfig: NextConfig = {
 	async redirects() {
@@ -27,11 +14,11 @@ const nextConfig: NextConfig = {
 			// The connectors index was renamed to /plugins, which is what the
 			// product calls them everywhere else.
 			{ source: "/connectors", destination: "/plugins", permanent: true },
-			...LISTED_SCRAPERS.map((id) => ({
-				source: `/${id}`,
-				destination: `/plugins/${id}`,
-				permanent: true,
-			})),
+			// A short address for the step-by-step guides, to say aloud or put in a post.
+			// Not permanent, so the guides can move to a page of their own later.
+			{ source: "/tutorials", destination: "/docs/v2/guides", permanent: false },
+			// The scraper pages, the retired ones and Individual's checkout page.
+			...launchRedirects(),
 			...docsRedirects,
 			...installScriptRedirects,
 		];

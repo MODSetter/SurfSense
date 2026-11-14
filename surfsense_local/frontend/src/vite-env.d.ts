@@ -7,3 +7,8 @@ interface ImportMetaEnv {
   /** surfsense_local/VERSION, in the Docker image's build. */
   readonly VITE_SURFSENSE_VERSION?: string
 }
+
+declare module "*.wasm?data-url" {
+  const url: string
+  export default url
+}

@@ -35,7 +35,9 @@ const RESEND_SENT =
 	"If a license is registered to that address, it is on its way. " +
 	"Check your spam folder, and make sure you used the exact address you paid with.";
 
-const TRIAL_SENT = "Your trial license is on its way. Check your spam folder too.";
+// The trial is 14 days of the paid jobs.
+const TRIAL_SENT =
+	"Your 14-day trial of the security questionnaire and contract redline jobs is on its way. Check your spam folder too.";
 
 // 503 covers either half being down -- the license service or the mail
 // server -- so this must not blame email specifically.
@@ -201,7 +203,8 @@ export function ResendForm() {
 	);
 }
 
-const TRIAL_NOTE = "One trial per email address. We will send the license file to your inbox.";
+const TRIAL_NOTE =
+	"One 14-day trial of the security questionnaire and contract redline jobs per email address. We will send the license file to your inbox.";
 
 export function TrialForm({
 	label = "Email me a trial",

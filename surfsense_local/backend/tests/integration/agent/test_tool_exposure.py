@@ -95,20 +95,6 @@ async def test_past_the_share_a_plugin_not_asked_for_is_named_in_the_catalogue(
     assert of_type(frames, "agent-plugins-unavailable") == []
 
 
-async def test_a_mentioned_plugin_is_held_whole_past_the_share(
-    agent_api: AgentAPI, notes_url: str, no_room: None
-) -> None:
-    """`@notes` is the user's choice: every ready tool of it is held, whatever they cost."""
-    await connect_notes(agent_api, notes_url)
-    agent_api.model.replies = [("text", "Counting.")]
-    thread = await open_thread(agent_api)
-
-    await send(agent_api, thread["id"], "How many words? @notes")
-
-    assert offered(agent_api, 0) == ["notes_count", "notes_search", *ASKS]
-    assert "The user asked you to use the Notes plugin for this." in told(agent_api)
-
-
 async def test_opening_a_plugin_holds_its_tools_from_the_next_step(
     agent_api: AgentAPI, notes_url: str, no_room: None
 ) -> None:

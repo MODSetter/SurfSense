@@ -294,8 +294,66 @@ async def test_no_configured_prices_means_no_price_lookup(monkeypatch):
     """Ordinary checkouts must not pay for an extra Stripe call."""
     monkeypatch.setattr(config, "STRIPE_PRICE_LICENSE_INDIVIDUAL", "")
     monkeypatch.setattr(config, "STRIPE_PRICE_LICENSE_TEAM", "")
+    monkeypatch.setattr(config, "STRIPE_PRICE_LICENSE_BUSINESS", "")
 
     assert await resolve_license_plan(_session()) is None
+
+
+async def test_a_business_plan_comes_from_session_metadata_with_its_people():
+    resolved = await resolve_license_plan(
+        _session(
+            metadata={"purchase_type": "license", "plan": "business", "quantity": "4"}
+        )
+    )
+
+    assert resolved == ("business", 4)
+
+
+async def test_a_business_payment_link_is_known_by_its_price(monkeypatch):
+    """The price's quantity is the number of people."""
+    monkeypatch.setattr(config, "STRIPE_PRICE_LICENSE_BUSINESS", "price_business")
+
+    session = _session(
+        line_items=[
+            SimpleNamespace(price=SimpleNamespace(id="price_business"), quantity=6)
+        ]
+    )
+
+    assert await resolve_license_plan(session) == ("business", 6)
+
+
+async def test_one_price_in_two_plan_settings_is_refused_not_guessed(monkeypatch):
+    """An Individual buyer would get a Business license; refused, the purchase waits."""
+    monkeypatch.setattr(config, "STRIPE_PRICE_LICENSE_INDIVIDUAL", "price_same")
+    monkeypatch.setattr(config, "STRIPE_PRICE_LICENSE_TEAM", "")
+    monkeypatch.setattr(config, "STRIPE_PRICE_LICENSE_BUSINESS", "price_same")
+
+    session = _session(
+        line_items=[SimpleNamespace(price=SimpleNamespace(id="price_same"), quantity=1)]
+    )
+
+    with pytest.raises(RuntimeError) as refused:
+        await resolve_license_plan(session)
+
+    # Not a LicenseIssueError, which the webhook acknowledges and drops: its 500
+    # has Stripe retry the purchase.
+    assert type(refused.value) is RuntimeError
+    assert str(refused.value) == (
+        "STRIPE_PRICE_LICENSE_INDIVIDUAL and STRIPE_PRICE_LICENSE_BUSINESS "
+        "name the same Stripe price"
+    )
+
+
+async def test_a_business_purchase_without_people_is_an_error():
+    with pytest.raises(LicenseIssueError, match="quantity"):
+        await resolve_license_plan(
+            _session(metadata={"purchase_type": "license", "plan": "business"})
+        )
+
+
+async def test_a_business_license_requires_its_people(keygen_config):
+    with pytest.raises(ValueError, match="max_users"):
+        await keygen.create_license("business", "a@b.test", None)
 
 
 async def test_a_bad_plan_in_metadata_is_an_error():
@@ -376,3 +434,20 @@ async def test_an_unrelated_conflict_is_not_mistaken_for_an_existing_license(
             await keygen.create_license(
                 "individual", "a@b.test", license_id="lic-1", client=client
             )
+
+
+async def test_a_refused_suspension_of_a_license_not_suspended_still_raises(
+    keygen_config,
+):
+    """Keygen's 422 means "already suspended" only when the license reads so."""
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        if request.method == "GET":
+            return httpx2.Response(
+                200, json={"data": {"id": "lic-1", "attributes": {"status": "ACTIVE"}}}
+            )
+        return httpx2.Response(422, json={"errors": [{"detail": "is invalid"}]})
+
+    async with httpx2.AsyncClient(transport=httpx2.MockTransport(handler)) as client:
+        with pytest.raises(httpx2.HTTPStatusError):
+            await keygen.suspend_license("lic-1", client=client)

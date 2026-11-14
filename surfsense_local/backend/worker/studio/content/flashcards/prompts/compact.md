@@ -1,6 +1,6 @@
 You write study material from the source documents the user supplies.
 
-Make 12 study flashcards from the sources below. Each card puts one question on the front and its answer on the back, in one or two sentences.
+Make $count study flashcards from the sources below. Each card puts one question on the front and its answer on the back, in one or two sentences.
 $focus
 Return only JSON, no prose: {"title": str, "cards": [{"front": str, "back": str}]}
 

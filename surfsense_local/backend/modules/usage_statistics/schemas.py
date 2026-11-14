@@ -9,6 +9,9 @@ ModelSource = Literal["none", "local", "remote", "both", "unknown"]
 Sources = Literal["0", "1-9", "10-99", "100-999", "1000+", "unknown"]
 StudioOutputs = Literal["0", "1-4", "5+", "unknown"]
 PluginCalls = Literal["0", "1-9", "10+", "unknown"]
+# Revision 1.2: of the 7 and 28 UTC days before the report, how many show use.
+DaysUsed7 = Literal["0", "1", "2-3", "4-6", "7", "unknown"]
+DaysUsed28 = Literal["0", "1", "2-3", "4-7", "8-14", "15-28", "unknown"]
 OnboardingStep = Literal[
     "not_started",
     "model_chosen",
@@ -32,6 +35,8 @@ class WeekRead(BaseModel):
     studio_outputs: StudioOutputs
     plugin_calls: PluginCalls
     onboarding: OnboardingStep
+    days_used_7: DaysUsed7
+    days_used_28: DaysUsed28
 
 
 class HardwareRead(BaseModel):

@@ -28,12 +28,15 @@ import {
   CheckmarkBadge02Icon as CheckmarkBadge02IconData,
   CheckmarkCircle02Icon,
   ChevronDownIcon as ChevronDownIconData,
+  CanvasIcon as CanvasIconData,
+  ChevronLeftIcon as ChevronLeftIconData,
   ChevronRightIcon as ChevronRightIconData,
   Clock01Icon as Clock01IconData,
   CircleArrowUp02Icon as CircleArrowUp02IconData,
   ComputerEthernetIcon as ComputerEthernetIconData,
   Copy01Icon,
   CpuIcon as CpuIconData,
+  HardDriveIcon as HardDriveIconData,
   CursorRemoveSelection02Icon as CursorRemoveSelection02IconData,
   Delete02Icon,
   Download01Icon as Download01IconData,
@@ -42,6 +45,7 @@ import {
   DotIcon as DotIconData,
   Edit02Icon as Edit02IconData,
   EllipsisIcon as EllipsisIconData,
+  EqualIcon as EqualIconData,
   File02Icon as File02IconData,
   FilePlusCornerIcon,
   FileIcon as FileIconData,
@@ -80,14 +84,19 @@ import {
   Search01Icon,
   ServerIcon as ServerIconData,
   ServerOffIcon as ServerOffIconData,
+  SquareLock02Icon as SquareLock02IconData,
+  LayoutAlignLeftIcon as LayoutAlignLeftIconData,
   LayoutAlignRightIcon as LayoutAlignRightIconData,
   Settings02Icon,
   ShuffleIcon as ShuffleIconData,
   AiSparklesIcon as AiSparklesIconData,
+  LibraryBigIcon as LibraryBigIconData,
+  Shapes01Icon as Shapes01IconData,
   StarAward02Icon as StarAward02IconData,
   SquareDashedMousePointerIcon as SquareDashedMousePointerIconData,
   StopCircleIcon,
   Sun03Icon as Sun03IconData,
+  Task01Icon as Task01IconData,
   ThoughtBubbleIcon as ThoughtBubbleIconData,
   UnplugIcon as UnplugIconData,
   Upload01Icon as Upload01IconData,
@@ -98,6 +107,7 @@ import {
   WebDesign01Icon as WebDesign01IconData,
   XIcon as XIconData,
   Xls01Icon as Xls01IconData,
+  YoutubeIcon as YoutubeIconData,
   ZoomInIcon as ZoomInIconData,
   ZoomOutIcon as ZoomOutIconData,
 } from "@hugeicons/core-free-icons"
@@ -158,6 +168,8 @@ export const CheckCircle2Icon = createIcon(CheckmarkCircle02Icon)
 export const CheckIcon = createIcon(CheckIconData)
 export const CheckmarkBadgeIcon = createIcon(CheckmarkBadge02IconData)
 export const ChevronDownIcon = createIcon(ChevronDownIconData)
+export const CanvasIcon = createIcon(CanvasIconData)
+export const ChevronLeftIcon = createIcon(ChevronLeftIconData)
 export const ChevronRightIcon = createIcon(ChevronRightIconData)
 export const ClockIcon = createIcon(Clock01IconData)
 export const CircleArrowUp02Icon = createIcon(CircleArrowUp02IconData)
@@ -166,6 +178,7 @@ export const CircleAlertIcon = createIcon(AlertCircleIcon)
 export const CircleStopIcon = createIcon(StopCircleIcon)
 export const CopyIcon = createIcon(Copy01Icon)
 export const CpuIcon = createIcon(CpuIconData)
+export const HardDriveIcon = createIcon(HardDriveIconData)
 export const CursorRemoveSelection02Icon = createIcon(
   CursorRemoveSelection02IconData
 )
@@ -174,6 +187,7 @@ export const DownloadIcon = createIcon(DownloadIconData)
 export const DotIcon = createIcon(DotIconData)
 export const Edit02Icon = createIcon(Edit02IconData)
 export const EllipsisIcon = createIcon(EllipsisIconData)
+export const EqualIcon = createIcon(EqualIconData)
 export const File02Icon = createIcon(File02IconData)
 export const FileIcon = createIcon(FileIconData)
 export const FilePlus2Icon = createIcon(FilePlusCornerIcon)
@@ -217,12 +231,18 @@ export const EmbeddingIcon = createIcon(ChartScatterIconData)
 export const ServerIcon = createIcon(ServerIconData)
 export const ServerOffIcon = createIcon(ServerOffIconData)
 export const DownloadCircle02Icon = createIcon(DownloadCircle02IconData)
+export const LockIcon = createIcon(SquareLock02IconData)
+export const LayoutAlignLeftIcon = createIcon(LayoutAlignLeftIconData)
 export const LayoutAlignRightIcon = createIcon(LayoutAlignRightIconData)
 export const Settings2Icon = createIcon(Settings02Icon)
 export const ShuffleIcon = createIcon(ShuffleIconData)
 export const AiSparklesIcon = createIcon(AiSparklesIconData)
+export const LibraryBigIcon = createIcon(LibraryBigIconData)
+export const Shapes01Icon = createIcon(Shapes01IconData)
 export const StarAward02Icon = createIcon(StarAward02IconData)
 export const SunIcon = createIcon(Sun03IconData)
+// Jobs: the same icon the docs show beside Jobs.
+export const Task01Icon = createIcon(Task01IconData)
 export const UnplugIcon = createIcon(UnplugIconData)
 export const Upload01Icon = createIcon(Upload01IconData)
 export const Video01Icon = createIcon(Video01IconData)
@@ -237,5 +257,22 @@ export const ViewOffIcon = createIcon(ViewOffSlashIconData)
 export const WebDesign01Icon = createIcon(WebDesign01IconData)
 export const XIcon = createIcon(XIconData)
 export const Xls01Icon = createIcon(Xls01IconData)
+export const YoutubeIcon = createIcon(YoutubeIconData)
 export const ZoomInIcon = createIcon(ZoomInIconData)
 export const ZoomOutIcon = createIcon(ZoomOutIconData)
+
+// Studio's picture types, drawn for their cards rather than taken from the icon set.
+export { ImageTypeIcon, InfographicTypeIcon } from "./picture-type-icons"
+// The kinds of comic Studio draws, drawn for their cards in the same way.
+export {
+  BandeDessineeIcon,
+  ComicStripIcon,
+  GraphicNovelIcon,
+  MangaIcon,
+  ManhuaIcon,
+  PictureBookIcon,
+  StoryboardIcon,
+  WebtoonIcon,
+  WesternComicIcon,
+  YonkomaIcon,
+} from "./comic-kind-icons"

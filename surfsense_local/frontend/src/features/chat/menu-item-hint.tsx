@@ -20,7 +20,10 @@ export function MenuItemHint({
   return (
     <Tooltip>
       <TooltipTrigger render={children} />
-      <TooltipContent side="right">{hint}</TooltipContent>
+      {/* A hint can be a long address, which breaks rather than runs off the window. */}
+      <TooltipContent side="right" className="max-w-80 wrap-anywhere">
+        {hint}
+      </TooltipContent>
     </Tooltip>
   )
 }

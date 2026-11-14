@@ -210,6 +210,7 @@ def test_only_surfsenses_own_skills_load_from_the_shipped_folder(
         "surfsense-data",
         "surfsense-pdf",
         "surfsense-html",
+        "surfsense-pictures",
     )
     for name in names:
         assert (Path(skills) / name / "SKILL.md").is_file()
@@ -321,6 +322,7 @@ def test_the_prompt_names_the_tools_as_opencode_shows_them(tmp_path: Path) -> No
     for tool in (
         "surfsense_search_sources",
         "surfsense_create_artifact",
+        "surfsense_make_image",
         "surfsense_render_document",
         "surfsense_read_document",
         "surfsense_list_images",

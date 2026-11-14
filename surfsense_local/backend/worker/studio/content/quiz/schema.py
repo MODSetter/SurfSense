@@ -2,35 +2,40 @@
 
 Flat and plain on purpose: only types, `required` and array bounds, which
 llama.cpp's json-schema-to-grammar turns into a bounded repetition at b11050.
-That an answer is one of its options cannot be said here; the builder still
-checks it.
+The answer is a field of its own rather than a copy of one option: small
+models answered "A" or "a. sunlight", and each such question was lost.
 """
 
-# The prompts ask for exactly this many; the builder drops any other count.
+# The viewer shows this many options; the builder shuffles the answer in.
 OPTIONS = 4
+DISTRACTORS = OPTIONS - 1
 
-REPLY = {
-    "type": "object",
-    "properties": {
-        "title": {"type": "string"},
-        "questions": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "question": {"type": "string"},
-                    "options": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "minItems": OPTIONS,
-                        "maxItems": OPTIONS,
+
+def reply(*, at_least: int, at_most: int) -> dict:
+    return {
+        "type": "object",
+        "properties": {
+            "title": {"type": "string"},
+            "questions": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "question": {"type": "string"},
+                        "correct": {"type": "string"},
+                        "distractors": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "minItems": DISTRACTORS,
+                            "maxItems": DISTRACTORS,
+                        },
+                        "explanation": {"type": "string"},
                     },
-                    "answer": {"type": "string"},
-                    "explanation": {"type": "string"},
+                    "required": ["question", "correct", "distractors", "explanation"],
                 },
-                "required": ["question", "options", "answer", "explanation"],
+                "minItems": at_least,
+                "maxItems": at_most,
             },
         },
-    },
-    "required": ["title", "questions"],
-}
+        "required": ["title", "questions"],
+    }

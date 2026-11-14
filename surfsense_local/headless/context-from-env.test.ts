@@ -41,6 +41,13 @@ test("each folder can be named in the environment", () => {
   assert.equal(context.opencodeBinariesDir, join("/srv/runtimes", "opencode"))
 })
 
+test("the container never moves its folders: only the desktop has that setting", () => {
+  const context = contextFromEnv({ SURFSENSE_LOCAL_DATA_DIR: "/srv/data" }, "s")
+  assert.equal(context.modelStorageDir, undefined)
+  assert.equal(context.modelStorageUnavailable, undefined)
+  assert.equal(context.shellSettingsDir, undefined)
+})
+
 test("an empty variable is unset, not a folder named nothing", () => {
   assert.equal(contextFromEnv({ SURFSENSE_LOCAL_DATA_DIR: "" }, "s").dataDir, "/data")
 })

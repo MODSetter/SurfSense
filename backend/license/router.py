@@ -17,11 +17,12 @@ from fastapi import APIRouter, HTTPException, Query, Request, Response, status
 
 from license.email.address import is_disposable, normalize_email
 from license.email.deliver import deliver_licenses
+from license.email.message import BusinessCopy
 from license.funnel.events import record_trial_issued
 from license.issue import certificate_for_checkout_session, issue_trial_license
 from license.models import TrialAlreadyClaimedError
 from license.rate_limit import enforce_license_rate_limit
-from license.records import certificates_for_email
+from license.records import licenses_for_email
 from license.schemas import (
     LicenseAckResponse,
     LicenseEmailRequest,
@@ -112,9 +113,19 @@ async def resend_license(
     await enforce_license_rate_limit(request, route="resend", email=email)
 
     try:
-        certificates = await certificates_for_email(email)
-        if certificates:
-            await deliver_licenses("resend", to=email, certificates=certificates)
+        licenses = await licenses_for_email(email)
+        if licenses:
+            copies = [copy for copy in map(BusinessCopy.of, licenses) if copy]
+            # A paid license's copy, which names the billing portal, before a trial's.
+            business = next(
+                (copy for copy in copies if copy.paid), copies[0] if copies else None
+            )
+            await deliver_licenses(
+                "resend",
+                to=email,
+                certificates=[issued.certificate for issued in licenses],
+                business=business,
+            )
     except MailerRejectedError:
         # Reporting this would confirm the address exists as a customer.
         logger.info("Resend mail refused for an address; answering 200 regardless")
@@ -192,6 +203,7 @@ async def claim_trial_license(
             "trial",
             to=email,
             certificates=[issued.certificate],
+            business=BusinessCopy.of(issued),
             idempotency_key=issued.keygen_license_id,
         )
     except MailerRejectedError:

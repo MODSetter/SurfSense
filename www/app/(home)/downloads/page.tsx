@@ -13,6 +13,13 @@ import { AllReleasesLink, OSDownloadGrid } from "./download-panels";
  * and rounded cards.
  */
 
+/**
+ * The emailed trial is the paid jobs', which most visitors to this page do not need, so
+ * the form says what it sends.
+ */
+const TRIAL_NOTE =
+	"Your email gets a 14-day trial of the paid security questionnaire and contract redline jobs, one per address. The app itself needs no license.";
+
 export const metadata: Metadata = {
 	title: "Download SurfSense | Windows, macOS, Linux",
 	description:
@@ -31,7 +38,7 @@ export default async function DownloadsPage() {
 				<p className={cn(siteText.lede, "mx-auto mt-6 max-w-xl")}>
 					One installer, no account, no cloud.
 				</p>
-				<TrialForm label="Download" note="" />
+				<TrialForm label="Download" note={TRIAL_NOTE} />
 			</section>
 
 			{assets.length > 0 ? (

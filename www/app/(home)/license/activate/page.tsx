@@ -10,7 +10,7 @@ import { cn } from "@/components/ui/cn";
 /**
  * Rendered in the site design: the palette, column, navigation and footer all
  * come from `app/(home)/layout.tsx`; the page uses the homepage's centred heads,
- * laid out like `/pricing/individual`, which shares `GuideSteps`.
+ * laid out with `GuideSteps`.
  *
  * The one place the activation steps live. All three license emails link here
  * (`app/license/email/message.py`), as do `/license` and `/license/success`,
@@ -106,6 +106,13 @@ const STEPS: GuideStep[] = [
 	},
 ];
 
+/**
+ * Business counts people, not devices, and the app fetches its renewed file, so from then on
+ * the lede says neither "every computer" nor that only plugins send the key.
+ */
+const LEDE =
+	"Your license is a file, not an account. SurfSense checks it on your own machine, so it works offline. A Business license renews each year: the app fetches the renewed file when it is allowed online, or you add the copy we email.";
+
 const FAQ: { question: string; answer: React.ReactNode }[] = [
 	{
 		question: "Lost the file?",
@@ -127,7 +134,7 @@ const FAQ: { question: string; answer: React.ReactNode }[] = [
 	{
 		question: "What happens when it expires?",
 		answer:
-			"The app keeps working and your documents stay where they are. Plugins and priority support stop, and every future version of the app is still free.",
+			"The app keeps working and your documents stay where they are. The job plugins keep running for 30 days after a Business license lapses; then new job runs stop, and everything they made stays readable. Every future version of the app is still free.",
 	},
 	{
 		question: "Bought it for a team?",
@@ -150,11 +157,7 @@ export default function LicenseActivatePage() {
 			<section className={cn("text-center", sectionSpacing.head)}>
 				<HomeBadge>Activation</HomeBadge>
 				<h1 className={cn(siteText.display, "mt-4")}>Activate your license</h1>
-				<p className={cn(siteText.lede, "mx-auto mt-6 max-w-xl")}>
-					Your license is a file, not an account. SurfSense checks it on your own machine, so it
-					works offline and on every computer you install the app on. Only the paid plugins send its
-					key, to our plugin service, which checks it.
-				</p>
+				<p className={cn(siteText.lede, "mx-auto mt-6 max-w-xl")}>{LEDE}</p>
 			</section>
 
 			<section className={sectionSpacing.foot} aria-labelledby="ss-activate-steps">

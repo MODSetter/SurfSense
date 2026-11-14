@@ -21,7 +21,6 @@ from modules.agent.dependencies import LaunchKeyDep
 from modules.agent.engine_choice import (
     AgenticRefusedError,
     new_thread_mode,
-    remember_thread_mode,
 )
 from modules.agent.engines.both_sessions import thread_turns_of
 from modules.agent.engines.handover.take_over import take_over
@@ -132,8 +131,6 @@ async def create_thread(
                     "Basic (Q&A) chat.",
                 },
             )
-    if payload.mode is not None and payload.remember and opening.entry is not None:
-        await remember_thread_mode(session, opening.entry, payload.mode)
     return thread
 
 

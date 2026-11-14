@@ -160,7 +160,7 @@ def mp3(frames: int, *, tag: bool = True, xing: bool = True) -> bytes:
 
 
 class MpegOnlyServer:
-    """OpenRouter's shape: `wav` is refused, `mp3` answered."""
+    """A server that answers only `mp3`, as MiniMax does on OpenRouter."""
 
     def __init__(self) -> None:
         self.formats: list[str] = []
@@ -192,7 +192,7 @@ def test_a_server_that_refuses_wav_voices_the_episode_as_one_mp3() -> None:
         )
     )
 
-    assert server.formats == ["wav", "mp3", "mp3"]
+    assert server.formats == ["wav", "pcm", "mp3", "mp3"]
     assert audio.media_type == "audio/mpeg"
     # The server's own frames, not encoded a second time.
     assert audio.content == FRAME * 6
@@ -205,6 +205,139 @@ def test_a_refusal_wav_did_not_cause_is_not_asked_again_as_mp3() -> None:
     with pytest.raises(NonRetryableSpeechError, match="turn 2 of 2"):
         speak(server, [SpokenTurn("coral", "Hi."), SpokenTurn("onyx", "Hello.")])
     assert [b["response_format"] for b in server.bodies()] == ["wav", "wav"]
+
+
+class PcmServer:
+    """OpenRouter's shape: `wav` is refused, `pcm` answered with its rate."""
+
+    def __init__(self, content_types: list[str]) -> None:
+        self.content_types = content_types
+        self.formats: list[str] = []
+
+    def __call__(self, request: httpx.Request) -> httpx.Response:
+        wanted = json.loads(request.content)["response_format"]
+        self.formats.append(wanted)
+        if wanted == "wav":
+            return httpx.Response(
+                400, json={"error": {"message": "expected one of mp3, pcm"}}
+            )
+        if wanted == "mp3":
+            return httpx.Response(200, content=mp3(3))
+        return httpx.Response(
+            200,
+            content=b"\x01\x00" * 1000,
+            headers={"content-type": self.content_types.pop(0)},
+        )
+
+
+def speak_to(server, turns: list[SpokenTurn]):
+    """Voice `turns` through the adapter against `server`."""
+    speech = RemoteSpeech(
+        "elevenlabs/eleven-v4",
+        base_url="http://tts",
+        api_key=None,
+        transport=httpx.MockTransport(server),
+    )
+    return asyncio.run(speech.synthesize(turns, "en"))
+
+
+def test_pcm_that_states_its_rate_joins_with_a_pause_between_speakers() -> None:
+    """Asked once, then pcm for every line; the rate is the header's, because
+    the bytes carry none, and the pause needs it."""
+    server = PcmServer(["audio/pcm;rate=24000;channels=1"] * 2)
+
+    audio = speak_to(
+        server, [SpokenTurn("sarah", "Hi."), SpokenTurn("george", "Hello.")]
+    )
+
+    assert server.formats == ["wav", "pcm", "pcm"]
+    assert audio.media_type == "audio/wav"
+    with wave.open(io.BytesIO(audio.content)) as joined:
+        assert joined.getframerate() == 24000
+        assert joined.getnchannels() == 1
+        assert joined.getsampwidth() == 2
+        # Two 1000-frame turns and the 0.35 s pause between speakers.
+        assert joined.getnframes() == 2000 + 8400
+
+
+def test_pcm_that_states_no_rate_falls_back_to_mp3() -> None:
+    """A guessed rate would play the voice at the wrong pitch."""
+    server = PcmServer(["audio/pcm"])
+
+    audio = speak_to(server, [SpokenTurn("sarah", "Hi."), SpokenTurn("george", "Yo.")])
+
+    assert server.formats == ["wav", "pcm", "mp3", "mp3"]
+    assert audio.media_type == "audio/mpeg"
+
+
+@pytest.mark.parametrize(
+    ("content", "media_type"),
+    [(FRAME, "audio/mpeg"), (wav(1000), "audio/wav")],
+    ids=["mp3", "wav"],
+)
+def test_a_pcm_request_answered_in_a_format_that_joins_is_kept_not_asked_again(
+    content: bytes, media_type: str
+) -> None:
+    """Asking again would voice, and bill, the line a second time."""
+    formats: list[str] = []
+
+    def answers(request: httpx.Request) -> httpx.Response:
+        wanted = json.loads(request.content)["response_format"]
+        formats.append(wanted)
+        if wanted == "wav":
+            return httpx.Response(
+                400, json={"error": {"message": "expected one of mp3, pcm"}}
+            )
+        return httpx.Response(
+            200, content=content, headers={"content-type": media_type}
+        )
+
+    audio = speak_to(answers, [SpokenTurn("sarah", "Hi."), SpokenTurn("george", "Yo.")])
+
+    assert formats == ["wav", "pcm", "pcm"]
+    assert audio.media_type == media_type
+
+
+def test_a_later_line_that_states_no_rate_ends_the_episode_and_says_so() -> None:
+    """The format was settled on the first line, so asking again would mix two."""
+    server = PcmServer(["audio/pcm;rate=24000;channels=1", "audio/pcm"])
+
+    with pytest.raises(NonRetryableSpeechError, match=r"turn 2 of 2.*sample rate"):
+        speak_to(server, [SpokenTurn("sarah", "Hi."), SpokenTurn("george", "Yo.")])
+
+
+def test_lines_at_different_rates_are_refused_rather_than_joined() -> None:
+    """One WAV has one rate, so joining them would change a speaker's pitch."""
+    server = PcmServer(
+        ["audio/pcm;rate=24000;channels=1", "audio/pcm;rate=44100;channels=1"]
+    )
+
+    with pytest.raises(NonRetryableSpeechError, match="different audio formats"):
+        speak_to(server, [SpokenTurn("sarah", "Hi."), SpokenTurn("george", "Yo.")])
+
+
+def test_a_first_line_every_format_refuses_names_the_last_reason() -> None:
+    """OpenRouter refuses `wav` before reading the key or the voice, so that
+    refusal says nothing about why the line could not be voiced."""
+
+    def refuses(request: httpx.Request) -> httpx.Response:
+        if json.loads(request.content)["response_format"] == "wav":
+            return httpx.Response(
+                400, json={"error": {"message": "expected one of mp3, pcm"}}
+            )
+        return httpx.Response(
+            400, json={"error": {"message": 'Unknown voice "nobody".'}}
+        )
+
+    speech = RemoteSpeech(
+        "elevenlabs/eleven-v4",
+        base_url="http://tts",
+        api_key=None,
+        transport=httpx.MockTransport(refuses),
+    )
+
+    with pytest.raises(NonRetryableSpeechError, match='Unknown voice "nobody"'):
+        asyncio.run(speech.synthesize([SpokenTurn("nobody", "Hi.")], "en"))
 
 
 def test_a_line_with_no_voice_leaves_the_voice_to_the_server() -> None:

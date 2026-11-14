@@ -22,7 +22,7 @@ type is the slot.
 |---|---|---|---|
 | `text_gen` | `llamacpp`, the bundled runtime | `openai_compatible`, with a `connection_id` | chat, titles, Studio's writing |
 | `image_gen` | `sdcpp`, the bundled sd-server | `openai_compatible`, with a `connection_id` | Studio's `image` and `infographic` |
-| `image_edit` | `sdcpp`, a model whose entry names `edit` | `openai_compatible`, with a `connection_id` | Studio's image and infographic edits ([studio](../studio.md#editing-a-picture)) |
+| `image_edit` | `sdcpp`, a model whose entry names `edit` | `openai_compatible`, with a `connection_id` | Optional: edits and references with a model other than the image model; empty, the image model takes them when it takes pictures in, and redraws when not ([studio](../studio.md#which-model-takes-a-picture)) |
 | `audio_gen` | `audiocpp`, the bundled audio.cpp server | `openai_compatible`, with a `connection_id` | Studio's `podcast` |
 | `video_gen` | `sdcpp`, a model whose entry has a `video` block | `openai_compatible`, with a `connection_id` | nothing yet |
 | `speech_to_text` | `audiocpp`, a recogniser, run on a second audio.cpp server | none: local only | the transcription routes ([admission](admission.md#speech-recognition)), which a recording's ingest calls ([documents](../documents.md#recordings)) |
@@ -89,7 +89,9 @@ Choosing a `llamacpp` model also starts loading it, as a background task that
 runs after the response, because the load blocks until the weights are resident
 and choosing a model is when the user has said they are about to use it
 ([`runtime.md`](runtime.md#warming-listed-is-not-loaded)). Any other provider
-loads nothing.
+loads nothing, and choosing one for chat unloads a local chat model the runtime
+still holds, once what it is generating has finished
+([`runtime.md`](runtime.md#sidecar-flags)).
 
 Choosing a `speech_to_text` model, through the route or an install with
 `select: true`, queues again every recording that failed for want of one, at
@@ -202,13 +204,15 @@ route. Only the onboarding page's last step does, once a chat model is
 persisted. Once the marker exists the app never shows onboarding again, and a
 missing selection is fixed from Settings' Chat section.
 
-The onboarding page opens on a welcome screen, then six steps: chat, image, image editing, audio, video and search model. The welcome is not counted as a step, but it is part of onboarding and gated by the same marker, so it is never shown again once onboarding is done.
+The onboarding page opens on a welcome screen, then the privacy choices ([usage statistics](../usage-statistics.md#consent)), then two model steps: chat and search model. The welcome is not counted as a step, but it is part of onboarding and gated by the same marker, so it is never shown again once onboarding is done. Image, image editing, audio and video models are not asked for: they are chosen in Settings, and the feature that needs one says so.
 
 The embedding step comes last and is not a slot, but it is the same component
-as the model steps below, with one more entry in their tables
+as the chat step below, with its own entry in their tables
 ([`model-step/`](../../../surfsense_local/frontend/src/features/onboarding/model-step/)).
-What a step does on Use is its own hook: a slot's saves the selection, and the
-embedding step's ([`use-embedding-step.ts`](../../../surfsense_local/frontend/src/features/onboarding/model-step/kinds/use-embedding-step.ts))
+What a step does on Use is its own hook: the chat step's
+([`use-chat-step.ts`](../../../surfsense_local/frontend/src/features/onboarding/model-step/kinds/use-chat-step.ts))
+saves the selection, and the embedding step's
+([`use-embedding-step.ts`](../../../surfsense_local/frontend/src/features/onboarding/model-step/kinds/use-embedding-step.ts))
 only marks a choice, In use until another is used, bge-small by default and again
 if the chosen one is deleted. Its downloads install with `select: false`; a
 Hugging Face pick is labelled not tested by SurfSense; the bundled bge-small has
@@ -220,21 +224,17 @@ Finish sends the choice with the call that ends onboarding; Skip and finish, or
 Finish with the choice untouched, sends none, which means bge-small
 ([embedding](../embedding.md)).
 
-The model steps are one component for any slot
+The model steps are one component
 ([`frontend/src/features/onboarding/model-step/`](../../../surfsense_local/frontend/src/features/onboarding/model-step/)),
-built on the same hooks as Settings but with its own screens. Each lists every
-model this computer can run at once: in the chat step, models downloaded from Hugging Face first, then the curated list with its starred row first, with
+built on the same hooks as Settings but with its own screens. The chat step lists every
+model this computer can run at once: models downloaded from Hugging Face first, then the curated list with its starred row first, with
 Download, Use and Delete as in Settings, and no Delete on a model the app ships; a download's progress shows under its
-row and never moves the page. The chat step also offers Settings' Hugging Face
-search, closed until asked for; the image, image editing, audio and video steps have none, since
-sd.cpp's and audio.cpp's models are the few the catalog ships. The image editing step lists first the model chosen for images earlier when it edits too, so FLUX.2 klein is one Use away, and its downloads fill `image_edit`. A server sits one line below the list and names
-any connected earlier. Once the slot has a model, the footer names it beside
-Continue. Onboarding installs with `select: true`, so a download is also the
-choice; Settings installs with `select: false`. The chat step's Continue is
-enabled only once a chat model is selected, local or from a server. The image,
-image editing, audio and video steps are optional, and each enables its Continue or Finish only once
-its slot has a model. Each step's Skip and Continue move on to the next, image
-to image editing to audio to video. The last step's buttons read Skip and finish and Finish, and both post the marker.
+row and never moves the page. It also offers Settings' Hugging Face
+search, closed until asked for. A server sits one line below the list and names
+any connected earlier. Once a chat model is chosen, the footer names it beside
+Continue. The chat step installs with `select: true`, so a download is also the
+choice; Settings installs with `select: false`. Its Continue is
+enabled only once a chat model is selected, local or from a server, and it has no Skip. The embedding step's buttons read Skip and finish and Finish, and both post the marker.
 
 ## Resolution: local and remote
 
@@ -329,6 +329,8 @@ Studio passes a schema through `run_model()`
 ([`generate.py`](../../../surfsense_local/backend/worker/studio/shared/generate.py)),
 each format's beside its prompts, as the quiz's
 ([`schema.py`](../../../surfsense_local/backend/worker/studio/content/quiz/schema.py)).
+Every list in a schema has a `maxItems`, so a model that repeats stops at the
+ceiling instead of filling the window and cutting its JSON short.
 A reply that arrives unconstrained, from an endpoint that ignores
 `response_format` or from the 400 retry, is still read by `parse_json()`.
 
@@ -345,5 +347,7 @@ language, and `test_connections.py` that no connection fills it.
 
 ## Known gaps
 
-- Only the quiz and flashcards pass `json_schema`: mind map, HTML, image, infographic and the podcast's outline and draft still ask for JSON in the prompt alone, so their format compliance depends on it.
+- Settings shows the edit override as its own section, "Use a different model for edits", not folded under Image gen; and the **Image editing** badge is on server models only, not on local models to download.
+- Only the quiz, flashcards, simple web page and comic plan pass `json_schema`: image, infographic and the podcast's outline and draft still ask for JSON in the prompt alone, so their format compliance depends on it. The mind map is not JSON: it is a Markdown outline, written free.
+- A schema whose node refers to itself, for a tree of any depth, crashed llama-server at b11050 twice in nine replies as Qwen3 0.6B nested deeper. No Studio schema refers to itself.
 - Nothing measures whether three tiers are still needed; once constrained decoding carries format compliance, a tier would carry reasoning depth only, which plausibly collapses three tiers to two.

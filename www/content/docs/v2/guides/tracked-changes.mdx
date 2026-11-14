@@ -1,0 +1,47 @@
+---
+title: Edit your own Word file with tracked changes
+description: Ask the agent to edit one of your Word sources, and review its revised copy change by change
+---
+
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+
+<GuideVideo slug="tracked-changes" poster="/guides/tracked-changes/poster.webp" title="The agent editing a Word policy into a revised copy with tracked changes" />
+
+Ask the agent to edit one of your own Word, Excel or PowerPoint sources and it makes a **revised copy**: your file is never changed. In a Word copy, every edit is a tracked change, and the agent can add comments. See [Revised copies of your files](/docs/v2/agent#revised-copies-of-your-files).
+
+<Steps>
+<Step>
+
+### Ask for the edits
+
+Add the Word file to **Sources**. In an **Agentic** chat, ask for the edits, naming the file, such as "in the security plan, require multi-factor authentication for remote access". The step that made the copy links to it.
+
+![The agent's reply, with the step that revised the Word file](/guides/tracked-changes/01-reply.webp)
+
+</Step>
+<Step>
+
+### Review the tracked changes
+
+Open the revised copy. Studio shows the edits as Word does, with a count such as "6 tracked changes, 3 comments". **Accept all** or **Reject all** makes a new version with the changes applied or removed.
+
+![The revised copy in Studio, with its tracked changes, comments, Accept all and Reject all](/guides/tracked-changes/02-revised-copy.webp)
+
+</Step>
+<Step>
+
+### Download it
+
+**With changes** downloads the copy with its tracked changes and comments, to review in Word. **Clean** downloads it with every change accepted and no comments.
+
+![The With changes and Clean downloads above the revised copy](/guides/tracked-changes/03-downloads.webp)
+
+</Step>
+</Steps>
+
+Each later edit you ask for in the same chat is the copy's next version. Word headers, footers and footnotes are not edited yet.
+
+## Next
+
+- [Merge, split, stamp and fill PDFs](/docs/v2/guides/pdf-tools).
+- Reviewing contracts against your playbook? See [Jobs](/docs/v2/jobs#review-a-contract).

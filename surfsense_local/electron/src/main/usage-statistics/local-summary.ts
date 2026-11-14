@@ -6,9 +6,13 @@ const SUMMARY_TIMEOUT_MS = 5_000
 export async function readLocalSummary(
   apiUrl: string,
   since: Date,
+  firstRun: Date,
   fetchFrom: typeof fetch = fetch
 ): Promise<unknown> {
-  const url = `${apiUrl}/usage-statistics/summary?since=${encodeURIComponent(since.toISOString())}`
+  // first_run (revision 1.2): no day before it counts as a day used.
+  const url =
+    `${apiUrl}/usage-statistics/summary?since=${encodeURIComponent(since.toISOString())}` +
+    `&first_run=${encodeURIComponent(firstRun.toISOString())}`
   try {
     const reply = await fetchFrom(url, { signal: AbortSignal.timeout(SUMMARY_TIMEOUT_MS) })
     return reply.ok ? await reply.json() : null
