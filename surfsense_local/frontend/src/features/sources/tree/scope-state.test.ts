@@ -5,6 +5,7 @@ import {
   everySource,
   isDocumentIncluded,
   markIncluded,
+  marksOf,
   scopeOf,
   ticksOf,
 } from "./scope-state"
@@ -145,5 +146,78 @@ describe("source scope ticks", () => {
 
     expect(whole.documents.size).toBe(0)
     expect(scopeOf(whole, index).document_ids).toEqual([])
+  })
+})
+
+describe("ticks from a stored scope", () => {
+  const included = (marks: ReturnType<typeof marksOf>) =>
+    [10, 20, 30].filter((id) => isDocumentIncluded(marks, index, id))
+
+  it("shows a ticked folder as ticked, with a file added to it later", () => {
+    const marks = marksOf(
+      {
+        all: false,
+        folder_ids: [2],
+        excluded_folder_ids: [],
+        document_ids: [],
+        excluded_document_ids: [],
+      },
+      index
+    )
+    expect(included(marks)).toEqual([20, 30])
+    expect(ticksOf(marks, index).get(2)).toBe("checked")
+    expect(ticksOf(marks, index).get(-1)).toBe("mixed")
+    // A source filed under the folder after the scope was stored is in it too.
+    const later = indexSources(
+      [
+        { id: 1, parent_id: null, name: "Library" },
+        { id: 2, parent_id: 1, name: "Research" },
+        { id: 3, parent_id: 2, name: "2024" },
+      ],
+      [source(10, 1), source(20, 2), source(30, 3), source(40, 3)]
+    )
+    expect(isDocumentIncluded(marks, later, 40)).toBe(true)
+  })
+
+  it("shows the sources a stored scope leaves out, and the one it adds back", () => {
+    const marks = marksOf(
+      {
+        all: true,
+        folder_ids: [],
+        excluded_folder_ids: [2],
+        document_ids: [30],
+        excluded_document_ids: [10],
+      },
+      index
+    )
+    expect(included(marks)).toEqual([30])
+    expect(ticksOf(marks, index).get(3)).toBe("checked")
+    expect(ticksOf(marks, index).get(2)).toBe("mixed")
+  })
+
+  it("leaves out a listed folder under an excluded one, as the server does", () => {
+    // The server takes 2024's subtree, then removes Research's, 2024 included.
+    const marks = marksOf(
+      {
+        all: true,
+        folder_ids: [3],
+        excluded_folder_ids: [2],
+        document_ids: [],
+        excluded_document_ids: [],
+      },
+      index
+    )
+    expect(included(marks)).toEqual([10])
+    expect(ticksOf(marks, index).get(3)).toBe("unchecked")
+  })
+
+  it("round-trips the scope the ticks send", () => {
+    let marks = everySource(true)
+    marks = markIncluded(marks, index, { kind: "folder", id: 2 }, false)
+    marks = markIncluded(marks, index, { kind: "document", id: 30 }, true)
+    marks = markIncluded(marks, index, { kind: "document", id: 10 }, false)
+    const scope = scopeOf(marks, index)
+    expect(scopeOf(marksOf(scope, index), index)).toEqual(scope)
+    expect(included(marksOf(scope, index))).toEqual(included(marks))
   })
 })
