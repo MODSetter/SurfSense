@@ -48,7 +48,7 @@ import {
 } from "./mentions/mention-text"
 import { isClaudeCodeRefusal } from "./claude-code-refusal"
 import { chatKeys } from "./query-keys"
-import { clearDraftScope } from "./use-thread-scope"
+import { threadOpenedForNewChat } from "./use-thread-scope"
 import { useRefreshQueuedVersions } from "./use-refresh-queued-versions"
 import type { LivePair } from "./runs/apply-frame"
 import {
@@ -638,9 +638,9 @@ export function useChatRuntime({
             return
           }
           // The thread holds the ticks now, whatever its first message does. A
-          // tick made meanwhile waits for the thread (useThreadScope), and a
-          // newer chat has already returned above.
-          clearDraftScope(workspaceId)
+          // tick made meanwhile is for this thread (useThreadScope); a newer
+          // chat has already returned above, and keeps its own ticks.
+          threadOpenedForNewChat(thread.id)
           threadId = thread.id
           usesAgent = thread.uses_agent
           queryClient.setQueryData<ChatThread[]>(

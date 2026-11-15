@@ -208,6 +208,9 @@ function WorkspaceDashboard({
     sourceScope: sources.sourceScope,
     scopeEdits: sources.scopeEdits,
     setSourceScope: sources.setSourceScope,
+    keepScopeForChat: sources.keepScopeForChat,
+    rememberShownScope: sources.rememberShownScope,
+    showRememberedScope: sources.showRememberedScope,
   })
   const sourcePreview = sources.documents.find(
     (document) => document.id === sourcePreviewId

@@ -18,59 +18,13 @@ const EVERY_SOURCE: SourceScope = {
   excluded_document_ids: [],
 }
 
-function draftKey(workspaceId: number) {
-  return `surfsense:draft-scope:${workspaceId}:v1`
-}
+// The threads this client opened for a new chat. A tick made while one was
+// opening is for it, and for no other chat that took its place meanwhile.
+const openedForNewChat = new Set<number>()
 
-const isIdList = (value: unknown): value is number[] =>
-  Array.isArray(value) && value.every((id) => typeof id === "number")
-
-/** The ticks a new chat kept, or null for none it can read. */
-export function readDraftScope(workspaceId: number): SourceScope | null {
-  try {
-    const raw = localStorage.getItem(draftKey(workspaceId))
-    if (raw === null) return null
-    const parsed: unknown = JSON.parse(raw)
-    if (typeof parsed !== "object" || parsed === null) return null
-    const scope = parsed as Record<string, unknown>
-    if (
-      typeof scope.all !== "boolean" ||
-      !isIdList(scope.folder_ids) ||
-      !isIdList(scope.excluded_folder_ids) ||
-      !isIdList(scope.document_ids) ||
-      !isIdList(scope.excluded_document_ids)
-    ) {
-      return null
-    }
-    return {
-      all: scope.all,
-      folder_ids: scope.folder_ids,
-      excluded_folder_ids: scope.excluded_folder_ids,
-      document_ids: scope.document_ids,
-      excluded_document_ids: scope.excluded_document_ids,
-    }
-  } catch {
-    return null
-  }
-}
-
-function writeDraftScope(workspaceId: number, scope: SourceScope | null) {
-  try {
-    if (scope === null) localStorage.removeItem(draftKey(workspaceId))
-    else localStorage.setItem(draftKey(workspaceId), JSON.stringify(scope))
-  } catch {
-    // Storage refused; the draft lives for the session only.
-  }
-}
-
-/**
- * The draft is spent once a thread has been opened with its ticks. A tick made
- * while that thread was opening is not in the draft: it waits for the thread
- * ([useThreadScope]), and a genuinely newer chat ends the opening before the
- * draft is spent.
- */
-export function clearDraftScope(workspaceId: number) {
-  writeDraftScope(workspaceId, null)
+/** Called once a new chat's thread exists and is the chat on screen. */
+export function threadOpenedForNewChat(threadId: number) {
+  openedForNewChat.add(threadId)
 }
 
 // A run outlives the page, so what waits on it lives here, not in a hook: the
@@ -135,9 +89,11 @@ onRunEnded((threadId) => {
  * stored at once, so the thread shows it again when it is opened next. A tick
  * made while the thread's reply runs is held and stored once the reply ends:
  * the agent's tools read the stored scope on every call, and a turn keeps the
- * ticks it started with. A new chat keeps its ticks as a draft across a
- * reload, until the chat is sent: the thread is opened with them, and the
- * draft is spent; a tick made while that thread is opening waits for it.
+ * ticks it started with. A new chat shows the ticks the workspace remembers,
+ * and its ticks are remembered in turn; a thread's never are. The thread a
+ * new chat opens is created with the ticks on screen, and a tick made while
+ * it is opening is stored on that thread alone. If that thread never takes
+ * the screen, the tick stays with the new chat's ticks instead.
  */
 export function useThreadScope({
   workspaceId,
@@ -146,6 +102,9 @@ export function useThreadScope({
   sourceScope,
   scopeEdits,
   setSourceScope,
+  keepScopeForChat,
+  rememberShownScope,
+  showRememberedScope,
 }: {
   workspaceId: number
   view: ConversationView
@@ -153,7 +112,14 @@ export function useThreadScope({
   sourceScope: SourceScope
   /** Counts the user's own ticks, never a scope this hook put on screen. */
   scopeEdits: number
+  /** Puts a thread's stored ticks on screen. */
   setSourceScope: (scope: SourceScope) => void
+  /** Leaves the ticks on screen to a chat: the workspace stops remembering them. */
+  keepScopeForChat: () => void
+  /** Hands the ticks on screen back to the workspace, which remembers them. */
+  rememberShownScope: () => void
+  /** Puts the workspace's remembered ticks on screen, for a new chat. */
+  showRememberedScope: () => void
 }) {
   const queryClient = useQueryClient()
   const threadId = view.status === "active" ? view.threadId : null
@@ -162,6 +128,8 @@ export function useThreadScope({
     null
   )
   const seenEdits = useRef(scopeEdits)
+  // The workspace whose new chat is opening its thread, if one is.
+  const opening = useRef<number | null>(null)
 
   // Keeps the thread's cached entry in step with each store, so reopening the
   // thread shows the ticks before the list is read again.
@@ -182,22 +150,52 @@ export function useThreadScope({
   }, [queryClient, workspaceId])
 
   useEffect(() => {
-    const current = shown.current
-    if (current?.workspaceId === workspaceId && current.threadId === threadId) {
+    if (view.status === "creating") {
+      // The ticks on screen are on their way to the thread being opened.
+      opening.current = workspaceId
+      keepScopeForChat()
       return
     }
+    const wasOpening = opening.current === workspaceId
+    opening.current = null
+    const current = shown.current
     if (threadId === null) {
-      setSourceScope(readDraftScope(workspaceId) ?? EVERY_SOURCE)
+      if (wasOpening) {
+        // No thread opened: the ticks, with any made meanwhile, are the new
+        // chat's again.
+        seenEdits.current = scopeEdits
+        rememberShownScope()
+      } else if (
+        current?.workspaceId !== workspaceId ||
+        current.threadId !== null
+      ) {
+        showRememberedScope()
+      }
       shown.current = { workspaceId, threadId }
       return
     }
-    if (activeThread === null) return
+    if (current?.workspaceId === workspaceId && current.threadId === threadId) {
+      return
+    }
+    if (wasOpening && !openedForNewChat.has(threadId)) {
+      // Another chat took the place of the thread that was opening: a tick
+      // made meanwhile stays with the new chat's ticks, and is not this chat's.
+      seenEdits.current = scopeEdits
+      rememberShownScope()
+    }
+    if (activeThread === null) {
+      // A tick made before the thread's entry arrives is the thread's.
+      keepScopeForChat()
+      return
+    }
+    openedForNewChat.delete(threadId)
     shown.current = { workspaceId, threadId }
     if (scopeEdits !== seenEdits.current) {
       // Ticks made while the thread's entry was still on its way, or while
       // the thread was being opened for a new chat, are the user's for this
       // thread: they stay, and the thread gets them.
       seenEdits.current = scopeEdits
+      keepScopeForChat()
       storeWhenIdle(threadId, sourceScope)
     } else {
       const waiting = heldScopes.get(threadId)
@@ -205,23 +203,25 @@ export function useThreadScope({
         setSourceScope(waiting)
       } else if (activeThread.source_scope !== undefined) {
         setSourceScope(activeThread.source_scope ?? EVERY_SOURCE)
+      } else {
+        // An entry without a scope was made by this client: the ticks on
+        // screen opened it, and stay.
+        keepScopeForChat()
       }
     }
-    // An entry without a scope was made by this client: the ticks on screen
-    // opened it, and stay.
   })
 
   useEffect(() => {
     if (scopeEdits === seenEdits.current) return
     // A tick made while a new chat's thread is being opened is for that
-    // thread, not the draft: it stays unseen until the thread opens.
+    // thread: it stays unseen until the thread opens.
     if (view.status === "creating") return
     const current = shown.current
     if (current?.workspaceId !== workspaceId || current.threadId !== threadId) {
       return
     }
     seenEdits.current = scopeEdits
-    if (threadId === null) writeDraftScope(workspaceId, sourceScope)
-    else storeWhenIdle(threadId, sourceScope)
+    // A new chat's ticks are the workspace's, which remembers them itself.
+    if (threadId !== null) storeWhenIdle(threadId, sourceScope)
   })
 }

@@ -16,7 +16,10 @@ import { DETAIL_RAIL_WIDTH, MAIN_RAIL_WIDTH } from "@/components/ui/slide-rail"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { IssueReportDialog } from "@/features/feedback/issue-report-dialog"
 import { NO_LICENSE, runRead } from "@/features/jobs/stub-jobs-api"
-import { rememberTicks } from "@/features/sources/tree/remembered-ticks"
+import {
+  readRememberedTicks,
+  rememberTicks,
+} from "@/features/sources/tree/remembered-ticks"
 import { everySource } from "@/features/sources/tree/scope-state"
 import { boxHeld, boxText, render } from "@/test-utils"
 
@@ -37,6 +40,15 @@ const workspace = {
   name: "My Workspace",
   created_at: "2026-09-05T00:00:00Z",
   updated_at: "2026-09-05T00:00:00Z",
+}
+
+// What a new chat's thread is opened with while no source is ticked.
+const NO_SOURCE_TICKED = {
+  all: false,
+  folder_ids: [],
+  excluded_folder_ids: [],
+  document_ids: [],
+  excluded_document_ids: [],
 }
 
 function rememberOpenThread(workspaceId: number, threadId: number) {
@@ -1123,7 +1135,9 @@ describe("dashboard chat", () => {
 
     expect(await within(conversation).findByText("Revenue rose.")).toBeTruthy()
     // The switch saved the pick itself; the new chat only says its mode.
-    expect(created).toEqual([{ title: "New chat", mode: "basic" }])
+    expect(created).toEqual([
+      { title: "New chat", mode: "basic", source_scope: NO_SOURCE_TICKED },
+    ])
     await user.click(
       within(conversation).getByRole("button", { name: /^Chat mode Basic/ })
     )
@@ -1175,7 +1189,9 @@ describe("dashboard chat", () => {
 
     expect(await within(conversation).findByText("Revenue rose.")).toBeTruthy()
     // A later score still decides the next chat on this model.
-    expect(created).toEqual([{ title: "New chat", mode: "basic" }])
+    expect(created).toEqual([
+      { title: "New chat", mode: "basic", source_scope: NO_SOURCE_TICKED },
+    ])
   })
 
   it("hands the question back to the composer when the agent doesn't start", async () => {
@@ -1288,8 +1304,8 @@ describe("dashboard chat", () => {
     )
     expect(await within(conversation).findByText("Revenue rose.")).toBeTruthy()
     expect(created).toEqual([
-      { title: "New chat", mode: "agentic" },
-      { title: "New chat", mode: "basic" },
+      { title: "New chat", mode: "agentic", source_scope: NO_SOURCE_TICKED },
+      { title: "New chat", mode: "basic", source_scope: NO_SOURCE_TICKED },
     ])
   })
 
@@ -2035,10 +2051,12 @@ describe("dashboard chat", () => {
           ])
         }
         if (path === "/workspaces/1/chat/threads" && init?.method === "POST") {
-          const body = JSON.parse(String(init.body)) as { source_scope?: unknown }
+          const body = JSON.parse(String(init.body)) as {
+            source_scope?: unknown
+          }
           await holdCreate
           return Response.json(
-            thread(12, "Scoped draft", body.source_scope ?? null),
+            thread(12, "Scoped chat", body.source_scope ?? null),
             { status: 201 }
           )
         }
@@ -2166,6 +2184,7 @@ describe("dashboard chat", () => {
       }),
     })
     rememberOpenThread(1, 10)
+    rememberTicks(1, everySource(true))
     render(page)
     await screen.findByRole("treeitem", { name: "Research" })
     await user.click(screen.getByRole("button", { name: "Expand Research" }))
@@ -2185,6 +2204,8 @@ describe("dashboard chat", () => {
         )
       ).toHaveLength(1)
     )
+    // It is the chat's tick: the workspace remembers what it did before.
+    expect(readRememberedTicks(1)).toEqual(everySource(true))
   })
 
   it("says so when a tick could not be stored on the chat", async () => {
@@ -2277,6 +2298,7 @@ describe("dashboard chat", () => {
         opened = resolve
       }),
     })
+    rememberTicks(1, everySource(true))
     render(page)
     await screen.findByRole("treeitem", { name: "Research" })
     await user.click(screen.getByRole("button", { name: "Expand Research" }))
@@ -2293,12 +2315,12 @@ describe("dashboard chat", () => {
         )
       ).toBe(true)
     )
-    // The thread is still opening: a tick now is for it, not for the draft.
+    // The thread is still opening: a tick now is for it, not for the workspace.
     await click("Select Guide.txt")
     await waitFor(() => expect(sourceRow("Guide.txt")).toBe("false"))
     opened()
 
-    await screen.findByRole("button", { name: "Scoped draft" })
+    await screen.findByRole("button", { name: "Scoped chat" })
     await waitFor(() =>
       expect(
         fetchMock.mock.calls.filter(
@@ -2320,23 +2342,71 @@ describe("dashboard chat", () => {
     })
     expect(folder("Research")).toBe("false")
     expect(sourceRow("Guide.txt")).toBe("false")
-    expect(localStorage.getItem("surfsense:draft-scope:1:v1")).toBeNull()
 
-    // The next new chat starts over.
+    // The next new chat has the ticks made before the send, not the one after.
     await user.click(screen.getByRole("button", { name: "New chat" }))
-    await waitFor(() => expect(folder("Research")).toBe("true"))
+    await waitFor(() => expect(sourceRow("Guide.txt")).toBe("true"))
+    expect(folder("Research")).toBe("false")
+  })
+
+  it("keeps a tick made while a new chat's thread was opening off another chat opened first", async () => {
+    let opened = () => {}
+    const { fetchMock, user, page, folder, sourceRow, click, open } =
+      scopedChats({
+        holdCreate: new Promise<void>((resolve) => {
+          opened = resolve
+        }),
+      })
+    rememberTicks(1, everySource(true))
+    render(page)
+    await screen.findByRole("treeitem", { name: "Research" })
+    await user.click(screen.getByRole("button", { name: "Expand Research" }))
+
+    await user.type(screen.getByRole("textbox", { name: "Message" }), "Scoped")
+    await user.click(screen.getByRole("button", { name: "Send message" }))
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(
+          ([path, init]) =>
+            path === "/workspaces/1/chat/threads" && init?.method === "POST"
+        )
+      ).toBe(true)
+    )
+    await click("Select Paper.txt")
+    await waitFor(() => expect(sourceRow("Paper.txt")).toBe("false"))
+
+    // The user opens another chat before the new one's thread exists.
+    await open("Research only")
+    await waitFor(() => expect(sourceRow("Paper.txt")).toBe("true"))
+    opened()
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
+    // That chat shows its own ticks, and was given none.
+    expect(sourceRow("Guide.txt")).toBe("false")
+    expect(sourceRow("Paper.txt")).toBe("true")
+    expect(folder("Research")).toBe("true")
+    expect(
+      fetchMock.mock.calls.filter(
+        ([path, init]) =>
+          path.toString().endsWith("/source-scope") && init?.method === "PUT"
+      )
+    ).toHaveLength(0)
+
+    // The tick stayed with the new chat's ticks.
+    await user.click(screen.getByRole("button", { name: "New chat" }))
+    await waitFor(() => expect(sourceRow("Paper.txt")).toBe("false"))
     expect(sourceRow("Guide.txt")).toBe("true")
   })
 
   it("opens a new chat's thread with its ticks, which outlive a first message that fails", async () => {
     const { fetchMock, user, page, folder, sourceRow, click, open } =
       scopedChats()
+    rememberTicks(1, everySource(true))
     render(page)
     await screen.findByRole("treeitem", { name: "Research" })
     await user.click(screen.getByRole("button", { name: "Expand Research" }))
     await click("Select folder Research")
     await waitFor(() => expect(folder("Research")).toBe("false"))
-    expect(localStorage.getItem("surfsense:draft-scope:1:v1")).not.toBeNull()
 
     await user.type(screen.getByRole("textbox", { name: "Message" }), "Scoped")
     await user.click(screen.getByRole("button", { name: "Send message" }))
@@ -2348,8 +2418,8 @@ describe("dashboard chat", () => {
         )
       ).toBe(true)
     )
-    // The thread was opened with the ticks, so the draft is spent even though
-    // the message never reached the backend.
+    // The thread was opened with the ticks, so it has them even though the
+    // message never reached the backend.
     const opened = fetchMock.mock.calls.find(
       ([path, init]) =>
         path === "/workspaces/1/chat/threads" && init?.method === "POST"
@@ -2364,36 +2434,52 @@ describe("dashboard chat", () => {
         excluded_document_ids: [],
       },
     })
-    expect(localStorage.getItem("surfsense:draft-scope:1:v1")).toBeNull()
     expect(folder("Research")).toBe("false")
 
-    // Coming back to it shows those ticks; a new chat starts over.
+    // Coming back to it shows those ticks.
     await open("Everything")
     await waitFor(() => expect(folder("Research")).toBe("true"))
-    await open("Scoped draft")
+    await open("Scoped chat")
     await waitFor(() => expect(folder("Research")).toBe("false"))
-    await user.click(screen.getByRole("button", { name: "New chat" }))
-    await waitFor(() => expect(folder("Research")).toBe("true"))
     expect(sourceRow("Guide.txt")).toBe("true")
   })
 
-  it("starts a new chat from every source and keeps what it unticks across a remount", async () => {
-    const { user, page, folder, sourceRow, click, open } = scopedChats()
+  it("starts a new chat from the ticks the workspace remembers, which a chat's ticks leave alone", async () => {
+    const { fetchMock, user, page, folder, sourceRow, click, open } =
+      scopedChats()
     const first = render(page)
     await screen.findByRole("treeitem", { name: "Research" })
     await user.click(screen.getByRole("button", { name: "Expand Research" }))
+    // Nothing is ticked at first; the new chat ticks one source.
+    expect(sourceRow("Guide.txt")).toBe("false")
+    await click("Select Guide.txt")
+    await waitFor(() => expect(sourceRow("Guide.txt")).toBe("true"))
+
+    // A chat shows its own ticks, and a tick made in it is stored on it.
     await open("Research only")
     await waitFor(() => expect(sourceRow("Guide.txt")).toBe("false"))
+    expect(sourceRow("Paper.txt")).toBe("true")
+    await click("Select folder Research")
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(
+          ([path, init]) =>
+            path === "/chat/threads/10/source-scope" && init?.method === "PUT"
+        )
+      ).toBe(true)
+    )
 
+    // A new chat is back on the workspace's ticks, untouched by that chat.
     await user.click(screen.getByRole("button", { name: "New chat" }))
     await waitFor(() => expect(sourceRow("Guide.txt")).toBe("true"))
+    expect(sourceRow("Paper.txt")).toBe("false")
     await click("Select folder Research")
-    await waitFor(() => expect(folder("Research")).toBe("false"))
+    await waitFor(() => expect(folder("Research")).toBe("true"))
     first.unmount()
     render(page)
     await screen.findByRole("treeitem", { name: "Research" })
     await user.click(screen.getByRole("button", { name: "Expand Research" }))
-    await waitFor(() => expect(folder("Research")).toBe("false"))
+    await waitFor(() => expect(folder("Research")).toBe("true"))
     expect(sourceRow("Guide.txt")).toBe("true")
   })
 
