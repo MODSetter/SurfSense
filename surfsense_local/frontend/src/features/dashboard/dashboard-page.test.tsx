@@ -2436,10 +2436,15 @@ describe("dashboard chat", () => {
     })
     expect(folder("Research")).toBe("false")
 
-    // Coming back to it shows those ticks.
+    // Coming back to it shows those ticks; a new chat starts from the ones
+    // made before the send, which the workspace remembered.
     await open("Everything")
     await waitFor(() => expect(folder("Research")).toBe("true"))
     await open("Scoped chat")
+    await waitFor(() => expect(folder("Research")).toBe("false"))
+    await open("Everything")
+    await waitFor(() => expect(folder("Research")).toBe("true"))
+    await user.click(screen.getByRole("button", { name: "New chat" }))
     await waitFor(() => expect(folder("Research")).toBe("false"))
     expect(sourceRow("Guide.txt")).toBe("true")
   })
