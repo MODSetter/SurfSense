@@ -615,6 +615,199 @@ def test_two_changes_to_different_words_of_one_paragraph_are_both_made(
     ]
 
 
+def compelled_notice(new: str) -> dict:
+    """A deviation on compelled disclosure whose change writes `new` over "when required by law"."""
+    return verdict(
+        "deviates",
+        paragraphs=["P4"],
+        quote=NOTICE,
+        kind="replace",
+        paragraph="P4",
+        old="when required by law",
+        new=new,
+    )
+
+
+# What Haiku 5.5 and Sonnet 5.5 wrote at the end of new_text on the eval's real NDAs, when the
+# reply ran on past the end of the string, and an elision, which leaves words out.
+LEAKS = [
+    ".](...)",
+    ".</parameter>",
+    ".},",
+    ".`,",
+    "','external_comment':''},",
+    ")",
+    "...",
+]
+
+
+@pytest.mark.parametrize("leak", LEAKS)
+def test_new_text_holding_the_models_formatting_is_asked_again(
+    config, contract, tmp_path, leak
+):
+    """Formatting the contract does not use is never written into it: the model is shown the words
+    that hold it and asked again, and the change it then gives is made."""
+    clean = "when required by law, after prompt written notice"
+    model = ScriptedModel(
+        settled(
+            **{
+                "Compelled disclosure": [
+                    compelled_notice(clean + leak),
+                    compelled_notice(clean),
+                ]
+            }
+        )
+    )
+
+    result = review_contract(contract, [PLAYBOOK], config, model)
+
+    assert by_key(result)["compelled-disclosure"].verdict == "changed"
+    asked = model.asked_about("Compelled disclosure")
+    assert len(asked) == 2
+    assert f"notice{leak}" in asked[1][-1][1]
+    assert [i.text for i in applied(contract, result, tmp_path).insertions] == [
+        ", after prompt written notice"
+    ]
+
+
+def test_formatting_the_model_writes_again_goes_to_a_person(config, contract, tmp_path):
+    """Formatting still there on the second reply leaves the point to a person, with the
+    reason, and the contract unchanged there."""
+    leaked = compelled_notice(
+        "when required by law, after prompt written notice.](...)"
+    )
+    model = ScriptedModel(settled(**{"Compelled disclosure": [leaked, dict(leaked)]}))
+
+    result = review_contract(contract, [PLAYBOOK], config, model)
+
+    point = by_key(result)["compelled-disclosure"]
+    assert point.verdict == "for_person"
+    assert point.codes == ["MARKUP"]
+    revised = applied(contract, result, tmp_path)
+    assert revised.insertions == []
+    assert any(
+        "Compelled disclosure" in c.text and "formatting" in c.text
+        for c in revised.comments
+    )
+
+
+def test_a_closing_bracket_the_replaced_words_hold_is_kept(config, tmp_path):
+    """New words may close a bracket the words they replace close, opened earlier in the
+    paragraph."""
+    contract = write_contract(
+        tmp_path,
+        [
+            *CLAUSES[:2],
+            "The Receiving Party may disclose Confidential Information to its advisors "
+            "(who need to know it).",
+            *CLAUSES[3:],
+        ],
+    )
+    model = ScriptedModel(
+        settled(
+            **{
+                "Compelled disclosure": [
+                    verdict(
+                        "deviates",
+                        paragraphs=["P4"],
+                        quote=NOTICE,
+                        kind="replace",
+                        paragraph="P4",
+                        old="who need to know it)",
+                        new="who need to know it and are bound to keep it confidential)",
+                    )
+                ]
+            }
+        )
+    )
+
+    result = review_contract(contract, [PLAYBOOK], config, model)
+
+    assert by_key(result)["compelled-disclosure"].verdict == "changed"
+    assert len(model.asked_about("Compelled disclosure")) == 1
+    assert (
+        applied(contract, result, tmp_path)
+        .paragraphs[3]
+        .endswith("(who need to know it and are bound to keep it confidential).")
+    )
+
+
+@pytest.mark.parametrize(
+    "added",
+    [
+        "Information disclosed orally is Confidential Information for [__] years.",
+        "Information disclosed orally (each, an “Oral Disclosure”) is Confidential "
+        "Information if (i) identified as confidential and (ii) summarised in writing.",
+    ],
+)
+def test_brackets_a_contract_writes_in_new_text_are_kept(
+    config, contract, tmp_path, added
+):
+    """A blank to fill, a defined term and numbered items are contract text, not formatting."""
+    model = ScriptedModel(
+        settled(
+            **{
+                "Oral information": [
+                    verdict(
+                        "missing",
+                        paragraphs=["P2"],
+                        quote=ORAL,
+                        kind="insert_after",
+                        paragraph="P2",
+                        new=added,
+                    )
+                ]
+            }
+        )
+    )
+
+    result = review_contract(contract, [PLAYBOOK], config, model)
+
+    assert by_key(result)["oral"].verdict == "changed"
+    assert len(model.asked_about("Oral information")) == 1
+    assert applied(contract, result, tmp_path).paragraphs[2] == added
+
+
+def test_marks_the_contract_itself_writes_are_kept_in_new_text(config, tmp_path):
+    """A contract that lists items as "a)" and fills in names between braces writes those
+    marks itself, so new words may use them too."""
+    contract = write_contract(
+        tmp_path,
+        [
+            *CLAUSES[:2],
+            "The Receiving Party shall a) keep Confidential Information secret and "
+            "b) use it only to evaluate the Purpose of {Company}.",
+            *CLAUSES[2:],
+        ],
+    )
+    added = (
+        "Before any disclosure the law compels, the Receiving Party shall a) give "
+        "{Company} prompt written notice and b) disclose only what the law requires."
+    )
+    model = ScriptedModel(
+        settled(
+            **{
+                "Compelled disclosure": [
+                    verdict(
+                        "missing",
+                        paragraphs=["P5"],
+                        quote=NOTICE,
+                        kind="insert_after",
+                        paragraph="P5",
+                        new=added,
+                    )
+                ]
+            }
+        )
+    )
+
+    result = review_contract(contract, [PLAYBOOK], config, model)
+
+    assert by_key(result)["compelled-disclosure"].verdict == "changed"
+    assert len(model.asked_about("Compelled disclosure")) == 1
+    assert added in applied(contract, result, tmp_path).paragraphs
+
+
 def test_text_put_in_beside_a_word_another_point_changes_is_still_placed(
     config, contract, tmp_path
 ):

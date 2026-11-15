@@ -11,6 +11,7 @@ from modules.llm.profile import Tier
 from modules.llm.resolution import ResolvedGeneration, ResolvedImageGeneration
 from worker.studio.media.visual import EXTENSIONS
 from worker.studio.media.visual.infographic.style import in_infographic_style
+from worker.studio.media.visual.redraw.drawing_prompt import kept_drawing_prompt
 from worker.studio.shared import generate
 from worker.studio.shared.artifact import Built, Source, fallback_title
 from worker.studio.shared.text import as_list, as_text, parse_json, slug
@@ -30,9 +31,8 @@ def render(
         generate.run_model(writer, prompt(writer.tier, user_prompt), sources),
         fallback_title(user_prompt, sources, "Infographic"),
     )
-    image = asyncio.run(
-        painter.generator.generate(painter.selection.name, _image_prompt(brief))
-    )
+    painted = _image_prompt(brief)
+    image = asyncio.run(painter.generator.generate(painter.selection.name, painted))
     title = brief[0]
     return Built(
         title=title,
@@ -40,6 +40,7 @@ def render(
         primary=image.content,
         primary_mime=image.media_type,
         primary_filename=f"{slug(title, 'infographic')}.{EXTENSIONS[image.media_type]}",
+        metadata=kept_drawing_prompt(painted),
     )
 
 

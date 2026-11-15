@@ -452,6 +452,10 @@ cloud TTS.
 
 ### Confidential documents into deliverables — the cross-cutting page
 
+**Superseded in part on 9 Nov 2026.** Lawyers, accountants and healthcare get their
+own pages in [`09-audience-pages.md`](09-audience-pages.md). This page keeps
+consultants and other professions, with a line linking each new page.
+
 **The most important page in this set, and the one that did not exist before
 17 Sep 2026.** Production chat says the single most common job is turning a
 document you already have into a professional artefact, and that professional

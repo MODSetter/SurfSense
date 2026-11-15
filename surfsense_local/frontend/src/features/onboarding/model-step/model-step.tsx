@@ -26,6 +26,7 @@ import { useDeleteLocalChatModel } from "@/features/models/local/chat/use-delete
 import { useInstall } from "@/features/models/local/installs/use-install"
 import { ChatGPTOption } from "@/features/models/remote/connections/chatgpt/chatgpt-option"
 import { ClaudeOption } from "@/features/models/remote/connections/claude/claude-option"
+import { OpencodeGoOption } from "@/features/models/remote/connections/opencode-go/opencode-go-option"
 import { ConnectionDialog } from "@/features/models/remote/connections/connection-dialog"
 import { useConnectionsServing } from "@/features/models/remote/connections/use-connections"
 import { DeleteModelDialog } from "@/features/models/your-models/delete-model-dialog"
@@ -250,6 +251,14 @@ export function ModelStep({
               }}
             />
             <ClaudeOption
+              modelType="text_gen"
+              dense
+              onConnected={(connection) => {
+                setOpenServerId(connection.id)
+                setOnServer(true)
+              }}
+            />
+            <OpencodeGoOption
               modelType="text_gen"
               dense
               onConnected={(connection) => {

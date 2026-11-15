@@ -32,6 +32,7 @@ from modules.llm.providers.protocols import (
 from modules.llm.providers.sdcpp import provider as sdcpp
 from modules.llm.providers.sdcpp.editor import LocalImageEditor
 from modules.llm.providers.sdcpp.generator import LocalImageGenerator
+from modules.llm.providers.sdcpp.launch_size import launch_pixels
 from modules.llm.subscriptions.claude.account import CLAUDE_PLAN
 from modules.llm.subscriptions.claude.hosts import require_claude_hosts
 from modules.llm.subscriptions.claude.usable_claude import usable_claude
@@ -119,6 +120,7 @@ def resolve_image_generation(session: Session) -> ResolvedImageGeneration:
                 sdcpp.root_url(),
                 image.served_file,
                 text_runtime_given_up,
+                pixels=launch_pixels(image.args),
             ),
         )
     connection = _connection(session, selected)
@@ -135,6 +137,11 @@ def resolve_image_edit(session: Session) -> ResolvedImageEdit:
     selected = session.get(SelectedModel, ModelType.IMAGE_EDIT)
     if selected is None:
         raise ModelResolutionError("no image editing model selected")
+    return image_editor_for(session, selected)
+
+
+def image_editor_for(session: Session, selected: SelectedModel) -> ResolvedImageEdit:
+    """The client that sends this chosen model a picture, whichever slot chose it."""
     if selected.provider == sdcpp.PROVIDER:
         image = get_local_catalog().sdcpp.installed_image(selected.name)
         if image is None:

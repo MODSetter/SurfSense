@@ -424,5 +424,5 @@ erDiagram
 ## Known gaps
 
 - Deleting a folder is permanent: the Trash is designed, not built ([proposal](../proposals/file-agent/01-sources-and-folders.md)).
-- The snapshot needs free disk about the size of `surfsense.db`, and nothing checks for it first: when the copy fails, the API does not start and the app closes with no message ([overview](overview.md#known-gaps)).
+- The snapshot needs free disk about the size of `surfsense.db`, and nothing checks for it first: when the copy fails, the API does not start and the app quits after a dialog naming the failure ([overview](overview.md)).
 - A release cannot open a database a later release migrated, since its migrations do not know the newer revision, so its API does not start. Going back a version means restoring the snapshot by hand, as going from 2.2.0 to 2.1.0 takes `backups/0023-0027.db`.

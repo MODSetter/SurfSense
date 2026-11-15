@@ -898,9 +898,7 @@ describe("plugins settings", () => {
     await user.clear(address)
     await user.type(address, "https://notes.example/sse")
 
-    expect(
-      within(dialog).getByRole("alert").textContent
-    ).toContain("SSE")
+    expect(within(dialog).getByRole("alert").textContent).toContain("SSE")
     const add = within(dialog).getByRole("button", { name: "Add" })
     expect(add.hasAttribute("disabled")).toBe(true)
 

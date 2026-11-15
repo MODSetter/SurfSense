@@ -6,6 +6,7 @@
 	"pages": [
 		"---Introduction---",
 		"index",
+		"guides",
 		"---Set up---",
 		"install",
 		"quick-start",

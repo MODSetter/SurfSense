@@ -41,6 +41,7 @@ SurfSense, Studio, Markdown, llama.cpp, GGUF, Hugging Face, API, MCP, MCP's tran
 | quiz | クイズ | 퀴즈 | 测验 | क्विज़ | Quiz † | cuestionario | Quiz | Quiz | Тест |
 | study guide | 学習ガイド | 학습 가이드 | 学习指南 | स्टडी गाइड | Lernzettel † | guía de estudio | Guide de révision | Guia de estudos | конспект |
 | podcast | ポッドキャスト | 팟캐스트 | 播客 | पॉडकास्ट | Podcast | podcast | Podcast | Podcast | подкаст |
+| comic (the Studio format; its kinds keep their own names) | コミック | 만화 | 漫画 | कॉमिक | Comic | cómic | BD | quadrinhos | комикс |
 | speech (a model reading text aloud) | 音声合成 | 음성 | 语音 | वॉइस | Sprache | voz | voix | voz | речь |
 | speech recognition (turning recordings and the voice into text, on this computer) | 音声認識 | 음성 인식 | 语音识别 | स्पीच रिकग्निशन | Spracherkennung | reconocimiento de voz | reconnaissance vocale | reconhecimento de voz | распознавание речи |
 | voice input (dictating into the chat composer) | 音声入力 | 음성 입력 | 语音输入 | वॉइस इनपुट | Spracheingabe | entrada de voz | saisie vocale | entrada de voz | голосовой ввод |

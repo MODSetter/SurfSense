@@ -26,8 +26,8 @@ import { FURTHER_PERSON_PRICE, yearlyPriceLabel } from "../business-price";
 /**
  * Copy for `/pricing/business`, the page between the Business card and Stripe.
  *
- * Every claim is ADR 0080's or ADR 0083's, or carried over from `/pricing/individual`, whose page this
- * replaces: the yearly renewal stated before payment, cancellation and seat changes through
+ * Every claim is ADR 0080's or ADR 0083's, or carried over from the retired `/pricing/individual`,
+ * whose page this replaced: the yearly renewal stated before payment, cancellation and seat changes through
  * Stripe's emailed customer portal, people counted rather than devices, the 30 days before
  * a lapse stops new job runs, and terms section 5's refund.
  */

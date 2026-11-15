@@ -3,7 +3,6 @@ import {
   act,
   cleanup,
   fireEvent,
-  render,
   screen,
   waitFor,
 } from "@testing-library/react"
@@ -11,6 +10,7 @@ import userEvent from "@testing-library/user-event"
 import { toast } from "sonner"
 
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { render } from "@/test-utils"
 
 import { dropOn, fakeDataTransfer } from "./fake-data-transfer"
 import { SourcesPanel } from "./sources-panel"
@@ -92,6 +92,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
+  localStorage.clear()
 })
 
 describe("source upload", () => {
@@ -708,11 +709,12 @@ describe("source upload", () => {
       false
     )
 
+    // Only a ready source has a tick box; a new one starts unticked.
     await waitFor(
       () =>
         expect(
           screen.getByLabelText("Select guide.txt").getAttribute("aria-checked")
-        ).toBe("true"),
+        ).toBe("false"),
       { timeout: 3000 }
     )
   })
@@ -814,7 +816,7 @@ describe("source upload", () => {
     expect(screen.queryByText("Source action failed")).toBeNull()
   })
 
-  it("includes every ready source by default and can deselect them", async () => {
+  it("includes no source by default and can select them", async () => {
     const documents = [
       {
         ...pendingDocument,
@@ -843,18 +845,17 @@ describe("source upload", () => {
     render(<SourceHarness />)
     const firstCheckbox = await screen.findByLabelText("Select first.txt")
     const secondCheckbox = screen.getByLabelText("Select second.txt")
-    expect(firstCheckbox.getAttribute("aria-checked")).toBe("true")
-    expect(secondCheckbox.getAttribute("aria-checked")).toBe("true")
-    expect(screen.queryByRole("button", { name: /Delete \(/ })).toBeNull()
-
-    await user.click(screen.getByRole("button", { name: "Clear" }))
     expect(firstCheckbox.getAttribute("aria-checked")).toBe("false")
     expect(secondCheckbox.getAttribute("aria-checked")).toBe("false")
-    expect(screen.getByRole("button", { name: "Select all" })).toBeTruthy()
+
+    await user.click(screen.getByRole("button", { name: "Select all" }))
+    expect(firstCheckbox.getAttribute("aria-checked")).toBe("true")
+    expect(secondCheckbox.getAttribute("aria-checked")).toBe("true")
+    expect(screen.getByRole("button", { name: "Clear" })).toBeTruthy()
 
     await user.click(firstCheckbox)
-    expect(firstCheckbox.getAttribute("aria-checked")).toBe("true")
-    expect(secondCheckbox.getAttribute("aria-checked")).toBe("false")
+    expect(firstCheckbox.getAttribute("aria-checked")).toBe("false")
+    expect(secondCheckbox.getAttribute("aria-checked")).toBe("true")
   })
 
   it("adds files dropped on the panel as sources", async () => {

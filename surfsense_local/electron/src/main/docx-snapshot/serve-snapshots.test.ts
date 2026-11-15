@@ -233,7 +233,7 @@ test("a print that throws is reported as the request's failure", async () => {
     apiUrl: api.url,
     key: KEY,
     print: async () => {
-      throw new Error("docx-preview could not read the file")
+      throw new Error("the renderer could not read the file")
     },
     pollMs: 5,
   })
@@ -246,7 +246,7 @@ test("a print that throws is reported as the request's failure", async () => {
   assert.equal(answer.path, `${ROUTES}/req-2/failure`)
   assert.equal(answer.type, "application/json")
   assert.deepEqual(JSON.parse(answer.body.toString()), {
-    reason: "docx-preview could not read the file",
+    reason: "the renderer could not read the file",
   })
 })
 

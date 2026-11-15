@@ -9,6 +9,7 @@ from modules.artifacts.image_edits.recipe import ImageEdit
 from modules.artifacts.models import Artifact, ArtifactFileRole
 from modules.llm.providers.protocols import GeneratedImage
 from shared.config import get_storage_settings
+from worker.studio.media.visual.redraw.drawing_prompt import drawing_prompt_of
 
 
 class BaseImageGoneError(RuntimeError):
@@ -22,6 +23,8 @@ class BaseImage:
     picture: GeneratedImage
     # The base's file name without its extension, which the edit's format decides.
     stem: str
+    # The words it was drawn from, which a redraw starts from.
+    drawing_prompt: str
 
 
 def base_image(session: Session, edit: ImageEdit) -> BaseImage:
@@ -39,4 +42,5 @@ def base_image(session: Session, edit: ImageEdit) -> BaseImage:
         body=base.document.content or "",
         picture=GeneratedImage(path.read_bytes(), file.mime_type),
         stem=PurePath(file.original_filename).stem,
+        drawing_prompt=drawing_prompt_of(base),
     )

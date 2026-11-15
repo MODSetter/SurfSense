@@ -146,6 +146,7 @@ export const LeftSidebar = memo(function LeftSidebar({
   runStates = NO_RUNS,
   unreadThreadIds = NO_UNREAD,
   actions = NO_ACTIONS,
+  headerStart,
   sources,
   footer,
 }: {
@@ -164,6 +165,8 @@ export const LeftSidebar = memo(function LeftSidebar({
   unreadThreadIds?: number[]
   // Extra rows below "Chats", same look. Append here to add one.
   actions?: SidebarNavAction[]
+  // Before the logo: Docker's sidebar toggle.
+  headerStart?: ReactNode
   // The workspace's sources list, already built by the caller (mirrors how
   // RightPanel takes its studio/artifacts content as nodes).
   sources: ReactNode
@@ -175,6 +178,7 @@ export const LeftSidebar = memo(function LeftSidebar({
 
   return (
     <SidebarFrame
+      headerStart={headerStart}
       nav={
         <div
           {...reveal}

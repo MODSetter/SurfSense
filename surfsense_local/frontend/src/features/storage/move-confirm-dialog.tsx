@@ -97,7 +97,11 @@ export function MoveConfirmContent({
                   needed: ready.neededBytes / 1e9,
                   free: ready.freeBytes / 1e9,
                   dot: () => (
-                    <DotIcon key="dot" aria-hidden="true" className="size-3 shrink-0" />
+                    <DotIcon
+                      key="dot"
+                      aria-hidden="true"
+                      className="size-3 shrink-0"
+                    />
                   ),
                 }
               )}
@@ -146,7 +150,9 @@ export function MoveConfirmDialog({
       }}
     >
       <AlertDialogContent className="select-none">
-        {ready ? <MoveConfirmContent ready={ready} onConfirm={onConfirm} /> : null}
+        {ready ? (
+          <MoveConfirmContent ready={ready} onConfirm={onConfirm} />
+        ) : null}
       </AlertDialogContent>
     </AlertDialog>
   )

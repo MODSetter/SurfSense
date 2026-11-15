@@ -10,10 +10,8 @@ import { WalmartLogo } from "@/components/site/logos/walmart-logo";
 import { WebCrawlLogo } from "@/components/site/logos/web-crawl-logo";
 import { WebSearchLogo } from "@/components/site/logos/web-search-logo";
 import { YoutubeLogo } from "@/components/site/logos/youtube-logo";
-import { BUSINESS_LAUNCHED } from "@/features/business-launch/business-launched.mts";
 import { BUILT_IN_SOURCES, type BuiltInSource } from "./built-in-sources";
 import firstPartyList from "./first-party-plugins.json";
-import listBeforeBusiness from "./first-party-plugins-before-business.json";
 import { listingFromEntry, type PluginListing } from "./plugin-listing";
 
 /**
@@ -22,9 +20,8 @@ import { listingFromEntry, type PluginListing } from "./plugin-listing";
  * file over whenever it changes. Other publishers' are read from the registry, in
  * `registry-plugins.ts`.
  *
- * From Business on, reading pages, YouTube and web search are built into the app and listed
- * from `built-in-sources.ts` instead. Until then the site shows the list as it stood before the
- * scrapers retired, frozen in `first-party-plugins-before-business.json`, whatever the copy holds.
+ * Reading pages, YouTube and web search are built into the app and listed from
+ * `built-in-sources.ts` instead.
  */
 
 export type { PluginListing } from "./plugin-listing";
@@ -87,17 +84,13 @@ function builtInListing(source: BuiltInSource): PluginListing {
 }
 
 /** An app list that still carries a built-in id lists it once, as built in. */
-export function surfsensePlugins(launched: boolean, appList: { plugins: unknown[] }) {
-	if (!launched) return listedPlugins(listBeforeBusiness);
+export function surfsensePlugins(appList: { plugins: unknown[] }) {
 	const builtIn = BUILT_IN_SOURCES.map(builtInListing);
 	const builtInIds = new Set(builtIn.map((plugin) => plugin.id));
 	return [...builtIn, ...listedPlugins(appList).filter((plugin) => !builtInIds.has(plugin.id))];
 }
 
-export const SURFSENSE_PLUGINS: PluginListing[] = surfsensePlugins(
-	BUSINESS_LAUNCHED,
-	firstPartyList
-);
+export const SURFSENSE_PLUGINS: PluginListing[] = surfsensePlugins(firstPartyList);
 
 /** Hand picked, ours and other publishers'; an id the registry no longer lists is skipped. */
 export const FEATURED_IDS = ["google-search", "youtube", "deepwiki", "notion"];

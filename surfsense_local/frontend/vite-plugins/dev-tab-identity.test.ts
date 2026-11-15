@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest"
 
 import { devTabIdentity } from "./dev-tab-identity"
 
-const PAGE = '<head><link rel="icon" href="./favicon.ico" /><title>SurfSense</title></head>'
+const PAGE =
+  '<head><link rel="icon" href="./favicon.ico" /><title>SurfSense</title></head>'
 
 /** What Vite's dev server makes of a page. */
 function served(html: string) {

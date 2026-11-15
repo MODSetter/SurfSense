@@ -1206,7 +1206,7 @@ describe("the privacy choices", () => {
       "Never your documents, prompts or an ID."
     )
 
-    // Every host, and the download, as the update prompt says.
+    // Every host, as the update prompt names them.
     const updatesDetails = await hoverDetails(
       user,
       "What an update check sends"
@@ -1215,7 +1215,6 @@ describe("the privacy choices", () => {
     expect(updatesDetails).toContain("github.com")
     expect(updatesDetails).toContain("your IP address")
     expect(updatesDetails).toContain("githubusercontent.com")
-    expect(updatesDetails).toContain("the next time you quit")
     await user.unhover(
       screen.getByRole("button", { name: "What an update check sends" })
     )

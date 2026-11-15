@@ -25,11 +25,12 @@ INSTRUCTIONS_CHARS = 2000
 
 # Office files and PDFs are scripts the agent renders, and a web page it writes
 # itself (ADR 0066): Studio's draft keeps none to edit. A picture has its own tool,
-# since a draft hands the agent nothing to look at or place.
+# since a draft hands the agent nothing to look at or place; so does a comic, whose
+# pages the agent draws and checks before it binds them.
 _KEYS = [
     fmt.key
     for fmt in FORMATS
-    if fmt.key not in (*DOCUMENT_FORMATS, "html", *EDITABLE_FORMATS)
+    if fmt.key not in (*DOCUMENT_FORMATS, "html", *EDITABLE_FORMATS, "comic")
 ]
 
 # Written out flat, and the same on every turn, so a local model's prompt cache holds.

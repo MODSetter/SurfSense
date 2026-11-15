@@ -13,8 +13,10 @@ from modules.llm.catalog.local.dependencies import get_local_catalog
 from modules.llm.connections.listing import connection_models
 from modules.llm.connections.router import allowed_connection
 from modules.llm.connections.serves import connection_serves
+from modules.llm.connections.service import DiscoveredModel
 from modules.llm.model_type import ModelType
 from modules.llm.models import OnboardingCompletion, SelectedModel
+from modules.llm.pictures_in.kept import keep_takes_pictures
 from modules.llm.profile import Fingerprint, from_name
 from modules.llm.providers import audiocpp, get_provider, llamacpp
 from modules.llm.providers.openai_compatible import OpenAICompatibleChatProvider
@@ -43,6 +45,7 @@ async def choose_model(
             "model name must not be empty",
         )
 
+    listed: DiscoveredModel | None = None
     if provider_name == llamacpp.PROVIDER:
         await _validate_local(model_type, model_name, connection_id)
     elif provider_name == sdcpp.PROVIDER:
@@ -50,7 +53,7 @@ async def choose_model(
     elif provider_name == audiocpp.PROVIDER:
         _validate_local_audio(model_type, model_name, connection_id)
     elif provider_name == "openai_compatible":
-        await _validate_remote(
+        listed = await _validate_remote(
             session, model_type, model_name, connection_id, allow_unlisted
         )
     else:
@@ -60,6 +63,8 @@ async def choose_model(
         )
 
     fingerprint = await _collect(session, provider_name, model_name, connection_id)
+    # An unlisted model is taken as words only: a picture it ignores is billed.
+    takes_pictures = listed is not None and ModelType.IMAGE_EDIT in listed.types
     selected = await transact(
         session,
         _store,
@@ -68,6 +73,7 @@ async def choose_model(
         connection_id,
         model_name,
         fingerprint,
+        takes_pictures,
     )
     if model_type is ModelType.SPEECH_TO_TEXT:
         # Recordings uploaded before any speech model waited for this one.
@@ -116,6 +122,7 @@ def _store(
     connection_id: int | None,
     model_name: str,
     fingerprint: Fingerprint,
+    takes_pictures: bool = False,
 ) -> SelectedModel:
     selected = session.get(SelectedModel, model_type)
     if selected is None:
@@ -135,6 +142,8 @@ def _store(
     selected.params_b = fingerprint.params_b
     selected.vendor = fingerprint.vendor
     selected.line = fingerprint.line
+    if model_type is ModelType.IMAGE_GEN:
+        keep_takes_pictures(selected, takes_pictures)
     session.flush()
     # updated_at is set by the database; load it here rather than lazily on the loop.
     session.refresh(selected)
@@ -255,7 +264,8 @@ async def _validate_remote(
     model_name: str,
     connection_id: int | None,
     allow_unlisted: bool,
-) -> None:
+) -> DiscoveredModel | None:
+    """The model as its connection lists it; None when chosen unlisted."""
     if connection_id is None:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -276,12 +286,12 @@ async def _validate_remote(
                 status.HTTP_422_UNPROCESSABLE_CONTENT,
                 "connection models could not be verified; confirm manual selection",
             ) from error
-        return
+        return None
 
     model = next((entry for entry in models if entry.name == model_name), None)
     if model is None:
         if allow_unlisted:
-            return
+            return None
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             f"model is not listed by this connection: {model_name}",
@@ -299,3 +309,4 @@ async def _validate_remote(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             f"model does not support {model_type.value}: {model_name}",
         )
+    return model

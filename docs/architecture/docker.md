@@ -149,7 +149,8 @@ The image's build sets `VITE_API_BASE=/api`, which [`lib/api.ts`](../../surfsens
 | Session log, the rest of About's details, crash toast | hidden |
 | Usage statistics ([ADR 0070](../adr/0070-opt-in-id-less-update-checks-and-usage-statistics.md)) | none: the privacy step is hidden, and the API neither counts activity nor serves `/usage-statistics` |
 | Dictation | the same over HTTPS or on the host itself; elsewhere the browser offers no microphone, and the mic says it needs HTTPS |
-| The right panel's toggle | on the Studio heading's line, or the chat header's while the panel is hidden, where the desktop has it in the title bar |
+| The right panel's toggle | pinned to the columns' top-right corner, one button that stays put while the panel slides, where the desktop has it in the title bar; an inspected citation or artifact hides it |
+| The left sidebar's toggle | pinned to the columns' top-left corner, before the "SurfSense" logo, one button that stays put while the sidebar slides, where the desktop has it in the title bar; a source preview hides it, and the sidebar floated in carries its own |
 | Settings › Access, the setup and sign-in screens | Docker only ([Docker access](docker-access.md)) |
 | Theme, locale, external links | the browser fallbacks |
 

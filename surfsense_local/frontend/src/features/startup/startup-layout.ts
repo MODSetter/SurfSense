@@ -1,10 +1,14 @@
 import { readLastThread } from "@/features/chat/last-thread"
 import { readNextNewChatMode } from "@/features/chat/modes/next-new-chat-mode-store"
-import { readRightPanelOpen } from "@/features/dashboard/chrome-prefs"
+import {
+  readRightPanelOpen,
+  readSidebarOpen,
+} from "@/features/dashboard/chrome-prefs"
 import { readStoredWorkspaceId } from "@/features/workspaces/last-workspace"
 
 export type StartupLayout = {
   composer: "center" | "bottom"
+  sidebarOpen: boolean
   rightPanelOpen: boolean
   // Whether `@` in a new chat's box names sources: only in Agentic chats.
   mentions: boolean
@@ -22,6 +26,7 @@ export function readStartupLayout(): StartupLayout {
       workspaceId !== null && readLastThread(workspaceId) !== null
         ? "bottom"
         : "center",
+    sidebarOpen: readSidebarOpen(),
     rightPanelOpen: readRightPanelOpen(),
     mentions: readNextNewChatMode() === "agentic",
   }

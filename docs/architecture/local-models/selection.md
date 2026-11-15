@@ -22,7 +22,7 @@ type is the slot.
 |---|---|---|---|
 | `text_gen` | `llamacpp`, the bundled runtime | `openai_compatible`, with a `connection_id` | chat, titles, Studio's writing |
 | `image_gen` | `sdcpp`, the bundled sd-server | `openai_compatible`, with a `connection_id` | Studio's `image` and `infographic` |
-| `image_edit` | `sdcpp`, a model whose entry names `edit` | `openai_compatible`, with a `connection_id` | Studio's image and infographic edits ([studio](../studio.md#editing-a-picture)) |
+| `image_edit` | `sdcpp`, a model whose entry names `edit` | `openai_compatible`, with a `connection_id` | Optional: edits and references with a model other than the image model; empty, the image model takes them when it takes pictures in, and redraws when not ([studio](../studio.md#which-model-takes-a-picture)) |
 | `audio_gen` | `audiocpp`, the bundled audio.cpp server | `openai_compatible`, with a `connection_id` | Studio's `podcast` |
 | `video_gen` | `sdcpp`, a model whose entry has a `video` block | `openai_compatible`, with a `connection_id` | nothing yet |
 | `speech_to_text` | `audiocpp`, a recogniser, run on a second audio.cpp server | none: local only | the transcription routes ([admission](admission.md#speech-recognition)), which a recording's ingest calls ([documents](../documents.md#recordings)) |
@@ -329,6 +329,8 @@ Studio passes a schema through `run_model()`
 ([`generate.py`](../../../surfsense_local/backend/worker/studio/shared/generate.py)),
 each format's beside its prompts, as the quiz's
 ([`schema.py`](../../../surfsense_local/backend/worker/studio/content/quiz/schema.py)).
+Every list in a schema has a `maxItems`, so a model that repeats stops at the
+ceiling instead of filling the window and cutting its JSON short.
 A reply that arrives unconstrained, from an endpoint that ignores
 `response_format` or from the 400 retry, is still read by `parse_json()`.
 
@@ -345,5 +347,7 @@ language, and `test_connections.py` that no connection fills it.
 
 ## Known gaps
 
-- Only the quiz and flashcards pass `json_schema`: mind map, HTML, image, infographic and the podcast's outline and draft still ask for JSON in the prompt alone, so their format compliance depends on it.
+- Settings shows the edit override as its own section, "Use a different model for edits", not folded under Image gen; and the **Image editing** badge is on server models only, not on local models to download.
+- Only the quiz, flashcards, simple web page and comic plan pass `json_schema`: image, infographic and the podcast's outline and draft still ask for JSON in the prompt alone, so their format compliance depends on it. The mind map is not JSON: it is a Markdown outline, written free.
+- A schema whose node refers to itself, for a tree of any depth, crashed llama-server at b11050 twice in nine replies as Qwen3 0.6B nested deeper. No Studio schema refers to itself.
 - Nothing measures whether three tiers are still needed; once constrained decoding carries format compliance, a tier would carry reasoning depth only, which plausibly collapses three tiers to two.

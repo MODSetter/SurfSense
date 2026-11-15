@@ -5,6 +5,7 @@ import { intl } from "@/i18n/intl"
 
 import { JobRowItem } from "./job-row"
 import { jobRows } from "./job-rows"
+import { LicenseOffer } from "./license-offer"
 import { useDeliveries } from "./packs/download-job-packs"
 import { JobRunsList } from "./runs/job-runs-list"
 import { useJobPacks } from "./use-job-packs"
@@ -64,21 +65,29 @@ export function JobList({
   const rows = jobRows(packs.data, license.data)
   return (
     <div className="flex flex-col gap-6">
-      <ul className="flex flex-col gap-3">
-        {rows.map((row) => (
-          <JobRowItem
-            key={row.key}
-            row={row}
-            license={license.data}
-            delivery={
-              row.entitlement === null ? undefined : deliveries[row.entitlement]
-            }
-            onRun={() => row.job && onRun(row.job, row.name)}
-            onSettings={() => row.job && onSettings(row.job, row.name)}
-            onOpenLicense={onOpenLicense}
-          />
-        ))}
-      </ul>
+      <div className="flex flex-col gap-3">
+        <LicenseOffer
+          rows={rows}
+          license={license.data}
+          onOpenLicense={onOpenLicense}
+        />
+        <ul className="flex flex-col gap-3">
+          {rows.map((row) => (
+            <JobRowItem
+              key={row.key}
+              row={row}
+              license={license.data}
+              delivery={
+                row.entitlement === null
+                  ? undefined
+                  : deliveries[row.entitlement]
+              }
+              onRun={() => row.job && onRun(row.job, row.name)}
+              onSettings={() => row.job && onSettings(row.job, row.name)}
+            />
+          ))}
+        </ul>
+      </div>
       <JobRunsList
         workspaceId={workspaceId}
         packs={packs.data}

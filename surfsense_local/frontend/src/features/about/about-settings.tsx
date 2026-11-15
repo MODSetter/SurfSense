@@ -1,3 +1,4 @@
+import { guidesUrl } from "@/features/guides/guide-links"
 import { UsageStatisticsSettings } from "@/features/privacy-choices/usage-statistics-settings"
 import { SettingsSection } from "@/features/settings/settings-section"
 import { UpdateSettings } from "@/features/updates/update-settings"
@@ -93,6 +94,12 @@ export function AboutSettings() {
             {intl.formatMessage({
               id: "about_docs_link",
               defaultMessage: "Documentation",
+            })}
+          </ExternalLink>
+          <ExternalLink href={guidesUrl("about_guides", version)}>
+            {intl.formatMessage({
+              id: "about_guides_link",
+              defaultMessage: "Guides and videos",
             })}
           </ExternalLink>
           <ExternalLink href={GITHUB_URL}>

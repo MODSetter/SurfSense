@@ -1,8 +1,9 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react"
+import { cleanup, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { render } from "@/test-utils"
 
 import { ArtifactList } from "./artifact-list"
 import type { Artifact } from "./api"
@@ -52,6 +53,13 @@ describe("artifact list", () => {
     renderList({ artifacts: [] })
 
     expect(screen.getByText("No generated artifacts yet")).toBeTruthy()
+    // Where the first artifact starts, the guide that walks through one.
+    const guide = screen.getByRole("link", {
+      name: "How to make a document in Studio",
+    })
+    const url = new URL(guide.getAttribute("href") ?? "")
+    expect(url.pathname).toBe("/docs/v2/guides/studio-documents")
+    expect(url.searchParams.get("utm_content")).toBe("studio_empty")
   })
 
   it("shows list skeletons while artifacts load", () => {

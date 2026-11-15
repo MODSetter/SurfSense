@@ -617,10 +617,12 @@ jobs:
         working-directory: surfsense_local/electron
         run: pnpm install --frozen-lockfile --ignore-scripts
 
-      # unsquashfs is for the checks below.
+      # unsquashfs is for the checks below. Snapcraft 8, not 9: electron-builder 26
+      # names the app's desktop file meta/gui/<name>.desktop, which snapcraft 9
+      # looks for before it copies snap/gui there, and fails the build.
       - name: Install snapcraft
         run: |
-          sudo snap install snapcraft --classic
+          sudo snap install snapcraft --classic --channel=8.x/stable
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends squashfs-tools
 

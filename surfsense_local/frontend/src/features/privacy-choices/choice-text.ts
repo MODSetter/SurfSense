@@ -25,7 +25,7 @@ export function updatesText(state: PrivacyState): ChoiceText {
         {
           id: "privacy_choices_updates_mirror_details_body",
           defaultMessage:
-            "Once a day, SurfSense asks {host}, the update server your organization set, whether a newer version exists, sending your IP address, the app’s name and version, your operating system and its architecture, and no ID. A newer version downloads by itself from {host} and installs when you restart or the next time you quit.",
+            "Once a day, SurfSense asks {host}, your organization’s update server, for a newer version, sending your IP address, the app’s version and your system, but no ID. Updates download from {host}, or a server it names, and install when you quit.",
         },
         { host }
       ),
@@ -40,7 +40,7 @@ export function updatesText(state: PrivacyState): ChoiceText {
       {
         id: "privacy_choices_updates_details_body",
         defaultMessage:
-          "Once a day, SurfSense asks {host} whether a newer version exists, sending your IP address, the app’s name and version, your operating system and its architecture, and no ID. If {host} cannot answer, it asks github.com with only your IP address and the app’s name. A newer version downloads by itself from github.com and githubusercontent.com, which also see your IP address, and installs when you restart or the next time you quit.",
+          "Once a day, SurfSense asks {host} for a newer version, sending your IP address, the app’s version and your system, but no ID. If that fails, github.com sees only your IP address and operating system. Updates download from github.com and githubusercontent.com and install when you quit.",
       },
       { host }
     ),
@@ -63,7 +63,7 @@ export function usageText(state: PrivacyState): ChoiceText {
       {
         id: "privacy_choices_usage_details_body",
         defaultMessage:
-          "Once a day, SurfSense tells {host} this install was used, with the app’s version, your system, the app’s language, the week it was installed and how many days ago, in ranges. During the install’s first week it sends one more each time setup reaches a new step, at most four more. Its reports in the first week, and one a week after that, add counts in ranges: chats, agent turns, sources, Studio outputs, plugin calls, whether a local or remote model answered, how far setup got, and on how many of the 7 and 28 days before it you used SurfSense. Its first daily report adds this computer’s memory and graphics card, in ranges, and whether the model runtime can use the card; in the first week they go again only while part of them is unknown. Never documents, prompts, file names, model names, hosts, your license key or an ID.",
+          "Once a day, SurfSense sends {host} the app’s version, your system and hardware, whether models can use your graphics card, and usage counts and days used, in ranges. Never documents, prompts, file names, model names, hosts, your license key or an ID.",
       },
       { host }
     ),

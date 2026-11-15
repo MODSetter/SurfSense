@@ -23,6 +23,8 @@ SIGNED_OUT = {"loggedIn": False, "authMethod": "none", "apiProvider": "firstPart
 
 _PROGRAM = """\
 import json, os, sys, time
+# Claude Code writes UTF-8, whatever the system's code page.
+sys.stdout.reconfigure(encoding="utf-8")
 if {env_log!r}:
     with open({env_log!r}, "w") as log:
         json.dump(dict(os.environ), log)
@@ -55,7 +57,8 @@ def claude_stand_in(
             env_log=str(env_log) if env_log else "",
             version=version,
             auth=auth if isinstance(auth, str) else json.dumps(auth),
-        )
+        ),
+        encoding="utf-8",
     )
     launcher = directory / ("claude.cmd" if sys.platform == "win32" else "claude")
     replaced = launcher.stat().st_mtime_ns if launcher.exists() else None

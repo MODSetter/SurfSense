@@ -240,6 +240,7 @@ afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
+  localStorage.clear()
 })
 
 describe("source tree", () => {
@@ -278,7 +279,6 @@ describe("source tree", () => {
     render(<TreeHarness />)
 
     await screen.findByRole("treeitem", { name: "Research" })
-    await user.click(screen.getByRole("button", { name: "Clear" }))
     row("Research").focus()
     await user.keyboard(" ")
 
@@ -309,8 +309,6 @@ describe("source tree", () => {
     render(<TreeHarness />)
 
     const research = await screen.findByRole("treeitem", { name: "Research" })
-    expect(research.getAttribute("aria-checked")).toBe("true")
-    await user.click(screen.getByRole("button", { name: "Clear" }))
     expect(research.getAttribute("aria-checked")).toBe("false")
     research.focus()
     await user.keyboard("{ArrowRight}")
@@ -858,11 +856,11 @@ describe("source tree", () => {
     cutOff(within(research).getByRole("button", { name: "Research" }))
     act(() => research.focus())
     expect((await screen.findByRole("tooltip")).textContent).toBe("Research")
-    // Everything starts ticked: Space and a click untick.
+    // Nothing starts ticked: Space and a click tick.
     await user.keyboard(" ")
-    expect(research.getAttribute("aria-checked")).toBe("false")
+    expect(research.getAttribute("aria-checked")).toBe("true")
     await user.click(screen.getByRole("checkbox", { name: "Select notes.md" }))
-    expect(row("notes.md").getAttribute("aria-checked")).toBe("false")
+    expect(row("notes.md").getAttribute("aria-checked")).toBe("true")
   })
 })
 

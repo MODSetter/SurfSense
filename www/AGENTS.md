@@ -39,6 +39,7 @@ New code starts beside the route that uses it and moves to `features/` when a se
 - Each folder's `meta.json` orders its pages; `---Label---` is a group heading. Folders are one level deep.
 - A sidebar icon is a name in `meta.json` or frontmatter, and must also be in `DOCS_ICONS` in `features/docs/source.ts`.
 - Moving or renaming a page adds a redirect to `features/docs/docs-redirects.mts`, with a test beside it.
+- The step-by-step guides in `content/docs/v2/guides/` get their screenshots and videos from `scripts/guides/capture.mjs`, which drives a throwaway copy of the app: change the walkthrough and capture again, never edit a picture by hand. `scripts/guides/upload-videos.mjs` puts the videos on Vercel Blob. A change to a screen a guide shows retakes that guide.
 - Before a PR: `pnpm test:unit`, which also validates every `meta.json`, and `pnpm build`.
 
 ## Do

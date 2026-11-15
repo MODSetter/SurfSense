@@ -28,7 +28,9 @@ export function ImagePastePlugin({ enabled }: { enabled: boolean }) {
               .composer()
               .addAttachment(file)
               .catch((cause: unknown) =>
-                errorToast(cause instanceof Error ? cause.message : String(cause))
+                errorToast(
+                  cause instanceof Error ? cause.message : String(cause)
+                )
               )
           }
           return true

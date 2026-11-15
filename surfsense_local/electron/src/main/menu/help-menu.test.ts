@@ -34,14 +34,16 @@ test("Report Issue… opens the in-app report", () => {
   assert.deepEqual(opened, [])
 })
 
-test("links to the docs, the source and this version's release notes", () => {
+test("links to the docs, the guides, the source and this version's release notes", () => {
   const { click, opened } = setup()
   click("Documentation")
+  click("Guides and Videos")
   click("Source Code on GitHub")
   click("Release Notes")
-  // Only surfsense.com's link says where the visit came from.
+  // Only surfsense.com's links say where the visit came from.
   assert.deepEqual(opened, [
     "https://www.surfsense.com/docs?utm_source=desktop&utm_medium=app&utm_content=help_menu&app_version=2.0.2",
+    "https://www.surfsense.com/docs/v2/guides?utm_source=desktop&utm_medium=app&utm_content=help_menu&app_version=2.0.2",
     "https://github.com/MODSetter/SurfSense",
     "https://github.com/MODSetter/SurfSense/releases/tag/v2.0.2",
   ])
@@ -50,6 +52,7 @@ test("links to the docs, the source and this version's release notes", () => {
 test("every link it opens passes the external-link allowlist unchanged", () => {
   const { click, opened } = setup()
   click("Documentation")
+  click("Guides and Videos")
   click("Source Code on GitHub")
   click("Release Notes")
   for (const url of opened) assert.equal(allowedExternalUrl(url), url)

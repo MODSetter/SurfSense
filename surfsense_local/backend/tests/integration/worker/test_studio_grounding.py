@@ -16,7 +16,8 @@ pytestmark = pytest.mark.integration
 
 ANSWER = "The probe carried a generator catalogued as RTGX7."
 REPLIES = {
-    "quiz": '{"title": "T", "questions": []}',
+    "quiz": '{"title": "T", "questions": [{"question": "Q?", "correct": "a", '
+    '"distractors": ["b", "c", "d"], "explanation": "E."}]}',
     "summary": "# T\n\nBody.",
 }
 
@@ -215,7 +216,7 @@ def test_a_selection_read_whole_records_every_source_as_grounding(
 
 
 def test_a_budget_passed_in_is_honoured(session: Session, stub_model: None) -> None:
-    """The model's own profile can set the budget; the default is 24,000."""
+    """The model's window sets the budget; the default is 24,000."""
     _, ids = select(session, log("pump", 60), log("valve", 60))
 
     sources = gather.gather(session, ids, None, budget_chars=1_000)

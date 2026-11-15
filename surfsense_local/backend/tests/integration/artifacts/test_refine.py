@@ -4,6 +4,7 @@ from io import BytesIO
 from typing import Any
 
 import docx
+import httpx
 import pytest
 from httpx import AsyncClient, Response
 from huey import Huey
@@ -20,6 +21,7 @@ from modules.documents.source_figures.layout import figures_dir, write_index
 from modules.llm.model_type import ModelType
 from modules.llm.models import SelectedModel
 from modules.llm.profile import Fingerprint, Tier
+from modules.llm.providers.context_overflow import ContextOverflowError
 from modules.llm.providers.types import Message
 from modules.llm.resolution import ResolvedGeneration
 from modules.workspaces.models import Workspace
@@ -283,6 +285,39 @@ async def test_a_failed_refine_leaves_earlier_versions_untouched(
     assert "spec" not in second.artifact_metadata
     assert first.document.status is DocumentStatus.READY
     assert first.artifact_metadata["spec"]["text"] == first_script
+
+
+async def test_a_rewrite_the_model_refuses_as_too_long_says_so(
+    client: AsyncClient,
+    session: Session,
+    workspace: Workspace,
+    logo_source: Document,
+    local_model: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The model was reached and refused the length, so it does not say otherwise."""
+    first = _markdown_v1(session, workspace, logo_source, monkeypatch)
+
+    def refused(*_args: Any, **_kwargs: Any) -> str:
+        request = httpx.Request("POST", "http://model")
+        raise ContextOverflowError(
+            "request (9000 tokens) exceeds the available context size (8192 tokens)",
+            request=request,
+            response=httpx.Response(400, request=request),
+        )
+
+    monkeypatch.setattr("worker.studio.shared.generate.complete", refused)
+
+    response = await _refine(client, session, first.id, "Make it shorter")
+    _work_off(studio_queue)
+
+    session.expire_all()
+    second = session.get(Artifact, response.json()["id"])
+    assert second.document.status is DocumentStatus.FAILED
+    assert second.document.error_message == (
+        "The request was longer than the model's context window. "
+        "Choose a model with a larger context window."
+    )
 
 
 async def test_the_agents_documents_are_refined_in_its_chat_not_here(

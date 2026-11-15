@@ -8,8 +8,5 @@ const HOST_ITSELF = new Set(["localhost", "127.0.0.1", "[::1]", "::1"])
  * back (docs/architecture/docker.md, Sign-ins).
  */
 export function needsPastedCallback(): boolean {
-  return (
-    IN_CONTAINER &&
-    !HOST_ITSELF.has(window.location.hostname)
-  )
+  return IN_CONTAINER && !HOST_ITSELF.has(window.location.hostname)
 }

@@ -5,8 +5,8 @@ import { drawn } from "./drawn"
 const FORMATS = {
   docx: {
     name: "Word file",
-    layOut: async (file: ArrayBuffer, page: Document) =>
-      (await import("./lay-out-word")).layOutWord(file, page),
+    layOut: async (file: ArrayBuffer, page: Document, pages: string | null) =>
+      (await import("./lay-out-word")).layOutWord(file, page, pages),
   },
   pptx: {
     name: "PowerPoint file",
@@ -17,7 +17,8 @@ const FORMATS = {
 
 /**
  * Lay out the file named by `?file=` for Electron to print to PDF: a Word file
- * as its pages, or with `?format=pptx` a deck as one slide per page.
+ * as its pages, drawing only those `?pages=` names, or with `?format=pptx` a
+ * deck as one slide per page.
  *
  * Resolves to null once the pages, their images and fonts are in place, or to
  * the reason it could not, in English for the agent: Electron cannot read a
@@ -46,7 +47,7 @@ export async function layOutSnapshot(
     return `the ${format.name} could not be fetched (HTTP ${response.status})`
   }
   try {
-    await format.layOut(await response.arrayBuffer(), page)
+    await format.layOut(await response.arrayBuffer(), page, params.get("pages"))
   } catch (error) {
     return `the ${format.name} could not be laid out: ${messageOf(error)}`
   }

@@ -42,7 +42,10 @@ def _run(binary: Path, *args: str, timeout: float, env: dict[str, str]) -> str:
             [str(binary), *args],
             env=env,
             capture_output=True,
-            text=True,
+            # Claude Code writes UTF-8. Windows' code page cannot read every
+            # folder name its sign-in answer carries, and the read then fails.
+            encoding="utf-8",
+            errors="replace",
             timeout=timeout,
             creationflags=_NO_WINDOW,
         ).stdout

@@ -30,11 +30,10 @@ from modules.documents.original_file import original_path
 logger = logging.getLogger(__name__)
 
 _IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp"}
-# The snapshot page lays Word out with docx-preview, told to skip both.
+# The snapshot page draws Word with the Studio viewer's renderer.
 _WORD_PAGES = (
-    "Drawn by SurfSense's Word viewer: Word pages are laid out as SurfSense's "
-    "viewer lays them out, without headers and footers, which can differ a little "
-    "from Word."
+    "Drawn by SurfSense's Word viewer, which shows headers, footers and watermarks "
+    "as the user sees them; it can differ a little from Word in fonts and line breaks."
 )
 
 LISTING: dict[str, Any] = {

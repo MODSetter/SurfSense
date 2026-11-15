@@ -61,7 +61,16 @@ DATA_SKILL = "surfsense-data"
 PDF_SKILL = "surfsense-pdf"
 # How to write a web page and keep it with surfsense_save_page (ADR 0066).
 HTML_SKILL = "surfsense-html"
-SKILLS = (DOCUMENTS_SKILL, REVISIONS_SKILL, DATA_SKILL, PDF_SKILL, HTML_SKILL)
+# How to draw a picture, or a set such as a comic, and bind a set into a PDF.
+PICTURES_SKILL = "surfsense-pictures"
+SKILLS = (
+    DOCUMENTS_SKILL,
+    REVISIONS_SKILL,
+    DATA_SKILL,
+    PDF_SKILL,
+    HTML_SKILL,
+    PICTURES_SKILL,
+)
 
 # Denied as permissions, which also leave the tool out of what the model is
 # offered: document scripts reach the runner through a SurfSense tool (ADR 0039),

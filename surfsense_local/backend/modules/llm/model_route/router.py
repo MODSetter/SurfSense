@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 from collections.abc import AsyncIterator
 from contextlib import AsyncExitStack
 
@@ -11,11 +12,17 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from modules.llm.activity import model_activity, model_key
 from modules.llm.admission.waiting import wait_in_line
+from modules.llm.catalog.remote.context_window import remote_context_window
 from modules.llm.model_route.failures import as_frame
 from modules.llm.model_route.keep_alive import with_keep_alive
-from modules.llm.model_route.schemas import GenerateRequest, ModelRef
+from modules.llm.model_route.schemas import (
+    GenerateRequest,
+    ModelRef,
+    WindowReply,
+    WindowRequest,
+)
 from modules.llm.model_type import ModelType
-from modules.llm.models import SelectedModel
+from modules.llm.models import ProviderConnection, SelectedModel
 from modules.llm.providers import llamacpp
 from modules.llm.providers.llamacpp.router_client import RouterClient
 from modules.llm.providers.llamacpp.unload import unload_text_models
@@ -26,6 +33,8 @@ from modules.llm.resolution import (
     resolve_generation_of,
 )
 from shared.config import get_llm_settings
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["llm"])
 
@@ -106,6 +115,36 @@ async def generate(payload: GenerateRequest, request: Request) -> StreamingRespo
 
 
 @router.post(
+    "/internal/models/text/window",
+    summary="The window a text model answers within (loopback only)",
+)
+async def window(payload: WindowRequest, request: Request) -> WindowReply:
+    """What a caller sizes a prompt from: the window llama-server loaded a local
+    model with, which may load it, or what a remote model's plan or the remote
+    catalog states. `null` when nothing states it. `409` as `generate` answers it.
+    """
+    try:
+        resolved, catalog_provider = await run_in_threadpool(
+            _resolve_with_catalog, request.app.state.session_factory, payload.model
+        )
+    except ModelResolutionError as error:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from error
+    selected = resolved.selection
+    admission = request.app.state.local_admission
+    # Nothing may load a text model under an image's hold, so the last reading stands.
+    if selected.provider == llamacpp.PROVIDER and admission.held:
+        return WindowReply(window=admission.last_window(selected.name))
+    try:
+        stated = await resolved.generator.context_tokens(selected.name)
+    except Exception:
+        logger.warning("could not read the window of %s", selected.name, exc_info=True)
+        stated = None
+    if stated is None and selected.provider != llamacpp.PROVIDER:
+        stated = remote_context_window(selected.name, catalog_provider)
+    return WindowReply(window=stated)
+
+
+@router.post(
     "/internal/models/text/yield",
     summary="Hold the local runtime free of text, for an image (loopback only)",
 )
@@ -138,15 +177,32 @@ def _resolve(
     session_factory: sessionmaker[Session], model: ModelRef | None
 ) -> ResolvedGeneration:
     with session_factory() as session:
-        if model is None:
-            return resolve_generation(session)
-        named = SelectedModel(
-            model_type=ModelType.TEXT_GEN,
-            provider=model.provider,
-            name=model.name,
-            connection_id=model.connection_id,
+        return _resolved(session, model)
+
+
+def _resolve_with_catalog(
+    session_factory: sessionmaker[Session], model: ModelRef | None
+) -> tuple[ResolvedGeneration, str | None]:
+    """The model, and the catalog provider its connection names."""
+    with session_factory() as session:
+        resolved = _resolved(session, model)
+        connection_id = resolved.selection.connection_id
+        connection = (
+            session.get(ProviderConnection, connection_id) if connection_id else None
         )
-        return resolve_generation_of(session, named)
+        return resolved, connection.catalog_provider if connection else None
+
+
+def _resolved(session: Session, model: ModelRef | None) -> ResolvedGeneration:
+    if model is None:
+        return resolve_generation(session)
+    named = SelectedModel(
+        model_type=ModelType.TEXT_GEN,
+        provider=model.provider,
+        name=model.name,
+        connection_id=model.connection_id,
+    )
+    return resolve_generation_of(session, named)
 
 
 async def _installed(name: str) -> bool:

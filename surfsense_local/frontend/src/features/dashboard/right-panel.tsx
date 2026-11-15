@@ -18,7 +18,7 @@ export function RightPanel({
   inspect: ReactNode
   studio: ReactNode
   artifacts: ReactNode
-  /** Hides the panel; Studio's heading holds it, a preview's header never does. */
+  /** Room on Studio's heading line for what sits in its corner; a preview's header has none. */
   toggle?: ReactNode
 }) {
   const reveal = useStartupReveal()

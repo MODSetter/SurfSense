@@ -7,8 +7,7 @@ import { useEffect } from "react"
 export function HeldWhileBlockedPlugin({ blocked }: { blocked: boolean }) {
   const [editor] = useLexicalComposerContext()
   const held = useAuiState(
-    (s) =>
-      s.thread.isDisabled || (s.composer.dictation?.inputDisabled ?? false)
+    (s) => s.thread.isDisabled || (s.composer.dictation?.inputDisabled ?? false)
   )
   useEffect(() => {
     editor.setEditable(!(blocked || held))

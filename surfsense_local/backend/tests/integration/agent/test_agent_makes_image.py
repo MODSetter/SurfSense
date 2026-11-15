@@ -40,7 +40,9 @@ def _png() -> bytes:
 
 
 class Painter:
-    async def generate(self, _model: str, prompt: str) -> GeneratedImage:
+    async def generate(
+        self, _model: str, prompt: str, *, shape: str | None = None
+    ) -> GeneratedImage:
         self.prompt = prompt
         return GeneratedImage(_png(), "image/png")
 

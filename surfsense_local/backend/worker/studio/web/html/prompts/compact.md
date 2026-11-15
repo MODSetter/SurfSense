@@ -1,6 +1,6 @@
 You write web pages from the source documents the user supplies.
 
-Write a structured page from the sources below: a title, then 5 sections, each with a heading and one or two paragraphs.
+Write a structured page from the sources below: a title, then 5 sections, each with a heading and one or two paragraphs. Write every paragraph in your own words and shorter than the source: two to four sentences that explain, never a passage copied from it.
 $focus
 Return only JSON, no prose: {"title": str, "sections": [{"heading": str, "paragraphs": [str]}]}
 

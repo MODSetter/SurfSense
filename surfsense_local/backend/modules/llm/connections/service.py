@@ -76,10 +76,10 @@ def normalize_base_url(value: str) -> str:
     return urlunsplit((parsed.scheme, netloc, path, "", ""))
 
 
-def _modalities(entry: dict) -> set[str]:
-    raw = entry.get("output_modalities")
+def _modalities(entry: dict, key: str = "output_modalities") -> set[str]:
+    raw = entry.get(key)
     if raw is None and isinstance(entry.get("architecture"), dict):
-        raw = entry["architecture"].get("output_modalities")
+        raw = entry["architecture"].get(key)
     if not isinstance(raw, list):
         return set()
     return {
@@ -92,6 +92,7 @@ def _modalities(entry: dict) -> set[str]:
 @dataclass
 class _Entry:
     modalities: set[str] = field(default_factory=set)
+    inputs: set[str] = field(default_factory=set)
     voices: tuple[str, ...] = ()
     free: bool | None = None
 
@@ -116,6 +117,7 @@ def _entries(payload: object) -> dict[str, _Entry]:
             continue
         listed = entries.setdefault(name, _Entry())
         listed.modalities.update(_modalities(entry))
+        listed.inputs.update(_modalities(entry, "input_modalities"))
         listed.voices = listed.voices or tuple(voices_of(entry))
         if listed.free is None:
             listed.free = listed_as_free(entry)
@@ -123,7 +125,10 @@ def _entries(payload: object) -> dict[str, _Entry]:
 
 
 def _classify(
-    name: str, modalities: set[str], catalog_provider: str | None = None
+    name: str,
+    modalities: set[str],
+    catalog_provider: str | None = None,
+    inputs: frozenset[str] | set[str] = frozenset(),
 ) -> DiscoveredModel:
     """Resolve one model against every source, in order, first answer winning.
 
@@ -144,6 +149,9 @@ def _classify(
                 if modality in modalities
             )
         )
+        if ModelType.IMAGE_GEN in declared and "image" in inputs:
+            # A picture in as well as out: it can edit, and keep a reference.
+            declared = (*declared, ModelType.IMAGE_EDIT)
         return DiscoveredModel(name, declared, "declared", unusable)
     catalogued = lookup.classify(name, provider=catalog_provider)
     if catalogued.known:
@@ -155,7 +163,8 @@ def _classify(
 
 def parse_models(payload: object) -> list[DiscoveredModel]:
     return [
-        _classify(name, listed.modalities) for name, listed in _entries(payload).items()
+        _classify(name, listed.modalities, inputs=listed.inputs)
+        for name, listed in _entries(payload).items()
     ]
 
 
@@ -177,7 +186,10 @@ async def _request_entries(
 
 async def probe_connection(base_url: str, api_key: str | None) -> list[DiscoveredModel]:
     entries = await _request_entries(base_url, api_key)
-    return [_classify(name, listed.modalities) for name, listed in entries.items()]
+    return [
+        _classify(name, listed.modalities, inputs=listed.inputs)
+        for name, listed in entries.items()
+    ]
 
 
 async def discover_models(connection: ProviderConnection) -> list[DiscoveredModel]:
@@ -189,6 +201,7 @@ async def discover_models(connection: ProviderConnection) -> list[DiscoveredMode
     for name, other in optional.items():
         listed = merged.setdefault(name, _Entry())
         listed.modalities.update(other.modalities)
+        listed.inputs.update(other.inputs)
         listed.voices = listed.voices or other.voices
         if listed.free is None:
             listed.free = other.free
@@ -199,7 +212,9 @@ async def discover_models(connection: ProviderConnection) -> list[DiscoveredMode
     return sorted(
         (
             replace(
-                classified := _classify(name, listed.modalities, provider),
+                classified := _classify(
+                    name, listed.modalities, provider, listed.inputs
+                ),
                 voices=tuple(Voice(v, v, None, ()) for v in listed.voices),
                 unusable_reason=unusable_reason(
                     provider, listed.free, classified.unusable_reason

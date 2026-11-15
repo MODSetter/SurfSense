@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { PlatformsTooltip } from "@/app/(home)/pricing/platforms-tooltip";
+import type { LicenceRow } from "@/app/(home)/pricing/business-pricing-content";
 import {
 	type Plan,
 	type PricingLede,
@@ -14,24 +14,6 @@ import { SiteFaqItem } from "@/components/site/site-faq-item";
 import { siteText } from "@/components/site/site-text";
 import { cn } from "@/components/ui/cn";
 import { CheckIcon } from "@/components/ui/icons";
-
-/**
- * Splits a feature string around "7 platforms" so that segment alone can be
- * wrapped in `PlatformsTooltip` — the rest of the line renders as plain text.
- */
-function renderFeature(feature: string) {
-	const marker = "7 platforms";
-	const index = feature.indexOf(marker);
-	if (index === -1) return feature;
-
-	return (
-		<>
-			{feature.slice(0, index)}
-			<PlatformsTooltip>{marker}</PlatformsTooltip>
-			{feature.slice(index + marker.length)}
-		</>
-	);
-}
 
 /**
  * Pricing sections, in the homepage's shapes: centred badge heads, rounded
@@ -137,7 +119,7 @@ function PlanCard({ plan }: { plan: Plan }) {
 						>
 							<CheckIcon className="size-3" />
 						</span>
-						<span className="text-muted-foreground">{renderFeature(feature)}</span>
+						<span className="text-muted-foreground">{feature}</span>
 					</li>
 				))}
 			</ul>
@@ -152,6 +134,56 @@ export function PricingPlans({ plans }: { plans: Plan[] }) {
 				{plans.map((plan) => (
 					<PlanCard key={plan.name} plan={plan} />
 				))}
+			</div>
+		</section>
+	);
+}
+
+/**
+ * "What each licence gets": the plan cards' facts as one table, for a reader comparing all
+ * three. On a narrow screen the table scrolls inside its own frame, never the page.
+ */
+export function PricingComparison({ rows }: { rows: LicenceRow[] }) {
+	return (
+		<section className={sectionSpacing.foot} aria-labelledby="ss-pricing-compare-label">
+			<div className={cn("text-center", sectionSpacing.head)}>
+				<HomeBadge>Compare</HomeBadge>
+				<h2 id="ss-pricing-compare-label" className={cn(siteText.h2, "mt-4")}>
+					What each licence gets
+				</h2>
+			</div>
+
+			<div className="mt-10 overflow-x-auto rounded-3xl border border-border lg:mt-14">
+				<table className="w-full min-w-[42rem] border-collapse text-left text-sm">
+					<thead>
+						<tr className="border-b border-border bg-muted">
+							<th scope="col" className="px-5 py-4 font-medium text-foreground">
+								What you get
+							</th>
+							<th scope="col" className="px-5 py-4 font-medium text-foreground">
+								Free
+							</th>
+							<th scope="col" className="px-5 py-4 font-medium text-foreground">
+								Business
+							</th>
+							<th scope="col" className="px-5 py-4 font-medium text-foreground">
+								Enterprise
+							</th>
+						</tr>
+					</thead>
+					<tbody>
+						{rows.map((row) => (
+							<tr key={row.feature} className="border-b border-border align-top last:border-b-0">
+								<th scope="row" className="px-5 py-4 font-medium text-foreground">
+									{row.feature}
+								</th>
+								<td className="px-5 py-4 text-muted-foreground">{row.free}</td>
+								<td className="px-5 py-4 text-muted-foreground">{row.business}</td>
+								<td className="px-5 py-4 text-muted-foreground">{row.enterprise}</td>
+							</tr>
+						))}
+					</tbody>
+				</table>
 			</div>
 		</section>
 	);

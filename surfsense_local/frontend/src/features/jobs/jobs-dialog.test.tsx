@@ -69,6 +69,11 @@ async function questionnaireRow() {
   return name.closest("li")!
 }
 
+/** The license's one offer, above the jobs. */
+function licenseOffer() {
+  return screen.getByRole("region", { name: "License" })
+}
+
 afterEach(() => {
   // Sonner keeps its toasts across tests; one left over would show in the next Toaster.
   toast.dismiss()
@@ -79,20 +84,42 @@ afterEach(() => {
 })
 
 describe("jobs dialog", () => {
+  it("makes the license's offer once, above every job it locks", async () => {
+    stubJobsApi(dialogRoutes({ license: NO_LICENSE, packs: [] }))
+    renderJobsDialog()
+    const questionnaire = within(await questionnaireRow())
+    const redline = within(
+      screen.getByRole("heading", { name: "Contract redline" }).closest("li")!
+    )
+
+    expect(
+      screen.getAllByText(
+        "Jobs come with a SurfSense Business license. Try it free for 14 days."
+      )
+    ).toHaveLength(1)
+    expect(
+      screen.getAllByRole("link", { name: "Start 14-day trial" })
+    ).toHaveLength(1)
+    expect(questionnaire.queryByRole("link")).toBeNull()
+    expect(questionnaire.getByText("Business")).toBeTruthy()
+    expect(redline.getByText("Business")).toBeTruthy()
+  })
+
   it("offers the 14-day trial and pricing for a job no license here includes", async () => {
     stubJobsApi(dialogRoutes({ license: NO_LICENSE, packs: [] }))
     const openExternal = stubOpenExternal()
     const user = userEvent.setup()
     renderJobsDialog()
-    const row = within(await questionnaireRow())
+    await questionnaireRow()
+    const offer = within(licenseOffer())
 
     expect(
-      row.getByText(
-        "Comes with a SurfSense Business license. Try it free for 14 days."
+      offer.getByText(
+        "Jobs come with a SurfSense Business license. Try it free for 14 days."
       )
     ).toBeTruthy()
-    await user.click(row.getByRole("link", { name: "Start 14-day trial" }))
-    await user.click(row.getByRole("link", { name: "See pricing" }))
+    await user.click(offer.getByRole("link", { name: "Start 14-day trial" }))
+    await user.click(offer.getByRole("link", { name: "See pricing" }))
 
     expect(openExternal.mock.calls).toEqual([
       [`https://www.surfsense.com/downloads?${TAGS}&utm_content=jobs_trial`],
@@ -104,9 +131,10 @@ describe("jobs dialog", () => {
     stubJobsApi(dialogRoutes({ license: NO_LICENSE, packs: [] }))
     const user = userEvent.setup()
     const { props } = renderJobsDialog()
-    const row = within(await questionnaireRow())
+    await questionnaireRow()
+    const offer = within(licenseOffer())
 
-    await user.click(row.getByRole("button", { name: "Add license" }))
+    await user.click(offer.getByRole("button", { name: "Add license" }))
 
     expect(props.onOpenChange).toHaveBeenCalledWith(false)
     expect(props.onOpenLicense).toHaveBeenCalledOnce()
@@ -115,15 +143,18 @@ describe("jobs dialog", () => {
   it("tells an Individual license that jobs come with Business, and offers no trial", async () => {
     stubJobsApi(dialogRoutes({ license: INDIVIDUAL, packs: [] }))
     renderJobsDialog()
-    const row = within(await questionnaireRow())
+    await questionnaireRow()
+    const offer = within(licenseOffer())
 
     expect(
-      row.getByText(
-        "Your Individual license doesn’t include this job: jobs come with Business. If your license has moved to Business, Check for renewal fetches its new file."
+      offer.getByText(
+        "Your Individual license doesn’t include the jobs marked Business: jobs come with Business. If your license has moved to Business, Check for renewal fetches its new file."
       )
     ).toBeTruthy()
-    expect(row.getByRole("button", { name: "Check for renewal" })).toBeTruthy()
-    expect(row.getByRole("link", { name: "See pricing" })).toBeTruthy()
+    expect(
+      offer.getByRole("button", { name: "Check for renewal" })
+    ).toBeTruthy()
+    expect(offer.getByRole("link", { name: "See pricing" })).toBeTruthy()
     expect(
       screen.queryByRole("link", { name: "Start 14-day trial" })
     ).toBeNull()
@@ -137,15 +168,16 @@ describe("jobs dialog", () => {
       })
     )
     renderJobsDialog()
-    const row = within(await questionnaireRow())
+    await questionnaireRow()
+    const offer = within(licenseOffer())
 
     expect(
-      row.getByText(
-        "Your license doesn’t include this job. It comes with a Business license, which you can try free for 14 days."
+      offer.getByText(
+        "Your license doesn’t include the jobs marked Business. Jobs come with a Business license, which you can try free for 14 days."
       )
     ).toBeTruthy()
-    expect(row.getByRole("link", { name: "Start 14-day trial" })).toBeTruthy()
-    expect(row.getByRole("button", { name: "Replace license" })).toBeTruthy()
+    expect(offer.getByRole("link", { name: "Start 14-day trial" })).toBeTruthy()
+    expect(offer.getByRole("button", { name: "Replace license" })).toBeTruthy()
   })
 
   it("offers Check for renewal and pricing once a Business license has ended", async () => {
@@ -156,15 +188,18 @@ describe("jobs dialog", () => {
       })
     )
     renderJobsDialog()
-    const row = within(await questionnaireRow())
+    await questionnaireRow()
+    const offer = within(licenseOffer())
 
     expect(
-      row.getByText(
-        "Your license has ended, so this job can’t run. If it was renewed, Check for renewal fetches the new file."
+      offer.getByText(
+        "Your license has ended, so the job marked Locked can’t run. If it was renewed, Check for renewal fetches the new file."
       )
     ).toBeTruthy()
-    expect(row.getByRole("button", { name: "Check for renewal" })).toBeTruthy()
-    expect(row.getByRole("link", { name: "See pricing" })).toBeTruthy()
+    expect(
+      offer.getByRole("button", { name: "Check for renewal" })
+    ).toBeTruthy()
+    expect(offer.getByRole("link", { name: "See pricing" })).toBeTruthy()
     expect(
       screen.queryByRole("button", { name: "Run Security questionnaire" })
     ).toBeNull()
@@ -179,18 +214,19 @@ describe("jobs dialog", () => {
     )
     const user = userEvent.setup()
     const { props } = renderJobsDialog()
-    const row = within(await questionnaireRow())
+    await questionnaireRow()
+    const offer = within(licenseOffer())
 
     expect(
-      row.getByText(
+      offer.getByText(
         "Your 14-day trial has ended. To keep running jobs, buy a Business license, then replace the trial’s license with the one we email you."
       )
     ).toBeTruthy()
-    expect(row.getByRole("link", { name: "See pricing" })).toBeTruthy()
+    expect(offer.getByRole("link", { name: "See pricing" })).toBeTruthy()
     expect(
       screen.queryByRole("button", { name: "Check for renewal" })
     ).toBeNull()
-    await user.click(row.getByRole("button", { name: "Replace license" }))
+    await user.click(offer.getByRole("button", { name: "Replace license" }))
 
     expect(props.onOpenChange).toHaveBeenCalledWith(false)
     expect(props.onOpenLicense).toHaveBeenCalledOnce()
@@ -204,14 +240,15 @@ describe("jobs dialog", () => {
       })
     )
     renderJobsDialog()
-    const row = within(await questionnaireRow())
+    await questionnaireRow()
+    const offer = within(licenseOffer())
 
     expect(
-      row.getByText(
-        "This computer’s clock is behind the last time SurfSense ran. Set the clock right to run this job."
+      offer.getByText(
+        "This computer’s clock is behind the last time SurfSense ran. Set the clock right to run the job marked Locked."
       )
     ).toBeTruthy()
-    expect(row.queryAllByRole("button")).toHaveLength(0)
+    expect(offer.queryAllByRole("button")).toHaveLength(0)
   })
 
   it("names the firm the license is for", async () => {

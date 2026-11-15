@@ -12,6 +12,7 @@ from starlette.requests import Request
 from starlette.responses import StreamingResponse
 from starlette.routing import Route
 
+from tests.integration.agent.opencode_harness import free_port
 from tests.integration.serving_app import serving_app
 
 pytestmark = pytest.mark.integration
@@ -54,3 +55,10 @@ async def test_an_open_stream_does_not_leave_the_app_running() -> None:
     with suppress(asyncio.CancelledError, httpx.HTTPError):
         await reader
     assert stopped.is_set()
+
+
+async def test_an_app_is_served_on_the_port_asked_for() -> None:
+    """An app whose settings name its own address is served there."""
+    port = free_port()
+    async with serving_app(Starlette(), port=port) as base:
+        assert base == f"http://127.0.0.1:{port}"

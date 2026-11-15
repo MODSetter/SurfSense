@@ -1,7 +1,8 @@
-import type { ComponentType } from "react"
+import { useState, type ComponentType } from "react"
 
 import { Button } from "@/components/ui/button"
-import { LicenseIcon } from "@/components/ui/icons"
+import { LicenseIcon, Video01Icon } from "@/components/ui/icons"
+import { GuidesDialog } from "@/features/guides/guides-dialog"
 import type { LicenseState } from "@/features/license/api"
 import { useLicense } from "@/features/license/use-license"
 import { intl } from "@/i18n/intl"
@@ -13,6 +14,8 @@ import { cn } from "@/lib/utils"
 const TONE = {
   good: "text-emerald-600 hover:text-emerald-600 dark:text-emerald-500 dark:hover:text-emerald-500",
   bad: "text-destructive hover:text-destructive",
+  // A way in, not a status: the ghost button's own colours.
+  plain: "",
 } as const
 
 type Row = {
@@ -93,11 +96,10 @@ function licenseRow(state: LicenseState): Row {
 }
 
 /**
- * The sidebar's bottom edge: where the license stands, at a glance. Updates
- * show in the title bar instead.
+ * The sidebar's bottom edge: the guides, and where the license stands, at a
+ * glance. Updates show in the title bar instead.
  *
- * Absent until the license status arrives, so the strip never leaves a
- * bordered gap.
+ * The license row is absent until its status arrives, rather than guessing.
  */
 export function SidebarFooter({
   onOpenLicense,
@@ -105,15 +107,29 @@ export function SidebarFooter({
   onOpenLicense: () => void
 }) {
   const license = useLicense().data
-  if (!license) return null
+  const [guidesOpen, setGuidesOpen] = useState(false)
 
   return (
     <div className="flex flex-col gap-0.5 border-t p-2">
       <FooterRow
-        icon={LicenseIcon}
-        row={licenseRow(license.state)}
-        onClick={onOpenLicense}
+        icon={Video01Icon}
+        row={{
+          label: intl.formatMessage({
+            id: "dashboard_footer_guides_button",
+            defaultMessage: "Guides and videos",
+          }),
+          tone: "plain",
+        }}
+        onClick={() => setGuidesOpen(true)}
       />
+      {license ? (
+        <FooterRow
+          icon={LicenseIcon}
+          row={licenseRow(license.state)}
+          onClick={onOpenLicense}
+        />
+      ) : null}
+      <GuidesDialog open={guidesOpen} onOpenChange={setGuidesOpen} />
     </div>
   )
 }

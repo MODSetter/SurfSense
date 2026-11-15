@@ -34,7 +34,6 @@ describe("a refused Studio job", () => {
       "image_version_unfinished",
       "This version did not finish: retry it, or edit another version.",
     ],
-    ["needs_image_edit", "Needs an image editing model."],
     [
       "edited_from",
       "A later version is edited from this one: delete the whole document.",

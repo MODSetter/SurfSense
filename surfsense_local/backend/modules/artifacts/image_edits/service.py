@@ -5,6 +5,7 @@ import logging
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from modules.artifacts.comic.pages import COMIC_PAGE, is_comic_page
 from modules.artifacts.image_edits.editable import EDITABLE_FORMATS, has_picture
 from modules.artifacts.image_edits.recipe import image_edited
 from modules.artifacts.models import Artifact
@@ -99,6 +100,8 @@ def create_image_edit_version(
         "version": version.as_metadata(),
         "source_document_ids": list(meta.get("source_document_ids") or []),
         "prompt": meta.get("prompt"),
+        # A comic's page changed is its page still.
+        **({COMIC_PAGE: True} if is_comic_page(meta) else {}),
     }
     queue_job(session, artifact)
     logger.info(

@@ -110,11 +110,6 @@ const studioErrorText: Record<string, (detail: Detail) => string | null> = {
       id: "studio_error_needs_image",
       defaultMessage: "Needs an image model.",
     }),
-  needs_image_edit: () =>
-    intl.formatMessage({
-      id: "studio_error_needs_image_edit",
-      defaultMessage: "Needs an image editing model.",
-    }),
   needs_audio: () =>
     intl.formatMessage({
       id: "studio_error_needs_audio",

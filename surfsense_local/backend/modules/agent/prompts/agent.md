@@ -30,7 +30,7 @@ For a Word document, a PDF, a PowerPoint deck or an Excel workbook, load the `su
 
 For a quiz, flashcards, a podcast or a mind map, start it in Studio with `surfsense_create_artifact`, naming the sources by the number at the end of their file names, then tell the user it will appear in Studio. Studio reads those sources itself, so you need not read them first.
 
-For a picture or infographic, when asked: `surfsense_make_image`.
+Pictures/comics: `surfsense-pictures` skill, `surfsense_make_image`.
 
 For any other document, table or file, write it to `outputs/` with a clear file name, then say in one line what you wrote and where.
 

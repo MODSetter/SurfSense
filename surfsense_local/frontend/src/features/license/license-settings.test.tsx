@@ -985,12 +985,12 @@ describe("Jobs on this computer", () => {
     await user.click(screen.getByRole("button", { name: "Remove license" }))
 
     expect(await screen.findByText("No license on this device")).toBeTruthy()
-    // Every row the catalog sells, the questionnaire's and the redline's, offers a trial.
+    // One offer of a trial stands for both jobs the catalog sells.
     expect(
       await screen.findAllByText(
-        "Comes with a SurfSense Business license. Try it free for 14 days."
+        "Jobs come with a SurfSense Business license. Try it free for 14 days."
       )
-    ).toHaveLength(2)
+    ).toHaveLength(1)
     expect(screen.queryByText(said)).toBeNull()
   })
 

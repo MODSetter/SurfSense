@@ -61,6 +61,7 @@ from modules.llm.default_voice import choose_default_voice
 from modules.llm.model_route.router import router as model_route_router
 from modules.llm.model_type import ModelType
 from modules.llm.models import SelectedModel
+from modules.llm.pictures_in.router import router as pictures_in_router
 from modules.llm.residency import warm_selected
 from modules.llm.router import router as llm_router
 from modules.llm.subscriptions.claude.errors import (
@@ -260,6 +261,7 @@ def create_app() -> FastAPI:
     app.include_router(search_server_router)
     app.include_router(folders_router)
     app.include_router(llm_router)
+    app.include_router(pictures_in_router)
     app.include_router(model_route_router)
     app.include_router(transcription_windows_router)
     app.include_router(chat_router)

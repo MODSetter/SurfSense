@@ -9,6 +9,7 @@ import type { Connection } from "../remote/connections/api"
 import { ChatGPTOption } from "../remote/connections/chatgpt/chatgpt-option"
 import { ClaudeOption } from "../remote/connections/claude/claude-option"
 import { ElevenLabsOption } from "../remote/connections/elevenlabs/elevenlabs-option"
+import { OpencodeGoOption } from "../remote/connections/opencode-go/opencode-go-option"
 import { ServerCard } from "./server-card"
 
 /**
@@ -35,6 +36,7 @@ export function AddModelOptions({
           <ServerCard onConnected={onConnected} />
           <ChatGPTOption modelType={modelType} onConnected={onConnected} />
           <ClaudeOption modelType={modelType} onConnected={onConnected} />
+          <OpencodeGoOption modelType={modelType} onConnected={onConnected} />
           <ElevenLabsOption modelType={modelType} onConnected={onConnected} />
           <Separator />
         </>

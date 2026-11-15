@@ -82,7 +82,8 @@ export function MoveProgressDialog() {
     progress.phase === "stopping" || progress.totalBytes === 0
       ? 0
       : progress.doneBytes / progress.totalBytes
-  const cancellable = progress.phase === "copying" || progress.phase === "verifying"
+  const cancellable =
+    progress.phase === "copying" || progress.phase === "verifying"
 
   return (
     <AlertDialog open>

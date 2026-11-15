@@ -1,6 +1,6 @@
 # ADR 0087: The agent makes pictures with its own SurfSense tool, not opencode's
 
-- **Status:** Accepted
+- **Status:** Accepted; its waiting for the user's next message superseded by [ADR 0090](0090-a-document-waits-on-the-server-for-its-pictures.md)
 - **Date:** 2026-11-07
 - **Amends:** [ADR 0066](0066-web-pages-are-html-the-model-writes-without-network.md), in part: its rule that nothing is written into a page but the policy
 - **Source:** maintainer decision, 7 Nov 2026 (no permalink)

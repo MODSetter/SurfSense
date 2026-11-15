@@ -11,8 +11,8 @@ import listBeforeBusiness from "@/app/(home)/plugins/first-party-plugins-before-
 import { launchRedirects, RETIRED_PLUGIN_IDS } from "./launch-redirects.mts";
 
 /** Applies the rules the way Next does: first match wins, or no redirect. */
-function redirect(launched: boolean, pathname: string) {
-	const rule = launchRedirects(launched).find(
+function redirect(pathname: string) {
+	const rule = launchRedirects().find(
 		(candidate) =>
 			getPathMatch(candidate.source, { strict: true, removeUnnamedParams: true })(pathname) !==
 			false
@@ -24,49 +24,29 @@ const idsBefore = listBeforeBusiness.plugins.map((plugin) => plugin.id);
 // What stays is built into the app, on the pages its plugins had.
 const idsAfter = BUILT_IN_SOURCES.map((source) => source.id);
 
-test("switched off, the redirects are the ones the site had before Business", () => {
-	assert.deepEqual(
-		launchRedirects(false),
-		[
-			"google-search",
-			"web-crawl",
-			"reddit",
-			"youtube",
-			"instagram",
-			"tiktok",
-			"google-maps",
-			"amazon",
-			"walmart",
-			"indeed",
-		].map((id) => ({ source: `/${id}`, destination: `/plugins/${id}`, permanent: true }))
-	);
-	assert.equal(redirect(false, "/pricing/individual"), null);
-	assert.equal(redirect(false, "/plugins/google-maps"), null);
-});
-
-test("switched on, the Individual checkout page sends its visitors to Business", () => {
-	assert.deepEqual(redirect(true, "/pricing/individual"), {
+test("the Individual checkout page sends its visitors to Business", () => {
+	assert.deepEqual(redirect("/pricing/individual"), {
 		destination: "/pricing/business",
 		permanent: true,
 	});
-	assert.equal(redirect(true, "/pricing"), null);
-	assert.equal(redirect(true, "/pricing/business"), null);
+	assert.equal(redirect("/pricing"), null);
+	assert.equal(redirect("/pricing/business"), null);
 });
 
-test("switched on, a retired scraper's page and its old address both land on /plugins", () => {
+test("a retired scraper's page and its old address both land on /plugins", () => {
 	for (const id of RETIRED_PLUGIN_IDS) {
-		assert.deepEqual(redirect(true, `/plugins/${id}`), {
+		assert.deepEqual(redirect(`/plugins/${id}`), {
 			destination: "/plugins",
 			permanent: true,
 		});
-		assert.deepEqual(redirect(true, `/${id}`), { destination: "/plugins", permanent: true });
+		assert.deepEqual(redirect(`/${id}`), { destination: "/plugins", permanent: true });
 	}
 });
 
-test("switched on, the three built into the app keep their pages and their old addresses", () => {
+test("the three built into the app keep their pages and their old addresses", () => {
 	for (const id of idsAfter) {
-		assert.equal(redirect(true, `/plugins/${id}`), null);
-		assert.deepEqual(redirect(true, `/${id}`), {
+		assert.equal(redirect(`/plugins/${id}`), null);
+		assert.deepEqual(redirect(`/${id}`), {
 			destination: `/plugins/${id}`,
 			permanent: true,
 		});

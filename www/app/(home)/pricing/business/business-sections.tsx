@@ -25,7 +25,7 @@ import {
 } from "./business-content";
 
 /**
- * Sections of `/pricing/business`, in `/pricing/individual`'s shapes: centred badge heads,
+ * Sections of `/pricing/business`, in the retired `/pricing/individual`'s shapes: centred badge heads,
  * rounded cards, ruled grids. Server components; the checkout button is the only client island.
  */
 

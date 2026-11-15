@@ -11,6 +11,7 @@ import {
 	Calculator01Icon as Calculator01IconData,
 	Calendar03Icon as Calendar03IconData,
 	Cancel01Icon as Cancel01IconData,
+	Cards01Icon as Cards01IconData,
 	ChartHistogramIcon as ChartHistogramIconData,
 	CheckIcon as CheckIconData,
 	CheckmarkBadge02Icon as CheckmarkBadge02IconData,
@@ -30,25 +31,34 @@ import {
 	FlaskConicalIcon as FlaskConicalIconData,
 	HistoryIcon as HistoryIconData,
 	InformationCircleIcon as InformationCircleIconData,
+	JusticeScale01Icon as JusticeScale01IconData,
 	Key01Icon as Key01IconData,
 	LaptopIcon as LaptopIconData,
+	LegalDocument01Icon as LegalDocument01IconData,
 	LinkSquare02Icon as LinkSquare02IconData,
 	Mail01Icon as Mail01IconData,
 	Megaphone01Icon as Megaphone01IconData,
 	MenuTwoLineIcon as MenuTwoLineIconData,
+	Mic01Icon as Mic01IconData,
 	MinusSignIcon as MinusSignIconData,
+	Mortarboard01Icon as Mortarboard01IconData,
+	NetworkIcon as NetworkIconData,
+	Notebook01Icon as Notebook01IconData,
 	Notification03Icon as Notification03IconData,
 	Pdf01Icon as Pdf01IconData,
+	PlayCircleIcon as PlayCircleIconData,
 	Plug01Icon as Plug01IconData,
 	PlusIcon as PlusIconData,
 	PodcastIcon as PodcastIconData,
 	Presentation02Icon as Presentation02IconData,
+	Quiz02Icon as Quiz02IconData,
 	Radar01Icon as Radar01IconData,
 	Search01Icon as Search01IconData,
 	SecurityCheckIcon as SecurityCheckIconData,
 	ServerStack01Icon as ServerStack01IconData,
 	SourceCodeIcon as SourceCodeIconData,
 	Task01Icon as Task01IconData,
+	TeacherIcon as TeacherIconData,
 	UnplugIcon as UnplugIconData,
 	UserCircleIcon as UserCircleIconData,
 	WifiOffIcon as WifiOffIconData,
@@ -102,6 +112,7 @@ export const CableIcon = createIcon(CableIconData);
 export const Calculator01Icon = createIcon(Calculator01IconData);
 export const Calendar03Icon = createIcon(Calendar03IconData);
 export const Cancel01Icon = createIcon(Cancel01IconData);
+export const Cards01Icon = createIcon(Cards01IconData);
 export const ChartHistogramIcon = createIcon(ChartHistogramIconData);
 export const CheckIcon = createIcon(CheckIconData);
 export const CheckmarkBadgeIcon = createIcon(CheckmarkBadge02IconData);
@@ -121,25 +132,34 @@ export const File02Icon = createIcon(File02IconData);
 export const FlaskConicalIcon = createIcon(FlaskConicalIconData);
 export const HistoryIcon = createIcon(HistoryIconData);
 export const InformationCircleIcon = createIcon(InformationCircleIconData);
+export const JusticeScale01Icon = createIcon(JusticeScale01IconData);
 export const Key01Icon = createIcon(Key01IconData);
 export const LaptopIcon = createIcon(LaptopIconData);
+export const LegalDocument01Icon = createIcon(LegalDocument01IconData);
 export const LinkSquare02Icon = createIcon(LinkSquare02IconData);
 export const Mail01Icon = createIcon(Mail01IconData);
 export const Megaphone01Icon = createIcon(Megaphone01IconData);
 export const MenuTwoLineIcon = createIcon(MenuTwoLineIconData);
+export const Mic01Icon = createIcon(Mic01IconData);
 export const MinusSignIcon = createIcon(MinusSignIconData);
+export const Mortarboard01Icon = createIcon(Mortarboard01IconData);
+export const NetworkIcon = createIcon(NetworkIconData);
+export const Notebook01Icon = createIcon(Notebook01IconData);
 export const Notification03Icon = createIcon(Notification03IconData);
 export const Pdf01Icon = createIcon(Pdf01IconData);
+export const PlayCircleIcon = createIcon(PlayCircleIconData);
 export const Plug01Icon = createIcon(Plug01IconData);
 export const PlusIcon = createIcon(PlusIconData);
 export const PodcastIcon = createIcon(PodcastIconData);
 export const Presentation02Icon = createIcon(Presentation02IconData);
+export const Quiz02Icon = createIcon(Quiz02IconData);
 export const Radar01Icon = createIcon(Radar01IconData);
 export const Search01Icon = createIcon(Search01IconData);
 export const SecurityCheckIcon = createIcon(SecurityCheckIconData);
 export const ServerStack01Icon = createIcon(ServerStack01IconData);
 export const SourceCodeIcon = createIcon(SourceCodeIconData);
 export const Task01Icon = createIcon(Task01IconData);
+export const TeacherIcon = createIcon(TeacherIconData);
 export const UnplugIcon = createIcon(UnplugIconData);
 export const UserCircleIcon = createIcon(UserCircleIconData);
 export const WifiOffIcon = createIcon(WifiOffIconData);

@@ -26,11 +26,11 @@ class HeldBack:
         for told in listeners:
             told()
 
-    def release(self, codes: Iterable[str]) -> None:
-        """Forget these codes: checked since, or about to be."""
+    def release(self, codes: Iterable[str]) -> list[str]:
+        """Forget these codes: checked since, or about to be. Returns those still held, which
+        the caller alone now checks."""
         with self._lock:
-            for code in codes:
-                self._codes.pop(code, None)
+            return [code for code in codes if self._codes.pop(code, None) is not None]
 
     def held(self) -> dict[str, str]:
         """Each code held back, to the id of the pack whose run held it."""
