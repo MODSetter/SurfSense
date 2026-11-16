@@ -113,6 +113,15 @@ class VoicingRead(BaseModel):
     languages: list[str]
 
 
+class TranscriptionRead(BaseModel):
+    # The first request, the load included.
+    peak_mb: int
+    window_s: int
+    detects_language: bool
+    # ISO 639-1 codes it is listed for, best first.
+    languages: list[str]
+
+
 class LocalRowRead(BaseModel):
     id: str
     source: str = "local"
@@ -141,6 +150,9 @@ class LocalRowRead(BaseModel):
     lead: LeadRead | None
     # An audio model's memory while voicing, voices and languages; null otherwise.
     voicing: VoicingRead | None = None
+    # A recogniser's memory while transcribing, window and languages; null
+    # otherwise.
+    transcription: TranscriptionRead | None = None
 
 
 class ProjectorNoticeRead(BaseModel):

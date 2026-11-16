@@ -7,7 +7,7 @@ other file is its own row, judged from its header alone.
 """
 
 import dataclasses
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Sequence, Set
 from dataclasses import dataclass
 
 from modules.llm.catalog.local.build import Build, BuildFile, FileRole
@@ -54,7 +54,7 @@ def local_catalog(
     budget: HardwareBudget,
     catalog_id: Callable[[Build], str],
     *,
-    selected: str | None = None,
+    selected: Set[str] = frozenset(),
 ) -> LocalCatalog:
     claimed: set[str] = set()
     curated = []

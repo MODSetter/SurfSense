@@ -7,9 +7,10 @@ wanted and nobody is waiting yet.
 
 import pytest
 
+from modules.llm.admission.local_runtime import LocalAdmission
 from modules.llm.model_type import ModelType
 from modules.llm.models import SelectedModel
-from modules.llm.residency import warm_selected
+from modules.llm.residency import release_unselected, warm_selected
 from tests.unit.llm.providers.llamacpp.fake_router import FakeRouter
 
 pytestmark = pytest.mark.unit
@@ -69,3 +70,28 @@ async def test_a_runtime_that_refuses_is_not_an_error() -> None:
     router = FakeRouter(models=[MODEL])
 
     assert await warm(router, selection("llamacpp", "deleted-since")) is False
+
+
+async def release(router: FakeRouter, selected: SelectedModel | None) -> list[str]:
+    """What moving chat to `selected` unloaded from the runtime."""
+    return await release_unselected(
+        selected, "http://router", LocalAdmission(), transport=router.transport()
+    )
+
+
+async def test_moving_chat_to_a_remote_model_unloads_the_local_one() -> None:
+    """Otherwise it stays in memory until the app quits, for a runtime no one uses."""
+    router = FakeRouter(models=[MODEL])
+    router.loaded.add(MODEL)
+
+    assert await release(router, selection("openai_compatible")) == [MODEL]
+    assert router.loaded == set()
+
+
+async def test_choosing_a_local_model_unloads_nothing() -> None:
+    """Its warm loads it; with one model resident, a switch evicts the old one."""
+    router = FakeRouter(models=[MODEL])
+    router.loaded.add(MODEL)
+
+    assert await release(router, selection("llamacpp")) == []
+    assert router.loaded == {MODEL}

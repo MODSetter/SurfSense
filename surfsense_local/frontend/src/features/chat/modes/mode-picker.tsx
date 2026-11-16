@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { BotIcon, Chat01Icon, ChevronDownIcon } from "@/components/ui/icons"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import type { ChatMode, ChatModes } from "@/features/models/capability/api"
 import type { ModelSelection } from "@/features/models/selection/api"
 import { cn } from "@/lib/utils"
@@ -25,11 +26,8 @@ import {
   modeLabel,
   modeShortDescription,
 } from "./mode-text"
-import {
-  useChatModes,
-  useNewChatMode,
-  usePickNewChatMode,
-} from "./new-chat-mode"
+import { useChatModes, useNewChatMode } from "./new-chat-mode"
+import { useSaveModePick } from "./save-mode-pick"
 
 const MODE_ICON = { basic: Chat01Icon, agentic: BotIcon } as const
 
@@ -51,7 +49,7 @@ export function ModePicker({
   className?: string
 }) {
   const newChatMode = useNewChatMode(model)
-  const pick = usePickNewChatMode()
+  const savePick = useSaveModePick()
   const modes = useChatModes(model)
   if (!modes || !newChatMode) return null
 
@@ -80,7 +78,7 @@ export function ModePicker({
             <ModeList
               modes={modes}
               value={newChatMode}
-              onPick={(mode) => pick(model, mode)}
+              onPick={(mode) => savePick(model, mode)}
             />
           </DropdownMenuGroup>
         </DropdownMenuContent>
@@ -116,7 +114,7 @@ export function ModePicker({
             // A chat keeps its mode, so the other one opens a new chat.
             onPick={(mode) => {
               if (mode === threadMode) return
-              pick(model, mode)
+              savePick(model, mode)
               onNewChat?.()
             }}
             otherOpensNewChat
@@ -213,7 +211,8 @@ function ModeTrigger({
   return (
     <DropdownMenuTrigger
       render={
-        <button
+        <Button
+          variant="bare"
           type="button"
           className={cn(modelControlButtonClassName, className)}
           title={intl.formatMessage({
@@ -225,7 +224,7 @@ function ModeTrigger({
           <Icon className="size-3.5" />
           <span className="whitespace-nowrap">{modeLabel(mode)}</span>
           <ChevronDownIcon className="size-3" />
-        </button>
+        </Button>
       }
     />
   )

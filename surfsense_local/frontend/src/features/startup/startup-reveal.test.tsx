@@ -1,0 +1,74 @@
+import { cleanup, fireEvent, render, screen } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
+import { useState } from "react"
+import { afterEach, describe, expect, it } from "vitest"
+
+import { StartupRevealProvider } from "./startup-reveal-provider"
+import { useStartupReveal } from "./use-startup-reveal"
+
+function Region({ name }: { name: string }) {
+  const reveal = useStartupReveal()
+  return (
+    <div data-testid={name} {...reveal}>
+      <span data-testid={`${name}-contents`} />
+    </div>
+  )
+}
+
+function LateRegion() {
+  const [shown, setShown] = useState(false)
+  return shown ? (
+    <Region name="late" />
+  ) : (
+    <button type="button" onClick={() => setShown(true)}>
+      show
+    </button>
+  )
+}
+
+afterEach(() => cleanup())
+
+describe("startup reveal", () => {
+  it("fades in what the dashboard first draws after a visible wait", () => {
+    render(
+      <StartupRevealProvider reveal>
+        <Region name="region" />
+      </StartupRevealProvider>
+    )
+    expect(screen.getByTestId("region").className).toContain("ss-reveal")
+  })
+
+  it("draws it at once after a wait too short to see", () => {
+    render(
+      <StartupRevealProvider reveal={false}>
+        <Region name="region" />
+      </StartupRevealProvider>
+    )
+    expect(screen.getByTestId("region").className).not.toContain("ss-reveal")
+  })
+
+  it("stops fading once its contents have faded in, so later ones arrive as usual", () => {
+    render(
+      <StartupRevealProvider reveal>
+        <Region name="region" />
+      </StartupRevealProvider>
+    )
+    fireEvent.animationEnd(screen.getByTestId("region-contents"))
+    expect(screen.getByTestId("region").className).not.toContain("ss-reveal")
+  })
+
+  it("never fades what mounts after startup", async () => {
+    render(
+      <StartupRevealProvider reveal>
+        <LateRegion />
+      </StartupRevealProvider>
+    )
+    await userEvent.click(screen.getByRole("button", { name: "show" }))
+    expect(screen.getByTestId("late").className).not.toContain("ss-reveal")
+  })
+
+  it("fades nothing outside startup", () => {
+    render(<Region name="region" />)
+    expect(screen.getByTestId("region").className).not.toContain("ss-reveal")
+  })
+})

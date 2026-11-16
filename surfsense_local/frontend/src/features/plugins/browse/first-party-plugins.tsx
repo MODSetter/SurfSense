@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query"
 import { useId } from "react"
 
+import { Button } from "@/components/ui/button"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
@@ -39,14 +40,16 @@ export function FirstPartyEntryRow({
       />
       <div className="min-w-0 flex-1">
         {/* Stretched over the row, so the whole entry opens its page. */}
-        <button
+        <Button
           id={nameId}
           type="button"
-          className="text-left text-sm font-medium outline-none after:absolute after:inset-0 after:rounded-lg focus-visible:after:ring-2 focus-visible:after:ring-ring"
+          variant="bare"
+          static
+          className="text-left text-sm font-medium after:absolute after:inset-0 after:rounded-lg focus-visible:ring-0 focus-visible:after:ring-2 focus-visible:after:ring-ring"
           onClick={onOpen}
         >
           {entry.name}
-        </button>
+        </Button>
         <p className={cn("text-xs text-muted-foreground", row && "truncate")}>
           {entry.description}
         </p>

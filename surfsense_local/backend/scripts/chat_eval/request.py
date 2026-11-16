@@ -17,7 +17,7 @@ async def conversation(case: Case, tier: Tier) -> list[Message]:
     History is budgeted for the smallest window the app loads, so every machine
     and Featherless keep the same turns.
     """
-    grounding = build_context(_hits(case), tier)
+    grounding = build_context(_hits(case), tier, case.indexing)
     prompt = await build_messages(
         grounding.instruction,
         _history(case),

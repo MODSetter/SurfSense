@@ -6,18 +6,24 @@ from dataclasses import dataclass
 from pathlib import PurePosixPath
 from typing import Any
 
-from sqlalchemy import text
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
+from modules.agent.agent_threads.mention_note import NamedFile, mention_note
 from modules.agent.agent_threads.scope_note import NAMED_PATHS, scope_note, shown_scope
 from modules.agent.thread_folder.layout import SOURCES
 from modules.agent.thread_folder.scope_paths import scope_paths
+from modules.artifacts.models import Artifact
 from modules.chat.models import ChatThread
 from modules.chat.schemas import MessageCreate
 from modules.documents.sources import load_selected_sources
 from modules.source_scope.resolve import ResolvedScope, resolve_scope
-from modules.source_scope.schemas import SourceScope
-from modules.source_scope.thread_scope import store_thread_scope, thread_scope
+from modules.source_scope.schemas import MentionedSources, SourceScope
+from modules.source_scope.thread_scope import (
+    store_thread_scope,
+    thread_scope,
+    thread_ticks,
+)
 from shared.config import get_storage_settings
 
 
@@ -25,12 +31,14 @@ from shared.config import get_storage_settings
 class TurnSources:
     """The turn's ready source ids, which its folder mirrors, the note naming them, and how it shows them.
 
-    A thread on every source sends no note and shows no line.
+    A thread on every source sends no note and shows no line. `mention_note` is
+    told apart from them: on every source it is the one thing that says which file.
     """
 
     document_ids: list[int]
     note: str | None
     shown: dict[str, Any] | None
+    mention_note: str | None = None
 
 
 def turn_sources(
@@ -41,8 +49,11 @@ def turn_sources(
     The tools read the stored scope on each call, so what is sent must be stored.
     Resolved ids are never capped: a ticked folder of any size is the whole turn.
     """
+    named = _named_documents(session, thread.workspace_id, payload.mentioned_sources)
     if payload.source_scope is not None:
-        scope, resolved = store_thread_scope(session, thread, payload.source_scope)
+        scope, resolved = store_thread_scope(
+            session, thread, payload.source_scope, named
+        )
     elif payload.document_ids is not None:
         # Checked as a chat checks them: each must exist here and be ready.
         ids = [
@@ -52,18 +63,88 @@ def turn_sources(
             )
         ]
         scope, resolved = store_thread_scope(
-            session, thread, SourceScope(document_ids=ids)
+            session, thread, SourceScope(document_ids=ids), named
+        )
+    elif named:
+        scope, resolved = store_thread_scope(
+            session, thread, thread_ticks(thread), named
         )
     else:
         scope = thread_scope(thread)
         resolved = resolve_scope(session, thread.workspace_id, scope)
+    told = _told_of_mentions(
+        session, thread, payload.mentioned_sources, named, resolved
+    )
     if _every_source(scope):
-        return TurnSources(resolved.ids, None, None)
-    return _noted(session, thread, resolved)
+        return TurnSources(resolved.ids, None, None, told)
+    return _noted(session, thread, resolved, told)
+
+
+def _named_documents(
+    session: Session, workspace_id: int, mentioned: MentionedSources | None
+) -> list[int]:
+    """Named folders as their files now: a thread's ticks may exclude a parent, which
+    would take a named folder back out, and naming a folder means what it holds."""
+    if mentioned is None:
+        return []
+    in_folders = (
+        resolve_scope(
+            session, workspace_id, SourceScope(folder_ids=mentioned.folder_ids)
+        ).ids
+        if mentioned.folder_ids
+        else []
+    )
+    return list(dict.fromkeys([*mentioned.document_ids, *in_folders]))
+
+
+def _told_of_mentions(
+    session: Session,
+    thread: ChatThread,
+    mentioned: MentionedSources | None,
+    named: list[int],
+    resolved: ResolvedScope,
+) -> str | None:
+    if mentioned is None:
+        return None
+    in_turn = set(resolved.ids)
+    ready = [i for i in named if i in in_turn]
+    # Readable first: sources with no text must not use up the note's paths.
+    paths = _paths_with_text(session, thread, ready)
+    readable = [i for i in ready if i in paths]
+    listed = readable[:NAMED_PATHS]
+    artifacts = dict(
+        session.execute(
+            select(Artifact.document_id, Artifact.id).where(
+                Artifact.document_id.in_(listed)
+            )
+        ).all()
+    )
+    return mention_note(
+        mentioned,
+        [NamedFile(paths[i], artifacts.get(i)) for i in listed],
+        len(readable) - len(listed),
+        len(ready) - len(readable),
+        _gave_nothing(session, thread.workspace_id, mentioned, in_turn),
+    )
+
+
+def _gave_nothing(
+    session: Session,
+    workspace_id: int,
+    mentioned: MentionedSources,
+    in_turn: set[int],
+) -> int:
+    """How many named sources and folders added nothing ready to the turn."""
+    sources = sum(i not in in_turn for i in mentioned.document_ids)
+    folders = sum(
+        not resolve_scope(session, workspace_id, SourceScope(folder_ids=[folder])).ids
+        for folder in mentioned.folder_ids
+    )
+    return sources + folders
 
 
 def _noted(
-    session: Session, thread: ChatThread, resolved: ResolvedScope
+    session: Session, thread: ChatThread, resolved: ResolvedScope, told: str | None
 ) -> TurnSources:
     return TurnSources(
         resolved.ids,
@@ -73,6 +154,7 @@ def _noted(
             _mirrored_paths(session, thread, resolved.ids),
         ),
         shown_scope(session, thread.workspace_id, resolved.ids),
+        told,
     )
 
 
@@ -85,6 +167,13 @@ def _mirrored_paths(
     """
     if not ids or len(ids) > NAMED_PATHS:
         return {}
+    return _paths_with_text(session, thread, ids)
+
+
+def _paths_with_text(
+    session: Session, thread: ChatThread, ids: Sequence[int]
+) -> dict[int, PurePosixPath]:
+    """The mirrored path of each of `ids` that has text; the rest are never mirrored."""
     workspace_id = thread.workspace_id
     sources = (
         get_storage_settings().thread_working_dir(workspace_id, thread.id) / SOURCES

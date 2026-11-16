@@ -19,6 +19,15 @@ def test_a_model_too_small_for_a_scaffold_gets_the_compact_prompt() -> None:
     assert tier is Tier.COMPACT
 
 
+def test_a_7b_model_is_large_enough_for_the_capable_prompt() -> None:
+    """The compact band ends below 7B, and a `7B` in a name reads as exactly 7.0."""
+    tier = classify(
+        Fingerprint(provider="llamacpp", name="Mistral-7B-v0.3-Q4_K_M", params_b=7.0)
+    )
+
+    assert tier is Tier.CAPABLE
+
+
 def test_a_model_large_enough_to_outgrow_a_scaffold_gets_the_frontier_prompt() -> None:
     """Past this size a model writes better from judgement than from steps."""
     tier = classify(

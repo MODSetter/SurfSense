@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field, PositiveInt
+from pydantic import BaseModel, ConfigDict, Field, NonNegativeInt, PositiveInt
 
 # Bounds the request body, not a workspace: the sources tree sends one id per
 # file unticked singly. Each list reaches SQL as one json_each parameter.
@@ -27,6 +27,30 @@ class SourceScope(BaseModel):
 
 
 ALL_SOURCES = SourceScope(all=True)
+
+# Far past what a message names by hand; bounds the request.
+MAX_MENTIONS = 100
+
+
+class MentionChip(BaseModel):
+    """Where a chip stands in the sent text, which only the client can tell from a
+    typed name. Offsets are the client's own, and only ever handed back to it."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: Annotated[str, Field(pattern=r"^(document|folder):\d+$")]
+    at: NonNegativeInt
+    length: PositiveInt
+
+
+class MentionedSources(BaseModel):
+    """What a message named with `@`. An artifact is named by its document."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    document_ids: Annotated[list[PositiveInt], Field(max_length=MAX_MENTIONS)] = []
+    folder_ids: Annotated[list[PositiveInt], Field(max_length=MAX_MENTIONS)] = []
+    chips: Annotated[list[MentionChip], Field(max_length=MAX_MENTIONS)] = []
 
 
 class ScopeCounts(BaseModel):

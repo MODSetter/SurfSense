@@ -9,8 +9,7 @@ from modules.license.verify import KEYGEN_PUBLIC_KEYS_HEX
 pytestmark = pytest.mark.packaging
 
 FIXTURE_KEY = (
-    Path(__file__).resolve().parents[4]
-    / "docs/contracts/license-sample/public-key.hex"
+    Path(__file__).resolve().parents[4] / "docs/contracts/license-sample/public-key.hex"
 )
 
 

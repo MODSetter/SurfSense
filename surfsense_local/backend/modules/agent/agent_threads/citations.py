@@ -5,6 +5,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from modules.agent.agent_threads.steps import tool_output
 from modules.agent.tool_endpoint.passage_label import labelled_chunks
 from modules.agent.tool_endpoint.registration import SERVER
 from modules.agent.tool_endpoint.search_sources import LISTING
@@ -21,11 +22,12 @@ def searched_chunks(messages: list[dict[str, Any]]) -> set[int]:
     return {
         chunk_id
         for message in messages
-        for part in message["parts"]
-        if part.get("type") == "tool"
-        and part.get("tool") == SEARCH_TOOL
-        and part.get("state", {}).get("status") == "completed"
-        for chunk_id in labelled_chunks(part["state"].get("output") or "")
+        if message.get("type") == "assistant"
+        for item in message.get("content") or []
+        if item.get("type") == "tool"
+        and item.get("name") == SEARCH_TOOL
+        and item.get("state", {}).get("status") == "completed"
+        for chunk_id in labelled_chunks(tool_output(item["state"]) or "")
     }
 
 

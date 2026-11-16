@@ -8,6 +8,7 @@ read back, never continued.
 import os
 from pathlib import Path
 
+from modules.agent.agent_threads.session_import import found_after_import
 from modules.agent.opencode_client import OpencodeClient
 
 LEGACY_TURN = (
@@ -24,7 +25,9 @@ async def is_legacy(client: OpencodeClient, session_id: str, folder: Path) -> bo
     """Whether the session works anywhere but the thread's own folder."""
     if session_id in _legacy:
         return True
-    directory = await client.session_directory(session_id)
+    directory = await found_after_import(
+        client, lambda: client.session_directory(session_id)
+    )
     if _normal(directory) == _normal(folder):
         return False
     _legacy.add(session_id)

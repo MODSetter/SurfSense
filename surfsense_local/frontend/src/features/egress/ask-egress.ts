@@ -11,6 +11,8 @@ export type Pending = {
   host: string
   // What the call is for, when the host alone does not say: "plugin".
   purpose?: string
+  // The other hosts asked about in the same question; Allow switches them on too.
+  also?: string[]
   // What Allow does. A refused request enables the destination and is retried;
   // the updater talks to GitHub from Electron, so its consent is a pref there.
   allow: () => Promise<unknown>

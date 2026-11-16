@@ -9,6 +9,7 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu"
+import { ScrollFade } from "@/components/ui/scroll-fade"
 import {
   EllipsisIcon,
   GridViewIcon,
@@ -160,10 +161,10 @@ export function PluginsMenu({
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuLabel>
+          <DropdownMenuLabel className="select-none">
             {intl.formatMessage({
-              id: "plugins_menu_scope_label",
-              defaultMessage: "Applies to all Agentic chats",
+              id: "plugins_menu_yours_label",
+              defaultMessage: "Your plugins",
             })}
           </DropdownMenuLabel>
           {connected.length === 0 ? (
@@ -174,16 +175,19 @@ export function PluginsMenu({
               })}
             </DropdownMenuItem>
           ) : (
-            connected.map((plugin) => (
-              <PluginSwitchItem
-                key={plugin.id}
-                plugin={plugin}
-                usable={plugin.source === "first_party" || thirdPartyOn}
-                onEnabled={(enabled) =>
-                  changes.plugin.mutate({ plugin: plugin.id, enabled })
-                }
-              />
-            ))
+            // Six rows and half of a seventh at 28 px each: the cut row says there is more.
+            <ScrollFade viewportClassName="h-auto max-h-[182px]">
+              {connected.map((plugin) => (
+                <PluginSwitchItem
+                  key={plugin.id}
+                  plugin={plugin}
+                  usable={plugin.source === "first_party" || thirdPartyOn}
+                  onEnabled={(enabled) =>
+                    changes.plugin.mutate({ plugin: plugin.id, enabled })
+                  }
+                />
+              ))}
+            </ScrollFade>
           )}
         </DropdownMenuGroup>
       </DropdownMenuSubContent>

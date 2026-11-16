@@ -2,6 +2,7 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
+import { LOCALE_KEY } from "@/i18n/browser-locale"
 import { SELECTABLE_LOCALES } from "@/i18n/locales"
 import { LanguageSelect } from "./language-select"
 
@@ -52,6 +53,13 @@ describe("LanguageSelect", () => {
     await waitFor(() =>
       expect(screen.getByRole<HTMLSelectElement>("combobox").value).toBe("de")
     )
+  })
+
+  it("without Electron, keeps the choice in this browser", async () => {
+    render(<LanguageSelect aria-label="Language" />)
+    await userEvent.selectOptions(screen.getByRole("combobox"), "ja")
+    expect(localStorage.getItem(LOCALE_KEY)).toBe("ja")
+    localStorage.clear()
   })
 
   it("hands the choice to main", async () => {

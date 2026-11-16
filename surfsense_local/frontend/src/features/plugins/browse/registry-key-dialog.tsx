@@ -1,4 +1,4 @@
-import { useId, useState, type FormEvent } from "react"
+import { useId, useState, type SubmitEvent } from "react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -32,12 +32,12 @@ function RegistryKeyForm({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const connect = async (event: FormEvent) => {
+  const connect = async (event: SubmitEvent) => {
     event.preventDefault()
     setBusy(true)
     setError(null)
     try {
-      await connectRegistryPlugin(entry.id, key)
+      await connectRegistryPlugin(entry.id, { token: key })
       onConnected()
     } catch (refused) {
       setError(

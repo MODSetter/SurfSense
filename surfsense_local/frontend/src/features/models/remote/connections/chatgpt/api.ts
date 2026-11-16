@@ -1,5 +1,5 @@
-import { setDestinationEnabled } from "@/features/egress/api"
 import { askEgress } from "@/features/egress/ask-egress"
+import { allowAll } from "@/features/egress/api"
 import { requestJson, requestVoid } from "@/lib/api"
 
 import type { ModelType } from "../../../model-type"
@@ -42,20 +42,22 @@ export class HostDeclinedError extends Error {
 
 /**
  * Starts a sign-in once both hosts it reaches, OpenAI's sign-in and its API,
- * are allowed. Asked one by one up front: a refused request asks about one host
- * only, and could not tell a host the user declined from the next one.
+ * are allowed: asked up front, in one question for every host still off.
  */
 export async function startSignIn(
   target: SignInTarget
 ): Promise<SignInStarted> {
   const { hosts } = await getSignInOption()
-  for (const { destination, host } of hosts) {
+  const [first, ...rest] = hosts
+  if (first) {
+    const also = rest.map(({ host }) => host)
     const allowed = await askEgress({
-      destination,
-      host,
-      allow: () => setDestinationEnabled(destination, true),
+      destination: first.destination,
+      host: first.host,
+      also,
+      allow: () => allowAll(first.destination, also),
     })
-    if (!allowed) throw new HostDeclinedError(host)
+    if (!allowed) throw new HostDeclinedError(first.host)
   }
   return requestJson<SignInStarted>("/llm/connections/chatgpt/sign-in", {
     method: "POST",
@@ -76,6 +78,19 @@ export function getSignIn(
 export function cancelSignIn(flowId: string): Promise<void> {
   return requestVoid(`/llm/connections/chatgpt/sign-in/${flowId}`, {
     method: "DELETE",
+  })
+}
+
+/**
+ * Finishes a sign-in from another device than the Docker host: OpenAI sends the
+ * browser to 127.0.0.1, where nothing answers, and the address it shows carries
+ * the code. The API finishes with the verifier it kept.
+ */
+export function pasteCallback(flowId: string, address: string): Promise<void> {
+  return requestVoid(`/llm/connections/chatgpt/sign-in/${flowId}/callback`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ address }),
   })
 }
 

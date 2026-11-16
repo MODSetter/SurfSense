@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils"
 import { Spinner } from "@/components/ui/spinner"
 import { intl } from "@/i18n/intl"
 
+import { signInFailureMessage } from "./sign-in-failure-text"
 import type { PluginSignInState } from "./use-plugin-sign-in"
 
 /** "Waiting for sign-in…" with Cancel while the browser is open, or why it did not finish. */
@@ -42,10 +43,11 @@ export function SignInProgress({
   if (state.phase === "failed") {
     return (
       <p role="alert" className={cn("text-xs text-destructive", className)}>
-        {intl.formatMessage({
-          id: "plugins_sign_in_failed_error",
-          defaultMessage: "The sign-in didn’t finish. Try again.",
-        })}
+        {signInFailureMessage(state) ??
+          intl.formatMessage({
+            id: "plugins_sign_in_failed_error",
+            defaultMessage: "The sign-in didn’t finish. Try again.",
+          })}
       </p>
     )
   }

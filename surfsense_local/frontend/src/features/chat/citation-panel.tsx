@@ -4,8 +4,11 @@ import { useEffect, useMemo, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { DetailPanel } from "@/components/ui/detail-panel"
 import { Spinner } from "@/components/ui/spinner"
+import { motionIsReduced } from "@/features/motion-preference/motion-preference"
 import { getDocumentByChunk } from "@/features/sources/api"
 import { intl } from "@/i18n/intl"
+
+import { CitationChunkText } from "./citation-chunk-text"
 
 export function CitationPanel({
   workspaceId,
@@ -47,7 +50,10 @@ export function CitationPanel({
         target.getBoundingClientRect().top -
         container.getBoundingClientRect().top +
         container.scrollTop
-      container.scrollTo({ top: Math.max(0, offset - 16), behavior: "smooth" })
+      container.scrollTo({
+        top: Math.max(0, offset - 16),
+        behavior: motionIsReduced() ? "auto" : "smooth",
+      })
     })
     return () => cancelAnimationFrame(id)
   }, [cited])
@@ -162,7 +168,7 @@ export function CitationPanel({
                       </span>
                     ) : null}
                   </div>
-                  <p className="text-sm whitespace-pre-wrap">{chunk.content}</p>
+                  <CitationChunkText content={chunk.content} />
                 </div>
               )
             })}

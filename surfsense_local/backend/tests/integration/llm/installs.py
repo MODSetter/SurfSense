@@ -22,3 +22,15 @@ async def install_to_end(client: AsyncClient, **body: object) -> dict:
     started = await client.post("/llm/installs", json=body)
     assert started.status_code == 202, started.text
     return await wait_for_end(client, started.json()["id"])
+
+
+async def install_curated(
+    client: AsyncClient, model_id: str, quantization: str, **body: object
+) -> dict:
+    """Install one build of a catalog row and return its job once it completes."""
+    rows = (await client.get("/llm/catalog/local")).json()["rows"]
+    (row,) = [r for r in rows if r["id"] == model_id]
+    (build,) = [b for b in row["builds"] if b["quantization"] == quantization]
+    job = await install_to_end(client, catalog_id=build["catalog_id"], **body)
+    assert job["event"]["type"] == "complete", job
+    return job

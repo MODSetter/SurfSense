@@ -6,7 +6,7 @@ from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
 from modules.agent.agent_threads.turn_sources import turn_sources
-from modules.chat.models import ChatThread
+from modules.chat.models import AgentEngineKind, ChatThread
 from modules.chat.schemas import MessageCreate
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.folders.models import Folder
@@ -37,7 +37,11 @@ def test_a_scope_past_a_thousand_sources_bounds_the_turn_whole(engine: Engine) -
             for n in range(1003)
         ]
         session.add_all(notes)
-        thread = ChatThread(workspace_id=workspace.id, opencode_session_id="ses_1")
+        thread = ChatThread(
+            workspace_id=workspace.id,
+            agent_engine=AgentEngineKind.OPENCODE,
+            opencode_session_id="ses_1",
+        )
         session.add(thread)
         session.flush()
         unticked = notes[0].id
@@ -76,7 +80,11 @@ def test_a_ticked_folder_still_being_read_is_not_called_nothing_selected(
             )
             for n in range(2)
         )
-        thread = ChatThread(workspace_id=workspace.id, opencode_session_id="ses_1")
+        thread = ChatThread(
+            workspace_id=workspace.id,
+            agent_engine=AgentEngineKind.OPENCODE,
+            opencode_session_id="ses_1",
+        )
         session.add(thread)
         session.flush()
         scope = SourceScope(folder_ids=[library.id])
@@ -120,7 +128,11 @@ def _ready(
 
 
 def _agent_thread(session: Session, workspace_id: int) -> ChatThread:
-    thread = ChatThread(workspace_id=workspace_id, opencode_session_id="ses_1")
+    thread = ChatThread(
+        workspace_id=workspace_id,
+        agent_engine=AgentEngineKind.OPENCODE,
+        opencode_session_id="ses_1",
+    )
     session.add(thread)
     session.flush()
     return thread

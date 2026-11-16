@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react"
+import { useState, type SubmitEvent } from "react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -82,7 +82,7 @@ export function MoveToDialog({
   const chosen = picked === undefined ? target?.from : picked
   const canMove = target !== null && chosen !== target.from && !moving
 
-  const submit = async (event: FormEvent) => {
+  const submit = async (event: SubmitEvent) => {
     event.preventDefault()
     if (!target || chosen === undefined || !canMove) return
     setMoving(true)

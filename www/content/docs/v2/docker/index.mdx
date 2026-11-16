@@ -1,0 +1,122 @@
+---
+title: Docker
+description: Run SurfSense on your own server as one container, and open it from any browser
+---
+
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+
+The SurfSense Docker image, `ghcr.io/modsetter/surfsense`, runs the desktop app's whole stack in one container: the same app, the same local models, your remote connections and your license. You open it in a browser, from the server itself or from any device on your network.
+
+It is not the old self-hosted stack. That one lives on the `legacy` branch and is documented under [Legacy Docker installation](/docs/legacy/docker-installation). See [Differences](/docs/v2/docker/differences) for how the two compare.
+
+## Docker or the desktop app
+
+| Use | When |
+|---|---|
+| [The desktop app](/docs/v2/install) | You use SurfSense on one computer. It runs local models on your graphics card. |
+| Docker | You want SurfSense on a server or an always-on machine, and to reach it from your laptop, phone or another room. |
+
+<Callout type="warn" title="No GPU in Docker yet">
+The image runs local models on the processor only. Chat and image generation with a local model are much slower than on a desktop with a graphics card. Remote connections run at full speed. See [Differences](/docs/v2/docker/differences#local-models-run-on-the-processor).
+</Callout>
+
+## Requirements
+
+- An x86-64 (amd64) machine. ARM machines, including Apple Silicon Macs and Raspberry Pis, are not supported yet. The installer stops on them.
+- Docker with the Compose plugin (`docker compose`). On Windows and macOS, [Docker Desktop](https://docs.docker.com/desktop/). On Linux, [Docker Engine](https://docs.docker.com/engine/install/) is enough.
+- Several GB of free disk for the image, plus room for the models you download and your documents.
+
+## Install with one command
+
+The installer checks Docker, downloads the compose file and the settings file into a `surfsense` folder in the current directory, pulls the image and starts it. It asks nothing.
+
+<Tabs items={['Linux and macOS', 'Windows (PowerShell)']}>
+<Tab value="Linux and macOS">
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
+```
+
+</Tab>
+<Tab value="Windows (PowerShell)">
+
+Start Docker Desktop first, then run:
+
+```powershell
+irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 | iex
+```
+
+</Tab>
+</Tabs>
+
+The first pull is large, and the first start takes a minute or two. When it is done, the installer prints where to open SurfSense:
+
+```text
+  Open:      http://192.168.1.20:4929    (any device on this network)
+             http://localhost:4929    (this machine)
+
+  The first visit asks you to create a password.
+
+  Settings:  /home/you/surfsense/.env
+  Logs:      cd /home/you/surfsense && docker compose logs -f
+  Stop:      cd /home/you/surfsense && docker compose down
+  Update:    run this same command again
+```
+
+Running the same command again later updates SurfSense. See [Updating](/docs/v2/docker/updating).
+
+<Callout type="info">
+If `./surfsense` already holds something else, such as a legacy SurfSense install, the installer stops before writing anything. Run it from another folder.
+</Callout>
+
+## Install with Docker Compose by hand
+
+The installer only automates these steps. To do them yourself:
+
+```bash
+mkdir surfsense && cd surfsense
+curl -fsSLO https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/surfsense/docker-compose.yml
+curl -fsSLO https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/surfsense/.env.example
+cp .env.example .env
+docker compose up -d
+```
+
+Edit `.env` before `docker compose up -d` if you want to change anything. Every value is optional. See [Configuration](/docs/v2/docker/configuration).
+
+## First sign-in
+
+1. Open `http://<server address>:4929` in a browser, or `http://localhost:4929` on the server itself.
+2. SurfSense shows **Set up SurfSense**. Enter a password of at least 8 characters and choose **Create password**.
+3. The app opens. Every other device signs in with the same password on **Sign in to SurfSense**.
+
+Then continue with the [Quick start](/docs/v2/quick-start), as on the desktop.
+
+<Callout type="warn" title="On a server reachable from the internet">
+Whoever opens a new instance first creates its password. Docker's published ports pass the server's firewall, `ufw` included. On a VPS or any public server, set `SURFSENSE_PASSWORD` in `.env` before the first start. See [Access](/docs/v2/docker/access#set-the-password-before-the-first-start).
+</Callout>
+
+## Ports
+
+| Port on the host | Serves | Setting |
+|---|---|---|
+| `4929` | SurfSense over HTTP | `SURFSENSE_PORT` |
+| `4943` | SurfSense over HTTPS, once you turn HTTPS on. Nothing answers here otherwise. | `SURFSENSE_HTTPS_PORT` |
+
+Both are published on every network the server is on. To keep SurfSense to the server alone, set `SURFSENSE_BIND=127.0.0.1`. The legacy stack used port `3929`, so both can run side by side while you move your data.
+
+## Day-to-day commands
+
+Run these in the install folder, the one holding `docker-compose.yml`:
+
+```bash
+docker compose logs -f     # follow the logs
+docker compose down        # stop SurfSense; your data stays
+docker compose up -d       # start it again, or apply a changed .env
+```
+
+## Next
+
+- [Configuration](/docs/v2/docker/configuration): ports, HTTPS, a domain, a reverse proxy.
+- [Access](/docs/v2/docker/access): the password, sessions, and turning sign-in off.
+- [Updating](/docs/v2/docker/updating): updates, backups and uninstalling.
+- [Differences](/docs/v2/docker/differences): what works differently from the desktop app.

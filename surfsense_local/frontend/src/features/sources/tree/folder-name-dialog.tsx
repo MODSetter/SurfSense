@@ -1,4 +1,4 @@
-import { useId, useState, type FormEvent } from "react"
+import { useId, useState, type SubmitEvent } from "react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -40,7 +40,7 @@ export function FolderNameDialog({
   const name = value.trim()
   const creating = target?.kind !== "rename"
 
-  const submit = async (event: FormEvent) => {
+  const submit = async (event: SubmitEvent) => {
     event.preventDefault()
     if (!target || !name) return
     setSaving(true)

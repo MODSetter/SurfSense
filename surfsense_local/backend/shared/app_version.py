@@ -3,7 +3,7 @@
 from functools import lru_cache
 from importlib.metadata import version
 
-# A frozen build carries the package's metadata only because bundling/api.spec copies it.
+# A frozen build carries the package's metadata only because bundling/api_inputs.py copies it.
 PACKAGE = "surfsense-local-backend"
 
 

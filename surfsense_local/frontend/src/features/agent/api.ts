@@ -1,8 +1,9 @@
 import { requestJson, requestVoid } from "@/lib/api"
 
-/** The Studio artifact a `surfsense_render_document`,
- *  `surfsense_revise_document` or `surfsense_convert_document` call made,
- *  once that version is ready. */
+/** The Studio artifact a step made, once that version is ready: a render,
+ *  revision, conversion or saved page, a job run's revised copy
+ *  (`surfsense_run_job`), or the version that confirming the run's suggested
+ *  answers made (`surfsense_confirm_job_suggestions`). */
 export type RenderedArtifact = {
   id: number
   title: string
@@ -20,7 +21,6 @@ export type AgentStep = {
   call_id?: string | null
   tool: string | null
   status: "pending" | "running" | "completed" | "error"
-  title: string | null
   input: Record<string, unknown>
   output?: string
   error?: string
@@ -28,6 +28,11 @@ export type AgentStep = {
    *  when its script failed, though the failed version exists. Absent on
    *  every other tool. */
   artifact?: RenderedArtifact | null
+  /** The plugin whose tools the step loaded for the agent, by its name. */
+  loaded_plugin?: string
+  /** A web tool's hosts not allowed yet in Settings › Network, and the
+   *  consent question that allows them. */
+  refused?: { hosts: string[]; purpose: string }
 }
 
 /** The sources an agent turn was allowed to use: those ticked when it was
@@ -45,7 +50,7 @@ export type TurnSources = {
  *  refused its sign-in. */
 export type UnavailablePlugin = {
   title: string
-  reason: "unreachable" | "sign_in" | "license"
+  reason: "unreachable" | "sign_in" | "needs_scopes" | "license"
 }
 
 /** Something the agent wants to do that waits for the user's answer. */

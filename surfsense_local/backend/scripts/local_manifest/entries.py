@@ -83,6 +83,25 @@ _UMT5 = Companion(
 # 24 Sep 2026 (docs/proposals/local-audio-models.md, Measurements).
 _MEASURED = "memory measured on audio.cpp v0.8.2, 24 Sep 2026"
 
+# Nemotron 3.5 ASR: the 26 languages its card measures at 30% FLEURS error or
+# better, best first, each with the locale the family takes; and the locales it
+# also knows and may detect, which the app names but does not list
+# (docs/proposals/local-speech-to-text.md, Which model).
+# fmt: off
+_NEMOTRON_LOCALES = {
+    "it": "it-IT", "es": "es-ES", "en": "en-US", "pt": "pt-BR", "hi": "hi-IN",
+    "ko": "ko-KR", "de": "de-DE", "fr": "fr-FR", "ru": "ru-RU", "ja": "ja-JP",
+    "nl": "nl-NL", "vi": "vi-VN", "uk": "uk-UA", "tr": "tr-TR", "ar": "ar-AR",
+    "pl": "pl-PL", "zh": "zh-CN", "nb": "nb-NO", "fi": "fi-FI", "bg": "bg-BG",
+    "cs": "cs-CZ", "sk": "sk-SK", "sv": "sv-SE", "hr": "hr-HR", "ro": "ro-RO",
+    "da": "da-DK",
+}
+_NEMOTRON_DETECTED_ONLY = {
+    "et": "et-EE", "hu": "hu-HU", "el": "el-GR", "he": "he-IL", "lt": "lt-LT",
+    "lv": "lv-LV", "mt": "mt-MT", "nn": "nn-NO", "sl": "sl-SI", "th": "th-TH",
+}
+# fmt: on
+
 
 ENTRIES: tuple[Entry, ...] = (
     # Leads: the one local model whose remote runs passed the create-and-edit
@@ -459,6 +478,71 @@ ENTRIES: tuple[Entry, ...] = (
                     ("Leo", "male"),
                 )
             ],
+        },
+    ),
+    # Speech recognition: one model serves recordings and dictation.
+    AudioEntry(
+        id="nemotron-3.5-asr-streaming-0.6b",
+        name="Nemotron 3.5 ASR Streaming 0.6B",
+        family="Nemotron",
+        publisher="NVIDIA",
+        description="Turns speech into text in 26 languages and tells which one it hears.",
+        # OpenMDW-1.1, written `other` on the card; audio.cpp-gguf is tagged the same.
+        license="openmdw-1.1",
+        source_repo="nvidia/nemotron-3.5-asr-streaming-0.6b",
+        repo="audio-cpp/audio.cpp-gguf",
+        aliases=("nvidia/nemotron-3.5-asr-streaming-0.6b",),
+        folder="Nemotron-3.5-ASR-Streaming-0.6B-GGUF",
+        # The build measured; its F16 file (1.28 GB) is unmeasured.
+        builds=("Q8_0",),
+        transcription={
+            "origin": (
+                "nvidia/nemotron-3.5-asr-streaming-0.6b card; FLEURS from "
+                "handy-computer/nemotron-3.5-asr-streaming-0.6b-gguf; memory "
+                "measured on audio.cpp v0.8.2, Ryzen 7 5800X, 8 threads, 14 Oct 2026"
+            ),
+            "sample_rate": 16000,
+            # The first request, the load included.
+            "peak_mb": 1776,
+            "window_s": 28,
+            "detects_language": True,
+            "languages": list(_NEMOTRON_LOCALES),
+            "family_codes": _NEMOTRON_LOCALES,
+            "detected_only": _NEMOTRON_DETECTED_ONLY,
+            # The detected locale follows each sentence as `<xx-XX>`, which the
+            # app reads and strips; the server reports no language otherwise.
+            "request_options": {"keep_language_tags": True},
+        },
+    ),
+    # The light one, for English: 7.12% average error on the Open ASR
+    # leaderboard against Parakeet v3's 6.34, at a quarter of Nemotron's file.
+    AudioEntry(
+        id="canary-180m-flash",
+        name="Canary 180M Flash",
+        family="Canary",
+        publisher="NVIDIA",
+        description="Accurate English with little memory. Also German and French.",
+        license="cc-by-4.0",
+        source_repo="nvidia/canary-180m-flash",
+        repo="audio-cpp/audio.cpp-gguf",
+        aliases=("nvidia/canary-180m-flash",),
+        folder="Canary-180M-Flash-GGUF",
+        # The build measured; its F32 file (757.9 MB) is unmeasured.
+        builds=("Q8_0",),
+        transcription={
+            "origin": (
+                "nvidia/canary-180m-flash card; memory measured on audio.cpp "
+                "v0.8.2, Apple M2, 4 threads, 16 Oct 2026"
+            ),
+            "sample_rate": 16000,
+            # The first request, the load included, on a 25 s clip.
+            "peak_mb": 783,
+            "window_s": 28,
+            # Told no language, it translates into English instead.
+            "detects_language": False,
+            # Spanish is in the family but v0.8.2 drops every "ñ" it writes.
+            "languages": ["en", "de", "fr"],
+            "family_codes": {"en": "en", "de": "de", "fr": "fr"},
         },
     ),
     # Embedders: bge ships with the app and is the default; the rest are chosen

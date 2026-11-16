@@ -1,0 +1,27 @@
+---
+date: "2026-11-03"
+version: "2.3.1"
+---
+
+## What's New in v2.3.1
+
+v2.3.1 fixes in-app updates on Mac. Get the desktop app from the [downloads page](/downloads).
+
+### Mac users: install this version by hand once
+
+SurfSense 2.3.0 and earlier can't install this update on a Mac. The update downloads, then SurfSense closes when it tries to install it. Install v2.3.1 once by hand:
+
+- **Downloaded from the website**: Get it from the [downloads page](/downloads) and replace the app in Applications.
+- **Installed with Homebrew**: Run `brew upgrade`.
+
+Your data folder stays as it is. From v2.3.1 on, updates install in the app as usual.
+
+Windows and Linux update in the app as before.
+
+### No longer broken
+
+- **Mac updates**: Every Mac update since v2.1.0 is larger than 1 GiB, which the app couldn't install, so it closed instead. SurfSense now installs updates of any size.
+
+### Developers
+
+- **Pinned build tools**: `electron` is pinned to 44.10.1, and `electron-builder` and `electron-updater` are pinned exactly. Electron 44.7 is the first whose Mac updater installs an update over 1 GiB ([updates](https://github.com/MODSetter/SurfSense/blob/main/docs/architecture/updates.md#macos-the-1-gib-limit)).

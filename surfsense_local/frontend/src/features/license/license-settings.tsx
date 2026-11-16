@@ -1,5 +1,4 @@
 import { useRef, useState, type ChangeEvent } from "react"
-import { useQueryClient } from "@tanstack/react-query"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -18,36 +17,68 @@ import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
 import { ExternalLink } from "@/features/about/external-link"
+import { useAppDetails } from "@/features/about/use-app-details"
+import { useDeliveries } from "@/features/jobs/packs/download-job-packs"
+import { LicenseJobPacks } from "@/features/jobs/packs/license-job-packs"
 import { SettingsSection } from "@/features/settings/settings-section"
 import { intl } from "@/i18n/intl"
 
 import { translatedLicenseError } from "./license-error-text"
-import { PRICING_URL } from "./license-links"
+import { pricingUrl } from "./license-links"
+import { LicenseRenewal } from "./license-renewal"
 import {
   importLicense,
   readLicense,
   removeLicense,
   type LicenseStatus,
 } from "./api"
+import { jobName } from "./job-names"
+import { planName } from "./plan-name"
 import { TrialButton } from "./trial-button"
-import { licenseQueryKey, useLicense } from "./use-license"
-import { refreshLicenseVerdict } from "@/features/plugins/license-verdict"
+import { useLicense, usePublishLicense } from "./use-license"
+import { useLicenseRefresh } from "./use-license-refresh"
 
 const DAY = 24 * 60 * 60 * 1000
 const EXPIRY_NOTICE_DAYS = 14
 
 const messageFrom = translatedLicenseError
 
-function planLabel(plan: string) {
+function planLabel(status: LicenseStatus) {
   return intl.formatMessage(
     { id: "license_plan_title", defaultMessage: "{plan} plan" },
-    {
-      plan: `${plan.charAt(0).toUpperCase()}${plan.slice(1)}`,
-    }
+    { plan: planName(status) }
   )
 }
 
-function notice(status: LicenseStatus): {
+// A team key counts seats and a business key people, Solo's one included.
+function headcount(status: LicenseStatus): string | null {
+  if (!status.max_users) return null
+  if (status.plan !== "business")
+    return intl.formatMessage(
+      {
+        id: "license_status_seats_label",
+        defaultMessage: "{count, plural, one {# seat} other {# seats}}",
+      },
+      { count: status.max_users }
+    )
+  return intl.formatMessage(
+    {
+      id: "license_status_people_label",
+      defaultMessage: "{count, plural, one {# person} other {# people}}",
+    },
+    { count: status.max_users }
+  )
+}
+
+// Business renews on the same key, and a trial that carries jobs is Business's.
+function offersRenewal(status: LicenseStatus) {
+  return status.plan === "business" || status.jobs.length > 0
+}
+
+function notice(
+  status: LicenseStatus,
+  version: string | undefined
+): {
   title: string
   description: string
   link?: { href: string; label: string }
@@ -68,18 +99,36 @@ function notice(status: LicenseStatus): {
     }
   }
   if (status.state === "license_expired") {
+    const title = intl.formatMessage({
+      id: "license_expired_notice_title",
+      defaultMessage: "Expired",
+    })
+    // A renewal extends this same key, so it is fetched rather than bought anew.
+    if (offersRenewal(status))
+      return {
+        title,
+        description: intl.formatMessage({
+          id: "license_expired_business_notice_body",
+          defaultMessage:
+            "This license has ended. If it was renewed, Check for renewal fetches the new file.",
+        }),
+        link: {
+          href: pricingUrl("license_renew", version),
+          label: intl.formatMessage({
+            id: "license_expired_business_notice_link",
+            defaultMessage: "See pricing",
+          }),
+        },
+      }
     return {
-      title: intl.formatMessage({
-        id: "license_expired_notice_title",
-        defaultMessage: "Expired",
-      }),
+      title,
       description: intl.formatMessage({
         id: "license_expired_notice_body",
         defaultMessage:
           "This license has expired. Renewing issues a new file to add here.",
       }),
       link: {
-        href: PRICING_URL,
+        href: pricingUrl("license_renew", version),
         label: intl.formatMessage({
           id: "license_expired_notice_link",
           defaultMessage: "Renew license",
@@ -258,8 +307,8 @@ function LicenseFormDialog({
 }
 
 export function LicenseSettings() {
-  const queryClient = useQueryClient()
   const license = useLicense()
+  const version = useAppDetails().data?.version
   const [editor, setEditor] = useState<"add" | "replace" | null>(null)
   const [editorOpen, setEditorOpen] = useState(false)
   const openEditor = (mode: "add" | "replace") => {
@@ -268,14 +317,22 @@ export function LicenseSettings() {
   }
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
+  const refresh = useLicenseRefresh()
+  const deliveries = useDeliveries()
+  // A download still out asks with this license's key, so the license stays
+  // until it answers: one put in its place meanwhile would get no download.
+  const downloading = Object.values(deliveries).some(
+    (delivery) => delivery.phase === "downloading"
+  )
+  // One change to the license at a time, a renewal check included.
+  const changing = busy || refresh.isPending || downloading
 
   const status = license.data ?? null
-  // Straight into the cache rather than local state, so the sidebar's license
-  // row reacts to an import here without refetching.
+  const publishLicense = usePublishLicense()
   const publish = (next: LicenseStatus) => {
-    queryClient.setQueryData(licenseQueryKey, next)
-    // The paid plugins show what the new license unlocks, before anyone opens Plugins.
-    void refreshLicenseVerdict(queryClient, { ifStale: false })
+    publishLicense(next)
+    // The last check's outcome was about the license this one replaces.
+    refresh.reset()
   }
 
   const remove = async () => {
@@ -291,7 +348,10 @@ export function LicenseSettings() {
     }
   }
 
-  const shown = status && status.state !== "none" ? notice(status) : null
+  const shown =
+    status && status.state !== "none" ? notice(status, version) : null
+  const count = status ? headcount(status) : null
+  const firm = status?.firm?.trim()
   const error =
     actionError ?? (license.error ? messageFrom(license.error) : null)
   const loading = license.isPending
@@ -305,7 +365,7 @@ export function LicenseSettings() {
       description={intl.formatMessage({
         id: "license_settings_body",
         defaultMessage:
-          "Paid plugins need a license file tied to your email. It’s verified on this device.",
+          "Paid plugins and jobs need a license file tied to your email. It’s verified on this device.",
       })}
     >
       {loading ? (
@@ -324,7 +384,7 @@ export function LicenseSettings() {
                 defaultMessage: "No license on this device",
               })}
             </p>
-            <ExternalLink href={PRICING_URL}>
+            <ExternalLink href={pricingUrl("license_pricing", version)}>
               {intl.formatMessage({
                 id: "license_settings_pricing_link",
                 defaultMessage: "See pricing",
@@ -352,7 +412,7 @@ export function LicenseSettings() {
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2">
               <h3 className="text-sm font-medium text-balance">
-                {planLabel(status.plan ?? "")}
+                {planLabel(status)}
               </h3>
               {status.state === "active" ? (
                 <Badge variant="secondary">
@@ -363,6 +423,17 @@ export function LicenseSettings() {
                 </Badge>
               ) : null}
             </div>
+            {firm ? (
+              <p className="text-sm text-pretty text-muted-foreground">
+                {intl.formatMessage(
+                  {
+                    id: "license_status_firm_label",
+                    defaultMessage: "Licensed to {firm}",
+                  },
+                  { firm }
+                )}
+              </p>
+            ) : null}
             <p className="text-sm text-pretty text-muted-foreground">
               {status.email}
             </p>
@@ -389,23 +460,27 @@ export function LicenseSettings() {
                         }
                       )}
                 </span>
-                {status.max_users ? (
+                {count ? (
                   <>
                     <DotIcon aria-hidden="true" className="size-3 shrink-0" />
-                    <span>
-                      {intl.formatMessage(
-                        {
-                          id: "license_status_seats_label",
-                          defaultMessage:
-                            "{count, plural, one {# seat} other {# seats}}",
-                        },
-                        {
-                          count: status.max_users,
-                        }
-                      )}
-                    </span>
+                    <span>{count}</span>
                   </>
                 ) : null}
+              </p>
+            ) : null}
+            {status.jobs.length > 0 ? (
+              <p className="text-sm text-pretty text-muted-foreground">
+                {intl.formatMessage(
+                  {
+                    id: "license_status_jobs_label",
+                    defaultMessage: "Jobs: {jobs}",
+                  },
+                  {
+                    jobs: intl.formatList(status.jobs.map(jobName), {
+                      type: "conjunction",
+                    }),
+                  }
+                )}
               </p>
             ) : null}
           </div>
@@ -413,7 +488,7 @@ export function LicenseSettings() {
             <Button
               type="button"
               variant="outline"
-              disabled={busy}
+              disabled={changing}
               onClick={() => openEditor("replace")}
             >
               {intl.formatMessage({
@@ -424,7 +499,7 @@ export function LicenseSettings() {
             <Button
               type="button"
               variant="outline"
-              disabled={busy}
+              disabled={changing}
               onClick={() => void remove()}
             >
               {busy ? <Spinner data-icon="inline-start" /> : null}
@@ -435,6 +510,19 @@ export function LicenseSettings() {
             </Button>
           </div>
         </div>
+      ) : null}
+
+      {status && status.state !== "none" && offersRenewal(status) ? (
+        <LicenseRenewal refresh={refresh} disabled={busy} />
+      ) : null}
+
+      {/* A license that ended can still take a pack file from support. */}
+      {status && status.state !== "none" && status.jobs.length > 0 ? (
+        <LicenseJobPacks
+          jobs={status.jobs}
+          canDownload={status.state === "active"}
+          disabled={changing}
+        />
       ) : null}
 
       {shown ? (

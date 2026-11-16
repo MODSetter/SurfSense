@@ -1,5 +1,7 @@
 import { useState } from "react"
 
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { ChevronRightIcon } from "@/components/ui/icons"
 import {
   Table,
@@ -15,14 +17,11 @@ import { cn } from "@/lib/utils"
 import type { Plugin } from "../api"
 import { ConnectPluginButton } from "../details/connect-plugin-button"
 import { PluginIcon } from "../plugin-icon"
+import { notConnected } from "../not-connected"
+import { connectReason } from "./connect-reason"
 import { pluginStatus } from "./plugin-status"
+import { TONE_CLASS } from "./status-tone"
 import { pluginTypeLabel } from "./plugin-type-label"
-
-const TONE = {
-  failure: "text-destructive",
-  idle: "text-muted-foreground",
-  ok: "text-foreground",
-} as const
 
 /** One row per connected plugin; the name is a button that opens its details, stretched over the row. */
 
@@ -89,9 +88,11 @@ export function ConnectedPluginsTable({
               onMouseLeave={() => leave(plugin.id)}
             >
               <TableCell className={CELL}>
-                <button
+                <Button
                   type="button"
-                  className="flex max-w-full min-w-0 items-center gap-3 text-left font-medium outline-none after:absolute after:inset-0 after:rounded-lg focus-visible:after:ring-2 focus-visible:after:ring-ring"
+                  variant="bare"
+                  static
+                  className="flex max-w-full min-w-0 items-center gap-3 text-left font-medium after:absolute after:inset-0 after:rounded-lg focus-visible:ring-0 focus-visible:after:ring-2 focus-visible:after:ring-ring"
                   onClick={() => onOpen(plugin.id)}
                 >
                   <PluginIcon
@@ -102,26 +103,41 @@ export function ConnectedPluginsTable({
                     className="size-7 text-xs"
                   />
                   <span className="truncate">{plugin.name}</span>
-                </button>
+                </Button>
               </TableCell>
               <TableCell className={cn(CELL, "truncate text-muted-foreground")}>
                 {pluginTypeLabel(plugin.source)}
               </TableCell>
-              <TableCell className={cn(CELL, TONE[status.tone])}>
+              <TableCell className={cn(CELL, TONE_CLASS[status.tone])}>
                 <span className="flex items-center justify-between gap-2">
                   <span className="flex min-w-0 items-center gap-2">
-                    {plugin.disconnected ? (
-                      // Positioned, so it sits above the row's stretched link.
-                      <span className="relative flex items-center gap-2">
-                        <ConnectPluginButton
-                          plugin={plugin}
-                          size="sm"
-                          // As tall as the plugin's icon, so the row keeps its height; the row's text size.
-                          className="text-sm"
-                        />
-                      </span>
+                    {notConnected(plugin, thirdPartyAllowed) ? (
+                      <>
+                        {/* Positioned, so it sits above the row's stretched link. */}
+                        <span className="relative flex shrink-0 items-center">
+                          <ConnectPluginButton
+                            plugin={plugin}
+                            size="sm"
+                            // As tall as the plugin's icon, so the row keeps its height; the row's text size.
+                            className="text-sm"
+                          />
+                        </span>
+                        {/* The space keeps a screen reader from saying "ConnectKey refused". */}{" "}
+                        <span className="truncate text-muted-foreground">
+                          {connectReason(plugin)}
+                        </span>
+                      </>
                     ) : (
-                      <span className="truncate">{status.label}</span>
+                      <>
+                        <span className="truncate">{status.label}</span>
+                        {/* The space keeps a screen reader from saying "OnNew tools". */}
+                        {status.badge && (
+                          <>
+                            {" "}
+                            <Badge variant="secondary">{status.badge}</Badge>
+                          </>
+                        )}
+                      </>
                     )}
                   </span>
                   <ChevronRightIcon

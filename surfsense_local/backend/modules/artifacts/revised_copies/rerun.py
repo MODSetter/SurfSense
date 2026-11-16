@@ -3,9 +3,9 @@
 from sqlalchemy.orm import Session
 
 from modules.artifacts.models import Artifact
+from modules.artifacts.queued_job import queue_job
 from modules.artifacts.revised_copies.refusals import RevisedCopyRefusedError
 from modules.artifacts.revised_copies.versions import IN_FLIGHT
-from modules.artifacts.tasks import studio_job
 from modules.documents.models import DocumentStatus
 
 
@@ -17,6 +17,5 @@ def rerun_revised_copy(session: Session, artifact: Artifact) -> Artifact:
     document.status = DocumentStatus.PENDING
     document.error_message = None
     artifact.generation += 1
-    session.commit()
-    studio_job(artifact.id)
+    queue_job(session, artifact)
     return artifact

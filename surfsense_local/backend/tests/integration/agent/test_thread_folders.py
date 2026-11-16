@@ -18,7 +18,7 @@ from api.main import create_app
 from modules.agent.thread_folder import sync as sync_module
 from modules.agent.thread_folder import text_cache
 from modules.agent.thread_folder.sync import ThreadGoneError, sync_thread_folder
-from modules.chat.models import ChatThread
+from modules.chat.models import AgentEngineKind, ChatThread
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.folders.models import Folder
 from modules.folders.names import name_key
@@ -51,7 +51,10 @@ def workspace(session: Session) -> int:
 def agent_thread(session: Session, workspace_id: int) -> ChatThread:
     """A thread the agent answers, as opening one leaves it."""
     thread = ChatThread(
-        workspace_id=workspace_id, title="New chat", opencode_session_id="ses_test"
+        workspace_id=workspace_id,
+        title="New chat",
+        agent_engine=AgentEngineKind.OPENCODE,
+        opencode_session_id="ses_test",
     )
     session.add(thread)
     session.commit()
@@ -641,7 +644,11 @@ def test_a_deleted_thread_is_not_synced_again(
     session.delete(thread)
     session.commit()
     if id_given_out_again:
-        next_thread = ChatThread(workspace_id=workspace_id, opencode_session_id="ses_2")
+        next_thread = ChatThread(
+            workspace_id=workspace_id,
+            agent_engine=AgentEngineKind.OPENCODE,
+            opencode_session_id="ses_2",
+        )
         session.add(next_thread)
         session.commit()
         assert next_thread.id == thread.id

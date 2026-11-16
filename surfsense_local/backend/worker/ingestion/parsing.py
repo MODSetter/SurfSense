@@ -1,20 +1,28 @@
 import os
+from contextlib import nullcontext
 from functools import lru_cache
+from io import BytesIO
 from pathlib import Path
 from typing import Any
 
 import psutil
 
+from modules.documents.kindle_books.upload_check import KINDLE_SUFFIXES
 from modules.documents.models import Document, DocumentType
 from modules.documents.original_file import original_path
+from modules.documents.recordings.kind import is_recording
+from modules.documents.text_files import TEXT_SUFFIXES
 from shared.config import get_storage_settings
+from worker.ingestion.audio.transcript_job import recording_markdown
+from worker.ingestion.docx_style_cache import cached_style_lookups
 from worker.ingestion.figures.store import keep_figures
+from worker.ingestion.figures.word_figures_pass import leave_figures_to_the_pass
+from worker.ingestion.html_line_breaks import HTML_SUFFIXES, without_left_breaks
 from worker.ingestion.image_page import IMAGE_SUFFIXES, as_page
 from worker.ingestion.parser_pack import missing_parser_folders, parser_dir
+from worker.ingestion.scan_ocr.images import image_markdown
 from worker.ingestion.slideless_deck import describe_slideless_deck
-
-# Already text: read off disk rather than round-trip through Docling.
-TEXT_SUFFIXES = {".md", ".markdown", ".txt", ".text"}
+from worker.ingestion.word_markdown import markdown_without_docling
 
 
 class UnreadableFileError(Exception):
@@ -30,6 +38,19 @@ def markdown_for(document: Document) -> str:
     if path is None:
         raise FileNotFoundError("the uploaded file is no longer on disk")
 
+    # Before Docling, which must never read a recording.
+    if is_recording(document.mime_type):
+        return recording_markdown(document, path)
+    if path.suffix.lower() == ".pdf":
+        # Lazy: it reads through this module's converter.
+        from worker.ingestion.pdf_reading import pdf_markdown
+
+        return pdf_markdown(document, path)
+    if path.suffix.lower() in KINDLE_SUFFIXES:
+        # Lazy: it reads through this module's converter.
+        from worker.ingestion.kindle_books.markdown import book_markdown
+
+        return book_markdown(path)
     return _markdown_from(path)
 
 
@@ -37,15 +58,38 @@ def _markdown_from(path: Path) -> str:
     suffix = path.suffix.lower()
     if suffix in TEXT_SUFFIXES:
         return path.read_text(encoding="utf-8", errors="replace")
+    if suffix == ".docx" and (markdown := markdown_without_docling(path)) is not None:
+        # Its figures come from the figures-only pass, which still asks Docling.
+        leave_figures_to_the_pass(path)
+        return markdown
+    if suffix in IMAGE_SUFFIXES and (markdown := image_markdown(path)) is not None:
+        # An image is its own one figure; Docling's reading adds nothing to it.
+        keep_figures(path, None)
+        return markdown
 
     converted = convert(path)
     keep_figures(path, converted)
     template = describe_slideless_deck(path)
-    return converted.export_to_markdown() if template is None else template
+    if template is not None:
+        return template
+    markdown = converted.export_to_markdown()
+    # Only where Docling's HTML reader ran: other files may hold a real U+E000.
+    return without_left_breaks(markdown) if suffix in HTML_SUFFIXES else markdown
 
 
-def convert(path: Path) -> Any:
-    """Docling's reading of a file: its DoclingDocument."""
+def convert_html(html: str, name: str) -> Any:
+    """Docling's reading of HTML made in memory, as a file's would be: its
+    DoclingDocument."""
+    converter = _converter()
+    from docling.datamodel.base_models import DocumentStream
+
+    stream = DocumentStream(name=f"{name}.html", stream=BytesIO(html.encode()))
+    return converter.convert(stream).document
+
+
+def convert(path: Path, page_range: tuple[int, int] | None = None) -> Any:
+    """Docling's reading of a file, or of a PDF's pages first to last: its
+    DoclingDocument."""
     if describe_slideless_deck(path) is not None:
         from docling_core.types.doc import DoclingDocument
 
@@ -56,9 +100,14 @@ def convert(path: Path) -> Any:
     converter = _converter()
     from docling.exceptions import ConversionError, DocumentLoadError
 
-    source = as_page(path) if path.suffix.lower() in IMAGE_SUFFIXES else path
+    suffix = path.suffix.lower()
+    source = as_page(path) if suffix in IMAGE_SUFFIXES else path
+    reading = cached_style_lookups() if suffix == ".docx" else nullcontext()
     try:
-        return converter.convert(source).document
+        with reading:
+            if page_range is None:
+                return converter.convert(source).document
+            return converter.convert(source, page_range=page_range).document
     except ConversionError as refused:
         # Docling also reports a file it cannot open yet and a model that ran
         # out of memory this way; only bytes it cannot load fail the same again.
@@ -110,6 +159,7 @@ def _converter() -> Any:
             InputFormat.DOCX,
             InputFormat.PPTX,
             InputFormat.XLSX,
+            InputFormat.EPUB,
             InputFormat.HTML,
             InputFormat.CSV,
             InputFormat.MD,

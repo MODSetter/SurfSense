@@ -1,7 +1,15 @@
 from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Body,
+    Depends,
+    HTTPException,
+    Request,
+    status,
+)
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -9,6 +17,7 @@ from api.dependencies import SessionDep, transact
 from modules.artifacts.local_image_demand import local_image_demand
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.embedding.active import active_index
+from modules.events.dependencies import EventBrokerDep
 from modules.llm.activity import (
     ModelBusyError,
     ModelFileHeldError,
@@ -16,12 +25,14 @@ from modules.llm.activity import (
     model_key,
 )
 from modules.llm.capability import capability_of
+from modules.llm.capability.modes.router import router as modes_router
 from modules.llm.capability.read import capability_read
 from modules.llm.catalog.local.dependencies import LocalCatalogDep
 from modules.llm.catalog.local.engines.engine import LocalEngine
 from modules.llm.catalog.local.install_jobs.router import router as install_jobs_router
 from modules.llm.catalog.local.router import router as local_catalog_router
 from modules.llm.catalog.remote.router import router as remote_catalog_router
+from modules.llm.connections.elevenlabs_router import router as elevenlabs_router
 from modules.llm.connections.router import router as connections_router
 from modules.llm.dependencies import ProviderDep
 from modules.llm.local_image_state import local_image_state
@@ -33,7 +44,7 @@ from modules.llm.reads_images import (
     connection_catalog_provider,
     selection_reads_images,
 )
-from modules.llm.residency import warm_selected
+from modules.llm.residency import release_unselected, warm_selected
 from modules.llm.schemas import (
     LocalImageRuntimeRead,
     LocalImageStateRead,
@@ -49,6 +60,9 @@ from modules.llm.schemas import (
 from modules.llm.selectable import SLOTS, selectable_for
 from modules.llm.selection import choose_model, complete_onboarding
 from modules.llm.subscriptions.chatgpt.router import router as chatgpt_router
+from modules.llm.subscriptions.claude.router import router as claude_router
+from modules.llm.transcription.language_router import router as language_router
+from modules.llm.transcription.router import router as transcription_router
 from modules.llm.voices.router import router as voices_router
 from shared.config import get_llm_settings
 
@@ -56,10 +70,16 @@ router = APIRouter(prefix="/llm", tags=["llm"])
 router.include_router(local_catalog_router)
 router.include_router(install_jobs_router)
 router.include_router(remote_catalog_router)
-# Before the connections router, so `chatgpt` is never read as a connection id.
+# Before the connections router, so `chatgpt` and `claude` are never read as
+# connection ids.
 router.include_router(chatgpt_router)
+router.include_router(claude_router)
+router.include_router(elevenlabs_router)
 router.include_router(connections_router)
 router.include_router(voices_router)
+router.include_router(language_router)
+router.include_router(transcription_router)
+router.include_router(modes_router)
 
 
 @router.get(
@@ -332,6 +352,8 @@ async def set_selection(
     payload: SelectionWrite,
     session: SessionDep,
     background: BackgroundTasks,
+    broker: EventBrokerDep,
+    request: Request,
 ) -> SelectionRead:
     chosen = await choose_model(
         session,
@@ -340,6 +362,7 @@ async def set_selection(
         payload.name,
         connection_id=payload.connection_id,
         allow_unlisted=payload.allow_unlisted,
+        broker=broker,
     )
     # After the response, never during it: the load blocks until the model is
     # resident, which is the tens of seconds this exists to move somewhere the
@@ -347,7 +370,12 @@ async def set_selection(
     # are about to use it, and `--models-max 1` means the load is happening
     # either way — the only question is whether it happens now or on their
     # first question.
-    background.add_task(warm_selected, chosen, get_llm_settings().llamacpp_base_url)
+    base_url = get_llm_settings().llamacpp_base_url
+    background.add_task(warm_selected, chosen, base_url)
+    if model_type is ModelType.TEXT_GEN:
+        background.add_task(
+            release_unselected, chosen, base_url, request.app.state.local_admission
+        )
     return await _selection_read(session, chosen)
 
 

@@ -8,6 +8,7 @@ export const MODEL_TYPES = [
   "image_edit",
   "video_gen",
   "audio_gen",
+  "speech_to_text",
 ] as const
 
 export type ModelType = (typeof MODEL_TYPES)[number]

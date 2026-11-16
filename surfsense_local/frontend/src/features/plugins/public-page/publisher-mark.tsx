@@ -60,7 +60,7 @@ export function PublisherMark({ entry }: { entry: ListedEntry }) {
           </span>
         ) : (
           // As the sidebar's "New" badge (components/feature-badge.tsx), a shade apart
-          // from a Browse card's own secondary fill and its muted hover.
+          // from a Browse card's own muted fill and its hover.
           <Badge
             variant="secondary"
             className="h-4 rounded-md bg-accent px-1.5 text-[10px] text-accent-foreground"

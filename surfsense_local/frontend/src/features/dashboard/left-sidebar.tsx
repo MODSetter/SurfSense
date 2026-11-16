@@ -11,7 +11,11 @@ import { Button } from "@/components/ui/button"
 import { ChatsDialog } from "@/features/chat/chats-dialog"
 import type { ChatThread } from "@/features/chat/api"
 import type { RunState } from "@/features/chat/runs/run-store"
+import { useStartupReveal } from "@/features/startup/use-startup-reveal"
 import { intl } from "@/i18n/intl"
+import { cn } from "@/lib/utils"
+
+import { SidebarFrame } from "./sidebar-frame"
 
 // A row rendered below "New chat" with the same look. Add an entry here (or
 // pass one through `actions`) rather than hand-rolling another Button.
@@ -37,6 +41,7 @@ function SidebarNavButton({
 }: Omit<SidebarNavAction, "key">) {
   return (
     <Button
+      static
       variant="ghost"
       className="w-full justify-start px-2"
       onClick={onClick}
@@ -141,6 +146,7 @@ export const LeftSidebar = memo(function LeftSidebar({
   runStates = NO_RUNS,
   unreadThreadIds = NO_UNREAD,
   actions = NO_ACTIONS,
+  headerStart,
   sources,
   footer,
 }: {
@@ -159,6 +165,8 @@ export const LeftSidebar = memo(function LeftSidebar({
   unreadThreadIds?: number[]
   // Extra rows below "Chats", same look. Append here to add one.
   actions?: SidebarNavAction[]
+  // Before the logo: Docker's sidebar toggle.
+  headerStart?: ReactNode
   // The workspace's sources list, already built by the caller (mirrors how
   // RightPanel takes its studio/artifacts content as nodes).
   sources: ReactNode
@@ -166,14 +174,16 @@ export const LeftSidebar = memo(function LeftSidebar({
   footer?: ReactNode
 }) {
   const [chatsOpen, setChatsOpen] = useState(false)
+  const reveal = useStartupReveal()
 
   return (
-    <aside className="flex h-full min-w-0 flex-col border-r bg-background select-none">
-      <header className="space-y-6 px-3 py-3">
-        <h2 className="truncate px-1 brand-wordmark text-xl text-foreground select-none">
-          SurfSense
-        </h2>
-        <div className="flex flex-col">
+    <SidebarFrame
+      headerStart={headerStart}
+      nav={
+        <div
+          {...reveal}
+          className={cn("flex flex-col px-3 pt-2", reveal.className)}
+        >
           <SidebarNavButton
             label={intl.formatMessage({
               id: "dashboard_sidebar_new_chat_button",
@@ -195,11 +205,20 @@ export const LeftSidebar = memo(function LeftSidebar({
             <SidebarNavButton key={key} {...action} />
           ))}
         </div>
-      </header>
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-3 pt-5 pb-2">
+      }
+    >
+      <div
+        {...reveal}
+        className={cn(
+          "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-3 pt-5",
+          reveal.className
+        )}
+      >
         {sources}
       </div>
-      {footer}
+      <div {...reveal} className={cn("contents", reveal.className)}>
+        {footer}
+      </div>
       <ChatsDialog
         open={chatsOpen}
         onOpenChange={setChatsOpen}
@@ -216,6 +235,6 @@ export const LeftSidebar = memo(function LeftSidebar({
         runStates={runStates}
         unreadThreadIds={unreadThreadIds}
       />
-    </aside>
+    </SidebarFrame>
   )
 })

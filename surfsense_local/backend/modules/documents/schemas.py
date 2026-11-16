@@ -1,15 +1,21 @@
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Any, Self
 
 from pydantic import (
     BaseModel,
     ConfigDict,
     JsonValue,
+    ModelWrapValidatorHandler,
     PositiveInt,
     StringConstraints,
+    model_validator,
 )
 
-from modules.documents.models import DocumentStatus, DocumentType
+from modules.documents.models import Document, DocumentStatus, DocumentType
+from modules.documents.recordings.transcription_read import (
+    TranscriptionRead,
+    transcription_read,
+)
 
 DocumentTitle = Annotated[
     str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)
@@ -51,6 +57,19 @@ class DocumentRead(BaseModel):
     folder_id: int | None
     created_at: datetime
     updated_at: datetime
+    # Only for a recording: null for every other source.
+    transcription: TranscriptionRead | None = None
+
+    @model_validator(mode="wrap")
+    @classmethod
+    def _with_transcription(
+        cls, value: Any, handler: ModelWrapValidatorHandler[Self]
+    ) -> Self:
+        # Read off the row and the job's progress file, never stored as a column.
+        read = handler(value)
+        if isinstance(value, Document):
+            read.transcription = transcription_read(value)
+        return read
 
 
 class DocumentDetail(DocumentRead):

@@ -95,6 +95,8 @@ class FakeApi {
   // Each new chat's request, and a refusal to answer it with instead.
   creates: Array<Record<string, unknown>> = []
   refuseCreate: { status: number; code: string } | null = null
+  // A refusal to answer the next send with, before any frame.
+  refuseSend: { status: number; code: string } | null = null
   sendStreams: Stream[] = []
   stops: number[] = []
   follows: number[] = []
@@ -137,8 +139,15 @@ class FakeApi {
           this.nextReads[threadId]?.shift() ?? this.messages[threadId] ?? []
         )
       }
-      const stream = new Stream()
       this.sends.push({ threadId, body: JSON.parse(String(init?.body)) })
+      if (this.refuseSend) {
+        const { status, code } = this.refuseSend
+        return Response.json(
+          { detail: { code, message: "refused" } },
+          { status }
+        )
+      }
+      const stream = new Stream()
       this.sendStreams.push(stream)
       init?.signal?.addEventListener("abort", () => stream.hangUp())
       return new Response(stream.body, {
@@ -202,6 +211,7 @@ function renderRuntime({
   workspaceId = WORKSPACE,
   // The app's one client, kept across a switch of workspace.
   client = createQueryClient(),
+  onModelCheck = vi.fn(),
 } = {}) {
   const result = { current: undefined as unknown as Rendered }
   const renders = { page: 0, thread: 0 }
@@ -224,6 +234,7 @@ function renderRuntime({
       canSkipThinking: false,
       newChatMode,
       onModelRequired: vi.fn(),
+      onModelCheck,
     })
     renders.page += 1
     return (
@@ -289,6 +300,53 @@ function sendIn(
 }
 
 describe("useChatRuntime", () => {
+  it("sends a chip as readable text, and its id beside it", async () => {
+    const { result } = renderRuntime()
+    await waitFor(() => expect(result.current.isLoadingThreads).toBe(false))
+
+    sendIn(
+      result,
+      "compare :source[Memo]{name=document:3} and :source[Q3]{name=folder:7}"
+    )
+
+    await waitFor(() => expect(api.sends).toHaveLength(1))
+    expect(api.sends[0].body.text).toBe("compare @Memo and @Q3")
+    expect(api.sends[0].body.mentioned_sources).toEqual({
+      document_ids: [3],
+      folder_ids: [7],
+      chips: [
+        { id: "document:3", at: 8, length: 5 },
+        { id: "folder:7", at: 18, length: 3 },
+      ],
+    })
+  })
+
+  it("adds nothing to a message that names nothing", async () => {
+    const { result } = renderRuntime()
+    await waitFor(() => expect(result.current.isLoadingThreads).toBe(false))
+
+    sendIn(result, "mail me@example.com")
+
+    await waitFor(() => expect(api.sends).toHaveLength(1))
+    expect(api.sends[0].body).not.toHaveProperty("mentioned_sources")
+  })
+
+  it.each([false, true])(
+    "offers voice input whether the model reads images or not (reads images: %s)",
+    async (readsImages) => {
+      const { result } = renderRuntime({ readsImages })
+
+      await waitFor(() =>
+        expect(result.current.thread.getState().capabilities.dictation).toBe(
+          true
+        )
+      )
+      expect(result.current.thread.getState().capabilities.attachments).toBe(
+        readsImages
+      )
+    }
+  )
+
   it("keeps a reply arriving while another thread is open", async () => {
     const { result } = renderRuntime()
     await openThread(result, 1)
@@ -959,23 +1017,9 @@ describe("while a reply streams", () => {
 })
 
 describe("a new chat's mode", () => {
-  it("opens the chat in the mode picked for the model, and has it remembered", async () => {
+  it("opens the chat in the mode the switch shows", async () => {
     const { result } = renderRuntime({
-      newChatMode: { mode: "agentic", chosen: true },
-    })
-    await waitFor(() => expect(result.current.threads.length).toBe(2))
-
-    sendIn(result, "Draft the board pack")
-
-    await waitFor(() => expect(api.sendStreams).toHaveLength(1))
-    expect(api.creates).toEqual([
-      { title: "New chat", mode: "agentic", remember: true },
-    ])
-  })
-
-  it("opens the chat in the model's default without remembering it", async () => {
-    const { result } = renderRuntime({
-      newChatMode: { mode: "basic", chosen: false },
+      newChatMode: { mode: "basic" },
     })
     await waitFor(() => expect(result.current.threads.length).toBe(2))
 
@@ -1000,7 +1044,7 @@ describe("a new chat's mode", () => {
     onTestFinished(() => shown.mockRestore())
     api.refuseCreate = { status: 409, code: "tool_calls_unsupported" }
     const { result } = renderRuntime({
-      newChatMode: { mode: "agentic", chosen: true },
+      newChatMode: { mode: "agentic" },
     })
     await waitFor(() => expect(result.current.threads.length).toBe(2))
 
@@ -1016,4 +1060,24 @@ describe("a new chat's mode", () => {
       returned: { text: "Draft the board pack", images: [] },
     })
   })
+
+  it.each(["claude_too_old", "claude_sign_in_required"])(
+    "hands back a send Claude Code was refused for, with no reply, and asks the model check again (%s)",
+    async (code) => {
+      api.refuseSend = { status: 409, code }
+      const onModelCheck = vi.fn()
+      const { result } = renderRuntime({ onModelCheck })
+      await openThread(result, 1)
+
+      sendIn(result, "What about Q4?")
+
+      await waitFor(() => expect(onModelCheck).toHaveBeenCalledTimes(1))
+      expect(result.current.conversationView).toEqual({
+        status: "active",
+        threadId: 1,
+        returned: { text: "What about Q4?", images: [] },
+      })
+      expect(result.current.thread.getState().messages).toEqual([])
+    }
+  )
 })

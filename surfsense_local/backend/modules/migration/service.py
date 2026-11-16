@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from modules.chat.models import ChatMessage, ChatThread, MessageRole
 from modules.documents.models import Document, DocumentType
-from modules.documents.original_file import stored_name
+from modules.documents.original_file import emptied_document_dir, stored_name
 from modules.documents.storage import stream_upload, validate_upload
 from modules.documents.tasks import PRIORITY_BULK, ingest_document
 from modules.folders.ensure_path import ensure_folder_path
@@ -149,8 +149,7 @@ def _import_document(
         streamed.path.unlink(missing_ok=True)
         raise
 
-    destination = storage.document_dir(workspace_id, document.id)
-    destination.mkdir(parents=True, exist_ok=True)
+    destination = emptied_document_dir(workspace_id, document.id)
     streamed.path.replace(
         destination / stored_name(exported.title, path.suffix.lower())
     )

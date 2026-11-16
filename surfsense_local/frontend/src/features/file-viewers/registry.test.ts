@@ -8,4 +8,15 @@ describe("source file viewers", () => {
     expect(getFileViewer("text/plain")).toBeNull()
     expect(getFileViewer(null)).toBeNull()
   })
+
+  it("previews no recording until an audio viewer exists", () => {
+    for (const mimeType of [
+      "audio/wav",
+      "audio/mpeg",
+      "audio/flac",
+      "audio/ogg",
+    ]) {
+      expect(getFileViewer(mimeType)).toBeNull()
+    }
+  })
 })

@@ -5,6 +5,7 @@ from typing import Any
 
 from modules.agent.model_endpoint.model_address import ModelAddress
 from modules.llm.connections.conversation_fields import conversation_fields
+from modules.llm.connections.conversation_headers import conversation_headers
 
 _INSTRUCTIONS = {"system", "developer"}
 # Roles whose text can carry a source's words: what the user pastes, what a tool read.
@@ -32,6 +33,11 @@ def shaped_request(
         "model": address.name,
         "messages": shaped_messages(payload.get("messages") or []),
     }
+
+
+def shaped_headers(address: ModelAddress, session: str | None) -> dict[str, str]:
+    """The address's headers, plus what its host requires of this session."""
+    return {**address.headers, **conversation_headers(address.url, session)}
 
 
 def shaped_messages(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:

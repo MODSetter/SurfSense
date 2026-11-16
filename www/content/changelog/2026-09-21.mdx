@@ -1,0 +1,22 @@
+---
+date: "2026-09-21"
+version: "2.0.2"
+---
+
+## What's New in v2.0.2
+
+v2.0.2 is a small release. It fixes a startup failure after a reinstall and gives the installers fixed names, so download links keep working from one release to the next. Get it from the [downloads page](/downloads).
+
+### Downloads
+
+- **Installers without a version number**: The files are now `SurfSense-Setup.exe` (Windows), `SurfSense-arm64.dmg` (macOS, Apple Silicon), and `SurfSense.AppImage` and `SurfSense.deb` (Linux). A GitHub link ending in `/releases/latest/download/` plus one of those names always fetches the newest build.
+- **Latest on GitHub is the current app**: The Latest label on GitHub releases now marks the newest 2.x release instead of the retired v0.0.40. Old 0.0.x installs are still offered v0.0.40, which points them to the sunset page.
+
+### No longer broken
+
+- API keys saved before the app's secret was replaced, for example by a reinstall, left the app stuck on "SurfSense could not start". The app now drops keys it can no longer read and starts, and you enter the key again.
+
+### Developers
+
+- The Spanish, Brazilian Portuguese, Hindi and Simplified Chinese READMEs were rewritten for v2.0, and the language switcher is back.
+- `surfsense_local/scripts/bump-version.sh` now works on Windows, where `python3` can be a Microsoft Store alias that doesn't run.

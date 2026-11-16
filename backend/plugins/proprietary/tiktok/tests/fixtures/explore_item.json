@@ -1,0 +1,112 @@
+{
+ "id": "7695439183640349985",
+ "desc": "Trust the process #fy #hair #viral ",
+ "createTime": 1791734062,
+ "textLanguage": "en",
+ "isAd": false,
+ "author": {
+  "id": "1",
+  "uniqueId": "creator",
+  "nickname": "Creator",
+  "verified": false,
+  "signature": "bio",
+  "avatarLarger": "https://p16-common-sign.tiktokcdn-us.com/avatar.jpeg",
+  "secUid": "sec-1"
+ },
+ "authorStats": {
+  "diggCount": 36600,
+  "followerCount": 62700,
+  "followingCount": 333,
+  "friendCount": 0,
+  "heart": 10100000,
+  "heartCount": 10100000,
+  "videoCount": 105
+ },
+ "stats": {
+  "collectCount": 3028,
+  "commentCount": 154,
+  "diggCount": 51000,
+  "playCount": 606900,
+  "shareCount": 2361
+ },
+ "music": {
+  "id": "7618726403697134356",
+  "title": "оригинальный звук",
+  "authorName": "Всем привет ❤️‍🩹",
+  "original": true,
+  "playUrl": "https://v19.tiktokcdn-us.com/126d3a4e33be9338877af1ce9c66c804/6acfa824/video/tos/alisg/tos-alisg-v-27dcd7/oIXULFFu9IDeO3ACd2AgfREwp2IwJDaBQApyTB/"
+ },
+ "video": {
+  "id": "7695439183640349985",
+  "height": 1024,
+  "width": 576,
+  "duration": 37,
+  "cover": "https://p19-common-sign.tiktokcdn-us.com/tos-useast2a-p-0037-euttp/oIIDwBWpAwAIbAS1OdTiiiTZEBLfPA3L0oBsCq~tplv-tiktokx-origin.image",
+  "format": "mp4",
+  "definition": "540p"
+ },
+ "challenges": [
+  {
+   "coverLarger": "",
+   "coverMedium": "",
+   "coverThumb": "",
+   "desc": "",
+   "id": "153828",
+   "profileLarger": "",
+   "profileMedium": "",
+   "profileThumb": "",
+   "title": "fy"
+  },
+  {
+   "coverLarger": "https://p16-common-sign.tiktokcdn-us.com/tiktok-obj/6e0fca7b5d13375408be30bf83e51d81.jpeg~tplv-tiktokx-origin.image",
+   "coverMedium": "https://p16-common-sign.tiktokcdn-us.com/tiktok-obj/6e0fca7b5d13375408be30bf83e51d81.jpeg~tplv-tiktokx-origin.image",
+   "coverThumb": "https://p16-common-sign.tiktokcdn-us.com/tiktok-obj/6e0fca7b5d13375408be30bf83e51d81.jpeg~tplv-tiktokx-origin.image",
+   "desc": "Express yourself through your hair!",
+   "id": "5691",
+   "profileLarger": "https://p19-common-sign.tiktokcdn-us.com/tiktok-obj/90061d5a93ef11f8216b794c5c31523c.jpeg~tplv-tiktokx-origin.image",
+   "profileMedium": "https://p19-common-sign.tiktokcdn-us.com/tiktok-obj/90061d5a93ef11f8216b794c5c31523c.jpeg~tplv-tiktokx-origin.image",
+   "profileThumb": "https://p19-common-sign.tiktokcdn-us.com/tiktok-obj/90061d5a93ef11f8216b794c5c31523c.jpeg~tplv-tiktokx-origin.image",
+   "title": "hair"
+  },
+  {
+   "coverLarger": "https://p16-common-sign.tiktokcdn-us.com/musically-maliva-obj/8e4d8102460a60717c89acc2d6367a16.png~tplv-tiktokx-origin.image",
+   "coverMedium": "https://p16-common-sign.tiktokcdn-us.com/musically-maliva-obj/8e4d8102460a60717c89acc2d6367a16.png~tplv-tiktokx-origin.image",
+   "coverThumb": "https://p16-common-sign.tiktokcdn-us.com/musically-maliva-obj/8e4d8102460a60717c89acc2d6367a16.png~tplv-tiktokx-origin.image",
+   "desc": "¡descubre las canciones en tendencia! 🔥➡️ https://bit.ly/TendenciasTikTok_LATAM",
+   "id": "20884",
+   "profileLarger": "https://p16-common-sign.tiktokcdn-us.com/musically-maliva-obj/4321dd2ed3acc737461c4254f0c55add.png~tplv-tiktokx-origin.image",
+   "profileMedium": "https://p16-common-sign.tiktokcdn-us.com/musically-maliva-obj/4321dd2ed3acc737461c4254f0c55add.png~tplv-tiktokx-origin.image",
+   "profileThumb": "https://p16-common-sign.tiktokcdn-us.com/musically-maliva-obj/4321dd2ed3acc737461c4254f0c55add.png~tplv-tiktokx-origin.image",
+   "title": "viral"
+  }
+ ],
+ "textExtra": [
+  {
+   "awemeId": "",
+   "end": 21,
+   "hashtagName": "fy",
+   "isCommerce": false,
+   "start": 18,
+   "subType": 0,
+   "type": 1
+  },
+  {
+   "awemeId": "",
+   "end": 27,
+   "hashtagName": "hair",
+   "isCommerce": false,
+   "start": 22,
+   "subType": 0,
+   "type": 1
+  },
+  {
+   "awemeId": "",
+   "end": 34,
+   "hashtagName": "viral",
+   "isCommerce": false,
+   "start": 28,
+   "subType": 0,
+   "type": 1
+  }
+ ]
+}

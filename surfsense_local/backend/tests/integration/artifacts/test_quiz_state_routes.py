@@ -1,5 +1,6 @@
 """The quiz-state routes: a real quiz artifact on disk, driven over HTTP."""
 
+import json
 from typing import Any
 
 import pytest
@@ -33,14 +34,20 @@ def stub_model(monkeypatch: pytest.MonkeyPatch) -> None:
 
 _MODEL_REPLY = (
     '{"title": "Cassini", "questions": ['
-    '{"question": "Arrival at Saturn?", "options": ["1997", "2004", "2010", "2017"], '
-    '"answer": "2004", "explanation": "It arrived in 2004."},'
-    '{"question": "Mission end?", "options": ["2004", "2010", "2017", "2020"], '
-    '"answer": "2017", "explanation": "The Grand Finale was in 2017."},'
-    '{"question": "Launch vehicle?", "options": ["Titan IV", "Atlas V", "Delta II", "Saturn V"], '
-    '"answer": "Titan IV", "explanation": "Cassini launched on a Titan IV."}'
+    '{"question": "Arrival at Saturn?", "correct": "2004", '
+    '"distractors": ["1997", "2010", "2017"], "explanation": "It arrived in 2004."},'
+    '{"question": "Mission end?", "correct": "2017", '
+    '"distractors": ["2004", "2010", "2020"], "explanation": "The Grand Finale was in 2017."},'
+    '{"question": "Launch vehicle?", "correct": "Titan IV", '
+    '"distractors": ["Atlas V", "Delta II", "Saturn V"], '
+    '"explanation": "Cassini launched on a Titan IV."}'
     "]}"
 )
+# Where the builder shuffled each answer to.
+_CORRECT = [
+    question["correct_option_index"]
+    for question in json.loads(quiz.build(_MODEL_REPLY, []).primary)["questions"]
+]
 
 
 def make_quiz_artifact(session: Session) -> int:
@@ -130,10 +137,10 @@ async def test_retake_missed_after_completing_the_run(
     """The retake endpoint must read the quiz's real correct answers off
     disk to rescope the run to what was actually missed.
 
-    Correct answers (by option index) are [1, 2, 0]; only question 1 is
-    answered wrong here.
+    Only question 1 is answered wrong here.
     """
-    for index, choice in enumerate([1, 0, 0]):
+    wrong = (_CORRECT[1] + 1) % quiz.OPTIONS
+    for index, choice in enumerate([_CORRECT[0], wrong, _CORRECT[2]]):
         response = await client.put(
             f"/artifacts/{artifact_id}/quiz-state/answer",
             json={"question_index": index, "selected_option_index": choice},

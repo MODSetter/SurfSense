@@ -7,12 +7,15 @@ import socket
 import pytest
 from sqlalchemy.orm import Session, sessionmaker
 
+from modules.agent.model_endpoint import router as model_router
 from modules.llm.admission.pool import Priority
 from modules.llm.model_type import ModelType
 from modules.llm.models import SelectedModel
+from modules.llm.resolution import ModelResolutionError
 from shared.config import get_llm_settings
+from tests.integration.agent.test_agent_threads import of_type, open_thread, send
 
-from .conftest import Endpoint, StubModel, select_remote
+from .conftest import AgentAPI, Endpoint, StubModel, select_remote
 
 pytestmark = pytest.mark.integration
 
@@ -276,3 +279,25 @@ async def test_a_local_step_waits_for_the_runtime_like_a_chat_does(
     assert waited == []
     assert status == 200
     assert len(model_server.requests) == 1
+
+
+async def test_a_refusal_of_surfsense_s_own_ends_the_turn_rather_than_being_retried(
+    agent_api: AgentAPI, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """opencode 2.x retries a 409 as a server fault until the turn is stopped; the
+    endpoint's own refusals say not to, so the turn ends with them."""
+    asked: list[str] = []
+
+    def refused(_session: Session, route: str) -> None:
+        asked.append(route)
+        raise ModelResolutionError("no chat model selected")
+
+    thread = await open_thread(agent_api)
+    monkeypatch.setattr(model_router, "address_selected_model", refused)
+
+    async with asyncio.timeout(20):
+        frames = await send(agent_api, thread["id"], "Hello")
+
+    (failed,) = of_type(frames, "error")
+    assert "no chat model selected" in failed["message"]
+    assert asked == ["chat_completions"]

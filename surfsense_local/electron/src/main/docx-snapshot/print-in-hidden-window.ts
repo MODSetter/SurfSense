@@ -1,5 +1,6 @@
 import { BrowserWindow, session } from "electron"
 
+import { captureWebPage } from "./capture-web-page.ts"
 import { confineSnapshotSession } from "./confine-snapshot-session.ts"
 import { printOptions } from "./print-options.ts"
 import type { PrintSnapshot } from "./serve-snapshots.ts"
@@ -21,6 +22,14 @@ export function printInHiddenWindow(page: URL): PrintSnapshot {
   const allow = confineSnapshotSession(snapshotSession, page)
 
   return async ({ fileUrl, format, pages }, signal) => {
+    if (format === "html") {
+      const release = allow(fileUrl)
+      try {
+        return await captureWebPage(snapshotSession, fileUrl, signal)
+      } finally {
+        release()
+      }
+    }
     const win = new BrowserWindow({
       show: false,
       webPreferences: {
@@ -47,6 +56,8 @@ export function printInHiddenWindow(page: URL): PrintSnapshot {
       const url = new URL(page)
       url.searchParams.set("file", fileUrl)
       url.searchParams.set("format", format)
+      // The page draws only these; drawing a long file's every page could outlast the print's time.
+      url.searchParams.set("pages", pages)
       await win.loadURL(url.href)
       // A rejected promise reaches here without its message, so the page resolves its reason.
       const answer: unknown = await win.webContents.executeJavaScript("window.docxSnapshot")

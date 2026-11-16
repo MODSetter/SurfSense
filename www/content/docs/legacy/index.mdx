@@ -1,0 +1,69 @@
+---
+title: Documentation
+description: Welcome to SurfSense's documentation
+icon: BookOpen
+---
+
+import { Card, Cards } from 'fumadocs-ui/components/card';
+import { BookOpen01Icon, BubbleChatIcon, CableIcon, ContainerIcon, CpuIcon, FavouriteIcon, FlaskConicalIcon, Wrench01Icon } from '@/components/ui/icons';
+
+Welcome to **SurfSense's Documentation!** Here, you'll find everything you need to get the most out of SurfSense.
+
+<Callout title="Legacy version">
+  0.0.41 is the final release of the self-hosted Docker stack. Its code lives on the [`legacy` branch](https://github.com/MODSetter/SurfSense/tree/legacy), which takes bug fixes only. New work happens in [SurfSense 2.0](/docs).
+</Callout>
+
+## Getting Started
+
+The fastest way to run SurfSense is the [Docker installation](/docs/legacy/docker-installation), one command and you're up. If you want full control over each component (or want to contribute), use the [manual installation](/docs/legacy/manual-installation).
+
+<Cards>
+  <Card
+    icon={<ContainerIcon />}
+    title="Docker Installation"
+    description="One command, all dependencies pre-configured (recommended)"
+    href="/docs/legacy/docker-installation"
+  />
+  <Card
+    icon={<Wrench01Icon />}
+    title="Manual Installation"
+    description="Set up SurfSense from source, component by component"
+    href="/docs/legacy/manual-installation"
+  />
+  <Card
+    icon={<CableIcon />}
+    title="Connectors"
+    description="Built-in scraper APIs plus Notion, Slack, Google, Jira, and more"
+    href="/docs/legacy/connectors"
+  />
+  <Card
+    icon={<CpuIcon />}
+    title="Local Models"
+    description="Connect local model servers like Ollama and LM Studio"
+    href="/docs/legacy/local-models"
+  />
+  <Card
+    icon={<BubbleChatIcon />}
+    title="Messaging Channels"
+    description="Chat with SurfSense from Telegram, WhatsApp, Slack, and Discord"
+    href="/docs/legacy/messaging-channels"
+  />
+  <Card
+    icon={<BookOpen01Icon />}
+    title="How-To Guides"
+    description="Step-by-step guides for common tasks"
+    href="/docs/legacy/how-to"
+  />
+  <Card
+    icon={<FlaskConicalIcon />}
+    title="Testing"
+    description="Running and writing tests for SurfSense"
+    href="/docs/legacy/testing"
+  />
+  <Card
+    icon={<FavouriteIcon />}
+    title="Code of Conduct"
+    description="Community guidelines and expectations"
+    href="/docs/legacy/code-of-conduct"
+  />
+</Cards>

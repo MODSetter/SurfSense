@@ -4,10 +4,15 @@ import { ApiError } from "@/lib/api"
 // English mirrors `_required()` in modules/artifacts/service.py, whose
 // `_required_code()` builds the `needs_*` codes for a refused create or
 // regenerate (a refine's `needs_chat` comes from studio_documents/fits.py),
-// and the sentences its `_refused()` sends for a job that cannot start, be
-// run again or be stopped;
-// the backend's own text stays the fallback for a code that has no line here.
-const studioErrorText: Record<string, () => string> = {
+// and the sentences `refused()` sends for a job that cannot start, be run
+// again or be stopped, and for a document that cannot be refined
+// (studio_documents/service.py) or is too long to rewrite (fits.py), and for a
+// picture that cannot be edited or has no model to edit it (image_edits/);
+// the backend's own text stays the fallback for a code that has no line here,
+// and for one whose values did not come with it.
+type Detail = Record<string, unknown>
+
+const studioErrorText: Record<string, (detail: Detail) => string | null> = {
   already_generating: () =>
     intl.formatMessage({
       id: "studio_error_already_generating",
@@ -33,6 +38,68 @@ const studioErrorText: Record<string, () => string> = {
       id: "studio_error_sources_gone",
       defaultMessage: "None of this artifact’s sources are left.",
     }),
+  not_refinable: () =>
+    intl.formatMessage({
+      id: "studio_error_not_refinable",
+      defaultMessage:
+        "Only a Word document, PDF or web page made in Studio can be refined.",
+    }),
+  not_editable: () =>
+    intl.formatMessage({
+      id: "studio_error_not_editable",
+      defaultMessage:
+        "Only an image or infographic made in Studio can be edited.",
+    }),
+  agent_made: () =>
+    intl.formatMessage({
+      id: "studio_error_agent_made",
+      defaultMessage:
+        "The agent made this document: ask for changes in its chat.",
+    }),
+  version_unfinished: () =>
+    intl.formatMessage({
+      id: "studio_error_version_unfinished",
+      defaultMessage:
+        "This version did not finish: retry it, or refine another version.",
+    }),
+  image_version_unfinished: () =>
+    intl.formatMessage({
+      id: "studio_error_image_version_unfinished",
+      defaultMessage:
+        "This version did not finish: retry it, or edit another version.",
+    }),
+  edited_from: () =>
+    intl.formatMessage({
+      id: "studio_error_edited_from",
+      defaultMessage:
+        "A later version is edited from this one: delete the whole document.",
+    }),
+  placed_in_document: () =>
+    intl.formatMessage({
+      id: "studio_error_placed_in_document",
+      defaultMessage:
+        "A document places this picture: delete that document first.",
+    }),
+  // The sentence's name and numbers arrive raw beside the code.
+  rewrite_too_long: ({ model, spec_tokens, needed_tokens, window_tokens }) =>
+    typeof model === "string" &&
+    typeof spec_tokens === "number" &&
+    typeof needed_tokens === "number" &&
+    typeof window_tokens === "number"
+      ? intl.formatMessage(
+          {
+            id: "studio_error_rewrite_too_long",
+            defaultMessage:
+              "This document is too long for {model} to rewrite in one go: it is about {specTokens, number} tokens, and reading it and writing it again needs about {neededTokens, number} of the model’s {windowTokens, number}-token window.",
+          },
+          {
+            model,
+            specTokens: spec_tokens,
+            neededTokens: needed_tokens,
+            windowTokens: window_tokens,
+          }
+        )
+      : null,
   needs_chat: () =>
     intl.formatMessage({
       id: "studio_error_needs_chat",
@@ -60,6 +127,11 @@ const studioErrorText: Record<string, () => string> = {
     }),
 }
 
+/** The interface's line for a refusal's code, before anything was sent. */
+export function studioCodeText(code: string) {
+  return Object.hasOwn(studioErrorText, code) ? studioErrorText[code]({}) : null
+}
+
 /** The interface's own line for a refused Studio action, or null for an error it has none for. */
 export function translatedStudioError(error: unknown) {
   if (
@@ -69,5 +141,5 @@ export function translatedStudioError(error: unknown) {
   ) {
     return null
   }
-  return studioErrorText[error.code]()
+  return studioErrorText[error.code](error.detail)
 }

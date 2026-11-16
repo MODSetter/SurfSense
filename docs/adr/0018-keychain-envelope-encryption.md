@@ -11,7 +11,7 @@ A remote connection's API key has to be usable by the processes that make the ca
 ## Decision
 
 - Envelope encryption. Electron keeps one random 32-byte secret per install in `secret.bin`, in its userData directory, encrypted with `safeStorage`, the OS keychain ([`electron/src/main/secret.ts`](../../surfsense_local/electron/src/main/secret.ts)).
-- Electron passes the secret as `SURFSENSE_LOCAL_SECRET` to the API and both workers ([`sidecars/python.ts`](../../surfsense_local/electron/src/main/sidecars/python.ts)). llama-server and sd-server do not get it.
+- Electron passes the secret as `SURFSENSE_LOCAL_SECRET` to the API and both workers ([`sidecars/python.ts`](../../surfsense_local/sidecars/python.ts)). llama-server and sd-server do not get it.
 - The backend derives a Fernet key from the secret with SHA-256 and stores each provider key encrypted in `provider_connections.api_key_ciphertext` ([`shared/secrets.py`](../../surfsense_local/backend/shared/secrets.py)). Revision `0007` dropped the plaintext `api_key` column.
 - The API never returns a key. A connection reads back `has_api_key` only.
 

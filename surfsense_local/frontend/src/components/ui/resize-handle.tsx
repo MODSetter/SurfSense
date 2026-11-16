@@ -102,9 +102,14 @@ function ResizeHandle({
       tabIndex={0}
       data-slot="resize-handle"
       data-dragging={dragging || undefined}
-      // Takes no room: it overhangs both columns by half its width.
+      // Takes no room: it overhangs both columns by half its width. Its mark is a
+      // short grip at the middle, not a line the full height of the columns,
+      // centred on the 1 px border the resized column draws beside the boundary.
       className={cn(
-        "relative z-10 -mx-1 w-2 shrink-0 cursor-col-resize touch-none outline-none select-none after:pointer-events-none after:absolute after:inset-y-0 after:left-1/2 after:w-0.5 after:-translate-x-1/2 after:transition-colors after:duration-150 hover:after:bg-ring/40 focus-visible:after:bg-ring data-dragging:after:bg-ring/60 motion-reduce:after:transition-none",
+        "relative z-10 -mx-1 w-2 shrink-0 cursor-col-resize touch-none outline-none select-none after:pointer-events-none after:absolute after:top-1/2 after:h-8 after:w-1 after:-translate-1/2 after:rounded-full after:transition-colors after:duration-150 hover:after:bg-ring/50 focus-visible:after:bg-ring data-dragging:after:bg-ring/70 motion-reduce:after:transition-none",
+        side === "start"
+          ? "after:left-[calc(50%-0.5px)]"
+          : "after:left-[calc(50%+0.5px)]",
         className
       )}
       onPointerDown={(event) => {

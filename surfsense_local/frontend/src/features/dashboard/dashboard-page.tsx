@@ -1,36 +1,37 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { AgentApprovalsProvider } from "@/features/agent/agent-approvals"
+import { IN_CONTAINER } from "@/app/in-container"
 import {
   CircleAlertIcon,
   LayoutGridIcon,
   PlusIcon,
-  SidebarRightIcon,
   PlugIcon,
+  Task01Icon,
   XIcon,
 } from "@/components/ui/icons"
 
 import { FeatureBadge } from "@/components/feature-badge"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
 import { CitationPanel } from "@/features/chat/citation-panel"
 import { consentPlaceholder } from "@/features/chat/model-issue"
 import { askEgress } from "@/features/egress/ask-egress"
-import { setDestinationEnabled } from "@/features/egress/api"
+import { setDestinationsEnabled } from "@/features/egress/api"
+import { ExtraUsageNotice } from "@/features/chat/extra-usage/extra-usage-notice"
+import { useExtraUsage } from "@/features/chat/extra-usage/extra-usage-store"
+import { useSelectedOnClaudePlan } from "@/features/chat/extra-usage/use-selected-on-claude-plan"
 import { ModelIssueNotice } from "@/features/chat/model-issue-notice"
 import {
   useBlockAgentic,
   useNewChatChoice,
 } from "@/features/chat/modes/new-chat-mode"
 import { NewChatModeProvider } from "@/features/chat/modes/new-chat-mode-provider"
+import { rememberNextNewChatMode } from "@/features/chat/modes/next-new-chat-mode"
 import { canSkipThinking } from "@/features/chat/thinking-preference"
 import { ThreadPanel } from "@/features/chat/thread-panel"
 import { useChatRuntime } from "@/features/chat/use-chat-runtime"
 import { useHelpMenuReport } from "@/features/feedback/help-menu-report"
+import { JobsDialog } from "@/features/jobs/jobs-dialog"
 import type { ImportAccepted } from "@/features/migration/api"
 import { ImportBundleButton } from "@/features/migration/import-bundle"
 import { modelKey, type ModelSelection } from "@/features/models/selection/api"
@@ -45,6 +46,7 @@ import {
 } from "@/features/settings/settings-dialog"
 import { SourcesPanel } from "@/features/sources/sources-panel"
 import { useSources } from "@/features/sources/use-sources"
+import { useWebSources } from "@/features/sources/web/use-web-sources"
 import { getFileViewer } from "@/features/file-viewers/registry"
 import { SourcePreviewPanel } from "@/features/source-preview/source-preview-panel"
 import { ArtifactList } from "@/features/studio/artifact-list"
@@ -56,20 +58,26 @@ import {
 } from "@/features/office-support/office-offer"
 import { StudioPanel } from "@/features/studio/studio-panel"
 import { useStudio } from "@/features/studio/use-studio"
-import { UpdateButton } from "@/features/updates/update-settings"
+import { TitleBarUpdate } from "@/features/updates/title-bar-update"
 import type { Workspace } from "@/features/workspaces/api"
 import { useWorkspaces } from "@/features/workspaces/use-workspaces"
+import { useStartupReveal } from "@/features/startup/use-startup-reveal"
 import { useStableCallback } from "@/hooks/use-stable-callback"
+import { onStorageSettingsRequested } from "@/features/storage/open-storage-settings"
 import { intl } from "@/i18n/intl"
+import { cn } from "@/lib/utils"
 import { WorkspaceRail } from "@/features/workspaces/workspace-rail"
 import type { PluginsStart } from "@/features/plugins/plugins-settings"
 import {
   readRightPanelOpen,
+  readSidebarOpen,
   readSourcePreview,
   writeRightPanelOpen,
+  writeSidebarOpen,
   writeSourcePreview,
 } from "./chrome-prefs"
 import {
+  ChatColumn,
   ColumnEdge,
   DashboardColumns,
   RightPanelRail,
@@ -77,7 +85,12 @@ import {
 } from "./dashboard-columns"
 import { LeftSidebar, type SidebarNavAction } from "./left-sidebar"
 import { RightPanel } from "./right-panel"
+import { CornerToggle, CornerToggleSlot } from "./corner-toggle"
+import { RightPanelToggle } from "./right-panel-toggle"
+import { DashboardShell } from "./dashboard-shell"
 import { SidebarFooter } from "./sidebar-footer"
+import { SidebarToggle } from "./sidebar-toggle"
+import { useSidebarShortcut } from "./use-sidebar-shortcut"
 
 // Clicking "N sources" in the composer used to switch the right rail to its
 // Sources tab. Sources now live in the always-visible left sidebar, so the
@@ -100,9 +113,12 @@ function WorkspaceDashboard({
   onModelIssueSettings,
   onAllowModelIssue,
   onModelRequired,
+  onModelCheck,
   onModelSelected,
   onOpenLicense,
   onOpenAudioSettings,
+  onOpenSpeechSettings,
+  onOpenModelSettings,
   onOpenOfficeSupport,
   onOpenPlugins,
   modelsVisited,
@@ -111,6 +127,7 @@ function WorkspaceDashboard({
   selection: ModelSelection | null
   providerAvailable: boolean
   modelIssue: ModelIssue | null
+  onModelCheck: () => void
   needsConsent: boolean
   onModelIssueSettings: () => void
   onAllowModelIssue: () => void
@@ -118,16 +135,21 @@ function WorkspaceDashboard({
   onModelSelected: (selection: ModelSelection) => void
   onOpenLicense: () => void
   onOpenAudioSettings: () => void
+  onOpenSpeechSettings: () => void
+  onOpenModelSettings: (section: SettingsSectionId) => void
   onOpenOfficeSupport: () => void
   onOpenPlugins: (start?: PluginsStart) => void
   modelsVisited: number
 }) {
+  const reveal = useStartupReveal()
   const [inspect, setInspect] = useState<Inspect>(null)
   const [rightPanelOpen, setRightPanelOpen] = useState(readRightPanelOpen)
+  const [sidebarWanted, setSidebarWanted] = useState(readSidebarOpen)
   const [sourcePreviewId, setSourcePreviewId] = useState<number | null>(() =>
     readSourcePreview(workspace.id)
   )
   const sources = useSources(workspace.id)
+  const webSources = useWebSources(workspace.id, sources.addCreated)
   // Which formats Studio offers is the server's answer to what is selected,
   // so it has to be asked again when that changes. The chat model is named
   // here directly; the image model is chosen inside the settings dialog and
@@ -142,6 +164,21 @@ function WorkspaceDashboard({
     )
     return sources.includedDocumentIds.map((id) => titles.get(id) ?? "")
   }, [sources.documents, sources.includedDocumentIds])
+  const mentionables = useMemo(
+    () => ({
+      documents: sources.documents,
+      index: sources.index,
+      artifacts: studio.artifacts,
+      isLoading: sources.isLoading || studio.isLoading,
+    }),
+    [
+      sources.documents,
+      sources.index,
+      sources.isLoading,
+      studio.artifacts,
+      studio.isLoading,
+    ]
+  )
   const blockAgentic = useBlockAgentic()
   // Bound to the model the chat was asked on: the picker stays open meanwhile.
   const onAgenticGate = useCallback(
@@ -161,6 +198,7 @@ function WorkspaceDashboard({
     newChatMode: useNewChatChoice(selection),
     onAgenticGate,
     onModelRequired,
+    onModelCheck,
   })
   const sourcePreview = sources.documents.find(
     (document) => document.id === sourcePreviewId
@@ -182,6 +220,9 @@ function WorkspaceDashboard({
 
   const composerHold =
     modelIssue && needsConsent ? consentPlaceholder(modelIssue) : undefined
+  // A model issue blocks sending, so it takes the composer's one notice first.
+  const extraUsage = useExtraUsage()
+  const onClaudePlan = useSelectedOnClaudePlan(selection)
 
   const closeInspect = () => setInspect(null)
   const startNewChat = () => {
@@ -195,6 +236,7 @@ function WorkspaceDashboard({
   // Stable, like everything else the memoized sources panel takes: this page
   // re-renders when a run starts, ends or changes state, and for a title, a
   // thread switch, Settings and the other columns.
+  const openSpeechSettings = useStableCallback(() => onOpenSpeechSettings())
   const toggleSourcePreview = useStableCallback((documentId: number) => {
     const next = sourcePreviewId === documentId ? null : documentId
     setSourcePreviewId(next)
@@ -252,6 +294,9 @@ function WorkspaceDashboard({
           onRename={sources.rename}
           folderActions={sources.folderActions}
           notes={sourceNotes}
+          web={webSources}
+          transcriptionPaces={sources.transcriptionPaces}
+          onOpenSpeechSettings={openSpeechSettings}
         />
       </aside>
     ),
@@ -279,12 +324,23 @@ function WorkspaceDashboard({
       sources.rename,
       sources.folderActions,
       sourceNotes,
+      webSources,
+      sources.transcriptionPaces,
+      openSpeechSettings,
     ]
   )
   const sidebarFooter = useMemo(
     () => <SidebarFooter onOpenLicense={onOpenLicense} />,
     [onOpenLicense]
   )
+  const [jobsOpen, setJobsOpen] = useState(false)
+  const openJobs = useCallback(() => setJobsOpen(true), [])
+  // Stable, for the memoized Jobs dialog: the page above makes both anew on
+  // each of its renders.
+  const openModelSettings = useStableCallback((section: SettingsSectionId) =>
+    onOpenModelSettings(section)
+  )
+  const openLicense = useStableCallback(() => onOpenLicense())
   const sidebarActions = useMemo<SidebarNavAction[]>(
     () => [
       {
@@ -294,11 +350,20 @@ function WorkspaceDashboard({
           defaultMessage: "Plugins",
         }),
         icon: PlugIcon,
-        badge: <FeatureBadge stage="new" />,
         onClick: () => onOpenPlugins(),
       },
+      {
+        key: "jobs",
+        label: intl.formatMessage({
+          id: "dashboard_sidebar_jobs_button",
+          defaultMessage: "Jobs",
+        }),
+        icon: Task01Icon,
+        badge: <FeatureBadge stage="new" />,
+        onClick: openJobs,
+      },
     ],
-    [onOpenPlugins]
+    [onOpenPlugins, openJobs]
   )
   // The sidebar's callbacks keep one identity and call the latest chat.
   const sidebarNewChat = useStableCallback(() => startNewChat())
@@ -315,6 +380,33 @@ function WorkspaceDashboard({
   })
   const sidebarTitleAnimationComplete = useStableCallback(() =>
     chat.finishTitleAnimation()
+  )
+  // A source preview needs its column, so it shows over a hidden sidebar.
+  const sidebarOpen = sidebarWanted || sourcePreviewOpen
+  const setSidebar = useStableCallback((open: boolean) => {
+    setSidebarWanted(open)
+    writeSidebarOpen(open)
+  })
+  const toggleSidebar = useStableCallback(() => {
+    if (sourcePreviewOpen) closeSourcePreview()
+    setSidebar(!sidebarOpen)
+  })
+  useSidebarShortcut(toggleSidebar)
+  // Docker's toggle sits in the columns' corner: shown, the logo keeps its
+  // room; floated in, the sidebar covers that corner and carries its own.
+  const sidebarHeaderStart = useMemo(
+    () =>
+      !IN_CONTAINER ? null : sidebarOpen ? (
+        <CornerToggleSlot className="-ml-1" />
+      ) : (
+        <SidebarToggle
+          open={false}
+          controls={LEFT_COLUMN_ID}
+          onToggle={toggleSidebar}
+          className="-ml-1"
+        />
+      ),
+    [sidebarOpen, toggleSidebar]
   )
   const toggleRightPanel = () => {
     setRightPanelOpen((open) => {
@@ -356,65 +448,72 @@ function WorkspaceDashboard({
     },
     [openRightPanel]
   )
+  const rightPanelToggle = (className?: string) => (
+    <RightPanelToggle
+      open={rightPanelOpen}
+      controls={RIGHT_PANEL_ID}
+      onToggle={toggleRightPanel}
+      className={className}
+    />
+  )
   return (
     <OfficeOfferContext.Provider value={officeOffer}>
       <OpenArtifactContext.Provider value={openArtifact}>
         <div className="titlebar-controls">
-          <div className="titlebar-controls-end">
-            <UpdateButton />
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    className="pointer-events-auto size-6 aria-expanded:bg-transparent"
-                    aria-expanded={rightPanelOpen}
-                    aria-controls={RIGHT_PANEL_ID}
-                    aria-label={
-                      rightPanelOpen
-                        ? intl.formatMessage({
-                            id: "dashboard_right_panel_hide_aria",
-                            defaultMessage: "Hide right panel",
-                          })
-                        : intl.formatMessage({
-                            id: "dashboard_right_panel_show_aria",
-                            defaultMessage: "Show right panel",
-                          })
-                    }
-                    onClick={toggleRightPanel}
-                  >
-                    <SidebarRightIcon />
-                  </Button>
-                }
+          {/* Docker's browser has no title bar: there it sits beside the logo. */}
+          {IN_CONTAINER ? null : (
+            <div
+              {...reveal}
+              className={cn("titlebar-controls-start", reveal.className)}
+            >
+              <SidebarToggle
+                open={sidebarOpen}
+                controls={LEFT_COLUMN_ID}
+                onToggle={toggleSidebar}
+                className="pointer-events-auto size-6"
               />
-              <TooltipContent side="bottom" collisionPadding={8}>
-                {rightPanelOpen
-                  ? intl.formatMessage({
-                      id: "dashboard_right_panel_hide_tooltip",
-                      defaultMessage: "Hide right panel",
-                    })
-                  : intl.formatMessage({
-                      id: "dashboard_right_panel_show_tooltip",
-                      defaultMessage: "Show right panel",
-                    })}
-              </TooltipContent>
-            </Tooltip>
+            </div>
+          )}
+          <div
+            {...reveal}
+            className={cn("titlebar-controls-end", reveal.className)}
+          >
+            <TitleBarUpdate />
+            {/* Docker's browser has no title bar: there the toggle sits on a heading's line. */}
+            {IN_CONTAINER
+              ? null
+              : rightPanelToggle("pointer-events-auto size-6")}
           </div>
         </div>
         {/* The widths live in here, so a drag of an edge renders the column
           boxes and edges, not the sidebar, the thread or Studio. */}
         <DashboardColumns
+          sidebarOpen={sidebarOpen}
           sidebarWide={sourcePreviewOpen}
           rightPanelOpen={rightPanelOpen}
           rightPanelWide={inspect !== null}
         >
+          {/* Docker's browser has no title bar: one toggle pinned to the
+            columns' corner, so it never moves as the panel slides. An
+            inspected citation or artifact has its own close button there. */}
+          {IN_CONTAINER && !(rightPanelOpen && inspect !== null) ? (
+            <CornerToggle side="end">{rightPanelToggle()}</CornerToggle>
+          ) : null}
+          {/* The same on the left; a source preview's header has its own close. */}
+          {IN_CONTAINER && !sourcePreviewOpen ? (
+            <CornerToggle side="start">
+              <SidebarToggle
+                open={sidebarOpen}
+                controls={LEFT_COLUMN_ID}
+                onToggle={toggleSidebar}
+              />
+            </CornerToggle>
+          ) : null}
           {/* A preview takes over the left column and widens it, as an
             inspected artifact does the right one; the right panel stays put.
             On a narrow window it gives way first, down to the sidebar's
             minimum, before the right panel does: the chat keeps its own. */}
-          <SidebarColumn id={LEFT_COLUMN_ID}>
+          <SidebarColumn id={LEFT_COLUMN_ID} peekable>
             {sourcePreviewOpen && sourcePreview ? (
               <SourcePreviewPanel
                 workspaceId={workspace.id}
@@ -442,25 +541,42 @@ function WorkspaceDashboard({
                 runStates={chat.runStates}
                 unreadThreadIds={chat.unreadThreadIds}
                 actions={sidebarActions}
+                headerStart={sidebarHeaderStart}
                 sources={sourcesList}
                 footer={sidebarFooter}
               />
             </div>
           </SidebarColumn>
-          <ColumnEdge
-            column="sidebar"
-            label={intl.formatMessage({
-              id: "dashboard_sidebar_resize_aria",
-              defaultMessage: "Resize sidebar",
-            })}
-            controls={LEFT_COLUMN_ID}
-          />
-          <div className="flex min-h-0 min-w-[520px] flex-1 flex-col">
+          {/* Hidden, the sidebar has no edge to drag. */}
+          {sidebarOpen ? (
+            <ColumnEdge
+              column="sidebar"
+              label={intl.formatMessage({
+                id: "dashboard_sidebar_resize_aria",
+                defaultMessage: "Resize sidebar",
+              })}
+              controls={LEFT_COLUMN_ID}
+            />
+          ) : null}
+          <ChatColumn>
             <AgentApprovalsProvider
               approvals={chat.approvals}
               answer={chat.answerApproval}
             >
               <ThreadPanel
+                // Hidden, the chat's header runs under the corner toggle: keep its
+                // slot. -ml-3 undoes the 12 px of its px-5 over the corner's 8.
+                headerStart={
+                  IN_CONTAINER && !sidebarOpen ? (
+                    <CornerToggleSlot className="-ml-3" />
+                  ) : null
+                }
+                // Hidden, the chat's header runs under the corner toggle: keep its slot.
+                headerEnd={
+                  IN_CONTAINER && !rightPanelOpen ? (
+                    <CornerToggleSlot className="-mr-1" />
+                  ) : null
+                }
                 live={chat.liveThread}
                 thread={chat.activeThread}
                 view={chat.conversationView}
@@ -478,6 +594,8 @@ function WorkspaceDashboard({
                       onAllow={needsConsent ? onAllowModelIssue : undefined}
                       onOpenSettings={onModelIssueSettings}
                     />
+                  ) : extraUsage && onClaudePlan ? (
+                    <ExtraUsageNotice usage={extraUsage} />
                   ) : null
                 }
                 blockedPlaceholder={composerHold}
@@ -487,9 +605,12 @@ function WorkspaceDashboard({
                 onRetry={chat.retry}
                 onNewChat={startNewChat}
                 sourceCount={sources.includedDocumentIds.length}
+                mentionables={mentionables}
                 onUploadSources={(files) => void sources.upload(files)}
                 isUploadingSources={sources.isUploading}
                 onOpenPlugins={onOpenPlugins}
+                dictation={chat.dictation}
+                onOpenSpeechSettings={openSpeechSettings}
                 onTitleAnimationComplete={chat.finishTitleAnimation}
                 autoNamingThreadId={chat.autoNamingThreadId}
                 onRename={chat.rename}
@@ -499,7 +620,7 @@ function WorkspaceDashboard({
                 }}
               />
             </AgentApprovalsProvider>
-          </div>
+          </ChatColumn>
           {/* Collapsed, the rail has no edge to drag. */}
           {rightPanelOpen ? (
             <ColumnEdge
@@ -514,6 +635,9 @@ function WorkspaceDashboard({
           <RightPanelRail open={rightPanelOpen}>
             <div id={RIGHT_PANEL_ID} className="h-full min-h-0">
               <RightPanel
+                toggle={
+                  IN_CONTAINER ? <CornerToggleSlot className="-mr-1" /> : null
+                }
                 inspect={
                   inspect?.kind === "citation" ? (
                     <CitationPanel
@@ -524,10 +648,13 @@ function WorkspaceDashboard({
                     />
                   ) : inspect?.kind === "artifact" ? (
                     <ArtifactPanel
+                      workspaceId={workspace.id}
                       artifactId={inspect.artifactId}
                       artifacts={studio.artifacts}
                       onOpenVersion={openArtifact}
                       onRefine={studio.refine}
+                      onImageEdit={studio.editImage}
+                      onOpenModelSettings={onOpenModelSettings}
                       onDecideAll={studio.decideAll}
                       onClose={closeInspect}
                     />
@@ -564,6 +691,19 @@ function WorkspaceDashboard({
             </div>
           </RightPanelRail>
         </DashboardColumns>
+        {/* Inside the opener, so a run's Open in Studio shows its copy here. */}
+        <JobsDialog
+          open={jobsOpen}
+          onOpenChange={setJobsOpen}
+          workspaceId={workspace.id}
+          documents={sources.documents}
+          includedDocumentIds={sources.includedDocumentIds}
+          selection={selection}
+          providerAvailable={providerAvailable}
+          onUploadSources={sources.upload}
+          onOpenModelSettings={openModelSettings}
+          onOpenLicense={openLicense}
+        />
       </OpenArtifactContext.Provider>
     </OfficeOfferContext.Provider>
   )
@@ -666,6 +806,8 @@ export function DashboardPage({
     useState<SettingsSectionId>("general")
   // Bumped after egress is allowed from the notice, to check the model again.
   const [consents, setConsents] = useState(0)
+  // Bumped when a send is refused for a reason the check reports, so it says why.
+  const [refusedSends, setRefusedSends] = useState(0)
 
   // Set while Settings opens on Office support's consent, from a thread's offer.
   const [askOfficeConsent, setAskOfficeConsent] = useState(false)
@@ -674,6 +816,14 @@ export function DashboardPage({
     setSettingsSection(section)
     setSettingsOpen(true)
   }
+  useEffect(
+    () =>
+      onStorageSettingsRequested(() => {
+        setSettingsSection("storage")
+        setSettingsOpen(true)
+      }),
+    []
+  )
   const openOfficeSupport = useCallback(() => {
     setAskOfficeConsent(true)
     setSettingsSection("office-support")
@@ -693,8 +843,12 @@ export function DashboardPage({
     Boolean(workspaces.activeWorkspace)
   )
 
+  // For the startup frame, which offers mentions before this loads.
+  useEffect(() => rememberNextNewChatMode(selection), [selection])
+
   // Checked when the model changes, when settings close (a key entered again,
-  // egress switched, a connection edited) and after egress is allowed.
+  // egress switched, a connection edited), after egress is allowed, and after a
+  // send was refused for Claude Code.
   useEffect(() => {
     if (!selection) return
     if (skipFirstCheck.current) {
@@ -709,7 +863,7 @@ export function DashboardPage({
       }
     )
     return () => controller.abort()
-  }, [selection, modelsVisited, consents])
+  }, [selection, modelsVisited, consents, refusedSends])
 
   const availability: Availability =
     selection && checked.key === modelKey(selection)
@@ -731,7 +885,7 @@ export function DashboardPage({
     void askEgress({
       destination,
       host: issue.host ?? "",
-      allow: () => setDestinationEnabled(destination, true),
+      allow: () => setDestinationsEnabled([destination], true),
     }).then((allowed) => {
       if (allowed) setConsents((count) => count + 1)
     })
@@ -755,7 +909,7 @@ export function DashboardPage({
   return (
     // Above the workspace, so a mode picked for the next chat holds across them.
     <NewChatModeProvider>
-      <main className="relative grid h-full min-w-[1168px] grid-cols-[56px_minmax(0,1fr)] overflow-hidden bg-app-shell">
+      <DashboardShell>
         <WorkspaceRail
           workspaces={workspaces.workspaces}
           activeWorkspaceId={workspaces.activeWorkspace.id}
@@ -782,9 +936,12 @@ export function DashboardPage({
             )
           }
           onModelRequired={() => openSettings("chat-models")}
+          onModelCheck={() => setRefusedSends((count) => count + 1)}
           onModelSelected={onModelSelected}
           onOpenLicense={() => openSettings("license")}
           onOpenAudioSettings={() => openSettings("audio-models")}
+          onOpenSpeechSettings={() => openSettings("speech-models")}
+          onOpenModelSettings={openSettings}
           onOpenOfficeSupport={openOfficeSupport}
           onOpenPlugins={openPlugins}
           modelsVisited={modelsVisited}
@@ -838,7 +995,7 @@ export function DashboardPage({
             </Button>
           </Alert>
         ) : null}
-      </main>
+      </DashboardShell>
     </NewChatModeProvider>
   )
 }

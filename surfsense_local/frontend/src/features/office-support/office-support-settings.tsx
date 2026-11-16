@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
-import { setDestinationEnabled } from "@/features/egress/api"
+import { setDestinationsEnabled } from "@/features/egress/api"
 import { SettingsSection } from "@/features/settings/settings-section"
 import { intl } from "@/i18n/intl"
 import { ApiError } from "@/lib/api"
@@ -67,7 +67,7 @@ export function OfficeSupportSettings({
   const install = useMutation({
     mutationFn: async (destination: string) => {
       // The dialog named this host and what is sent, so it is the host's consent.
-      await setDestinationEnabled(destination, true)
+      await setDestinationsEnabled([destination], true)
       return installOffice()
     },
     onSuccess: receive,

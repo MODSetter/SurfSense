@@ -1,6 +1,6 @@
 # ADR 0036: The index records which embedder built it, and the embedder is fixed once per install
 
-- **Status:** Accepted
+- **Status:** Accepted; amended by [ADR 0058](0058-the-bundled-embedder-runs-at-fp32-on-x86-64.md): the FP16 file stays the one pinned and recorded, and on x86-64 it runs upcast to FP32 in memory
 - **Date:** 2026-10-01
 - **Amends:** [ADR 0007](0007-bundled-embeddings.md): the width comes from the index's own record rather than a setting, and bge-small is the default rather than the only embedder
 - **Source:** [Choosing the embedding model once](../proposals/embedding-model-choice.md)

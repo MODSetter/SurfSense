@@ -3,13 +3,13 @@ status: proposed
 code:
   - surfsense_local/backend/modules/plugins/
   - surfsense_local/backend/modules/chat/plugin_router/
-  - plugins/remote/
-  - plugins/bundles/
+  - backend/plugins/
+  - backend/plugins/bundles/
 ---
 
 # Plugins: what is not built
 
-> Remote plugins are built: SurfSense's own on the [plugin host](../../architecture/plugin-host.md), third-party ones in the signed [registry](../../architecture/plugin-registry.md), any server by URL, called by the agent's opencode under rules SurfSense writes each turn ([plugins](../../architecture/plugins.md), [agent](../../architecture/agent.md#plugins)). This page holds what comes next, roughly in the order it is likely to be needed. Plugins that run on the user's machine are [bundles](bundles/README.md), deferred.
+> Remote plugins are built: SurfSense's own on the [plugin host](../../architecture/plugin-host.md), third-party ones in the signed [registry](../../architecture/plugin-registry.md), any server by URL, called by the agent's opencode under rules SurfSense writes each turn ([plugins](../../architecture/plugins.md), [agent](../../architecture/agent.md#plugins)). This page holds what comes next, roughly in the order it is likely to be needed. Any remote MCP server connects with the sign-in it uses, a key in any header or OAuth with the user's own app included ([ADR 0063](../../adr/0063-a-plugins-connection-is-a-transport-and-one-sign-in.md)). Plugins that run on the user's machine are [bundles](bundles/README.md), deferred.
 
 The decisions behind what is built are ADRs [0051](../../adr/0051-plugins-are-mcp-servers-behind-one-tool-gateway.md), [0053](../../adr/0053-plugins-are-listed-in-a-registry-and-third-party-ones-start-off.md) and [0054](../../adr/0054-surfsenses-plugins-run-on-one-plugin-host.md); the one behind the router step below is [ADR 0052](../../adr/0052-the-chat-model-never-calls-tools.md).
 
@@ -55,6 +55,8 @@ What it brings, since the chat engine has no opencode session to keep its calls:
 
 ## Long calls as jobs on the plugin host
 
+Since 1 Nov 2026 the platform scrapers retire, and the web crawler and search stay, free for everyone; whether those two stay on the plugin host is open ([ADR 0081](../../adr/0081-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)). This section and the next apply only to what stays there.
+
 The proxies in front of a server end a request after 100 to 240 seconds, and MCP progress does not lift their limit, so a call to SurfSense's plugins that can run past three minutes becomes a job.
 
 - **Jobs are ordinary tools**, not MCP tasks, which opencode does not use: `crawl_site(...)` queues and answers `{job_id, status: "running"}`, `get_job(job_id)` answers status, progress and the result or a page of it, `cancel_job(job_id)` stops it.
@@ -88,20 +90,22 @@ Enterprise settings that turn plugins off, keep third-party plugins off, or allo
 
 ## Elsewhere
 
-- **A public directory page** on surfsense.com, generated from both lists. Today `surfsense.com/plugins` is a hand-written list of the scraper platforms.
-- **Paid bundles**: a SurfSense paid plugin that runs locally, delivered by the license server ([ADR 0047](../../adr/0047-premium-plugins-are-source-available.md), [bundles](bundles/README.md)).
-- **Deleting the backend's scraping code** once its scraper API is retired, never before the purge on 18 Oct 2026 ([plugin host](../../architecture/plugin-host.md#layout)).
+- **A public directory page** on surfsense.com, generated from both lists. Today `surfsense.com/plugins` is a hand-written list of the scraper platforms, which retire ([ADR 0081](../../adr/0081-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)).
+- **Paid bundles**: a SurfSense paid plugin that runs locally, delivered by the license server only to a SurfSense Business license, or the 14-day trial, that carries its entitlement ([ADR 0047](../../adr/0047-premium-plugins-are-source-available.md), [ADR 0080](../../adr/0080-surfsense-sells-one-business-license-priced-per-person.md), [bundles](bundles/README.md)). SurfSense's B2B jobs are the first planned ones, so paid bundles now come before the security questionnaire's beta ([ADR 0067](../../adr/0067-b2b-jobs-ship-as-paid-plugins.md)).
+- **Deleting the scraping code**: the plugin host's platform scrapers, which retire ([ADR 0081](../../adr/0081-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)), and the backend's copy once its scraper API is retired, never before the purge on 18 Oct 2026 ([plugin host](../../architecture/plugin-host.md#layout)).
+
+## Local MCP servers
+
+Decided on 20 Oct 2026: a server started by a command, such as `npx -y @modelcontextprotocol/server-filesystem` or `uvx mcp-server-git`, is not added as a custom plugin. Plugins stay remote MCP servers; local ones come with [bundles](bundles/README.md), whose design is to be redone first. opencode runs such servers already (`type: "local"`), so calling one is the small part. What kept them out is what SurfSense promises:
+
+- **Trust.** The command downloads code and runs it with the user's permissions; approving each call does not limit a program already running.
+- **The network fence.** The program inherits opencode's proxy variables, so `npx` and `uvx` cannot download and most such servers fail to start. Giving them their own environment leaves them outside egress consent altogether.
+- **Listing.** The rules for tools added later need SurfSense's own listing, with annotations, so SurfSense would start the command itself to list it.
+- **One copy per thread.** Each thread's opencode instance starts its own process; a shared copy over HTTP needs a small bridge.
+- **What is installed.** `npx` needs Node and `uvx` needs uv, neither shipped, so a missing one has to read as that, not as a broken plugin.
 
 ## Open questions
 
-- **Whether to run local MCP servers**, those started by a command such as `npx -y @modelcontextprotocol/server-filesystem` or `uvx mcp-server-git`, which most of the MCP ecosystem is today. opencode runs them already (`type: "local"`), so calling one is the small part. The rest is what SurfSense promises:
-  - **Trust.** The command downloads code and runs it with the user's permissions; approving each call does not limit a program already running.
-  - **The network fence.** The program inherits opencode's proxy variables, so `npx` and `uvx` cannot download and most such servers fail to start. Giving them their own environment leaves them outside egress consent altogether.
-  - **Listing.** The rules for tools added later need SurfSense's own listing, with annotations, so SurfSense would start the command itself to list it.
-  - **One copy per thread.** Each thread's opencode instance starts its own process; a shared copy over HTTP needs a small bridge.
-  - **What is installed.** `npx` needs Node and `uvx` needs uv, neither shipped, so a missing one has to read as that, not as a broken plugin.
-
-  The smallest honest version is an advanced **Run a command** kind, off by default: the exact command and its environment, encrypted as keys are, shown and confirmed before it first runs, with a warning that it can reach anything the user can and that Settings › Network does not cover it. The alternative is to leave local plugins to [bundles](bundles/README.md), which run pinned code without `npx` at runtime.
 - The citation a chat answer gives a tool result, beside today's chunk citations.
 - How long the chat engine keeps tool results, and how large a stored one may be.
-- Whether outside clients, `surfsense_mcp` and direct users of the scraper API, move to the plugin host once the backend's scraper API is retired.
+- Whether outside clients, `surfsense_mcp` and direct users of the scraper API, move to the plugin host once the backend's scraper API is retired. Since 1 Nov 2026 that concerns only the web crawler and search, as the platform scrapers retire ([ADR 0081](../../adr/0081-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)).

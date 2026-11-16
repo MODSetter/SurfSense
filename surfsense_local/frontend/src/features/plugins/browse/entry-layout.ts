@@ -7,7 +7,7 @@ export function entryClassName(layout: EntryLayout) {
   return cn(
     "relative flex gap-3 rounded-lg transition-colors",
     layout === "card"
-      ? "items-start bg-secondary p-3 hover:bg-muted"
+      ? "items-start bg-muted/50 p-3 hover:bg-muted/80"
       : "items-center px-2 py-2 hover:bg-muted/50"
   )
 }

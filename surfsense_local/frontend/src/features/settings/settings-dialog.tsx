@@ -1,5 +1,6 @@
-import type { ComponentType, MouseEvent } from "react"
+import type { ComponentType } from "react"
 
+import { IN_CONTAINER } from "@/app/in-container"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -14,10 +15,13 @@ import {
   BugIcon,
   Chat01Icon,
   ComputerEthernetIcon,
+  HardDriveIcon,
   CpuIcon,
   Image01Icon,
   InformationCircleIcon,
   LicenseIcon,
+  LockPasswordIcon,
+  Mic01Icon,
   PlugIcon,
   Settings2Icon,
   EmbeddingIcon,
@@ -30,6 +34,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { AboutSettings } from "@/features/about/about-settings"
+import { AccessSettings } from "@/features/access/access-settings"
 import { NetworkSettings } from "@/features/egress/network-settings"
 import { OfficeSupportSettings } from "@/features/office-support/office-support-settings"
 import {
@@ -43,16 +48,20 @@ import type { ModelSelection } from "@/features/models/selection/api"
 import { EmbeddingSettings } from "@/features/embedding/embedding-settings"
 import { ReportIssueSettings } from "@/features/feedback/report-issue-settings"
 import { ResourceSettings } from "@/features/resources/resource-settings"
+import { SearchServerSetting } from "@/features/sources/web/search-server-setting"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
 import { AppearanceToggle } from "./appearance-toggle"
 import { LanguageSelect } from "./language-select"
+import { ReduceMotionSelect } from "./reduce-motion-select"
 import { AudioModelsSettings } from "./models/audio-models-settings"
 import { ChatModelsSettings } from "./models/chat-models-settings"
 import { ImageEditModelsSettings } from "./models/image-edit-models-settings"
 import { ImageModelsSettings } from "./models/image-models-settings"
+import { SpeechModelsSettings } from "./models/speech-models-settings"
 import { VideoModelsSettings } from "./models/video-models-settings"
+import { StorageSettings } from "@/features/storage/storage-settings"
 import { SettingsSection } from "./settings-section"
 
 type SettingsNavItem = {
@@ -67,23 +76,18 @@ export type SettingsSectionId =
   | "image-models"
   | "image-edit-models"
   | "audio-models"
+  | "speech-models"
   | "video-models"
   | "embedding-model"
   | "resources"
+  | "storage"
   | "office-support"
   | "network"
   | "plugins"
   | "license"
   | "about"
   | "report-issue"
-
-const CLOUD_EXPORT_URL = "https://surfsense.com/sunset"
-
-function openCloudExport(event: MouseEvent<HTMLAnchorElement>) {
-  if (!window.surfsense?.openExternal) return
-  event.preventDefault()
-  void window.surfsense.openExternal(CLOUD_EXPORT_URL)
-}
+  | "access"
 
 function GeneralSettings({
   onImported,
@@ -142,6 +146,29 @@ function GeneralSettings({
       </div>
       <div className="mt-8 flex items-center justify-between gap-8">
         <div className="flex flex-col gap-1">
+          <h3
+            id="settings-general-reduce-motion"
+            className="text-sm font-medium"
+          >
+            {intl.formatMessage({
+              id: "settings_general_reduce_motion_title",
+              defaultMessage: "Reduce motion",
+            })}
+          </h3>
+          <p className="text-sm text-pretty text-muted-foreground">
+            {intl.formatMessage({
+              id: "settings_general_reduce_motion_body",
+              defaultMessage: "Keep animations to a minimum on this device.",
+            })}
+          </p>
+        </div>
+        <ReduceMotionSelect
+          aria-labelledby="settings-general-reduce-motion"
+          className="w-40"
+        />
+      </div>
+      <div className="mt-8 flex items-center justify-between gap-8">
+        <div className="flex flex-col gap-1">
           <div className="flex items-center gap-1">
             <h3 className="text-sm font-medium text-balance">
               {intl.formatMessage({
@@ -152,9 +179,10 @@ function GeneralSettings({
             <Tooltip>
               <TooltipTrigger
                 render={
-                  <button
+                  <Button
                     type="button"
-                    className="relative inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground transition-colors duration-150 before:absolute before:inset-[-10px] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+                    variant="bare"
+                    className="relative inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground before:absolute before:-inset-2.5 hover:text-foreground focus-visible:ring-2"
                     aria-label={intl.formatMessage({
                       id: "settings_general_cloud_import_info_aria",
                       defaultMessage:
@@ -165,7 +193,7 @@ function GeneralSettings({
                       className="size-3.5"
                       strokeWidth={1.5}
                     />
-                  </button>
+                  </Button>
                 }
               />
               <TooltipContent
@@ -188,18 +216,6 @@ function GeneralSettings({
                 "Upload the ZIP you exported from SurfSense cloud.",
             })}
           </p>
-          <a
-            href={CLOUD_EXPORT_URL}
-            target="_blank"
-            rel="noreferrer"
-            onClick={openCloudExport}
-            className="w-fit text-sm text-muted-foreground underline underline-offset-3 hover:text-foreground"
-          >
-            {intl.formatMessage({
-              id: "settings_general_cloud_import_link",
-              defaultMessage: "Open SurfSense cloud",
-            })}
-          </a>
         </div>
         <ImportBundleButton onImported={onImported} />
       </div>
@@ -208,22 +224,35 @@ function GeneralSettings({
 }
 
 // Add future settings pages here; the dialog navigation is generated from this list.
-const SETTINGS_SECTIONS = [
+const ALL_SECTIONS = [
   { id: "general", group: "settings", icon: Settings2Icon },
+  { id: "access", group: "settings", icon: LockPasswordIcon },
   { id: "license", group: "settings", icon: LicenseIcon },
   { id: "plugins", group: "settings", icon: PlugIcon },
   { id: "chat-models", group: "models", icon: Chat01Icon },
   { id: "image-models", group: "models", icon: Image01Icon },
   { id: "image-edit-models", group: "models", icon: AiImageEditIcon },
   { id: "audio-models", group: "models", icon: AudioWaveformIcon },
+  { id: "speech-models", group: "models", icon: Mic01Icon },
   { id: "video-models", group: "models", icon: Video01Icon },
   { id: "embedding-model", group: "models", icon: EmbeddingIcon },
   { id: "resources", group: "system", icon: CpuIcon },
+  { id: "storage", group: "system", icon: HardDriveIcon },
   { id: "office-support", group: "system", icon: File02Icon },
   { id: "network", group: "system", icon: ComputerEthernetIcon },
   { id: "report-issue", group: "app", icon: BugIcon },
   { id: "about", group: "app", icon: InformationCircleIcon },
 ] satisfies SettingsNavItem[]
+
+// Access is the Docker image's sign-in (ADR 0074); the desktop has none.
+// Storage needs main: the Docker image's folder is its volume, and a snap can reach no other.
+function settingsSections() {
+  return ALL_SECTIONS.filter(
+    (section) =>
+      (section.id !== "access" || IN_CONTAINER) &&
+      (section.id !== "storage" || window.surfsense?.storage !== undefined)
+  )
+}
 
 const GROUP_LABELS: Record<SettingsNavItem["group"], () => string> = {
   settings: () =>
@@ -279,10 +308,20 @@ const SECTION_LABELS: Record<SettingsSectionId, () => string> = {
       id: "settings_nav_audio_label",
       defaultMessage: "Audio",
     }),
+  "speech-models": () =>
+    intl.formatMessage({
+      id: "settings_nav_speech_label",
+      defaultMessage: "Speech recognition",
+    }),
   "embedding-model": () =>
     intl.formatMessage({
       id: "settings_nav_embedding_label",
       defaultMessage: "Embedding",
+    }),
+  storage: () =>
+    intl.formatMessage({
+      id: "settings_nav_storage_label",
+      defaultMessage: "Storage",
     }),
   resources: () =>
     intl.formatMessage({
@@ -314,6 +353,11 @@ const SECTION_LABELS: Record<SettingsSectionId, () => string> = {
       id: "settings_nav_about_label",
       defaultMessage: "About",
     }),
+  access: () =>
+    intl.formatMessage({
+      id: "settings_nav_access_label",
+      defaultMessage: "Access",
+    }),
   "report-issue": () =>
     intl.formatMessage({
       id: "settings_nav_report_issue_label",
@@ -344,13 +388,13 @@ export function SettingsDialog({
   onModelSelected: (selection: ModelSelection) => void
   onImported?: (accepted: ImportAccepted) => Promise<void> | void
 }) {
+  const sections = settingsSections()
   const activeSection =
-    SETTINGS_SECTIONS.find((candidate) => candidate.id === section) ??
-    SETTINGS_SECTIONS[0]
+    sections.find((candidate) => candidate.id === section) ?? sections[0]
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="h-[640px] min-h-0 w-[1000px] max-w-none gap-0 overflow-hidden rounded-2xl p-0 shadow-xl select-none sm:max-w-none">
+      <DialogContent className="h-192 max-h-[calc(100vh-2rem)] min-h-0 w-5xl gap-0 overflow-hidden rounded-2xl p-0 shadow-xl select-none sm:max-w-[calc(100%-2rem)]">
         <DialogHeader className="sr-only">
           <DialogTitle>
             {intl.formatMessage({
@@ -366,8 +410,8 @@ export function SettingsDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid h-full min-h-0 grid-cols-[184px_minmax(0,1fr)]">
-          <aside className="min-h-0 overflow-y-auto overscroll-contain border-r bg-sidebar p-3 text-sidebar-foreground">
+        <div className="grid h-full min-h-0 grid-cols-[auto_minmax(0,1fr)]">
+          <aside className="min-h-0 w-50 overflow-y-auto overscroll-contain border-r bg-sidebar p-3 text-sidebar-foreground">
             {(Object.keys(GROUP_LABELS) as SettingsNavItem["group"][]).map(
               (group, index) => (
                 <div key={group} className={cn(index > 0 && "mt-3")}>
@@ -384,29 +428,30 @@ export function SettingsDialog({
                     className="flex flex-col gap-0.5"
                     aria-labelledby={`settings-nav-${group}`}
                   >
-                    {SETTINGS_SECTIONS.filter(
-                      (section) => section.group === group
-                    ).map((section) => {
-                      const Icon = section.icon
-                      const selected = section.id === activeSection.id
-                      return (
-                        <Button
-                          key={section.id}
-                          type="button"
-                          variant="ghost"
-                          className={cn(
-                            "h-8 w-full justify-start rounded-lg",
-                            selected &&
-                              "bg-sidebar-accent text-sidebar-accent-foreground"
-                          )}
-                          aria-current={selected ? "page" : undefined}
-                          onClick={() => onSectionChange(section.id)}
-                        >
-                          <Icon />
-                          {SECTION_LABELS[section.id]()}
-                        </Button>
-                      )
-                    })}
+                    {sections
+                      .filter((section) => section.group === group)
+                      .map((section) => {
+                        const Icon = section.icon
+                        const selected = section.id === activeSection.id
+                        return (
+                          <Button
+                            static
+                            key={section.id}
+                            type="button"
+                            variant="ghost"
+                            className={cn(
+                              "h-8 w-full justify-start rounded-lg",
+                              selected &&
+                                "bg-sidebar-accent text-sidebar-accent-foreground"
+                            )}
+                            aria-current={selected ? "page" : undefined}
+                            onClick={() => onSectionChange(section.id)}
+                          >
+                            <Icon />
+                            {SECTION_LABELS[section.id]()}
+                          </Button>
+                        )
+                      })}
                   </nav>
                 </div>
               )
@@ -437,14 +482,22 @@ export function SettingsDialog({
             {activeSection.id === "audio-models" ? (
               <AudioModelsSettings onModelUnavailable={onModelUnavailable} />
             ) : null}
+            {activeSection.id === "speech-models" ? (
+              <SpeechModelsSettings />
+            ) : null}
             {activeSection.id === "embedding-model" ? (
               <EmbeddingSettings />
             ) : null}
             {activeSection.id === "resources" ? <ResourceSettings /> : null}
+            {activeSection.id === "storage" ? <StorageSettings /> : null}
             {activeSection.id === "office-support" ? (
               <OfficeSupportSettings askConsent={askOfficeConsent} />
             ) : null}
-            {activeSection.id === "network" ? <NetworkSettings /> : null}
+            {activeSection.id === "network" ? (
+              <NetworkSettings>
+                <SearchServerSetting />
+              </NetworkSettings>
+            ) : null}
             {activeSection.id === "plugins" ? (
               <PluginsSettings
                 start={pluginsStart}
@@ -453,6 +506,7 @@ export function SettingsDialog({
             ) : null}
             {activeSection.id === "license" ? <LicenseSettings /> : null}
             {activeSection.id === "about" ? <AboutSettings /> : null}
+            {activeSection.id === "access" ? <AccessSettings /> : null}
             {activeSection.id === "report-issue" ? (
               <ReportIssueSettings />
             ) : null}

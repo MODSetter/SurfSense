@@ -1,10 +1,17 @@
 """Sorting a failed generation into something the user can act on."""
 
+import json
+
 import httpx
 import pytest
 
 from modules.chat.errors import ChatErrorKind, classify_chat_error
+from modules.llm.providers.openai_compatible.chat import (
+    OpenAICompatibleChatProvider,
+    StreamedError,
+)
 from modules.llm.providers.openai_responses import PlanLimitError, SignInRequiredError
+from modules.llm.providers.types import Message
 from shared.secrets import UnreadableSecretError
 
 pytestmark = pytest.mark.unit
@@ -140,6 +147,7 @@ def test_a_reached_plan_limit_is_not_a_moment_to_retry() -> None:
 @pytest.mark.parametrize(
     "said",
     [
+        "Context size has been exceeded.",
         "failed to find free space in the KV cache",
         "failed to find a memory slot for batch of size 512",
     ],
@@ -158,3 +166,82 @@ def test_a_shared_cache_that_ran_out_of_room_says_so(said: str) -> None:
 
     assert kind is ChatErrorKind.RUNTIME_BUSY
     assert "running together" in message
+
+
+async def _streamed_failure(said: str) -> StreamedError:
+    """What the chat provider raises when llama.cpp fails a reply it began."""
+    chunks = (
+        {"choices": [{"delta": {"content": "Revenue"}}]},
+        {"error": {"code": 500, "message": said, "type": "server_error"}},
+    )
+    body = "".join(f"data: {json.dumps(chunk)}\n\n" for chunk in chunks)
+    provider = OpenAICompatibleChatProvider(
+        "http://x/v1",
+        transport=httpx.MockTransport(lambda _: httpx.Response(200, text=body)),
+    )
+    with pytest.raises(StreamedError) as raised:
+        async for _ in provider.chat("m", [Message("user", "hi")]):
+            pass
+    return raised.value
+
+
+async def test_a_shared_cache_overflow_mid_reply_says_so() -> None:
+    """Past the first token llama.cpp sends the overflow to every running reply
+    as an error chunk rather than a 500. It is the same overflow, and the same
+    retry with fewer replies running works."""
+    exc = await _streamed_failure("Context size has been exceeded.")
+
+    kind, message = classify_chat_error(exc, "llamacpp")
+
+    assert kind is ChatErrorKind.RUNTIME_BUSY
+    assert "running together" in message
+
+
+async def test_other_mid_reply_failures_stay_unknown() -> None:
+    """Only the local runtime's overflow names a fix; a hosted endpoint's
+    words, or another local failure, are not read as one."""
+    overflow = await _streamed_failure("Context size has been exceeded.")
+    compute = await _streamed_failure("Compute error.")
+
+    assert classify_chat_error(overflow, "openai_compatible")[0] is (
+        ChatErrorKind.UNKNOWN
+    )
+    assert classify_chat_error(compute, "llamacpp")[0] is ChatErrorKind.UNKNOWN
+
+
+def test_a_claude_plan_that_must_sign_in_again_points_at_claude_code() -> None:
+    """Its sign-in is Claude Code's, in a terminal, not ChatGPT's in Model setup."""
+    from modules.llm.subscriptions.claude.errors import ClaudeSignInRequiredError
+
+    kind, message = classify_chat_error(
+        ClaudeSignInRequiredError("signed out"), "openai_compatible"
+    )
+
+    assert kind is ChatErrorKind.CLAUDE_SIGN_IN
+    assert "Claude Code" in message
+    assert "ChatGPT" not in message
+
+
+def test_a_used_up_claude_plan_says_whose_limit_it_is() -> None:
+    """The limit is the Claude plan's, which resets on its own."""
+    from modules.llm.subscriptions.claude.errors import ClaudePlanLimitError
+
+    kind, message = classify_chat_error(
+        ClaudePlanLimitError("limit"), "openai_compatible"
+    )
+
+    assert kind is ChatErrorKind.CLAUDE_LIMIT
+    assert "Claude" in message
+    assert "ChatGPT" not in message
+
+
+def test_a_host_turned_off_during_a_reply_says_where_to_allow_it() -> None:
+    """Not `unknown`: the fix is a switch in Settings, which the user can flip."""
+    from modules.egress.service import EgressDeniedError
+
+    kind, message = classify_chat_error(
+        EgressDeniedError("host:api.anthropic.com"), "openai_compatible"
+    )
+
+    assert kind is ChatErrorKind.EGRESS_DISABLED
+    assert "Settings > Network" in message

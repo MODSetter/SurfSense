@@ -22,6 +22,12 @@ function eventStream() {
           `event: ${kind}\ndata: ${JSON.stringify({ ids: [1], status: "ready" })}\n\n`
         )
       ),
+    progressed: (progress: { done_s: number; total_s: number }) =>
+      feed.enqueue(
+        encoder.encode(
+          `event: documents\ndata: ${JSON.stringify({ ids: [1], status: "processing", progress })}\n\n`
+        )
+      ),
     drop: () => feed.close(),
   }
 }
@@ -126,7 +132,9 @@ describe("workspace changes", () => {
     await vi.advanceTimersByTimeAsync(2_000)
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3))
 
-    const abortAdds = addListenerSpy.mock.calls.filter(([event]) => event === "abort")
+    const abortAdds = addListenerSpy.mock.calls.filter(
+      ([event]) => event === "abort"
+    )
     const abortRemoves = removeListenerSpy.mock.calls.filter(
       ([event]) => event === "abort"
     )
@@ -156,5 +164,22 @@ describe("workspace changes", () => {
 
     await vi.advanceTimersByTimeAsync(10_000)
     expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it("hands on the progress a transcribed window reports", async () => {
+    const stream = eventStream()
+    apiStreaming([stream.response])
+
+    const documents = listen(1, "documents")
+    stream.connected()
+    stream.progressed({ done_s: 84, total_s: 3480 })
+
+    await vi.waitFor(() =>
+      expect(documents).toHaveBeenCalledWith({
+        ids: [1],
+        status: "processing",
+        progress: { done_s: 84, total_s: 3480 },
+      })
+    )
   })
 })

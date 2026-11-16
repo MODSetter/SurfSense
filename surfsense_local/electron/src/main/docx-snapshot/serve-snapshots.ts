@@ -1,6 +1,7 @@
 // The agent checks a Word document or deck it made, or a source's, by looking at
 // its pages, and the app has no Office converter: Electron lays the file out with
-// the in-app viewer's library and prints it. The API queues each request and waits; Electron polls
+// the in-app viewer's library and prints it. A web page it loads as it is and
+// captures, since a page is judged on screen, not on paper. The API queues each request and waits; Electron polls
 // for them, as it polls for the image runtime, so the API needs no way in here.
 // Every call carries the key Electron handed the API at launch: any process on
 // the machine can reach loopback, and only Electron may take or answer a request.
@@ -21,8 +22,8 @@ const PRINTS_AT_ONCE = 3
 // The API's limit on a failure's reason.
 const REASON_CHARS = 500
 
-// What the snapshot page can lay out.
-const FORMATS = ["docx", "pptx"] as const
+// What the snapshot page can lay out, and the web page Electron captures.
+const FORMATS = ["docx", "pptx", "html"] as const
 // An API from before page choices asked for a version's first four pages
 // (previews/page_images.py PAGE_LIMIT); printing the rest only makes the upload bigger.
 const FIRST_PAGES = "1-4"
@@ -31,7 +32,7 @@ const PAGE_RANGES = /^\s*\d+(\s*-\s*\d+)?(\s*,\s*\d+(\s*-\s*\d+)?)*\s*$/
 
 export type SnapshotFormat = (typeof FORMATS)[number]
 
-/** Lay out the file at `fileUrl` as `format` and print `pages` of it; stop when `signal` aborts. */
+/** Lay out the file at `fileUrl` as `format` and print `pages` of it, or capture a web page as a PNG; stop when `signal` aborts. */
 export type PrintSnapshot = (
   file: { fileUrl: string; format: SnapshotFormat; pages: string },
   signal: AbortSignal,
@@ -141,24 +142,25 @@ async function serve(
   )
   // Fires after a print that finished in time too, when no one awaits it.
   timedOut.catch(() => {})
-  let pdf: Uint8Array
+  let drawn: Uint8Array
   try {
     const fileUrl = new URL(request.file_url, api.url).href
-    pdf = await Promise.race([print({ fileUrl, format, pages }, signal), timedOut])
+    drawn = await Promise.race([print({ fileUrl, format, pages }, signal), timedOut])
   } catch (error) {
     await fail(
       signal.aborted
-        ? `the document did not lay out and print within ${printMs / 1000} s`
+        ? `the ${format === "html" ? "page did not load and capture" : "document did not lay out and print"} within ${printMs / 1000} s`
         : error instanceof Error
           ? error.message
           : String(error),
     )
     return
   }
-  const delivered = await fetch(`${answer}/pdf`, {
+  const [route, type] = format === "html" ? ["png", "image/png"] : ["pdf", "application/pdf"]
+  const delivered = await fetch(`${answer}/${route}`, {
     method: "POST",
-    headers: { authorization: api.authorization, "content-type": "application/pdf" },
-    body: pdf,
+    headers: { authorization: api.authorization, "content-type": type },
+    body: drawn,
     signal: AbortSignal.timeout(api.requestMs),
   })
   // 404: no one waits for it any more. Any other refusal would leave the waiter

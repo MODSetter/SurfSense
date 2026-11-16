@@ -17,7 +17,7 @@ import pytest
 from shared import cancellation
 from worker.document_script.run import run_document_script
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.image]
 
 # What the child may see of the parent's environment; anything else is a leak.
 ALLOWED_FROM_PARENT = {
@@ -37,6 +37,7 @@ CONTRACT = {
     "MPLCONFIGDIR",
     "PYTHONUTF8",
     "PYTHONDONTWRITEBYTECODE",
+    "OPENBLAS_NUM_THREADS",
 }
 
 
@@ -131,6 +132,52 @@ def test_a_script_that_raises_returns_its_error_and_traceback() -> None:
     assert 'script.py", line 2, in build' in result.traceback_tail
     # The runner's own frames are noise to the model.
     assert "runpy" not in result.traceback_tail
+
+
+def test_a_traceback_names_the_script_without_its_run_folder(data_dir: Path) -> None:
+    """The folder is gone once the run ends, and its absolute path in every frame
+    would crowd the traceback's lines out of the stored reason."""
+    script = "def build():\n    raise ValueError('no table rows')\n\nbuild()\n"
+
+    result = run_document_script(script, output_name="document.docx", images={})
+
+    assert result.traceback_tail is not None
+    assert 'File "script.py", line 2, in build' in result.traceback_tail
+    assert _scripts_root(data_dir).name not in result.traceback_tail
+
+
+def test_a_missing_file_is_named_without_its_run_folder(data_dir: Path) -> None:
+    """An exception message holds the contract's absolute path, on Windows as a
+    repr with its backslashes doubled."""
+    script = (
+        "import os\nopen(os.path.join(os.environ['IMAGES_DIR'], 'nope.png'), 'rb')\n"
+    )
+
+    result = run_document_script(script, output_name="document.docx", images={})
+
+    assert result.error is not None
+    assert result.error.startswith("FileNotFoundError")
+    assert "nope.png" in result.error
+    assert _scripts_root(data_dir).name not in result.error
+    assert result.traceback_tail is not None
+    assert _scripts_root(data_dir).name not in result.traceback_tail
+
+
+def test_a_warning_before_the_traceback_names_the_script_without_its_run_folder(
+    data_dir: Path,
+) -> None:
+    """A warning printed before the raise starts with the script's absolute path."""
+    script = (
+        "import warnings\n"
+        "warnings.warn('old call', FutureWarning)\n"
+        "raise ValueError('no table rows')\n"
+    )
+
+    result = run_document_script(script, output_name="document.docx", images={})
+
+    assert result.traceback_tail is not None
+    assert "script.py:2: FutureWarning: old call" in result.traceback_tail
+    assert _scripts_root(data_dir).name not in result.traceback_tail
 
 
 def test_a_syntax_error_names_itself() -> None:
@@ -297,6 +344,7 @@ def test_the_child_sees_none_of_the_parents_secrets(
     assert seen["IMAGES_DIR"] == str(folder / "images")
     assert seen["MPLBACKEND"] == "Agg"
     assert seen["PYTHONUTF8"] == "1"
+    assert seen["OPENBLAS_NUM_THREADS"] == "1"
 
 
 def test_the_child_loads_none_of_the_workers_queue_or_database() -> None:

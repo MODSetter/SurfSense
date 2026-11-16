@@ -1,0 +1,46 @@
+---
+date: "2026-10-04"
+version: "2.1.0"
+---
+
+## What's New in v2.1.0
+
+v2.1.0 lets chat read images and run on a ChatGPT plan, adds your own notes to the sources panel, lets a server voice podcasts, and parses documents faster with fewer OCR mistakes. It also includes work from 17 first-time contributors. Get it from the [downloads page](/downloads).
+
+### Chat and models
+
+- **Images in chat**: Attach up to four images from the composer's "+" menu, or paste them. With a text-only model the option is disabled and says why.
+- **ChatGPT subscription**: In Settings › Text gen, add a model, choose ChatGPT subscription and sign in to chat on your Plus or Pro plan without an API key.
+- **Anthropic with just a key**: Connecting to Anthropic no longer asks for a base URL.
+- **Thinking switch**: Turn Thinking off in the "+" menu and a model running on this computer answers without thinking first. While a local model reads a long prompt, the reply shows "Reading 42%" instead of "Thinking".
+- **Choose your embedding model**: New installs pick it in the last onboarding step, from a list that includes a multilingual model, or from ONNX models on Hugging Face. The choice is permanent. Existing libraries keep bge-small, and nothing is re-embedded.
+
+### Sources and Studio
+
+- **Notes and renaming**: The sources panel has a New note button beside Add, and any source can be renamed from its menu. Files dropped on the panel are added as sources.
+- **PDF preview**: Choose Preview on a PDF source to read it in the left sidebar.
+- **Podcasts voiced by a server**: Podcasts can use an audio model on any server with an OpenAI-compatible speech endpoint. Add and test voices under Voices for this model.
+- **Studio reads every selected document**: When a selection is too large to send whole, each document gets an equal share, instead of the first few taking all the space.
+- **Steadier quizzes and flashcards**: Their replies are held to the expected shape, so small local models fail these jobs less often.
+
+### Your computer
+
+- **Better document parsing**: Images parse without an internet connection, and OCR no longer turns upright lines of noisy scans upside down. In our tests, character errors on 150 to 300 dpi scans fell from 3.24% to 0.38%, and photos parsed in under half the time.
+- **Settings › Resources**: Live CPU, RAM, GPU and VRAM use, for the whole computer and for each SurfSense engine.
+- **Report issue tab**: Settings tabs are grouped, and Report issue has its own tab, which Help › Report Issue… also opens.
+- **Licenses**: With no license, Settings › License offers Start a free trial and See pricing.
+- **Safer installs**: A curated model too big for this computer is refused before it downloads.
+
+### No longer broken
+
+- Cancelling a podcast stops after the line being voiced, instead of voicing the rest.
+- Deleting a Studio output as a document also deletes its files.
+- A chat reply that ends with no answer is discarded with an error, instead of leaving a blank bubble.
+- An image that a server returns as a link is fetched only after you allow its host in Settings › Network.
+- A table at the end of a document keeps its last row.
+
+### Developers
+
+- Plugin groundwork: the `surfsense_plugin_sdk` package and the `surfsense-plugins` CLI, with an example in `plugins/example`. Plugins still show Coming soon in the app.
+- An opencode-based agent, off by default and left out of the installers. Set `SURFSENSE_LOCAL_OPENCODE_ENABLED=1` to stage it for development.
+- Dependencies with security advisories were updated across the app, website and backend.

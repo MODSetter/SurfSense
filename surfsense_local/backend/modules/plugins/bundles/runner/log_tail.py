@@ -11,9 +11,10 @@ class LogTail:
         self._kept = b""
 
     def read_from(self, output: IO[bytes]) -> None:
-        """Read until the output closes, holding only its last bytes."""
+        """Read until the output closes, holding only its last bytes, in Unix line endings."""
         while chunk := output.read1(LOG_TAIL_BYTES):
-            self._kept = (self._kept + chunk)[-LOG_TAIL_BYTES:]
+            # Joined first, so a CRLF split between two reads is still caught.
+            self._kept = (self._kept + chunk).replace(b"\r\n", b"\n")[-LOG_TAIL_BYTES:]
 
     def text(self) -> str:
         """What has been kept so far, as text."""

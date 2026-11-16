@@ -7,6 +7,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty"
 import { PlusIcon } from "@/components/ui/icons"
+import { GuideLink } from "@/features/guides/guide-link"
 import { intl } from "@/i18n/intl"
 
 export function NoPluginsConnected({
@@ -48,6 +49,12 @@ export function NoPluginsConnected({
           })}
         </Button>
       </EmptyContent>
+      <GuideLink guide="plugins" surface="plugins_empty">
+        {intl.formatMessage({
+          id: "plugins_empty_guide_link",
+          defaultMessage: "How to connect a plugin",
+        })}
+      </GuideLink>
     </Empty>
   )
 }

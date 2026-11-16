@@ -8,16 +8,20 @@ from fastapi import HTTPException, Request, status
 PROTOCOL_VERSIONS = ("2025-11-25",)
 
 
-def initialized(params: dict[str, Any]) -> dict[str, Any]:
-    """The answer to `initialize`: the version both sides speak, and that tools are offered."""
+def initialized(params: dict[str, Any], instructions: str = "") -> dict[str, Any]:
+    """The answer to `initialize`: the version both sides speak, that tools are offered,
+    and any instructions, which opencode puts in the agent's system prompt."""
     asked = params.get("protocolVersion")
-    return {
+    reply = {
         "protocolVersion": asked
         if asked in PROTOCOL_VERSIONS
         else PROTOCOL_VERSIONS[0],
         "capabilities": {"tools": {}},
         "serverInfo": {"name": "SurfSense", "version": "1"},
     }
+    if instructions:
+        reply["instructions"] = instructions
+    return reply
 
 
 def refuse_unknown_protocol(request: Request) -> None:

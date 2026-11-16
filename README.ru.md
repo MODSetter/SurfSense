@@ -11,7 +11,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Discord](https://img.shields.io/discord/1359368468260192417?label=Discord)](https://discord.gg/ejRNvftDp9)
 
-  <a href="https://www.surfsense.com/"><img alt="SurfSense, изолированная от сети альтернатива NotebookLM с открытым кодом" src="surfsense_web/public/homepage/banner.png" /></a>
+  <a href="https://www.surfsense.com/"><img alt="SurfSense, изолированная от сети альтернатива NotebookLM с открытым кодом" src="www/public/homepage/banner.png" /></a>
 
   <h1>SurfSense</h1>
 
@@ -26,6 +26,7 @@
     <a href="#что-surfsense-делает-с-каждым-форматом">Форматы</a> ·
     <a href="#быстрый-старт">Быстрый старт</a> ·
     <a href="#сравнение">Сравнение</a> ·
+    <a href="#плагины">Плагины</a> ·
     <a href="https://www.surfsense.com/pricing">Цены</a> ·
     <a href="https://discord.gg/ejRNvftDp9">Discord</a>
   </p>
@@ -37,18 +38,26 @@
   </p>
 </div>
 
+**Отредактируйте договор с отслеживаемыми изменениями и комментариями**
+
 https://github.com/user-attachments/assets/88326b9d-e763-46db-9635-75f9df9e8682
+
+**Добавьте источники из интернета и превратите их в веб-страницу**
+
+https://github.com/user-attachments/assets/073577b7-f055-4f59-8540-330bd764aeb0
 
 SurfSense — бесплатное настольное приложение с открытым кодом для документов, которые нельзя загрузить наружу. Это ИИ-агент в духе NotebookLM, созданный с упором на приватность: он исследует, преобразует и редактирует ваши документы на вашем компьютере. Индекс остаётся на вашем диске, модель, локальную или удалённую, выбираете вы, а аккаунта нет вовсе.
 
 | Платформа | Скачать |
 |---|---|
-| **Windows** x64 | [SurfSense-Setup.exe](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense-Setup.exe) |
-| **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense-arm64.dmg) |
-| **Linux** x64 | [AppImage](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense.AppImage) · [deb](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense.deb) |
+| **Windows** x64 | [SurfSense-Setup.exe](https://www.surfsense.com/downloads/windows?src=readme) |
+| **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
+| **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
+| **Docker** Linux, macOS | `curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh \| bash` |
+| **Docker** Windows (Docker Desktop) | `irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 \| iex` |
 
 > [!NOTE]
-> **Пользовались размещённым веб-приложением?** Экспортируйте рабочие области до 18 октября 2026 года и импортируйте их в это приложение. Подробности на [странице закрытия](https://www.surfsense.com/sunset).
+> С Docker вы разворачиваете его на своём сервере и открываете с любого устройства в вашей сети. Чтобы обновить, запустите ту же команду ещё раз.
 
 ## Быстрый старт
 
@@ -65,9 +74,11 @@ SurfSense — бесплатное настольное приложение с 
 | **Excel** `.xlsx` | ✓ агент читает и формулы | ✓ с формулами и нативными диаграммами | ✓ значения ячеек и формулы | Анализ в pandas, диаграммы по результатам |
 | **PowerPoint** `.pptx` | ✓ | ✓ или на основе вашего `.pptx` как шаблона | Замена текста на слайдах и в заметках; удаление и дублирование слайдов | В PDF¹ |
 | **CSV** | ✓ | — | — | Анализ в pandas, диаграммы по результатам |
-| **Изображения** PNG, JPEG, TIFF, BMP, WebP | ✓ текст распознаётся через OCR³ | Изображения и инфографика² | — | Вставка в новые документы |
+| **Изображения** PNG, JPEG, TIFF, BMP, WebP | ✓ текст распознаётся через OCR³ | Изображения и инфографика, с правкой по инструкции² | — | Вставка в новые документы |
 | **Markdown**, обычный текст | ✓ | ✓ Markdown | — | — |
 | **HTML** | ✓ | ✓ веб-страница | — | — |
+| **Книги** EPUB, MOBI, AZW3 | ✓ без DRM | — | — | — |
+| **Аудиозаписи** WAV, MP3, FLAC, Ogg Vorbis | ✓ расшифровываются на вашем компьютере | — | — | — |
 | **Подкаст** (аудио) | — | ✓ с расшифровкой, по умолчанию озвучивается на вашем компьютере | — | — |
 | **Интеллект-карты, карточки, тесты** | — | ✓ в приложении | — | — |
 
@@ -75,6 +86,12 @@ SurfSense — бесплатное настольное приложение с 
 
 Правки, преобразования и инструменты для PDF всегда создают новый файл; оригинал никогда не меняется. Шире всего сейчас поддерживаются PDF, Word и Excel, а поддержка остальных форматов постоянно улучшается.
 
+
+## Плагины
+
+Подключите их в разделе **Настройки › Плагины**: MCP-серверы из [реестра плагинов](backend/plugins/registry), например DeepWiki и Notion, или любые другие, которые вы добавите по URL. Они остаются выключенными, пока вы их не разрешите.
+
+**Встроено и бесплатно:** агент и **Добавить из интернета** в разделе «Источники» ищут в интернете через SearXNG, а страницы и расшифровки YouTube читают через ваше собственное подключение, без плагина и без лицензии.
 
 ## Сравнение
 
@@ -92,18 +109,6 @@ SurfSense — бесплатное настольное приложение с 
 - **Участие в разработке:** запросы на слияние направляйте в ветку `dev`; цикл разработки описан в [CONTRIBUTING.md](CONTRIBUTING.md) и [`surfsense_local/`](./surfsense_local). Как всё устроено, рассказано в [`docs/`](docs/README.md).
 
 <a href="https://github.com/MODSetter/SurfSense/graphs/contributors"><img src="https://contrib.rocks/image?repo=MODSetter/SurfSense" alt="Участники SurfSense" /></a>
-
-## История звёзд
-
-<p align="center">
-  <a href="https://www.star-history.com/#MODSetter/SurfSense&Date">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date&theme=dark" />
-      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
-      <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
-    </picture>
-  </a>
-</p>
 
 ## Лицензия
 

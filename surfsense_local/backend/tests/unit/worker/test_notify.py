@@ -3,6 +3,7 @@
 import pytest
 
 from modules.documents.models import Document, DocumentStatus, DocumentType
+from modules.events.schemas import Progress
 from worker import notify
 from worker.notify import notify_document_updates
 
@@ -58,3 +59,20 @@ def test_it_is_a_no_op_without_a_port(monkeypatch: pytest.MonkeyPatch) -> None:
     notify_document_updates(_document())
 
     assert posted is False
+
+
+def test_a_transcribed_window_carries_its_progress(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The recording's bar moves on the event alone, never stored."""
+    monkeypatch.setenv("SURFSENSE_LOCAL_PORT", "8123")
+    sent: dict = {}
+
+    def fake_post(url: str, *, json: dict, timeout: float) -> None:
+        sent.update(json)
+
+    monkeypatch.setattr(notify.httpx, "post", fake_post)
+
+    notify_document_updates(_document(), Progress(done_s=56.0, total_s=3480.0))
+
+    assert sent["progress"] == {"done_s": 56.0, "total_s": 3480.0}

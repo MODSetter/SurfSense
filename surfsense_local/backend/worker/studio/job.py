@@ -1,18 +1,24 @@
+import asyncio
 import logging
 import time
+from typing import cast
 
 import httpx
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
+from modules.artifacts.comic.binding_recipe import ComicBinding, comic_binding_of
 from modules.artifacts.converted_documents.conversion import (
     Conversion,
     conversion_of,
 )
 from modules.artifacts.converted_documents.input_file import input_file
+from modules.artifacts.drawn_images.recipe import ImageDrawing, image_drawing_of
 from modules.artifacts.formats import FORMATS_BY_KEY, Grounding
+from modules.artifacts.image_edits.editable import EDITABLE_FORMATS
+from modules.artifacts.image_edits.recipe import ImageEdit, image_edit_of
 from modules.artifacts.made_file import made_by
-from modules.artifacts.models import Artifact
+from modules.artifacts.models import Artifact, ArtifactFileRole
 from modules.artifacts.revised_copies.revision import revision_of
 from modules.artifacts.script_documents.script_error import PREFIX, script_error
 from modules.artifacts.script_documents.spec import (
@@ -29,9 +35,13 @@ from modules.artifacts.studio_documents.recipe import (
     renders_as_stored,
 )
 from modules.documents.models import Document, DocumentStatus
+from modules.jobs.asking.stopped import FillStoppedError
+from modules.jobs.runs.record import job_run_of
 from modules.llm.model_route.client import resolve_routed_generation
 from modules.llm.model_type import ModelType
+from modules.llm.pictures_in import model as pictures_in
 from modules.llm.providers.audiocpp.memory import NotEnoughMemoryError
+from modules.llm.providers.context_overflow import ContextOverflowError
 from modules.llm.providers.openai_compatible import NonRetryableImageError
 from modules.llm.providers.openai_compatible.speech import NonRetryableSpeechError
 from modules.llm.providers.protocols import TextToSpeech
@@ -49,7 +59,15 @@ from worker.jobs import JobCancelledError, begin_job, finish_job, raise_if_cance
 from worker.notify import notify_artifact_updates
 from worker.studio import job_router
 from worker.studio.converted_document import pipeline as converted_document
+from worker.studio.job_run import pipeline as job_run
 from worker.studio.made_file import pipeline as made_file
+from worker.studio.media.visual.comic_binding import bound_pages
+from worker.studio.media.visual.drawn import pipeline as drawn_image
+from worker.studio.media.visual.drawn.references import reference_pictures
+from worker.studio.media.visual.edit import pipeline as image_edit
+from worker.studio.media.visual.edit.base import base_image
+from worker.studio.media.visual.redraw import pipeline as image_redraw
+from worker.studio.media.visual.redraw.drawing_prompt import drawing_prompt_of
 from worker.studio.office.document import figure_shelf
 from worker.studio.office.document.refine import refine
 from worker.studio.office.docx import docx
@@ -58,12 +76,19 @@ from worker.studio.revised_copy import pipeline as revised_copy
 from worker.studio.revised_copy.record import record as record_revision
 from worker.studio.script_document import pipeline as script_document
 from worker.studio.script_document.pipeline import ScriptRunFailedError
-from worker.studio.shared import gather, persist
-from worker.studio.shared.artifact import Built
+from worker.studio.shared import gather, persist, window_budget
+from worker.studio.shared.artifact import Built, Source
+from worker.studio.web.html.written import page as written_page
+from worker.waiting_renders import settle_after_job
 
 logger = logging.getLogger(__name__)
 
 MESSAGE_CHARS = 500
+# The model was reached and refused the length; a draft names its sources instead.
+TOO_LONG = (
+    "The request was longer than the model's context window. "
+    "Choose a model with a larger context window."
+)
 
 _DOCUMENT_OFFICE = {"docx": docx, "pdf": pdf}
 
@@ -86,6 +111,8 @@ def run(artifact_id: int) -> None:
             _generate(session, artifact)
     finally:
         engine.dispose()
+        # However it ended: a document waiting on this picture may now go.
+        settle_after_job(artifact_id)
 
 
 def _generate(session: Session, artifact: Artifact) -> None:
@@ -99,6 +126,9 @@ def _generate(session: Session, artifact: Artifact) -> None:
     try:
         meta = artifact.artifact_metadata
         refining = refinement(meta)
+        editing = image_edit_of(meta)
+        drawing = image_drawing_of(meta)
+        binding = comic_binding_of(meta)
         script = document_script(meta) if renders_as_stored(meta) else None
         converting = conversion_of(meta)
         revised: revised_copy.Made | None = None
@@ -109,6 +139,12 @@ def _generate(session: Session, artifact: Artifact) -> None:
             built = revised.built
         elif refining is not None:
             built = _refine(session, artifact, document, refining)
+        elif editing is not None:
+            built = _edit_image(session, artifact, document, editing)
+        elif drawing is not None:
+            built = _draw_image(session, artifact, document, drawing)
+        elif binding is not None:
+            built = _bind_comic(session, document, binding)
         elif made_by(meta) is not None:
             built = made_file.built(artifact, document.title)
         elif script is not None:
@@ -127,6 +163,8 @@ def _generate(session: Session, artifact: Artifact) -> None:
             record_revision(artifact, revised)
         if built.spec is not None:
             _keep_spec(artifact, built.spec)
+        elif artifact.format in EDITABLE_FORMATS:
+            _keep_version(artifact)
         if built.metadata is not None:
             artifact.artifact_metadata = {
                 **(artifact.artifact_metadata or {}),
@@ -174,6 +212,11 @@ def _generate(session: Session, artifact: Artifact) -> None:
             NonRetryableImageError | NonRetryableSpeechError | NotEnoughMemoryError,
         ):
             return
+        # The same request is refused the same way: fewer sources or a larger window help.
+        if isinstance(
+            failure, ContextOverflowError | window_budget.SourcesDoNotFitError
+        ):
+            return
         # The agent's script document is never retried: its agent reads this FAILED
         # and renders a fix as a new version, which a retry turning READY would race.
         # A Studio draft's kept spec does not count: its Retry asks the model again.
@@ -185,51 +228,84 @@ def _generate(session: Session, artifact: Artifact) -> None:
         # The same edits on the same file fail the same way.
         if revision_of(artifact.artifact_metadata) is not None:
             return
-        # A refine is one call the user asked for; Retry asks again if they want.
+        # A refine or an edit is one call the user asked for; Retry asks again.
         if refinement(artifact.artifact_metadata) is not None:
+            return
+        if image_edit_of(artifact.artifact_metadata) is not None:
+            return
+        # The agent's tool reads this FAILED; a retry could bill the picture twice.
+        if image_drawing_of(artifact.artifact_metadata) is not None:
+            return
+        # Every page of a comic would be drawn, and billed, again.
+        if artifact.format == job_router.Kind.COMIC:
             return
         raise  # Huey retries; a later success clears the message.
 
 
 def _draft(session: Session, artifact: Artifact, document: Document) -> Built:
-    """The format's pipeline: gather the sources, ask the model, build the file."""
+    """The format's pipeline: gather the sources to the window, ask the model, build the file."""
     meta = artifact.artifact_metadata or {}
     prompt = meta.get("prompt")
     kind = job_router.Kind(artifact.format)
     fmt = FORMATS_BY_KEY[kind]
+    models = [
+        _choose_model(session, model_type) for model_type in fmt.requires_model_types
+    ]
+    writer = cast(
+        ResolvedGeneration, models[fmt.requires_model_types.index(ModelType.TEXT_GEN)]
+    )
+    # The window is asked of the API, which needs the write lock to answer.
+    session.commit()
+    window = _window(writer)
     # The prompt is what to search for, where the format reads passages.
     query = prompt if fmt.grounding is Grounding.PASSAGES else None
-    sources = gather.gather(
-        session,
-        meta.get("source_document_ids", []),
-        query,
-        focus=prompt or fmt.default_focus,
+
+    def gathered(budget_chars: int | None) -> list[Source]:
+        found = gather.gather(
+            session,
+            meta.get("source_document_ids", []),
+            query,
+            budget_chars=budget_chars,
+            focus=prompt or fmt.default_focus,
+        )
+        if kind in job_router.PLACES_FIGURES:
+            found = figure_shelf.with_figures(session, artifact.workspace_id, found)
+        return found
+
+    sources = window_budget.fit_sources(
+        gathered, window_budget.sources_room(window, prompt)
     )
-    if kind in job_router.PLACES_FIGURES:
-        sources = figure_shelf.with_figures(session, artifact.workspace_id, sources)
     # "Grounded on 14 of 212 sources": what reached the model, not what was ticked.
     artifact.artifact_metadata = {
         **meta,
         "grounded_document_ids": [source.document_id for source in sources],
     }
     logger.info(
-        "studio: artifact %s gathered %s sources (%s chars)",
+        "studio: artifact %s gathered %s sources (%s chars) for a window of %s tokens",
         artifact.id,
         len(sources),
         sum(len(source.content) for source in sources),
+        window or "unknown",
     )
-    models = [
-        _choose_model(session, model_type) for model_type in fmt.requires_model_types
-    ]
     # Options were checked at job creation; only formats that take them get them.
     extras = [meta.get("options")] if fmt.validate_options else []
+    references = (
+        {"keeper": _picture_model(session)} if fmt.draws_with_references else {}
+    )
     # Generation runs for minutes; the write lock must not be held across it.
     session.commit()
     raise_if_cancelled(session, document)
 
     # A cancel hangs up on a model mid-reply; other stages still finish first.
     with cancellation.watching(lambda: _check_cancelled(session, document)):
-        return job_router.pipeline_for(kind)(*models, sources, prompt, *extras)
+        try:
+            return job_router.pipeline_for(kind)(
+                *models, sources, prompt, *extras, **references
+            )
+        except ContextOverflowError as refused:
+            raise window_budget.SourcesDoNotFitError(
+                window_budget.DOES_NOT_FIT
+            ) from refused
 
 
 def _run_script(
@@ -244,10 +320,12 @@ def _run_script(
     # The script may run for two minutes; the write lock must not be held across it.
     session.commit()
     raise_if_cancelled(session, document)
+    # Past the commit: a picture may be converted, with no write lock to hold up others.
+    files = script_document.image_files(images)
 
     # A cancel kills the script and everything it started.
     with cancellation.watching(lambda: _check_cancelled(session, document)):
-        return script_document.render(title, script, images, template)
+        return script_document.render(title, script, files, template)
 
 
 def _convert(
@@ -264,7 +342,15 @@ def _convert(
 def _revise(
     session: Session, document: Document, artifact: Artifact
 ) -> revised_copy.Made:
-    """An engine edits a copy of the input; no model is asked and no source is gathered."""
+    """An engine edits a copy of the input; only a job run asks a model first, for the edits."""
+    if job_run_of(artifact.artifact_metadata) is not None:
+        try:
+            job_run.work_out(
+                session, artifact, cancelled=lambda: _cancel_asked(session, document)
+            )
+        except FillStoppedError:
+            raise_if_cancelled(session, document)
+            raise
     prepared = revised_copy.prepare(session, artifact)
     session.commit()
     raise_if_cancelled(session, document)
@@ -276,6 +362,12 @@ def _refine(
 ) -> Built:
     """One call rewrites the base version's spec; the figures it may place are its draft's."""
     model = _choose_model(session, ModelType.TEXT_GEN)
+    if refining.base.format == "html":
+        title = document.title
+        session.commit()
+        raise_if_cancelled(session, document)
+        with cancellation.watching(lambda: _check_cancelled(session, document)):
+            return written_page.refine(model, refining, title)
     figures = figure_shelf.figures_of(
         session, artifact.workspace_id, figure_sources(artifact.artifact_metadata)
     )
@@ -289,10 +381,109 @@ def _refine(
         )
 
 
+def _edit_image(
+    session: Session, artifact: Artifact, document: Document, editing: ImageEdit
+) -> Built:
+    """One call: the picture to the model that takes pictures, or, with none,
+    the image model drawing it again from the words it was drawn with."""
+    try:
+        editor = pictures_in.picture_model(session)
+    except ModelResolutionError as error:
+        raise NoModelSelectedError(str(error)) from error
+    painter = _choose_model(session, ModelType.IMAGE_GEN) if editor is None else None
+    base = base_image(session, editing)
+    session.commit()
+    raise_if_cancelled(session, document)
+
+    # The local clients poll; each poll looks for a cancel.
+    with cancellation.watching(lambda: _check_cancelled(session, document)):
+        if editor is not None:
+            return image_edit.render(editor, base, editing.instruction)
+        assert painter is not None
+        return image_redraw.render(painter, base, editing.instruction)
+
+
+def _draw_image(
+    session: Session, artifact: Artifact, document: Document, drawing: ImageDrawing
+) -> Built:
+    """One call to the image model, with the prompt the agent wrote; with
+    reference pictures, to the model that takes them, when one does."""
+    painter = _choose_model(session, ModelType.IMAGE_GEN)
+    keeper = None
+    if drawing.references:
+        try:
+            keeper = pictures_in.picture_model(session)
+        except ModelResolutionError as error:
+            raise NoModelSelectedError(str(error)) from error
+    references = reference_pictures(session, drawing.references)
+    title, format = document.title, artifact.format
+    session.commit()
+    raise_if_cancelled(session, document)
+
+    # The local clients poll; each poll looks for a cancel.
+    with cancellation.watching(lambda: _check_cancelled(session, document)):
+        return drawn_image.render(
+            painter,
+            drawing.prompt,
+            title,
+            format,
+            shape=drawing.shape,
+            references=references,
+            keeper=keeper,
+        )
+
+
+def _bind_comic(session: Session, document: Document, binding: ComicBinding) -> Built:
+    """The agent's pages, as drawn when it bound them; no model is asked."""
+    pages = [_kept_page(session, page.picture) for page in binding.pages]
+    title = document.title
+    session.commit()
+    raise_if_cancelled(session, document)
+    return bound_pages.render(title, binding, pages)
+
+
+def _kept_page(session: Session, picture_id: int) -> bound_pages.KeptPage:
+    """Its file to bind, and the words it was drawn from, for the comic's search."""
+    picture = session.get(Artifact, picture_id)
+    primary = (
+        None
+        if picture is None
+        else next(
+            (f for f in picture.files if f.role is ArtifactFileRole.PRIMARY), None
+        )
+    )
+    if picture is None or primary is None:
+        raise ValueError(f"image-{picture_id} is gone, so its page cannot be bound")
+    return bound_pages.KeptPage(
+        get_storage_settings().data_dir / primary.storage_key,
+        drawing_prompt_of(picture),
+    )
+
+
 def _keep_spec(artifact: Artifact, spec: dict) -> None:
     """A Studio draft's spec becomes v1 of its own document; a refine already has its version."""
     meta = dict(artifact.artifact_metadata or {})
     meta["spec"] = spec
+    meta.setdefault(
+        "version",
+        ArtifactVersion(root=artifact.id, number=1, parent=None).as_metadata(),
+    )
+    meta.setdefault(RECIPE_KEY, drafted())
+    artifact.artifact_metadata = meta
+
+
+def _cancel_asked(session: Session, document: Document) -> bool:
+    """For a step that stops itself between units of work rather than being interrupted."""
+    try:
+        _check_cancelled(session, document)
+    except JobCancelledError:
+        return True
+    return False
+
+
+def _keep_version(artifact: Artifact) -> None:
+    """A drawn picture becomes v1 of its own document, so its edits group under it."""
+    meta = dict(artifact.artifact_metadata or {})
     meta.setdefault(
         "version",
         ArtifactVersion(root=artifact.id, number=1, parent=None).as_metadata(),
@@ -321,10 +512,33 @@ def _reason(failure: Exception) -> str:
     """
     if isinstance(failure, ScriptRunFailedError):
         return script_error(failure.reason(MESSAGE_CHARS - len(PREFIX)))
+    if isinstance(failure, ContextOverflowError):
+        return TOO_LONG
     if isinstance(failure, httpx.HTTPError):
         return f"The model could not be reached: {failure}"[:MESSAGE_CHARS]
     first_line = str(failure).strip().splitlines()[:1]
     return (first_line[0] if first_line else type(failure).__name__)[:MESSAGE_CHARS]
+
+
+def _window(model: ResolvedGeneration) -> int | None:
+    """The window the job's text model answers within. One that cannot be read is
+    unknown: the sources keep the ceiling, and a refusal still says why."""
+    try:
+        return asyncio.run(model.generator.context_tokens(model.selection.name))
+    except Exception:
+        logger.warning(
+            "studio: could not read the window of %s",
+            model.selection.name,
+            exc_info=True,
+        )
+        return None
+
+
+def _picture_model(session: Session) -> pictures_in.PictureModel | None:
+    try:
+        return pictures_in.picture_model(session)
+    except ModelResolutionError as error:
+        raise NoModelSelectedError(str(error)) from error
 
 
 def _choose_model(

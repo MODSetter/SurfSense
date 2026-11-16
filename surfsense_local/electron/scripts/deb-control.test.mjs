@@ -12,7 +12,7 @@ function debSection() {
       .split("\n")
       .filter(Boolean)
       .map((line) => line.replace(/^\s*-\s*/, "").trim()) ?? null
-  return { recommends: list("recommends"), depends: list("depends") }
+  return { recommends: list("recommends"), depends: list("depends"), fpm: list("fpm") }
 }
 
 test("the deb recommends the Vulkan loader llama.cpp's GPU backend opens", () => {
@@ -28,4 +28,16 @@ test("the deb keeps electron-builder's own recommendation", () => {
 test("the deb leaves electron-builder's depends list as it is", () => {
   // Setting `depends` would replace the GTK, NSS and X libraries Electron needs.
   assert.equal(debSection().depends, null)
+})
+
+test("the deb depends on the OpenMP runtime llama.cpp's libraries link", () => {
+  // llama-server does not start without the host's libgomp.so.1, which its archive does
+  // not carry. Passed to fpm, it joins electron-builder's depends rather than replacing them.
+  assert.ok(debSection().fpm?.includes("--depends=libgomp1"))
+})
+
+test("the deb refuses to install below the glibc the frozen backend needs", () => {
+  // Its bundled libgcc_s calls _dl_find_object (glibc 2.35), so on an older system the
+  // app would install and then never start.
+  assert.ok(debSection().fpm?.includes("--depends=libc6 (>= 2.35)"))
 })

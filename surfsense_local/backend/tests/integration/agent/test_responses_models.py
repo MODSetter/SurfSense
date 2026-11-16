@@ -151,8 +151,9 @@ async def test_on_a_plan_the_agent_keeps_its_file_tools_and_sees_the_pages_it_ma
     names = [tool["name"] for tool in namespace["tools"]]
     for tool in (*FILE_TOOLS, "skill"):
         assert tool in names, tool
+    # 2.x sends the system prompt, and the skills it lists, as `instructions`.
     for skill in SKILLS:
-        assert f"<name>{skill}</name>" in json.dumps(offered["input"]), skill
+        assert f"<name>{skill}</name>" in offered["instructions"], skill
     [output] = [
         item for item in answered["input"] if item.get("type") == "function_call_output"
     ]
@@ -202,16 +203,13 @@ async def test_on_a_plan_model_not_known_to_read_images_the_agent_is_told_why_no
     assert "input_image" not in told
 
 
-async def test_a_plan_reply_cut_off_is_retried_and_the_thread_settles_on_the_retry(
+async def test_a_plan_reply_cut_off_is_continued_and_the_thread_keeps_both(
     agent_api: AgentAPI,
 ) -> None:
     """The relay tells opencode a stream that stopped early broke, so opencode
-    tries the step again rather than keeping half a reply: the turn completes
-    on the retried answer, as stored, and the breaks the cut-off words ended
-    on are never streamed.
-
-    The cut-off words themselves were streamed before the retry, and no frame
-    takes them back; only `completed` replaces the shown text.
+    keeps the words that came and asks the model to go on from them, without
+    repeating them: the turn completes on both, as stored, and the breaks the
+    cut-off words ended on join them as one paragraph break.
     """
     _select("gpt-5.5", auth_kind="chatgpt", catalog_provider="openai")
     agent_api.model.replies = [("cut-off", "Half done.\n\n"), ("text", "Whole.")]
@@ -229,5 +227,9 @@ async def test_a_plan_reply_cut_off_is_retried_and_the_thread_settles_on_the_ret
     )
     [completed] = of_type(frames, "completed")
     reply = stored.json()[-1]["content"]
-    assert completed["text"] == reply["text"] == "Whole."
+    assert completed["text"] == reply["text"] == "Half done.\n\nWhole."
     assert "ending" not in reply
+    # The model was told to go on, not to start again.
+    assert "Continue from where you left off" in json.dumps(
+        agent_api.model.requests[1]["input"]
+    )

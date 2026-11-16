@@ -3,7 +3,7 @@
 from modules.llm.capability.agent_gate import catalog_facts
 from modules.llm.capability.level import Level
 from modules.llm.capability.measured.loader import measured_list
-from modules.llm.capability.modes import new_chat_modes
+from modules.llm.capability.modes import NewChatModes, new_chat_modes
 from modules.llm.capability.resolve import capability_of
 from modules.llm.capability.schemas import (
     CapabilityRead,
@@ -11,9 +11,10 @@ from modules.llm.capability.schemas import (
     ModesRead,
     ReasonRead,
 )
+from modules.llm.capability.studio_output import studio_output
 from modules.llm.models import SelectedModel
 
-__all__ = ["capability_read"]
+__all__ = ["capability_read", "modes_read"]
 
 
 def capability_read(
@@ -44,11 +45,16 @@ def capability_read(
         )
         if held
         else None,
-        modes=ModesRead(
-            agentic_allowed=modes.agentic_allowed,
-            blocked=modes.blocked,
-            default_mode=modes.default_mode,
-            reason=ReasonRead(code=modes.reason.code, values=modes.reason.values),
-            remembered_mode=modes.remembered_mode,
-        ),
+        modes=modes_read(modes),
+        studio=studio_output(selected),
+    )
+
+
+def modes_read(modes: NewChatModes) -> ModesRead:
+    return ModesRead(
+        agentic_allowed=modes.agentic_allowed,
+        blocked=modes.blocked,
+        default_mode=modes.default_mode,
+        reason=ReasonRead(code=modes.reason.code, values=modes.reason.values),
+        remembered_mode=modes.remembered_mode,
     )

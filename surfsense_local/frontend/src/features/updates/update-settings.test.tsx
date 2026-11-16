@@ -6,7 +6,7 @@ import { EgressPrompt } from "@/features/egress/egress-prompt"
 import { render } from "@/test-utils"
 
 import { stubUpdateBridge as stubBridge } from "./stub-bridge"
-import { UpdateButton, UpdateSettings } from "./update-settings"
+import { UpdateSettings } from "./update-settings"
 
 afterEach(() => {
   cleanup()
@@ -28,10 +28,17 @@ describe("UpdateSettings", () => {
 
     // Network promises github.com is not contacted until allowed, so the
     // first check asks rather than going ahead.
-    await screen.findByRole("alertdialog", {
+    const dialog = await screen.findByRole("alertdialog", {
       name: "Allow SurfSense to check for updates?",
     })
     expect(bridge.calls).toEqual([])
+    // An Electron main without the privacy bridge still reads GitHub's
+    // releases, so neither the question nor the row names SurfSense's feed.
+    expect(dialog.textContent).toContain(
+      "reads the list of releases on github.com"
+    )
+    expect(dialog.textContent).not.toContain("updates.surfsense.com")
+    expect(screen.getByText(/Free updates from GitHub\./)).toBeTruthy()
 
     await user.click(screen.getByRole("button", { name: "Allow" }))
 
@@ -52,7 +59,7 @@ describe("UpdateSettings", () => {
     expect(await screen.findByText("Checking…")).toBeTruthy()
     bridge.push({ status: "up-to-date" })
     expect(await screen.findByText("SurfSense is up to date")).toBeTruthy()
-    bridge.push({ status: "downloading", version: "1.0.1" })
+    bridge.push({ status: "downloading", version: "1.0.1", percent: null })
     expect(await screen.findByText("Downloading 1.0.1…")).toBeTruthy()
     bridge.push({ status: "error", message: "net::ERR_INTERNET_DISCONNECTED" })
     expect((await screen.findByRole("alert")).textContent).toContain(
@@ -68,9 +75,12 @@ describe("UpdateSettings", () => {
     const user = userEvent.setup()
     render(<UpdateSettings />)
 
-    // The version the restart lands on, named where the decision is made.
+    // The version the restart lands on, named where the decision is made,
+    // and that quitting installs it too.
     expect(
-      await screen.findByText("SurfSense 1.0.1 is ready to install")
+      await screen.findByText(
+        "SurfSense 1.0.1 is ready. It installs when you restart or the next time you quit."
+      )
     ).toBeTruthy()
     await user.click(
       await screen.findByRole("button", { name: "Restart to update" })
@@ -83,32 +93,5 @@ describe("UpdateSettings", () => {
     const { container } = render(<UpdateSettings />)
 
     expect(container.textContent).toBe("")
-  })
-})
-
-describe("UpdateButton", () => {
-  it("appears only when an update is ready and restarts on click", async () => {
-    const bridge = stubBridge({ automatic: true, state: { status: "idle" } })
-    const user = userEvent.setup()
-    render(<UpdateButton />)
-
-    // No element at all: the title bar keeps no space for it. Queried by role
-    // rather than text, since the button is icon-only and has no text content.
-    expect(screen.queryByRole("button")).toBeNull()
-    bridge.push({ status: "ready", version: "1.0.1" })
-
-    const button = await screen.findByRole("button", {
-      name: "Restart to install 1.0.1",
-    })
-    await user.click(button)
-    expect(bridge.calls).toEqual(["install"])
-  })
-
-  it("names the waiting version, the only place it is shown", async () => {
-    const bridge = stubBridge({ automatic: true, state: { status: "idle" } })
-    render(<UpdateButton />)
-    bridge.push({ status: "ready", version: "0.0.41" })
-
-    await screen.findByRole("button", { name: "Restart to install 0.0.41" })
   })
 })

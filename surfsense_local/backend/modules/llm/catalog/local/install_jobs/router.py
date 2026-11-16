@@ -75,6 +75,8 @@ async def start_install(
             select=payload.select,
             model_type=payload.model_type,
             session_factory=session_factory,
+            slots=model_types,
+            broker=request.app.state.broker,
         ),
     )
     return _read(job)

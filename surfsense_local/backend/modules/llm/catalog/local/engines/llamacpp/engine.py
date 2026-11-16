@@ -3,7 +3,7 @@
 import asyncio
 import contextlib
 import threading
-from collections.abc import AsyncIterator, Callable, Sequence
+from collections.abc import AsyncIterator, Callable, Sequence, Set
 from pathlib import Path
 
 import httpx
@@ -51,6 +51,7 @@ _TOO_BIG = "This build is too big for this computer. Pick a smaller one."
 # An unload is quick. The client's own read timeout is sized for a load.
 UNLOAD_WAIT_SECONDS = 10.0
 
+
 class LlamaCppEngine:
     name = ENGINE
     model_types = (ModelType.TEXT_GEN,)
@@ -85,7 +86,7 @@ class LlamaCppEngine:
         models: Sequence[CuratedModel],
         mint: Callable[[Build], str],
         *,
-        selected: str | None,
+        selected: Set[str],
     ) -> tuple[LocalRow, ...]:
         installed = self.installed()
         self._reprice_for_copied_models(installed)

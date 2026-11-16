@@ -46,7 +46,7 @@ export function LocalModelList({
     <ScrollFade
       className="overflow-hidden rounded-xl border bg-card"
       // Four rows and half of the next: the cut row says the list scrolls.
-      viewportClassName="max-h-72"
+      viewportClassName="max-h-56"
     >
       <ul
         className="divide-y"

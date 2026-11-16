@@ -3,6 +3,7 @@ import { useEffect, useState, type ComponentProps } from "react"
 import { Select } from "@/components/ui/select"
 import { SELECTABLE_LOCALES, type LocalePreference } from "@/i18n/locales"
 import { intl } from "@/i18n/intl"
+import { localeSource } from "@/i18n/locale-source"
 
 // Each language in its own name, so a user in the wrong one can still find theirs.
 function nativeName(locale: string): string {
@@ -18,9 +19,11 @@ export function LanguageSelect(
 
   useEffect(() => {
     let active = true
-    void window.surfsense?.locale?.preference().then((saved) => {
-      if (active) setPreference(saved as LocalePreference)
-    })
+    void localeSource()
+      .preference()
+      .then((saved) => {
+        if (active) setPreference(saved as LocalePreference)
+      })
     return () => {
       active = false
     }
@@ -33,7 +36,7 @@ export function LanguageSelect(
       onChange={(event) => {
         const next = event.target.value as LocalePreference
         setPreference(next)
-        void window.surfsense?.locale?.set(next)
+        void localeSource().set(next)
       }}
     >
       <option value="system">

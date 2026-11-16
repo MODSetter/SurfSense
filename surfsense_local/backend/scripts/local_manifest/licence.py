@@ -16,6 +16,13 @@ COMMERCIAL = frozenset(
         "openrail",
         "openrail++",
         "creativeml-openrail-m",
+        # A card's `license_name` under `other`. OpenMDW-1.1: "permission is
+        # hereby granted ... to deal in the Model Materials without
+        # restriction"; redistribution keeps its text and notices.
+        "openmdw-1.1",
+        # CC-BY-4.0: "for any purpose, even commercially", with credit. The app
+        # downloads the file from its repo and never redistributes it.
+        "cc-by-4.0",
     }
 )
 

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { cleanup, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
+import { stubPrivacyBridge } from "@/features/privacy-choices/stub-privacy-bridge"
 import { stubUpdateBridge } from "@/features/updates/stub-bridge"
 import { render } from "@/test-utils"
 
@@ -37,5 +38,113 @@ describe("network settings", () => {
       expect(toggle.getAttribute("aria-checked")).toBe("true")
     )
     expect(bridge.calls).toEqual(["automatic:true"])
+  })
+
+  it("names where update checks go and lists usage statistics beside them", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json([]))
+    )
+    const bridge = stubPrivacyBridge({
+      usageStatistics: {
+        enabled: false,
+        lastSent: { at: "2026-10-20T09:00:00Z", body: { schema: 1 } },
+      },
+    })
+    const user = userEvent.setup()
+    render(<NetworkSettings />)
+
+    expect(
+      await screen.findByText(
+        /updates\.surfsense\.com, falls back to github\.com/
+      )
+    ).toBeTruthy()
+    expect(await screen.findByText(/usage\.surfsense\.com/)).toBeTruthy()
+    const usage = screen.getByRole("checkbox", {
+      name: "Allow Usage statistics",
+    })
+    expect(usage.getAttribute("aria-checked")).toBe("false")
+    await user.click(usage)
+
+    await waitFor(() => expect(usage.getAttribute("aria-checked")).toBe("true"))
+    expect(bridge.calls).toEqual(["usage:true"])
+  })
+
+  it("names SurfSense’s license server by what it is for, and a mirror by its host", async () => {
+    const row = (host: string) => ({
+      destination: `host:${host}`,
+      host,
+      enabled: false,
+      last_call_at: null,
+    })
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json([row("api.surfsense.com"), row("licenses.example.test")])
+      )
+    )
+    render(<NetworkSettings />)
+
+    expect(
+      await screen.findByRole("checkbox", { name: "Allow License server" })
+    ).toBeTruthy()
+    expect(
+      screen.getByRole("checkbox", { name: "Allow licenses.example.test" })
+    ).toBeTruthy()
+  })
+
+  it("names only the Office download's host for Office support, another TDF site by its host", async () => {
+    const row = (host: string) => ({
+      destination: `host:${host}`,
+      host,
+      enabled: false,
+      last_call_at: null,
+    })
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json([
+          row("downloadarchive.documentfoundation.org"),
+          row("wiki.documentfoundation.org"),
+        ])
+      )
+    )
+    render(<NetworkSettings />)
+
+    expect(
+      await screen.findByRole("checkbox", {
+        name: "Allow Office support download",
+      })
+    ).toBeTruthy()
+    expect(
+      screen.getByRole("checkbox", {
+        name: "Allow wiki.documentfoundation.org",
+      })
+    ).toBeTruthy()
+  })
+
+  it("holds a row a policy locked, and says why", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json([]))
+    )
+    stubPrivacyBridge({
+      updates: { locked: true },
+      usageStatistics: { locked: true, lockedReason: "do_not_track" },
+    })
+    render(<NetworkSettings />)
+
+    const updates = await screen.findByRole("checkbox", {
+      name: "Allow App updates",
+    })
+    await waitFor(() =>
+      expect(updates.hasAttribute("data-disabled")).toBe(true)
+    )
+    expect(
+      screen
+        .getByRole("checkbox", { name: "Allow Usage statistics" })
+        .hasAttribute("data-disabled")
+    ).toBe(true)
+    expect(screen.getByText(/DO_NOT_TRACK/)).toBeTruthy()
   })
 })

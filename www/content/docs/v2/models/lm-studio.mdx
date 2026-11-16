@@ -1,0 +1,96 @@
+---
+title: LM Studio
+description: Use models you run in LM Studio
+---
+
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+
+LM Studio runs models on your computer and serves them over the OpenAI API. SurfSense connects to it like any other server. This is useful on a Mac, where LM Studio can run MLX models, or when you already keep your models in LM Studio.
+
+## Start LM Studio's server
+
+1. Open LM Studio and download a model.
+2. Start the local server, in LM Studio's developer view.
+3. Note its port. The default is `1234`.
+
+## Connect it
+
+<Steps>
+<Step>
+
+Open **Settings › Text gen** and click **Add model**, then **Use a server**. In onboarding, click **Connect** under **Use a server**.
+
+</Step>
+<Step>
+
+In **Connect a server**, enter a **Name**, such as `LM Studio`.
+
+</Step>
+<Step>
+
+Under **Provider**, pick **LMStudio**. SurfSense fills the **Base URL** with `http://127.0.0.1:1234/v1`. Change the port if yours is different. LM Studio needs no key, so there is no key field.
+
+</Step>
+<Step>
+
+Click **Save server**. SurfSense asks LM Studio for its models, then opens the list.
+
+</Step>
+<Step>
+
+Click **Use** on a model. **Test chat** sends one short prompt so you can see it answer. Then click **Use this model**, or **Use without testing**.
+
+</Step>
+</Steps>
+
+LM Studio now appears as its own group in every model section it can serve. You can pick an image or audio model from it too, if LM Studio serves one.
+
+## Base URL
+
+| Where things run | Base URL |
+|---|---|
+| SurfSense and LM Studio on the same computer | `http://127.0.0.1:1234/v1` or `http://localhost:1234/v1` |
+| LM Studio on another computer in your network | `http://<host>:1234/v1` |
+| SurfSense in [Docker](/docs/v2/docker), LM Studio on the computer running Docker | `http://host.docker.internal:1234/v1` with Docker Desktop, or the computer's network address |
+
+Replace `<host>` with that computer's IP address or name. Turn on **Serve on Local Network** in LM Studio so other computers can reach it.
+
+<Callout type="warn">
+  LM Studio asks for no key by default, so any device that can reach the port
+  can use your models. Turn this on only on a network you trust, or limit who
+  can reach the port with a firewall.
+</Callout>
+
+Include `/v1`. SurfSense uses the URL exactly as you enter it.
+
+## Network permission
+
+A server on the same computer (`localhost` or `127.0.0.1`) needs no permission: nothing leaves your computer.
+
+Any other address, including a computer on your own network or `host.docker.internal`, counts as sending data out. When you save, SurfSense asks **Allow sending data to** that address. Allow it to continue. You can turn it off later in **Settings › Network**.
+
+## Agentic mode and LM Studio
+
+Agentic mode needs a model that can use tools and a context window of at least 32,768 tokens. LM Studio may load a model with a smaller window than the model supports. Set the context length to 32,768 or more when you load the model in LM Studio, or long Agentic tasks can run out of room.
+
+A model you run in LM Studio shows as not tested for Agentic mode, even when SurfSense tested the full-size model through a provider. See [Basic and Agentic chat](/docs/v2/models#basic-and-agentic-chat).
+
+## Troubleshooting
+
+### The endpoint's model list could not be verified
+
+SurfSense could not reach LM Studio, or it didn't answer like an OpenAI server.
+
+- Check the server is running in LM Studio.
+- Check the port and that the URL ends in `/v1`.
+- From the same computer, run `curl http://localhost:1234/v1/models`. It should list your models.
+
+If you trust the server and it simply doesn't list models, click **Save anyway**. You then type the model's exact ID under **Exact model ID**.
+
+### No models listed
+
+Download a model in LM Studio, then open the server's group in SurfSense again. You can also type an exact ID below the list.
+
+### Replies stop or time out
+
+A model that LM Studio is still loading can take a while to answer the first time. SurfSense waits up to five minutes for the first word. If it still fails, load the model in LM Studio first.

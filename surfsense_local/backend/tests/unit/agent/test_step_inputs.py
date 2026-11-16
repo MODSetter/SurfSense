@@ -19,9 +19,9 @@ SCRIPT = "doc.add_paragraph('Revenue rose.')\n" * 400
 def _step(tool: str, given: dict[str, Any]) -> dict[str, Any]:
     return step_of(
         {
-            "id": "prt_1",
             "type": "tool",
-            "tool": tool,
+            "id": "call_1",
+            "name": tool,
             "state": {"status": "running", "input": given},
         }
     )
@@ -103,18 +103,19 @@ def test_a_stored_reply_cuts_inputs_as_the_stream_does() -> None:
     """Reopening the thread reads back the same short inputs, not the whole file written."""
     content = "x" * 50_000
     messages = [
-        {"info": {"id": "msg_u", "role": "user"}, "parts": []},
+        {"id": "msg_u", "type": "user", "text": "Note it"},
         {
-            "info": {"id": "msg_a", "role": "assistant", "parentID": "msg_u"},
-            "parts": [
+            "id": "msg_a",
+            "type": "assistant",
+            "content": [
                 {
-                    "id": "prt_w",
                     "type": "tool",
-                    "tool": "write",
+                    "id": "call_w",
+                    "name": "write",
                     "state": {
                         "status": "completed",
-                        "input": {"filePath": "/w/notes.md", "content": content},
-                        "output": "Wrote file successfully.",
+                        "input": {"path": "/w/notes.md", "content": content},
+                        "content": [{"type": "text", "text": "Wrote file."}],
                     },
                 }
             ],
@@ -124,6 +125,6 @@ def test_a_stored_reply_cuts_inputs_as_the_stream_does() -> None:
     (step,) = turn_reply(messages, "msg_u", [])["content"]["steps"]
 
     assert step["input"] == {
-        "filePath": "/w/notes.md",
+        "path": "/w/notes.md",
         "content": content[:MAX_INPUT_CHARS] + "…",
     }

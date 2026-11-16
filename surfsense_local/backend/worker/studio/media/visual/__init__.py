@@ -1,6 +1,6 @@
-"""Pictures: a drawn image and a painted infographic."""
+"""Pictures: a drawn image, a painted infographic, and an edit of either."""
 
-# File suffix per media type an ImageGenerator may return.
+# File suffix per media type an ImageGenerator or ImageEditor may return.
 EXTENSIONS = {
     "image/png": "png",
     "image/jpeg": "jpg",

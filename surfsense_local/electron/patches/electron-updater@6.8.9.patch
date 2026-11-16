@@ -1,0 +1,42 @@
+diff --git a/out/differentialDownloader/DifferentialDownloader.js b/out/differentialDownloader/DifferentialDownloader.js
+index c6e948a79d1bb85122b21d8ddd61a5a842ca2e8d..03260b41095f3060033b6e28bb28fbcf9ee2e36c 100644
+--- a/out/differentialDownloader/DifferentialDownloader.js
++++ b/out/differentialDownloader/DifferentialDownloader.js
+@@ -192,8 +192,12 @@ class DifferentialDownloader {
+                         reject(new Error("response has been aborted by the server"));
+                     });
+                     // Electron net handles redirects automatically, our NodeJS test server doesn't use redirects - so, we don't check 3xx codes.
+-                    if (response.statusCode >= 400) {
+-                        reject((0, builder_util_runtime_1.createHttpError)(response));
++                    // SurfSense patch: a 200 is the whole file, not the range; writing it once per
++                    // range would fill the disk before the sha512 check runs.
++                    if (response.statusCode !== 206) {
++                        reject(response.statusCode >= 400 ? (0, builder_util_runtime_1.createHttpError)(response) : rangeIgnored(response));
++                        request.abort();
++                        return;
+                     }
+                     response.pipe(firstStream, {
+                         end: false,
+@@ -244,6 +248,12 @@ class DifferentialDownloader {
+                 if (!(0, multipleRangeDownloader_1.checkIsRangesSupported)(response, reject)) {
+                     return;
+                 }
++                // SurfSense patch: a 200 here is the whole file, read to the end before failing.
++                if (response.statusCode !== 206) {
++                    reject(rangeIgnored(response));
++                    request.abort();
++                    return;
++                }
+                 response.on("error", reject);
+                 response.on("aborted", () => {
+                     reject(new Error("response has been aborted by the server"));
+@@ -260,6 +270,9 @@ exports.DifferentialDownloader = DifferentialDownloader;
+ function formatBytes(value, symbol = " KB") {
+     return new Intl.NumberFormat("en").format((value / 1024).toFixed(2)) + symbol;
+ }
++function rangeIgnored(response) {
++    return new Error(`Range request answered with status ${response.statusCode}, not 206; a full download is needed`);
++}
+ // safety
+ function removeQuery(url) {
+     const index = url.indexOf("?");

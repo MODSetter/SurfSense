@@ -179,7 +179,7 @@ async def test_an_install_asked_to_select_says_so_before_it_ends(
 ) -> None:
     """Selecting is a step of its own, and the install ends with what it chose."""
 
-    async def choose(session, model_type, provider, name):
+    async def choose(session, model_type, provider, name, *, broker=None):
         return SimpleNamespace(
             model_type=model_type,
             provider=provider,
@@ -200,6 +200,40 @@ async def test_an_install_asked_to_select_says_so_before_it_ends(
         ("complete", "ready"),
     ]
     assert events[-1]["selection"]["name"] == "m-Q4_K_M"
+
+
+class RuntimeDownEngine:
+    """An engine whose runtime never lists the model: downloaded, not yet servable."""
+
+    provider = "llamacpp"
+    model_types = (ModelType.TEXT_GEN,)
+
+    async def after_install(self, model_id: str):
+        yield InstallStep(
+            "complete",
+            "Downloaded. It becomes available once the runtime restarts.",
+            code=InstallCode.READY_AFTER_RESTART,
+        )
+
+
+async def test_an_install_asked_to_select_ends_downloaded_while_the_runtime_is_down(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Choosing would ask the same runtime, so the job ends as runtime.md says, unchosen."""
+
+    async def choose(*args, **kwargs):
+        raise AssertionError("a model the runtime does not serve is not chosen")
+
+    monkeypatch.setattr(
+        "modules.llm.catalog.local.install_jobs.steps.choose_model", choose
+    )
+
+    events = await _events(InstallingService(RuntimeDownEngine()), select=True)
+
+    assert events[-1]["type"] == "complete"
+    assert events[-1]["code"] == "ready_after_restart"
+    assert events[-1]["selection"] is None
+    assert "selecting" not in [event["type"] for event in events]
 
 
 async def test_an_engine_refusing_the_model_ends_the_job_in_its_words() -> None:

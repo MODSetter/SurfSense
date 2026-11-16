@@ -65,13 +65,16 @@ def import_models() -> None:
     A relationship names its target as a string, so an unimported model is a
     name that cannot resolve.
     """
+    import modules.agent.engines.claude_code.models
     import modules.artifacts.models
     import modules.chat.models
     import modules.chunks.models
     import modules.documents.models
+    import modules.documents.web_sources.web_search.models
     import modules.egress.models
     import modules.embedding.models
     import modules.folders.models
+    import modules.jobs.settings.models
     import modules.license.models
     import modules.llm.models
     import modules.plugins.bundles.models
@@ -107,6 +110,9 @@ def _apply_pragmas(dbapi_connection: Any, _record: Any) -> None:
     # First, so what follows waits for a concurrent writer instead of failing.
     cursor.execute("PRAGMA busy_timeout = 5000")
     cursor.execute("PRAGMA foreign_keys = ON")
+    # A checkpoint resets the log but never shrinks the file, and a sidecar
+    # killed on Windows never deletes it: past this a reset truncates it.
+    cursor.execute("PRAGMA journal_size_limit = 67108864")
     cursor.close()
     enable_wal(dbapi_connection)
 

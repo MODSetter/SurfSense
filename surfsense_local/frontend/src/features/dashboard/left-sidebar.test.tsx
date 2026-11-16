@@ -41,7 +41,8 @@ describe("LeftSidebar", () => {
 
     const newChat = screen.getByRole("button", { name: "New chat" })
     expect(newChat.getAttribute("data-variant")).toBe("ghost")
-    expect(newChat.closest("header")?.className).toContain("px-3")
+    // Inset as the brand is, under the header row every column shares.
+    expect(newChat.parentElement?.className).toContain("px-3")
 
     expect(screen.getByRole("button", { name: "Chats" })).toBeTruthy()
     expect(screen.getByTestId("sources-slot")).toBeTruthy()

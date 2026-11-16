@@ -1,6 +1,6 @@
 # ADR 0020: The new app and the legacy app share one release feed and are kept apart by update channel
 
-- **Status:** Accepted
+- **Status:** Accepted; amended by [ADR 0070](0070-opt-in-id-less-update-checks-and-usage-statistics.md): the manifest is read through `updates.surfsense.com`, with GitHub behind it, and the automatic check runs once a UTC day
 - **Date:** 2026-09-12
 - **Source:** [Pivot plan L81–82](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/00d-pivot-plan.md#L81-L82), [Pivot plan L232](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/00d-pivot-plan.md#L232), [Pivot plan L303](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/00d-pivot-plan.md#L303), [Release guide L3–5](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/surfsense_local/RELEASE.md#L3-L5), [Release guide L83–103](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/surfsense_local/RELEASE.md#L83-L103)
 
@@ -14,7 +14,7 @@ Both desktop apps publish to the releases of `MODSetter/SurfSense`. The legacy 0
 - It sets `autoUpdater.allowPrerelease = true` ([`electron/src/main/updater.ts`](../../surfsense_local/electron/src/main/updater.ts)), which in electron-updater means taking the newest entry of the releases feed instead of `/releases/latest`.
 - Since 21 Sep the Latest badge sits on the newest 2.x release. The `legacy-update-bridge` job in [`.github/workflows/release-local.yml`](../../.github/workflows/release-local.yml) attaches v0.0.40's `latest*.yml` to every release with a `tag: v0.0.40` line prepended. electron-updater honours that key, so legacy clients are offered v0.0.40 and download it from v0.0.40's own assets.
 - The app never publishes a prerelease-semver tag, because it would be offered to everyone.
-- Download links on the site and in the license email pin a tag through `APP_RELEASE_VERSION`, never `/releases/latest`, so a deployed page or a mail already sent keeps offering the build it was made for; both pick installers from that tag's assets by suffix ([`surfsense_web/lib/app-release.ts`](../../surfsense_web/lib/app-release.ts), [`surfsense_backend/app/license/release.py`](../../surfsense_backend/app/license/release.py)).
+- Download links on the site and in the license email pin a tag through `APP_RELEASE_VERSION`, never `/releases/latest`, so a deployed page or a mail already sent keeps offering the build it was made for; both pick installers from that tag's assets by suffix ([`surfsense_web/lib/app-release.ts`](../../www/features/downloads/app-release.ts), [`backend/license/release.py`](../../backend/license/release.py)).
 - Updates are off by default. A check runs on demand or on the user's opt-in, the download follows the check, and the install waits for the user. macOS ships `[dmg, zip]` because electron-updater needs the zip; the Linux AppImage updates itself and the deb does not.
 
 ## Consequences
@@ -28,3 +28,4 @@ Both desktop apps publish to the releases of `MODSetter/SurfSense`. The legacy 0
 
 - 2.0.0 shipped without `allowPrerelease`, and 2.0.1 added it. `updater.ts` notes that Latest names a 2.x release again, so the flag is no longer required, and that dropping it would change behaviour for shipped clients.
 - `legacy-update-bridge` failed on the v2.0.2 tag run. The job skips checkout, so `gh release upload` had no repository to infer. The three manifests were uploaded by hand, and commit [a0c5bd3b8](https://github.com/MODSetter/SurfSense/commit/a0c5bd3b81b26b65d1bb79866a6d3e834e6a03b6) added `--repo`.
+- 21 Oct 2026: "the install waits for the user" held only for the restart prompt. electron-updater's `autoInstallOnAppQuit` defaults to true and was never set, so a downloaded update also installs the next time the user quits. It is now set to true on purpose, and the docs and the update prompt say so. Update requests also stopped sending electron-updater's persistent install ID ([what a check sends](../architecture/updates.md#what-a-check-sends)).

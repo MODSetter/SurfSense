@@ -1,5 +1,6 @@
 """A real MCP server, from the official SDK, served on loopback for the client's tests."""
 
+import asyncio
 import json
 import socket
 import threading
@@ -183,6 +184,45 @@ class RecordingMethods:
         await self.app(scope, replay, send)
 
 
+class Delaying:
+    """Holds each request for a JSON-RPC method `seconds` before passing it on, once `on`.
+
+    Keeps when each one arrived and when it was passed on, by the clock of `time.monotonic`.
+    """
+
+    def __init__(self, app: ASGIApp, method: str, seconds: float) -> None:
+        self.app = app
+        self.method = method
+        self.seconds = seconds
+        self.on = True
+        self.held: list[tuple[float, float]] = []
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http" or scope["method"] != "POST":
+            await self.app(scope, receive, send)
+            return
+        body = b""
+        while True:
+            event = await receive()
+            body += event.get("body", b"")
+            if not event.get("more_body"):
+                break
+        if self.on and json.loads(body).get("method") == self.method:
+            arrived = time.monotonic()
+            await asyncio.sleep(self.seconds)
+            self.held.append((arrived, time.monotonic()))
+        replayed = False
+
+        async def replay():
+            nonlocal replayed
+            if replayed:
+                return await receive()
+            replayed = True
+            return {"type": "http.request", "body": body, "more_body": False}
+
+        await self.app(scope, replay, send)
+
+
 def notes_server() -> MCPServer:
     """A plugin with two tools: a read-only search and a word count."""
     server = MCPServer("notes")
@@ -218,14 +258,33 @@ class RequiringToken:
         await self.app(scope, receive, send)
 
 
-def amazon_server() -> MCPServer:
-    """A stand-in for SurfSense's Amazon plugin: one read-only search."""
-    server = MCPServer("amazon")
+class RequiringHeader:
+    """Answers 401 unless `name` carries `value`, as a server reading its key from any header does."""
+
+    def __init__(self, app: ASGIApp, name: str, value: str) -> None:
+        self.app = app
+        self.name = name.lower().encode()
+        self.expected = value.encode()
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if (
+            scope["type"] == "http"
+            and dict(scope["headers"]).get(self.name) != self.expected
+        ):
+            await send({"type": "http.response.start", "status": 401, "headers": []})
+            await send({"type": "http.response.body", "body": b""})
+            return
+        await self.app(scope, receive, send)
+
+
+def news_server() -> MCPServer:
+    """A stand-in for one of SurfSense's own plugins: one read-only search."""
+    server = MCPServer("news")
 
     @server.tool(annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=True))
-    def search_products(query: str) -> str:
-        """Search Amazon's products."""
-        return f"products about {query}"
+    def search_articles(query: str) -> str:
+        """Search the news."""
+        return f"articles about {query}"
 
     return server
 

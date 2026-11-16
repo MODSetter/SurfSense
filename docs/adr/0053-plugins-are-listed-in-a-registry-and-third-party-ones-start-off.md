@@ -13,7 +13,7 @@ Obsidian keeps its community plugins as one list, served from its own server wit
 ## Decision
 
 - SurfSense's plugins are listed in a first-party list packaged into the app, shown with no network and no consent. It changes with app releases. It holds entries only, a few hundred bytes each, never plugin code, bundle files or version lists.
-- Every third-party plugin is listed in one file, `plugins/registry/plugins.json` in this repository. An entry is added by pull request and reviewed once by a maintainer. A change to the server behind it needs no review.
+- Every third-party plugin is listed in one file, `backend/plugins/registry/plugins.json` in this repository. An entry is added by pull request and reviewed once by a maintainer. A change to the server behind it needs no review.
 - Neither list holds plugins: a plugin's code, and later its bundle files, stay with its publisher, in its own host or repository.
 - Both lists share one entry schema with a `kind`, `remote` now, with `bundle` reserved. Who publishes is set by the list: SurfSense by being in the first-party list, and in the registry `verification`, `verified` for a plugin proven by its domain to be run by its author or `community`, set in review. `auth: license` and `access: license` appear only in the first-party list, so a fetched file can never claim to be SurfSense or receive the license key. `CODEOWNERS` requires a maintainer's approval for every change to the registry.
 - Every plugin not published by SurfSense, a custom one added by URL included, is third-party and off until the user allows third-party plugins once. The switch plays the part of Obsidian's Restricted mode, named for what it allows.
@@ -30,4 +30,4 @@ Obsidian keeps its community plugins as one list, served from its own server wit
 
 ## Where the code stands
 
-Built: the registry, its check and signing in `plugins/registry/`, the first-party list packaged into the app, the app's signed, cached copy, the third-party switch and Settings → Plugins ([plugin registry](../architecture/plugin-registry.md), [plugins](../architecture/plugins.md)). The registry is served from `plugins.surfsense.com`.
+Built: the registry, its check and signing in `backend/plugins/registry/`, the first-party list packaged into the app, the app's signed, cached copy, the third-party switch and Settings → Plugins ([plugin registry](../architecture/plugin-registry.md), [plugins](../architecture/plugins.md)). The registry is served from `plugins.surfsense.com`.

@@ -95,6 +95,16 @@ export type Voicing = {
   languages: string[]
 }
 
+export type Transcription = {
+  /** Measured on the first request, the load included. */
+  peak_mb: number
+  /** The longest stretch of audio one request carries. */
+  window_s: number
+  detects_language: boolean
+  /** ISO 639-1 codes of the languages the model is listed for. */
+  languages: string[]
+}
+
 export type LocalRow = {
   id: string
   source: "local"
@@ -124,6 +134,8 @@ export type LocalRow = {
   description?: string | null
   /** An audio model's memory while voicing, voices and languages. */
   voicing?: Voicing | null
+  /** A speech recognition model's memory, languages and language detection. */
+  transcription?: Transcription | null
   /**
    * The build the row shows and its Download fetches, and why the server chose
    * it. Absent for a searched repo, which lists every build and leads with none.

@@ -1,0 +1,6 @@
+# The SPA, built into the image; any path it routes itself falls back to index.html.
+handle {
+	root * {$SURFSENSE_FRONTEND_DIR}
+	try_files {path} /index.html
+	file_server
+}

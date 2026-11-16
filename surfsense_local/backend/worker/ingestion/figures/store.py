@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from modules.documents.source_figures.layout import (
+    INDEX_NAME,
     can_hold_figures,
     figure_png,
     figures_dir,
@@ -40,6 +41,30 @@ def keep_figures(original: Path, converted: Any) -> None:
         write_index(folder, entries, error=None)
     except Exception as failure:  # the text is what ingest is for; figures are extra
         record_figures_failure(original, failure)
+
+
+def keep_no_figures(original: Path) -> None:
+    """Index none, for a file Docling would find none in: asking queues no pass."""
+    if not can_hold_figures(original):
+        return
+    folder = figures_dir(original.parent)
+    try:
+        _empty(folder)
+        write_index(folder, [], error=None)
+    except OSError:
+        logger.warning("could not index no figures for %s", original, exc_info=True)
+
+
+def forget_figures(original: Path) -> None:
+    """Drop what an earlier reading kept, so asking for figures queues a fresh pass."""
+    folder = figures_dir(original.parent)
+    try:
+        # The index first: without it the figures read as never kept.
+        (folder / INDEX_NAME).unlink(missing_ok=True)
+    except OSError:
+        logger.warning("could not forget the figures of %s", original, exc_info=True)
+        return
+    shutil.rmtree(folder, ignore_errors=True)
 
 
 def record_figures_failure(original: Path, failure: Exception) -> None:

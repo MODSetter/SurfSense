@@ -14,17 +14,20 @@ from shared.config import get_storage_settings
 
 logger = logging.getLogger(__name__)
 
-# The snapshot page lays Word out with docx-preview, told to skip both
-# (frontend/src/features/docx-snapshot/snapshot-page.ts).
-WORD_PREVIEWS_LEAVE_OUT = (
-    "Drawn by SurfSense's Word viewer. Word previews leave out headers and "
-    "footers: a logo or page number placed there is in the document even though "
-    "no preview shows it."
+# The snapshot page draws Word with the Studio viewer's renderer.
+WORD_PREVIEWS_ARE = (
+    "Drawn by SurfSense's Word viewer, which shows headers, footers and watermarks "
+    "as the user sees them; it can differ a little from Word in fonts and line breaks."
 )
 # The snapshot page lays a deck out with pptx-renderer, the Studio viewer's library.
 SLIDE_PREVIEWS_DIFFER = (
     "Slide previews show the deck as SurfSense's slide viewer draws it, which can "
     "differ a little from PowerPoint in fonts and charts."
+)
+# How Electron takes them (previews/page_screens.py, electron's capture).
+PAGE_SCREENS_ARE = (
+    "Screens are the page at 1,280 px wide, top to bottom, 1,000 px each, with "
+    "reduced motion on, so animations show their end state."
 )
 LOOK_AT_EVERY_PAGE = (
     "Look at every one before you answer; if one is wrong, fix the script, render "
@@ -53,9 +56,11 @@ def version_pages(
     The paths are not listed one by one, so the model is not invited to open
     each page again with `read`, which would send every page twice.
     """
+    # A page's previews are screens of it, top to bottom, not printed pages.
+    shots = "screenshots" if artifact.format == "html" else "page previews"
     if not declares_image_input(get_storage_settings().agent_dir / CONFIG_FILE):
         return (
-            "No page previews: the selected model cannot read images. Check the "
+            f"No {shots}: the selected model cannot read images. Check the "
             "script and the text above instead."
         ), ()
     try:
@@ -63,9 +68,9 @@ def version_pages(
     # The version is made; a preview that breaks must not send the model to make it again.
     except Exception:
         logger.exception("previews of artifact %s failed", artifact.id)
-        return "No page previews: drawing them failed.", ()
+        return f"No {shots}: drawing them failed.", ()
     if not previews.pages:
-        return f"No page previews: {previews.reason or 'none were drawn.'}", ()
+        return f"No {shots}: {previews.reason or 'none were drawn.'}", ()
     kept_in = _relative(previews.pages[0].parent, folder)
     shown: list[int] = []
     images: list[InlineImage] = []
@@ -84,16 +89,17 @@ def version_pages(
         shown.append(number)
     if not images:
         return (
-            "No page previews: they were drawn but could not be attached; open "
+            f"No {shots}: they were drawn but could not be attached; open "
             f"them in {kept_in}/ with read."
         ), ()
-    unit = "slide" if artifact.format == "pptx" else "page"
+    unit = {"pptx": "slide", "html": "screen"}.get(artifact.format, "page")
     if previews.drawn_by_office is not None:
         caveat = [drawn_by_office(previews.drawn_by_office)]
     else:
         caveat = {
-            "docx": [WORD_PREVIEWS_LEAVE_OUT],
+            "docx": [WORD_PREVIEWS_ARE],
             "pptx": [SLIDE_PREVIEWS_DIFFER],
+            "html": [PAGE_SCREENS_ARE],
         }.get(artifact.format, [])
     text = "\n".join(
         [

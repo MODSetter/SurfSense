@@ -1,13 +1,14 @@
 import { intl } from "./intl"
 import { isAppLocale } from "./locales"
+import { localeSource } from "./locale-source"
 
-// The renderer follows main's language. A change reloads the window, and the
-// reloaded page builds its intl in the new language from what preload reports.
-export function followMainLocale(
+// The page follows the source's language: main's on the desktop, the browser's
+// otherwise. A change reloads it, and the reloaded page builds its intl anew.
+export function followLocale(
   reload: () => void = () => window.location.reload()
 ): void {
   document.documentElement.lang = intl.locale
-  window.surfsense?.locale?.onChange((next) => {
+  localeSource().onChange((next) => {
     if (isAppLocale(next) && next !== intl.locale) reload()
   })
 }

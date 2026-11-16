@@ -13,10 +13,13 @@ import { TooltipProvider } from "@/components/ui/tooltip.tsx"
 import { EgressPrompt } from "@/features/egress/egress-prompt.tsx"
 import { IssueReportDialog } from "@/features/feedback/issue-report-dialog.tsx"
 import { SidecarCrashReporter } from "@/features/feedback/sidecar-crash-reporter.tsx"
+import { followMotionPreference } from "@/features/motion-preference/motion-preference.ts"
+import { MoveProgressDialog } from "@/features/storage/move-progress-dialog.tsx"
+import { followMoveProgress } from "@/features/storage/move-progress-state.ts"
 import { InstallFeed } from "@/features/models/local/installs/install-feed.tsx"
 import { MenuUpdateCheck } from "@/features/updates/menu-update-check.tsx"
 import { intl } from "@/i18n/intl.ts"
-import { followMainLocale } from "@/i18n/locale.ts"
+import { followLocale } from "@/i18n/locale.ts"
 import { queryClient } from "@/lib/query-client.ts"
 
 const root = document.getElementById("root")
@@ -31,11 +34,13 @@ if (window.surfsense?.platform) {
   }
 }
 
-followMainLocale()
+followLocale()
+followMotionPreference()
 guardFileDrops(window)
+followMoveProgress()
 
 // Open over any dialog as its nested dialog, or on their own when none is open.
-const APP_DIALOGS = [EgressPrompt, IssueReportDialog]
+const APP_DIALOGS = [EgressPrompt, IssueReportDialog, MoveProgressDialog]
 
 createRoot(root).render(
   <StrictMode>

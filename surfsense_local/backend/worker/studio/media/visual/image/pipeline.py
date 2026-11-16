@@ -7,6 +7,7 @@ from modules.llm import prompting
 from modules.llm.profile import Tier
 from modules.llm.resolution import ResolvedGeneration, ResolvedImageGeneration
 from worker.studio.media.visual import EXTENSIONS
+from worker.studio.media.visual.redraw.drawing_prompt import kept_drawing_prompt
 from worker.studio.shared import generate
 from worker.studio.shared.artifact import Built, Source, fallback_title
 from worker.studio.shared.text import as_text, parse_json, slug
@@ -35,6 +36,7 @@ def render(
         primary=image.content,
         primary_mime=image.media_type,
         primary_filename=f"{slug(title, 'image')}.{EXTENSIONS[image.media_type]}",
+        metadata=kept_drawing_prompt(image_prompt),
     )
 
 

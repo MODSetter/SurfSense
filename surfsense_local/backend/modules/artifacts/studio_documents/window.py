@@ -1,6 +1,7 @@
 """Whether a spec fits the selected model's window to be rewritten whole in one call."""
 
 import math
+from dataclasses import dataclass
 
 # The estimate chat prices text with when no tokenizer is asked (modules/chat/budget.py).
 CHARS_PER_TOKEN = 4
@@ -22,9 +23,28 @@ def figure_list_chars(captions: list[str | None]) -> int:
     )
 
 
-def too_long_reason(
+@dataclass(frozen=True)
+class TooLong:
+    """A rewrite that does not fit, as the numbers its sentence is made of."""
+
+    model: str
+    spec_tokens: int
+    needed_tokens: int
+    window_tokens: int
+
+    @property
+    def reason(self) -> str:
+        return (
+            f"This document is too long for {self.model} to rewrite in one go: it is "
+            f"about {self.spec_tokens:,} tokens, and reading it and writing it again "
+            f"needs about {self.needed_tokens:,} of the model's "
+            f"{self.window_tokens:,}-token window."
+        )
+
+
+def too_long(
     spec: str, instruction: str, model: str, window: int, figures_chars: int = 0
-) -> str | None:
+) -> TooLong | None:
     """Why the rewrite cannot fit: the model reads the spec and writes it again."""
     spec_tokens = math.ceil(len(spec) / CHARS_PER_TOKEN)
     needed = (
@@ -36,8 +56,4 @@ def too_long_reason(
     )
     if needed <= window:
         return None
-    return (
-        f"This document is too long for {model} to rewrite in one go: it is about "
-        f"{spec_tokens:,} tokens, and reading it and writing it again needs about "
-        f"{needed:,} of the model's {window:,}-token window."
-    )
+    return TooLong(model, spec_tokens, needed, window)

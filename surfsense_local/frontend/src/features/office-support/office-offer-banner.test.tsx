@@ -64,6 +64,7 @@ function artifact(id: number, format: string) {
     version: { root_id: id, number: 1, parent_id: null },
     spec_kind: "python",
     refinable: false,
+    image_editable: false,
   }
 }
 
@@ -156,8 +157,7 @@ function renderThread() {
   )
 }
 
-const OFFERED =
-  /Get exact Office pages, real spreadsheet totals and conversion to PDF/
+const OFFERED = /Let the agent check its work on pages laid out by LibreOffice/
 
 beforeEach(() => {
   localStorage.clear()

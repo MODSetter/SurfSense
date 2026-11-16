@@ -1,1 +1,0 @@
-"""Backend-owned artifact verification."""

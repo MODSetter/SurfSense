@@ -3,15 +3,19 @@
 import json
 from typing import Any
 
-# What SurfSense's model endpoint names a plan's refusal in its error body.
-PLAN_KINDS = frozenset({"subscription_limit", "subscription_sign_in"})
+from modules.llm.connections.console_refusals import PROVIDER_REFUSED
+
+# What SurfSense's model endpoint codes in its error body.
+RELAY_KINDS = frozenset(
+    {"subscription_limit", "subscription_sign_in", PROVIDER_REFUSED}
+)
 
 
 def error_kind(error: dict[str, Any]) -> str:
-    """A plan refusal SurfSense's relay coded keeps its chat kind; anything else is `unknown`."""
-    body = (error.get("data") or {}).get("responseBody")
+    """A refusal SurfSense's relay coded keeps its chat kind; anything else is `unknown`."""
+    body = (error.get("response") or {}).get("body")
     try:
         code = json.loads(body)["error"]["code"] if isinstance(body, str) else None
     except (ValueError, KeyError, TypeError):
         code = None
-    return code if code in PLAN_KINDS else "unknown"
+    return code if code in RELAY_KINDS else "unknown"

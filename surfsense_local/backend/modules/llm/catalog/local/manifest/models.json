@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "refreshed_at": "2026-10-06",
+  "refreshed_at": "2026-10-15",
   "models": [
     {
       "id": "qwen3.8-27b",
@@ -4880,6 +4880,171 @@
               "path": "KittenTTS-GGUF/kitten-tts-mini-0.8-orig.gguf",
               "size_bytes": 302167104,
               "sha256": "8f015d32f30cab7b9eebdebb244b0124cfd855ffe543daa3c6967e496fd24336"
+            }
+          ],
+          "validated": {
+            "audio_cpp": "v0.8.2"
+          }
+        }
+      ]
+    },
+    {
+      "id": "nemotron-3.5-asr-streaming-0.6b",
+      "name": "Nemotron 3.5 ASR Streaming 0.6B",
+      "family": "Nemotron",
+      "publisher": "NVIDIA",
+      "description": "Turns speech into text in 26 languages and tells which one it hears.",
+      "license": "openmdw-1.1",
+      "source_repo": "nvidia/nemotron-3.5-asr-streaming-0.6b",
+      "aliases": [
+        "nvidia/nemotron-3.5-asr-streaming-0.6b"
+      ],
+      "evidence": {
+        "architecture": "nemotron_asr",
+        "pipeline_tag": "text-to-speech"
+      },
+      "transcription": {
+        "origin": "nvidia/nemotron-3.5-asr-streaming-0.6b card; FLEURS from handy-computer/nemotron-3.5-asr-streaming-0.6b-gguf; memory measured on audio.cpp v0.8.2, Ryzen 7 5800X, 8 threads, 14 Oct 2026",
+        "sample_rate": 16000,
+        "peak_mb": 1776,
+        "window_s": 28,
+        "detects_language": true,
+        "languages": [
+          "it",
+          "es",
+          "en",
+          "pt",
+          "hi",
+          "ko",
+          "de",
+          "fr",
+          "ru",
+          "ja",
+          "nl",
+          "vi",
+          "uk",
+          "tr",
+          "ar",
+          "pl",
+          "zh",
+          "nb",
+          "fi",
+          "bg",
+          "cs",
+          "sk",
+          "sv",
+          "hr",
+          "ro",
+          "da"
+        ],
+        "family_codes": {
+          "it": "it-IT",
+          "es": "es-ES",
+          "en": "en-US",
+          "pt": "pt-BR",
+          "hi": "hi-IN",
+          "ko": "ko-KR",
+          "de": "de-DE",
+          "fr": "fr-FR",
+          "ru": "ru-RU",
+          "ja": "ja-JP",
+          "nl": "nl-NL",
+          "vi": "vi-VN",
+          "uk": "uk-UA",
+          "tr": "tr-TR",
+          "ar": "ar-AR",
+          "pl": "pl-PL",
+          "zh": "zh-CN",
+          "nb": "nb-NO",
+          "fi": "fi-FI",
+          "bg": "bg-BG",
+          "cs": "cs-CZ",
+          "sk": "sk-SK",
+          "sv": "sv-SE",
+          "hr": "hr-HR",
+          "ro": "ro-RO",
+          "da": "da-DK"
+        },
+        "detected_only": {
+          "et": "et-EE",
+          "hu": "hu-HU",
+          "el": "el-GR",
+          "he": "he-IL",
+          "lt": "lt-LT",
+          "lv": "lv-LV",
+          "mt": "mt-MT",
+          "nn": "nn-NO",
+          "sl": "sl-SI",
+          "th": "th-TH"
+        },
+        "request_options": {
+          "keep_language_tags": true
+        }
+      },
+      "builds": [
+        {
+          "quantization": "Q8_0",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "audio-cpp/audio.cpp-gguf",
+              "upstream_repo": null,
+              "revision": "f861648c0c1f4da9f18e9a0ce5e217b0679bb2f5",
+              "path": "Nemotron-3.5-ASR-Streaming-0.6B-GGUF/nemotron-3.5-asr-streaming-0.6b-q8_0.gguf",
+              "size_bytes": 930625888,
+              "sha256": "c58b62c1bdd6c5d7b14b08126c5bd16c1289fee6e0d6ac0761dbd3aa6d714935"
+            }
+          ],
+          "validated": {
+            "audio_cpp": "v0.8.2"
+          }
+        }
+      ]
+    },
+    {
+      "id": "canary-180m-flash",
+      "name": "Canary 180M Flash",
+      "family": "Canary",
+      "publisher": "NVIDIA",
+      "description": "Accurate English with little memory. Also German and French.",
+      "license": "cc-by-4.0",
+      "source_repo": "nvidia/canary-180m-flash",
+      "aliases": [
+        "nvidia/canary-180m-flash"
+      ],
+      "evidence": {
+        "architecture": "canary_asr",
+        "pipeline_tag": "text-to-speech"
+      },
+      "transcription": {
+        "origin": "nvidia/canary-180m-flash card; memory measured on audio.cpp v0.8.2, Apple M2, 4 threads, 16 Oct 2026",
+        "sample_rate": 16000,
+        "peak_mb": 783,
+        "window_s": 28,
+        "detects_language": false,
+        "languages": [
+          "en",
+          "de",
+          "fr"
+        ],
+        "family_codes": {
+          "en": "en",
+          "de": "de",
+          "fr": "fr"
+        }
+      },
+      "builds": [
+        {
+          "quantization": "Q8_0",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "audio-cpp/audio.cpp-gguf",
+              "upstream_repo": null,
+              "revision": "f861648c0c1f4da9f18e9a0ce5e217b0679bb2f5",
+              "path": "Canary-180M-Flash-GGUF/canary-180m-flash-q8_0.gguf",
+              "size_bytes": 249496128,
+              "sha256": "8a6d06be2b6c8e44b7810e5ad1277db571d3152a7eea8b699974516907a6ef57"
             }
           ],
           "validated": {

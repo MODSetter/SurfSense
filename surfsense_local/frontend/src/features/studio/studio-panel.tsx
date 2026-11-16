@@ -8,7 +8,6 @@ import {
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
   DialogContent,
@@ -17,7 +16,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { OverflowTooltip } from "@/components/ui/overflow-tooltip"
 import { ScrollFade } from "@/components/ui/scroll-fade"
 import { Spinner } from "@/components/ui/spinner"
 import {
@@ -26,15 +24,16 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import type { WorkspaceDocument } from "@/features/sources/api"
+import { SourceChecklist } from "@/features/sources/source-checklist"
 import type { SourceScope } from "@/features/sources/tree/scope-state"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
 import type { StudioFormat, StudioJobCreate } from "./api"
-import { PodcastBriefForm } from "./podcast-brief-form"
+import { useFormatOptions } from "./format-options/use-format-options"
+import { formatCards } from "./picture-types"
 import { FORMAT_ICONS, formatLabel, studioCatalog } from "./studio-formats"
 import { translatedUnavailable } from "./studio-unavailable-text"
-import { usePodcastBrief } from "./use-podcast-brief"
 
 const FORMAT_HINTS: Record<string, () => string> = {
   summary: () =>
@@ -93,10 +92,10 @@ const FORMAT_HINTS: Record<string, () => string> = {
       id: "studio_format_image_tooltip",
       defaultMessage: "Generate an AI image based on your sources",
     }),
-  infographic: () =>
+  comic: () =>
     intl.formatMessage({
-      id: "studio_format_infographic_tooltip",
-      defaultMessage: "Generate an AI infographic based on your sources",
+      id: "studio_format_comic_tooltip",
+      defaultMessage: "Generate an AI comic based on your sources",
     }),
 }
 
@@ -137,6 +136,7 @@ function formatHint(entry: StudioFormat) {
 function Composer({
   workspaceId,
   format,
+  catalog,
   documents,
   selectedDocumentIds,
   sourceScope,
@@ -148,6 +148,7 @@ function Composer({
 }: {
   workspaceId: number
   format: string
+  catalog: StudioFormat[]
   documents: WorkspaceDocument[]
   selectedDocumentIds: number[]
   sourceScope?: SourceScope
@@ -161,19 +162,9 @@ function Composer({
   const selected = new Set(selectedDocumentIds)
   const [prompt, setPrompt] = useState("")
   const [view, setView] = useState<"main" | "sources">("main")
-  const podcast = usePodcastBrief(format === "podcast" ? workspaceId : null)
+  const options = useFormatOptions(format, workspaceId, catalog, onSetUpVoices)
   const allSelected = ready.length > 0 && selected.size === ready.length
-
-  const toggle = (id: number) => onSelectionChange(id, !selected.has(id))
-
-  // A podcast is generated from its reviewed brief, so it waits for the brief.
-  // A server model with no voices yet can voice nothing: set them up first.
-  const needsVoices =
-    podcast.opened?.voices_source === "saved" &&
-    podcast.opened.voices.length === 0
-  const briefReady =
-    format !== "podcast" || (podcast.brief != null && !needsVoices)
-  const canGenerate = selected.size > 0 && !isCreating && briefReady
+  const canGenerate = selected.size > 0 && !isCreating && options.ready
 
   return (
     // A taller dialog for every format: Generate stays at the bottom, and the
@@ -189,27 +180,7 @@ function Composer({
         aria-hidden={view !== "main"}
       >
         <div className="space-y-3">
-          {format === "podcast" ? (
-            podcast.brief && podcast.opened ? (
-              <PodcastBriefForm
-                brief={podcast.brief}
-                voices={podcast.opened.voices}
-                languages={podcast.opened.languages}
-                voicesSource={podcast.opened.voices_source}
-                voicedBy={podcast.opened.voiced_by}
-                onSetUpVoices={onSetUpVoices}
-                onChange={podcast.setBrief}
-              />
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                {podcast.error ??
-                  intl.formatMessage({
-                    id: "studio_composer_brief_status",
-                    defaultMessage: "Preparing the brief…",
-                  })}
-              </p>
-            )
-          ) : null}
+          {options.panel}
 
           {ready.length === 0 ? (
             <div className="space-y-2">
@@ -229,6 +200,7 @@ function Composer({
             </div>
           ) : (
             <Button
+              static
               type="button"
               variant="secondary"
               onClick={() => setView("sources")}
@@ -271,15 +243,15 @@ function Composer({
 
         <div className="mt-auto pt-3">
           <Button
+            static
             className="w-full"
             disabled={!canGenerate}
             onClick={() => {
               onGenerate({
-                format,
+                ...options.job,
                 document_ids: [...selected],
                 ...(sourceScope ? { source_scope: sourceScope } : {}),
                 prompt: prompt.trim() || undefined,
-                options: podcast.brief ?? undefined,
               })
             }}
           >
@@ -345,34 +317,11 @@ function Composer({
           ) : null}
         </div>
         <ScrollFade className="min-h-0 flex-1" viewportClassName="pr-2">
-          <div className="space-y-1">
-            {ready.map((document) => {
-              const on = selected.has(document.id)
-              return (
-                <label
-                  key={document.id}
-                  className={cn(
-                    "flex w-full cursor-pointer items-center gap-2 rounded-md border px-2.5 py-2 text-left text-sm",
-                    on ? "border-primary bg-primary/5" : "hover:bg-accent"
-                  )}
-                >
-                  <Checkbox
-                    checked={on}
-                    onCheckedChange={() => toggle(document.id)}
-                  />
-                  <OverflowTooltip
-                    label={document.title}
-                    focusOwner="label"
-                    render={
-                      <span className="min-w-0 flex-1 truncate">
-                        {document.title}
-                      </span>
-                    }
-                  />
-                </label>
-              )
-            })}
-          </div>
+          <SourceChecklist
+            documents={ready}
+            isChecked={(id) => selected.has(id)}
+            onToggle={onSelectionChange}
+          />
         </ScrollFade>
       </div>
     </div>
@@ -393,12 +342,15 @@ const FormatCard = memo(function FormatCard({
     <Tooltip>
       <TooltipTrigger
         render={
-          <button
+          <Button
             type="button"
+            variant="bare"
+            // An unavailable format does nothing, so it does not press.
+            static={!entry.available}
             aria-disabled={!entry.available || undefined}
             aria-pressed={entry.available ? selected : undefined}
             className={cn(
-              "flex min-w-0 cursor-pointer flex-col items-center gap-1 rounded-lg border border-transparent bg-muted/40 px-1 py-2 text-center [&_svg]:size-4",
+              "flex min-w-0 flex-col items-center gap-1 rounded-lg border border-transparent bg-muted/40 px-1 py-2 text-center [&_svg]:size-4",
               entry.available
                 ? "hover:bg-accent"
                 : "cursor-not-allowed opacity-50",
@@ -410,7 +362,7 @@ const FormatCard = memo(function FormatCard({
             <span className="w-full truncate text-[11px] leading-4">
               {formatLabel(entry)}
             </span>
-          </button>
+          </Button>
         }
       />
       <TooltipContent side="top">{formatHint(entry)}</TooltipContent>
@@ -450,6 +402,7 @@ export const StudioPanel = memo(function StudioPanel({
   const [format, setFormat] = useState<string | null>(null)
   const [formatOpen, setFormatOpen] = useState(false)
   const catalog = useMemo(() => catalogFormats(formats), [formats])
+  const cards = useMemo(() => formatCards(catalog), [catalog])
   const selectedFormat = catalog.find((entry) => entry.key === format)
   const selectFormat = useCallback((key: string) => {
     setFormat(key)
@@ -478,7 +431,7 @@ export const StudioPanel = memo(function StudioPanel({
         })}
       >
         <div className="grid grid-cols-3 gap-1.5">
-          {catalog.map((entry) => (
+          {cards.map((entry) => (
             <FormatCard
               key={entry.key}
               entry={entry}
@@ -509,6 +462,7 @@ export const StudioPanel = memo(function StudioPanel({
                 key={selectedFormat.key}
                 workspaceId={workspaceId}
                 format={selectedFormat.key}
+                catalog={catalog}
                 documents={documents}
                 selectedDocumentIds={selectedDocumentIds}
                 sourceScope={sourceScope}

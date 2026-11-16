@@ -1,6 +1,6 @@
 """The build an audio row leads with: in use, else installed, else the default."""
 
-from collections.abc import Sequence
+from collections.abc import Sequence, Set
 
 from modules.llm.catalog.local.rows import BuildRow, Lead, LeadReason
 
@@ -9,10 +9,10 @@ def lead_build(
     builds: Sequence[BuildRow],
     default_quantization: str | None,
     *,
-    selected: str | None,
+    selected: Set[str],
 ) -> Lead | None:
     for row in builds:
-        if selected is not None and row.installed_as == selected:
+        if row.installed_as is not None and row.installed_as in selected:
             return Lead(row.build.quantization, LeadReason.IN_USE)
     for row in builds:
         if row.installed_as:

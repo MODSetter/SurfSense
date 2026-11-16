@@ -18,6 +18,7 @@ from modules.documents.source_figures import (
     figure_file,
     list_figures,
 )
+from modules.documents.tasks import PRIORITY_BULK, ingest_document
 from modules.workspaces.models import Workspace
 from shared.config import get_storage_settings
 from shared.db import create_session_factory
@@ -115,6 +116,28 @@ def test_a_source_ingested_before_figures_were_kept_queues_their_extraction(
     assert queued() == [("extract_figures", (source.id,))]
 
 
+def test_an_asked_figures_pass_waits_behind_a_note_and_not_behind_an_import(
+    session: Session, workspace: Workspace
+) -> None:
+    """A Studio draft asks for every grounded source's figures, each a Docling
+    run; a note written after it is still ready in seconds."""
+    source = add_source(session, workspace)
+    ingest_document(1000, priority=PRIORITY_BULK)  # a folder import under way
+
+    with pytest.raises(FiguresPending):
+        list_figures(session, workspace.id, source.id)
+    ingest_document(1001)  # the note
+
+    order = []
+    while (task := ingest_queue.dequeue()) is not None:
+        order.append((task.name, task.args))
+    assert order == [
+        ("ingest_document", (1001,)),
+        ("extract_figures", (source.id,)),
+        ("ingest_document", (1000,)),
+    ]
+
+
 def test_a_source_still_being_ingested_waits_for_its_own_ingest(
     session: Session, workspace: Workspace
 ) -> None:
@@ -130,7 +153,8 @@ def test_a_source_still_being_ingested_waits_for_its_own_ingest(
 def test_sources_that_hold_no_figures_list_none(
     session: Session, workspace: Workspace
 ) -> None:
-    """Notes, Studio outputs, plain text and failed sources have nothing to extract."""
+    """Notes, Studio outputs, plain text, recordings and failed sources have
+    nothing to extract: Docling must never read a recording."""
     note = Document(
         workspace_id=workspace.id,
         title="Ideas",
@@ -141,11 +165,12 @@ def test_sources_that_hold_no_figures_list_none(
     session.add(note)
     session.commit()
     text = add_source(session, workspace, filename="notes.md")
+    recording = add_source(session, workspace, filename="standup.mp3")
     failed = add_source(
         session, workspace, filename="broken.pdf", status=DocumentStatus.FAILED
     )
 
-    for source in (note, text, failed):
+    for source in (note, text, recording, failed):
         assert list_figures(session, workspace.id, source.id) == []
     assert queued() == []
 

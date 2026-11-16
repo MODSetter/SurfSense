@@ -1,7 +1,8 @@
 """The manifest's audio models and the audio folder as rows, unpriced like
-image rows: the memory a model takes while voicing is in its entry instead."""
+image rows: the memory a model takes while voicing or transcribing is in its
+entry instead."""
 
-from collections.abc import Callable, Collection, Mapping, Sequence
+from collections.abc import Callable, Collection, Mapping, Sequence, Set
 
 from modules.llm.catalog.local.build import Build
 from modules.llm.catalog.local.classifier import classify
@@ -16,6 +17,7 @@ from modules.llm.catalog.local.rows import (
     LocalRow,
     LocalSupport,
     Origin,
+    Transcribing,
     Voicing,
 )
 
@@ -26,7 +28,7 @@ def audio_catalog(
     files: Collection[str],
     catalog_id: Callable[[Build], str],
     *,
-    selected: str | None = None,
+    selected: Set[str] = frozenset(),
     bundled: Collection[str] = (),
 ) -> list[LocalRow]:
     """`bundled` names the installed models the app ships."""
@@ -72,6 +74,7 @@ def audio_catalog(
                 engine=ENGINE,
                 lead=lead_build(build_rows, default_quantization, selected=selected),
                 voicing=_voicing(model),
+                transcription=_transcribing(model),
             )
         )
     return rows
@@ -94,3 +97,15 @@ def _voicing(model: CuratedModel) -> Voicing | None:
     if audio is None:
         return None
     return Voicing(audio.peak_mb, len(audio.voices), tuple(audio.languages))
+
+
+def _transcribing(model: CuratedModel) -> Transcribing | None:
+    transcription = model.transcription
+    if transcription is None:
+        return None
+    return Transcribing(
+        transcription.peak_mb,
+        transcription.window_s,
+        transcription.detects_language,
+        tuple(transcription.languages),
+    )

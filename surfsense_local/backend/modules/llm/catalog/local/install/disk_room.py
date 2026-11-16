@@ -17,7 +17,7 @@ def refuse_without_room(folder: Path, needed: int) -> None:
     if free < needed + HEADROOM:
         raise InstallRefusedError(
             f"This download needs {_gb(needed + HEADROOM)} free; "
-            f"this computer has {_gb(free)}.",
+            f"this drive has {_gb(free)}.",
             InstallCode.NOT_ENOUGH_DISK,
             needed_bytes=needed + HEADROOM,
             free_bytes=free,

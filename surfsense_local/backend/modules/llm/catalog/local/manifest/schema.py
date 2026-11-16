@@ -12,7 +12,10 @@ from pydantic import BaseModel, Field, model_validator
 
 from modules.llm.catalog.local.build import Build, BuildFile, FileRole
 from modules.llm.catalog.local.classifier import classify
-from modules.llm.catalog.local.engines.audiocpp.manifest_fields import AudioDefaults
+from modules.llm.catalog.local.engines.audiocpp.manifest_fields import (
+    AudioDefaults,
+    TranscriptionDefaults,
+)
 from modules.llm.catalog.local.engines.llamacpp.manifest_fields import (
     Sampling,
     ShapeSpec,
@@ -126,6 +129,7 @@ class CuratedModel(BaseModel):
     image: ImageDefaults | None = None
     video: VideoDefaults | None = None
     audio: AudioDefaults | None = None
+    transcription: TranscriptionDefaults | None = None
     embedding: EmbeddingDefaults | None = None
     # Text models only: an image model is not priced by the llama.cpp estimator.
     shape: ShapeSpec | None = None
@@ -151,6 +155,9 @@ class CuratedModel(BaseModel):
         choice = engine.entry_requires_one_of
         if choice and len(present & choice) != 1:
             raise ValueError(f"{self.id}: {engine.name} needs one of {sorted(choice)}")
+        for model_type, block in engine.entry_block_for:
+            if model_type in types and block not in present:
+                raise ValueError(f"{self.id}: {model_type} needs {block}")
         for build in self.builds:
             roles = {f.role for f in build.files}
             if missing_roles := engine.build_requires - roles:
@@ -158,6 +165,17 @@ class CuratedModel(BaseModel):
                     f"{self.id} {build.quantization}: {engine.name} needs "
                     f"{sorted(missing_roles)}"
                 )
+        return self
+
+    @model_validator(mode="after")
+    def _what_the_family_takes(self) -> "CuratedModel":
+        if self.transcription is None:
+            return self
+        family = self.evidence.architecture
+        if stray := self.transcription.unknown_to(family):
+            raise ValueError(f"{self.id}: {family} takes none of {stray}")
+        if bare := self.transcription.without_locale(family):
+            raise ValueError(f"{self.id}: {family} needs a locale for {bare}")
         return self
 
     @model_validator(mode="after")

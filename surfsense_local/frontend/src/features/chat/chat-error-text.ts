@@ -3,7 +3,11 @@ import { intl } from "@/i18n/intl"
 import type { ChatTurnErrorKind } from "./use-chat-runtime"
 
 // English mirrors modules/chat/errors.py; the backend's own text stays the fallback.
-const chatErrorText: Record<ChatTurnErrorKind, () => string> = {
+// `provider_refused` is absent: its sentence holds the provider's own words.
+const chatErrorText: Record<
+  Exclude<ChatTurnErrorKind, "provider_refused">,
+  () => string
+> = {
   provider_auth: () =>
     intl.formatMessage({
       id: "chat_error_provider_auth",
@@ -49,6 +53,24 @@ const chatErrorText: Record<ChatTurnErrorKind, () => string> = {
       id: "chat_error_subscription_limit",
       defaultMessage:
         "Your ChatGPT plan’s usage limit is reached. It resets on its own; check your usage in ChatGPT’s settings.",
+    }),
+  claude_sign_in: () =>
+    intl.formatMessage({
+      id: "chat_error_claude_sign_in",
+      defaultMessage:
+        "Claude Code on this computer needs to sign in again: run claude in a terminal and sign in.",
+    }),
+  claude_limit: () =>
+    intl.formatMessage({
+      id: "chat_error_claude_limit",
+      defaultMessage:
+        "Your Claude plan’s usage limit is reached. It resets on its own.",
+    }),
+  egress_disabled: () =>
+    intl.formatMessage({
+      id: "chat_error_egress_disabled",
+      defaultMessage:
+        "A host this model needs was turned off in Settings › Network. Allow it there, then try again.",
     }),
   network: () =>
     intl.formatMessage({
@@ -101,6 +123,15 @@ export function translatedChatError(error: {
       defaultMessage: "Interrupted when the app closed.",
     })
   }
+  if (error.kind === "provider_refused") {
+    return intl.formatMessage(
+      {
+        id: "chat_error_provider_refused",
+        defaultMessage: "The model provider refused this request: {detail}",
+      },
+      { detail: error.message }
+    )
+  }
   if (error.detailIsLocal && error.message) {
     return intl.formatMessage(
       {
@@ -118,7 +149,7 @@ export function translatedChatError(error: {
     })
   }
   const text = Object.hasOwn(chatErrorText, error.kind)
-    ? chatErrorText[error.kind as ChatTurnErrorKind]
+    ? chatErrorText[error.kind as keyof typeof chatErrorText]
     : undefined
   return text ? text() : error.message
 }

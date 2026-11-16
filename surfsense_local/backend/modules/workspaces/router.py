@@ -5,7 +5,7 @@ from fastapi import APIRouter, Response, status
 from sqlalchemy import select
 
 from api.dependencies import SessionDep
-from modules.agent.agent_threads.forget_sessions import forget_workspace_sessions
+from modules.agent.engines.thread_engine import every_engine
 from modules.chat.runs.dependencies import ChatRunsDep
 from modules.chat.stop_workspace_replies import stop_workspace_replies
 from modules.plugins.bundles.stop_workspace_runs import stop_workspace_runs
@@ -75,7 +75,8 @@ def delete_workspace(
 
     stop_workspace_replies(session, runs, workspace.id)
     stop_workspace_runs(session, workspace.id)
-    forget_workspace_sessions(session, workspace.id)
+    for engine in every_engine():
+        engine.forget_workspace(session, workspace.id)
     session.delete(workspace)
     session.commit()
 

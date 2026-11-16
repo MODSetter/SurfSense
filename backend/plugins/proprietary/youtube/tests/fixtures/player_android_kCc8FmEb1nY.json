@@ -1,0 +1,66 @@
+{
+ "responseContext": {},
+ "playabilityStatus": {
+  "status": "OK",
+  "playableInEmbed": true
+ },
+ "captions": {
+  "playerCaptionsTracklistRenderer": {
+   "captionTracks": [
+    {
+     "baseUrl": "https://www.youtube.com/api/timedtext?v=kCc8FmEb1nY&caps=asr&opi=1&xoaf=5&hl=en&ip=0.0.0.0&ipbits=0&expire=0&sparams=ip,ipbits,expire,v,caps,opi,xoaf&signature=SIGNATURE&key=yt8&kind=asr&lang=en&fmt=srv3",
+     "name": {
+      "runs": [
+       {
+        "text": "English (auto-generated)"
+       }
+      ]
+     },
+     "vssId": "a.en",
+     "languageCode": "en",
+     "kind": "asr",
+     "isTranslatable": true
+    },
+    {
+     "baseUrl": "https://www.youtube.com/api/timedtext?v=kCc8FmEb1nY&caps=asr&opi=1&xoaf=5&hl=en&ip=0.0.0.0&ipbits=0&expire=0&sparams=ip,ipbits,expire,v,caps,opi,xoaf&signature=SIGNATURE&key=yt8&kind=asr&lang=fr-FR&fmt=srv3",
+     "name": {
+      "runs": [
+       {
+        "text": "French (France) (auto-generated)"
+       }
+      ]
+     },
+     "vssId": "a.fr-FR",
+     "languageCode": "fr-FR",
+     "kind": "asr",
+     "isTranslatable": true
+    },
+    {
+     "baseUrl": "https://www.youtube.com/api/timedtext?v=kCc8FmEb1nY&caps=asr&opi=1&xoaf=5&hl=en&ip=0.0.0.0&ipbits=0&expire=0&sparams=ip,ipbits,expire,v,caps,opi,xoaf&signature=SIGNATURE&key=yt8&kind=asr&lang=de-DE&fmt=srv3",
+     "name": {
+      "runs": [
+       {
+        "text": "German (Germany) (auto-generated)"
+       }
+      ]
+     },
+     "vssId": "a.de-DE",
+     "languageCode": "de-DE",
+     "kind": "asr",
+     "isTranslatable": true
+    }
+   ],
+   "audioTracks": [
+    {
+     "captionTrackIndices": [
+      0
+     ]
+    }
+   ]
+  }
+ },
+ "videoDetails": {
+  "videoId": "kCc8FmEb1nY",
+  "title": "Let's build GPT: from scratch, in code, spelled out."
+ }
+}

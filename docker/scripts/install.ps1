@@ -1,570 +1,230 @@
-# =============================================================================
-# SurfSense — One-line Install Script (Windows / PowerShell)
+# SurfSense in Docker: installs it, and updates it when run again (docs/architecture/docker.md).
 #
+#   irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 | iex
 #
-# Usage: irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 | iex
-#
-# To pass flags, save and run locally:
-#   .\install.ps1 -NoWatchtower
-#   .\install.ps1 -WatchtowerInterval 3600
-#   .\install.ps1 -Variant cuda
-#   .\install.ps1 -Variant cuda -GpuCount all
-#
-# Handles two cases automatically:
-#   1. Fresh install        — no prior SurfSense data detected
-#   2. Migration from the legacy all-in-one container (surfsense-data volume)
-#      Downloads and runs migrate-database.sh --yes, then restores the dump
-#      into the new PostgreSQL 17 stack. The user runs one command for both.
-# =============================================================================
+# The install lives in .\surfsense: docker-compose.yml, which each run replaces,
+# and .env, which only the first run writes. Needs Docker Desktop.
 
-# NOTE: Do not use [ValidateSet()] (or other validation attributes without a
-# valid default) on these params. When the script is piped into iex, PowerShell
-# applies the attributes to variables in the caller's scope, and an empty
-# $Variant fails ValidateSet with a ValidationMetadataException. Validate
-# manually below instead.
-param(
-    [switch]$NoWatchtower,
-    [int]$WatchtowerInterval = 86400,
-    [string]$Variant,
-    [string]$GpuCount,
-    [switch]$Quiet
-)
+function Install-SurfSense {
+    # A test points this at a local copy of the repository.
+    $Source = if ($env:SURFSENSE_INSTALL_SOURCE) { $env:SURFSENSE_INSTALL_SOURCE } else { 'https://raw.githubusercontent.com/MODSetter/SurfSense/main' }
+    # Another project's containers in "surfsense" are none of this install's business.
+    $env:COMPOSE_IGNORE_ORPHANS = '1'
 
-$ErrorActionPreference = 'Stop'
+    # The app's dark palette (frontend-workflow's color/PALETTE.css), since a terminal is
+    # usually dark; success is green-500. Every Windows console with VT takes 24-bit colour.
+    $colour = $Host.UI.SupportsVirtualTerminal -and -not [Console]::IsOutputRedirected -and -not $env:NO_COLOR
+    function Get-Paint([int]$Red, [int]$Green, [int]$Blue) {
+        if ($colour) { return "$([char]27)[38;2;$Red;$Green;${Blue}m" } else { return '' }
+    }
+    $Primary = Get-Paint 217 170 144       # primary #d9aa90
+    $Foreground = Get-Paint 232 227 218    # foreground #e8e3da
+    $Muted = Get-Paint 142 138 131         # muted-foreground #8e8a83
+    $Success = Get-Paint 34 197 94         # green-500 #22c55e
+    $Warning = Get-Paint 228 160 60        # warning #e4a03c
+    $Destructive = Get-Paint 239 68 68     # destructive #ef4444
+    $Bold = if ($colour) { "$([char]27)[1m" } else { '' }
+    $Reset = if ($colour) { "$([char]27)[0m" } else { '' }
 
-# ── Configuration ───────────────────────────────────────────────────────────
+    function Write-Info([string]$Message) { Write-Host "$Muted[SurfSense]$Reset $Message" }
+    function Write-Ok([string]$Message) { Write-Host "$Success[SurfSense] $Message$Reset" }
+    function Write-Warn([string]$Message) { Write-Host "$Warning[SurfSense] $Message$Reset" }
+    function Write-Step([string]$Message) { Write-Host "`n$Bold$Foreground── $Message$Reset" }
+    # The outcome, set apart: heavy rules and an emoji on a terminal, a plain step in a log.
+    function Write-Done([string]$Emoji, [string]$Message) {
+        if (-not $colour) { Write-Host "`n── $Message"; return }
+        $rule = '━' * ($Message.Length + 10)
+        Write-Host "`n$Bold$Success$rule`n   $Emoji  $Message`n$rule$Reset"
+    }
 
-$RepoRaw            = "https://raw.githubusercontent.com/MODSetter/SurfSense/main"
-$InstallDir         = ".\surfsense"
-$OldVolume          = "surfsense-data"
-$DumpFile           = ".\surfsense_migration_backup.sql"
-$KeyFile            = ".\surfsense_migration_secret.key"
-$MigrationDoneFile  = "$InstallDir\.migration_done"
-$MigrationMode      = $false
-$SetupWatchtower    = -not $NoWatchtower
-$WatchtowerContainer = "watchtower"
+    function Invoke-Compose {
+        Push-Location $InstallDir
+        try { & docker compose @args } finally { Pop-Location }
+    }
 
-if ($Variant -and $Variant -notin @("cpu", "cuda", "cuda126")) {
-    Write-Host "[SurfSense] ERROR: Invalid -Variant '$Variant'. Use 'cpu', 'cuda', or 'cuda126'." -ForegroundColor Red
-    exit 1
-}
+    # As Compose reads it: a quoted value whole, otherwise up to " #".
+    function Get-EnvValue([string]$Name) {
+        $line = Get-Content (Join-Path $InstallDir '.env') -ErrorAction SilentlyContinue |
+            Where-Object { $_ -match "^$Name=" } | Select-Object -Last 1
+        if (-not $line) { return '' }
+        $value = $line.Substring($Name.Length + 1).TrimEnd("`r")
+        if ($value -match '^"([^"]*)"' -or $value -match "^'([^']*)'") { return $Matches[1] }
+        return ($value -replace '\s+#.*$', '').Trim()
+    }
 
-if ($GpuCount -and $GpuCount -notmatch '^([0-9]+|all)$') {
-    Write-Host "[SurfSense] ERROR: Invalid -GpuCount '$GpuCount'. Use a number or 'all'." -ForegroundColor Red
-    exit 1
-}
+    function Test-ThisInstall([string]$Dir) {
+        $compose = Join-Path $Dir 'docker-compose.yml'
+        return (Test-Path $compose) -and [bool](Select-String -Path $compose -Pattern '^  surfsense:' -Quiet)
+    }
 
-# ── Output helpers ──────────────────────────────────────────────────────────
+    function Get-File([string]$From, [string]$To) {
+        $target = Join-Path $InstallDir $To
+        try {
+            (New-Object System.Net.WebClient).DownloadFile("$Source/$From", "$target.download")
+        } catch {
+            throw "Couldn't download $To. Check your internet connection and try again."
+        }
+        Move-Item -Force "$target.download" $target
+    }
 
-function Write-Info    { param([string]$Msg) Write-Host "[SurfSense] " -ForegroundColor Cyan -NoNewline; Write-Host $Msg }
-function Write-Ok      { param([string]$Msg) Write-Host "[SurfSense] " -ForegroundColor Green -NoNewline; Write-Host $Msg }
-function Write-Warn    { param([string]$Msg) Write-Host "[SurfSense] " -ForegroundColor Yellow -NoNewline; Write-Host $Msg }
-function Write-Step    { param([string]$Msg) Write-Host "`n-- $Msg" -ForegroundColor Cyan }
-function Write-Err     { param([string]$Msg) Write-Host "[SurfSense] ERROR: $Msg" -ForegroundColor Red; exit 1 }
+    function Get-ImageId([string]$Image) {
+        $id = & docker image inspect --format '{{.Id}}' $Image 2>$null
+        if ($LASTEXITCODE -ne 0) { return '' }
+        return "$id".Trim()
+    }
 
-function Show-Banner {
-    Write-Host ""
-    Write-Host @"
+    function Get-LanAddress {
+        try {
+            $address = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction Stop |
+                Where-Object { $_.IPAddress -notlike '127.*' -and $_.IPAddress -notlike '169.254.*' -and $_.InterfaceAlias -notlike 'vEthernet*' } |
+                Select-Object -First 1
+            if ($address) { return $address.IPAddress }
+        } catch {}
+        return ''
+    }
 
+    # raw.githubusercontent.com refuses Windows PowerShell 5.1's default TLS.
+    [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+    try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch {}
 
+    Write-Host ''
+    Write-Host "$Primary" -NoNewline
+    Write-Host @'
 ███████╗██╗   ██╗██████╗ ███████╗███████╗███████╗███╗   ██╗███████╗███████╗
 ██╔════╝██║   ██║██╔══██╗██╔════╝██╔════╝██╔════╝████╗  ██║██╔════╝██╔════╝
-███████╗██║   ██║██████╔╝█████╗  ███████╗█████╗  ██╔██╗ ██║███████╗█████╗  
-╚════██║██║   ██║██╔══██╗██╔══╝  ╚════██║██╔══╝  ██║╚██╗██║╚════██║██╔══╝  
+███████╗██║   ██║██████╔╝█████╗  ███████╗█████╗  ██╔██╗ ██║███████╗█████╗
+╚════██║██║   ██║██╔══██╗██╔══╝  ╚════██║██╔══╝  ██║╚██╗██║╚════██║██╔══╝
 ███████║╚██████╔╝██║  ██║██║     ███████║███████╗██║ ╚████║███████║███████╗
 ╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚═╝     ╚══════╝╚══════╝╚═╝  ╚═══╝╚══════╝╚══════╝
-                                                                           
+'@
+    Write-Host "$Reset" -NoNewline
 
-"@ -ForegroundColor White
-    Write-Host "           NotebookLM for Open Web Research" -ForegroundColor Yellow
-    Write-Host ("=" * 62) -ForegroundColor Cyan
-    Write-Info "This installer will create $InstallDir\ and start SurfSense with Docker Compose."
-}
-
-Show-Banner
-
-function Invoke-NativeSafe {
-    param([scriptblock]$Command)
-    $previousErrorActionPreference = $ErrorActionPreference
-    try {
-        $ErrorActionPreference = 'Continue'
-        & $Command
-    } finally {
-        $ErrorActionPreference = $previousErrorActionPreference
+    Write-Step 'Checking prerequisites'
+    if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
+        throw 'Docker is not installed. Install Docker Desktop: https://docs.docker.com/desktop/'
     }
-}
-
-function Resolve-WatchtowerPreference {
-    if ($NoWatchtower -or $Quiet -or -not [Environment]::UserInteractive) {
-        return
+    & docker info *> $null
+    if ($LASTEXITCODE -ne 0) { throw 'Docker is not running. Start Docker Desktop and try again.' }
+    Write-Ok 'Docker is running.'
+    & docker compose version *> $null
+    if ($LASTEXITCODE -ne 0) { throw 'Docker Compose is not available. Update Docker Desktop and try again.' }
+    Write-Ok 'Docker Compose found.'
+    $arch = "$(& docker info --format '{{.Architecture}}' 2>$null)".Trim()
+    if ($arch -ne 'x86_64' -and $arch -ne 'amd64') {
+        throw "SurfSense runs on x86-64 (amd64) machines only, for now. This one is $(if ($arch) { $arch } else { 'unknown' })."
     }
 
-    Write-Host ""
-    Write-Host "Automatic updates" -ForegroundColor Cyan
-    $choice = Read-Host "Enable automatic daily updates with Watchtower? (may download several GB in the background) [Y/n]"
+    # Run again from any folder, it finds the install by its container. The label is
+    # read through inspect: Windows PowerShell mangles quotes inside a --format argument.
+    $found = ''
+    $container = & docker ps -aq --filter 'label=com.docker.compose.project=surfsense' --filter 'label=com.docker.compose.service=surfsense' 2>$null |
+        Select-Object -First 1
+    if ($container) {
+        $labels = (& docker inspect $container 2>$null | Out-String | ConvertFrom-Json)[0].Config.Labels
+        $found = $labels.'com.docker.compose.project.working_dir'
+    }
 
-    switch ($choice) {
-        "" { $script:SetupWatchtower = $true }
-        { $_ -match '^(?i)y(es)?$' } { $script:SetupWatchtower = $true }
-        { $_ -match '^(?i)n(o)?$' } { $script:SetupWatchtower = $false }
-        default {
-            Write-Warn "Unrecognized choice '$choice'; enabling Watchtower by default. Use -NoWatchtower to skip it."
-            $script:SetupWatchtower = $true
+    $here = Join-Path (Get-Location).Path 'surfsense'
+    if ($found -and (Test-ThisInstall $found)) {
+        $InstallDir = $found
+    } elseif (Test-Path $here) {
+        $InstallDir = $here
+        if (-not (Test-ThisInstall $here) -and (Get-ChildItem -Force $here | Select-Object -First 1)) {
+            throw '.\surfsense already holds something else. Move it, or run this command from another folder.'
         }
-    }
-}
-
-Resolve-WatchtowerPreference
-
-# ── Pre-flight checks ──────────────────────────────────────────────────────
-
-Write-Step "Checking prerequisites"
-
-if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
-    Write-Err "Docker is not installed. Install Docker Desktop: https://docs.docker.com/desktop/install/windows-install/"
-}
-Write-Ok "Docker found."
-
-Invoke-NativeSafe { docker info *>$null } | Out-Null
-if ($LASTEXITCODE -ne 0) {
-    Write-Err "Docker daemon is not running. Please start Docker Desktop and try again."
-}
-Write-Ok "Docker daemon is running."
-
-Invoke-NativeSafe { docker compose version *>$null } | Out-Null
-if ($LASTEXITCODE -ne 0) {
-    Write-Err "Docker Compose is not available. It should be bundled with Docker Desktop."
-}
-Write-Ok "Docker Compose found."
-
-# ── Wait-for-postgres helper ────────────────────────────────────────────────
-
-function Wait-ForPostgres {
-    param([string]$DbUser)
-    $maxAttempts = 45
-    $attempt = 0
-
-    Write-Info "Waiting for PostgreSQL to accept connections..."
-    do {
-        $attempt++
-        if ($attempt -ge $maxAttempts) {
-            Write-Err "PostgreSQL did not become ready after $($maxAttempts * 2) seconds.`nCheck logs: cd $InstallDir; docker compose logs db"
-        }
-        Start-Sleep -Seconds 2
-        Push-Location $InstallDir
-        Invoke-NativeSafe { docker compose exec -T db pg_isready -U $DbUser -q *>$null } | Out-Null
-        $ready = $LASTEXITCODE -eq 0
-        Pop-Location
-    } while (-not $ready)
-
-    Write-Ok "PostgreSQL is ready."
-}
-
-# ── Stack startup helper ────────────────────────────────────────────────────
-
-function Invoke-StackFailureReport {
-    Write-Host ""
-    Write-Host "[ERROR] Stack did not reach a healthy state." -ForegroundColor Red
-    Write-Host ""
-    Write-Info "Recent logs from migrations / zero-cache / backend:"
-    Push-Location $InstallDir
-    try {
-        Invoke-NativeSafe { docker compose logs --tail=60 migrations zero-cache backend 2>&1 } | Write-Host
-    } finally {
-        Pop-Location
+    } else {
+        $InstallDir = $here
     }
 
-    Write-Host ""
-    Write-Host "Recovery hints:" -ForegroundColor Yellow
-    Write-Host "  1. Inspect migrations:   cd $InstallDir; docker compose logs migrations"
-    Write-Host "  2. Verify publication:   cd $InstallDir; docker compose exec db psql -U surfsense -d surfsense -c 'SELECT pubname FROM pg_publication;'"
-    Write-Host "  3. Hard reset zero db:   cd $InstallDir; docker compose down; docker volume rm surfsense-zero-cache; docker compose up -d --wait"
-    Write-Host ""
-    exit 1
-}
-
-function Invoke-ComposeUpWait {
-    Push-Location $InstallDir
-    try {
-        Invoke-NativeSafe { docker compose up -d --wait }
-    } finally {
-        Pop-Location
+    $updating = Test-Path (Join-Path $InstallDir '.env')
+    if ($updating) {
+        Write-Step "Updating SurfSense in $($InstallDir)"
+        Write-Info 'Keeping your settings (.env).'
+    } else {
+        Write-Step 'Downloading SurfSense'
+        Write-Info "Installing into $($InstallDir)"
     }
+
+    New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
+    Get-File 'docker/surfsense/docker-compose.yml' 'docker-compose.yml'
+    Get-File 'docker/surfsense/.env.example' '.env.example'
+    if (-not $updating) {
+        Copy-Item (Join-Path $InstallDir '.env.example') (Join-Path $InstallDir '.env')
+        Write-Ok "Created $(Join-Path $InstallDir '.env')"
+    }
+
+    $image = "$(Invoke-Compose config --images 2>$null | Select-Object -First 1)".Trim()
+    if (-not $image) { throw "docker-compose.yml names no image. Check $(Join-Path $InstallDir '.env')." }
+    $before = Get-ImageId $image
+
+    if ($before) { Write-Step 'Pulling SurfSense' } else { Write-Step 'Pulling SurfSense (about 5 GB the first time)' }
+    Invoke-Compose pull
+    if ($LASTEXITCODE -ne 0) { throw "Couldn't download the SurfSense image. Check your internet connection and try again." }
+    $after = Get-ImageId $image
+
+    Write-Step 'Starting SurfSense'
+    Write-Info 'Waiting for SurfSense to be ready. A first start takes a minute or two.'
+    Invoke-Compose up -d --wait --wait-timeout 600
     if ($LASTEXITCODE -ne 0) {
-        Invoke-StackFailureReport
+        Invoke-Compose logs --tail=40 surfsense
+        throw "SurfSense didn't start. Logs: cd $($InstallDir); docker compose logs"
     }
-}
 
-# ── Variant and .env helpers ────────────────────────────────────────────────
-
-function Set-EnvValue {
-    param([string]$Path, [string]$Key, [string]$Value)
-    $lines = @()
-    if (Test-Path $Path) {
-        $lines = @(Get-Content $Path)
+    if ($before -and $before -ne $after) {
+        # Every version is about 5 GB; the one replaced goes.
+        & docker image rm $before *> $null
+        if ($LASTEXITCODE -eq 0) { Write-Info 'Removed the previous image.' }
     }
-    $updated = $false
-    $newLines = foreach ($line in $lines) {
-        if ($line -match "^$([regex]::Escape($Key))=") {
-            $updated = $true
-            "$Key=$Value"
+
+    $version = "$(Invoke-Compose exec -T surfsense cat /app/VERSION 2>$null)".Trim()
+    $pinned = Get-EnvValue 'SURFSENSE_VERSION'
+    $port = Get-EnvValue 'SURFSENSE_PORT'
+    if (-not $port) { $port = '4929' }
+    $bind = Get-EnvValue 'SURFSENSE_BIND'
+    $domain = Get-EnvValue 'SURFSENSE_DOMAIN'
+    $named = if ($version) { "SurfSense $version" } else { 'SurfSense' }
+
+    if (-not $updating) {
+        Write-Done ([char]::ConvertFromUtf32(0x1F389)) "$named is running"
+    } elseif ($before -eq $after) {
+        Write-Done ([char]::ConvertFromUtf32(0x2705)) "$named is already up to date"
+    } else {
+        Write-Done ([char]::ConvertFromUtf32(0x2728)) "SurfSense updated$(if ($version) { " to $version" })"
+    }
+    if ($pinned -and $pinned -ne 'latest') {
+        Write-Warn "Pinned to $pinned by SURFSENSE_VERSION in $(Join-Path $InstallDir '.env'). Set it to latest to update."
+    }
+
+    Write-Host ''
+    if ($domain) {
+        Write-Host "  Open:      https://$domain"
+    } else {
+        $address = if ($bind -ne '127.0.0.1') { Get-LanAddress } else { '' }
+        if ($address) {
+            Write-Host "  Open:      http://${address}:$port    (any device on this network)"
+            Write-Host "             http://localhost:$port    (this computer)"
         } else {
-            $line
+            Write-Host "  Open:      http://localhost:$port"
         }
     }
-    if (-not $updated) {
-        $newLines += "$Key=$Value"
+    Write-Host ''
+    if (-not $updating) {
+        Write-Host '  The first visit asks you to create a password.'
+        Write-Host ''
     }
-    Set-Content -Path $Path -Value $newLines
+    Write-Host "  Settings:  $(Join-Path $InstallDir '.env')"
+    Write-Host "  Logs:      cd $($InstallDir); docker compose logs -f"
+    Write-Host "  Stop:      cd $($InstallDir); docker compose down"
+    Write-Host '  Update:    run this same command again'
+    Write-Host ''
 }
 
-function Remove-EnvValue {
-    param([string]$Path, [string]$Key)
-    if (-not (Test-Path $Path)) { return }
-    $newLines = Get-Content $Path | Where-Object { $_ -notmatch "^$([regex]::Escape($Key))=" }
-    Set-Content -Path $Path -Value $newLines
-}
-
-function Test-NvidiaGpu {
-    if (-not (Get-Command nvidia-smi -ErrorAction SilentlyContinue)) { return $false }
-    Invoke-NativeSafe { nvidia-smi *>$null } | Out-Null
-    return ($LASTEXITCODE -eq 0)
-}
-
-function Test-NvidiaRuntime {
-    $info = Invoke-NativeSafe { docker info 2>$null }
-    if ($info -match 'nvidia') { return $true }
-    if (Get-Command nvidia-ctk -ErrorAction SilentlyContinue) { return $true }
-    if (Get-Command nvidia-container-runtime -ErrorAction SilentlyContinue) { return $true }
-    return $false
-}
-
-function Get-RecommendedVariant {
-    $driver = (Invoke-NativeSafe { nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>$null } | Select-Object -First 1)
-    $major = 0
-    if ($driver -match '^(\d+)') {
-        $major = [int]$Matches[1]
-    }
-    if ($major -gt 0 -and $major -lt 570) {
-        return "cuda126"
-    }
-    return "cuda"
-}
-
-function Resolve-Variant {
-    $hasGpu = Test-NvidiaGpu
-    $hasRuntime = $false
-    $recommended = "cpu"
-
-    if ($hasGpu) {
-        $recommended = Get-RecommendedVariant
-        $hasRuntime = Test-NvidiaRuntime
-    }
-
-    if ($Variant) {
-        if ($Variant -eq "cpu") { return "cpu" }
-        if (-not $hasGpu) {
-            Write-Warn "No NVIDIA GPU detected; falling back to CPU variant."
-            return "cpu"
-        }
-        if (-not $hasRuntime) {
-            Write-Warn "NVIDIA GPU detected, but NVIDIA Container Toolkit was not detected; falling back to CPU variant."
-            Write-Warn "Install the toolkit before enabling SurfSense GPU acceleration."
-            return "cpu"
-        }
-        return $Variant
-    }
-
-    if ($hasGpu -and -not $hasRuntime) {
-        Write-Warn "NVIDIA GPU detected, but NVIDIA Container Toolkit was not detected; using CPU variant."
-    }
-
-    if ($hasGpu -and $hasRuntime -and -not $Quiet -and [Environment]::UserInteractive) {
-        Write-Host ""
-        Write-Host "SurfSense detected an NVIDIA GPU." -ForegroundColor Cyan
-        $choice = Read-Host "Use GPU acceleration? [Y/n]"
-        switch ($choice) {
-            "" { return $recommended }
-            { $_ -match '^(?i)y(es)?$' } { return $recommended }
-            { $_ -match '^(?i)n(o)?$' } { return "cpu" }
-            default {
-                Write-Warn "Unrecognized choice '$choice'; using CPU variant."
-                return "cpu"
-            }
-        }
-    }
-
-    return "cpu"
-}
-
-function Set-VariantEnv {
-    param([string]$Path, [string]$SelectedVariant, [bool]$AllowExistingUpdate)
-
-    if ((Test-Path $Path) -and -not $AllowExistingUpdate) {
-        Write-Warn ".env already exists - keeping your existing configuration."
-        Write-Info "To change variants later, edit SURFSENSE_VARIANT and COMPOSE_FILE in $Path, then run docker compose up -d --wait."
-        return
-    }
-
-    if ($SelectedVariant -eq "cpu") {
-        Set-EnvValue -Path $Path -Key "SURFSENSE_VARIANT" -Value ""
-        Remove-EnvValue -Path $Path -Key "COMPOSE_FILE"
-        Remove-EnvValue -Path $Path -Key "SURFSENSE_GPU_COUNT"
-    } else {
-        Set-EnvValue -Path $Path -Key "SURFSENSE_VARIANT" -Value $SelectedVariant
-        Set-EnvValue -Path $Path -Key "COMPOSE_FILE" -Value "docker-compose.yml;docker-compose.gpu.yml"
-        if ($GpuCount) {
-            Set-EnvValue -Path $Path -Key "SURFSENSE_GPU_COUNT" -Value $GpuCount
-        }
-    }
-
-    Remove-EnvValue -Path $Path -Key "COMPOSE_PROFILES"
-}
-
-$SelectedVariant = Resolve-Variant
-
-# ── Download files ──────────────────────────────────────────────────────────
-
-Write-Step "Downloading SurfSense files"
-Write-Info "Installation directory: $InstallDir"
-
-New-Item -ItemType Directory -Path "$InstallDir\scripts" -Force | Out-Null
-New-Item -ItemType Directory -Path "$InstallDir\proxy" -Force | Out-Null
-New-Item -ItemType Directory -Path "$InstallDir\searxng" -Force | Out-Null
-
-$Files = @(
-    @{ Src = "docker/docker-compose.yml";                Dest = "docker-compose.yml" }
-    @{ Src = "docker/docker-compose.gpu.yml";            Dest = "docker-compose.gpu.yml" }
-    @{ Src = "docker/.env.example";                      Dest = ".env.example" }
-    @{ Src = "docker/proxy/Caddyfile";                   Dest = "proxy/Caddyfile" }
-    @{ Src = "docker/postgresql.conf";                   Dest = "postgresql.conf" }
-    @{ Src = "docker/scripts/migrate-database.ps1";      Dest = "scripts/migrate-database.ps1" }
-    @{ Src = "docker/searxng/settings.yml";              Dest = "searxng/settings.yml" }
-    @{ Src = "docker/searxng/limiter.toml";              Dest = "searxng/limiter.toml" }
-)
-
-foreach ($f in $Files) {
-    $destPath = Join-Path $InstallDir $f.Dest
-    Write-Info "Downloading $($f.Dest)..."
-    try {
-        Invoke-WebRequest -Uri "$RepoRaw/$($f.Src)" -OutFile $destPath -UseBasicParsing
-    } catch {
-        Write-Err "Failed to download $($f.Dest). Check your internet connection and try again."
-    }
-}
-
-Write-Ok "All files downloaded to $InstallDir/"
-
-# ── Legacy all-in-one detection ─────────────────────────────────────────────
-
-$volumeList = Invoke-NativeSafe { docker volume ls --format '{{.Name}}' 2>$null }
-if (($volumeList -split "`n") -contains $OldVolume -and -not (Test-Path $MigrationDoneFile)) {
-    $MigrationMode = $true
-
-    if (Test-Path $DumpFile) {
-        Write-Step "Migration mode - using existing dump (skipping extraction)"
-        Write-Info "Found existing dump: $DumpFile"
-        Write-Info "Skipping data extraction - proceeding directly to restore."
-        Write-Info "To force a fresh extraction, remove the dump first: Remove-Item $DumpFile"
-    } else {
-        Write-Step "Migration mode - legacy all-in-one container detected"
-        Write-Warn "Volume '$OldVolume' found. Your data will be migrated automatically."
-        Write-Warn "PostgreSQL is being upgraded from version 14 to 17."
-        Write-Warn "Your original data will NOT be deleted."
-        Write-Host ""
-        Write-Info "Running data extraction (migrate-database.ps1 -Yes)..."
-        Write-Info "Full extraction log: ./surfsense-migration.log"
-        Write-Host ""
-
-        $migrateScript = Join-Path $InstallDir "scripts/migrate-database.ps1"
-        & $migrateScript -Yes
-        if ($LASTEXITCODE -ne 0) {
-            Write-Err "Data extraction failed. See ./surfsense-migration.log for details.`nYou can also run migrate-database.ps1 manually with custom flags."
-        }
-
-        Write-Host ""
-        Write-Ok "Data extraction complete. Proceeding with installation and restore."
-    }
-}
-
-# ── Set up .env ─────────────────────────────────────────────────────────────
-
-Write-Step "Configuring environment"
-
-$envPath = Join-Path $InstallDir ".env"
-$envExamplePath = Join-Path $InstallDir ".env.example"
-
-if (-not (Test-Path $envPath)) {
-    Copy-Item $envExamplePath $envPath
-
-    if ($MigrationMode -and (Test-Path $KeyFile)) {
-        $SecretKey = (Get-Content $KeyFile -Raw).Trim()
-        Write-Ok "Using SECRET_KEY recovered from legacy container."
-    } else {
-        $bytes = New-Object byte[] 32
-        $rng = [System.Security.Cryptography.RNGCryptoServiceProvider]::new()
-        $rng.GetBytes($bytes)
-        $rng.Dispose()
-        $SecretKey = [Convert]::ToBase64String($bytes)
-        Write-Ok "Generated new random SECRET_KEY."
-    }
-
-    $content = Get-Content $envPath -Raw
-    $content = $content -replace 'SECRET_KEY=replace_me_with_a_random_string', "SECRET_KEY=$SecretKey"
-    Set-Content -Path $envPath -Value $content -NoNewline
-
-    Set-VariantEnv -Path $envPath -SelectedVariant $SelectedVariant -AllowExistingUpdate $false
-    Write-Info "Created $envPath"
-} else {
-    if ($PSBoundParameters.ContainsKey('Variant')) {
-        Set-VariantEnv -Path $envPath -SelectedVariant $SelectedVariant -AllowExistingUpdate $true
-        Write-Info "Updated SurfSense image variant in existing $envPath"
-    } else {
-        Set-VariantEnv -Path $envPath -SelectedVariant $SelectedVariant -AllowExistingUpdate $false
-    }
-}
-
-# ── Start containers ────────────────────────────────────────────────────────
-
-if ($MigrationMode) {
-    $envContent = Get-Content $envPath
-    $DbUser = ($envContent | Select-String '^DB_USER=' | ForEach-Object { ($_ -split '=',2)[1].Trim('"') }) | Select-Object -First 1
-    $DbPass = ($envContent | Select-String '^DB_PASSWORD=' | ForEach-Object { ($_ -split '=',2)[1].Trim('"') }) | Select-Object -First 1
-    $DbName = ($envContent | Select-String '^DB_NAME=' | ForEach-Object { ($_ -split '=',2)[1].Trim('"') }) | Select-Object -First 1
-    if (-not $DbUser) { $DbUser = "surfsense" }
-    if (-not $DbPass) { $DbPass = "surfsense" }
-    if (-not $DbName) { $DbName = "surfsense" }
-
-    Write-Step "Starting PostgreSQL 17"
-    Push-Location $InstallDir
-    Invoke-NativeSafe { docker compose up -d db } | Out-Null
-    Pop-Location
-    Wait-ForPostgres -DbUser $DbUser
-
-    Write-Step "Restoring database"
-    if (-not (Test-Path $DumpFile)) {
-        Write-Err "Dump file '$DumpFile' not found. The migration script may have failed."
-    }
-    $DumpFilePath = (Resolve-Path $DumpFile).Path
-    Write-Info "Restoring dump into PostgreSQL 17 - this may take a while for large databases..."
-
-    $restoreErrFile = Join-Path $env:TEMP "surfsense_restore_err.log"
-    Push-Location $InstallDir
-    Invoke-NativeSafe { Get-Content -LiteralPath $DumpFilePath | docker compose exec -T -e "PGPASSWORD=$DbPass" db psql -U $DbUser -d $DbName 2>$restoreErrFile | Out-Null } | Out-Null
-    Pop-Location
-
-    $fatalErrors = @()
-    if (Test-Path $restoreErrFile) {
-        $fatalErrors = Get-Content $restoreErrFile |
-            Where-Object { $_ -match '^ERROR:' } |
-            Where-Object { $_ -notmatch 'already exists' } |
-            Where-Object { $_ -notmatch 'multiple primary keys' }
-    }
-
-    if ($fatalErrors.Count -gt 0) {
-        Write-Warn "Restore completed with errors (may be harmless pg_dump header noise):"
-        $fatalErrors | ForEach-Object { Write-Host $_ }
-        Write-Warn "If SurfSense behaves incorrectly, inspect manually."
-    } else {
-        Write-Ok "Database restored with no fatal errors."
-    }
-
-    # Smoke test
-    Push-Location $InstallDir
-    $tableCount = (Invoke-NativeSafe { docker compose exec -T -e "PGPASSWORD=$DbPass" db psql -U $DbUser -d $DbName -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>$null }).Trim()
-    Pop-Location
-
-    if (-not $tableCount -or $tableCount -eq "0") {
-        Write-Warn "Smoke test: no tables found after restore."
-        Write-Warn "The restore may have failed silently. Check: cd $InstallDir; docker compose logs db"
-    } else {
-        Write-Ok "Smoke test passed: $tableCount table(s) restored successfully."
-        New-Item -Path $MigrationDoneFile -ItemType File -Force | Out-Null
-    }
-
-    Write-Step "Starting all SurfSense services"
-    Invoke-ComposeUpWait
-    Write-Ok "All services started and healthy."
-
-    Remove-Item $KeyFile -ErrorAction SilentlyContinue
-
-} else {
-    Write-Step "Starting SurfSense"
-    Invoke-ComposeUpWait
-    Write-Ok "All services started and healthy."
-}
-
-# ── Watchtower (auto-update) ────────────────────────────────────────────────
-
-if ($SetupWatchtower) {
-    $wtHours = [math]::Floor($WatchtowerInterval / 3600)
-    Write-Step "Setting up Watchtower (auto-updates every ${wtHours}h)"
-
-    $wtState = Invoke-NativeSafe { docker inspect -f '{{.State.Running}}' $WatchtowerContainer 2>$null }
-    if ($LASTEXITCODE -ne 0) { $wtState = "missing" }
-
-    if ($wtState -eq "true") {
-        Write-Ok "Watchtower is already running - skipping."
-    } else {
-        if ($wtState -ne "missing") {
-            Write-Info "Removing stopped Watchtower container..."
-            Invoke-NativeSafe { docker rm -f $WatchtowerContainer *>$null } | Out-Null
-        }
-        Invoke-NativeSafe {
-            docker run -d `
-                --name $WatchtowerContainer `
-                --restart unless-stopped `
-                -v /var/run/docker.sock:/var/run/docker.sock `
-                nickfedor/watchtower `
-                --label-enable `
-                --interval $WatchtowerInterval *>$null
-        } | Out-Null
-
-        if ($LASTEXITCODE -eq 0) {
-            Write-Ok "Watchtower started - labeled SurfSense containers will auto-update."
-        } else {
-            Write-Warn "Could not start Watchtower. You can set it up manually or use: docker compose pull; docker compose up -d --wait"
-        }
-    }
-} else {
-    Write-Info "Skipping Watchtower setup (-NoWatchtower flag)."
-}
-
-# ── Done ────────────────────────────────────────────────────────────────────
-
-Write-Host ""
-$versionDisplay = (Get-Content $envPath | Select-String '^SURFSENSE_VERSION=' | ForEach-Object { ($_ -split '=',2)[1].Trim('"') }) | Select-Object -First 1
-if (-not $versionDisplay) { $versionDisplay = "latest" }
-$variantDisplay = (Get-Content $envPath | Select-String '^SURFSENSE_VARIANT=' | ForEach-Object { ($_ -split '=',2)[1].Trim('"') }) | Select-Object -First 1
-if (-not $variantDisplay) { $variantDisplay = "cpu" }
-$wtHours = [math]::Floor($WatchtowerInterval / 3600)
-Write-Step "SurfSense is now installed [$versionDisplay]"
-
-Write-Info "  Frontend:  http://localhost:3929"
-Write-Info "  Backend:   http://localhost:8929"
-Write-Info "  API Docs:  http://localhost:8929/docs"
-Write-Info ""
-Write-Info "  Config:    $InstallDir\.env"
-Write-Info "  Variant:   $variantDisplay"
-Write-Info "  Logs:      cd $InstallDir; docker compose logs -f"
-Write-Info "  Stop:      cd $InstallDir; docker compose down"
-Write-Info "  Update:    cd $InstallDir; docker compose pull; docker compose up -d --wait"
-Write-Info ""
-
-if ($SetupWatchtower) {
-    Write-Info "  Watchtower: auto-updates every ${wtHours}h (disable: docker rm -f $WatchtowerContainer)"
-} else {
-    Write-Warn "  Watchtower skipped. For auto-updates, re-run without -NoWatchtower."
-}
-Write-Info ""
-
-if ($MigrationMode) {
-    Write-Warn "  Migration complete! Open frontend and verify your data."
-    Write-Warn "  Once verified, clean up the legacy volume and migration files:"
-    Write-Warn "    docker volume rm $OldVolume"
-    Write-Warn "    Remove-Item $DumpFile"
-    Write-Warn "    Remove-Item $MigrationDoneFile"
-} else {
-    Write-Warn "  First startup may take a few minutes while images are pulled."
-    Write-Warn "  Edit $InstallDir\.env to configure API keys, OAuth, etc."
+try {
+    Install-SurfSense
+} catch {
+    # destructive #ef4444, as Install-SurfSense paints it; its variables stay out of the caller's session.
+    $paint = if ($Host.UI.SupportsVirtualTerminal -and -not [Console]::IsOutputRedirected -and -not $env:NO_COLOR) { @("$([char]27)[38;2;239;68;68m", "$([char]27)[0m") } else { @('', '') }
+    Write-Host "$($paint[0])[SurfSense] ERROR: $($_.Exception.Message)$($paint[1])"
+    # Piped into iex, exit would close the user's window; run as a file, it reports failure.
+    if ($PSCommandPath) { exit 1 }
 }

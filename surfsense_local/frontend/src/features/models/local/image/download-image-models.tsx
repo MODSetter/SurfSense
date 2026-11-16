@@ -4,6 +4,7 @@ import { CircleAlertIcon } from "@/components/ui/icons"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { intl } from "@/i18n/intl"
 
+import { toastUseFailure } from "../../selection/toast-use-failure"
 import { useSelect } from "../../selection/use-selection"
 import { DeleteModelDialog } from "../../your-models/delete-model-dialog"
 import type { YourModelRow } from "../../your-models/your-model-row"
@@ -131,7 +132,7 @@ export function DownloadImageModels({
             name: build.installed_as,
           },
         })
-        .catch(() => undefined)
+        .catch(toastUseFailure)
     } else {
       void install(build.catalog_id)
     }
@@ -173,10 +174,6 @@ export function DownloadImageModels({
           ))}
         </ModelFamilyGroup>
       ))}
-
-      {select.isError ? (
-        <p className="text-sm text-destructive">{messageFrom(select.error)}</p>
-      ) : null}
 
       <DeleteModelDialog
         open={deleteOpen}

@@ -1,4 +1,7 @@
-"""SurfSense's plugin host, compiled in: the one place the license key is ever sent."""
+"""SurfSense's plugin host, compiled in: the one plugin host the license key is sent to.
+
+The license server's renewal (`modules/license/renewal/`) is the only other place it goes.
+"""
 
 from urllib.parse import urlsplit, urlunsplit
 

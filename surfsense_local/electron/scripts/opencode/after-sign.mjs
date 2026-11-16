@@ -5,8 +5,8 @@
 // skips it there with a warning, and release CI checks that copy after the build.
 import { join } from "node:path"
 
-import { checkStage } from "./check-stage.mjs"
-import { opencodeEnabled } from "./enabled.mjs"
+import { checkStage } from "../../../runtimes/opencode/check-stage.mjs"
+import { opencodeEnabled } from "../../../runtimes/opencode/enabled.mjs"
 
 /** @param {import("electron-builder").AfterPackContext} context */
 export default async function afterSign(context) {

@@ -6,7 +6,7 @@ from modules.llm.catalog.remote.catalog import connection_rows, provider_rows, p
 from modules.llm.catalog.remote.rows import Availability, ConnectionInfo, ListedModel
 from modules.llm.catalog.source import Source
 from modules.llm.model_type import ModelType
-from modules.llm.selectable import SLOTS
+from modules.llm.selectable import REMOTE_SLOTS
 
 from .conftest import PAINTER, connect, model
 
@@ -24,7 +24,9 @@ def lookup(lookup_of):
         {
             "openai": {"models": {"gpt-5": model(), "gpt-image-1": model(PAINTER)}},
             "amazon-bedrock": {
-                "connect": connect("unreachable", "Signs requests with AWS credentials"),
+                "connect": connect(
+                    "unreachable", "Signs requests with AWS credentials"
+                ),
                 "models": {"claude": model()},
             },
             "neon": {
@@ -42,7 +44,10 @@ def test_providers_say_how_many_models_of_each_type_they_serve(lookup) -> None:
     """Enough to list providers without sending thousands of rows."""
     summary = {p.id: p for p in providers(lookup, connected={"openai": 2})}
 
-    assert summary["openai"].type_counts == {ModelType.TEXT_GEN: 1, ModelType.IMAGE_GEN: 1}
+    assert summary["openai"].type_counts == {
+        ModelType.TEXT_GEN: 1,
+        ModelType.IMAGE_GEN: 1,
+    }
     assert summary["openai"].connections == 2
     assert summary["amazon-bedrock"].connect.status == "unreachable"
 
@@ -71,7 +76,9 @@ def test_each_connection_to_a_provider_gets_its_own_unchecked_rows(lookup) -> No
 
 def test_an_unreachable_provider_says_why_and_offers_no_slot(lookup) -> None:
     """A model that cannot be called must not be selectable anywhere."""
-    claude = _by_model(provider_rows(lookup, "amazon-bedrock", connections=[]))["claude"]
+    claude = _by_model(provider_rows(lookup, "amazon-bedrock", connections=[]))[
+        "claude"
+    ]
 
     assert claude.availability is Availability.UNUSABLE
     assert claude.reason == "Signs requests with AWS credentials"
@@ -86,7 +93,9 @@ def test_a_responses_only_model_is_offered_like_any_other(lookup) -> None:
     assert pro.selectable_for != ()
 
 
-def test_a_connection_marks_what_its_listing_serves_and_what_it_does_not(lookup) -> None:
+def test_a_connection_marks_what_its_listing_serves_and_what_it_does_not(
+    lookup,
+) -> None:
     """A retired model, or one the key cannot reach, is not served."""
     rows = _by_model(
         connection_rows(lookup, WORK, listing=[ListedModel("gpt-5", (), known=False)])
@@ -125,4 +134,4 @@ def test_a_custom_connection_shows_only_what_it_lists(lookup) -> None:
     assert [(row.model_id, row.known, row.availability) for row in rows] == [
         ("acme/llama-support", False, Availability.AVAILABLE)
     ]
-    assert rows[0].selectable_for == SLOTS
+    assert rows[0].selectable_for == REMOTE_SLOTS

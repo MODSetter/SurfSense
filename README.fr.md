@@ -11,7 +11,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Discord](https://img.shields.io/discord/1359368468260192417?label=Discord)](https://discord.gg/ejRNvftDp9)
 
-  <a href="https://www.surfsense.com/"><img alt="SurfSense, l'alternative open source à NotebookLM, isolée du réseau" src="surfsense_web/public/homepage/banner.png" /></a>
+  <a href="https://www.surfsense.com/"><img alt="SurfSense, l'alternative open source à NotebookLM, isolée du réseau" src="www/public/homepage/banner.png" /></a>
 
   <h1>SurfSense</h1>
 
@@ -26,6 +26,7 @@
     <a href="#ce-que-surfsense-fait-avec-chaque-format">Formats</a> ·
     <a href="#démarrage-rapide">Démarrage rapide</a> ·
     <a href="#comparaison">Comparaison</a> ·
+    <a href="#plugins">Plugins</a> ·
     <a href="https://www.surfsense.com/pricing">Tarifs</a> ·
     <a href="https://discord.gg/ejRNvftDp9">Discord</a>
   </p>
@@ -37,18 +38,26 @@
   </p>
 </div>
 
+**Annotez un contrat avec des modifications suivies et des commentaires**
+
 https://github.com/user-attachments/assets/88326b9d-e763-46db-9635-75f9df9e8682
+
+**Ajoutez des sources depuis le web, puis transformez-les en page web**
+
+https://github.com/user-attachments/assets/073577b7-f055-4f59-8540-330bd764aeb0
 
 SurfSense est une application de bureau gratuite et open source pour les documents que vous ne pouvez pas téléverser. Un agent IA dans l'esprit de NotebookLM, axé sur la confidentialité, qui fait des recherches dans vos documents, les transforme et les modifie, sur votre machine. L'index reste sur votre disque, vous choisissez le modèle, local ou distant, et il n'y a pas de compte à créer.
 
 | Plateforme | Téléchargement |
 |---|---|
-| **Windows** x64 | [SurfSense-Setup.exe](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense-Setup.exe) |
-| **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense-arm64.dmg) |
-| **Linux** x64 | [AppImage](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense.AppImage) · [deb](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense.deb) |
+| **Windows** x64 | [SurfSense-Setup.exe](https://www.surfsense.com/downloads/windows?src=readme) |
+| **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
+| **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
+| **Docker** Linux, macOS | `curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh \| bash` |
+| **Docker** Windows (Docker Desktop) | `irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 \| iex` |
 
 > [!NOTE]
-> **Vous utilisiez l'application web hébergée ?** Exportez vos espaces de travail avant le 18 octobre 2026 et importez-les ici. Voir [la page de fermeture](https://www.surfsense.com/sunset).
+> Avec Docker, vous l’hébergez vous-même sur un serveur et l’ouvrez depuis n’importe quel appareil de votre réseau. Relancez la même commande pour le mettre à jour.
 
 ## Démarrage rapide
 
@@ -65,15 +74,23 @@ SurfSense est une application de bureau gratuite et open source pour les documen
 | **Excel** `.xlsx` | ✓ l'agent lit aussi les formules | ✓ avec formules et graphiques natifs | ✓ valeurs des cellules et formules | Analyser avec pandas, mettre les résultats en graphique |
 | **PowerPoint** `.pptx` | ✓ | ✓ ou à partir de votre propre `.pptx` comme modèle | Remplacer le texte des diapositives et des notes ; supprimer ou dupliquer des diapositives | En PDF¹ |
 | **CSV** | ✓ | — | — | Analyser avec pandas, mettre les résultats en graphique |
-| **Images** PNG, JPEG, TIFF, BMP, WebP | ✓ texte lu par OCR³ | Images et infographies² | — | Insérer dans de nouveaux documents |
+| **Images** PNG, JPEG, TIFF, BMP, WebP | ✓ texte lu par OCR³ | Images et infographies, modifiables par instruction² | — | Insérer dans de nouveaux documents |
 | **Markdown**, texte brut | ✓ | ✓ Markdown | — | — |
 | **HTML** | ✓ | ✓ page web | — | — |
+| **Livres** EPUB, MOBI, AZW3 | ✓ sans DRM | — | — | — |
+| **Enregistrements** WAV, MP3, FLAC, Ogg Vorbis | ✓ transcrits sur votre machine | — | — | — |
 | **Podcast** (audio) | — | ✓ avec transcription, mis en voix sur votre machine par défaut | — | — |
 | **Cartes mentales, cartes mémoire, quiz** | — | ✓ dans l'application | — | — |
 
 <sub>¹ Avec la prise en charge d'Office (LibreOffice), que vous activez dans les Paramètres ; LibreOffice n'est jamais inclus dans l'installateur. ² Nécessite un modèle d'image, local ou distant ; aucun n'est choisi par défaut. ³ L'OCR lit les écritures latine, chinoise et japonaise.</sub>
 
 Les modifications, les conversions et les outils PDF créent toujours un nouveau fichier ; votre original n'est jamais modifié. C'est avec les formats PDF, Word et Excel que SurfSense en fait le plus aujourd'hui, et la prise en charge des autres formats continue de s'améliorer.
+
+## Plugins
+
+Connectez-les dans **Paramètres › Plugins** : des serveurs MCP issus du [registre de plugins](backend/plugins/registry), comme DeepWiki et Notion, ou tout serveur que vous ajoutez par URL. Ils restent désactivés tant que vous ne les autorisez pas.
+
+**Intégré et gratuit :** l'agent et **Ajouter depuis le web**, dans les Sources, effectuent leurs recherches sur le web via SearXNG et lisent les pages et les transcriptions YouTube depuis votre propre connexion, sans plugin ni licence.
 
 ## Comparaison
 
@@ -91,18 +108,6 @@ Les modifications, les conversions et les outils PDF créent toujours un nouveau
 - **Contribuer :** les PR ciblent `dev` ; voir [CONTRIBUTING.md](CONTRIBUTING.md) et [`surfsense_local/`](./surfsense_local) pour la boucle de développement. Le fonctionnement de SurfSense est expliqué dans [`docs/`](docs/README.md).
 
 <a href="https://github.com/MODSetter/SurfSense/graphs/contributors"><img src="https://contrib.rocks/image?repo=MODSetter/SurfSense" alt="Contributeurs de SurfSense" /></a>
-
-## Historique des étoiles
-
-<p align="center">
-  <a href="https://www.star-history.com/#MODSetter/SurfSense&Date">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date&theme=dark" />
-      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
-      <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
-    </picture>
-  </a>
-</p>
 
 ## Licence
 

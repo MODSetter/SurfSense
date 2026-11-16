@@ -7,6 +7,13 @@ from httpx import AsyncClient
 from sqlalchemy import Engine, text
 
 from modules.documents import storage
+from modules.documents.recordings.layout import work_files
+from modules.documents.recordings.progress_file import (
+    TranscriptionProgress,
+    write_progress,
+)
+from modules.documents.tasks import PRIORITY_INTERACTIVE
+from shared.config import get_storage_settings
 from shared.queue import ingest_queue
 
 pytestmark = pytest.mark.integration
@@ -151,6 +158,98 @@ async def test_unsupported_and_mismatched_files_are_rejected_per_file(
     assert len(ingest_queue.pending()) == 1
 
 
+async def test_a_recording_is_queued_and_an_opus_voice_note_is_turned_away(
+    client: AsyncClient, workspace_id: int
+) -> None:
+    """MP3, FLAC and Ogg Vorbis are transcribed; Opus waits for its decoder,
+    and the person reads why beside that one file."""
+    tones = Path(__file__).resolve().parents[2] / "fixtures" / "audio"
+    response = await client.post(
+        f"/workspaces/{workspace_id}/documents/upload",
+        files=[
+            ("files", ("standup.mp3", (tones / "tone.mp3").read_bytes(), "audio/x")),
+            ("files", ("voice.ogg", (tones / "tone-opus.ogg").read_bytes(), "")),
+            ("files", ("notes.txt", b"research notes", "text/plain")),
+        ],
+    )
+
+    assert response.status_code == 201
+    recording, notes = response.json()["created"]
+    assert (recording["mime_type"], recording["transcription"]) == (
+        "audio/mpeg",
+        {"language": None, "progress": None, "awaiting": False},
+    )
+    assert notes["transcription"] is None
+    assert response.json()["rejected"] == [
+        {"filename": "voice.ogg", "reason": "Opus support comes in a later update"}
+    ]
+    assert len(ingest_queue.pending()) == 2
+
+
+async def test_a_batch_is_queued_cheapest_first(
+    client: AsyncClient, workspace_id: int
+) -> None:
+    """Huey runs equal priorities in the order queued, so a dropped batch
+    becomes usable text first, then smallest first, recordings last."""
+    tone = Path(__file__).resolve().parents[2] / "fixtures" / "audio" / "tone.mp3"
+    response = await client.post(
+        f"/workspaces/{workspace_id}/documents/upload",
+        files=[
+            ("files", ("standup.mp3", tone.read_bytes(), "audio/mpeg")),
+            ("files", ("big.pdf", b"%PDF-" + b"x" * 20_000, "application/pdf")),
+            ("files", ("notes.md", b"# notes\n" + b"y" * 50_000, "text/markdown")),
+            ("files", ("small.pdf", b"%PDF-1.7 small", "application/pdf")),
+            ("files", ("todo.txt", b"call Ann", "text/plain")),
+        ],
+    )
+
+    created = response.json()["created"]
+    assert [document["title"] for document in created] == [
+        "standup.mp3",
+        "big.pdf",
+        "notes.md",
+        "small.pdf",
+        "todo.txt",
+    ]
+    title_of = {document["id"]: document["title"] for document in created}
+    queued = ingest_queue.pending()
+    assert [title_of[job.args[0]] for job in queued] == [
+        "todo.txt",
+        "notes.md",
+        "small.pdf",
+        "big.pdf",
+        "standup.mp3",
+    ]
+    assert {job.priority for job in queued} == {PRIORITY_INTERACTIVE}
+
+
+async def test_a_queued_recording_reports_how_far_its_transcription_came(
+    client: AsyncClient, workspace_id: int
+) -> None:
+    """Read from the job's progress file, so a reload sees what the events said."""
+    tones = Path(__file__).resolve().parents[2] / "fixtures" / "audio"
+    uploaded = await client.post(
+        f"/workspaces/{workspace_id}/documents/upload",
+        files={"files": ("lecture.flac", (tones / "tone.flac").read_bytes(), "")},
+    )
+    recording = uploaded.json()["created"][0]["id"]
+    folder = get_storage_settings().document_dir(workspace_id, recording)
+    progress = work_files(folder).progress
+    progress.parent.mkdir(parents=True)
+    write_progress(progress, TranscriptionProgress(done_s=1392.5, total_s=3480.0))
+
+    listed = await client.get(f"/workspaces/{workspace_id}/documents")
+    read = await client.get(f"/workspaces/{workspace_id}/documents/{recording}")
+
+    expected = {
+        "language": None,
+        "progress": {"done_s": 1392.5, "total_s": 3480.0},
+        "awaiting": False,
+    }
+    assert listed.json()[0]["transcription"] == expected
+    assert read.json()["transcription"] == expected
+
+
 async def test_server_records_verified_mime_not_the_clients_claim(
     client: AsyncClient, workspace_id: int
 ) -> None:
@@ -290,6 +389,33 @@ async def test_a_deleted_document_takes_its_file(
     assert stored_files(data_dir) == []
 
 
+async def test_an_upload_given_a_deleted_documents_id_starts_with_its_folder_empty(
+    client: AsyncClient, workspace_id: int, data_dir: Path
+) -> None:
+    """SQLite gives the highest id out again, and a delete leaves a file it cannot
+    remove, as one held open on Windows: the new document must not read it."""
+    first = await client.post(
+        f"/workspaces/{workspace_id}/documents/upload",
+        files={"files": ("report.pdf", b"%PDF-1.7", "application/pdf")},
+    )
+    deleted = first.json()["created"][0]["id"]
+    await client.delete(f"/workspaces/{workspace_id}/documents/{deleted}")
+    left = get_storage_settings().document_dir(workspace_id, deleted)
+    (left / "figures").mkdir(parents=True)
+    (left / "report.pdf").write_bytes(b"%PDF-1.7")
+    (left / "figures" / "figures.json").write_text(
+        '{"version": 1, "figures": []}', encoding="utf-8"
+    )
+
+    second = await client.post(
+        f"/workspaces/{workspace_id}/documents/upload",
+        files={"files": ("budget.pdf", b"%PDF-1.7 budget", "application/pdf")},
+    )
+
+    assert second.json()["created"][0]["id"] == deleted
+    assert [path.name for path in stored_files(data_dir)] == ["budget.pdf"]
+
+
 async def test_a_deleted_workspace_takes_every_file(
     client: AsyncClient, workspace_id: int, data_dir: Path
 ) -> None:
@@ -354,6 +480,32 @@ async def test_a_pending_document_can_be_cancelled(
     assert response.json()["error_message"] is None
     task = ingest_queue.pending()[0]
     assert ingest_queue.is_revoked(task)
+
+
+async def test_cancelling_a_recording_that_gave_way_drops_its_decoded_audio(
+    client: AsyncClient, workspace_id: int
+) -> None:
+    """No run of its job is left to clear the 115 MB an hour it decoded; the
+    windows written stay, so a retry carries on from them."""
+    tones = Path(__file__).resolve().parents[2] / "fixtures" / "audio"
+    uploaded = await client.post(
+        f"/workspaces/{workspace_id}/documents/upload",
+        files={"files": ("lecture.flac", (tones / "tone.flac").read_bytes(), "")},
+    )
+    recording = uploaded.json()["created"][0]["id"]
+    work = work_files(get_storage_settings().document_dir(workspace_id, recording))
+    work.folder.mkdir(parents=True)
+    work.audio.write_bytes(b"\0" * 64)
+    work.windows.write_text('{"n": 0}\n', encoding="utf-8")
+    write_progress(work.progress, TranscriptionProgress(done_s=28.0, total_s=3480.0))
+
+    response = await client.post(
+        f"/workspaces/{workspace_id}/documents/{recording}/cancel"
+    )
+
+    assert response.status_code == 200
+    assert (work.audio.exists(), work.progress.exists()) == (False, False)
+    assert work.windows.exists()
 
 
 async def test_a_ready_document_cannot_be_cancelled(

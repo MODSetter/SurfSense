@@ -1,7 +1,8 @@
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from typing import Literal, Protocol
+from typing import Protocol
 
+from modules.llm.providers.picture_shape import Shape
 from modules.llm.providers.types import Delta, Message, Model
 
 
@@ -81,18 +82,25 @@ class GeneratedImage:
 
 
 class ImageGenerator(Protocol):
-    async def generate(self, model: str, prompt: str) -> GeneratedImage: ...
+    """A model that draws from words alone."""
+
+    async def generate(
+        self, model: str, prompt: str, *, shape: Shape | None = None
+    ) -> GeneratedImage: ...
 
 
-@dataclass(frozen=True)
-class Voice:
-    id: str
-    label: str
-    # None where the source does not say: OpenAI documents none for its voices.
-    gender: Literal["female", "male"] | None
-    # The languages this voice speaks, as the model's entry names them: one for
-    # a Kokoro voice, every one the model speaks for a Supertonic voice.
-    languages: tuple[str, ...]
+class ImageEditor(Protocol):
+    """A model given pictures as references: an edit of one, or a new picture
+    that keeps the characters and style of the others."""
+
+    async def edit(
+        self,
+        model: str,
+        prompt: str,
+        images: tuple[GeneratedImage, ...],
+        *,
+        shape: Shape | None = None,
+    ) -> GeneratedImage: ...
 
 
 @dataclass(frozen=True)
@@ -119,3 +127,25 @@ class TextToSpeech(Protocol):
     async def synthesize(
         self, turns: list[SpokenTurn], language: str
     ) -> SynthesizedAudio: ...
+
+
+class TranscriptionUnavailableError(Exception):
+    """The recogniser could not be reached, or failed; the message says how."""
+
+
+class Transcriber(Protocol):
+    """Anything that writes speech down: audio.cpp's server here, transcribe.cpp
+    as the fallback. One model at a time; callers order the requests."""
+
+    async def transcribe(self, model: str, wav: bytes, language: str | None) -> str:
+        """The text as the model wrote it. `wav` is 16 kHz mono s16; `language`
+        a locale the model's family takes, or None to let it detect."""
+        ...
+
+    async def is_loaded(self, model: str) -> bool:
+        """Whether `model` is resident, so a request would not load it."""
+        ...
+
+    async def unload(self, model: str) -> None:
+        """Give `model`'s memory back; best effort."""
+        ...

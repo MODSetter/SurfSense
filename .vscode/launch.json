@@ -5,77 +5,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Backend: FastAPI",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "uvicorn",
-            "args": [
-                "app.app:app",
-                "--reload",
-                "--host",
-                "0.0.0.0",
-                "--log-level",
-                "info",
-                "--reload-dir",
-                "app"
-            ],
-            "console": "integratedTerminal",
-            "justMyCode": false,
-            "cwd": "${workspaceFolder}/surfsense_backend",
-            "python": "uv",
-            "pythonArgs": [
-                "run",
-                "python"
-            ],
-            // Mute LangGraph/Pydantic checkpoint serializer warnings
-            // (UserWarnings emitted from pydantic/main.py when the
-            // runtime snapshots a SurfSenseContextSchema into a field
-            // typed `None`) so the debugger's "Raised Exceptions"
-            // breakpoint doesn't pause on a known-harmless event.
-            // Production logs are unaffected.
-            "env": {
-                "PYTHONWARNINGS": "ignore::UserWarning:pydantic.main"
-            }
-        },
-        {
-            "name": "Backend: FastAPI (No Reload)",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/surfsense_backend/main.py",
-            "console": "integratedTerminal",
-            "justMyCode": false,
-            "cwd": "${workspaceFolder}/surfsense_backend",
-            "python": "uv",
-            "pythonArgs": [
-                "run",
-                "python"
-            ],
-            "env": {
-                "PYTHONWARNINGS": "ignore::UserWarning:pydantic.main"
-            }
-        },
-        {
-            "name": "Backend: FastAPI (main.py)",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/surfsense_backend/main.py",
-            "console": "integratedTerminal",
-            "justMyCode": false,
-            "cwd": "${workspaceFolder}/surfsense_backend",
-            "python": "uv",
-            "pythonArgs": [
-                "run",
-                "python"
-            ],
-            "env": {
-                "PYTHONWARNINGS": "ignore::UserWarning:pydantic.main"
-            }
-        },
-        {
             "name": "Frontend: Next.js",
             "type": "node",
             "request": "launch",
-            "cwd": "${workspaceFolder}/surfsense_web",
+            "cwd": "${workspaceFolder}/www",
             "runtimeExecutable": "pnpm",
             "runtimeArgs": ["run", "dev"],
             "console": "integratedTerminal",
@@ -89,7 +22,7 @@
             "name": "Frontend: Next.js (Server-Side Debug)",
             "type": "node",
             "request": "launch",
-            "cwd": "${workspaceFolder}/surfsense_web",
+            "cwd": "${workspaceFolder}/www",
             "runtimeExecutable": "pnpm",
             "runtimeArgs": ["run", "debug:server"],
             "console": "integratedTerminal",
@@ -97,112 +30,6 @@
                 "pattern": "- Local:.+(https?://.+)",
                 "uriFormat": "%s",
                 "action": "debugWithChrome"
-            }
-        },
-        {
-            "name": "Celery: Worker",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "celery",
-            "args": [
-                "-A",
-                "app.celery_app:celery_app",
-                "worker",
-                "--loglevel=info",
-                "--queues=surfsense,surfsense.connectors,surfsense-dev,surfsense-dev.connectors",
-                "--pool=solo"
-            ],
-            "console": "integratedTerminal",
-            "justMyCode": false,
-            "cwd": "${workspaceFolder}/surfsense_backend",
-            "python": "uv",
-            "pythonArgs": [
-                "run",
-                "python"
-            ],
-            "env": {
-                "PYTHONWARNINGS": "ignore::UserWarning:pydantic.main"
-            }
-        },
-        {
-            "name": "Celery: Beat Scheduler",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "celery",
-            "args": [
-                "-A",
-                "app.celery_app:celery_app",
-                "beat",
-                "--loglevel=info"
-            ],
-            "console": "integratedTerminal",
-            "justMyCode": false,
-            "cwd": "${workspaceFolder}/surfsense_backend",
-            "python": "uv",
-            "pythonArgs": [
-                "run",
-                "python"
-            ],
-            "env": {
-                "PYTHONWARNINGS": "ignore::UserWarning:pydantic.main"
-            }
-        }
-    ],
-    "compounds": [
-        {
-            "name": "Full Stack: Backend + Frontend + Celery",
-            "configurations": [
-                "Backend: FastAPI",
-                "Frontend: Next.js",
-                "Celery: Worker",
-                "Celery: Beat Scheduler"
-            ],
-            "stopAll": true,
-            "presentation": {
-                "hidden": false,
-                "group": "Full Stack",
-                "order": 1
-            }
-        },
-        {
-            "name": "Full Stack: Backend + Frontend",
-            "configurations": [
-                "Backend: FastAPI",
-                "Frontend: Next.js"
-            ],
-            "stopAll": true,
-            "presentation": {
-                "hidden": false,
-                "group": "Full Stack",
-                "order": 2
-            }
-        },
-        {
-            "name": "Full Stack: Backend (No Reload) + Frontend + Celery",
-            "configurations": [
-                "Backend: FastAPI (No Reload)",
-                "Frontend: Next.js",
-                "Celery: Worker",
-                "Celery: Beat Scheduler"
-            ],
-            "stopAll": true,
-            "presentation": {
-                "hidden": false,
-                "group": "Full Stack",
-                "order": 3
-            }
-        },
-        {
-            "name": "Full Stack: Backend (No Reload) + Frontend",
-            "configurations": [
-                "Backend: FastAPI (No Reload)",
-                "Frontend: Next.js"
-            ],
-            "stopAll": true,
-            "presentation": {
-                "hidden": false,
-                "group": "Full Stack",
-                "order": 4
             }
         }
     ]

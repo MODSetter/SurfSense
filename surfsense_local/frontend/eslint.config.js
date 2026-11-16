@@ -49,6 +49,24 @@ export default defineConfig([
           message:
             'Write each formatMessage value out in the literal; a spread hides it from enforce-placeholders.',
         },
+        // Buttons share one look and one press motion, from components/ui/button.tsx.
+        {
+          selector: "JSXOpeningElement[name.name='button']",
+          message:
+            'Use Button from @/components/ui/button; variant="bare" for an element with its own layout.',
+        },
+        {
+          selector:
+            "JSXOpeningElement[name.name='Button'] JSXAttribute[name.name='className'] Literal[value=/active:\\S*(scale|translate)/]",
+          message:
+            'Press motion comes from Button itself; pass static to turn it off.',
+        },
+        // The highlighter ships only the themes it names (code-highlighter.ts).
+        {
+          selector: "JSXAttribute[name.name='shikiTheme']",
+          message:
+            "Streamdown takes code themes from getThemes() in code-highlighter.ts and chat replies from assistant-ui's DEFAULT_SHIKI_THEME; the highlighter ships only github-light and github-dark, so add a theme to its map first.",
+        },
       ],
       'formatjs/enforce-id': [
         'error',

@@ -1,9 +1,4 @@
-"""Shared PyInstaller inputs for the API and worker specs.
-
-it assembles the inputs both specs feed to PyInstaller
-(the sqlite-vec extension and Alembic revisions), so a dependency bump cannot fix
-one binary and quietly miss the other.
-"""
+"""PyInstaller inputs both roles need: the sqlite-vec extension and Alembic revisions."""
 
 from pathlib import Path
 

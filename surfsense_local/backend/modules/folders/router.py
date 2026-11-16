@@ -5,6 +5,7 @@ from sqlalchemy import select
 
 from api.dependencies import SessionDep
 from api.notify import notify_changed
+from modules.documents.docling_batches.ended_in_queue import drop_batches
 from modules.events.dependencies import EventBrokerDep
 from modules.events.schemas import EventKind
 from modules.folders.cancel_folder import cancel_folder
@@ -160,12 +161,18 @@ def remove_folder(
 def cancel_folder_reads(
     folder: FolderDep, session: SessionDep, broker: EventBrokerDep
 ) -> CancelOutcome:
-    cancelled = cancel_folder(session, folder)
+    outcome = cancel_folder(session, folder)
     session.commit()
+    for workspace_id, document_id in outcome.in_queue:
+        drop_batches(workspace_id, document_id)
     notify_changed(
-        broker, folder.workspace_id, EventKind.DOCUMENTS, cancelled, "cancelled"
+        broker,
+        folder.workspace_id,
+        EventKind.DOCUMENTS,
+        outcome.cancelled,
+        "cancelled",
     )
-    return CancelOutcome(cancelled=cancelled)
+    return CancelOutcome(cancelled=outcome.cancelled)
 
 
 @router.post(

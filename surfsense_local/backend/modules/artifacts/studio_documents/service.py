@@ -6,6 +6,8 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from modules.artifacts.models import Artifact
+from modules.artifacts.queued_job import queue_job
+from modules.artifacts.refused import refused
 from modules.artifacts.script_documents.spec import DocumentSpec, document_spec
 from modules.artifacts.script_documents.version import (
     ArtifactVersion,
@@ -18,7 +20,6 @@ from modules.artifacts.studio_documents.recipe import (
     refined,
     studio_made,
 )
-from modules.artifacts.tasks import studio_job
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.documents.source_figures.layout import read_index
 from modules.documents.source_figures.source import (
@@ -40,24 +41,29 @@ def refinable_spec(session: Session, artifact_id: int) -> DocumentSpec:
     # The job indexes the new version; failing there would spend the model call.
     require_active_index(session)
     if artifact.document.status in _BUSY:
-        raise HTTPException(status.HTTP_409_CONFLICT, "already generating")
+        raise refused(
+            status.HTTP_409_CONFLICT, "already generating", "already_generating"
+        )
     spec = document_spec(artifact.artifact_metadata)
     if spec is None:
-        raise HTTPException(
+        raise refused(
             status.HTTP_409_CONFLICT,
-            "Only a Word document or PDF made in Studio can be refined.",
+            "Only a Word document, PDF or web page a model wrote in Studio can be refined.",
+            "not_refinable",
         )
     # 07, decision 8: the agent keeps editing its own documents in its chat.
     if not studio_made(artifact.artifact_metadata):
-        raise HTTPException(
+        raise refused(
             status.HTTP_409_CONFLICT,
             "The agent made this document: ask for changes in its chat.",
+            "agent_made",
         )
     # A failed or stopped Retry keeps the last spec, but the user no longer sees it.
     if artifact.document.status is not DocumentStatus.READY:
-        raise HTTPException(
+        raise refused(
             status.HTTP_409_CONFLICT,
             "This version did not finish: retry it, or refine another version.",
+            "version_unfinished",
         )
     return spec
 
@@ -116,8 +122,7 @@ def create_refine_version(
         "grounded_document_ids": figure_sources(meta),
         "prompt": meta.get("prompt"),
     }
-    session.commit()
-    studio_job(artifact.id)
+    queue_job(session, artifact)
     logger.info(
         "studio: enqueued refine %s of %s root=%s v%s",
         artifact.id,

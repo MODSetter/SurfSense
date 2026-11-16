@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query"
-import { useId, useState } from "react"
+import { useId, useRef, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -13,10 +13,14 @@ import {
   ComboboxItem,
   ComboboxLabel,
   ComboboxList,
+  ComboboxTrigger,
+  ComboboxValue,
 } from "@/components/ui/combobox"
 import { DialogFooter } from "@/components/ui/dialog"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
+import { SearchIcon, XIcon } from "@/components/ui/icons"
 import { Input } from "@/components/ui/input"
+import { InputGroupAddon, InputGroupButton } from "@/components/ui/input-group"
 import { Spinner } from "@/components/ui/spinner"
 import { ApiError } from "@/lib/api"
 import { intl } from "@/i18n/intl"
@@ -32,6 +36,8 @@ import {
 } from "./api"
 import { CHATGPT_PROVIDER } from "./chatgpt/api"
 import { ChatGPTSignIn } from "./chatgpt/chatgpt-sign-in"
+import { CLAUDE_PLAN_PROVIDER, ClaudePlanEdit } from "./claude/claude-plan-edit"
+import { OpencodeKeyHint } from "./opencode-key-hint"
 import { fillTemplate } from "./provider-url"
 
 // A local server's port is whatever its owner set, so nothing is filled in:
@@ -94,10 +100,13 @@ function messageFrom(error: unknown) {
  */
 export function ConnectionForm({
   connection,
+  startWithProvider,
   onCancel,
   onSaved,
 }: {
   connection?: Connection
+  /** A new server's provider, chosen already by the row that opened the form. */
+  startWithProvider?: string
   onCancel: () => void
   onSaved: (connection: Connection) => void
 }) {
@@ -111,9 +120,13 @@ export function ConnectionForm({
   const [providerId, setProviderId] = useState(
     connection?.auth_kind === "chatgpt"
       ? CHATGPT_PROVIDER
-      : (connection?.catalog_provider ?? CUSTOM_PROVIDER)
+      : connection?.auth_kind === "claude_plan"
+        ? CLAUDE_PLAN_PROVIDER
+        : (connection?.catalog_provider ?? CUSTOM_PROVIDER)
   )
   const [accountValues, setAccountValues] = useState<Record<string, string>>({})
+  const [providerSearch, setProviderSearch] = useState("")
+  const providerSearchRef = useRef<HTMLInputElement>(null)
   const providers = useQuery({
     queryKey: ["remote-providers"],
     queryFn: ({ signal }) => getRemoteProviders(signal),
@@ -150,10 +163,29 @@ export function ConnectionForm({
     keywords: ["chatgpt", "openai", "plus", "pro", "subscription"],
     disabled: false,
   }
+  // Likewise a Claude plan, set up from its own option and only shown here.
+  const isClaudePlan = connection?.auth_kind === "claude_plan"
+  const claudePlanOption: ProviderOption = {
+    value: CLAUDE_PLAN_PROVIDER,
+    label: intl.formatMessage({
+      id: "models_connection_form_claude_plan_provider_label",
+      defaultMessage: "Claude plan",
+    }),
+    hint: intl.formatMessage({
+      id: "models_connection_form_claude_plan_provider_body",
+      defaultMessage: "Through Claude Code on this computer",
+    }),
+    keywords: ["claude", "anthropic", "pro", "max", "team"],
+    disabled: false,
+  }
   const providerGroups: ProviderGroup[] = [
     {
       label: null,
-      items: offerChatGPT ? [customOption, chatgptOption] : [customOption],
+      items: offerChatGPT
+        ? [customOption, chatgptOption]
+        : isClaudePlan
+          ? [customOption, claudePlanOption]
+          : [customOption],
     },
     {
       label: intl.formatMessage({
@@ -198,6 +230,25 @@ export function ConnectionForm({
     if (!label.trim()) setLabel(next.name)
   }
 
+  // Chosen as a click would choose it, once the provider list has arrived.
+  const [startPending, setStartPending] = useState(
+    Boolean(startWithProvider) && !connection
+  )
+  if (startPending && providers.data) {
+    setStartPending(false)
+    const start = sortedProviders.find(
+      (entry) => entry.id === startWithProvider
+    )
+    if (start)
+      choose({
+        value: start.id,
+        label: start.name,
+        hint: null,
+        keywords: [],
+        disabled: false,
+      })
+  }
+
   const setAccountValue = (name: string, value: string) => {
     const next = { ...accountValues, [name]: value }
     setAccountValues(next)
@@ -212,10 +263,6 @@ export function ConnectionForm({
     null
   )
   const [canSaveAnyway, setCanSaveAnyway] = useState(false)
-  // Hosts the combobox popup inside the settings dialog, which hides
-  // everything outside itself from assistive technology. Absolute, so it adds
-  // no height and the centred dialog does not shift when the popup opens.
-  const [popupHost, setPopupHost] = useState<HTMLDivElement | null>(null)
 
   const save = async (allowUnverified: boolean) => {
     setBusy(true)
@@ -247,7 +294,6 @@ export function ConnectionForm({
 
   const fields = (
     <>
-      <div ref={setPopupHost} className="absolute" />
       <Field>
         <FieldLabel htmlFor={`${fieldId}-name`}>
           {intl.formatMessage({
@@ -276,20 +322,58 @@ export function ConnectionForm({
         <Combobox
           items={providerGroups}
           value={selectedOption}
+          inputValue={providerSearch}
+          onInputValueChange={setProviderSearch}
           onValueChange={choose}
           isItemEqualToValue={(item, value) => item.value === value.value}
           filter={matchesProvider}
-          disabled={busy || connection?.auth_kind === "chatgpt"}
+          disabled={busy || offerChatGPT || isClaudePlan}
         >
-          <ComboboxInput
+          <ComboboxTrigger
             id={`${fieldId}-provider`}
-            disabled={busy || connection?.auth_kind === "chatgpt"}
-            placeholder={intl.formatMessage({
-              id: "models_connection_form_provider_placeholder",
-              defaultMessage: "Search providers",
-            })}
-          />
-          <ComboboxContent container={popupHost}>
+            render={
+              <Button
+                variant="outline"
+                static
+                className="w-full justify-between font-normal"
+              />
+            }
+          >
+            <span className="min-w-0 truncate">
+              <ComboboxValue />
+            </span>
+          </ComboboxTrigger>
+          {/* In the popup, so the search starts empty and no render resets it. */}
+          <ComboboxContent className="min-w-(--anchor-width)">
+            <ComboboxInput
+              ref={providerSearchRef}
+              showTrigger={false}
+              placeholder={intl.formatMessage({
+                id: "models_connection_form_provider_placeholder",
+                defaultMessage: "Search providers",
+              })}
+            >
+              <InputGroupAddon className="pl-1.5">
+                <SearchIcon />
+              </InputGroupAddon>
+              {providerSearch ? (
+                <InputGroupAddon align="inline-end">
+                  <InputGroupButton
+                    size="icon-xs"
+                    aria-label={intl.formatMessage({
+                      id: "models_connection_form_provider_search_clear_aria",
+                      defaultMessage: "Clear search",
+                    })}
+                    onClick={() => {
+                      setProviderSearch("")
+                      providerSearchRef.current?.focus()
+                    }}
+                  >
+                    <XIcon />
+                  </InputGroupButton>
+                </InputGroupAddon>
+              ) : null}
+            </ComboboxInput>
             <ComboboxEmpty>
               {intl.formatMessage({
                 id: "models_connection_form_provider_empty",
@@ -329,6 +413,19 @@ export function ConnectionForm({
       </Field>
     </>
   )
+
+  if (isClaudePlan && connection) {
+    return (
+      <ClaudePlanEdit
+        fields={fields}
+        label={label}
+        connection={connection}
+        onBusyChange={setBusy}
+        onCancel={onCancel}
+        onSaved={onSaved}
+      />
+    )
+  }
 
   if (isChatGPT) {
     return (
@@ -426,6 +523,7 @@ export function ConnectionForm({
               }
               disabled={busy}
             />
+            <OpencodeKeyHint providerId={providerId} />
           </Field>
         )}
         {connection?.has_api_key ? (

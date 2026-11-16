@@ -44,21 +44,26 @@ def register_fonts() -> None:
 
 def font_markup(text: str) -> str:
     """The text escaped for a Paragraph, each run Helvetica cannot set in a font that can."""
+    return "".join(_wrapped(run, font) for font, run in font_runs(text))
+
+
+def font_runs(text: str) -> list[tuple[str | None, str]]:
+    """The text cut where its font changes; None is the default font's run."""
     register_fonts()
     han = _han_font(text)
-    parts: list[str] = []
+    runs: list[tuple[str | None, str]] = []
     run: list[str] = []
     current: str | None = None
     for character in text:
         font = _font_for(character, han)
         if font != current and run:
-            parts.append(_wrapped("".join(run), current))
+            runs.append((current, "".join(run)))
             run = []
         current = font
         run.append(character)
     if run:
-        parts.append(_wrapped("".join(run), current))
-    return "".join(parts)
+        runs.append((current, "".join(run)))
+    return runs
 
 
 def _wrapped(text: str, font: str | None) -> str:

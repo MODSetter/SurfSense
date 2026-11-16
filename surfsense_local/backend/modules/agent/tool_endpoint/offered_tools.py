@@ -8,19 +8,28 @@ from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
 from api.dependencies import transact
-from modules.agent.opencode_config import CONFIG_FILE, declares_image_input
 from modules.agent.tool_endpoint import replies
 from modules.agent.tool_endpoint.analyze_data import ANALYZE_DATA
+from modules.agent.tool_endpoint.bind_comic import BIND_COMIC
+from modules.agent.tool_endpoint.confirm_job import CONFIRM_JOB, confirm_listing
 from modules.agent.tool_endpoint.convert_document import CONVERT_DOCUMENT
 from modules.agent.tool_endpoint.create_artifact import CREATE_ARTIFACT
 from modules.agent.tool_endpoint.list_images import LIST_IMAGES
+from modules.agent.tool_endpoint.make_image import MAKE_IMAGE
 from modules.agent.tool_endpoint.pdf_form import PDF_FORM
 from modules.agent.tool_endpoint.pdf_pages import PDF_PAGES
 from modules.agent.tool_endpoint.pdf_stamp import PDF_STAMP
 from modules.agent.tool_endpoint.read_document import READ_DOCUMENT
+from modules.agent.tool_endpoint.read_web_page import READ_WEB_PAGE
+from modules.agent.tool_endpoint.read_youtube_transcript import (
+    READ_YOUTUBE_TRANSCRIPT,
+)
 from modules.agent.tool_endpoint.render_document import RENDER_DOCUMENT
 from modules.agent.tool_endpoint.revise_document import REVISE_DOCUMENT
+from modules.agent.tool_endpoint.run_job import RUN_JOB, job_listing
+from modules.agent.tool_endpoint.save_page import SAVE_PAGE
 from modules.agent.tool_endpoint.search_sources import SEARCH_SOURCES
+from modules.agent.tool_endpoint.search_web import SEARCH_WEB
 from modules.agent.tool_endpoint.source_pages import SOURCE_PAGES
 from modules.agent.tool_endpoint.tool import (
     InlineImage,
@@ -29,7 +38,6 @@ from modules.agent.tool_endpoint.tool import (
     ToolResult,
 )
 from modules.agent.tool_endpoint.turn_scope import TurnScope
-from shared.config import get_storage_settings
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +53,9 @@ TOOLS: dict[str, Tool] = {
         SEARCH_SOURCES,
         CREATE_ARTIFACT,
         RENDER_DOCUMENT,
+        SAVE_PAGE,
+        MAKE_IMAGE,
+        BIND_COMIC,
         READ_DOCUMENT,
         LIST_IMAGES,
         SOURCE_PAGES,
@@ -54,19 +65,31 @@ TOOLS: dict[str, Tool] = {
         PDF_PAGES,
         PDF_STAMP,
         PDF_FORM,
+        SEARCH_WEB,
+        READ_WEB_PAGE,
+        READ_YOUTUBE_TRANSCRIPT,
+        RUN_JOB,
+        CONFIRM_JOB,
     )
 }
 
 
-def listings() -> list[dict[str, Any]]:
+def listings(scope: TurnScope) -> list[dict[str, Any]]:
     """What `tools/list` shows: each tool's name, description and input schema.
 
-    A tool returning images is left out for a model that cannot see them.
+    A tool returning images is left out for a model that cannot see them, and the
+    job tools while no job pack is installed.
     """
-    sees = _model_sees_images()
-    return [
-        tool.listing for tool in TOOLS.values() if sees or not tool.needs_image_input
-    ]
+    reads = scope.reads_images()
+    shown = []
+    for tool in TOOLS.values():
+        if tool is RUN_JOB or tool is CONFIRM_JOB:
+            listing = job_listing() if tool is RUN_JOB else confirm_listing()
+            if listing is not None:
+                shown.append(listing)
+        elif reads or not tool.needs_image_input:
+            shown.append(tool.listing)
+    return shown
 
 
 async def call(
@@ -82,7 +105,7 @@ async def call(
     try:
         # Even a tool needing no sources writes into, or reads for, its thread.
         scope.require_known()
-        if tool.needs_image_input and not _model_sees_images():
+        if tool.needs_image_input and not scope.reads_images():
             raise ToolCallError(
                 "The selected model cannot read images, so this tool cannot show it "
                 "anything. Work from the sources' text instead."
@@ -92,10 +115,22 @@ async def call(
         else:
             made = await transact(session, tool.run, scope, arguments)
     except ToolCallError as refused:
-        return replies.result(message, _content(str(refused), (), is_error=True))
+        return replies.result(
+            message, _content(str(refused), (), is_error=True, reads_images=False)
+        )
     if isinstance(made, ToolResult):
-        return replies.result(message, _content(made.text, made.images, is_error=False))
-    return replies.result(message, _content(made, (), is_error=False))
+        return replies.result(
+            message,
+            _content(
+                made.text,
+                made.images,
+                is_error=False,
+                reads_images=scope.reads_images(),
+            ),
+        )
+    return replies.result(
+        message, _content(made, (), is_error=False, reads_images=False)
+    )
 
 
 def without_placeholder_ids(
@@ -123,13 +158,8 @@ def without_placeholder_ids(
     }
 
 
-def _model_sees_images() -> bool:
-    """Read from the configuration opencode runs with, as the previews are."""
-    return declares_image_input(get_storage_settings().agent_dir / CONFIG_FILE)
-
-
 def _content(
-    text: str, images: tuple[InlineImage, ...], *, is_error: bool
+    text: str, images: tuple[InlineImage, ...], *, is_error: bool, reads_images: bool
 ) -> dict[str, Any]:
     """A tool result: one text item, which opencode passes to the model as it is,
     then the images: on /chat/completions opencode attaches them after the step,
@@ -138,7 +168,7 @@ def _content(
     The model must still read images now: opencode turns each image sent to one
     that cannot into an error it is told to report.
     """
-    if images and not _model_sees_images():
+    if images and not reads_images:
         logger.warning(
             "dropped %d image(s) from a tool result: the model reads no images now",
             len(images),

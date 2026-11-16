@@ -17,6 +17,8 @@ from modules.llm.resolution import ModelResolutionError, ResolvedGeneration
 # seconds whatever it waits on, so a gap this long is a dead connection; the
 # model's own start and stall budgets run inside the API.
 SILENCE_SECONDS = 60.0
+# Reading a local model's window may load it, which can take minutes on a large one.
+WINDOW_TIMEOUT = httpx.Timeout(600.0, connect=5.0)
 
 
 def resolve_routed_generation(session: Session) -> ResolvedGeneration:
@@ -41,11 +43,12 @@ def resolve_routed_generation(session: Session) -> ResolvedGeneration:
 
 
 class RoutedGenerator:
-    """`Generator.chat` over the API's model route, for a worker process.
+    """`Generator.chat` and `context_tokens` over the API's model route, for a
+    worker process.
 
     Failures arrive as the types a direct call raises, so a caller's handling
-    does not change. Only `chat` is used by Studio; the rest answer as a
-    generator that cannot tell.
+    does not change. Studio uses only those two; the rest answer as a generator
+    that cannot tell.
     """
 
     name = "model_route"
@@ -59,6 +62,7 @@ class RoutedGenerator:
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         self._url = f"{api_url.rstrip('/')}/internal/models/text/generate"
+        self._window_url = f"{api_url.rstrip('/')}/internal/models/text/window"
         self._model = model
         self._priority = priority
         self._transport = transport
@@ -133,7 +137,17 @@ class RoutedGenerator:
         return []
 
     async def context_tokens(self, model: str) -> int | None:
-        return None
+        """The window the API reads for the model this generator was made for."""
+        body = {"model": None if self._model is None else self._model.model_dump()}
+        async with httpx.AsyncClient(
+            timeout=WINDOW_TIMEOUT, transport=self._transport
+        ) as client:
+            reply = await client.post(self._window_url, json=body)
+        if reply.status_code == 409:
+            raise ModelResolutionError(_detail(reply.content))
+        reply.raise_for_status()
+        window = reply.json().get("window")
+        return window if isinstance(window, int) and window > 0 else None
 
     async def sees_images(self, model: str) -> bool | None:
         return None

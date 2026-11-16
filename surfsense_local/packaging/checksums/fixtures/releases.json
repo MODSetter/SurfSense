@@ -1,0 +1,38 @@
+[
+  [
+    {
+      "tag_name": "v2.3.0",
+      "draft": true,
+      "prerelease": false,
+      "assets": [
+        { "name": "stable-linux.yml", "state": "uploaded", "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111" },
+        { "name": "SurfSense.deb", "state": "uploaded", "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222" },
+        { "name": "SHA256SUMS", "state": "uploaded", "digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333" },
+        { "name": "surfsense-archive-keyring.gpg", "state": "uploaded", "digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444" },
+        { "name": "SurfSense-arm64.dmg.blockmap", "state": "uploaded", "digest": "sha256:5555555555555555555555555555555555555555555555555555555555555555" },
+        { "name": "install.sh", "state": "uploaded", "digest": "sha256:6666666666666666666666666666666666666666666666666666666666666666" },
+        { "name": "SurfSense-Setup.exe", "state": "uploaded", "digest": "sha256:7777777777777777777777777777777777777777777777777777777777777777" },
+        { "name": "InRelease", "state": "uploaded", "digest": "sha256:8888888888888888888888888888888888888888888888888888888888888888" },
+        { "name": "latest.yml", "state": "uploaded", "digest": "sha256:9999999999999999999999999999999999999999999999999999999999999999" }
+      ]
+    },
+    {
+      "tag_name": "v2.2.3",
+      "draft": false,
+      "prerelease": false,
+      "assets": [
+        { "name": "SurfSense.deb", "state": "uploaded", "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
+      ]
+    }
+  ],
+  [
+    {
+      "tag_name": "v2.2.2",
+      "draft": false,
+      "prerelease": false,
+      "assets": [
+        { "name": "SurfSense.deb", "state": "uploaded", "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" }
+      ]
+    }
+  ]
+]

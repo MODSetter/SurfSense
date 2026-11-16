@@ -7,13 +7,14 @@ computed on read and never stored, so a threshold can move on evidence without a
 migration or a re-selection. Finishing onboarding is a separate marker that
 choosing or clearing a model never touches.
 
-**Code:** [`surfsense_local/backend/modules/llm/selection.py`](../../../surfsense_local/backend/modules/llm/selection.py), [`surfsense_local/backend/modules/llm/model_type.py`](../../../surfsense_local/backend/modules/llm/model_type.py), [`surfsense_local/backend/modules/llm/selectable.py`](../../../surfsense_local/backend/modules/llm/selectable.py), [`surfsense_local/backend/modules/llm/models.py`](../../../surfsense_local/backend/modules/llm/models.py), [`surfsense_local/backend/modules/llm/profile/`](../../../surfsense_local/backend/modules/llm/profile/), [`surfsense_local/backend/modules/llm/prompting/`](../../../surfsense_local/backend/modules/llm/prompting/), [`surfsense_local/backend/modules/llm/resolution.py`](../../../surfsense_local/backend/modules/llm/resolution.py), [`surfsense_local/backend/modules/llm/router.py`](../../../surfsense_local/backend/modules/llm/router.py)
+**Code:** [`surfsense_local/backend/modules/llm/selection.py`](../../../surfsense_local/backend/modules/llm/selection.py), [`surfsense_local/backend/modules/llm/model_type.py`](../../../surfsense_local/backend/modules/llm/model_type.py), [`surfsense_local/backend/modules/llm/selectable.py`](../../../surfsense_local/backend/modules/llm/selectable.py), [`surfsense_local/backend/modules/llm/models.py`](../../../surfsense_local/backend/modules/llm/models.py), [`surfsense_local/backend/modules/llm/profile/`](../../../surfsense_local/backend/modules/llm/profile/), [`surfsense_local/backend/modules/llm/prompting/`](../../../surfsense_local/backend/modules/llm/prompting/), [`surfsense_local/backend/modules/llm/resolution.py`](../../../surfsense_local/backend/modules/llm/resolution.py), [`surfsense_local/backend/modules/llm/router.py`](../../../surfsense_local/backend/modules/llm/router.py), [`surfsense_local/backend/modules/llm/transcription/`](../../../surfsense_local/backend/modules/llm/transcription/)
 **Decisions:** [ADR 0011](../../adr/0011-llama-cpp-local-runtime.md), [ADR 0015](../../adr/0015-openai-compatible-connections.md)
 
 ## One row per model type
 
 `ModelType` is what a model is for: `text_gen`, `image_gen`, `image_edit`,
-`video_gen` or `audio_gen`. There are no separate roles; the type is the slot.
+`video_gen`, `audio_gen` or `speech_to_text`. There are no separate roles; the
+type is the slot.
 `SelectedModel` holds one row per type in `selected_models`, keyed by
 `model_type`, so choosing again updates in place.
 
@@ -21,9 +22,10 @@ choosing or clearing a model never touches.
 |---|---|---|---|
 | `text_gen` | `llamacpp`, the bundled runtime | `openai_compatible`, with a `connection_id` | chat, titles, Studio's writing |
 | `image_gen` | `sdcpp`, the bundled sd-server | `openai_compatible`, with a `connection_id` | Studio's `image` and `infographic` |
-| `image_edit` | `sdcpp`, a model whose entry names `edit` | `openai_compatible`, with a `connection_id` | nothing yet |
+| `image_edit` | `sdcpp`, a model whose entry names `edit` | `openai_compatible`, with a `connection_id` | Optional: edits and references with a model other than the image model; empty, the image model takes them when it takes pictures in, and redraws when not ([studio](../studio.md#which-model-takes-a-picture)) |
 | `audio_gen` | `audiocpp`, the bundled audio.cpp server | `openai_compatible`, with a `connection_id` | Studio's `podcast` |
 | `video_gen` | `sdcpp`, a model whose entry has a `video` block | `openai_compatible`, with a `connection_id` | nothing yet |
+| `speech_to_text` | `audiocpp`, a recogniser, run on a second audio.cpp server | none: local only | the transcription routes ([admission](admission.md#speech-recognition)), which a recording's ingest calls ([documents](../documents.md#recordings)) |
 
 A type no feature reads can still be chosen; the feature that first reads one
 brings the client that calls it.
@@ -36,12 +38,19 @@ belongs to the library's index, fixed when onboarding finishes
 `selectable_for` never offers `embedding`, not even to a model nothing
 recognises, and both `/llm/selection/{model_type}` routes answer `422` for it.
 
+`speech_to_text` is a slot, since speech models change freely as voices do, but
+a local-only one: no remote speech client exists to call a recogniser.
+`LOCAL_ONLY` in the same file names it, so a model nothing recognises fills
+every slot but it, and a connection serves `REMOTE_SLOTS`, every slot but it,
+which a confirmed unlisted model does not get round.
+
 A row stores the provider, the connection when remote, the exact model id, and
 three fingerprint facts. A check constraint requires a `connection_id` exactly
 when the provider is `openai_compatible`, a second (`local_runtime_type`) lets
 `llamacpp` hold only `text_gen`, `sdcpp` only `image_gen`, `image_edit` and
-`video_gen` (revision `0018`), and `audiocpp` only `audio_gen`, and deleting a
-connection cascades to the rows that name it. `provider` is the SurfSense inference provider, never the
+`video_gen` (revision `0018`), and `audiocpp` only `audio_gen` and
+`speech_to_text` (revision `0030`), and deleting a connection cascades to the
+rows that name it. `provider` is the SurfSense inference provider, never the
 model's publisher.
 
 `GET /llm/selection/{model_type}` returns the row with its computed `tier`, or
@@ -60,16 +69,18 @@ fingerprints and stores:
   `edit`, and `video_gen` for a model with a `video` block. FLUX.2 klein fills
   both image slots from the same files; SD 1.5 is refused for editing, and
   every image model for video.
-- **Local audio** (`audiocpp`): the type must be `audio_gen`, there is no
-  connection, and the name must be a curated audio build installed in the
-  audio folder or shipped in the models pack, named by its weights file as a
-  chat build is.
+- **Local audio** (`audiocpp`): there is no connection, and the name is a
+  curated build named by its weights file as a chat build is. For `audio_gen`
+  it must be a voice model, whose entry has an `audio` block, installed in the
+  audio folder or shipped in the models pack; for `speech_to_text`, a
+  recogniser, whose entry has a `transcription` block, installed in the audio
+  folder. Nemotron is refused for voices and Kokoro for speech recognition.
 - **Remote** (`openai_compatible`): a connection is required, and the model is
   checked against the endpoint's live `/models`. When the listing cannot be read
   or does not include the id, `allow_unlisted` is what lets a user save an exact
   id anyway. Otherwise the model must be able to fill the slot, by one rule in
   `selectable.py`: a model fills the slots of the types it is, and one nothing
-  recognises fills every slot. The connection's model listing sends the same
+  recognises fills every slot but `speech_to_text`. The connection's model listing sends the same
   answer as `selectable_for`, so every picker offers what selection accepts. Remote
   inventory is discovered live and never synchronized into SQLite
   ([`../connections.md`](../connections.md)).
@@ -78,11 +89,19 @@ Choosing a `llamacpp` model also starts loading it, as a background task that
 runs after the response, because the load blocks until the weights are resident
 and choosing a model is when the user has said they are about to use it
 ([`runtime.md`](runtime.md#warming-listed-is-not-loaded)). Any other provider
-loads nothing.
+loads nothing, and choosing one for chat unloads a local chat model the runtime
+still holds, once what it is generating has finished
+([`runtime.md`](runtime.md#sidecar-flags)).
+
+Choosing a `speech_to_text` model, through the route or an install with
+`select: true`, queues again every recording that failed for want of one, at
+`PRIORITY_BULK` ([documents](../documents.md#no-speech-model-yet)).
 
 Installing with `select: true` goes through the same `choose_model()`
-([`catalog.md`](catalog.md)). Deleting a local model clears every row of the
-types its engine fills that named it, `image_gen` and `image_edit` both for a
+([`catalog.md`](catalog.md)) and fills the row's own first slot unless the
+request names another, so Nemotron's install fills `speech_to_text` though
+audio.cpp's first type is `audio_gen`. Deleting a local model clears every row
+of the types its engine fills that named it, `image_gen` and `image_edit` both for a
 model chosen for each, and reports
 `selection_cleared`; nothing chooses another
 model in its place, except that at the next start an empty `audio_gen` row takes
@@ -163,8 +182,9 @@ the summary, flashcards, mindmap, quiz, office, `web/html`, image and
 infographic formats, with the podcast outline and draft as separate cases. A unit
 test asserts that every case ships all three tiers, because a missing file fails
 the job on the user's machine, where nobody can fix it. No `import` names a
-prompt, so the PyInstaller specs collect them by path: `api.spec` takes chat's
-three, and `worker.spec` takes those plus every `*.md` under `worker.studio`.
+prompt, so the PyInstaller spec's inputs collect them by path: `api_inputs.py`
+takes chat's three, and `worker_inputs.py` takes those plus every `*.md` under
+`worker.studio`.
 
 ## Onboarding
 
@@ -184,13 +204,15 @@ route. Only the onboarding page's last step does, once a chat model is
 persisted. Once the marker exists the app never shows onboarding again, and a
 missing selection is fixed from Settings' Chat section.
 
-The onboarding page opens on a welcome screen, then six steps: chat, image, image editing, audio, video and search model. The welcome is not counted as a step, but it is part of onboarding and gated by the same marker, so it is never shown again once onboarding is done.
+The onboarding page opens on a welcome screen, then the privacy choices ([usage statistics](../usage-statistics.md#consent)), then two model steps: chat and search model. The welcome is not counted as a step, but it is part of onboarding and gated by the same marker, so it is never shown again once onboarding is done. Image, image editing, audio and video models are not asked for: they are chosen in Settings, and the feature that needs one says so.
 
 The embedding step comes last and is not a slot, but it is the same component
-as the model steps below, with one more entry in their tables
+as the chat step below, with its own entry in their tables
 ([`model-step/`](../../../surfsense_local/frontend/src/features/onboarding/model-step/)).
-What a step does on Use is its own hook: a slot's saves the selection, and the
-embedding step's ([`use-embedding-step.ts`](../../../surfsense_local/frontend/src/features/onboarding/model-step/kinds/use-embedding-step.ts))
+What a step does on Use is its own hook: the chat step's
+([`use-chat-step.ts`](../../../surfsense_local/frontend/src/features/onboarding/model-step/kinds/use-chat-step.ts))
+saves the selection, and the embedding step's
+([`use-embedding-step.ts`](../../../surfsense_local/frontend/src/features/onboarding/model-step/kinds/use-embedding-step.ts))
 only marks a choice, In use until another is used, bge-small by default and again
 if the chosen one is deleted. Its downloads install with `select: false`; a
 Hugging Face pick is labelled not tested by SurfSense; the bundled bge-small has
@@ -202,21 +224,17 @@ Finish sends the choice with the call that ends onboarding; Skip and finish, or
 Finish with the choice untouched, sends none, which means bge-small
 ([embedding](../embedding.md)).
 
-The model steps are one component for any slot
+The model steps are one component
 ([`frontend/src/features/onboarding/model-step/`](../../../surfsense_local/frontend/src/features/onboarding/model-step/)),
-built on the same hooks as Settings but with its own screens. Each lists every
-model this computer can run at once: in the chat step, models downloaded from Hugging Face first, then the curated list with its starred row first, with
+built on the same hooks as Settings but with its own screens. The chat step lists every
+model this computer can run at once: models downloaded from Hugging Face first, then the curated list with its starred row first, with
 Download, Use and Delete as in Settings, and no Delete on a model the app ships; a download's progress shows under its
-row and never moves the page. The chat step also offers Settings' Hugging Face
-search, closed until asked for; the image, image editing, audio and video steps have none, since
-sd.cpp's and audio.cpp's models are the few the catalog ships. The image editing step lists first the model chosen for images earlier when it edits too, so FLUX.2 klein is one Use away, and its downloads fill `image_edit`. A server sits one line below the list and names
-any connected earlier. Once the slot has a model, the footer names it beside
-Continue. Onboarding installs with `select: true`, so a download is also the
-choice; Settings installs with `select: false`. The chat step's Continue is
-enabled only once a chat model is selected, local or from a server. The image,
-image editing, audio and video steps are optional, and each enables its Continue or Finish only once
-its slot has a model. Each step's Skip and Continue move on to the next, image
-to image editing to audio to video. The last step's buttons read Skip and finish and Finish, and both post the marker.
+row and never moves the page. It also offers Settings' Hugging Face
+search, closed until asked for. A server sits one line below the list and names
+any connected earlier. Once a chat model is chosen, the footer names it beside
+Continue. The chat step installs with `select: true`, so a download is also the
+choice; Settings installs with `select: false`. Its Continue is
+enabled only once a chat model is selected, local or from a server, and it has no Skip. The embedding step's buttons read Skip and finish and Finish, and both post the marker.
 
 ## Resolution: local and remote
 
@@ -225,7 +243,31 @@ bundled runtime ([`runtime.md`](runtime.md)). An `openai_compatible` row resolve
 to its connection, and `egress.require()` checks the connection's host, which is
 a no-op for a loopback host, so a local LM Studio or Ollama endpoint never
 prompts. `resolve_image_generation()` does the same for sd-server or a
-connection.
+connection. `resolve_speech_to_text()` reads the `speech_to_text` row and
+returns it with its installed recogniser: the file, the family the server
+dispatches on, and the entry's languages and locales. With no row, or one whose
+model is gone, it raises `NoSpeechModelError`, which a route answers as `409`
+with the code `needs_speech_model`.
+
+## The speech model's language
+
+`GET /llm/selection/speech_to_text/language` answers `{language, languages,
+detects_language}`: the language the user says they speak, `auto` or an ISO
+639-1 code; the codes the model is listed for, best first; and whether `auto`
+detects. `PUT` takes `{language}` and answers the same. A code the model is not
+listed for is `422`, Estonian included, which Nemotron detects at lower
+accuracy. A model that cannot detect, Canary, has no `auto`: told no language
+it translates into English, so with nothing set its intent is its first
+language, English, and `auto` is `422`. Both answer `409` `needs_speech_model` without a speech model.
+
+The intent lives in the row's `settings` under `transcription`, as
+`{"language": "ja"}`, read and written only by
+[`language_intent.py`](../../../surfsense_local/backend/modules/llm/transcription/language_intent.py).
+A kept language the model no longer lists reads as `auto`, and nothing rewrites
+it from a detection. A request names the language's locale from the entry's
+`family_codes` (`ja-JP` for Nemotron), and `auto` names none, so the model
+detects it. Like voices, it is dropped when the slot takes another
+model; choosing the same model again keeps it.
 
 ## Capabilities and the system role
 
@@ -287,6 +329,8 @@ Studio passes a schema through `run_model()`
 ([`generate.py`](../../../surfsense_local/backend/worker/studio/shared/generate.py)),
 each format's beside its prompts, as the quiz's
 ([`schema.py`](../../../surfsense_local/backend/worker/studio/content/quiz/schema.py)).
+Every list in a schema has a `maxItems`, so a model that repeats stops at the
+ceiling instead of filling the window and cutting its JSON short.
 A reply that arrives unconstrained, from an endpoint that ignores
 `response_format` or from the 400 retry, is still read by `parse_json()`.
 
@@ -297,9 +341,13 @@ covers `classify()` and fingerprinting, and
 [`surfsense_local/backend/tests/unit/llm/prompting/`](../../../surfsense_local/backend/tests/unit/llm/prompting/)
 asserts every case ships all three tiers and that slots fill.
 `tests/integration/llm/test_routes.py` covers selection, onboarding and delete
-over HTTP.
+over HTTP; `test_speech_catalog_routes.py` and `test_speech_language_routes.py`
+beside it cover the speech recognition slot, which model fills it and its
+language, and `test_connections.py` that no connection fills it.
 
 ## Known gaps
 
-- Only the quiz and flashcards pass `json_schema`: mind map, HTML, image, infographic and the podcast's outline and draft still ask for JSON in the prompt alone, so their format compliance depends on it.
+- Settings shows the edit override as its own section, "Use a different model for edits", not folded under Image gen; and the **Image editing** badge is on server models only, not on local models to download.
+- Only the quiz, flashcards, simple web page and comic plan pass `json_schema`: image, infographic and the podcast's outline and draft still ask for JSON in the prompt alone, so their format compliance depends on it. The mind map is not JSON: it is a Markdown outline, written free.
+- A schema whose node refers to itself, for a tree of any depth, crashed llama-server at b11050 twice in nine replies as Qwen3 0.6B nested deeper. No Studio schema refers to itself.
 - Nothing measures whether three tiers are still needed; once constrained decoding carries format compliance, a tier would carry reasoning depth only, which plausibly collapses three tiers to two.

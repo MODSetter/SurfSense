@@ -183,6 +183,52 @@ beforeEach(() => {
 
 afterEach(cleanup)
 
+describe("a sent message", () => {
+  it("shows each source it named as a chip with its icon", async () => {
+    const { container } = renderThread([
+      {
+        id: "u",
+        role: "user",
+        text: "compare @Plan Q3.pdf with @Board deck",
+        custom: {
+          steps: [],
+          mentions: [
+            {
+              id: "document:3",
+              type: "source",
+              label: "Plan Q3.pdf",
+              at: 8,
+              length: 12,
+            },
+            {
+              id: "document:9",
+              type: "artifact-pptx",
+              label: "Board deck",
+              at: 26,
+              length: 11,
+            },
+          ],
+        },
+      },
+    ])
+
+    const said = await screen.findByText("Plan Q3.pdf")
+    expect(said.parentElement?.querySelector("svg")).toBeTruthy()
+    expect(container.textContent).not.toContain("@Plan")
+    expect(container.textContent).toContain("compare")
+    expect(container.textContent).toContain("Board deck")
+  })
+
+  it("is plain text when it named nothing", async () => {
+    const { container } = renderThread([
+      { id: "u", role: "user", text: "mail me@example.com" },
+    ])
+
+    await screen.findByText("mail me@example.com")
+    expect(container.querySelector("span svg")).toBeNull()
+  })
+})
+
 describe("a reply's markdown", () => {
   it("keeps its options across tokens, so they never force a reparse", async () => {
     renderThread(
@@ -283,11 +329,18 @@ describe("code in a reply", () => {
       )
     const linesOf = (text: string) => text.trimEnd().split("\n")
 
+    // Until the block closes, a chunk ending in a newline draws the line it opened.
+    const writtenSoFar = () => {
+      const lines = shown()
+      return lines.at(-1)?.trim() === "" ? lines.slice(0, -1) : lines
+    }
+
     for (let at = 0; at < code.length; at += 12) {
       await act(async () => push(code.slice(at, at + 12)))
-      expect(shown()).toEqual(linesOf(code.slice(0, at + 12)))
+      expect(writtenSoFar()).toEqual(linesOf(code.slice(0, at + 12)))
     }
     await act(async () => push("\n```\n\nDone."))
+    expect(shown()).toEqual(linesOf(code))
     expect(highlight).not.toHaveBeenCalled()
 
     await act(async () => finish())
@@ -365,7 +418,6 @@ describe("an agent reply's steps", () => {
     id,
     tool: "surfsense_source_pages",
     status: "completed",
-    title: null,
     input: { document_id: documentId },
     artifact: null,
   })
@@ -430,7 +482,6 @@ describe("the Office support offer", () => {
     id,
     tool: "surfsense_render_document",
     status: "completed",
-    title: null,
     input: { title: "Proposal", format: "docx" },
     artifact: { id: artifactId, title: "Proposal", version: 1 },
   })

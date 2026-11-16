@@ -1,6 +1,6 @@
 """The manifest's image models and the images folder as rows, unpriced."""
 
-from collections.abc import Callable, Collection, Mapping, Sequence
+from collections.abc import Callable, Collection, Mapping, Sequence, Set
 from dataclasses import replace
 
 from modules.llm.catalog.local.build import Build
@@ -22,7 +22,7 @@ def image_catalog(
     files: Collection[str],
     catalog_id: Callable[[Build], str],
     *,
-    selected: str | None = None,
+    selected: Set[str] = frozenset(),
 ) -> list[LocalRow]:
     rows = []
     for model in models:

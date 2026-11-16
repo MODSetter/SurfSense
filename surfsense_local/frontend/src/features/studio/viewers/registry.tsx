@@ -59,6 +59,8 @@ const ARTIFACT_VIEWERS: Record<string, ComponentType<ArtifactViewerProps>> = {
   infographic: MediaViewer,
   xlsx: XlsxViewer,
   pdf: PdfViewer,
+  // A comic is its bound pages, one PDF.
+  comic: PdfViewer,
   pptx: PptxViewer,
   html: HtmlViewer,
   docx: DocxViewer,

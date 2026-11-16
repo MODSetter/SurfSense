@@ -1,0 +1,182 @@
+name: Release Channels
+
+# Once a desktop release is published, tells the package managers that do not
+# watch GitHub for themselves: winget, the AUR and the Snap Store. Homebrew
+# (BrewTestBot) and Scoop (Excavator) find the release on their own.
+#
+# `release: published` fires only because the maintainer undrafts with their own
+# gh credentials (surfsense_local/RELEASE.md step 9); an undraft made with
+# GITHUB_TOKEN starts no workflow. Re-run by hand with the tag.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Published desktop release tag (e.g. v2.3.0)"
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-channels-${{ github.event.release.tag_name || inputs.tag }}
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - name: Resolve the release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: |
+          set -euo pipefail
+          # v0.* is the legacy desktop, and beta-v* the retired hosted stack.
+          if ! [[ "$TAG" =~ ^v[1-9][0-9]*\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::notice::$TAG is not a desktop release tag (vX.Y.Z from v1 on), so no channel is told."
+            exit 0
+          fi
+          # /releases/tags/<tag> serves published releases only: a draft fails here.
+          STATE=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" --jq '"\(.draft) \(.prerelease)"')
+          if [ "$STATE" != "false false" ]; then
+            echo "::notice::$TAG is a draft or a prerelease, so no channel is told."
+            exit 0
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+  # Updates SurfSense.SurfSense only: its first version is submitted by hand.
+  winget:
+    needs: resolve
+    if: needs.resolve.outputs.tag != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for the winget token
+        id: secret
+        env:
+          WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+          TAG: ${{ needs.resolve.outputs.tag }}
+        run: |
+          if [ -n "$WINGET_TOKEN" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::WINGET_TOKEN is not set, so winget is not told about $TAG."
+          fi
+
+      # WINGET_TOKEN belongs to a bot account that owns the winget-pkgs fork and
+      # has no rights on this repository: the pin does not cover the
+      # cargo-binstall@main and the latest komac the action runs with it.
+      - name: Open the winget-pkgs pull request
+        if: steps.secret.outputs.present == 'true'
+        uses: vedantmgoyal9/winget-releaser@b7370d4d152efdce803a26cc6ca9eee58cb2ad54 # v2
+        with:
+          identifier: SurfSense.SurfSense
+          installers-regex: 'SurfSense-Setup\.exe$'
+          release-tag: ${{ needs.resolve.outputs.tag }}
+          fork-user: ${{ vars.WINGET_FORK_USER || github.repository_owner }}
+          token: ${{ secrets.WINGET_TOKEN }}
+
+  aur:
+    needs: resolve
+    if: needs.resolve.outputs.tag != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for the AUR key
+        id: secret
+        env:
+          AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          TAG: ${{ needs.resolve.outputs.tag }}
+        run: |
+          if [ -n "$AUR_SSH_PRIVATE_KEY" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::AUR_SSH_PRIVATE_KEY is not set, so the AUR is not told about $TAG."
+          fi
+
+      - name: Checkout
+        if: steps.secret.outputs.present == 'true'
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        if: steps.secret.outputs.present == 'true'
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      # Its checksums come from the release's asset digests, so nothing is downloaded.
+      # Into the workspace: the deploy action runs in a container that mounts only it.
+      - name: Render the PKGBUILD
+        if: steps.secret.outputs.present == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.resolve.outputs.tag }}
+          VERSION: ${{ needs.resolve.outputs.version }}
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" > "$RUNNER_TEMP/release.json"
+          node surfsense_local/packaging/channels/render.mjs aur \
+            --version "$VERSION" --out aur-package --assets "$RUNNER_TEMP/release.json"
+          cat aur-package/PKGBUILD
+
+      - name: Push surfsense-bin to the AUR
+        if: steps.secret.outputs.present == 'true'
+        uses: KSXGitHub/github-actions-deploy-aur@084b0d9b15415bf9cdb65d44dad1efe37a354050 # v4.2.0
+        with:
+          pkgname: surfsense-bin
+          pkgbuild: aur-package/PKGBUILD
+          commit_username: github-actions[bot]
+          commit_email: 41898282+github-actions[bot]@users.noreply.github.com
+          ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          commit_message: Update to ${{ needs.resolve.outputs.version }}
+
+  # release-local.yml's snap job puts the build on candidate, and may still be
+  # running when the release is published. This waits for that version and
+  # never promotes an older candidate.
+  snap:
+    needs: resolve
+    if: needs.resolve.outputs.tag != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - name: Check for Snap Store credentials
+        id: secret
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+          TAG: ${{ needs.resolve.outputs.tag }}
+        run: |
+          if [ -n "$SNAPCRAFT_STORE_CREDENTIALS" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::SNAPCRAFT_STORE_CREDENTIALS is not set, so the Snap Store's stable channel keeps its last build."
+          fi
+
+      - name: Install snapcraft
+        if: steps.secret.outputs.present == 'true'
+        run: sudo snap install snapcraft --classic
+
+      - name: Promote this version from candidate to stable
+        if: steps.secret.outputs.present == 'true'
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+          VERSION: ${{ needs.resolve.outputs.version }}
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 60); do
+            STATUS=$(snapcraft status surfsense-local --track latest)
+            # The Version column after `candidate`; ↑ when it only follows stable.
+            CANDIDATE=$(awk '{ for (i = 1; i < NF; i++) if ($i == "candidate") { print $(i + 1); exit } }' <<<"$STATUS")
+            if [ "$CANDIDATE" = "$VERSION" ]; then
+              snapcraft promote surfsense-local --from-channel candidate --to-channel stable --yes
+              exit 0
+            fi
+            echo "candidate holds ${CANDIDATE:-nothing}; waiting for $VERSION ($attempt/60)"
+            sleep 60
+          done
+          echo "::error::The Snap Store's candidate channel never held $VERSION. Check the snap job of this tag's Desktop Release run, then re-run this workflow."
+          exit 1

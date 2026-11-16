@@ -1,8 +1,9 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react"
+import { cleanup, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { render } from "@/test-utils"
 
 import { ArtifactList } from "./artifact-list"
 import type { Artifact } from "./api"
@@ -20,6 +21,7 @@ const artifact: Artifact = {
   version: null,
   spec_kind: null,
   refinable: false,
+  image_editable: false,
 }
 
 type ListProps = Partial<Parameters<typeof ArtifactList>[0]>
@@ -51,6 +53,13 @@ describe("artifact list", () => {
     renderList({ artifacts: [] })
 
     expect(screen.getByText("No generated artifacts yet")).toBeTruthy()
+    // Where the first artifact starts, the guide that walks through one.
+    const guide = screen.getByRole("link", {
+      name: "How to make a document in Studio",
+    })
+    const url = new URL(guide.getAttribute("href") ?? "")
+    expect(url.pathname).toBe("/docs/v2/guides/studio-documents")
+    expect(url.searchParams.get("utm_content")).toBe("studio_empty")
   })
 
   it("shows list skeletons while artifacts load", () => {
@@ -507,6 +516,7 @@ describe("artifact list versions", () => {
       version: { root_id: 30, number, parent_id: number > 1 ? id - 1 : null },
       spec_kind: "python",
       refinable: false,
+      image_editable: false,
       ...extra,
     } satisfies Artifact
   }
@@ -550,8 +560,13 @@ describe("artifact list versions", () => {
     ).toBeTruthy()
   })
 
-  it("deletes every version of a document after confirm", async () => {
-    const onDelete = vi.fn()
+  it("deletes every version of a document after confirm, newest first, one at a time", async () => {
+    // A later version may be edited from an earlier one, which the API will not
+    // delete while that edit is left; waiting keeps the order the API sees.
+    const finish: (() => void)[] = []
+    const onDelete = vi.fn<(id: number) => Promise<void>>(
+      () => new Promise((resolve) => finish.push(resolve))
+    )
     const user = userEvent.setup()
     renderList({ artifacts: [v3, v2, v1], onDelete })
 
@@ -565,7 +580,15 @@ describe("artifact list versions", () => {
       )
     ).toBeTruthy()
     await user.click(screen.getByRole("button", { name: "Delete artifact" }))
-    expect(onDelete.mock.calls.map(([id]) => id)).toEqual([30, 31, 32])
+    expect(onDelete.mock.calls.map(([id]) => id)).toEqual([32])
+    finish[0]()
+    await vi.waitFor(() =>
+      expect(onDelete.mock.calls.map(([id]) => id)).toEqual([32, 31])
+    )
+    finish[1]()
+    await vi.waitFor(() =>
+      expect(onDelete.mock.calls.map(([id]) => id)).toEqual([32, 31, 30])
+    )
   })
 
   it("deletes a version made while the delete dialog is open", async () => {
@@ -586,7 +609,9 @@ describe("artifact list versions", () => {
       )
     ).toBeTruthy()
     await user.click(screen.getByRole("button", { name: "Delete artifact" }))
-    expect(onDelete.mock.calls.map(([id]) => id)).toEqual([30, 31, 32, 33])
+    await vi.waitFor(() =>
+      expect(onDelete.mock.calls.map(([id]) => id)).toEqual([33, 32, 31, 30])
+    )
   })
 
   it("will not delete once a version starts generating while the dialog is open", async () => {

@@ -23,6 +23,8 @@ class Call(BaseModel):
     route: Literal["responses"] | None = None
     # Another wire format entirely, such as "anthropic".
     protocol: str | None = None
+    # Why its provider refuses this app whatever the wire format.
+    unavailable: str | None = None
 
 
 class AccountField(BaseModel):
@@ -90,5 +92,7 @@ class RemoteManifest(BaseModel):
     @model_validator(mode="after")
     def known_schema(self) -> "RemoteManifest":
         if self.schema_version != SCHEMA_VERSION:
-            raise ValueError(f"unsupported remote manifest schema: {self.schema_version}")
+            raise ValueError(
+                f"unsupported remote manifest schema: {self.schema_version}"
+            )
         return self

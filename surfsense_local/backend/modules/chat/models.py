@@ -15,6 +15,11 @@ class MessageRole(enum.StrEnum):
     SYSTEM = "system"
 
 
+class AgentEngineKind(enum.StrEnum):
+    OPENCODE = "opencode"
+    CLAUDE_CODE = "claude_code"
+
+
 class ChatThread(Base):
     __tablename__ = "chat_threads"
     __table_args__ = (
@@ -29,9 +34,17 @@ class ChatThread(Base):
     # The hosted thread this one was imported from, so a re-import finds it.
     cloud_id: Mapped[int | None]
     title: Mapped[str | None]
-    # Set when the agent answers this thread: its turns live in that opencode
-    # session, not in chat_messages. Chosen when the thread is opened, and kept.
+    # The engine whose session holds this thread's turns, not chat_messages;
+    # None for a chat thread. Chosen when the thread is opened.
+    agent_engine: Mapped[AgentEngineKind | None] = mapped_column(
+        text_enum(AgentEngineKind)
+    )
+    # The thread's opencode session, once opencode has run it.
     opencode_session_id: Mapped[str | None]
+    # The thread's Claude Code session, chosen when Claude Code first runs it.
+    claude_session_id: Mapped[str | None]
+    # A digest of the Claude account that session runs under: another account gets a new one.
+    claude_account: Mapped[str | None]
     # The sources the user ticked, resolved on the server per turn; None is all.
     source_scope: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     # The oldest message the model is still sent once history was trimmed. Kept
@@ -51,7 +64,7 @@ class ChatThread(Base):
     @property
     def uses_agent(self) -> bool:
         """Whether the agent answers this thread rather than the chat."""
-        return self.opencode_session_id is not None
+        return self.agent_engine is not None
 
 
 class ChatMessage(Base):

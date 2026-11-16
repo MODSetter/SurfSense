@@ -2,8 +2,9 @@
 
 usage: python stand_in_case.py <case>, with STAND_IN_PLAN naming a JSON file of
 {"<model>|<case>": ["passed", "failed", "transient", "account", "harness",
-"chat", "hang", "hang-silent"]}, one entry per attempt. Each run charges
-STAND_IN_DOLLARS (default $0.10) to its own ledger.
+"chat", "hang", "hang-silent", "slow"]}, one entry per attempt. Each run charges
+STAND_IN_DOLLARS (default $0.10) to its own ledger. "slow" passes after
+STAND_IN_SLOW_SECONDS more.
 """
 
 import json
@@ -51,6 +52,9 @@ def main() -> int:
         time.sleep(60)
         return 0
     time.sleep(float(os.environ.get("STAND_IN_SECONDS", "0.2")))
+    if outcome == "slow":
+        time.sleep(float(os.environ["STAND_IN_SLOW_SECONDS"]))
+        outcome = "passed"
     if outcome == "harness":
         return 2
     if outcome == "chat":

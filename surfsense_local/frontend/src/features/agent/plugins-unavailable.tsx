@@ -12,6 +12,14 @@ function label({ title, reason }: UnavailablePlugin) {
       },
       { plugin: title }
     )
+  if (reason === "needs_scopes")
+    return intl.formatMessage(
+      {
+        id: "agent_plugin_needs_scopes_label",
+        defaultMessage: "{plugin} needs more access",
+      },
+      { plugin: title }
+    )
   return reason === "sign_in"
     ? intl.formatMessage(
         {
@@ -44,7 +52,7 @@ export function PluginsUnavailable({
           className="flex items-start gap-1.5 text-xs leading-5 text-muted-foreground"
         >
           <CircleAlertIcon className="mt-0.5 size-3.5 shrink-0" />
-          <span className="min-w-0 break-words">{label(plugin)}</span>
+          <span className="min-w-0 wrap-break-word">{label(plugin)}</span>
         </li>
       ))}
     </ul>

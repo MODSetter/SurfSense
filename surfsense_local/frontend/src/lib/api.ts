@@ -1,3 +1,4 @@
+import type { StorageBridge } from "@/features/storage/storage-types"
 import { intl } from "@/i18n/intl"
 
 export type Health = {
@@ -9,6 +10,8 @@ declare global {
     surfsense?: {
       apiUrl: string
       platform: string
+      // Changes when the database is made again; null before it exists.
+      databaseIdentity: () => string | null
       openDocument: (workspaceId: number, documentId: number) => Promise<string>
       revealDocument: (
         workspaceId: number,
@@ -24,6 +27,20 @@ declare global {
         // The app menu's Check for Updates…. Mirrors electron/src/preload/index.ts.
         onCheckRequested: (listener: () => void) => () => void
       }
+      // Update checks and usage statistics: where each goes, what it sent, and
+      // the switches (docs/contracts/05-desktop-telemetry.md, part C). Mirrors
+      // electron/src/preload/index.ts.
+      privacy?: {
+        // null outside the app's own window.
+        getState: () => Promise<PrivacyState | null>
+        setUsageStatistics: (enabled: boolean) => Promise<void>
+        // The updates bridge's own switch, so the two stay one setting.
+        setUpdatesAutomatic: (enabled: boolean) => Promise<void>
+        // The exact next report, built but not sent; null when none can be built.
+        previewUsageReport: () => Promise<unknown>
+        completeFirstRun: (choices: FirstRunChoices) => Promise<void>
+        onStateChanged: (listener: (state: PrivacyState) => void) => () => void
+      }
       setTitleBarOverlay?: (overlay: {
         color: string
         symbolColor: string
@@ -38,10 +55,26 @@ declare global {
       ) => Promise<void>
       about?: {
         details: () => Promise<AppDetails>
+        // Where models, workspaces and settings live. Mirrors electron/src/preload/index.ts.
+        dataFolder?: () => Promise<string | null>
+        // "" once opened, else the OS's reason.
+        openDataFolder?: () => Promise<string>
       }
+      // Where the models and data live, and moving them. Absent in Docker and a
+      // confined snap. Mirrors electron/src/preload/index.ts.
+      storage?: StorageBridge
       // This run's log, oldest line first. Mirrors electron/src/preload/index.ts.
       sessionLog?: {
         read: () => Promise<string[]>
+      }
+      // The system's switch for SurfSense's microphone; Electron decides the
+      // page's own permission. Mirrors electron/src/preload/index.ts.
+      microphone?: {
+        status: () => Promise<MicrophoneAccess>
+        // macOS prompts the first time; call it before getUserMedia.
+        request: () => Promise<MicrophoneAccess>
+        // False where the system has no microphone settings to open (Linux).
+        openSettings: () => Promise<boolean>
       }
       // Unexpected sidecar exits pushed by main. Mirrors electron/src/preload/index.ts.
       sidecars?: {
@@ -85,14 +118,52 @@ export type UpdateState =
   | { status: "idle" }
   | { status: "checking" }
   | { status: "up-to-date" }
-  | { status: "downloading"; version: string }
+  | { status: "downloading"; version: string; percent: number | null }
   | { status: "ready"; version: string }
   | { status: "error"; message: string }
+
+// Mirrors electron/src/main/privacy-choices/privacy-controller.ts.
+export type PrivacyState = {
+  updates: {
+    automatic: boolean
+    // An admin policy turned update checks off, or a package manager owns updates.
+    locked: boolean
+    // The policy wins when both apply.
+    lockedReason: "policy" | "channel" | null
+    // The package manager that owns updates; null unless that is the lock.
+    channel: InstallChannel | null
+    // updates.surfsense.com, or the mirror an admin policy names.
+    host: string
+    // null with a mirror, which never falls back.
+    fallbackHost: "github.com" | null
+    lastCheckedAt: string | null
+    // The last request to `host`, exactly as sent.
+    lastRequest: { url: string; headers: Record<string, string> } | null
+  }
+  usageStatistics: {
+    // null: never asked.
+    enabled: boolean | null
+    locked: boolean
+    lockedReason: "policy" | "do_not_track" | null
+    host: string
+    lastSent: { at: string; body: object } | null
+  }
+  firstRunAsked: boolean
+}
+export type FirstRunChoices = { updates: boolean; usageStatistics: boolean }
+// Mirrors electron/src/main/install-channel/install-channel.ts.
+export type InstallChannel =
+  "scoop" | "aur" | "snap" | "flatpak" | "nix" | "apt"
 
 export type SidecarCrash = {
   name: string
   code: number | null
 }
+
+// Mirrors electron/src/main/microphone/system-access.ts. Linux has no switch
+// and reports "granted"; getUserMedia's own error says the rest there.
+export type MicrophoneAccess =
+  "not-determined" | "granted" | "denied" | "restricted" | "unknown"
 
 // Packaged (Electron) exposes the sidecar's dynamic origin. A browser build
 // with no bridge (Docker) reaches the API under VITE_API_BASE. A bare dev
@@ -189,6 +260,13 @@ export function setEgressPrompt(handler: typeof egressPrompt): void {
   egressPrompt = handler
 }
 
+// Docker only: a 401 means the sign-in session ended (ADR 0074).
+let signedOut: (() => void) | null = null
+
+export function setSignedOutHandler(handler: typeof signedOut): void {
+  signedOut = handler
+}
+
 export async function request(
   input: RequestInfo | URL,
   init?: RequestInit,
@@ -196,6 +274,7 @@ export async function request(
 ): Promise<Response> {
   const response = await fetch(withBase(input), init)
   if (response.ok) return response
+  if (response.status === 401) signedOut?.()
   const { message, code, detail } = await responseError(response)
   const error = new ApiError(response.status, message, code, detail)
   // ponytail: method stands in for "user action"; reads run unattended at boot.
