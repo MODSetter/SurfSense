@@ -271,6 +271,7 @@ function WorkspaceDashboard({
         className="flex h-full min-h-0 min-w-0 flex-col"
       >
         <SourcesPanel
+          workspaceId={workspace.id}
           documents={sources.documents}
           index={sources.index}
           selectedDocumentIds={sources.includedDocumentIds}
@@ -301,6 +302,7 @@ function WorkspaceDashboard({
       </aside>
     ),
     [
+      workspace.id,
       sources.documents,
       sources.index,
       sources.includedDocumentIds,
