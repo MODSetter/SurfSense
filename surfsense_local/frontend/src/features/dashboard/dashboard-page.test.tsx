@@ -1947,6 +1947,78 @@ describe("dashboard chat", () => {
     })
   })
 
+  it("keeps a workspace's open folders when the app opens again", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const path = String(input)
+      if (path === "/llm/providers") {
+        return Response.json([
+          { name: "llamacpp", healthy: true, can_download: true },
+        ])
+      }
+      if (path === "/llm/catalog/local") {
+        return Response.json({ rows: [], recommended_id: null })
+      }
+      if (path === "/license/status") {
+        return Response.json({ state: "none" })
+      }
+      if (
+        path ===
+        "/workspaces/1/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0"
+      ) {
+        return Response.json([
+          {
+            id: 21,
+            title: "Paper.txt",
+            document_type: "FILE",
+            mime_type: null,
+            status: "ready",
+            error_message: null,
+            created_at: "2026-09-05T00:00:00Z",
+            updated_at: "2026-09-05T00:00:00Z",
+            folder_id: 2,
+          },
+        ])
+      }
+      if (path === "/workspaces/1/folders") {
+        return Response.json([
+          { id: 1, parent_id: null, name: "Library" },
+          { id: 2, parent_id: 1, name: "Research" },
+        ])
+      }
+      return Response.json([])
+    })
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+    const dashboard = () => (
+      <TooltipProvider>
+        <DashboardPage
+          initialProviderAvailable={true}
+          selection={null}
+          initialWorkspaces={[workspace]}
+          onModelSelected={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    const first = render(dashboard())
+    await user.click(
+      await screen.findByRole("button", { name: "Expand Research" })
+    )
+    expect(
+      await screen.findByRole("treeitem", { name: "Paper.txt" })
+    ).toBeTruthy()
+    first.unmount()
+
+    render(dashboard())
+
+    expect(
+      await screen.findByRole("treeitem", { name: "Paper.txt" })
+    ).toBeTruthy()
+    expect(
+      screen.getByRole("button", { name: "Collapse Research" })
+    ).toBeTruthy()
+  })
+
   it("sends a turn with thinking off once the composer switch is off", async () => {
     const fetchMock = vi.fn(
       async (input: RequestInfo | URL, init?: RequestInit) => {
