@@ -24,7 +24,7 @@ _DEVICE_NAMES = frozenset(
     ["CON", "PRN", "AUX", "NUL"]
     + [f"{kind}{n}" for kind in ("COM", "LPT") for n in "123456789"]
 )
-_UNSAFE = re.compile(r'[<>:"/\|?*\x00-\x1f\x7f]')
+_UNSAFE = re.compile(r'[<>:"/\\|?*\x00-\x1f\x7f]')
 NAME_BYTES = 255
 SUFFIX_CHARS = 40
 
