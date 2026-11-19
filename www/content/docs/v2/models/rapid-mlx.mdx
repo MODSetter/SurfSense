@@ -13,10 +13,10 @@ import { Step, Steps } from 'fumadocs-ui/components/steps';
 2. Start a chat model:
 
    ```bash
-   rapid-mlx serve qwen3.5-4b-4bit
+   rapid-mlx serve qwen3.5-4b-4bit --port 8000
    ```
 
-3. Wait for the model to load. The default port is `8000`. The first run downloads the model if it is not already cached.
+3. Wait for the model to load. The first run downloads the model if it is not already cached. If port `8000` is occupied, choose another port with `--port` and update the SurfSense Base URL and all `curl` URLs below to match.
 
 ## Connect it
 
