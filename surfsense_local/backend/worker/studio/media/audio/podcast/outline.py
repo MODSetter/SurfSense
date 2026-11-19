@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from modules.artifacts.podcast.brief import MINUTES, PodcastBrief
 from modules.llm import prompting
 from modules.llm.profile import Tier
+from worker.studio.media.audio.podcast import schema
 from worker.studio.media.audio.podcast.roster import roster
 from worker.studio.shared.text import as_list, as_text, parse_json
 
@@ -31,8 +32,12 @@ def target_words(brief: PodcastBrief) -> int:
     return MINUTES[brief.duration] * WORDS_PER_MINUTE
 
 
+def segment_count(brief: PodcastBrief) -> int:
+    """How many segments the outline is asked for."""
+    return max(1, round(target_words(brief) / WORDS_PER_SEGMENT))
+
+
 def prompt(tier: Tier, brief: PodcastBrief, focus: str | None) -> str:
-    words = target_words(brief)
     return prompting.load(
         __package__,
         tier,
@@ -41,9 +46,14 @@ def prompt(tier: Tier, brief: PodcastBrief, focus: str | None) -> str:
         language=brief.language,
         style=brief.style.value,
         roster=roster(brief),
-        words=words,
-        segments=max(1, round(words / WORDS_PER_SEGMENT)),
+        words=target_words(brief),
+        segments=segment_count(brief),
     )
+
+
+def reply(brief: PodcastBrief) -> dict:
+    """The outline's schema, bounded by the segments its prompt asks for."""
+    return schema.outline(segments=segment_count(brief))
 
 
 def parse(raw: str, brief: PodcastBrief) -> Outline:

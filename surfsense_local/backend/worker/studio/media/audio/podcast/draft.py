@@ -5,6 +5,7 @@ from modules.artifacts.podcast.brief import PodcastBrief
 from modules.llm import prompting
 from modules.llm.profile import Tier
 from modules.llm.resolution import ResolvedGeneration
+from worker.studio.media.audio.podcast import schema
 from worker.studio.media.audio.podcast.outline import WORDS_PER_SEGMENT, Segment
 from worker.studio.media.audio.podcast.roster import roster
 from worker.studio.shared import generate
@@ -134,8 +135,16 @@ def _draft_one(
     *,
     max_tokens: int,
 ) -> list[Turn]:
+    # The retry stays, and carries the schema too: a grammar cannot finish a
+    # reply the token cap cuts off, and an endpoint may ignore the schema.
+    shape = schema.draft(speakers=len(brief.speakers))
     reply = generate.run_model(
-        model, _SCRIPTWRITER, sources, after_sources=text, max_tokens=max_tokens
+        model,
+        _SCRIPTWRITER,
+        sources,
+        after_sources=text,
+        max_tokens=max_tokens,
+        json_schema=shape,
     )
     try:
         return parse(reply, brief)
@@ -150,6 +159,7 @@ def _draft_one(
         after_sources=text,
         repair=generate.Repair(reply, _JSON_NUDGE),
         max_tokens=max_tokens,
+        json_schema=shape,
     )
     try:
         return parse(retry, brief)
