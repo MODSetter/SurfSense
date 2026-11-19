@@ -5,6 +5,7 @@ from modules.artifacts.podcast.brief import PodcastBrief
 from modules.llm import prompting
 from modules.llm.profile import Tier
 from modules.llm.resolution import ResolvedGeneration
+from worker.studio.media.audio.podcast import schema
 from worker.studio.media.audio.podcast.outline import WORDS_PER_SEGMENT, Segment
 from worker.studio.media.audio.podcast.roster import roster
 from worker.studio.shared import generate
@@ -108,7 +109,7 @@ def parse(raw: str, brief: PodcastBrief) -> list[Turn]:
     for entry in as_list(parse_json(raw).get("turns")):
         if not isinstance(entry, dict):
             continue
-        slot = _slot(entry.get("speaker"), by_name)
+        slot = _slot(entry.get("speaker"), by_name, len(brief.speakers))
         text = as_text(entry.get("text"))
         if slot is not None and text:
             turns.append(Turn(slot, text))
@@ -134,8 +135,16 @@ def _draft_one(
     *,
     max_tokens: int,
 ) -> list[Turn]:
+    # The retry stays, and carries the schema too: a grammar cannot finish a
+    # reply the token cap cuts off, and an endpoint may ignore the schema.
+    shape = schema.draft(speakers=len(brief.speakers))
     reply = generate.run_model(
-        model, _SCRIPTWRITER, sources, after_sources=text, max_tokens=max_tokens
+        model,
+        _SCRIPTWRITER,
+        sources,
+        after_sources=text,
+        max_tokens=max_tokens,
+        json_schema=shape,
     )
     try:
         return parse(reply, brief)
@@ -150,6 +159,7 @@ def _draft_one(
         after_sources=text,
         repair=generate.Repair(reply, _JSON_NUDGE),
         max_tokens=max_tokens,
+        json_schema=shape,
     )
     try:
         return parse(retry, brief)
@@ -159,10 +169,14 @@ def _draft_one(
         ) from error
 
 
-def _slot(value: object, by_name: dict[str, int]) -> int | None:
-    """Accepts the slot number, the number as text, or the speaker's name."""
+def _slot(value: object, by_name: dict[str, int], cast: int) -> int | None:
+    """Accepts the slot number, the number as text, or the speaker's name.
+
+    A number is checked against the cast, not the names: two speakers whose
+    names differ only in case share one name entry but keep both slots.
+    """
     text = as_text(value)
     if text.isdigit():
         slot = int(text)
-        return slot if 1 <= slot <= len(by_name) else None
+        return slot if 1 <= slot <= cast else None
     return by_name.get(text.lower())

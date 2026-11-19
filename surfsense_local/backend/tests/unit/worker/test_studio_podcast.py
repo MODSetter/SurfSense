@@ -13,7 +13,7 @@ from modules.llm.providers.protocols import SpokenTurn, SynthesizedAudio
 from modules.llm.providers.types import Message
 from modules.llm.resolution import ResolvedGeneration
 from modules.llm.voices.voice import Voice
-from worker.studio.media.audio.podcast import draft, outline, pipeline
+from worker.studio.media.audio.podcast import draft, outline, pipeline, schema
 from worker.studio.shared import generate
 from worker.studio.shared.artifact import Source
 
@@ -104,6 +104,25 @@ def test_turns_are_attributed_by_slot_or_name_and_strangers_are_dropped() -> Non
         draft.parse('{"turns": [{"speaker": 9, "text": "x"}]}', BRIEF)
 
 
+def test_every_slot_in_the_cast_is_kept_when_two_names_differ_only_in_case() -> None:
+    """The schema lets the model attribute by slot alone, so a slot is checked
+    against the cast, not against the names, which fold "Sam" and "sam" into one."""
+    brief = BRIEF.model_copy(
+        update={
+            "speakers": [
+                Speaker(name="Sam", role="host", voice="pm_alex"),
+                Speaker(name="sam", role="expert", voice="pf_dora"),
+            ]
+        }
+    )
+    raw = '{"turns": [{"speaker": 1, "text": "Hi."}, {"speaker": 2, "text": "Hello."}]}'
+
+    assert [(t.speaker, t.text) for t in draft.parse(raw, brief)] == [
+        (1, "Hi."),
+        (2, "Hello."),
+    ]
+
+
 def test_the_recap_is_the_tail_of_the_dialogue_by_name() -> None:
     """Continuity costs at most RECAP_CHARS of context per segment."""
     assert draft.recap([], BRIEF) is None
@@ -132,6 +151,7 @@ def test_a_broken_reply_is_retried_once_then_reported_by_segment(
         after_sources: str | None = None,
         repair: generate.Repair | None = None,
         max_tokens: int | None = None,
+        json_schema: dict | None = None,
     ) -> str:
         prompts.append(after_sources)
         repairs.append(repair)
@@ -171,6 +191,7 @@ def test_each_segment_is_capped_by_its_target_words_or_a_planned_segment(
         after_sources: str | None = None,
         repair: generate.Repair | None = None,
         max_tokens: int | None = None,
+        json_schema: dict | None = None,
     ) -> str:
         caps.append(max_tokens)
         return next(replies)
@@ -269,6 +290,7 @@ def _episode(
         *,
         after_sources: str | None = None,
         max_tokens: int | None = None,
+        json_schema: dict | None = None,
     ) -> str:
         prompts.append(system)
         return next(queue)
@@ -304,6 +326,62 @@ def test_an_episode_is_planned_then_drafted_per_segment_then_voiced_per_speaker(
     assert built.primary_filename == "saturn-rings.wav"
     assert "**Sam:** Welcome." in built.markdown
     assert "**Lee:** Goodbye." in built.markdown
+
+
+def test_the_outline_and_every_draft_are_asked_for_in_their_schema(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The outline, each segment and a segment's retry all write under a grammar.
+
+    The retry still exists: a grammar cannot finish a reply its token cap cuts off.
+    """
+    replies = iter(
+        [
+            '{"title": "Saturn", "segments": [{"title": "Open"}, {"title": "Close"}]}',
+            '{"turns": [{"speaker": 1, "text": "Welcome."}]}',
+            '{"turns": [{"speaker": 1, "text": "Cut off',
+            '{"turns": [{"speaker": 2, "text": "Goodbye."}]}',
+        ]
+    )
+    sent: list[dict | None] = []
+
+    def fake_run_model(
+        *_a: object, json_schema: dict | None = None, **_kw: object
+    ) -> str:
+        sent.append(json_schema)
+        return next(replies)
+
+    monkeypatch.setattr("worker.studio.shared.generate.run_model", fake_run_model)
+
+    pipeline.render(MODEL, FakeVoice(), [], None, BRIEF.model_dump(mode="json"))
+
+    assert sent[0] == schema.outline(segments=5)
+    assert sent[1:] == [schema.draft(speakers=2)] * 3
+
+
+def test_the_outline_schema_is_bounded_by_the_segments_it_asks_for() -> None:
+    """Standard asks for about 5 segments; a plan that repeats stops at twice that."""
+    reply = outline.reply(BRIEF)
+    segments = reply["properties"]["segments"]
+    segment = segments["items"]
+
+    assert set(reply["required"]) == {"title", "segments"}
+    assert segments["minItems"] == 1
+    assert segments["maxItems"] == 2 * outline.segment_count(BRIEF) == 10
+    assert set(segment["required"]) == {"title", "talking_points", "target_words"}
+    assert segment["properties"]["talking_points"]["maxItems"] == schema.TALKING_POINTS
+    assert segment["properties"]["target_words"]["type"] == "integer"
+    short = BRIEF.model_copy(update={"duration": Duration.SHORT})
+    assert outline.reply(short)["properties"]["segments"]["maxItems"] == 4
+
+
+def test_a_draft_can_attribute_a_line_only_to_someone_in_the_cast() -> None:
+    """A line for nobody is dropped after it was written; the grammar never lets
+    the model spend tokens on it."""
+    turn = schema.draft(speakers=3)["properties"]["turns"]["items"]
+
+    assert turn["properties"]["speaker"]["enum"] == [1, 2, 3]
+    assert set(turn["required"]) == {"speaker", "text"}
 
 
 def _real_wav(seconds: float = 1.0, rate: int = 24000) -> bytes:
