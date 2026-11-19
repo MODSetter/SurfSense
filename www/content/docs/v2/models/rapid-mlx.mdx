@@ -1,0 +1,104 @@
+---
+title: Rapid-MLX
+description: Use models you run in Rapid-MLX on Apple Silicon
+---
+
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+
+[Rapid-MLX](https://github.com/raullenchai/Rapid-MLX) is an Apache-2.0 local model server for Apple Silicon Macs. It runs MLX models and serves them over an OpenAI-compatible API. SurfSense connects to it through **Local or custom server** for chat, titles and Studio's text generation.
+
+## Start Rapid-MLX's server
+
+1. On a Mac with an M-series chip, install Rapid-MLX following its [README](https://github.com/raullenchai/Rapid-MLX), or with `pip install rapid-mlx` in a Python 3.12+ environment.
+2. Start a chat model:
+
+   ```bash
+   rapid-mlx serve qwen3.5-4b-4bit
+   ```
+
+3. Wait for the model to load. The default port is `8000`. The first run downloads the model if it is not already cached.
+
+## Connect it
+
+<Steps>
+<Step>
+
+Open **Settings › Text gen** and click **Add model**, then **Use a server**. In onboarding, click **Connect** under **Use a server**.
+
+</Step>
+<Step>
+
+In **Connect a server**, enter a **Name**, such as `Rapid-MLX`.
+
+</Step>
+<Step>
+
+Under **Provider**, pick **Local or custom server**. Enter `http://127.0.0.1:8000/v1` under **Base URL**. Leave **API key** empty: Rapid-MLX needs no key by default.
+
+</Step>
+<Step>
+
+Click **Save server**. SurfSense asks Rapid-MLX for its models, then opens the list.
+
+</Step>
+<Step>
+
+Click **Use** on the chat model, such as `mlx-community/Qwen3.5-4B-MLX-4bit` or its alias `qwen3.5-4b-4bit`. **Test chat** sends one short prompt so you can see it answer. Then click **Use this model**, or **Use without testing**.
+
+</Step>
+</Steps>
+
+Select a chat model even if the server also lists embedding or reranking models. SurfSense may show **Capability unknown** for a model it does not recognize; test it before selecting it.
+
+## Base URL
+
+| Where things run | Base URL |
+|---|---|
+| SurfSense and Rapid-MLX on the same Mac | `http://127.0.0.1:8000/v1` or `http://localhost:8000/v1` |
+| Rapid-MLX on another Mac in your network | `http://<host>:8000/v1` |
+| SurfSense in [Docker](/docs/v2/docker), Rapid-MLX on the Mac running Docker Desktop | `http://host.docker.internal:8000/v1` |
+
+Include `/v1`. SurfSense uses the URL exactly as you enter it. Replace `<host>` with the Mac's IP address or name. For access from another computer or Docker, the server must listen on an address reachable from there; check Rapid-MLX's server options.
+
+<Callout type="warn">
+  Rapid-MLX asks for no key by default, so any device that can reach the port
+  can use your models. Expose it only on a network you trust, or limit who
+  can reach the port with a firewall.
+</Callout>
+
+## Network permission
+
+A server on the same computer (`localhost` or `127.0.0.1`) needs no permission: nothing leaves your computer.
+
+Any other address, including a computer on your own network or `host.docker.internal`, counts as sending data out. When you save, SurfSense asks **Allow sending data to** that address. Allow it to continue. You can turn it off later in **Settings › Network**.
+
+## Embeddings and reranking
+
+Rapid-MLX can also serve embeddings and reranking, but SurfSense's desktop app does not use those external endpoints. Its embedding model runs inside SurfSense and is chosen in onboarding. Adding `--embedding-model` or `--rerank-model` to Rapid-MLX does not change SurfSense's search models. See [Image, voice and search models](/docs/v2/models/other-models).
+
+## Agentic mode and Rapid-MLX
+
+Rapid-MLX supports tool calling, but Agentic mode also needs a model that can use tools and a context window of at least 32,768 tokens. Check the model and server configuration before using it for long tasks.
+
+A model served through a custom connection can show as not tested for Agentic mode. A successful **Test chat** checks a short text reply, not a complete agent task. See [Basic and Agentic chat](/docs/v2/models#basic-and-agentic-chat).
+
+## Troubleshooting
+
+### The endpoint's model list could not be verified
+
+SurfSense could not reach Rapid-MLX, or it didn't answer like an OpenAI server.
+
+- Check the server is running and the model has loaded.
+- Check the port and that the URL ends in `/v1`.
+- From the same computer, run `curl http://127.0.0.1:8000/v1/models`. It should list your models.
+- If SurfSense is in Docker, use the Mac's reachable address instead of `localhost`.
+
+If you trust the server and it simply doesn't list models, click **Save anyway**. You then type the model's exact ID under **Exact model ID**.
+
+### No models listed
+
+Start Rapid-MLX with a chat model, then open the server's group in SurfSense again. Use the exact ID returned by `/v1/models` if you enter it by hand.
+
+### Replies stop or time out
+
+A model that is still loading can take a while to answer the first time. SurfSense waits up to five minutes for the first word. If it still fails, wait for Rapid-MLX to finish loading the model before testing again.
