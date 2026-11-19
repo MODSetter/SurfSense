@@ -109,7 +109,7 @@ def parse(raw: str, brief: PodcastBrief) -> list[Turn]:
     for entry in as_list(parse_json(raw).get("turns")):
         if not isinstance(entry, dict):
             continue
-        slot = _slot(entry.get("speaker"), by_name)
+        slot = _slot(entry.get("speaker"), by_name, len(brief.speakers))
         text = as_text(entry.get("text"))
         if slot is not None and text:
             turns.append(Turn(slot, text))
@@ -169,10 +169,14 @@ def _draft_one(
         ) from error
 
 
-def _slot(value: object, by_name: dict[str, int]) -> int | None:
-    """Accepts the slot number, the number as text, or the speaker's name."""
+def _slot(value: object, by_name: dict[str, int], cast: int) -> int | None:
+    """Accepts the slot number, the number as text, or the speaker's name.
+
+    A number is checked against the cast, not the names: two speakers whose
+    names differ only in case share one name entry but keep both slots.
+    """
     text = as_text(value)
     if text.isdigit():
         slot = int(text)
-        return slot if 1 <= slot <= len(by_name) else None
+        return slot if 1 <= slot <= cast else None
     return by_name.get(text.lower())

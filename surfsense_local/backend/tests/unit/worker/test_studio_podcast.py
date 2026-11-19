@@ -104,6 +104,25 @@ def test_turns_are_attributed_by_slot_or_name_and_strangers_are_dropped() -> Non
         draft.parse('{"turns": [{"speaker": 9, "text": "x"}]}', BRIEF)
 
 
+def test_every_slot_in_the_cast_is_kept_when_two_names_differ_only_in_case() -> None:
+    """The schema lets the model attribute by slot alone, so a slot is checked
+    against the cast, not against the names, which fold "Sam" and "sam" into one."""
+    brief = BRIEF.model_copy(
+        update={
+            "speakers": [
+                Speaker(name="Sam", role="host", voice="pm_alex"),
+                Speaker(name="sam", role="expert", voice="pf_dora"),
+            ]
+        }
+    )
+    raw = '{"turns": [{"speaker": 1, "text": "Hi."}, {"speaker": 2, "text": "Hello."}]}'
+
+    assert [(t.speaker, t.text) for t in draft.parse(raw, brief)] == [
+        (1, "Hi."),
+        (2, "Hello."),
+    ]
+
+
 def test_the_recap_is_the_tail_of_the_dialogue_by_name() -> None:
     """Continuity costs at most RECAP_CHARS of context per segment."""
     assert draft.recap([], BRIEF) is None
