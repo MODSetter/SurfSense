@@ -414,6 +414,28 @@ jobs:
             echo "::error::packaged llama-server could not list devices"; exit 1
           fi
 
+      # The same check on what electron-builder wrote and signed, where
+      # fetch-llamacpp.mjs could only check the staging directory.
+      - name: Smoke the bundled llama.cpp (macOS and Windows)
+        if: runner.os != 'Linux'
+        working-directory: surfsense_local/electron
+        run: |
+          set -e
+          case "$RUNNER_OS" in
+            Windows) DIR=release/win-unpacked/resources/llamacpp; SERVER=./llama-server.exe ;;
+            macOS) DIR=release/mac-arm64/SurfSense.app/Contents/Resources/llamacpp; SERVER=./llama-server ;;
+          esac
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            codesign --display --verbose=2 "$DIR/llama-server" 2>&1 | grep -E "^(Authority|TeamIdentifier|Runtime)" || true
+          fi
+          OUT=$(cd "$DIR" && "$SERVER" --list-devices 2>&1) || {
+            echo "$OUT"; echo "::error::packaged llama-server did not run"; exit 1
+          }
+          echo "$OUT"
+          if ! grep -qiE "Available devices|no devices found" <<<"$OUT"; then
+            echo "::error::packaged llama-server could not list devices"; exit 1
+          fi
+
       - name: Smoke the bundled audio.cpp (Linux)
         if: matrix.os == 'ubuntu-22.04'
         run: |
