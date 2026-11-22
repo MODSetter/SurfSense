@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
 import { useTheme } from "@/components/theme-provider"
 import { CheckCircle2Icon } from "@/components/ui/icons"
@@ -5,7 +6,8 @@ import { CheckCircle2Icon } from "@/components/ui/icons"
 function Toaster(props: ToasterProps) {
   const { theme } = useTheme()
 
-  return (
+  // Outside the isolated #root, so toasts stay above open dialogs.
+  return createPortal(
     <Sonner
       theme={theme}
       className="toaster group"
@@ -23,7 +25,8 @@ function Toaster(props: ToasterProps) {
         } as React.CSSProperties
       }
       {...props}
-    />
+    />,
+    document.body
   )
 }
 

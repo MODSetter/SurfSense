@@ -37,6 +37,7 @@ from modules.llm.catalog.local.engines.sdcpp.images_folder.installed import (
 from modules.llm.catalog.local.installs import InstalledBuild, record_install
 from modules.llm.catalog.local.manifest import load_local_manifest
 from modules.llm.providers.openai_compatible import image as image_client
+from modules.llm.providers.openai_compatible import image_response
 from modules.llm.providers.openai_compatible.image import (
     OpenAICompatibleImageProvider,
 )
@@ -153,7 +154,7 @@ def server(installed: tuple[Path, InstalledImage], server_log: Path) -> Iterator
         log.close()
 
 
-async def _refuse_any_host(url: str) -> None:
+async def _no_link(url: str, **_: object) -> None:
     raise AssertionError(f"sd-server pointed at {url} for its image")
 
 
@@ -169,9 +170,9 @@ def test_the_staged_server_generates_a_picture(
     # hosted runner has none and took 134 s; the gate is on the picture, not
     # on the runner's speed.
     monkeypatch.setattr(image_client, "TIMEOUT", httpx.Timeout(600.0, connect=5.0))
-    client = OpenAICompatibleImageProvider(
-        0, f"{server}/v1", allow_url_host=_refuse_any_host
-    )
+    # sd-server answers with the picture itself, never a link to fetch.
+    monkeypatch.setattr(image_response, "download_image", _no_link)
+    client = OpenAICompatibleImageProvider(0, f"{server}/v1")
 
     async def generate() -> bytes:
         await wait_until_serving(server, image.served_file, timeout=180.0)

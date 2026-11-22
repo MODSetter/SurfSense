@@ -37,6 +37,7 @@ function made(id: number, day: number): Artifact {
     version: null,
     spec_kind: null,
     refinable: false,
+    image_editable: false,
   }
 }
 

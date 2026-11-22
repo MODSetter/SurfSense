@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import {
   Empty,
+  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
@@ -50,6 +51,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { GuideLink } from "@/features/guides/guide-link"
 import { useModifierHeld } from "@/hooks/use-modifier-held"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
@@ -277,17 +279,19 @@ const ArtifactRow = memo(function ArtifactRow({
             <OverflowTooltip
               label={artifact.title}
               render={
-                <button
+                <Button
                   type="button"
+                  variant="bare"
+                  static
                   disabled={!onOpen}
                   className={cn(
-                    "sidebar-row-title-fade min-w-0 flex-1 overflow-hidden rounded-sm text-left text-sm font-normal whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-default",
+                    "sidebar-row-title-fade min-w-0 flex-1 overflow-hidden rounded-sm text-left text-sm font-normal whitespace-nowrap focus-visible:ring-2 disabled:pointer-events-auto disabled:cursor-default disabled:opacity-100",
                     dropdownOpen && "sidebar-row-title-fade-actions"
                   )}
                   onClick={onOpen ?? undefined}
                 >
                   {artifact.title}
-                </button>
+                </Button>
               }
             />
             {artifact.version ? (
@@ -328,7 +332,7 @@ const ArtifactRow = memo(function ArtifactRow({
                       type="button"
                       size="icon-sm"
                       variant="ghost"
-                      className="size-6 shrink-0 opacity-0 group-hover/artifact:opacity-100 hover:bg-transparent focus-visible:opacity-100 active:translate-y-px data-popup-open:bg-accent data-popup-open:opacity-100"
+                      className="size-6 shrink-0 opacity-0 group-hover/artifact:opacity-100 hover:bg-transparent focus-visible:opacity-100 data-popup-open:bg-accent data-popup-open:opacity-100"
                       aria-label={intl.formatMessage(
                         {
                           id: "studio_artifact_row_actions_aria",
@@ -584,7 +588,8 @@ export const ArtifactList = memo(function ArtifactList({
   onOpen: (id: number) => void
   onRegenerate: (id: number) => void
   onCancel: (id: number) => void
-  onDelete: (id: number) => void
+  /** Settles once that version is deleted, or refused. */
+  onDelete: (id: number) => Promise<void> | void
 }) {
   // The backend's format catalog is the single source of truth for labels;
   // fall back to the raw key only for a format the catalog doesn't know yet.
@@ -699,6 +704,14 @@ export const ArtifactList = memo(function ArtifactList({
                 })}
               </EmptyDescription>
             </EmptyHeader>
+            <EmptyContent>
+              <GuideLink guide="studio-documents" surface="studio_empty">
+                {intl.formatMessage({
+                  id: "studio_artifact_list_guide_link",
+                  defaultMessage: "How to make a document in Studio",
+                })}
+              </GuideLink>
+            </EmptyContent>
           </Empty>
         ) : visibleLines.length === 0 ? (
           <Empty className="min-h-0 border-0 px-2">
@@ -804,9 +817,12 @@ export const ArtifactList = memo(function ArtifactList({
               variant="destructive"
               disabled={!deleteNow || !canDeleteLine(deleteNow)}
               onClick={() => {
-                for (const version of deleteNow?.versions ?? []) {
-                  onDelete(version.id)
-                }
+                // Newest first, each after the last: an edit's base is older
+                // than the edit, and the API keeps a base while an edit names it.
+                const versions = (deleteNow?.versions ?? []).toReversed()
+                void (async () => {
+                  for (const version of versions) await onDelete(version.id)
+                })()
               }}
             >
               {intl.formatMessage({

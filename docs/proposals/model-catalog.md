@@ -294,7 +294,7 @@ The snapshot this replaced dropped the provider and keyed by model id alone. Tha
 - Diffusion architectures (`sd1`, `sdxl`, `sd3`, `flux`, `flux2`, `qwen_image`, `z_image`, `lumina2` and the rest) are `IMAGE_GEN`. They were refused because the old catalog was text only; the app ships sd.cpp.
 - Video architectures (`wan`, `ltxv`, `hyvid`, `cosmos`) are `VIDEO_GEN`.
 - Text-to-speech models are `AUDIO_GEN`.
-- Embedders, rerankers, speech recognisers, labellers, OCR, draft heads and projectors are known-none: no type describes what they produce.
+- Embedders, rerankers, speech recognisers, labellers, OCR, draft heads and projectors are known-none: no type describes what they produce. The exception is a curated speech recogniser's family, which is `SPEECH_TO_TEXT` (`nemotron_asr`, [catalog](../architecture/local-models/catalog.md)).
 - Any other architecture is `TEXT_GEN`. A denylist ages the right way: an unknown architecture is usually a chat model released last week.
 
 Evidence rules:

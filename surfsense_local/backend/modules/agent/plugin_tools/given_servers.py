@@ -1,4 +1,4 @@
-"""What each thread folder's opencode was given for each plugin, as a digest, to give it again only on a change.
+"""What each thread folder's opencode was given for each server, as a digest, to give it again only on a change.
 
 Giving a server again opens a new MCP session, losing a stateful plugin's state.
 Only a digest is kept, so no credential stays here. Called from the event loop only.
@@ -14,7 +14,11 @@ _given: dict[tuple[Path, str], str] = {}
 
 
 def digest(plugin: TurnPlugin) -> str:
-    given = json.dumps([plugin.url, plugin.headers], sort_keys=True)
+    return server_digest(plugin.url, plugin.headers)
+
+
+def server_digest(url: str, headers: dict[str, str]) -> str:
+    given = json.dumps([url, headers], sort_keys=True)
     return hashlib.sha256(given.encode()).hexdigest()
 
 

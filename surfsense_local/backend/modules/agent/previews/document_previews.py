@@ -1,7 +1,8 @@
-"""Page images of a rendered PDF, Word or PowerPoint version, so the agent can check its layout.
+"""Page images of a rendered PDF, Word or PowerPoint version, or screens of a saved page, so the agent can check its layout.
 
 With Office support on, LibreOffice lays a Word file or deck out; otherwise,
-or when it fails, Electron prints it with the in-app viewer's library.
+or when it fails, Electron prints it with the in-app viewer's library. A page
+Electron loads as it is and captures.
 """
 
 import time
@@ -12,6 +13,10 @@ import pypdfium2
 
 from modules.agent.previews import docx_snapshots
 from modules.agent.previews.page_images import PAGE_LIMIT, draw_pages
+from modules.agent.previews.page_screens import (
+    UnreadableCaptureError,
+    cut_into_screens,
+)
 from modules.agent.thread_folder.layout import OUTPUTS, PREVIEWS
 from modules.agent.thread_folder.path_budget import TOO_DEEP, fits
 from modules.artifacts.models import Artifact, ArtifactFileRole
@@ -64,6 +69,8 @@ def previews_for(
         return Previews([], "A workbook has no pages to draw.")
     if not fits(pages / f"page-{PAGE_LIMIT}.png"):
         return Previews([], TOO_DEEP.format(what="page previews"))
+    if artifact.format == "html":
+        return _screens(path, pages, time_left)
     if artifact.format == "pdf":
         pdf, drawn_by, notes = path.read_bytes(), None, []
     else:  # docx or pptx
@@ -112,3 +119,23 @@ def _laid_out(
     if notes:
         notes.append("The desktop app printed these pages instead.")
     return pdf, None, notes
+
+
+def _screens(path: Path, pages: Path, time_left: float) -> Previews:
+    """A saved page as Electron draws it: at the viewer's width, reduced motion on."""
+    if time_left < WORD_SNAPSHOT_FLOOR_SECONDS:
+        return Previews(
+            [], "This call had no time left to take the page's screenshots."
+        )
+    try:
+        png = docx_snapshots.snapshots.snapshot(
+            format="html",
+            source_file=path,
+            timeout=min(WORD_SNAPSHOT_SECONDS, time_left),
+        )
+    except docx_snapshots.SnapshotUnavailableError as error:
+        return Previews([], str(error))
+    try:
+        return Previews(cut_into_screens(png, pages))
+    except UnreadableCaptureError as error:
+        return Previews([], f"The screenshot could not be read: {error}")

@@ -9,7 +9,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 # Raw 32-byte keys in hex, never read from config or disk. A tuple so a release can
 # trust an old and a new key while CI's signing key is rotated. Newest first.
 REGISTRY_PUBLIC_KEYS_HEX = (
-    "e75ba1bddb3124497e37072c87bddfcedf42f7f44650ddfda877e39cb1ec9769",  # pragma: allowlist secret
+    "9498a1606105a625feeaa655648df03885410421a387478a72ec763188f10395",  # pragma: allowlist secret
 )
 
 

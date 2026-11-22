@@ -9,6 +9,8 @@ body:
       label: Which part?
       options:
         - Desktop app
+        - Docker
+        - Plugins
         - MCP
         - Backend / scraper API
         - Web UI

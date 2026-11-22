@@ -24,7 +24,9 @@ describe("the snapshot page's content security policy", () => {
     const policy = directives()
 
     expect(policy.get("default-src")).toEqual(["'none'"])
-    expect(policy.get("script-src")).toEqual(["'self'"])
+    // WebAssembly for the Word parser; still no inline or evaluated script.
+    expect(policy.get("script-src")).toEqual(["'self'", "'wasm-unsafe-eval'"])
+    expect(policy.get("worker-src")).toEqual(["blob:", "data:"])
     expect(policy.get("frame-src")).toEqual(["'none'"])
     expect(policy.get("object-src")).toEqual(["'none'"])
     expect(policy.get("base-uri")).toEqual(["'none'"])
@@ -35,9 +37,10 @@ describe("the snapshot page's content security policy", () => {
     const policy = directives()
 
     // Packaged, 'self' is file://, which would let a script read any local file.
-    expect(policy.get("connect-src")).toEqual(["http://127.0.0.1:*"])
+    // The Word parser is inlined as a data URL, which makes no request.
+    expect(policy.get("connect-src")).toEqual(["http://127.0.0.1:*", "data:"])
     // A deck's pictures are object URLs the page makes from the file itself.
     expect(policy.get("img-src")).toEqual(["data:", "blob:"])
-    expect(policy.get("font-src")).toEqual(["data:"])
+    expect(policy.get("font-src")).toEqual(["data:", "blob:"])
   })
 })

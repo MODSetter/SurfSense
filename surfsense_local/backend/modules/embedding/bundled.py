@@ -47,3 +47,12 @@ BGE = EmbedderSpec(
 
 def bundled_dir() -> Path:
     return get_storage_settings().models_dir / BGE.id
+
+
+def is_bundled(spec: EmbedderSpec) -> bool:
+    """The spec runs the very file the app ships, whatever else it changes."""
+    return (spec.repo, spec.revision, spec.weights) == (
+        BGE.repo,
+        BGE.revision,
+        BGE.weights,
+    )

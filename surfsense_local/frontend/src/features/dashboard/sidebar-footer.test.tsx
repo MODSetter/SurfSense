@@ -1,8 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { cleanup, screen, waitFor } from "@testing-library/react"
+import { cleanup, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
-import { EgressPrompt } from "@/features/egress/egress-prompt"
 import type { LicenseStatus } from "@/features/license/api"
 import { stubUpdateBridge } from "@/features/updates/stub-bridge"
 import { render } from "@/test-utils"
@@ -10,7 +9,16 @@ import { render } from "@/test-utils"
 import { SidebarFooter } from "./sidebar-footer"
 
 function license(state: LicenseStatus["state"]): LicenseStatus {
-  return { state, plan: null, email: null, expiry: null, max_users: null }
+  return {
+    state,
+    plan: null,
+    email: null,
+    expiry: null,
+    max_users: null,
+    firm: null,
+    jobs: [],
+    licensing: true,
+  }
 }
 
 function stubLicense(status: LicenseStatus) {
@@ -23,15 +31,8 @@ function stubLicense(status: LicenseStatus) {
   return fetches
 }
 
-// The prompt lives beside the app shell in main.tsx, and the footer reaches it
-// through a module-level seam, so it has to be mounted for a click to ask.
 function renderFooter(onOpenLicense: () => void = vi.fn()) {
-  return render(
-    <>
-      <SidebarFooter onOpenLicense={onOpenLicense} />
-      <EgressPrompt />
-    </>
-  )
+  return render(<SidebarFooter onOpenLicense={onOpenLicense} />)
 }
 
 afterEach(() => {
@@ -79,6 +80,16 @@ describe("the license row", () => {
     expect(row.className).toContain("hover:text-emerald-600")
   })
 
+  it("is absent while licensing is off, as in every release", async () => {
+    stubLicense({ ...license("none"), licensing: false })
+    const { container } = renderFooter()
+
+    // The status has arrived once the license query settles; the row never shows.
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalled())
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(container.textContent).toBe("Guides and videos")
+  })
+
   it("stays out of the way until the status arrives", async () => {
     vi.stubGlobal(
       "fetch",
@@ -86,114 +97,83 @@ describe("the license row", () => {
     )
     const { container } = renderFooter()
 
-    // No bridge and nothing known yet: the strip goes rather than leaving a
-    // bordered gap above the bottom edge.
-    expect(container.textContent).toBe("")
+    // Nothing known yet: no row guesses at the license, and the guides stay.
+    expect(container.textContent).toBe("Guides and videos")
   })
 })
 
-describe("the update row", () => {
-  it("checks on demand, then offers the restart once one is ready", async () => {
+describe("the guides row", () => {
+  it("opens the guides by area, each a link to its page on surfsense.com", async () => {
+    stubLicense(license("none"))
+    const user = userEvent.setup()
+    renderFooter()
+
+    await user.click(screen.getByRole("button", { name: "Guides and videos" }))
+
+    const dialog = await screen.findByRole("dialog", {
+      name: "Guides and videos",
+    })
+    const area = within(dialog).getByRole("region", { name: "Jobs" })
+    const guide = within(area).getByRole("link", {
+      name: "Fill in a security questionnaire from your policies",
+    })
+    const url = new URL(guide.getAttribute("href") ?? "")
+    expect(url.origin + url.pathname).toBe(
+      "https://www.surfsense.com/docs/v2/guides/security-questionnaire"
+    )
+    // Tagged like every other surfsense.com link: where in the app it was opened.
+    expect(url.searchParams.get("utm_content")).toBe("guides_dialog")
+    const hub = within(dialog).getByRole("link", {
+      name: "All guides on surfsense.com",
+    })
+    expect(new URL(hub.getAttribute("href") ?? "").pathname).toBe(
+      "/docs/v2/guides"
+    )
+  })
+
+  it("lists every guide on the site once", async () => {
+    stubLicense(license("none"))
+    const user = userEvent.setup()
+    renderFooter()
+
+    await user.click(screen.getByRole("button", { name: "Guides and videos" }))
+
+    const dialog = await screen.findByRole("dialog", {
+      name: "Guides and videos",
+    })
+    const pages = within(dialog)
+      .getAllByRole("link")
+      .map((link) => new URL(link.getAttribute("href") ?? "").pathname)
+      .filter((path) => path !== "/docs/v2/guides")
+    // The trial guide left with licensing (ADR 0092).
+    expect(pages).toHaveLength(26)
+    expect(new Set(pages).size).toBe(26)
+    expect(pages).not.toContain("/docs/v2/guides/business-trial")
+  })
+})
+
+describe("updates", () => {
+  it("are not in the footer: the title bar shows them", async () => {
     stubLicense(license("active"))
-    const bridge = stubUpdateBridge({
+    stubUpdateBridge({
       automatic: true,
-      state: { status: "idle" },
-    })
-    const user = userEvent.setup()
-    renderFooter()
-
-    await user.click(
-      await screen.findByRole("button", { name: "Check for updates" })
-    )
-    expect(bridge.calls).toEqual(["check"])
-
-    bridge.push({ status: "downloading", version: "1.0.1" })
-    const downloading = await screen.findByRole("button", {
-      name: "Downloading…",
-    })
-    // Clicking mid-download would only start a second check.
-    expect((downloading as HTMLButtonElement).disabled).toBe(true)
-
-    bridge.push({ status: "ready", version: "1.0.1" })
-    await user.click(
-      await screen.findByRole("button", { name: "Restart to update" })
-    )
-
-    expect(bridge.calls).toEqual(["check", "install"])
-  })
-
-  it("asks before the first check, and checks once allowed", async () => {
-    stubLicense(license("active"))
-    const bridge = stubUpdateBridge({
-      automatic: false,
-      state: { status: "idle" },
-    })
-    const user = userEvent.setup()
-    renderFooter()
-
-    await user.click(
-      await screen.findByRole("button", { name: "Check for updates" })
-    )
-
-    // Named like any other destination, because that is what it is.
-    await screen.findByRole("alertdialog", {
-      name: "Allow SurfSense to check for updates?",
-    })
-    expect(bridge.calls).toEqual([])
-
-    await user.click(screen.getByRole("button", { name: "Allow" }))
-
-    // Allowing is what Settings > Network's switch does, then the call runs.
-    await waitFor(() =>
-      expect(bridge.calls).toEqual(["automatic:true", "check"])
-    )
-  })
-
-  it("cancelling leaves github.com alone", async () => {
-    stubLicense(license("active"))
-    const bridge = stubUpdateBridge({
-      automatic: false,
-      state: { status: "idle" },
-    })
-    const user = userEvent.setup()
-    renderFooter()
-
-    await user.click(
-      await screen.findByRole("button", { name: "Check for updates" })
-    )
-    await screen.findByRole("alertdialog")
-    await user.click(screen.getByRole("button", { name: "Cancel" }))
-
-    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull())
-    expect(bridge.calls).toEqual([])
-  })
-
-  it("installs an update already downloaded without asking", async () => {
-    stubLicense(license("active"))
-    const bridge = stubUpdateBridge({
-      automatic: false,
       state: { status: "ready", version: "1.0.1" },
     })
-    const user = userEvent.setup()
     renderFooter()
 
-    // Installing touches no network, so it needs no permission even though
-    // checking for this update would.
-    await user.click(
-      await screen.findByRole("button", { name: "Restart to update" })
-    )
-
-    expect(bridge.calls).toEqual(["install"])
-    expect(screen.queryByRole("alertdialog")).toBeNull()
+    await screen.findByRole("button", { name: "License active" })
+    expect(screen.queryByRole("button", { name: /update/i })).toBeNull()
   })
 
-  it("renders no update row outside the desktop app", async () => {
-    stubLicense(license("active"))
+  it("add no row while there is no license status", () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Promise<Response>(() => undefined))
+    )
+    stubUpdateBridge({ automatic: true, state: { status: "idle" } })
     renderFooter()
 
-    // The license still reports; only the bridge-backed row is missing.
-    await screen.findByRole("button", { name: "License active" })
-
+    expect(screen.getAllByRole("button")).toHaveLength(1)
     expect(screen.queryByRole("button", { name: /update/i })).toBeNull()
   })
 })

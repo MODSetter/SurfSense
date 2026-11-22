@@ -1,4 +1,4 @@
-import { useId, useState, type FormEvent } from "react"
+import { useId, useState, type SubmitEvent } from "react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -35,7 +35,7 @@ export function RenameSourceDialog({
   const value = draft ?? document?.title ?? ""
   const title = cleanSourceTitle(value)
 
-  const submit = async (event: FormEvent) => {
+  const submit = async (event: SubmitEvent) => {
     event.preventDefault()
     if (!document || !title) return
     setSaving(true)

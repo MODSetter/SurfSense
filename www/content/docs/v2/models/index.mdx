@@ -1,0 +1,103 @@
+---
+title: Models
+description: Choose the models SurfSense uses, on your computer or from a server
+---
+
+import { Card, Cards } from 'fumadocs-ui/components/card';
+
+SurfSense needs a model to answer you. You can run one on your own computer, connect a server that speaks the OpenAI API, or use a ChatGPT or Claude plan you already pay for. You pick one model for each job, and you can change it at any time.
+
+## Three ways to get a model
+
+| | On this computer | A server | A ChatGPT or Claude plan |
+|---|---|---|---|
+| Where it runs | Your computer | Your own server, or a provider such as OpenAI or OpenRouter | OpenAI or Anthropic |
+| What leaves your computer | Nothing, once it is downloaded, unless a chat uses [plugins](/docs/v2/plugins#what-a-plugin-can-see) or the agent [searches and reads the web](/docs/v2/agent#search-and-read-the-web) | Your questions and excerpts of your documents go to that server | Your questions and excerpts of your documents go to OpenAI or Anthropic |
+| Cost | Free | Whatever the provider charges | Counts toward your plan's limits |
+| Works offline | Yes | Only if the server is on your computer or network | No |
+| Speed and quality | Depends on your hardware | Depends on the model | Frontier models |
+
+- **[On this computer](/docs/v2/models/local).** SurfSense downloads a model from Hugging Face and runs it itself. Your chats and documents stay private.
+- **[Use a server](/docs/v2/models/api-providers).** Any service or program that implements the OpenAI API: OpenAI, OpenRouter, Anthropic, an organization's gateway, or a local server such as [LM Studio](/docs/v2/models/lm-studio) or [Ollama](/docs/v2/models/ollama).
+- **[Use your ChatGPT plan](/docs/v2/models/chatgpt-plan)** or **[Use your Claude plan](/docs/v2/models/claude-plan).** Sign in with an account you already have, with no API key.
+
+You can mix them. For example, you can chat with a local model and make images in Studio through a server.
+
+## What each model is for
+
+Each kind of model has its own section under **Models** in Settings.
+
+| Settings section | What the model does | On this computer | From a server |
+|---|---|---|---|
+| **Text gen** | Answers in chat, names your chats, and writes everything Studio makes | Yes | Yes, or a ChatGPT or Claude plan |
+| **Image gen** | Makes images and infographics in Studio | Yes | Yes |
+| **Image edit** | Changes an image Studio made, from an instruction | Yes | Yes |
+| **Audio** | Voices podcasts in Studio | Yes | Yes |
+| **Video** | Makes video. No feature uses it yet | Yes | Yes |
+| **Speech recognition** | Turns recordings and [voice input](/docs/v2/voice) into text | Yes | No |
+| **Embedding** | Lets search find the passages your question is about | Yes, built in | No |
+
+Only a text generation model is required. The others are optional, and the feature that needs one tells you when it is missing. See [Image, voice and search models](/docs/v2/models/other-models) for everything except chat.
+
+## Where models are managed
+
+Open **Settings** and look under **Models**. Each section shows the model **In use:** and every other model you can switch to:
+
+- **This computer** lists the models you have downloaded, with **Use** and **Delete**.
+- Each server you connected has its own group, with **Edit** and **Disconnect**. Open the group to see its models.
+- **Add model** opens a page with **On this computer**, **Use a server**, and for text generation, **Use your ChatGPT plan** and **Use your Claude plan**.
+
+When you first open SurfSense, onboarding asks for two models: a text generation model, which is required, and an embedding model, which can be skipped. You choose the others in Settings when you want them. You can change all of them later, except the embedding model.
+
+## What fits your computer
+
+SurfSense checks your computer before it shows you any local model: your graphics card, if it has one, and its memory. On the **On this computer** page you see what it found, such as **Graphics card**, **Apple Silicon GPU** or **Runs on your processor**, and how much memory it can use. Every model on that page is judged against what it found. There is nothing to run or set: SurfSense does the check for you.
+
+Each download option, called a build, gets a verdict:
+
+- **No badge.** It runs fully, or almost fully, on your graphics card. This is the speed to expect from local models.
+- **Reduced speed**, in amber. It is too big for the graphics card, so part of it runs on the processor. It still works, only slower.
+- **Won't fit**, in red. Your computer does not have enough memory for it, and SurfSense will not download it.
+
+A star marks the model **Recommended for your computer**: the best tested model that runs at full speed. If you are unsure, use that one. More on this in [Local models](/docs/v2/models/local).
+
+## Basic and Agentic chat
+
+A chat runs in one of two modes. **Basic (Q&A)** answers from your sources. **Agentic** can also work across your files, use [plugins](/docs/v2/plugins) and make documents ([agent](/docs/v2/agent)).
+
+Any text generation model can answer in Basic mode. Agentic mode needs a model that can:
+
+- **Use tools.** SurfSense reads this from the model's description, or from the local runtime for a model on your computer.
+- **Hold a long conversation.** Its context window must be at least 32,768 tokens.
+
+If a model can't, the mode picker says why and new chats stay Basic.
+
+SurfSense tested many models on real Agentic tasks. In **Settings › Text gen**, open **What this model can do** under the model in use to see:
+
+- **Chat**, and whether new chats start in Agentic mode. A model that passed the tests starts there. One that did not, or was never tested, starts in Basic (Q&A), and you can still choose Agentic. Labels include **Agentic**, **Agentic, may need nudges**, **Low Agentic score** and **Not tested**.
+- **Studio**, and what Studio makes with this model. A stronger model writes full designed pages and Word, Excel and slide files. A weaker one writes simpler pages and documents.
+
+A test result holds only for the model that was tested. A model you run on your own computer, or on a server on your own network, is usually a smaller, compressed copy, so it shows as not tested on your own computer even when the full model passed.
+
+## How SurfSense prompts each model
+
+Small models follow detailed, step-by-step instructions better. Large models do better with fewer. SurfSense gives each model one of three prompt styles, chosen from its size:
+
+- **Small models**, under about 7 billion parameters, get the most structured instructions.
+- **Mid-sized models** get some structure.
+- **Very large and frontier models** get the least.
+
+When SurfSense can't tell a model's size, it assumes a model running on your computer is small and a hosted one is mid-sized. You don't need to set anything. The style only changes how well answers are written, never whether a model works.
+
+## Pages in this section
+
+<Cards>
+  <Card title="Local models" description="Download and run models on your own computer" href="/docs/v2/models/local" />
+  <Card title="LM Studio" description="Use models you run in LM Studio" href="/docs/v2/models/lm-studio" />
+  <Card title="Ollama" description="Use models you run in Ollama" href="/docs/v2/models/ollama" />
+  <Card title="Other local servers" description="vLLM, llama.cpp, LocalAI and other OpenAI-compatible servers" href="/docs/v2/models/other-local-servers" />
+  <Card title="API providers" description="OpenAI, OpenRouter, Anthropic and other hosted APIs" href="/docs/v2/models/api-providers" />
+  <Card title="ChatGPT plan" description="Use your ChatGPT Plus or Pro plan" href="/docs/v2/models/chatgpt-plan" />
+  <Card title="Claude plan" description="Use your Claude Pro, Max or Team plan" href="/docs/v2/models/claude-plan" />
+  <Card title="Image, voice and search models" description="Image, image editing, audio, video and embedding models" href="/docs/v2/models/other-models" />
+</Cards>

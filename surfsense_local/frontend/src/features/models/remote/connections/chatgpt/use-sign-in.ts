@@ -15,7 +15,7 @@ const POLL_MS = 1000
 export type SignInState =
   | { phase: "idle" }
   | { phase: "starting" }
-  | { phase: "waiting"; authorizeUrl: string }
+  | { phase: "waiting"; flowId: string; authorizeUrl: string }
   | { phase: "declined"; host: string }
   | { phase: "failed"; detail: string | null }
 
@@ -83,7 +83,11 @@ export function useChatGPTSignIn(onSignedIn: (connectionId: number) => void) {
       const started = await startSignIn(target)
       const abort = new AbortController()
       flow.current = { id: started.flow_id, abort }
-      setState({ phase: "waiting", authorizeUrl: started.authorize_url })
+      setState({
+        phase: "waiting",
+        flowId: started.flow_id,
+        authorizeUrl: started.authorize_url,
+      })
       openSignInPage(started.authorize_url)
       void poll(started.flow_id, abort)
     } catch (error) {

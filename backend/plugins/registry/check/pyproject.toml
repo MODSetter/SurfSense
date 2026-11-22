@@ -1,0 +1,34 @@
+[project]
+name = "surfsense-registry-check"
+version = "0.1.0"
+description = "Checks and signs the third-party plugin registry, backend/plugins/registry/plugins.json."
+requires-python = ">=3.12"
+license = { text = "Apache-2.0" }
+dependencies = [
+    "cryptography>=44.0",
+    # Icons are submitted by strangers: no entity expansion while reading an SVG.
+    "defusedxml>=0.7.1",
+    # The live check lists a server with the client the app uses, at the same minor.
+    "mcp>=2.3,<2.4",
+]
+
+[dependency-groups]
+dev = ["pytest>=8.0", "ruff>=0.8"]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-v --tb=short -ra --strict-markers --import-mode=importlib"
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "N", "UP", "B", "C4", "T20", "SIM", "RUF", "ASYNC"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["registry_check", "tests"]

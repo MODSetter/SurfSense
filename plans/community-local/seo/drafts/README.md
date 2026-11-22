@@ -140,7 +140,7 @@ The Docker stack in this repo (`surfsense_backend`, `surfsense_web`, compose fil
 
 - [Documentation](https://www.surfsense.com/docs) for install, models, Studio formats and self-hosting
 - [Importing from the hosted app](https://www.surfsense.com/sunset)
-- [MCP server](./surfsense_mcp) for the hosted scraper API
+- [MCP server](https://github.com/MODSetter/SurfSense/tree/legacy/surfsense_mcp) for the hosted scraper API
 - [Roadmap discussion](https://github.com/MODSetter/SurfSense/discussions/565) and the [project board](https://github.com/users/MODSetter/projects/3)
 - [Discord](https://discord.gg/ejRNvftDp9) for help and ideas, [Discussions](https://github.com/MODSetter/SurfSense/discussions) for direction, [Issues](https://github.com/MODSetter/SurfSense/issues) for reproducible bugs
 - **Star the repo** if you want to follow where this goes

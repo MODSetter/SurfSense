@@ -1,0 +1,2482 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Community Updates &#8212; Requests 2.34.2 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=6625fa76" />
+    <link rel="stylesheet" type="text/css" href="../../_static/alabaster.css?v=1fe5e9f7" />
+    <script src="../../_static/documentation_options.js?v=b81d1745"></script>
+    <script src="../../_static/doctools.js?v=888ff710"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="../../genindex/" />
+    <link rel="search" title="Search" href="../../search/" />
+    <link rel="next" title="Developer Interface" href="../../api/" />
+    <link rel="prev" title="Release Process and Rules" href="../release-process/" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  <script async type="text/javascript" src="/_/static/javascript/readthedocs-addons.js"></script><meta name="readthedocs-project-slug" content="requests" /><meta name="readthedocs-version-slug" content="latest" /><meta name="readthedocs-resolver-filename" content="/community/updates/" /><meta name="readthedocs-http-status" content="200" /></head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="community-updates">
+<span id="updates"></span><h1>Community Updates<a class="headerlink" href="#community-updates" title="Link to this heading">¶</a></h1>
+<p>If you’d like to stay up to date on the community and development of Requests,
+there are several options:</p>
+<section id="github">
+<h2>GitHub<a class="headerlink" href="#github" title="Link to this heading">¶</a></h2>
+<p>The best way to track the development of Requests is through
+<a class="reference external" href="https://github.com/psf/requests">the GitHub repo</a>.</p>
+</section>
+</section>
+<section id="release-history">
+<h1>Release History<a class="headerlink" href="#release-history" title="Link to this heading">¶</a></h1>
+<section id="dev">
+<h2>dev<a class="headerlink" href="#dev" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>[Short description of non-trivial change.]</p></li>
+</ul>
+</section>
+<section id="id1">
+<h2>2.34.2 (2026-05-14)<a class="headerlink" href="#id1" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Moved <cite>headers</cite> input type back to <cite>Mapping</cite> to avoid invariance issues
+with <cite>MutableMapping</cite> and inferred dict types. Users calling
+<cite>Request.headers.update()</cite> may need to narrow typing in their code. (#7441)</p></li>
+</ul>
+</section>
+<section id="id2">
+<h2>2.34.1 (2026-05-13)<a class="headerlink" href="#id2" title="Link to this heading">¶</a></h2>
+<p><strong>Bugfixes</strong>
+- Widened <cite>json</cite> input type from <cite>dict</cite> and <cite>list</cite> to <cite>Mapping</cite></p>
+<blockquote>
+<div><p>and <cite>Sequence</cite>. (#7436)</p>
+</div></blockquote>
+<ul class="simple">
+<li><p>Changed <cite>headers</cite> input type to MutableMapping and removed <cite>None</cite> from
+<cite>Request.headers</cite> typing to improve handling for users. (#7431)</p></li>
+<li><p><cite>Response.reason</cite> moved from <cite>str | None</cite> to <cite>str</cite> to improve handling
+for users. (#7437)</p></li>
+<li><p>Fixed a bug where some bodies with custom <cite>__getattr__</cite> implementations
+weren’t being properly detected as Iterables. (#7433)</p></li>
+</ul>
+</section>
+<section id="id3">
+<h2>2.34.0 (2026-05-11)<a class="headerlink" href="#id3" title="Link to this heading">¶</a></h2>
+<p><strong>Announcements</strong>
+- Requests 2.34.0 introduces inline types, replacing those provided by</p>
+<blockquote>
+<div><p>typeshed. Public API types should be fully compatible with mypy, pyright,
+and ty. We believe types are comprehensive but if you find issues, please
+report them to the pinned tracking issue.</p>
+<p>Special thanks to &#64;bastimeyer, &#64;cthoyt, &#64;edgarrmondragon, and &#64;srittau for
+helping review and test the types ahead of the release. (#7272)</p>
+</div></blockquote>
+<p><strong>Improvements</strong>
+- Digest Auth hashing algorithms have added <cite>usedforsecurity=False</cite> to clarify</p>
+<blockquote>
+<div><p>security considerations. (#7310)</p>
+</div></blockquote>
+<ul class="simple">
+<li><p>Requests added support for Python 3.15 based on beta1. Downstream projects
+should be able to start testing prior to its release in October. (#7422)</p></li>
+<li><p>Requests added support for Python 3.14t. (#7419)</p></li>
+</ul>
+<p><strong>Bugfixes</strong>
+- <code class="docutils literal notranslate"><span class="pre">Response.history</span></code> no longer contains a reference to itself, preventing</p>
+<blockquote>
+<div><p>accidental looping when traversing the history list. (#7328)</p>
+</div></blockquote>
+<ul class="simple">
+<li><p>Requests no longer performs greedy matching on no_proxy domains. The
+proxy_bypass implementation has been updated with CPython’s fix from
+bpo-39057. (#7427)</p></li>
+<li><p>Requests no longer incorrectly strips duplicate leading slashes in
+URI paths. This should address user issues with specific presigned
+URLs. Note the full fix requires urllib3 2.7.0+. (#7315)</p></li>
+</ul>
+</section>
+<section id="id4">
+<h2>2.33.1 (2026-03-30)<a class="headerlink" href="#id4" title="Link to this heading">¶</a></h2>
+<p><strong>Bugfixes</strong>
+- Fixed test cleanup for CVE-2026-25645 to avoid leaving unnecessary</p>
+<blockquote>
+<div><p>files in the tmp directory. (#7305)</p>
+</div></blockquote>
+<ul class="simple">
+<li><p>Fixed Content-Type header parsing for malformed values. (#7309)</p></li>
+<li><p>Improved error consistency for malformed header values. (#7308)</p></li>
+</ul>
+</section>
+<section id="id5">
+<h2>2.33.0 (2026-03-25)<a class="headerlink" href="#id5" title="Link to this heading">¶</a></h2>
+<p><strong>Announcements</strong>
+- 📣 Requests is adding inline types. If you have a typed code base that
+uses Requests, please take a look at #7271. Give it a try, and report
+any gaps or feedback you may have in the issue. 📣</p>
+<p><strong>Security</strong>
+- CVE-2026-25645 <code class="docutils literal notranslate"><span class="pre">requests.utils.extract_zipped_paths</span></code> now extracts</p>
+<blockquote>
+<div><p>contents to a non-deterministic location to prevent malicious file
+replacement. This does not affect default usage of Requests, only
+applications calling the utility function directly.</p>
+</div></blockquote>
+<p><strong>Improvements</strong>
+- Migrated to a PEP 517 build system using setuptools. (#7012)</p>
+<p><strong>Bugfixes</strong>
+- Fixed an issue where an empty netrc entry could cause</p>
+<blockquote>
+<div><p>malformed authentication to be applied to Requests on
+Python 3.11+. (#7205)</p>
+</div></blockquote>
+<p><strong>Deprecations</strong>
+- Dropped support for Python 3.9 following its end of support. (#7196)</p>
+<p><strong>Documentation</strong>
+- Various typo fixes and doc improvements.</p>
+</section>
+<section id="id6">
+<h2>2.32.5 (2025-08-18)<a class="headerlink" href="#id6" title="Link to this heading">¶</a></h2>
+<p><strong>Bugfixes</strong></p>
+<ul class="simple">
+<li><p>The SSLContext caching feature originally introduced in 2.32.0 has created
+a new class of issues in Requests that have had negative impact across a number
+of use cases. The Requests team has decided to revert this feature as long term
+maintenance of it is proving to be unsustainable in its current iteration.</p></li>
+</ul>
+<p><strong>Deprecations</strong>
+- Added support for Python 3.14.
+- Dropped support for Python 3.8 following its end of support.</p>
+</section>
+<section id="id7">
+<h2>2.32.4 (2025-06-10)<a class="headerlink" href="#id7" title="Link to this heading">¶</a></h2>
+<p><strong>Security</strong>
+- CVE-2024-47081 Fixed an issue where a maliciously crafted URL and trusted</p>
+<blockquote>
+<div><p>environment will retrieve credentials for the wrong hostname/machine from a
+netrc file.</p>
+</div></blockquote>
+<p><strong>Improvements</strong>
+- Numerous documentation improvements</p>
+<p><strong>Deprecations</strong>
+- Added support for pypy 3.11 for Linux and macOS.
+- Dropped support for pypy 3.9 following its end of support.</p>
+</section>
+<section id="id8">
+<h2>2.32.3 (2024-05-29)<a class="headerlink" href="#id8" title="Link to this heading">¶</a></h2>
+<p><strong>Bugfixes</strong>
+- Fixed bug breaking the ability to specify custom SSLContexts in sub-classes of</p>
+<blockquote>
+<div><p>HTTPAdapter. (#6716)</p>
+</div></blockquote>
+<ul class="simple">
+<li><p>Fixed issue where Requests started failing to run on Python versions compiled
+without the <cite>ssl</cite> module. (#6724)</p></li>
+</ul>
+</section>
+<section id="id9">
+<h2>2.32.2 (2024-05-21)<a class="headerlink" href="#id9" title="Link to this heading">¶</a></h2>
+<p><strong>Deprecations</strong>
+- To provide a more stable migration for custom HTTPAdapters impacted</p>
+<blockquote>
+<div><p>by the CVE changes in 2.32.0, we’ve renamed <cite>_get_connection</cite> to
+a new public API, <cite>get_connection_with_tls_context</cite>. Existing custom
+HTTPAdapters will need to migrate their code to use this new API.
+<cite>get_connection</cite> is considered deprecated in all versions of Requests&gt;=2.32.0.</p>
+<p>A minimal (2-line) example has been provided in the linked PR to ease
+migration, but we strongly urge users to evaluate if their custom adapter
+is subject to the same issue described in CVE-2024-35195. (#6710)</p>
+</div></blockquote>
+</section>
+<section id="id10">
+<h2>2.32.1 (2024-05-20)<a class="headerlink" href="#id10" title="Link to this heading">¶</a></h2>
+<p><strong>Bugfixes</strong>
+- Add missing test certs to the sdist distributed on PyPI.</p>
+</section>
+<section id="id11">
+<h2>2.32.0 (2024-05-20)<a class="headerlink" href="#id11" title="Link to this heading">¶</a></h2>
+<p><strong>Security</strong>
+- Fixed an issue where setting <cite>verify=False</cite> on the first request from a</p>
+<blockquote>
+<div><p>Session will cause subsequent requests to the _same <a href="#id163"><span class="problematic" id="id164">origin_</span></a> to also ignore
+cert verification, regardless of the value of <cite>verify</cite>.
+(<a class="reference external" href="https://github.com/psf/requests/security/advisories/GHSA-9wx4-h78v-vm56">https://github.com/psf/requests/security/advisories/GHSA-9wx4-h78v-vm56</a>)</p>
+</div></blockquote>
+<p><strong>Improvements</strong>
+- <cite>verify=True</cite> now reuses a global SSLContext which should improve</p>
+<blockquote>
+<div><p>request time variance between first and subsequent requests. It should
+also minimize certificate load time on Windows systems when using a Python
+version built with OpenSSL 3.x. (#6667)</p>
+</div></blockquote>
+<ul class="simple">
+<li><p>Requests now supports optional use of character detection
+(<cite>chardet</cite> or <cite>charset_normalizer</cite>) when repackaged or vendored.
+This enables <cite>pip</cite> and other projects to minimize their vendoring
+surface area. The <cite>Response.text()</cite> and <cite>apparent_encoding</cite> APIs
+will default to <cite>utf-8</cite> if neither library is present. (#6702)</p></li>
+</ul>
+<p><strong>Bugfixes</strong>
+- Fixed bug in length detection where emoji length was incorrectly</p>
+<blockquote>
+<div><p>calculated in the request content-length. (#6589)</p>
+</div></blockquote>
+<ul class="simple">
+<li><p>Fixed deserialization bug in JSONDecodeError. (#6629)</p></li>
+<li><p>Fixed bug where an extra leading <cite>/</cite> (path separator) could lead
+urllib3 to unnecessarily reparse the request URI. (#6644)</p></li>
+</ul>
+<p><strong>Deprecations</strong></p>
+<ul class="simple">
+<li><p>Requests has officially added support for CPython 3.12 (#6503)</p></li>
+<li><p>Requests has officially added support for PyPy 3.9 and 3.10 (#6641)</p></li>
+<li><p>Requests has officially dropped support for CPython 3.7 (#6642)</p></li>
+<li><p>Requests has officially dropped support for PyPy 3.7 and 3.8 (#6641)</p></li>
+</ul>
+<p><strong>Documentation</strong>
+- Various typo fixes and doc improvements.</p>
+<p><strong>Packaging</strong>
+- Requests has started adopting some modern packaging practices.</p>
+<blockquote>
+<div><p>The source files for the projects (formerly <cite>requests</cite>) is now located
+in <cite>src/requests</cite> in the Requests sdist. (#6506)</p>
+</div></blockquote>
+<ul class="simple">
+<li><p>Starting in Requests 2.33.0, Requests will migrate to a PEP 517 build system
+using <cite>hatchling</cite>. This should not impact the average user, but extremely old
+versions of packaging utilities may have issues with the new packaging format.</p></li>
+</ul>
+</section>
+<section id="id12">
+<h2>2.31.0 (2023-05-22)<a class="headerlink" href="#id12" title="Link to this heading">¶</a></h2>
+<p><strong>Security</strong>
+- Versions of Requests between v2.3.0 and v2.30.0 are vulnerable to potential</p>
+<blockquote>
+<div><p>forwarding of <cite>Proxy-Authorization</cite> headers to destination servers when
+following HTTPS redirects.</p>
+<p>When proxies are defined with user info (<cite>https://user:pass&#64;proxy:8080</cite>), Requests
+will construct a <cite>Proxy-Authorization</cite> header that is attached to the request to
+authenticate with the proxy.</p>
+<p>In cases where Requests receives a redirect response, it previously reattached
+the <cite>Proxy-Authorization</cite> header incorrectly, resulting in the value being
+sent through the tunneled connection to the destination server. Users who rely on
+defining their proxy credentials in the URL are <em>strongly</em> encouraged to upgrade
+to Requests 2.31.0+ to prevent unintentional leakage and rotate their proxy
+credentials once the change has been fully deployed.</p>
+<p>Users who do not use a proxy or do not supply their proxy credentials through
+the user information portion of their proxy URL are not subject to this
+vulnerability.</p>
+<p>Full details can be read in our [Github Security Advisory](<a class="reference external" href="https://github.com/psf/requests/security/advisories/GHSA-j8r2-6x86-q33q">https://github.com/psf/requests/security/advisories/GHSA-j8r2-6x86-q33q</a>)
+and [CVE-2023-32681](<a class="reference external" href="https://nvd.nist.gov/vuln/detail/CVE-2023-32681">https://nvd.nist.gov/vuln/detail/CVE-2023-32681</a>).</p>
+</div></blockquote>
+</section>
+<section id="id13">
+<h2>2.30.0 (2023-05-03)<a class="headerlink" href="#id13" title="Link to this heading">¶</a></h2>
+<p><strong>Dependencies</strong>
+- ⚠️ Added support for urllib3 2.0. ⚠️</p>
+<blockquote>
+<div><p>This may contain minor breaking changes so we advise careful testing and
+reviewing <a class="reference external" href="https://urllib3.readthedocs.io/en/latest/v2-migration-guide.html">https://urllib3.readthedocs.io/en/latest/v2-migration-guide.html</a>
+prior to upgrading.</p>
+<p>Users who wish to stay on urllib3 1.x can pin to <cite>urllib3&lt;2</cite>.</p>
+</div></blockquote>
+</section>
+<section id="id14">
+<h2>2.29.0 (2023-04-26)<a class="headerlink" href="#id14" title="Link to this heading">¶</a></h2>
+<p><strong>Improvements</strong></p>
+<ul class="simple">
+<li><p>Requests now defers chunked requests to the urllib3 implementation to improve
+standardization. (#6226)</p></li>
+<li><p>Requests relaxes header component requirements to support bytes/str subclasses. (#6356)</p></li>
+</ul>
+</section>
+<section id="id15">
+<h2>2.28.2 (2023-01-12)<a class="headerlink" href="#id15" title="Link to this heading">¶</a></h2>
+<p><strong>Dependencies</strong></p>
+<ul class="simple">
+<li><p>Requests now supports charset_normalizer 3.x. (#6261)</p></li>
+</ul>
+<p><strong>Bugfixes</strong></p>
+<ul class="simple">
+<li><p>Updated MissingSchema exception to suggest https scheme rather than http. (#6188)</p></li>
+</ul>
+</section>
+<section id="id16">
+<h2>2.28.1 (2022-06-29)<a class="headerlink" href="#id16" title="Link to this heading">¶</a></h2>
+<p><strong>Improvements</strong></p>
+<ul class="simple">
+<li><p>Speed optimization in <cite>iter_content</cite> with transition to <cite>yield from</cite>. (#6170)</p></li>
+</ul>
+<p><strong>Dependencies</strong></p>
+<ul class="simple">
+<li><p>Added support for chardet 5.0.0 (#6179)</p></li>
+<li><p>Added support for charset-normalizer 2.1.0 (#6169)</p></li>
+</ul>
+</section>
+<section id="id17">
+<h2>2.28.0 (2022-06-09)<a class="headerlink" href="#id17" title="Link to this heading">¶</a></h2>
+<p><strong>Deprecations</strong></p>
+<ul class="simple">
+<li><p>⚠️ Requests has officially dropped support for Python 2.7. ⚠️ (#6091)</p></li>
+<li><p>Requests has officially dropped support for Python 3.6 (including pypy3.6). (#6091)</p></li>
+</ul>
+<p><strong>Improvements</strong></p>
+<ul class="simple">
+<li><p>Wrap JSON parsing issues in Request’s JSONDecodeError for payloads without
+an encoding to make <cite>json()</cite> API consistent. (#6097)</p></li>
+<li><p>Parse header components consistently, raising an InvalidHeader error in
+all invalid cases. (#6154)</p></li>
+<li><p>Added provisional 3.11 support with current beta build. (#6155)</p></li>
+<li><p>Requests got a makeover and we decided to paint it black. (#6095)</p></li>
+</ul>
+<p><strong>Bugfixes</strong></p>
+<ul class="simple">
+<li><p>Fixed bug where setting <cite>CURL_CA_BUNDLE</cite> to an empty string would disable
+cert verification. All Requests 2.x versions before 2.28.0 are affected. (#6074)</p></li>
+<li><p>Fixed urllib3 exception leak, wrapping <cite>urllib3.exceptions.SSLError</cite> with
+<cite>requests.exceptions.SSLError</cite> for <cite>content</cite> and <cite>iter_content</cite>. (#6057)</p></li>
+<li><p>Fixed issue where invalid Windows registry entries caused proxy resolution
+to raise an exception rather than ignoring the entry. (#6149)</p></li>
+<li><p>Fixed issue where entire payload could be included in the error message for
+JSONDecodeError. (#6036)</p></li>
+</ul>
+</section>
+<section id="id18">
+<h2>2.27.1 (2022-01-05)<a class="headerlink" href="#id18" title="Link to this heading">¶</a></h2>
+<p><strong>Bugfixes</strong></p>
+<ul class="simple">
+<li><p>Fixed parsing issue that resulted in the <cite>auth</cite> component being
+dropped from proxy URLs. (#6028)</p></li>
+</ul>
+</section>
+<section id="id19">
+<h2>2.27.0 (2022-01-03)<a class="headerlink" href="#id19" title="Link to this heading">¶</a></h2>
+<p><strong>Improvements</strong></p>
+<ul class="simple">
+<li><p>Officially added support for Python 3.10. (#5928)</p></li>
+<li><p>Added a <cite>requests.exceptions.JSONDecodeError</cite> to unify JSON exceptions between
+Python 2 and 3. This gets raised in the <cite>response.json()</cite> method, and is
+backwards compatible as it inherits from previously thrown exceptions.
+Can be caught from <cite>requests.exceptions.RequestException</cite> as well. (#5856)</p></li>
+<li><p>Improved error text for misnamed <cite>InvalidSchema</cite> and <cite>MissingSchema</cite>
+exceptions. This is a temporary fix until exceptions can be renamed
+(Schema-&gt;Scheme). (#6017)</p></li>
+<li><p>Improved proxy parsing for proxy URLs missing a scheme. This will address
+recent changes to <cite>urlparse</cite> in Python 3.9+. (#5917)</p></li>
+</ul>
+<p><strong>Bugfixes</strong></p>
+<ul class="simple">
+<li><p>Fixed defect in <cite>extract_zipped_paths</cite> which could result in an infinite loop
+for some paths. (#5851)</p></li>
+<li><p>Fixed handling for <cite>AttributeError</cite> when calculating length of files obtained
+by <cite>Tarfile.extractfile()</cite>. (#5239)</p></li>
+<li><p>Fixed urllib3 exception leak, wrapping <cite>urllib3.exceptions.InvalidHeader</cite> with
+<cite>requests.exceptions.InvalidHeader</cite>. (#5914)</p></li>
+<li><p>Fixed bug where two Host headers were sent for chunked requests. (#5391)</p></li>
+<li><p>Fixed regression in Requests 2.26.0 where <cite>Proxy-Authorization</cite> was
+incorrectly stripped from all requests sent with <cite>Session.send</cite>. (#5924)</p></li>
+<li><p>Fixed performance regression in 2.26.0 for hosts with a large number of
+proxies available in the environment. (#5924)</p></li>
+<li><p>Fixed idna exception leak, wrapping <cite>UnicodeError</cite> with
+<cite>requests.exceptions.InvalidURL</cite> for URLs with a leading dot (.) in the
+domain. (#5414)</p></li>
+</ul>
+<p><strong>Deprecations</strong></p>
+<ul class="simple">
+<li><p>Requests support for Python 2.7 and 3.6 will be ending in 2022. While we
+don’t have exact dates, Requests 2.27.x is likely to be the last release
+series providing support.</p></li>
+</ul>
+</section>
+<section id="id20">
+<h2>2.26.0 (2021-07-13)<a class="headerlink" href="#id20" title="Link to this heading">¶</a></h2>
+<p><strong>Improvements</strong></p>
+<ul class="simple">
+<li><p>Requests now supports Brotli compression, if either the <cite>brotli</cite> or
+<cite>brotlicffi</cite> package is installed. (#5783)</p></li>
+<li><p><cite>Session.send</cite> now correctly resolves proxy configurations from both
+the Session and Request. Behavior now matches <cite>Session.request</cite>. (#5681)</p></li>
+</ul>
+<p><strong>Bugfixes</strong></p>
+<ul class="simple">
+<li><p>Fixed a race condition in zip extraction when using Requests in parallel
+from zip archive. (#5707)</p></li>
+</ul>
+<p><strong>Dependencies</strong></p>
+<ul>
+<li><p>Instead of <cite>chardet</cite>, use the MIT-licensed <cite>charset_normalizer</cite> for Python3
+to remove license ambiguity for projects bundling requests. If <cite>chardet</cite>
+is already installed on your machine it will be used instead of <cite>charset_normalizer</cite>
+to keep backwards compatibility. (#5797)</p>
+<p>You can also install <cite>chardet</cite> while installing requests by
+specifying <cite>[use_chardet_on_py3]</cite> extra as follows:</p>
+<blockquote>
+<div><p><code class="docutils literal notranslate"><span class="pre">`shell</span>
+<span class="pre">pip</span> <span class="pre">install</span> <span class="pre">&quot;requests[use_chardet_on_py3]&quot;</span>
+<span class="pre">`</span></code></p>
+</div></blockquote>
+<p>Python2 still depends upon the <cite>chardet</cite> module.</p>
+</li>
+<li><p>Requests now supports <cite>idna</cite> 3.x on Python 3. <cite>idna</cite> 2.x will continue to
+be used on Python 2 installations. (#5711)</p></li>
+</ul>
+<p><strong>Deprecations</strong></p>
+<ul class="simple">
+<li><p>The <cite>requests[security]</cite> extra has been converted to a no-op install.
+PyOpenSSL is no longer the recommended secure option for Requests. (#5867)</p></li>
+<li><p>Requests has officially dropped support for Python 3.5. (#5867)</p></li>
+</ul>
+</section>
+<section id="id21">
+<h2>2.25.1 (2020-12-16)<a class="headerlink" href="#id21" title="Link to this heading">¶</a></h2>
+<p><strong>Bugfixes</strong></p>
+<ul class="simple">
+<li><p>Requests now treats <cite>application/json</cite> as <cite>utf8</cite> by default. Resolving
+inconsistencies between <cite>r.text</cite> and <cite>r.json</cite> output. (#5673)</p></li>
+</ul>
+<p><strong>Dependencies</strong></p>
+<ul class="simple">
+<li><p>Requests now supports chardet v4.x.</p></li>
+</ul>
+</section>
+<section id="id22">
+<h2>2.25.0 (2020-11-11)<a class="headerlink" href="#id22" title="Link to this heading">¶</a></h2>
+<p><strong>Improvements</strong></p>
+<ul class="simple">
+<li><p>Added support for NETRC environment variable. (#5643)</p></li>
+</ul>
+<p><strong>Dependencies</strong></p>
+<ul class="simple">
+<li><p>Requests now supports urllib3 v1.26.</p></li>
+</ul>
+<p><strong>Deprecations</strong></p>
+<ul class="simple">
+<li><p>Requests v2.25.x will be the last release series with support for Python 3.5.</p></li>
+<li><p>The <cite>requests[security]</cite> extra is officially deprecated and will be removed
+in Requests v2.26.0.</p></li>
+</ul>
+</section>
+<section id="id23">
+<h2>2.24.0 (2020-06-17)<a class="headerlink" href="#id23" title="Link to this heading">¶</a></h2>
+<p><strong>Improvements</strong></p>
+<ul class="simple">
+<li><p>pyOpenSSL TLS implementation is now only used if Python
+either doesn’t have an <cite>ssl</cite> module or doesn’t support
+SNI. Previously pyOpenSSL was unconditionally used if available.
+This applies even if pyOpenSSL is installed via the
+<cite>requests[security]</cite> extra (#5443)</p></li>
+<li><p>Redirect resolution should now only occur when
+<cite>allow_redirects</cite> is True. (#5492)</p></li>
+<li><p>No longer perform unnecessary Content-Length calculation for
+requests that won’t use it. (#5496)</p></li>
+</ul>
+</section>
+<section id="id24">
+<h2>2.23.0 (2020-02-19)<a class="headerlink" href="#id24" title="Link to this heading">¶</a></h2>
+<p><strong>Improvements</strong></p>
+<ul class="simple">
+<li><p>Remove defunct reference to <cite>prefetch</cite> in Session <cite>__attrs__</cite> (#5110)</p></li>
+</ul>
+<p><strong>Bugfixes</strong></p>
+<ul class="simple">
+<li><p>Requests no longer outputs password in basic auth usage warning. (#5099)</p></li>
+</ul>
+<p><strong>Dependencies</strong></p>
+<ul class="simple">
+<li><p>Pinning for <cite>chardet</cite> and <cite>idna</cite> now uses major version instead of minor.
+This hopefully reduces the need for releases every time a dependency is updated.</p></li>
+</ul>
+</section>
+<section id="id25">
+<h2>2.22.0 (2019-05-15)<a class="headerlink" href="#id25" title="Link to this heading">¶</a></h2>
+<p><strong>Dependencies</strong></p>
+<ul class="simple">
+<li><p>Requests now supports urllib3 v1.25.2.
+(note: 1.25.0 and 1.25.1 are incompatible)</p></li>
+</ul>
+<p><strong>Deprecations</strong></p>
+<ul class="simple">
+<li><p>Requests has officially stopped support for Python 3.4.</p></li>
+</ul>
+</section>
+<section id="id26">
+<h2>2.21.0 (2018-12-10)<a class="headerlink" href="#id26" title="Link to this heading">¶</a></h2>
+<p><strong>Dependencies</strong></p>
+<ul class="simple">
+<li><p>Requests now supports idna v2.8.</p></li>
+</ul>
+</section>
+<section id="id27">
+<h2>2.20.1 (2018-11-08)<a class="headerlink" href="#id27" title="Link to this heading">¶</a></h2>
+<p><strong>Bugfixes</strong></p>
+<ul class="simple">
+<li><p>Fixed bug with unintended Authorization header stripping for
+redirects using default ports (http/80, https/443).</p></li>
+</ul>
+</section>
+<section id="id28">
+<h2>2.20.0 (2018-10-18)<a class="headerlink" href="#id28" title="Link to this heading">¶</a></h2>
+<p><strong>Bugfixes</strong></p>
+<ul class="simple">
+<li><p>Content-Type header parsing is now case-insensitive (e.g.
+charset=utf8 v Charset=utf8).</p></li>
+<li><p>Fixed exception leak where certain redirect urls would raise
+uncaught urllib3 exceptions.</p></li>
+<li><p>Requests removes Authorization header from requests redirected
+from https to http on the same hostname. (CVE-2018-18074)</p></li>
+<li><p><cite>should_bypass_proxies</cite> now handles URIs without hostnames (e.g.
+files).</p></li>
+</ul>
+<p><strong>Dependencies</strong></p>
+<ul class="simple">
+<li><p>Requests now supports urllib3 v1.24.</p></li>
+</ul>
+<p><strong>Deprecations</strong></p>
+<ul class="simple">
+<li><p>Requests has officially stopped support for Python 2.6.</p></li>
+</ul>
+</section>
+<section id="id29">
+<h2>2.19.1 (2018-06-14)<a class="headerlink" href="#id29" title="Link to this heading">¶</a></h2>
+<p><strong>Bugfixes</strong></p>
+<ul class="simple">
+<li><p>Fixed issue where status_codes.py’s <cite>init</cite> function failed trying
+to append to a <cite>__doc__</cite> value of <cite>None</cite>.</p></li>
+</ul>
+</section>
+<section id="id30">
+<h2>2.19.0 (2018-06-12)<a class="headerlink" href="#id30" title="Link to this heading">¶</a></h2>
+<p><strong>Improvements</strong></p>
+<ul class="simple">
+<li><p>Warn user about possible slowdown when using cryptography version
+&amp;lt; 1.3.4</p></li>
+<li><p>Check for invalid host in proxy URL, before forwarding request to
+adapter.</p></li>
+<li><p>Fragments are now properly maintained across redirects. (RFC7231
+7.1.2)</p></li>
+<li><p>Removed use of cgi module to expedite library load time.</p></li>
+<li><p>Added support for SHA-256 and SHA-512 digest auth algorithms.</p></li>
+<li><p>Minor performance improvement to <cite>Request.content</cite>.</p></li>
+<li><p>Migrate to using collections.abc for 3.7 compatibility.</p></li>
+</ul>
+<p><strong>Bugfixes</strong></p>
+<ul class="simple">
+<li><p>Parsing empty <cite>Link</cite> headers with <cite>parse_header_links()</cite> no longer
+return one bogus entry.</p></li>
+<li><p>Fixed issue where loading the default certificate bundle from a zip
+archive would raise an <cite>IOError</cite>.</p></li>
+<li><p>Fixed issue with unexpected <cite>ImportError</cite> on windows system which do
+not support <cite>winreg</cite> module.</p></li>
+<li><p>DNS resolution in proxy bypass no longer includes the username and
+password in the request. This also fixes the issue of DNS queries
+failing on macOS.</p></li>
+<li><p>Properly normalize adapter prefixes for url comparison.</p></li>
+<li><p>Passing <cite>None</cite> as a file pointer to the <cite>files</cite> param no longer
+raises an exception.</p></li>
+<li><p>Calling <cite>copy</cite> on a <cite>RequestsCookieJar</cite> will now preserve the cookie
+policy correctly.</p></li>
+</ul>
+<p><strong>Dependencies</strong></p>
+<ul class="simple">
+<li><p>We now support idna v2.7.</p></li>
+<li><p>We now support urllib3 v1.23.</p></li>
+</ul>
+</section>
+<section id="id31">
+<h2>2.18.4 (2017-08-15)<a class="headerlink" href="#id31" title="Link to this heading">¶</a></h2>
+<p><strong>Improvements</strong></p>
+<ul class="simple">
+<li><p>Error messages for invalid headers now include the header name for
+easier debugging</p></li>
+</ul>
+<p><strong>Dependencies</strong></p>
+<ul class="simple">
+<li><p>We now support idna v2.6.</p></li>
+</ul>
+</section>
+<section id="id32">
+<h2>2.18.3 (2017-08-02)<a class="headerlink" href="#id32" title="Link to this heading">¶</a></h2>
+<p><strong>Improvements</strong></p>
+<ul class="simple">
+<li><p>Running <cite>$ python -m requests.help</cite> now includes the installed
+version of idna.</p></li>
+</ul>
+<p><strong>Bugfixes</strong></p>
+<ul class="simple">
+<li><p>Fixed issue where Requests would raise <cite>ConnectionError</cite> instead of
+<cite>SSLError</cite> when encountering SSL problems when using urllib3 v1.22.</p></li>
+</ul>
+</section>
+<section id="id33">
+<h2>2.18.2 (2017-07-25)<a class="headerlink" href="#id33" title="Link to this heading">¶</a></h2>
+<p><strong>Bugfixes</strong></p>
+<ul class="simple">
+<li><p><cite>requests.help</cite> no longer fails on Python 2.6 due to the absence of
+<cite>ssl.OPENSSL_VERSION_NUMBER</cite>.</p></li>
+</ul>
+<p><strong>Dependencies</strong></p>
+<ul class="simple">
+<li><p>We now support urllib3 v1.22.</p></li>
+</ul>
+</section>
+<section id="id34">
+<h2>2.18.1 (2017-06-14)<a class="headerlink" href="#id34" title="Link to this heading">¶</a></h2>
+<p><strong>Bugfixes</strong></p>
+<ul class="simple">
+<li><p>Fix an error in the packaging whereby the <cite>*.whl</cite> contained
+incorrect data that regressed the fix in v2.17.3.</p></li>
+</ul>
+</section>
+<section id="id35">
+<h2>2.18.0 (2017-06-14)<a class="headerlink" href="#id35" title="Link to this heading">¶</a></h2>
+<p><strong>Improvements</strong></p>
+<ul class="simple">
+<li><p><cite>Response</cite> is now a context manager, so can be used directly in a
+<cite>with</cite> statement without first having to be wrapped by
+<cite>contextlib.closing()</cite>.</p></li>
+</ul>
+<p><strong>Bugfixes</strong></p>
+<ul class="simple">
+<li><p>Resolve installation failure if multiprocessing is not available</p></li>
+<li><p>Resolve tests crash if multiprocessing is not able to determine the
+number of CPU cores</p></li>
+<li><p>Resolve error swallowing in utils set_environ generator</p></li>
+</ul>
+</section>
+<section id="id36">
+<h2>2.17.3 (2017-05-29)<a class="headerlink" href="#id36" title="Link to this heading">¶</a></h2>
+<p><strong>Improvements</strong></p>
+<ul class="simple">
+<li><p>Improved <cite>packages</cite> namespace identity support, for monkeypatching
+libraries.</p></li>
+</ul>
+</section>
+<section id="id37">
+<h2>2.17.2 (2017-05-29)<a class="headerlink" href="#id37" title="Link to this heading">¶</a></h2>
+<p><strong>Improvements</strong></p>
+<ul class="simple">
+<li><p>Improved <cite>packages</cite> namespace identity support, for monkeypatching
+libraries.</p></li>
+</ul>
+</section>
+<section id="id38">
+<h2>2.17.1 (2017-05-29)<a class="headerlink" href="#id38" title="Link to this heading">¶</a></h2>
+<p><strong>Improvements</strong></p>
+<ul class="simple">
+<li><p>Improved <cite>packages</cite> namespace identity support, for monkeypatching
+libraries.</p></li>
+</ul>
+</section>
+<section id="id39">
+<h2>2.17.0 (2017-05-29)<a class="headerlink" href="#id39" title="Link to this heading">¶</a></h2>
+<p><strong>Improvements</strong></p>
+<ul class="simple">
+<li><p>Removal of the 301 redirect cache. This improves thread-safety.</p></li>
+</ul>
+</section>
+<section id="id40">
+<h2>2.16.5 (2017-05-28)<a class="headerlink" href="#id40" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Improvements to <cite>$ python -m requests.help</cite>.</p></li>
+</ul>
+</section>
+<section id="id41">
+<h2>2.16.4 (2017-05-27)<a class="headerlink" href="#id41" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Introduction of the <cite>$ python -m requests.help</cite> command, for
+debugging with maintainers!</p></li>
+</ul>
+</section>
+<section id="id42">
+<h2>2.16.3 (2017-05-27)<a class="headerlink" href="#id42" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Further restored the <cite>requests.packages</cite> namespace for compatibility
+reasons.</p></li>
+</ul>
+</section>
+<section id="id43">
+<h2>2.16.2 (2017-05-27)<a class="headerlink" href="#id43" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Further restored the <cite>requests.packages</cite> namespace for compatibility
+reasons.</p></li>
+</ul>
+<p>No code modification (noted below) should be necessary any longer.</p>
+</section>
+<section id="id44">
+<h2>2.16.1 (2017-05-27)<a class="headerlink" href="#id44" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Restored the <cite>requests.packages</cite> namespace for compatibility
+reasons.</p></li>
+<li><p>Bugfix for <cite>urllib3</cite> version parsing.</p></li>
+</ul>
+<p><strong>Note</strong>: code that was written to import against the
+<cite>requests.packages</cite> namespace previously will have to import code that
+rests at this module-level now.</p>
+<p>For example:</p>
+<blockquote>
+<div><p>from requests.packages.urllib3.poolmanager import PoolManager</p>
+</div></blockquote>
+<p>Will need to be re-written to be:</p>
+<blockquote>
+<div><p>from requests.packages import urllib3
+urllib3.poolmanager.PoolManager</p>
+</div></blockquote>
+<p>Or, even better:</p>
+<blockquote>
+<div><p>from urllib3.poolmanager import PoolManager</p>
+</div></blockquote>
+</section>
+<section id="id45">
+<h2>2.16.0 (2017-05-26)<a class="headerlink" href="#id45" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Unvendor ALL the things!</p></li>
+</ul>
+</section>
+<section id="id46">
+<h2>2.15.1 (2017-05-26)<a class="headerlink" href="#id46" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Everyone makes mistakes.</p></li>
+</ul>
+</section>
+<section id="id47">
+<h2>2.15.0 (2017-05-26)<a class="headerlink" href="#id47" title="Link to this heading">¶</a></h2>
+<p><strong>Improvements</strong></p>
+<ul class="simple">
+<li><p>Introduction of the <cite>Response.next</cite> property, for getting the next
+<cite>PreparedResponse</cite> from a redirect chain (when
+<cite>allow_redirects=False</cite>).</p></li>
+<li><p>Internal refactoring of <cite>__version__</cite> module.</p></li>
+</ul>
+<p><strong>Bugfixes</strong></p>
+<ul class="simple">
+<li><p>Restored once-optional parameter for
+<cite>requests.utils.get_environ_proxies()</cite>.</p></li>
+</ul>
+</section>
+<section id="id48">
+<h2>2.14.2 (2017-05-10)<a class="headerlink" href="#id48" title="Link to this heading">¶</a></h2>
+<p><strong>Bugfixes</strong></p>
+<ul class="simple">
+<li><p>Changed a less-than to an equal-to and an or in the dependency
+markers to widen compatibility with older setuptools releases.</p></li>
+</ul>
+</section>
+<section id="id49">
+<h2>2.14.1 (2017-05-09)<a class="headerlink" href="#id49" title="Link to this heading">¶</a></h2>
+<p><strong>Bugfixes</strong></p>
+<ul class="simple">
+<li><p>Changed the dependency markers to widen compatibility with older pip
+releases.</p></li>
+</ul>
+</section>
+<section id="id50">
+<h2>2.14.0 (2017-05-09)<a class="headerlink" href="#id50" title="Link to this heading">¶</a></h2>
+<p><strong>Improvements</strong></p>
+<ul class="simple">
+<li><p>It is now possible to pass <cite>no_proxy</cite> as a key to the <cite>proxies</cite>
+dictionary to provide handling similar to the <cite>NO_PROXY</cite> environment
+variable.</p></li>
+<li><p>When users provide invalid paths to certificate bundle files or
+directories Requests now raises <cite>IOError</cite>, rather than failing at
+the time of the HTTPS request with a fairly inscrutable certificate
+validation error.</p></li>
+<li><p>The behavior of <cite>SessionRedirectMixin</cite> was slightly altered.
+<cite>resolve_redirects</cite> will now detect a redirect by calling
+<cite>get_redirect_target(response)</cite> instead of directly querying
+<cite>Response.is_redirect</cite> and <cite>Response.headers[‘location’]</cite>. Advanced
+users will be able to process malformed redirects more easily.</p></li>
+<li><p>Changed the internal calculation of elapsed request time to have
+higher resolution on Windows.</p></li>
+<li><p>Added <cite>win_inet_pton</cite> as conditional dependency for the <cite>[socks]</cite>
+extra on Windows with Python 2.7.</p></li>
+<li><p>Changed the proxy bypass implementation on Windows: the proxy bypass
+check doesn’t use forward and reverse DNS requests anymore</p></li>
+<li><p>URLs with schemes that begin with <cite>http</cite> but are not <cite>http</cite> or
+<cite>https</cite> no longer have their host parts forced to lowercase.</p></li>
+</ul>
+<p><strong>Bugfixes</strong></p>
+<ul class="simple">
+<li><p>Much improved handling of non-ASCII <cite>Location</cite> header values in
+redirects. Fewer <cite>UnicodeDecodeErrors</cite> are encountered on Python 2,
+and Python 3 now correctly understands that Latin-1 is unlikely to
+be the correct encoding.</p></li>
+<li><p>If an attempt to <cite>seek</cite> file to find out its length fails, we now
+appropriately handle that by aborting our content-length
+calculations.</p></li>
+<li><p>Restricted <cite>HTTPDigestAuth</cite> to only respond to auth challenges made
+on 4XX responses, rather than to all auth challenges.</p></li>
+<li><p>Fixed some code that was firing <cite>DeprecationWarning</cite> on Python 3.6.</p></li>
+<li><p>The dismayed person emoticon (<cite>/o\</cite>) no longer has a big head. I’m
+sure this is what you were all worrying about most.</p></li>
+</ul>
+<p><strong>Miscellaneous</strong></p>
+<ul class="simple">
+<li><p>Updated bundled urllib3 to v1.21.1.</p></li>
+<li><p>Updated bundled chardet to v3.0.2.</p></li>
+<li><p>Updated bundled idna to v2.5.</p></li>
+<li><p>Updated bundled certifi to 2017.4.17.</p></li>
+</ul>
+</section>
+<section id="id51">
+<h2>2.13.0 (2017-01-24)<a class="headerlink" href="#id51" title="Link to this heading">¶</a></h2>
+<p><strong>Features</strong></p>
+<ul class="simple">
+<li><p>Only load the <cite>idna</cite> library when we’ve determined we need it. This
+will save some memory for users.</p></li>
+</ul>
+<p><strong>Miscellaneous</strong></p>
+<ul class="simple">
+<li><p>Updated bundled urllib3 to 1.20.</p></li>
+<li><p>Updated bundled idna to 2.2.</p></li>
+</ul>
+</section>
+<section id="id52">
+<h2>2.12.5 (2017-01-18)<a class="headerlink" href="#id52" title="Link to this heading">¶</a></h2>
+<p><strong>Bugfixes</strong></p>
+<ul class="simple">
+<li><p>Fixed an issue with JSON encoding detection, specifically detecting
+big-endian UTF-32 with BOM.</p></li>
+</ul>
+</section>
+<section id="id53">
+<h2>2.12.4 (2016-12-14)<a class="headerlink" href="#id53" title="Link to this heading">¶</a></h2>
+<p><strong>Bugfixes</strong></p>
+<ul class="simple">
+<li><p>Fixed regression from 2.12.2 where non-string types were rejected in
+the basic auth parameters. While support for this behaviour has been
+re-added, the behaviour is deprecated and will be removed in the
+future.</p></li>
+</ul>
+</section>
+<section id="id54">
+<h2>2.12.3 (2016-12-01)<a class="headerlink" href="#id54" title="Link to this heading">¶</a></h2>
+<p><strong>Bugfixes</strong></p>
+<ul class="simple">
+<li><p>Fixed regression from v2.12.1 for URLs with schemes that begin with
+“http”. These URLs have historically been processed as though they
+were HTTP-schemed URLs, and so have had parameters added. This was
+removed in v2.12.2 in an overzealous attempt to resolve problems
+with IDNA-encoding those URLs. This change was reverted: the other
+fixes for IDNA-encoding have been judged to be sufficient to return
+to the behaviour Requests had before v2.12.0.</p></li>
+</ul>
+</section>
+<section id="id55">
+<h2>2.12.2 (2016-11-30)<a class="headerlink" href="#id55" title="Link to this heading">¶</a></h2>
+<p><strong>Bugfixes</strong></p>
+<ul class="simple">
+<li><p>Fixed several issues with IDNA-encoding URLs that are technically
+invalid but which are widely accepted. Requests will now attempt to
+IDNA-encode a URL if it can but, if it fails, and the host contains
+only ASCII characters, it will be passed through optimistically.
+This will allow users to opt-in to using IDNA2003 themselves if they
+want to, and will also allow technically invalid but still common
+hostnames.</p></li>
+<li><p>Fixed an issue where URLs with leading whitespace would raise
+<cite>InvalidSchema</cite> errors.</p></li>
+<li><p>Fixed an issue where some URLs without the HTTP or HTTPS schemes
+would still have HTTP URL preparation applied to them.</p></li>
+<li><p>Fixed an issue where Unicode strings could not be used in basic
+auth.</p></li>
+<li><p>Fixed an issue encountered by some Requests plugins where
+constructing a Response object would cause <cite>Response.content</cite> to
+raise an <cite>AttributeError</cite>.</p></li>
+</ul>
+</section>
+<section id="id56">
+<h2>2.12.1 (2016-11-16)<a class="headerlink" href="#id56" title="Link to this heading">¶</a></h2>
+<p><strong>Bugfixes</strong></p>
+<ul class="simple">
+<li><p>Updated setuptools ‘security’ extra for the new PyOpenSSL backend in
+urllib3.</p></li>
+</ul>
+<p><strong>Miscellaneous</strong></p>
+<ul class="simple">
+<li><p>Updated bundled urllib3 to 1.19.1.</p></li>
+</ul>
+</section>
+<section id="id57">
+<h2>2.12.0 (2016-11-15)<a class="headerlink" href="#id57" title="Link to this heading">¶</a></h2>
+<p><strong>Improvements</strong></p>
+<ul class="simple">
+<li><p>Updated support for internationalized domain names from IDNA2003 to
+IDNA2008. This updated support is required for several forms of IDNs
+and is mandatory for .de domains.</p></li>
+<li><p>Much improved heuristics for guessing content lengths: Requests will
+no longer read an entire <cite>StringIO</cite> into memory.</p></li>
+<li><p>Much improved logic for recalculating <cite>Content-Length</cite> headers for
+<cite>PreparedRequest</cite> objects.</p></li>
+<li><p>Improved tolerance for file-like objects that have no <cite>tell</cite> method
+but do have a <cite>seek</cite> method.</p></li>
+<li><p>Anything that is a subclass of <cite>Mapping</cite> is now treated like a
+dictionary by the <cite>data=</cite> keyword argument.</p></li>
+<li><p>Requests now tolerates empty passwords in proxy credentials, rather
+than stripping the credentials.</p></li>
+<li><p>If a request is made with a file-like object as the body and that
+request is redirected with a 307 or 308 status code, Requests will
+now attempt to rewind the body object so it can be replayed.</p></li>
+</ul>
+<p><strong>Bugfixes</strong></p>
+<ul class="simple">
+<li><p>When calling <cite>response.close</cite>, the call to <cite>close</cite> will be
+propagated through to non-urllib3 backends.</p></li>
+<li><p>Fixed issue where the <cite>ALL_PROXY</cite> environment variable would be
+preferred over scheme-specific variables like <cite>HTTP_PROXY</cite>.</p></li>
+<li><p>Fixed issue where non-UTF8 reason phrases got severely mangled by
+falling back to decoding using ISO 8859-1 instead.</p></li>
+<li><p>Fixed a bug where Requests would not correctly correlate cookies set
+when using custom Host headers if those Host headers did not use the
+native string type for the platform.</p></li>
+</ul>
+<p><strong>Miscellaneous</strong></p>
+<ul class="simple">
+<li><p>Updated bundled urllib3 to 1.19.</p></li>
+<li><p>Updated bundled certifi certs to 2016.09.26.</p></li>
+</ul>
+</section>
+<section id="id58">
+<h2>2.11.1 (2016-08-17)<a class="headerlink" href="#id58" title="Link to this heading">¶</a></h2>
+<p><strong>Bugfixes</strong></p>
+<ul class="simple">
+<li><p>Fixed a bug when using <cite>iter_content</cite> with <cite>decode_unicode=True</cite> for
+streamed bodies would raise <cite>AttributeError</cite>. This bug was
+introduced in 2.11.</p></li>
+<li><p>Strip Content-Type and Transfer-Encoding headers from the header
+block when following a redirect that transforms the verb from
+POST/PUT to GET.</p></li>
+</ul>
+</section>
+<section id="id59">
+<h2>2.11.0 (2016-08-08)<a class="headerlink" href="#id59" title="Link to this heading">¶</a></h2>
+<p><strong>Improvements</strong></p>
+<ul class="simple">
+<li><p>Added support for the <cite>ALL_PROXY</cite> environment variable.</p></li>
+<li><p>Reject header values that contain leading whitespace or newline
+characters to reduce risk of header smuggling.</p></li>
+</ul>
+<p><strong>Bugfixes</strong></p>
+<ul class="simple">
+<li><p>Fixed occasional <cite>TypeError</cite> when attempting to decode a JSON
+response that occurred in an error case. Now correctly returns a
+<cite>ValueError</cite>.</p></li>
+<li><p>Requests would incorrectly ignore a non-CIDR IP address in the
+<cite>NO_PROXY</cite> environment variables: Requests now treats it as a
+specific IP.</p></li>
+<li><p>Fixed a bug when sending JSON data that could cause us to encounter
+obscure OpenSSL errors in certain network conditions (yes, really).</p></li>
+<li><p>Added type checks to ensure that <cite>iter_content</cite> only accepts
+integers and <cite>None</cite> for chunk sizes.</p></li>
+<li><p>Fixed issue where responses whose body had not been fully consumed
+would have the underlying connection closed but not returned to the
+connection pool, which could cause Requests to hang in situations
+where the <cite>HTTPAdapter</cite> had been configured to use a blocking
+connection pool.</p></li>
+</ul>
+<p><strong>Miscellaneous</strong></p>
+<ul class="simple">
+<li><p>Updated bundled urllib3 to 1.16.</p></li>
+<li><p>Some previous releases accidentally accepted non-strings as
+acceptable header values. This release does not.</p></li>
+</ul>
+</section>
+<section id="id60">
+<h2>2.10.0 (2016-04-29)<a class="headerlink" href="#id60" title="Link to this heading">¶</a></h2>
+<p><strong>New Features</strong></p>
+<ul class="simple">
+<li><p>SOCKS Proxy Support! (requires PySocks;
+<cite>$ pip install requests[socks]</cite>)</p></li>
+</ul>
+<p><strong>Miscellaneous</strong></p>
+<ul class="simple">
+<li><p>Updated bundled urllib3 to 1.15.1.</p></li>
+</ul>
+</section>
+<section id="id61">
+<h2>2.9.2 (2016-04-29)<a class="headerlink" href="#id61" title="Link to this heading">¶</a></h2>
+<p><strong>Improvements</strong></p>
+<ul class="simple">
+<li><p>Change built-in CaseInsensitiveDict (used for headers) to use
+OrderedDict as its underlying datastore.</p></li>
+</ul>
+<p><strong>Bugfixes</strong></p>
+<ul class="simple">
+<li><p>Don’t use redirect_cache if allow_redirects=False</p></li>
+<li><p>When passed objects that throw exceptions from <cite>tell()</cite>, send them
+via chunked transfer encoding instead of failing.</p></li>
+<li><p>Raise a ProxyError for proxy related connection issues.</p></li>
+</ul>
+</section>
+<section id="id62">
+<h2>2.9.1 (2015-12-21)<a class="headerlink" href="#id62" title="Link to this heading">¶</a></h2>
+<p><strong>Bugfixes</strong></p>
+<ul class="simple">
+<li><p>Resolve regression introduced in 2.9.0 that made it impossible to
+send binary strings as bodies in Python 3.</p></li>
+<li><p>Fixed errors when calculating cookie expiration dates in certain
+locales.</p></li>
+</ul>
+<p><strong>Miscellaneous</strong></p>
+<ul class="simple">
+<li><p>Updated bundled urllib3 to 1.13.1.</p></li>
+</ul>
+</section>
+<section id="id63">
+<h2>2.9.0 (2015-12-15)<a class="headerlink" href="#id63" title="Link to this heading">¶</a></h2>
+<p><strong>Minor Improvements</strong> (Backwards compatible)</p>
+<ul class="simple">
+<li><p>The <cite>verify</cite> keyword argument now supports being passed a path to a
+directory of CA certificates, not just a single-file bundle.</p></li>
+<li><p>Warnings are now emitted when sending files opened in text mode.</p></li>
+<li><p>Added the 511 Network Authentication Required status code to the
+status code registry.</p></li>
+</ul>
+<p><strong>Bugfixes</strong></p>
+<ul class="simple">
+<li><p>For file-like objects that are not sought to the very beginning, we
+now send the content length for the number of bytes we will actually
+read, rather than the total size of the file, allowing partial file
+uploads.</p></li>
+<li><p>When uploading file-like objects, if they are empty or have no
+obvious content length we set <cite>Transfer-Encoding: chunked</cite> rather
+than <cite>Content-Length: 0</cite>.</p></li>
+<li><p>We correctly receive the response in buffered mode when uploading
+chunked bodies.</p></li>
+<li><p>We now handle being passed a query string as a bytestring on Python
+3, by decoding it as UTF-8.</p></li>
+<li><p>Sessions are now closed in all cases (exceptional and not) when
+using the functional API rather than leaking and waiting for the
+garbage collector to clean them up.</p></li>
+<li><p>Correctly handle digest auth headers with a malformed <cite>qop</cite>
+directive that contains no token, by treating it the same as if no
+<cite>qop</cite> directive was provided at all.</p></li>
+<li><p>Minor performance improvements when removing specific cookies by
+name.</p></li>
+</ul>
+<p><strong>Miscellaneous</strong></p>
+<ul class="simple">
+<li><p>Updated urllib3 to 1.13.</p></li>
+</ul>
+</section>
+<section id="id64">
+<h2>2.8.1 (2015-10-13)<a class="headerlink" href="#id64" title="Link to this heading">¶</a></h2>
+<p><strong>Bugfixes</strong></p>
+<ul class="simple">
+<li><p>Update certificate bundle to match <cite>certifi</cite> 2015.9.6.2’s weak
+certificate bundle.</p></li>
+<li><p>Fix a bug in 2.8.0 where requests would raise <cite>ConnectTimeout</cite>
+instead of <cite>ConnectionError</cite></p></li>
+<li><p>When using the PreparedRequest flow, requests will now correctly
+respect the <cite>json</cite> parameter. Broken in 2.8.0.</p></li>
+<li><p>When using the PreparedRequest flow, requests will now correctly
+handle a Unicode-string method name on Python 2. Broken in 2.8.0.</p></li>
+</ul>
+</section>
+<section id="id65">
+<h2>2.8.0 (2015-10-05)<a class="headerlink" href="#id65" title="Link to this heading">¶</a></h2>
+<p><strong>Minor Improvements</strong> (Backwards Compatible)</p>
+<ul class="simple">
+<li><p>Requests now supports per-host proxies. This allows the <cite>proxies</cite>
+dictionary to have entries of the form
+<cite>{‘&lt;scheme&gt;://&lt;hostname&gt;’: ‘&lt;proxy&gt;’}</cite>. Host-specific proxies will
+be used in preference to the previously-supported scheme-specific
+ones, but the previous syntax will continue to work.</p></li>
+<li><p><cite>Response.raise_for_status</cite> now prints the URL that failed as part
+of the exception message.</p></li>
+<li><p><cite>requests.utils.get_netrc_auth</cite> now takes an <cite>raise_errors</cite> kwarg,
+defaulting to <cite>False</cite>. When <cite>True</cite>, errors parsing <cite>.netrc</cite> files
+cause exceptions to be thrown.</p></li>
+<li><p>Change to bundled projects import logic to make it easier to
+unbundle requests downstream.</p></li>
+<li><p>Changed the default User-Agent string to avoid leaking data on
+Linux: now contains only the requests version.</p></li>
+</ul>
+<p><strong>Bugfixes</strong></p>
+<ul class="simple">
+<li><p>The <cite>json</cite> parameter to <cite>post()</cite> and friends will now only be used
+if neither <cite>data</cite> nor <cite>files</cite> are present, consistent with the
+documentation.</p></li>
+<li><p>We now ignore empty fields in the <cite>NO_PROXY</cite> environment variable.</p></li>
+<li><p>Fixed problem where <cite>httplib.BadStatusLine</cite> would get raised if
+combining <cite>stream=True</cite> with <cite>contextlib.closing</cite>.</p></li>
+<li><p>Prevented bugs where we would attempt to return the same connection
+back to the connection pool twice when sending a Chunked body.</p></li>
+<li><p>Miscellaneous minor internal changes.</p></li>
+<li><p>Digest Auth support is now thread safe.</p></li>
+</ul>
+<p><strong>Updates</strong></p>
+<ul class="simple">
+<li><p>Updated urllib3 to 1.12.</p></li>
+</ul>
+</section>
+<section id="id66">
+<h2>2.7.0 (2015-05-03)<a class="headerlink" href="#id66" title="Link to this heading">¶</a></h2>
+<p>This is the first release that follows our new release process. For
+more, see [our
+documentation](<a class="reference external" href="https://requests.readthedocs.io/en/latest/community/release-process/">https://requests.readthedocs.io/en/latest/community/release-process/</a>).</p>
+<p><strong>Bugfixes</strong></p>
+<ul class="simple">
+<li><p>Updated urllib3 to 1.10.4, resolving several bugs involving chunked
+transfer encoding and response framing.</p></li>
+</ul>
+</section>
+<section id="id67">
+<h2>2.6.2 (2015-04-23)<a class="headerlink" href="#id67" title="Link to this heading">¶</a></h2>
+<p><strong>Bugfixes</strong></p>
+<ul class="simple">
+<li><p>Fix regression where compressed data that was sent as chunked data
+was not properly decompressed. (#2561)</p></li>
+</ul>
+</section>
+<section id="id68">
+<h2>2.6.1 (2015-04-22)<a class="headerlink" href="#id68" title="Link to this heading">¶</a></h2>
+<p><strong>Bugfixes</strong></p>
+<ul class="simple">
+<li><p>Remove VendorAlias import machinery introduced in v2.5.2.</p></li>
+<li><p>Simplify the PreparedRequest.prepare API: We no longer require the
+user to pass an empty list to the hooks keyword argument. (c.f.
+#2552)</p></li>
+<li><p>Resolve redirects now receives and forwards all of the original
+arguments to the adapter. (#2503)</p></li>
+<li><p>Handle UnicodeDecodeErrors when trying to deal with a unicode URL
+that cannot be encoded in ASCII. (#2540)</p></li>
+<li><p>Populate the parsed path of the URI field when performing Digest
+Authentication. (#2426)</p></li>
+<li><p>Copy a PreparedRequest’s CookieJar more reliably when it is not an
+instance of RequestsCookieJar. (#2527)</p></li>
+</ul>
+</section>
+<section id="id69">
+<h2>2.6.0 (2015-03-14)<a class="headerlink" href="#id69" title="Link to this heading">¶</a></h2>
+<p><strong>Bugfixes</strong></p>
+<ul class="simple">
+<li><p>CVE-2015-2296: Fix handling of cookies on redirect. Previously a
+cookie without a host value set would use the hostname for the
+redirected URL exposing requests users to session fixation attacks
+and potentially cookie stealing. This was disclosed privately by
+Matthew Daley of [BugFuzz](<a class="reference external" href="https://bugfuzz.com">https://bugfuzz.com</a>). This affects all
+versions of requests from v2.1.0 to v2.5.3 (inclusive on both ends).</p></li>
+<li><p>Fix error when requests is an <cite>install_requires</cite> dependency and
+<cite>python setup.py test</cite> is run. (#2462)</p></li>
+<li><p>Fix error when urllib3 is unbundled and requests continues to use
+the vendored import location.</p></li>
+<li><p>Include fixes to <cite>urllib3</cite>’s header handling.</p></li>
+<li><p>Requests’ handling of unvendored dependencies is now more
+restrictive.</p></li>
+</ul>
+<p><strong>Features and Improvements</strong></p>
+<ul class="simple">
+<li><p>Support bytearrays when passed as parameters in the <cite>files</cite>
+argument. (#2468)</p></li>
+<li><p>Avoid data duplication when creating a request with <cite>str</cite>, <cite>bytes</cite>,
+or <cite>bytearray</cite> input to the <cite>files</cite> argument.</p></li>
+</ul>
+</section>
+<section id="id70">
+<h2>2.5.3 (2015-02-24)<a class="headerlink" href="#id70" title="Link to this heading">¶</a></h2>
+<p><strong>Bugfixes</strong></p>
+<ul class="simple">
+<li><p>Revert changes to our vendored certificate bundle. For more context
+see (#2455, #2456, and &lt;<a class="reference external" href="https://bugs.python.org/issue23476">https://bugs.python.org/issue23476</a>&gt;)</p></li>
+</ul>
+</section>
+<section id="id71">
+<h2>2.5.2 (2015-02-23)<a class="headerlink" href="#id71" title="Link to this heading">¶</a></h2>
+<p><strong>Features and Improvements</strong></p>
+<ul class="simple">
+<li><p>Add sha256 fingerprint support.
+([shazow/urllib3#540](<a class="reference external" href="https://github.com/shazow/urllib3/pull/540">https://github.com/shazow/urllib3/pull/540</a>))</p></li>
+<li><p>Improve the performance of headers.
+([shazow/urllib3#544](<a class="reference external" href="https://github.com/shazow/urllib3/pull/544">https://github.com/shazow/urllib3/pull/544</a>))</p></li>
+</ul>
+<p><strong>Bugfixes</strong></p>
+<ul class="simple">
+<li><p>Copy pip’s import machinery. When downstream redistributors remove
+requests.packages.urllib3 the import machinery will continue to let
+those same symbols work. Example usage in requests’ documentation
+and 3rd-party libraries relying on the vendored copies of urllib3
+will work without having to fallback to the system urllib3.</p></li>
+<li><p>Attempt to quote parts of the URL on redirect if unquoting and then
+quoting fails. (#2356)</p></li>
+<li><p>Fix filename type check for multipart form-data uploads. (#2411)</p></li>
+<li><p>Properly handle the case where a server issuing digest
+authentication challenges provides both auth and auth-int
+qop-values. (#2408)</p></li>
+<li><p>Fix a socket leak.
+([shazow/urllib3#549](<a class="reference external" href="https://github.com/shazow/urllib3/pull/549">https://github.com/shazow/urllib3/pull/549</a>))</p></li>
+<li><p>Fix multiple <cite>Set-Cookie</cite> headers properly.
+([shazow/urllib3#534](<a class="reference external" href="https://github.com/shazow/urllib3/pull/534">https://github.com/shazow/urllib3/pull/534</a>))</p></li>
+<li><p>Disable the built-in hostname verification.
+([shazow/urllib3#526](<a class="reference external" href="https://github.com/shazow/urllib3/pull/526">https://github.com/shazow/urllib3/pull/526</a>))</p></li>
+<li><p>Fix the behaviour of decoding an exhausted stream.
+([shazow/urllib3#535](<a class="reference external" href="https://github.com/shazow/urllib3/pull/535">https://github.com/shazow/urllib3/pull/535</a>))</p></li>
+</ul>
+<p><strong>Security</strong></p>
+<ul class="simple">
+<li><p>Pulled in an updated <cite>cacert.pem</cite>.</p></li>
+<li><p>Drop RC4 from the default cipher list.
+([shazow/urllib3#551](<a class="reference external" href="https://github.com/shazow/urllib3/pull/551">https://github.com/shazow/urllib3/pull/551</a>))</p></li>
+</ul>
+</section>
+<section id="id72">
+<h2>2.5.1 (2014-12-23)<a class="headerlink" href="#id72" title="Link to this heading">¶</a></h2>
+<p><strong>Behavioural Changes</strong></p>
+<ul class="simple">
+<li><p>Only catch HTTPErrors in raise_for_status (#2382)</p></li>
+</ul>
+<p><strong>Bugfixes</strong></p>
+<ul class="simple">
+<li><p>Handle LocationParseError from urllib3 (#2344)</p></li>
+<li><p>Handle file-like object filenames that are not strings (#2379)</p></li>
+<li><p>Unbreak HTTPDigestAuth handler. Allow new nonces to be negotiated
+(#2389)</p></li>
+</ul>
+</section>
+<section id="id73">
+<h2>2.5.0 (2014-12-01)<a class="headerlink" href="#id73" title="Link to this heading">¶</a></h2>
+<p><strong>Improvements</strong></p>
+<ul class="simple">
+<li><p>Allow usage of urllib3’s Retry object with HTTPAdapters (#2216)</p></li>
+<li><p>The <cite>iter_lines</cite> method on a response now accepts a delimiter with
+which to split the content (#2295)</p></li>
+</ul>
+<p><strong>Behavioural Changes</strong></p>
+<ul class="simple">
+<li><p>Add deprecation warnings to functions in requests.utils that will be
+removed in 3.0 (#2309)</p></li>
+<li><p>Sessions used by the functional API are always closed (#2326)</p></li>
+<li><p>Restrict requests to HTTP/1.1 and HTTP/1.0 (stop accepting HTTP/0.9)
+(#2323)</p></li>
+</ul>
+<p><strong>Bugfixes</strong></p>
+<ul class="simple">
+<li><p>Only parse the URL once (#2353)</p></li>
+<li><p>Allow Content-Length header to always be overridden (#2332)</p></li>
+<li><p>Properly handle files in HTTPDigestAuth (#2333)</p></li>
+<li><p>Cap redirect_cache size to prevent memory abuse (#2299)</p></li>
+<li><p>Fix HTTPDigestAuth handling of redirects after authenticating
+successfully (#2253)</p></li>
+<li><p>Fix crash with custom method parameter to Session.request (#2317)</p></li>
+<li><p>Fix how Link headers are parsed using the regular expression library
+(#2271)</p></li>
+</ul>
+<p><strong>Documentation</strong></p>
+<ul class="simple">
+<li><p>Add more references for interlinking (#2348)</p></li>
+<li><p>Update CSS for theme (#2290)</p></li>
+<li><p>Update width of buttons and sidebar (#2289)</p></li>
+<li><p>Replace references of Gittip with Gratipay (#2282)</p></li>
+<li><p>Add link to changelog in sidebar (#2273)</p></li>
+</ul>
+</section>
+<section id="id74">
+<h2>2.4.3 (2014-10-06)<a class="headerlink" href="#id74" title="Link to this heading">¶</a></h2>
+<p><strong>Bugfixes</strong></p>
+<ul class="simple">
+<li><p>Unicode URL improvements for Python 2.</p></li>
+<li><p>Re-order JSON param for backwards compat.</p></li>
+<li><p>Automatically defrag authentication schemes from host/pass URIs.
+([#2249](<a class="reference external" href="https://github.com/psf/requests/issues/2249">https://github.com/psf/requests/issues/2249</a>))</p></li>
+</ul>
+</section>
+<section id="id75">
+<h2>2.4.2 (2014-10-05)<a class="headerlink" href="#id75" title="Link to this heading">¶</a></h2>
+<p><strong>Improvements</strong></p>
+<ul class="simple">
+<li><p>FINALLY! Add json parameter for uploads!
+([#2258](<a class="reference external" href="https://github.com/psf/requests/pull/2258">https://github.com/psf/requests/pull/2258</a>))</p></li>
+<li><p>Support for bytestring URLs on Python 3.x
+([#2238](<a class="reference external" href="https://github.com/psf/requests/pull/2238">https://github.com/psf/requests/pull/2238</a>))</p></li>
+</ul>
+<p><strong>Bugfixes</strong></p>
+<ul class="simple">
+<li><p>Avoid getting stuck in a loop
+([#2244](<a class="reference external" href="https://github.com/psf/requests/pull/2244">https://github.com/psf/requests/pull/2244</a>))</p></li>
+<li><p>Multiple calls to iter* fail with unhelpful error.
+([#2240](<a class="reference external" href="https://github.com/psf/requests/issues/2240">https://github.com/psf/requests/issues/2240</a>),
+[#2241](<a class="reference external" href="https://github.com/psf/requests/issues/2241">https://github.com/psf/requests/issues/2241</a>))</p></li>
+</ul>
+<p><strong>Documentation</strong></p>
+<ul class="simple">
+<li><p>Correct redirection introduction
+([#2245](<a class="reference external" href="https://github.com/psf/requests/pull/2245/">https://github.com/psf/requests/pull/2245/</a>))</p></li>
+<li><p>Added example of how to send multiple files in one request.
+([#2227](<a class="reference external" href="https://github.com/psf/requests/pull/2227/">https://github.com/psf/requests/pull/2227/</a>))</p></li>
+<li><p>Clarify how to pass a custom set of CAs
+([#2248](<a class="reference external" href="https://github.com/psf/requests/pull/2248/">https://github.com/psf/requests/pull/2248/</a>))</p></li>
+</ul>
+</section>
+<section id="id76">
+<h2>2.4.1 (2014-09-09)<a class="headerlink" href="#id76" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Now has a “security” package extras set,
+<cite>$ pip install requests[security]</cite></p></li>
+<li><p>Requests will now use Certifi if it is available.</p></li>
+<li><p>Capture and re-raise urllib3 ProtocolError</p></li>
+<li><p>Bugfix for responses that attempt to redirect to themselves forever
+(wtf?).</p></li>
+</ul>
+</section>
+<section id="id77">
+<h2>2.4.0 (2014-08-29)<a class="headerlink" href="#id77" title="Link to this heading">¶</a></h2>
+<p><strong>Behavioral Changes</strong></p>
+<ul class="simple">
+<li><p><cite>Connection: keep-alive</cite> header is now sent automatically.</p></li>
+</ul>
+<p><strong>Improvements</strong></p>
+<ul class="simple">
+<li><p>Support for connect timeouts! Timeout now accepts a tuple (connect,
+read) which is used to set individual connect and read timeouts.</p></li>
+<li><p>Allow copying of PreparedRequests without headers/cookies.</p></li>
+<li><p>Updated bundled urllib3 version.</p></li>
+<li><p>Refactored settings loading from environment – new
+Session.merge_environment_settings.</p></li>
+<li><p>Handle socket errors in iter_content.</p></li>
+</ul>
+</section>
+<section id="id78">
+<h2>2.3.0 (2014-05-16)<a class="headerlink" href="#id78" title="Link to this heading">¶</a></h2>
+<p><strong>API Changes</strong></p>
+<ul class="simple">
+<li><p>New <cite>Response</cite> property <cite>is_redirect</cite>, which is true when the
+library could have processed this response as a redirection (whether
+or not it actually did).</p></li>
+<li><p>The <cite>timeout</cite> parameter now affects requests with both <cite>stream=True</cite>
+and <cite>stream=False</cite> equally.</p></li>
+<li><p>The change in v2.0.0 to mandate explicit proxy schemes has been
+reverted. Proxy schemes now default to <cite>http://</cite>.</p></li>
+<li><p>The <cite>CaseInsensitiveDict</cite> used for HTTP headers now behaves like a
+normal dictionary when references as string or viewed in the
+interpreter.</p></li>
+</ul>
+<p><strong>Bugfixes</strong></p>
+<ul class="simple">
+<li><p>No longer expose Authorization or Proxy-Authorization headers on
+redirect. Fix CVE-2014-1829 and CVE-2014-1830 respectively.</p></li>
+<li><p>Authorization is re-evaluated each redirect.</p></li>
+<li><p>On redirect, pass url as native strings.</p></li>
+<li><p>Fall-back to autodetected encoding for JSON when Unicode detection
+fails.</p></li>
+<li><p>Headers set to <cite>None</cite> on the <cite>Session</cite> are now correctly not sent.</p></li>
+<li><p>Correctly honor <cite>decode_unicode</cite> even if it wasn’t used earlier in
+the same response.</p></li>
+<li><p>Stop advertising <cite>compress</cite> as a supported Content-Encoding.</p></li>
+<li><p>The <cite>Response.history</cite> parameter is now always a list.</p></li>
+<li><p>Many, many <cite>urllib3</cite> bugfixes.</p></li>
+</ul>
+</section>
+<section id="id79">
+<h2>2.2.1 (2014-01-23)<a class="headerlink" href="#id79" title="Link to this heading">¶</a></h2>
+<p><strong>Bugfixes</strong></p>
+<ul class="simple">
+<li><p>Fixes incorrect parsing of proxy credentials that contain a literal
+or encoded ‘#’ character.</p></li>
+<li><p>Assorted urllib3 fixes.</p></li>
+</ul>
+</section>
+<section id="id80">
+<h2>2.2.0 (2014-01-09)<a class="headerlink" href="#id80" title="Link to this heading">¶</a></h2>
+<p><strong>API Changes</strong></p>
+<ul class="simple">
+<li><p>New exception: <cite>ContentDecodingError</cite>. Raised instead of <cite>urllib3</cite>
+<cite>DecodeError</cite> exceptions.</p></li>
+</ul>
+<p><strong>Bugfixes</strong></p>
+<ul class="simple">
+<li><p>Avoid many many exceptions from the buggy implementation of
+<cite>proxy_bypass</cite> on OS X in Python 2.6.</p></li>
+<li><p>Avoid crashing when attempting to get authentication credentials
+from ~/.netrc when running as a user without a home directory.</p></li>
+<li><p>Use the correct pool size for pools of connections to proxies.</p></li>
+<li><p>Fix iteration of <cite>CookieJar</cite> objects.</p></li>
+<li><p>Ensure that cookies are persisted over redirect.</p></li>
+<li><p>Switch back to using chardet, since it has merged with charade.</p></li>
+</ul>
+</section>
+<section id="id81">
+<h2>2.1.0 (2013-12-05)<a class="headerlink" href="#id81" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Updated CA Bundle, of course.</p></li>
+<li><p>Cookies set on individual Requests through a <cite>Session</cite> (e.g. via
+<cite>Session.get()</cite>) are no longer persisted to the <cite>Session</cite>.</p></li>
+<li><p>Clean up connections when we hit problems during chunked upload,
+rather than leaking them.</p></li>
+<li><p>Return connections to the pool when a chunked upload is successful,
+rather than leaking it.</p></li>
+<li><p>Match the HTTPbis recommendation for HTTP 301 redirects.</p></li>
+<li><p>Prevent hanging when using streaming uploads and Digest Auth when a
+401 is received.</p></li>
+<li><p>Values of headers set by Requests are now always the native string
+type.</p></li>
+<li><p>Fix previously broken SNI support.</p></li>
+<li><p>Fix accessing HTTP proxies using proxy authentication.</p></li>
+<li><p>Unencode HTTP Basic usernames and passwords extracted from URLs.</p></li>
+<li><p>Support for IP address ranges for no_proxy environment variable</p></li>
+<li><p>Parse headers correctly when users override the default <cite>Host:</cite>
+header.</p></li>
+<li><p>Avoid munging the URL in case of case-sensitive servers.</p></li>
+<li><p>Looser URL handling for non-HTTP/HTTPS urls.</p></li>
+<li><p>Accept unicode methods in Python 2.6 and 2.7.</p></li>
+<li><p>More resilient cookie handling.</p></li>
+<li><p>Make <cite>Response</cite> objects pickleable.</p></li>
+<li><p>Actually added MD5-sess to Digest Auth instead of pretending to like
+last time.</p></li>
+<li><p>Updated internal urllib3.</p></li>
+<li><p>Fixed &#64;Lukasa’s lack of taste.</p></li>
+</ul>
+</section>
+<section id="id82">
+<h2>2.0.1 (2013-10-24)<a class="headerlink" href="#id82" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Updated included CA Bundle with new mistrusts and automated process
+for the future</p></li>
+<li><p>Added MD5-sess to Digest Auth</p></li>
+<li><p>Accept per-file headers in multipart file POST messages.</p></li>
+<li><p>Fixed: Don’t send the full URL on CONNECT messages.</p></li>
+<li><p>Fixed: Correctly lowercase a redirect scheme.</p></li>
+<li><p>Fixed: Cookies not persisted when set via functional API.</p></li>
+<li><p>Fixed: Translate urllib3 ProxyError into a requests ProxyError
+derived from ConnectionError.</p></li>
+<li><p>Updated internal urllib3 and chardet.</p></li>
+</ul>
+</section>
+<section id="id83">
+<h2>2.0.0 (2013-09-24)<a class="headerlink" href="#id83" title="Link to this heading">¶</a></h2>
+<p><strong>API Changes:</strong></p>
+<ul class="simple">
+<li><p>Keys in the Headers dictionary are now native strings on all Python
+versions, i.e. bytestrings on Python 2, unicode on Python 3.</p></li>
+<li><p>Proxy URLs now <em>must</em> have an explicit scheme. A <cite>MissingSchema</cite>
+exception will be raised if they don’t.</p></li>
+<li><p>Timeouts now apply to read time if <cite>Stream=False</cite>.</p></li>
+<li><p><cite>RequestException</cite> is now a subclass of <cite>IOError</cite>, not
+<cite>RuntimeError</cite>.</p></li>
+<li><p>Added new method to <cite>PreparedRequest</cite> objects:
+<cite>PreparedRequest.copy()</cite>.</p></li>
+<li><p>Added new method to <cite>Session</cite> objects: <cite>Session.update_request()</cite>.
+This method updates a <cite>Request</cite> object with the data (e.g. cookies)
+stored on the <cite>Session</cite>.</p></li>
+<li><p>Added new method to <cite>Session</cite> objects: <cite>Session.prepare_request()</cite>.
+This method updates and prepares a <cite>Request</cite> object, and returns the
+corresponding <cite>PreparedRequest</cite> object.</p></li>
+<li><p>Added new method to <cite>HTTPAdapter</cite> objects:
+<cite>HTTPAdapter.proxy_headers()</cite>. This should not be called directly,
+but improves the subclass interface.</p></li>
+<li><p><cite>httplib.IncompleteRead</cite> exceptions caused by incorrect chunked
+encoding will now raise a Requests <cite>ChunkedEncodingError</cite> instead.</p></li>
+<li><p>Invalid percent-escape sequences now cause a Requests <cite>InvalidURL</cite>
+exception to be raised.</p></li>
+<li><p>HTTP 208 no longer uses reason phrase <cite>“im_used”</cite>. Correctly uses
+<cite>“already_reported”</cite>.</p></li>
+<li><p>HTTP 226 reason added (<cite>“im_used”</cite>).</p></li>
+</ul>
+<p><strong>Bugfixes:</strong></p>
+<ul class="simple">
+<li><p>Vastly improved proxy support, including the CONNECT verb. Special
+thanks to the many contributors who worked towards this improvement.</p></li>
+<li><p>Cookies are now properly managed when 401 authentication responses
+are received.</p></li>
+<li><p>Chunked encoding fixes.</p></li>
+<li><p>Support for mixed case schemes.</p></li>
+<li><p>Better handling of streaming downloads.</p></li>
+<li><p>Retrieve environment proxies from more locations.</p></li>
+<li><p>Minor cookies fixes.</p></li>
+<li><p>Improved redirect behaviour.</p></li>
+<li><p>Improved streaming behaviour, particularly for compressed data.</p></li>
+<li><p>Miscellaneous small Python 3 text encoding bugs.</p></li>
+<li><p><cite>.netrc</cite> no longer overrides explicit auth.</p></li>
+<li><p>Cookies set by hooks are now correctly persisted on Sessions.</p></li>
+<li><p>Fix problem with cookies that specify port numbers in their host
+field.</p></li>
+<li><p><cite>BytesIO</cite> can be used to perform streaming uploads.</p></li>
+<li><p>More generous parsing of the <cite>no_proxy</cite> environment variable.</p></li>
+<li><p>Non-string objects can be passed in data values alongside files.</p></li>
+</ul>
+</section>
+<section id="id84">
+<h2>1.2.3 (2013-05-25)<a class="headerlink" href="#id84" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Simple packaging fix</p></li>
+</ul>
+</section>
+<section id="id85">
+<h2>1.2.2 (2013-05-23)<a class="headerlink" href="#id85" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Simple packaging fix</p></li>
+</ul>
+</section>
+<section id="id86">
+<h2>1.2.1 (2013-05-20)<a class="headerlink" href="#id86" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>301 and 302 redirects now change the verb to GET for all verbs, not
+just POST, improving browser compatibility.</p></li>
+<li><p>Python 3.3.2 compatibility</p></li>
+<li><p>Always percent-encode location headers</p></li>
+<li><p>Fix connection adapter matching to be most-specific first</p></li>
+<li><p>new argument to the default connection adapter for passing a block
+argument</p></li>
+<li><p>prevent a KeyError when there’s no link headers</p></li>
+</ul>
+</section>
+<section id="id87">
+<h2>1.2.0 (2013-03-31)<a class="headerlink" href="#id87" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Fixed cookies on sessions and on requests</p></li>
+<li><p>Significantly change how hooks are dispatched - hooks now receive
+all the arguments specified by the user when making a request so
+hooks can make a secondary request with the same parameters. This is
+especially necessary for authentication handler authors</p></li>
+<li><p>certifi support was removed</p></li>
+<li><p>Fixed bug where using OAuth 1 with body <cite>signature_type</cite> sent no
+data</p></li>
+<li><p>Major proxy work thanks to &#64;Lukasa including parsing of proxy
+authentication from the proxy url</p></li>
+<li><p>Fix DigestAuth handling too many 401s</p></li>
+<li><p>Update vendored urllib3 to include SSL bug fixes</p></li>
+<li><p>Allow keyword arguments to be passed to <cite>json.loads()</cite> via the
+<cite>Response.json()</cite> method</p></li>
+<li><p>Don’t send <cite>Content-Length</cite> header by default on <cite>GET</cite> or <cite>HEAD</cite>
+requests</p></li>
+<li><p>Add <cite>elapsed</cite> attribute to <cite>Response</cite> objects to time how long a
+request took.</p></li>
+<li><p>Fix <cite>RequestsCookieJar</cite></p></li>
+<li><p>Sessions and Adapters are now picklable, i.e., can be used with the
+multiprocessing library</p></li>
+<li><p>Update charade to version 1.0.3</p></li>
+</ul>
+<p>The change in how hooks are dispatched will likely cause a great deal of
+issues.</p>
+</section>
+<section id="id88">
+<h2>1.1.0 (2013-01-10)<a class="headerlink" href="#id88" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>CHUNKED REQUESTS</p></li>
+<li><p>Support for iterable response bodies</p></li>
+<li><p>Assume servers persist redirect params</p></li>
+<li><p>Allow explicit content types to be specified for file data</p></li>
+<li><p>Make merge_kwargs case-insensitive when looking up keys</p></li>
+</ul>
+</section>
+<section id="id89">
+<h2>1.0.3 (2012-12-18)<a class="headerlink" href="#id89" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Fix file upload encoding bug</p></li>
+<li><p>Fix cookie behavior</p></li>
+</ul>
+</section>
+<section id="id90">
+<h2>1.0.2 (2012-12-17)<a class="headerlink" href="#id90" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Proxy fix for HTTPAdapter.</p></li>
+</ul>
+</section>
+<section id="id91">
+<h2>1.0.1 (2012-12-17)<a class="headerlink" href="#id91" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Cert verification exception bug.</p></li>
+<li><p>Proxy fix for HTTPAdapter.</p></li>
+</ul>
+</section>
+<section id="id92">
+<h2>1.0.0 (2012-12-17)<a class="headerlink" href="#id92" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Massive Refactor and Simplification</p></li>
+<li><p>Switch to Apache 2.0 license</p></li>
+<li><p>Swappable Connection Adapters</p></li>
+<li><p>Mountable Connection Adapters</p></li>
+<li><p>Mutable ProcessedRequest chain</p></li>
+<li><p>/s/prefetch/stream</p></li>
+<li><p>Removal of all configuration</p></li>
+<li><p>Standard library logging</p></li>
+<li><p>Make Response.json() callable, not property.</p></li>
+<li><p>Usage of new charade project, which provides python 2 and 3
+simultaneous chardet.</p></li>
+<li><p>Removal of all hooks except ‘response’</p></li>
+<li><p>Removal of all authentication helpers (OAuth, Kerberos)</p></li>
+</ul>
+<p>This is not a backwards compatible change.</p>
+</section>
+<section id="id93">
+<h2>0.14.2 (2012-10-27)<a class="headerlink" href="#id93" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Improved mime-compatible JSON handling</p></li>
+<li><p>Proxy fixes</p></li>
+<li><p>Path hack fixes</p></li>
+<li><p>Case-Insensitive Content-Encoding headers</p></li>
+<li><p>Support for CJK parameters in form posts</p></li>
+</ul>
+</section>
+<section id="id94">
+<h2>0.14.1 (2012-10-01)<a class="headerlink" href="#id94" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Python 3.3 Compatibility</p></li>
+<li><p>Simply default accept-encoding</p></li>
+<li><p>Bugfixes</p></li>
+</ul>
+</section>
+<section id="id95">
+<h2>0.14.0 (2012-09-02)<a class="headerlink" href="#id95" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>No more iter_content errors if already downloaded.</p></li>
+</ul>
+</section>
+<section id="id96">
+<h2>0.13.9 (2012-08-25)<a class="headerlink" href="#id96" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Fix for OAuth + POSTs</p></li>
+<li><p>Remove exception eating from dispatch_hook</p></li>
+<li><p>General bugfixes</p></li>
+</ul>
+</section>
+<section id="id97">
+<h2>0.13.8 (2012-08-21)<a class="headerlink" href="#id97" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Incredible Link header support :)</p></li>
+</ul>
+</section>
+<section id="id98">
+<h2>0.13.7 (2012-08-19)<a class="headerlink" href="#id98" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Support for (key, value) lists everywhere.</p></li>
+<li><p>Digest Authentication improvements.</p></li>
+<li><p>Ensure proxy exclusions work properly.</p></li>
+<li><p>Clearer UnicodeError exceptions.</p></li>
+<li><p>Automatic casting of URLs to strings (fURL and such)</p></li>
+<li><p>Bugfixes.</p></li>
+</ul>
+</section>
+<section id="id99">
+<h2>0.13.6 (2012-08-06)<a class="headerlink" href="#id99" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Long awaited fix for hanging connections!</p></li>
+</ul>
+</section>
+<section id="id100">
+<h2>0.13.5 (2012-07-27)<a class="headerlink" href="#id100" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Packaging fix</p></li>
+</ul>
+</section>
+<section id="id101">
+<h2>0.13.4 (2012-07-27)<a class="headerlink" href="#id101" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>GSSAPI/Kerberos authentication!</p></li>
+<li><p>App Engine 2.7 Fixes!</p></li>
+<li><p>Fix leaking connections (from urllib3 update)</p></li>
+<li><p>OAuthlib path hack fix</p></li>
+<li><p>OAuthlib URL parameters fix.</p></li>
+</ul>
+</section>
+<section id="id102">
+<h2>0.13.3 (2012-07-12)<a class="headerlink" href="#id102" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Use simplejson if available.</p></li>
+<li><p>Do not hide SSLErrors behind Timeouts.</p></li>
+<li><p>Fixed param handling with urls containing fragments.</p></li>
+<li><p>Significantly improved information in User Agent.</p></li>
+<li><p>client certificates are ignored when verify=False</p></li>
+</ul>
+</section>
+<section id="id103">
+<h2>0.13.2 (2012-06-28)<a class="headerlink" href="#id103" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Zero dependencies (once again)!</p></li>
+<li><p>New: Response.reason</p></li>
+<li><p>Sign querystring parameters in OAuth 1.0</p></li>
+<li><p>Client certificates no longer ignored when verify=False</p></li>
+<li><p>Add openSUSE certificate support</p></li>
+</ul>
+</section>
+<section id="id104">
+<h2>0.13.1 (2012-06-07)<a class="headerlink" href="#id104" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Allow passing a file or file-like object as data.</p></li>
+<li><p>Allow hooks to return responses that indicate errors.</p></li>
+<li><p>Fix Response.text and Response.json for body-less responses.</p></li>
+</ul>
+</section>
+<section id="id105">
+<h2>0.13.0 (2012-05-29)<a class="headerlink" href="#id105" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Removal of Requests.async in favor of
+[grequests](<a class="reference external" href="https://github.com/kennethreitz/grequests">https://github.com/kennethreitz/grequests</a>)</p></li>
+<li><p>Allow disabling of cookie persistence.</p></li>
+<li><p>New implementation of safe_mode</p></li>
+<li><p>cookies.get now supports default argument</p></li>
+<li><p>Session cookies not saved when Session.request is called with
+return_response=False</p></li>
+<li><p>Env: no_proxy support.</p></li>
+<li><p>RequestsCookieJar improvements.</p></li>
+<li><p>Various bug fixes.</p></li>
+</ul>
+</section>
+<section id="id106">
+<h2>0.12.1 (2012-05-08)<a class="headerlink" href="#id106" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>New <cite>Response.json</cite> property.</p></li>
+<li><p>Ability to add string file uploads.</p></li>
+<li><p>Fix out-of-range issue with iter_lines.</p></li>
+<li><p>Fix iter_content default size.</p></li>
+<li><p>Fix POST redirects containing files.</p></li>
+</ul>
+</section>
+<section id="id107">
+<h2>0.12.0 (2012-05-02)<a class="headerlink" href="#id107" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>EXPERIMENTAL OAUTH SUPPORT!</p></li>
+<li><p>Proper CookieJar-backed cookies interface with awesome dict-like
+interface.</p></li>
+<li><p>Speed fix for non-iterated content chunks.</p></li>
+<li><p>Move <cite>pre_request</cite> to a more usable place.</p></li>
+<li><p>New <cite>pre_send</cite> hook.</p></li>
+<li><p>Lazily encode data, params, files.</p></li>
+<li><p>Load system Certificate Bundle if <cite>certify</cite> isn’t available.</p></li>
+<li><p>Cleanups, fixes.</p></li>
+</ul>
+</section>
+<section id="id108">
+<h2>0.11.2 (2012-04-22)<a class="headerlink" href="#id108" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Attempt to use the OS’s certificate bundle if <cite>certifi</cite> isn’t
+available.</p></li>
+<li><p>Infinite digest auth redirect fix.</p></li>
+<li><p>Multi-part file upload improvements.</p></li>
+<li><p>Fix decoding of invalid %encodings in URLs.</p></li>
+<li><p>If there is no content in a response don’t throw an error the second
+time that content is attempted to be read.</p></li>
+<li><p>Upload data on redirects.</p></li>
+</ul>
+</section>
+<section id="id109">
+<h2>0.11.1 (2012-03-30)<a class="headerlink" href="#id109" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>POST redirects now break RFC to do what browsers do: Follow up with
+a GET.</p></li>
+<li><p>New <cite>strict_mode</cite> configuration to disable new redirect behavior.</p></li>
+</ul>
+</section>
+<section id="id110">
+<h2>0.11.0 (2012-03-14)<a class="headerlink" href="#id110" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Private SSL Certificate support</p></li>
+<li><p>Remove select.poll from Gevent monkeypatching</p></li>
+<li><p>Remove redundant generator for chunked transfer encoding</p></li>
+<li><p>Fix: Response.ok raises Timeout Exception in safe_mode</p></li>
+</ul>
+</section>
+<section id="id111">
+<h2>0.10.8 (2012-03-09)<a class="headerlink" href="#id111" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Generate chunked ValueError fix</p></li>
+<li><p>Proxy configuration by environment variables</p></li>
+<li><p>Simplification of iter_lines.</p></li>
+<li><p>New trust_env configuration for disabling system/environment hints.</p></li>
+<li><p>Suppress cookie errors.</p></li>
+</ul>
+</section>
+<section id="id112">
+<h2>0.10.7 (2012-03-07)<a class="headerlink" href="#id112" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>encode_uri = False</p></li>
+</ul>
+</section>
+<section id="id113">
+<h2>0.10.6 (2012-02-25)<a class="headerlink" href="#id113" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Allow ‘=’ in cookies.</p></li>
+</ul>
+</section>
+<section id="id114">
+<h2>0.10.5 (2012-02-25)<a class="headerlink" href="#id114" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Response body with 0 content-length fix.</p></li>
+<li><p>New async.imap.</p></li>
+<li><p>Don’t fail on netrc.</p></li>
+</ul>
+</section>
+<section id="id115">
+<h2>0.10.4 (2012-02-20)<a class="headerlink" href="#id115" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Honor netrc.</p></li>
+</ul>
+</section>
+<section id="id116">
+<h2>0.10.3 (2012-02-20)<a class="headerlink" href="#id116" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>HEAD requests don’t follow redirects anymore.</p></li>
+<li><p>raise_for_status() doesn’t raise for 3xx anymore.</p></li>
+<li><p>Make Session objects picklable.</p></li>
+<li><p>ValueError for invalid schema URLs.</p></li>
+</ul>
+</section>
+<section id="id117">
+<h2>0.10.2 (2012-01-15)<a class="headerlink" href="#id117" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Vastly improved URL quoting.</p></li>
+<li><p>Additional allowed cookie key values.</p></li>
+<li><p>Attempted fix for “Too many open files” Error</p></li>
+<li><p>Replace unicode errors on first pass, no need for second pass.</p></li>
+<li><p>Append ‘/’ to bare-domain urls before query insertion.</p></li>
+<li><p>Exceptions now inherit from RuntimeError.</p></li>
+<li><p>Binary uploads + auth fix.</p></li>
+<li><p>Bugfixes.</p></li>
+</ul>
+</section>
+<section id="id118">
+<h2>0.10.1 (2012-01-23)<a class="headerlink" href="#id118" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>PYTHON 3 SUPPORT!</p></li>
+<li><p>Dropped 2.5 Support. (<em>Backwards Incompatible</em>)</p></li>
+</ul>
+</section>
+<section id="id119">
+<h2>0.10.0 (2012-01-21)<a class="headerlink" href="#id119" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><cite>Response.content</cite> is now bytes-only. (<em>Backwards Incompatible</em>)</p></li>
+<li><p>New <cite>Response.text</cite> is unicode-only.</p></li>
+<li><p>If no <cite>Response.encoding</cite> is specified and <cite>chardet</cite> is available,
+<cite>Response.text</cite> will guess an encoding.</p></li>
+<li><p>Default to ISO-8859-1 (Western) encoding for “text” subtypes.</p></li>
+<li><p>Removal of decode_unicode. (<em>Backwards Incompatible</em>)</p></li>
+<li><p>New multiple-hooks system.</p></li>
+<li><p>New <cite>Response.register_hook</cite> for registering hooks within the
+pipeline.</p></li>
+<li><p><cite>Response.url</cite> is now Unicode.</p></li>
+</ul>
+</section>
+<section id="id120">
+<h2>0.9.3 (2012-01-18)<a class="headerlink" href="#id120" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>SSL verify=False bugfix (apparent on windows machines).</p></li>
+</ul>
+</section>
+<section id="id121">
+<h2>0.9.2 (2012-01-18)<a class="headerlink" href="#id121" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Asynchronous async.send method.</p></li>
+<li><p>Support for proper chunk streams with boundaries.</p></li>
+<li><p>session argument for Session classes.</p></li>
+<li><p>Print entire hook tracebacks, not just exception instance.</p></li>
+<li><p>Fix response.iter_lines from pending next line.</p></li>
+<li><p>Fix but in HTTP-digest auth w/ URI having query strings.</p></li>
+<li><p>Fix in Event Hooks section.</p></li>
+<li><p>Urllib3 update.</p></li>
+</ul>
+</section>
+<section id="id122">
+<h2>0.9.1 (2012-01-06)<a class="headerlink" href="#id122" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>danger_mode for automatic Response.raise_for_status()</p></li>
+<li><p>Response.iter_lines refactor</p></li>
+</ul>
+</section>
+<section id="id123">
+<h2>0.9.0 (2011-12-28)<a class="headerlink" href="#id123" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>verify ssl is default.</p></li>
+</ul>
+</section>
+<section id="id124">
+<h2>0.8.9 (2011-12-28)<a class="headerlink" href="#id124" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Packaging fix.</p></li>
+</ul>
+</section>
+<section id="id125">
+<h2>0.8.8 (2011-12-28)<a class="headerlink" href="#id125" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>SSL CERT VERIFICATION!</p></li>
+<li><p>Release of Cerifi: Mozilla’s cert list.</p></li>
+<li><p>New ‘verify’ argument for SSL requests.</p></li>
+<li><p>Urllib3 update.</p></li>
+</ul>
+</section>
+<section id="id126">
+<h2>0.8.7 (2011-12-24)<a class="headerlink" href="#id126" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>iter_lines last-line truncation fix</p></li>
+<li><p>Force safe_mode for async requests</p></li>
+<li><p>Handle safe_mode exceptions more consistently</p></li>
+<li><p>Fix iteration on null responses in safe_mode</p></li>
+</ul>
+</section>
+<section id="id127">
+<h2>0.8.6 (2011-12-18)<a class="headerlink" href="#id127" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Socket timeout fixes.</p></li>
+<li><p>Proxy Authorization support.</p></li>
+</ul>
+</section>
+<section id="id128">
+<h2>0.8.5 (2011-12-14)<a class="headerlink" href="#id128" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Response.iter_lines!</p></li>
+</ul>
+</section>
+<section id="id129">
+<h2>0.8.4 (2011-12-11)<a class="headerlink" href="#id129" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Prefetch bugfix.</p></li>
+<li><p>Added license to installed version.</p></li>
+</ul>
+</section>
+<section id="id130">
+<h2>0.8.3 (2011-11-27)<a class="headerlink" href="#id130" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Converted auth system to use simpler callable objects.</p></li>
+<li><p>New session parameter to API methods.</p></li>
+<li><p>Display full URL while logging.</p></li>
+</ul>
+</section>
+<section id="id131">
+<h2>0.8.2 (2011-11-19)<a class="headerlink" href="#id131" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>New Unicode decoding system, based on over-ridable
+Response.encoding.</p></li>
+<li><p>Proper URL slash-quote handling.</p></li>
+<li><p>Cookies with <cite>[</cite>, <cite>]</cite>, and <cite>_</cite> allowed.</p></li>
+</ul>
+</section>
+<section id="id132">
+<h2>0.8.1 (2011-11-15)<a class="headerlink" href="#id132" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>URL Request path fix</p></li>
+<li><p>Proxy fix.</p></li>
+<li><p>Timeouts fix.</p></li>
+</ul>
+</section>
+<section id="id133">
+<h2>0.8.0 (2011-11-13)<a class="headerlink" href="#id133" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Keep-alive support!</p></li>
+<li><p>Complete removal of Urllib2</p></li>
+<li><p>Complete removal of Poster</p></li>
+<li><p>Complete removal of CookieJars</p></li>
+<li><p>New ConnectionError raising</p></li>
+<li><p>Safe_mode for error catching</p></li>
+<li><p>prefetch parameter for request methods</p></li>
+<li><p>OPTION method</p></li>
+<li><p>Async pool size throttling</p></li>
+<li><p>File uploads send real names</p></li>
+<li><p>Vendored in urllib3</p></li>
+</ul>
+</section>
+<section id="id134">
+<h2>0.7.6 (2011-11-07)<a class="headerlink" href="#id134" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Digest authentication bugfix (attach query data to path)</p></li>
+</ul>
+</section>
+<section id="id135">
+<h2>0.7.5 (2011-11-04)<a class="headerlink" href="#id135" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Response.content = None if there was an invalid response.</p></li>
+<li><p>Redirection auth handling.</p></li>
+</ul>
+</section>
+<section id="id136">
+<h2>0.7.4 (2011-10-26)<a class="headerlink" href="#id136" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Session Hooks fix.</p></li>
+</ul>
+</section>
+<section id="id137">
+<h2>0.7.3 (2011-10-23)<a class="headerlink" href="#id137" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Digest Auth fix.</p></li>
+</ul>
+</section>
+<section id="id138">
+<h2>0.7.2 (2011-10-23)<a class="headerlink" href="#id138" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>PATCH Fix.</p></li>
+</ul>
+</section>
+<section id="id139">
+<h2>0.7.1 (2011-10-23)<a class="headerlink" href="#id139" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Move away from urllib2 authentication handling.</p></li>
+<li><p>Fully Remove AuthManager, AuthObject, &amp;c.</p></li>
+<li><p>New tuple-based auth system with handler callbacks.</p></li>
+</ul>
+</section>
+<section id="id140">
+<h2>0.7.0 (2011-10-22)<a class="headerlink" href="#id140" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Sessions are now the primary interface.</p></li>
+<li><p>Deprecated InvalidMethodException.</p></li>
+<li><p>PATCH fix.</p></li>
+<li><p>New config system (no more global settings).</p></li>
+</ul>
+</section>
+<section id="id141">
+<h2>0.6.6 (2011-10-19)<a class="headerlink" href="#id141" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Session parameter bugfix (params merging).</p></li>
+</ul>
+</section>
+<section id="id142">
+<h2>0.6.5 (2011-10-18)<a class="headerlink" href="#id142" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Offline (fast) test suite.</p></li>
+<li><p>Session dictionary argument merging.</p></li>
+</ul>
+</section>
+<section id="id143">
+<h2>0.6.4 (2011-10-13)<a class="headerlink" href="#id143" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Automatic decoding of unicode, based on HTTP Headers.</p></li>
+<li><p>New <cite>decode_unicode</cite> setting.</p></li>
+<li><p>Removal of <cite>r.read/close</cite> methods.</p></li>
+<li><p>New <cite>r.faw</cite> interface for advanced response usage.*</p></li>
+<li><p>Automatic expansion of parameterized headers.</p></li>
+</ul>
+</section>
+<section id="id144">
+<h2>0.6.3 (2011-10-13)<a class="headerlink" href="#id144" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Beautiful <cite>requests.async</cite> module, for making async requests w/
+gevent.</p></li>
+</ul>
+</section>
+<section id="id145">
+<h2>0.6.2 (2011-10-09)<a class="headerlink" href="#id145" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>GET/HEAD obeys allow_redirects=False.</p></li>
+</ul>
+</section>
+<section id="id146">
+<h2>0.6.1 (2011-08-20)<a class="headerlink" href="#id146" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Enhanced status codes experience <cite>o/</cite></p></li>
+<li><p>Set a maximum number of redirects (<cite>settings.max_redirects</cite>)</p></li>
+<li><p>Full Unicode URL support</p></li>
+<li><p>Support for protocol-less redirects.</p></li>
+<li><p>Allow for arbitrary request types.</p></li>
+<li><p>Bugfixes</p></li>
+</ul>
+</section>
+<section id="id147">
+<h2>0.6.0 (2011-08-17)<a class="headerlink" href="#id147" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>New callback hook system</p></li>
+<li><p>New persistent sessions object and context manager</p></li>
+<li><p>Transparent Dict-cookie handling</p></li>
+<li><p>Status code reference object</p></li>
+<li><p>Removed Response.cached</p></li>
+<li><p>Added Response.request</p></li>
+<li><p>All args are kwargs</p></li>
+<li><p>Relative redirect support</p></li>
+<li><p>HTTPError handling improvements</p></li>
+<li><p>Improved https testing</p></li>
+<li><p>Bugfixes</p></li>
+</ul>
+</section>
+<section id="id148">
+<h2>0.5.1 (2011-07-23)<a class="headerlink" href="#id148" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>International Domain Name Support!</p></li>
+<li><p>Access headers without fetching entire body (<cite>read()</cite>)</p></li>
+<li><p>Use lists as dicts for parameters</p></li>
+<li><p>Add Forced Basic Authentication</p></li>
+<li><p>Forced Basic is default authentication type</p></li>
+<li><p><cite>python-requests.org</cite> default User-Agent header</p></li>
+<li><p>CaseInsensitiveDict lower-case caching</p></li>
+<li><p>Response.history bugfix</p></li>
+</ul>
+</section>
+<section id="id149">
+<h2>0.5.0 (2011-06-21)<a class="headerlink" href="#id149" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>PATCH Support</p></li>
+<li><p>Support for Proxies</p></li>
+<li><p>HTTPBin Test Suite</p></li>
+<li><p>Redirect Fixes</p></li>
+<li><p>settings.verbose stream writing</p></li>
+<li><p>Querystrings for all methods</p></li>
+<li><p>URLErrors (Connection Refused, Timeout, Invalid URLs) are treated as
+explicitly raised
+<cite>r.requests.get(‘hwe://blah’); r.raise_for_status()</cite></p></li>
+</ul>
+</section>
+<section id="id150">
+<h2>0.4.1 (2011-05-22)<a class="headerlink" href="#id150" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Improved Redirection Handling</p></li>
+<li><p>New ‘allow_redirects’ param for following non-GET/HEAD Redirects</p></li>
+<li><p>Settings module refactoring</p></li>
+</ul>
+</section>
+<section id="id151">
+<h2>0.4.0 (2011-05-15)<a class="headerlink" href="#id151" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Response.history: list of redirected responses</p></li>
+<li><p>Case-Insensitive Header Dictionaries!</p></li>
+<li><p>Unicode URLs</p></li>
+</ul>
+</section>
+<section id="id152">
+<h2>0.3.4 (2011-05-14)<a class="headerlink" href="#id152" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Urllib2 HTTPAuthentication Recursion fix (Basic/Digest)</p></li>
+<li><p>Internal Refactor</p></li>
+<li><p>Bytes data upload Bugfix</p></li>
+</ul>
+</section>
+<section id="id153">
+<h2>0.3.3 (2011-05-12)<a class="headerlink" href="#id153" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Request timeouts</p></li>
+<li><p>Unicode url-encoded data</p></li>
+<li><p>Settings context manager and module</p></li>
+</ul>
+</section>
+<section id="id154">
+<h2>0.3.2 (2011-04-15)<a class="headerlink" href="#id154" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Automatic Decompression of GZip Encoded Content</p></li>
+<li><p>AutoAuth Support for Tupled HTTP Auth</p></li>
+</ul>
+</section>
+<section id="id155">
+<h2>0.3.1 (2011-04-01)<a class="headerlink" href="#id155" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Cookie Changes</p></li>
+<li><p>Response.read()</p></li>
+<li><p>Poster fix</p></li>
+</ul>
+</section>
+<section id="id156">
+<h2>0.3.0 (2011-02-25)<a class="headerlink" href="#id156" title="Link to this heading">¶</a></h2>
+<ul>
+<li><p>Automatic Authentication API Change</p></li>
+<li><p>Smarter Query URL Parameterization</p></li>
+<li><p>Allow file uploads and POST data together</p></li>
+<li><p>New Authentication Manager System</p>
+<dl class="simple">
+<dt>:   -   Simpler Basic HTTP System</dt><dd><ul class="simple">
+<li><p>Supports all built-in urllib2 Auths</p></li>
+<li><p>Allows for custom Auth Handlers</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</section>
+<section id="id157">
+<h2>0.2.4 (2011-02-19)<a class="headerlink" href="#id157" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Python 2.5 Support</p></li>
+<li><p>PyPy-c v1.4 Support</p></li>
+<li><p>Auto-Authentication tests</p></li>
+<li><p>Improved Request object constructor</p></li>
+</ul>
+</section>
+<section id="id158">
+<h2>0.2.3 (2011-02-15)<a class="headerlink" href="#id158" title="Link to this heading">¶</a></h2>
+<ul>
+<li><p>New HTTPHandling Methods</p>
+<dl class="simple">
+<dt>:   -   Response.__nonzero__ (false if bad HTTP Status)</dt><dd><ul class="simple">
+<li><p>Response.ok (True if expected HTTP Status)</p></li>
+<li><p>Response.error (Logged HTTPError if bad HTTP Status)</p></li>
+<li><p>Response.raise_for_status() (Raises stored HTTPError)</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</section>
+<section id="id159">
+<h2>0.2.2 (2011-02-14)<a class="headerlink" href="#id159" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Still handles request in the event of an HTTPError. (Issue #2)</p></li>
+<li><p>Eventlet and Gevent Monkeypatch support.</p></li>
+<li><p>Cookie Support (Issue #1)</p></li>
+</ul>
+</section>
+<section id="id160">
+<h2>0.2.1 (2011-02-14)<a class="headerlink" href="#id160" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Added file attribute to POST and PUT requests for multipart-encode
+file uploads.</p></li>
+<li><p>Added Request.url attribute for context and redirects</p></li>
+</ul>
+</section>
+<section id="id161">
+<h2>0.2.0 (2011-02-14)<a class="headerlink" href="#id161" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Birth!</p></li>
+</ul>
+</section>
+<section id="id162">
+<h2>0.0.1 (2011-02-13)<a class="headerlink" href="#id162" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Frustration</p></li>
+<li><p>Conception</p></li>
+</ul>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><p class="logo">
+  <a href="../../">
+    <img class="logo" src="../../_static/requests-sidebar.png" alt="Requests logo" />
+  </a>
+</p>
+
+<p>
+  <iframe src="https://ghbtns.com/github-btn.html?user=psf&repo=requests&type=watch&count=true&size=large"
+    allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+<p>
+  Requests is an elegant and simple HTTP library for Python, built for human beings.
+</p>
+
+<h3>Useful Links</h3>
+<ul>
+  <li><a href="../../user/quickstart/">Quickstart</a></li>
+  <li><a href="../../user/advanced/">Advanced Usage</a></li>
+  <li><a href="../../api/">API Reference</a></li>
+  <li><a href="##release-history">Release History</a></li>
+  <li><a href="../../dev/contributing/">Contributors Guide</a></li>
+
+  <p></p>
+
+  <li><a href="../recommended/">Recommended Packages and Extensions</a></li>
+
+  <p></p>
+
+  <li><a href="https://github.com/psf/requests">Requests @ GitHub</a></li>
+  <li><a href="https://pypi.org/project/requests/">Requests @ PyPI</a></li>
+  <li><a href="https://github.com/psf/requests/issues">Issue Tracker</a></li>
+</ul>
+  <div>
+    <h3><a href="../../">Table of Contents</a></h3>
+    <ul>
+<li><a class="reference internal" href="#">Community Updates</a><ul>
+<li><a class="reference internal" href="#github">GitHub</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#release-history">Release History</a><ul>
+<li><a class="reference internal" href="#dev">dev</a></li>
+<li><a class="reference internal" href="#id1">2.34.2 (2026-05-14)</a></li>
+<li><a class="reference internal" href="#id2">2.34.1 (2026-05-13)</a></li>
+<li><a class="reference internal" href="#id3">2.34.0 (2026-05-11)</a></li>
+<li><a class="reference internal" href="#id4">2.33.1 (2026-03-30)</a></li>
+<li><a class="reference internal" href="#id5">2.33.0 (2026-03-25)</a></li>
+<li><a class="reference internal" href="#id6">2.32.5 (2025-08-18)</a></li>
+<li><a class="reference internal" href="#id7">2.32.4 (2025-06-10)</a></li>
+<li><a class="reference internal" href="#id8">2.32.3 (2024-05-29)</a></li>
+<li><a class="reference internal" href="#id9">2.32.2 (2024-05-21)</a></li>
+<li><a class="reference internal" href="#id10">2.32.1 (2024-05-20)</a></li>
+<li><a class="reference internal" href="#id11">2.32.0 (2024-05-20)</a></li>
+<li><a class="reference internal" href="#id12">2.31.0 (2023-05-22)</a></li>
+<li><a class="reference internal" href="#id13">2.30.0 (2023-05-03)</a></li>
+<li><a class="reference internal" href="#id14">2.29.0 (2023-04-26)</a></li>
+<li><a class="reference internal" href="#id15">2.28.2 (2023-01-12)</a></li>
+<li><a class="reference internal" href="#id16">2.28.1 (2022-06-29)</a></li>
+<li><a class="reference internal" href="#id17">2.28.0 (2022-06-09)</a></li>
+<li><a class="reference internal" href="#id18">2.27.1 (2022-01-05)</a></li>
+<li><a class="reference internal" href="#id19">2.27.0 (2022-01-03)</a></li>
+<li><a class="reference internal" href="#id20">2.26.0 (2021-07-13)</a></li>
+<li><a class="reference internal" href="#id21">2.25.1 (2020-12-16)</a></li>
+<li><a class="reference internal" href="#id22">2.25.0 (2020-11-11)</a></li>
+<li><a class="reference internal" href="#id23">2.24.0 (2020-06-17)</a></li>
+<li><a class="reference internal" href="#id24">2.23.0 (2020-02-19)</a></li>
+<li><a class="reference internal" href="#id25">2.22.0 (2019-05-15)</a></li>
+<li><a class="reference internal" href="#id26">2.21.0 (2018-12-10)</a></li>
+<li><a class="reference internal" href="#id27">2.20.1 (2018-11-08)</a></li>
+<li><a class="reference internal" href="#id28">2.20.0 (2018-10-18)</a></li>
+<li><a class="reference internal" href="#id29">2.19.1 (2018-06-14)</a></li>
+<li><a class="reference internal" href="#id30">2.19.0 (2018-06-12)</a></li>
+<li><a class="reference internal" href="#id31">2.18.4 (2017-08-15)</a></li>
+<li><a class="reference internal" href="#id32">2.18.3 (2017-08-02)</a></li>
+<li><a class="reference internal" href="#id33">2.18.2 (2017-07-25)</a></li>
+<li><a class="reference internal" href="#id34">2.18.1 (2017-06-14)</a></li>
+<li><a class="reference internal" href="#id35">2.18.0 (2017-06-14)</a></li>
+<li><a class="reference internal" href="#id36">2.17.3 (2017-05-29)</a></li>
+<li><a class="reference internal" href="#id37">2.17.2 (2017-05-29)</a></li>
+<li><a class="reference internal" href="#id38">2.17.1 (2017-05-29)</a></li>
+<li><a class="reference internal" href="#id39">2.17.0 (2017-05-29)</a></li>
+<li><a class="reference internal" href="#id40">2.16.5 (2017-05-28)</a></li>
+<li><a class="reference internal" href="#id41">2.16.4 (2017-05-27)</a></li>
+<li><a class="reference internal" href="#id42">2.16.3 (2017-05-27)</a></li>
+<li><a class="reference internal" href="#id43">2.16.2 (2017-05-27)</a></li>
+<li><a class="reference internal" href="#id44">2.16.1 (2017-05-27)</a></li>
+<li><a class="reference internal" href="#id45">2.16.0 (2017-05-26)</a></li>
+<li><a class="reference internal" href="#id46">2.15.1 (2017-05-26)</a></li>
+<li><a class="reference internal" href="#id47">2.15.0 (2017-05-26)</a></li>
+<li><a class="reference internal" href="#id48">2.14.2 (2017-05-10)</a></li>
+<li><a class="reference internal" href="#id49">2.14.1 (2017-05-09)</a></li>
+<li><a class="reference internal" href="#id50">2.14.0 (2017-05-09)</a></li>
+<li><a class="reference internal" href="#id51">2.13.0 (2017-01-24)</a></li>
+<li><a class="reference internal" href="#id52">2.12.5 (2017-01-18)</a></li>
+<li><a class="reference internal" href="#id53">2.12.4 (2016-12-14)</a></li>
+<li><a class="reference internal" href="#id54">2.12.3 (2016-12-01)</a></li>
+<li><a class="reference internal" href="#id55">2.12.2 (2016-11-30)</a></li>
+<li><a class="reference internal" href="#id56">2.12.1 (2016-11-16)</a></li>
+<li><a class="reference internal" href="#id57">2.12.0 (2016-11-15)</a></li>
+<li><a class="reference internal" href="#id58">2.11.1 (2016-08-17)</a></li>
+<li><a class="reference internal" href="#id59">2.11.0 (2016-08-08)</a></li>
+<li><a class="reference internal" href="#id60">2.10.0 (2016-04-29)</a></li>
+<li><a class="reference internal" href="#id61">2.9.2 (2016-04-29)</a></li>
+<li><a class="reference internal" href="#id62">2.9.1 (2015-12-21)</a></li>
+<li><a class="reference internal" href="#id63">2.9.0 (2015-12-15)</a></li>
+<li><a class="reference internal" href="#id64">2.8.1 (2015-10-13)</a></li>
+<li><a class="reference internal" href="#id65">2.8.0 (2015-10-05)</a></li>
+<li><a class="reference internal" href="#id66">2.7.0 (2015-05-03)</a></li>
+<li><a class="reference internal" href="#id67">2.6.2 (2015-04-23)</a></li>
+<li><a class="reference internal" href="#id68">2.6.1 (2015-04-22)</a></li>
+<li><a class="reference internal" href="#id69">2.6.0 (2015-03-14)</a></li>
+<li><a class="reference internal" href="#id70">2.5.3 (2015-02-24)</a></li>
+<li><a class="reference internal" href="#id71">2.5.2 (2015-02-23)</a></li>
+<li><a class="reference internal" href="#id72">2.5.1 (2014-12-23)</a></li>
+<li><a class="reference internal" href="#id73">2.5.0 (2014-12-01)</a></li>
+<li><a class="reference internal" href="#id74">2.4.3 (2014-10-06)</a></li>
+<li><a class="reference internal" href="#id75">2.4.2 (2014-10-05)</a></li>
+<li><a class="reference internal" href="#id76">2.4.1 (2014-09-09)</a></li>
+<li><a class="reference internal" href="#id77">2.4.0 (2014-08-29)</a></li>
+<li><a class="reference internal" href="#id78">2.3.0 (2014-05-16)</a></li>
+<li><a class="reference internal" href="#id79">2.2.1 (2014-01-23)</a></li>
+<li><a class="reference internal" href="#id80">2.2.0 (2014-01-09)</a></li>
+<li><a class="reference internal" href="#id81">2.1.0 (2013-12-05)</a></li>
+<li><a class="reference internal" href="#id82">2.0.1 (2013-10-24)</a></li>
+<li><a class="reference internal" href="#id83">2.0.0 (2013-09-24)</a></li>
+<li><a class="reference internal" href="#id84">1.2.3 (2013-05-25)</a></li>
+<li><a class="reference internal" href="#id85">1.2.2 (2013-05-23)</a></li>
+<li><a class="reference internal" href="#id86">1.2.1 (2013-05-20)</a></li>
+<li><a class="reference internal" href="#id87">1.2.0 (2013-03-31)</a></li>
+<li><a class="reference internal" href="#id88">1.1.0 (2013-01-10)</a></li>
+<li><a class="reference internal" href="#id89">1.0.3 (2012-12-18)</a></li>
+<li><a class="reference internal" href="#id90">1.0.2 (2012-12-17)</a></li>
+<li><a class="reference internal" href="#id91">1.0.1 (2012-12-17)</a></li>
+<li><a class="reference internal" href="#id92">1.0.0 (2012-12-17)</a></li>
+<li><a class="reference internal" href="#id93">0.14.2 (2012-10-27)</a></li>
+<li><a class="reference internal" href="#id94">0.14.1 (2012-10-01)</a></li>
+<li><a class="reference internal" href="#id95">0.14.0 (2012-09-02)</a></li>
+<li><a class="reference internal" href="#id96">0.13.9 (2012-08-25)</a></li>
+<li><a class="reference internal" href="#id97">0.13.8 (2012-08-21)</a></li>
+<li><a class="reference internal" href="#id98">0.13.7 (2012-08-19)</a></li>
+<li><a class="reference internal" href="#id99">0.13.6 (2012-08-06)</a></li>
+<li><a class="reference internal" href="#id100">0.13.5 (2012-07-27)</a></li>
+<li><a class="reference internal" href="#id101">0.13.4 (2012-07-27)</a></li>
+<li><a class="reference internal" href="#id102">0.13.3 (2012-07-12)</a></li>
+<li><a class="reference internal" href="#id103">0.13.2 (2012-06-28)</a></li>
+<li><a class="reference internal" href="#id104">0.13.1 (2012-06-07)</a></li>
+<li><a class="reference internal" href="#id105">0.13.0 (2012-05-29)</a></li>
+<li><a class="reference internal" href="#id106">0.12.1 (2012-05-08)</a></li>
+<li><a class="reference internal" href="#id107">0.12.0 (2012-05-02)</a></li>
+<li><a class="reference internal" href="#id108">0.11.2 (2012-04-22)</a></li>
+<li><a class="reference internal" href="#id109">0.11.1 (2012-03-30)</a></li>
+<li><a class="reference internal" href="#id110">0.11.0 (2012-03-14)</a></li>
+<li><a class="reference internal" href="#id111">0.10.8 (2012-03-09)</a></li>
+<li><a class="reference internal" href="#id112">0.10.7 (2012-03-07)</a></li>
+<li><a class="reference internal" href="#id113">0.10.6 (2012-02-25)</a></li>
+<li><a class="reference internal" href="#id114">0.10.5 (2012-02-25)</a></li>
+<li><a class="reference internal" href="#id115">0.10.4 (2012-02-20)</a></li>
+<li><a class="reference internal" href="#id116">0.10.3 (2012-02-20)</a></li>
+<li><a class="reference internal" href="#id117">0.10.2 (2012-01-15)</a></li>
+<li><a class="reference internal" href="#id118">0.10.1 (2012-01-23)</a></li>
+<li><a class="reference internal" href="#id119">0.10.0 (2012-01-21)</a></li>
+<li><a class="reference internal" href="#id120">0.9.3 (2012-01-18)</a></li>
+<li><a class="reference internal" href="#id121">0.9.2 (2012-01-18)</a></li>
+<li><a class="reference internal" href="#id122">0.9.1 (2012-01-06)</a></li>
+<li><a class="reference internal" href="#id123">0.9.0 (2011-12-28)</a></li>
+<li><a class="reference internal" href="#id124">0.8.9 (2011-12-28)</a></li>
+<li><a class="reference internal" href="#id125">0.8.8 (2011-12-28)</a></li>
+<li><a class="reference internal" href="#id126">0.8.7 (2011-12-24)</a></li>
+<li><a class="reference internal" href="#id127">0.8.6 (2011-12-18)</a></li>
+<li><a class="reference internal" href="#id128">0.8.5 (2011-12-14)</a></li>
+<li><a class="reference internal" href="#id129">0.8.4 (2011-12-11)</a></li>
+<li><a class="reference internal" href="#id130">0.8.3 (2011-11-27)</a></li>
+<li><a class="reference internal" href="#id131">0.8.2 (2011-11-19)</a></li>
+<li><a class="reference internal" href="#id132">0.8.1 (2011-11-15)</a></li>
+<li><a class="reference internal" href="#id133">0.8.0 (2011-11-13)</a></li>
+<li><a class="reference internal" href="#id134">0.7.6 (2011-11-07)</a></li>
+<li><a class="reference internal" href="#id135">0.7.5 (2011-11-04)</a></li>
+<li><a class="reference internal" href="#id136">0.7.4 (2011-10-26)</a></li>
+<li><a class="reference internal" href="#id137">0.7.3 (2011-10-23)</a></li>
+<li><a class="reference internal" href="#id138">0.7.2 (2011-10-23)</a></li>
+<li><a class="reference internal" href="#id139">0.7.1 (2011-10-23)</a></li>
+<li><a class="reference internal" href="#id140">0.7.0 (2011-10-22)</a></li>
+<li><a class="reference internal" href="#id141">0.6.6 (2011-10-19)</a></li>
+<li><a class="reference internal" href="#id142">0.6.5 (2011-10-18)</a></li>
+<li><a class="reference internal" href="#id143">0.6.4 (2011-10-13)</a></li>
+<li><a class="reference internal" href="#id144">0.6.3 (2011-10-13)</a></li>
+<li><a class="reference internal" href="#id145">0.6.2 (2011-10-09)</a></li>
+<li><a class="reference internal" href="#id146">0.6.1 (2011-08-20)</a></li>
+<li><a class="reference internal" href="#id147">0.6.0 (2011-08-17)</a></li>
+<li><a class="reference internal" href="#id148">0.5.1 (2011-07-23)</a></li>
+<li><a class="reference internal" href="#id149">0.5.0 (2011-06-21)</a></li>
+<li><a class="reference internal" href="#id150">0.4.1 (2011-05-22)</a></li>
+<li><a class="reference internal" href="#id151">0.4.0 (2011-05-15)</a></li>
+<li><a class="reference internal" href="#id152">0.3.4 (2011-05-14)</a></li>
+<li><a class="reference internal" href="#id153">0.3.3 (2011-05-12)</a></li>
+<li><a class="reference internal" href="#id154">0.3.2 (2011-04-15)</a></li>
+<li><a class="reference internal" href="#id155">0.3.1 (2011-04-01)</a></li>
+<li><a class="reference internal" href="#id156">0.3.0 (2011-02-25)</a></li>
+<li><a class="reference internal" href="#id157">0.2.4 (2011-02-19)</a></li>
+<li><a class="reference internal" href="#id158">0.2.3 (2011-02-15)</a></li>
+<li><a class="reference internal" href="#id159">0.2.2 (2011-02-14)</a></li>
+<li><a class="reference internal" href="#id160">0.2.1 (2011-02-14)</a></li>
+<li><a class="reference internal" href="#id161">0.2.0 (2011-02-14)</a></li>
+<li><a class="reference internal" href="#id162">0.0.1 (2011-02-13)</a></li>
+</ul>
+</li>
+</ul>
+
+  </div><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../">Documentation overview</a><ul>
+      <li>Previous: <a href="../release-process/" title="previous chapter">Release Process and Rules</a></li>
+      <li>Next: <a href="../../api/" title="next chapter">Developer Interface</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search/" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;Kenneth Reitz and contributors.
+      
+    </div>
+
+    
+    <a href="https://github.com/psf/requests" class="github">
+        <img style="position: absolute; top: 0; right: 0; border: 0;" src="https://github.blog/wp-content/uploads/2008/12/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"  class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>

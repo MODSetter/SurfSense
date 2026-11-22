@@ -56,6 +56,40 @@ async def test_an_internal_event_reaches_a_subscriber(base_url: str) -> None:
             }
 
 
+async def test_a_transcribed_window_reaches_a_subscriber_with_its_progress(
+    base_url: str,
+) -> None:
+    """A recording's row moves its bar on each window without a refetch."""
+    async with AsyncClient(base_url=base_url, timeout=5) as client:
+        workspace_id = (await client.post("/workspaces", json={"name": "w"})).json()[
+            "id"
+        ]
+
+        async def window_done() -> None:
+            posted = await client.post(
+                "/internal/events",
+                json={
+                    "workspace_id": workspace_id,
+                    "kind": "documents",
+                    "ids": [7],
+                    "status": "processing",
+                    "progress": {"done_s": 52.5, "total_s": 3480.0},
+                },
+            )
+            assert posted.status_code == 202
+
+        event = await _event_after(client, workspace_id, window_done)
+
+        assert event == (
+            "documents",
+            {
+                "ids": [7],
+                "status": "processing",
+                "progress": {"done_s": 52.5, "total_s": 3480.0},
+            },
+        )
+
+
 async def test_an_unknown_workspace_stream_is_a_404(base_url: str) -> None:
     """The stream validates the workspace like every other workspace-scoped route."""
     async with AsyncClient(base_url=base_url, timeout=5) as client:

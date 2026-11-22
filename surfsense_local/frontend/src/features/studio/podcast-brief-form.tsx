@@ -16,6 +16,7 @@ import {
   type PodcastSpeaker,
   type Voice,
   type VoicedBy,
+  type VoicesProblem,
   type VoicesSource,
 } from "./api"
 
@@ -136,6 +137,7 @@ export function PodcastBriefForm({
   voices,
   languages: codes,
   voicesSource,
+  voicesProblem = null,
   voicedBy,
   onSetUpVoices,
   onChange,
@@ -144,6 +146,8 @@ export function PodcastBriefForm({
   voices: Voice[]
   languages: string[]
   voicesSource: VoicesSource
+  /** Why a server model has no voices, when it is not simply that it lists none. */
+  voicesProblem?: VoicesProblem | null
   /** The server that voices it; null for a model on this computer. */
   voicedBy: VoicedBy | null
   /** Opens where a server model's voices are added. */
@@ -222,11 +226,26 @@ export function PodcastBriefForm({
         {server}
         <div className="space-y-3 rounded-xl border border-dashed p-5 text-sm">
           <p className="text-muted-foreground">
-            {intl.formatMessage({
-              id: "studio_podcast_brief_no_voices_body",
-              defaultMessage:
-                "This model needs voices before it can voice a podcast. The server doesn’t list them, so add the ones you want.",
-            })}
+            {voicesProblem?.code === "no_usable_voices"
+              ? intl.formatMessage({
+                  id: "studio_podcast_brief_no_usable_voices_body",
+                  defaultMessage:
+                    "This account has no voices its plan can use through the API. Upgrade your plan, or add a voice ID it can use.",
+                })
+              : voicesProblem
+                ? intl.formatMessage(
+                    {
+                      id: "studio_podcast_brief_voices_failed_body",
+                      defaultMessage:
+                        "Couldn’t read this server’s voices: {reason}",
+                    },
+                    { reason: voicesProblem.message }
+                  )
+                : intl.formatMessage({
+                    id: "studio_podcast_brief_no_voices_body",
+                    defaultMessage:
+                      "This model needs voices before it can voice a podcast. The server doesn’t list them, so add the ones you want.",
+                  })}
           </p>
           <Button type="button" size="sm" onClick={onSetUpVoices}>
             {intl.formatMessage({
@@ -347,7 +366,8 @@ export function PodcastBriefForm({
                 number: index + 1,
               }
             )}
-            className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-1.5"
+            // The voice shrinks, not the name: a provider's voice labels can fill the row.
+            className="grid grid-cols-[minmax(6rem,1fr)_auto_minmax(0,2fr)_auto] items-center gap-1.5"
           >
             <Input
               aria-label={intl.formatMessage({

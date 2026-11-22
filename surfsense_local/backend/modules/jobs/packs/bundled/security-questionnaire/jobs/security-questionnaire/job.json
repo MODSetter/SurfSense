@@ -1,0 +1,195 @@
+{
+  "answers": [
+    {
+      "answer": "Yes",
+      "needs_quote": true,
+      "cell_values": [
+        "Yes",
+        "Y"
+      ]
+    },
+    {
+      "answer": "No",
+      "needs_quote": true,
+      "cell_values": [
+        "No",
+        "N"
+      ]
+    },
+    {
+      "answer": "N/A",
+      "needs_quote": true,
+      "cell_values": [
+        "N/A",
+        "NA",
+        "Not applicable",
+        "N.A."
+      ]
+    },
+    {
+      "answer": "Needs review",
+      "needs_quote": false,
+      "fallback": true,
+      "cell_values": [
+        "Needs review",
+        "Unsure",
+        "Unknown",
+        "Pending review"
+      ]
+    }
+  ],
+  "layout": {
+    "question": [
+      "question",
+      "questions",
+      "question text",
+      "control question",
+      "assessment question",
+      "security question",
+      "requirement",
+      "query"
+    ],
+    "answer": [
+      "answer",
+      "answers",
+      "response",
+      "responses",
+      "vendor response",
+      "vendor answer",
+      "vendor answers",
+      "supplier response",
+      "supplier answer",
+      "yes/no",
+      "yes/no/n/a",
+      "y/n",
+      "csp caiq answer",
+      "caiq answer"
+    ],
+    "comment": [
+      "comments",
+      "comment",
+      "notes",
+      "additional information",
+      "additional info",
+      "explanation",
+      "vendor comments",
+      "supplier comments",
+      "details",
+      "justification",
+      "csp implementation description",
+      "implementation description",
+      "description"
+    ],
+    "evidence": [
+      "evidence",
+      "references",
+      "reference",
+      "supporting documentation",
+      "supporting evidence",
+      "source",
+      "document reference",
+      "policy reference",
+      "artifact",
+      "artifacts"
+    ],
+    "context": [
+      "#",
+      "no",
+      "id",
+      "question id",
+      "ref",
+      "topic",
+      "category",
+      "section",
+      "domain",
+      "control",
+      "control id",
+      "control title",
+      "area"
+    ],
+    "header_rows": 40,
+    "placeholders": [
+      "insert your answer here",
+      "enter your answer here",
+      "enter response here",
+      "type your answer here",
+      "click here to enter text",
+      "response"
+    ],
+    "skip_sheets": [
+      "institution evaluation",
+      "high-risk evaluation",
+      "privacy analyst evaluation",
+      "analyst reference",
+      "change log",
+      "introduction",
+      "instructions"
+    ]
+  },
+  "prompts": {
+    "system": "prompts/system.md",
+    "question": "prompts/question.md",
+    "repair": "prompts/repair.md"
+  },
+  "templates": {
+    "comment": {
+      "Needs review": "Needs review: $comment",
+      "*": "$comment Evidence: $citations"
+    },
+    "evidence": "$sources",
+    "free_text": "$comment"
+  },
+  "sheets": {
+    "answers": "SurfSense answers",
+    "exceptions": "SurfSense exceptions"
+  },
+  "min_quote_chars": 15,
+  "passages_per_question": 24,
+  "whole_sources_share": 0.5,
+  "verify": {
+    "prompt": "prompts/verify.md",
+    "answers": [
+      "Yes",
+      "No",
+      "N/A"
+    ]
+  },
+  "max_quotes": 3,
+  "standing": {
+    "queries": [
+      "How the firm's policies are approved, and how often they are reviewed",
+      "How new and updated policies are published and communicated to staff"
+    ],
+    "per_query": 1,
+    "label": "Passages about all of the firm's policies, shown with every question:",
+    "then": "Passages found for this question:"
+  },
+  "second_look": {
+    "prompt": "prompts/second_look.md",
+    "answers": [
+      "Yes"
+    ]
+  },
+  "statement_gate": {
+    "answers": [
+      "No",
+      "N/A"
+    ],
+    "quote": "\\b(in scope|out of scope|outside (of )?the scope|in the scope of|applies to|managed by|hosted by|operated by|run by|provided by|providers?)\\b",
+    "comment": "\\b(documents?|passages?|sources?|quotes?)\\b[^.]{0,40}\\b(do|does|did)\\s+not\\s+(state|mention|describe|specify|address|say|indicate|show)|\\bno passage\\b",
+    "suggest": [
+      "N/A"
+    ],
+    "provider": "\\b(managed by|hosted by|operated by|run by|provided by|providers?)\\b",
+    "provider_setting": "provider_na",
+    "check": "prompts/suggestion_check.md"
+  },
+  "settings": [
+    {
+      "key": "provider_na",
+      "label": "Treat provider-run controls as N/A",
+      "description": "Answer N/A, without asking a person, when the firm's documents say a provider runs the control for the firm, such as a data centre's physical security. Off, such a row is left to a person with N/A suggested and its evidence.",
+      "default": false
+    }
+  ]
+}

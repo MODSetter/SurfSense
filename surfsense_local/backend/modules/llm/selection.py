@@ -5,14 +5,18 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from api.dependencies import transact
+from modules.documents.recordings.awaiting import mark_awaiting_pending, queue_requeued
 from modules.embedding.choose import lock_chosen
+from modules.events.broker import EventBroker
 from modules.llm.capability.modes import carried_to_next_model
 from modules.llm.catalog.local.dependencies import get_local_catalog
 from modules.llm.connections.listing import connection_models
 from modules.llm.connections.router import allowed_connection
 from modules.llm.connections.serves import connection_serves
+from modules.llm.connections.service import DiscoveredModel
 from modules.llm.model_type import ModelType
 from modules.llm.models import OnboardingCompletion, SelectedModel
+from modules.llm.pictures_in.kept import keep_takes_pictures
 from modules.llm.profile import Fingerprint, from_name
 from modules.llm.providers import audiocpp, get_provider, llamacpp
 from modules.llm.providers.openai_compatible import OpenAICompatibleChatProvider
@@ -31,7 +35,9 @@ async def choose_model(
     *,
     connection_id: int | None = None,
     allow_unlisted: bool = False,
+    broker: EventBroker | None = None,
 ) -> SelectedModel:
+    """`broker` tells open windows of recordings a speech model queues again."""
     model_name = model_name.strip()
     if not model_name:
         raise HTTPException(
@@ -39,6 +45,7 @@ async def choose_model(
             "model name must not be empty",
         )
 
+    listed: DiscoveredModel | None = None
     if provider_name == llamacpp.PROVIDER:
         await _validate_local(model_type, model_name, connection_id)
     elif provider_name == sdcpp.PROVIDER:
@@ -46,7 +53,7 @@ async def choose_model(
     elif provider_name == audiocpp.PROVIDER:
         _validate_local_audio(model_type, model_name, connection_id)
     elif provider_name == "openai_compatible":
-        await _validate_remote(
+        listed = await _validate_remote(
             session, model_type, model_name, connection_id, allow_unlisted
         )
     else:
@@ -56,6 +63,8 @@ async def choose_model(
         )
 
     fingerprint = await _collect(session, provider_name, model_name, connection_id)
+    # An unlisted model is taken as words only: a picture it ignores is billed.
+    takes_pictures = listed is not None and ModelType.IMAGE_EDIT in listed.types
     selected = await transact(
         session,
         _store,
@@ -64,7 +73,11 @@ async def choose_model(
         connection_id,
         model_name,
         fingerprint,
+        takes_pictures,
     )
+    if model_type is ModelType.SPEECH_TO_TEXT:
+        # Recordings uploaded before any speech model waited for this one.
+        queue_requeued(await transact(session, mark_awaiting_pending), broker)
     logger.info(
         "llm: %s model %s/%s gets the %s prompt (params_b=%s vendor=%s line=%s)",
         model_type.value,
@@ -109,6 +122,7 @@ def _store(
     connection_id: int | None,
     model_name: str,
     fingerprint: Fingerprint,
+    takes_pictures: bool = False,
 ) -> SelectedModel:
     selected = session.get(SelectedModel, model_type)
     if selected is None:
@@ -128,6 +142,8 @@ def _store(
     selected.params_b = fingerprint.params_b
     selected.vendor = fingerprint.vendor
     selected.line = fingerprint.line
+    if model_type is ModelType.IMAGE_GEN:
+        keep_takes_pictures(selected, takes_pictures)
     session.flush()
     # updated_at is set by the database; load it here rather than lazily on the loop.
     session.refresh(selected)
@@ -173,9 +189,10 @@ def _validate_local_image(
 def _validate_local_audio(
     model_type: ModelType, model_name: str, connection_id: int | None
 ) -> None:
-    """The bundled audio.cpp server fills the audio_gen slot, and only once
-    downloaded: Electron starts it on what `server.json` names."""
-    if model_type is not ModelType.AUDIO_GEN:
+    """The bundled audio.cpp servers fill the audio_gen slot with an installed
+    voice model and speech_to_text with an installed recogniser: Electron
+    starts each on what its config names."""
+    if model_type not in (ModelType.AUDIO_GEN, ModelType.SPEECH_TO_TEXT):
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             f"the local audio runtime does not serve {model_type}",
@@ -185,10 +202,16 @@ def _validate_local_audio(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             "local selections must not include a connection",
         )
-    if not get_local_catalog().audiocpp.holds(model_name):
+    engine = get_local_catalog().audiocpp
+    installed = (
+        engine.installed_model(model_name)
+        if model_type is ModelType.AUDIO_GEN
+        else engine.installed_recogniser(model_name)
+    )
+    if installed is None:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
-            f"audio model is not installed: {model_name}",
+            f"no installed audio model serves {model_type}: {model_name}",
         )
 
 
@@ -210,10 +233,19 @@ async def _validate_local(
         raise HTTPException(
             status.HTTP_503_SERVICE_UNAVAILABLE, "the local runtime is unavailable"
         )
-    model = next(
-        (entry for entry in await provider.models() if entry.name == model_name),
-        None,
-    )
+    try:
+        listed = await provider.models()
+    except httpx.HTTPError as error:
+        # Down, restarting, or not shipped with this build: the choice waits for it.
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            {
+                "code": "local_runtime_unavailable",
+                "message": "The local runtime is not running, so a local model "
+                "cannot be used yet.",
+            },
+        ) from error
+    model = next((entry for entry in listed if entry.name == model_name), None)
     if model is None or not model.installed:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -232,7 +264,8 @@ async def _validate_remote(
     model_name: str,
     connection_id: int | None,
     allow_unlisted: bool,
-) -> None:
+) -> DiscoveredModel | None:
+    """The model as its connection lists it; None when chosen unlisted."""
     if connection_id is None:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -253,12 +286,12 @@ async def _validate_remote(
                 status.HTTP_422_UNPROCESSABLE_CONTENT,
                 "connection models could not be verified; confirm manual selection",
             ) from error
-        return
+        return None
 
     model = next((entry for entry in models if entry.name == model_name), None)
     if model is None:
         if allow_unlisted:
-            return
+            return None
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             f"model is not listed by this connection: {model_name}",
@@ -276,3 +309,4 @@ async def _validate_remote(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             f"model does not support {model_type.value}: {model_name}",
         )
+    return model

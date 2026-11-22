@@ -1,6 +1,6 @@
 # ADR 0019: Licenses are signed files verified offline, and they gate only plugins and priority support
 
-- **Status:** Accepted
+- **Status:** Accepted; amended by [ADR 0080](0080-surfsense-sells-one-business-license-priced-per-person.md): Business is the one paid license, the Individual license no longer sold, and a lapsed Business license stops new job runs 30 days after it lapses, where the Decision says "expiry stops those two things". Its offline verification stands.
 - **Date:** 2026-09-08
 - **Source:** [Pivot plan L3](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/00d-pivot-plan.md#L3), [Pivot plan L35–38](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/00d-pivot-plan.md#L35-L38), [Pivot plan L43](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/00d-pivot-plan.md#L43), [Pivot plan L93](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/00d-pivot-plan.md#L93), [Pivot plan L121](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/00d-pivot-plan.md#L121), [Pivot plan L233](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/00d-pivot-plan.md#L233)
 
@@ -14,7 +14,7 @@ The app is Apache-2.0, its installers are free and public, and it is paid for th
 - `KEYGEN_PUBLIC_KEYS_HEX` in [`modules/license/verify.py`](../../surfsense_local/backend/modules/license/verify.py) is a tuple. A file signed by any listed key verifies, so rotating the account key is a release that trusts both keys rather than a recall of every license already issued.
 - The license gates exactly two things, plugins and priority support. It never disables the app, and expiry stops those two things and nothing else.
 - Updates are free for everyone, and the updater has no license logic. Gating updates was rejected: with public installers, an expired user could delete the license file and become a free user with every update, so the gate would be theater.
-- A trial license unlocks the same things for its term (decided 22 Sep 2026). The portal's trial term defaults to 30 days (`LICENSE_TRIAL_DAYS` in [`surfsense_backend/app/config/__init__.py`](../../surfsense_backend/app/config/__init__.py)); the pivot plan had specified 14.
+- A trial license unlocks the same things for its term (decided 22 Sep 2026). The portal's trial term is 14 days (`LICENSE_TRIAL_DAYS` in [`backend/license/settings.py`](../../backend/license/settings.py)), as the pivot plan specified; it defaulted to 30 until 27 Oct 2026.
 - The release build refuses the test signing key. The step "Refuse to build with the test signing key" in [`.github/workflows/release-local.yml`](../../.github/workflows/release-local.yml) runs [`tests/packaging/test_license_key.py`](../../surfsense_local/backend/tests/packaging/test_license_key.py) before the binaries are frozen.
 
 ## Consequences

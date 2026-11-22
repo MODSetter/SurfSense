@@ -1,3 +1,5 @@
+import socket
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import Engine
@@ -10,6 +12,7 @@ from modules.llm.activity import model_activity, model_key
 from modules.llm.catalog.local.dependencies import get_local_catalog
 from modules.llm.providers.types import Message, Model
 from modules.workspaces.models import Workspace
+from shared.config import get_llm_settings
 from shared.db import create_session_factory
 
 pytestmark = pytest.mark.integration
@@ -57,6 +60,25 @@ async def test_the_selection_is_read_after_it_is_set(
 
     read = await client.get("/llm/selection/text_gen")
     assert read.json() == written.json()
+
+
+async def test_a_local_model_cannot_be_chosen_while_the_runtime_is_not_running(
+    client: AsyncClient, llamacpp_server: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Said in words the app can show, not a bare 500 from the failed connection."""
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        nothing_listens = f"http://127.0.0.1:{probe.getsockname()[1]}"
+    monkeypatch.setattr(get_llm_settings(), "llamacpp_base_url", nothing_listens)
+
+    answered = await client.put(
+        "/llm/selection/text_gen",
+        json={"provider": "llamacpp", "name": "Qwen3-4B-Q4_K_M"},
+    )
+
+    assert answered.status_code == 503
+    assert answered.json()["detail"]["code"] == "local_runtime_unavailable"
+    assert (await client.get("/llm/selection/text_gen")).status_code == 404
 
 
 async def test_the_selection_says_which_prompt_tier_the_model_gets(

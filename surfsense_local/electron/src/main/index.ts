@@ -1,61 +1,78 @@
+import { mkdirSync, rmSync } from "node:fs"
 import { join } from "node:path"
 import { pathToFileURL } from "node:url"
 
 import {
   app,
   BrowserWindow,
+  dialog,
   ipcMain,
   Menu,
   nativeTheme,
   safeStorage,
   shell,
+  systemPreferences,
 } from "electron"
-// Static on purpose: electron-updater is CJS and exposes `autoUpdater` through
-// a getter, which `await import()` cannot see (named export comes back
-// undefined). require() honours it, and the getter is lazy so dev pays nothing.
-import { autoUpdater } from "electron-updater"
 
 import {
   applyDevAppIdentity,
   devWindowIcon,
   nameDevBuild,
 } from "./dev-app-identity.ts"
+import { dataDirs } from "./data-dir.ts"
 import { managedOriginalPath } from "./document-files.ts"
 import { printInHiddenWindow } from "./docx-snapshot/print-in-hidden-window.ts"
 import { serveDocxSnapshots } from "./docx-snapshot/serve-snapshots.ts"
-import { allowedExternalUrl } from "./external-url.ts"
+import { allowedExternalUrl, confirmedExternalUrl } from "./external-url.ts"
+import { frameMayNavigate } from "./framed-navigation.ts"
+import { pluginPageUrl, type PluginPage } from "./plugin-page-url.ts"
 import { loadSecret } from "./secret.ts"
-import { bootSidecars, type BootContext } from "./sidecars/boot.ts"
-import { stopAll, type Sidecars } from "./sidecars/supervisor.ts"
-import type { SidecarContext } from "./sidecars/types.ts"
+import { describeStartupFailure } from "./startup-failure/describe-startup-failure.ts"
+import { bootSidecars, type BootContext } from "../../../sidecars/boot.ts"
+import { stopOnce } from "../../../sidecars/stop-once.ts"
+import { stopAll, type Sidecars } from "../../../sidecars/supervisor.ts"
+import type { SidecarContext } from "../../../sidecars/types.ts"
 import { refuseSpellcheckDownloads } from "./spellcheck.ts"
-import {
-  attachUpdater,
-  readUpdatePrefs,
-  writeUpdatePrefs,
-  type Updates,
-  type UpdateState,
-} from "./updater.ts"
 import {
   loadThemePreference,
   saveThemePreference,
   type ThemePreference,
 } from "./theme-prefs.ts"
 import { loadWindowState, saveWindowState } from "./window-state.ts"
-import { announceApiUrl, withdrawApiUrl } from "./api-url/announce-api-url.ts"
+import { announceApiUrl, withdrawApiUrl } from "../../../sidecars/api-url/announce-api-url.ts"
 import { applyLocalePreference } from "./i18n/app-locale.ts"
 import { loadLocalePreference } from "./i18n/locale-prefs.ts"
 import { registerLocaleHandlers } from "./i18n/locale-ipc.ts"
 import { registerAboutHandlers } from "./about/about-ipc.ts"
-import { sessionLog } from "./session-log/session-log.ts"
-import { warnMain } from "./session-log/main-warn.ts"
+import { registerDataFolderHandlers } from "./about/data-folder-ipc.ts"
+import { registerStartupFrameHandlers } from "./startup-frame/startup-frame-ipc.ts"
+import { isOwnSnap } from "./install-channel/own-snap.ts"
+import { appInstallFolder, relaunchOptions } from "./storage/app-install.ts"
+import { removeInterruptedCopy, removeOldCopies } from "./storage/clean-up-old-copies.ts"
+import { drivePrompts } from "./storage/drive-prompts.ts"
+import { UNAVAILABLE_STANDIN } from "./storage/plan-move.ts"
+import { settleStorageBeforeBoot, type SettledStorage } from "./storage/settle-before-boot.ts"
+import { registerStorageHandlers } from "./storage/storage-ipc.ts"
+import { sessionLog } from "../../../sidecars/session-log/session-log.ts"
+import { warnMain } from "../../../sidecars/session-log/main-warn.ts"
 import { registerSessionLogHandlers } from "./session-log/session-log-ipc.ts"
 import { appMenu } from "./menu/app-menu.ts"
 import { helpMenu } from "./menu/help-menu.ts"
 import { apiQuitConfirmation } from "./quit/api-quit-confirmation.ts"
 import { confirmQuit } from "./quit/confirm-running-replies.ts"
+import { installPermissionHandlers } from "./permissions/handlers.ts"
+import { registerMicrophoneHandlers } from "./microphone/ipc.ts"
+import { startPrivacyChoices } from "./privacy-choices/start-privacy-choices.ts"
 
 const DEV_RENDERER_URL = "http://localhost:5173"
+// The main window's page when packaged: the built SPA, loaded from disk.
+const PACKAGED_PAGE = join(
+  app.getAppPath(),
+  "..",
+  "frontend",
+  "dist",
+  "index.html"
+)
 
 function openAllowedExternal(url: string): void {
   const allowed = allowedExternalUrl(url)
@@ -64,14 +81,26 @@ function openAllowedExternal(url: string): void {
 
 nameDevBuild()
 
-// Dev keeps its own dir so testing never leaks into the real install's ~/.surfsense.
-const DATA_DIR = join(
-  app.getPath("home"),
-  app.isPackaged ? ".surfsense" : ".surfsense-dev"
-)
+const DIRS = dataDirs({
+  packaged: app.isPackaged,
+  env: process.env,
+  home: app.getPath("home"),
+  execPath: process.execPath,
+})
+// Never moves: Electron's settings and the file saying where the moved folders are.
+const FIXED_DIR = DIRS.data
+// Set before anything asks for a temp path; the sidecars inherit it.
+if (DIRS.temp) {
+  try {
+    mkdirSync(DIRS.temp, { recursive: true })
+    process.env.TMPDIR = DIRS.temp
+  } catch (error) {
+    warnMain(sessionLog, `failed to create ${DIRS.temp}, keeping TMPDIR: ${String(error)}`)
+  }
+}
 // productName is "SurfSense", same as the legacy desktop app, so the default
 // userData would be shared with it. Users run both during migration.
-app.setPath("userData", join(DATA_DIR, "electron"))
+app.setPath("userData", join(FIXED_DIR, "electron"))
 
 let sidecars: Sidecars | null = null
 // This run's API, once it answers; the quit asks it about running replies.
@@ -84,6 +113,10 @@ let shuttingDown = false
 let stopDocxSnapshots: (() => void) | null = null
 // Boot's watchers; they must stop before the sidecars they would otherwise restart.
 let stopSidecarWatchers: (() => void) | null = null
+// The daily update check and the usage report timers.
+let stopPrivacyChoices: (() => void) | null = null
+// A move of the models or data folder is copying; closing the window waits for it.
+let movingStorage = false
 
 function onSidecarCrash(name: string, code: number | null): void {
   warnMain(sessionLog, `sidecar ${name} crashed (code=${code})`)
@@ -109,8 +142,15 @@ function serveWordPreviews(ctx: SidecarContext): void {
   })
 }
 
+/** An empty folder for the runtimes while the real one's drive is away, so none of them fails. */
+function modelStandIn(dataRoot: string): string {
+  const standIn = join(dataRoot, UNAVAILABLE_STANDIN)
+  rmSync(standIn, { recursive: true, force: true })
+  return standIn
+}
+
 /** What only Electron knows: the paths beside the app, and the keychain secret. */
-function bootContext(): BootContext {
+function bootContext({ storage, modelsUnavailable }: SettledStorage): BootContext {
   // Linux without a keyring daemon: keep booting on Chromium's built-in key
   // rather than refusing to start; same fallback every Electron app takes.
   if (process.platform === "linux") safeStorage.setUsePlainTextEncryption(true)
@@ -122,8 +162,17 @@ function bootContext(): BootContext {
     // dev: backend sits next to electron/; packaged: frozen binaries in resources/
     backendDir: join(appPath, "..", "backend"),
     binariesDir: resources,
-    dataDir: DATA_DIR,
-    secret: loadSecret(join(app.getPath("userData"), "secret.bin"), safeStorage),
+    dataDir: storage.dataRoot,
+    ...(storage.dataMoved && { shellSettingsDir: app.getPath("userData") }),
+    ...(modelsUnavailable
+      ? {
+          modelStorageDir: modelStandIn(storage.dataRoot),
+          modelStorageUnavailable: true,
+        }
+      : storage.modelsMoved && { modelStorageDir: storage.modelsRoot }),
+    secret: loadSecret(join(app.getPath("userData"), "secret.bin"), safeStorage, (line) =>
+      warnMain(sessionLog, line)
+    ),
     // Packaged: bundled embedding, voice, and parser packs. Dev: same staging dir.
     modelsDir: packaged
       ? join(resources, "models")
@@ -202,6 +251,34 @@ function registerDocumentHandlers(dataDir: string): void {
     if (allowed) await shell.openExternal(allowed)
   })
 
+  // A link from content the user confirmed in the link popup, which named its host.
+  ipcMain.handle("shell:open-confirmed-link", async (event, url) => {
+    if (
+      !trusted(event.sender) ||
+      event.senderFrame !== event.sender.mainFrame ||
+      typeof url !== "string"
+    ) {
+      return
+    }
+    const confirmed = confirmedExternalUrl(url)
+    if (confirmed) await shell.openExternal(confirmed)
+  })
+
+  // A listed plugin's page by its id: the address comes from the registry, not the page.
+  ipcMain.handle("shell:open-plugin-page", async (event, pluginId, page) => {
+    if (
+      !trusted(event.sender) ||
+      event.senderFrame !== event.sender.mainFrame ||
+      typeof pluginId !== "string" ||
+      typeof page !== "string" ||
+      apiUrl === null
+    ) {
+      return
+    }
+    const address = await pluginPageUrl(apiUrl, pluginId, page as PluginPage)
+    if (address) await shell.openExternal(address)
+  })
+
   ipcMain.handle("documents:reveal", async (event, workspaceId, documentId) => {
     if (
       !trusted(event.sender) ||
@@ -219,59 +296,6 @@ function registerDocumentHandlers(dataDir: string): void {
         : "Couldn’t locate the source."
     }
   })
-}
-
-// Updates are the one call the app makes on its own, so they are off until the
-// user turns them on; "Check now" in Settings works either way.
-async function registerUpdateHandlers(): Promise<void> {
-  const prefsPath = join(app.getPath("userData"), "updates.json")
-  const trusted = (sender: Electron.WebContents): boolean =>
-    mainWindow !== null && sender === mainWindow.webContents
-  const broadcast = (state: UpdateState) =>
-    mainWindow?.webContents.send("updates:state", state)
-
-  let updates: Updates
-  if (app.isPackaged) {
-    // GitHub's CDN rejects the multi-range requests differential updates need.
-    autoUpdater.disableDifferentialDownload = true
-    // Its default logger is the console, which a packaged app shows nowhere.
-    const log = (message: unknown) => sessionLog.append("updater", String(message))
-    autoUpdater.logger = { info: log, warn: log, error: log }
-    updates = attachUpdater(autoUpdater, broadcast)
-  } else {
-    // ponytail: dev has no signed build to update; expose the same surface
-    // so the Settings row renders, and stay idle.
-    updates = {
-      check: async () => undefined,
-      install: () => undefined,
-      state: () => ({ status: "idle" }),
-    }
-  }
-
-  const check = (): void => {
-    writeUpdatePrefs(prefsPath, {
-      ...readUpdatePrefs(prefsPath),
-      lastCheckedAt: new Date().toISOString(),
-    })
-    void updates.check()
-  }
-
-  ipcMain.handle("updates:prefs", () => readUpdatePrefs(prefsPath))
-  ipcMain.handle("updates:set-automatic", (event, automatic: unknown) => {
-    if (!trusted(event.sender)) return readUpdatePrefs(prefsPath)
-    const prefs = { ...readUpdatePrefs(prefsPath), automatic: automatic === true }
-    writeUpdatePrefs(prefsPath, prefs)
-    return prefs
-  })
-  ipcMain.handle("updates:state", () => updates.state())
-  ipcMain.handle("updates:check", (event) => {
-    if (trusted(event.sender)) check()
-  })
-  ipcMain.handle("updates:install", (event) => {
-    if (trusted(event.sender)) updates.install()
-  })
-
-  if (readUpdatePrefs(prefsPath).automatic) check()
 }
 
 function applyTitleBarOverlay(
@@ -387,6 +411,10 @@ function createWindow(apiUrl: string): void {
 
   win.on("close", (event) => {
     saveWindowState(win)
+    if (movingStorage) {
+      event.preventDefault()
+      return
+    }
     // Closing the last window quits the app, so it asks as a quit does.
     if (quitConfirmed || shuttingDown || BrowserWindow.getAllWindows().length > 1)
       return
@@ -404,9 +432,7 @@ function createWindow(apiUrl: string): void {
   })
 
   if (app.isPackaged) {
-    void win.loadFile(
-      join(app.getAppPath(), "..", "frontend", "dist", "index.html")
-    )
+    void win.loadFile(PACKAGED_PAGE)
   } else {
     void win.loadURL(DEV_RENDERER_URL)
   }
@@ -428,14 +454,14 @@ async function quitWithConfirmation(): Promise<boolean> {
 }
 
 /** Stop watchers and snapshots first, then reap the sidecars they would otherwise restart. */
-async function shutdown(): Promise<void> {
-  if (shuttingDown) return
+const shutdown = stopOnce(async () => {
   shuttingDown = true
   stopSidecarWatchers?.()
+  stopPrivacyChoices?.()
   stopDocxSnapshots?.()
-  withdrawApiUrl(DATA_DIR)
+  withdrawApiUrl(FIXED_DIR)
   if (sidecars) await stopAll(sidecars)
-}
+})
 
 function denyAppWindows(contents: Electron.WebContents): void {
   contents.setWindowOpenHandler(({ url }) => {
@@ -446,6 +472,10 @@ function denyAppWindows(contents: Electron.WebContents): void {
     if (!url.startsWith("https:")) return
     event.preventDefault()
     openAllowedExternal(url)
+  })
+  // will-navigate covers the window's own page only; a viewer's frame navigating itself is this.
+  contents.on("will-frame-navigate", (event) => {
+    if (!event.isMainFrame && !frameMayNavigate(event.url)) event.preventDefault()
   })
 }
 
@@ -460,6 +490,10 @@ function main(): void {
   // Chromium/Electron itself resolves), so nativeTheme is authoritative and
   // the renderer only ever mirrors it: a sync read on preload boot for the
   // first paint, then this push on every change.
+  // Snap confinement keeps other drives out of reach, so a move has nowhere to go.
+  ipcMain.on("storage:supported", (event) => {
+    event.returnValue = !(app.isPackaged && isOwnSnap(process.env, process.execPath))
+  })
   ipcMain.on("theme:get-system", (event) => {
     event.returnValue = nativeTheme.shouldUseDarkColors ? "dark" : "light"
   })
@@ -477,32 +511,95 @@ function main(): void {
     .then(async () => {
       applyLocalePreference(loadLocalePreference())
       applyDevAppIdentity()
-      const boot = await bootSidecars(bootContext(), onSidecarCrash)
+      const settled = await settleStorageBeforeBoot(FIXED_DIR, drivePrompts)
+      if (settled === null) {
+        app.quit()
+        return
+      }
+      await removeInterruptedCopy(FIXED_DIR)
+      const boot = await bootSidecars(bootContext(settled), onSidecarCrash)
       apiUrl = boot.apiUrl
       sidecars = boot.sidecars
       stopSidecarWatchers = boot.stopWatching
       serveWordPreviews(boot.ctx)
       await boot.waitHealthy()
-      announceApiUrl(boot.dataDir, boot.apiUrl)
+      // At the fixed folder: `surfsense-plugins` looks for it before knowing of any move.
+      announceApiUrl(FIXED_DIR, boot.apiUrl)
+      // Only now: this start has proved the new folder works.
+      void removeOldCopies(FIXED_DIR).catch((error: unknown) => {
+        warnMain(sessionLog, `failed to remove the old copies: ${String(error)}`)
+      })
       registerDocumentHandlers(boot.dataDir)
       registerLocaleHandlers({
         isTrusted: (sender) =>
           mainWindow !== null && sender === mainWindow.webContents,
       })
       registerAboutHandlers()
+      registerDataFolderHandlers({
+        dataDir: boot.dataDir,
+        isTrusted: (sender) =>
+          mainWindow !== null && sender === mainWindow.webContents,
+      })
+      registerStorageHandlers({
+        storage: settled.storage,
+        modelsUnavailable: settled.modelsUnavailable,
+        appFolder: app.isPackaged
+          ? appInstallFolder(process.platform, process.execPath)
+          : app.getAppPath(),
+        isTrusted: (sender) =>
+          mainWindow !== null && sender === mainWindow.webContents,
+        mainWindow: () => mainWindow,
+        confirmStop: quitWithConfirmation,
+        stop: shutdown,
+        relaunch: () => {
+          // In `pnpm dev` the app's exit also takes Vite down, so a relaunch finds no page.
+          if (app.isPackaged) app.relaunch(relaunchOptions(process.env))
+          else warnMain(sessionLog, "storage changed: run pnpm dev again")
+          app.quit()
+        },
+        onMovingChange: (moving) => {
+          movingStorage = moving
+        },
+      })
       registerSessionLogHandlers({
         isTrusted: (sender) =>
           mainWindow !== null && sender === mainWindow.webContents,
       })
+      registerStartupFrameHandlers({
+        dataDir: boot.dataDir,
+        isTrusted: (sender) =>
+          mainWindow !== null && sender === mainWindow.webContents,
+      })
+      registerMicrophoneHandlers({
+        ipc: ipcMain,
+        isTrusted: (sender) =>
+          mainWindow !== null && sender === mainWindow.webContents,
+        system: {
+          platform: process.platform,
+          preferences: systemPreferences,
+          openExternal: (url) => shell.openExternal(url),
+        },
+      })
       installMenu()
       createWindow(boot.apiUrl)
-      await registerUpdateHandlers()
+      // Automatic checks are off until the user turns them on. Check now works
+      // either way, unless an admin policy turns updates off.
+      stopPrivacyChoices = startPrivacyChoices({
+        apiUrl: boot.apiUrl,
+        mainWindow: () => mainWindow,
+      }).stop
       app.on("activate", () => {
         if (mainWindow === null) createWindow(boot.apiUrl)
       })
     })
     .catch((err: unknown) => {
       warnMain(sessionLog, `failed to start: ${String(err)}`)
+      // No window exists yet, so without this the app just vanishes. English,
+      // like the application menu: main's own text is not translated.
+      if (!shuttingDown) {
+        const { title, detail } = describeStartupFailure(err, sessionLog.lines())
+        dialog.showErrorBox(title, detail)
+      }
       void shutdown().finally(() => app.exit(1))
     })
 
@@ -531,6 +628,13 @@ app.commandLine.appendSwitch(
 
 // Also before whenReady(): the default session is created with the app.
 refuseSpellcheckDownloads(app)
+installPermissionHandlers(app, {
+  appPage: app.isPackaged
+    ? pathToFileURL(PACKAGED_PAGE)
+    : new URL(DEV_RENDERER_URL),
+  isMainWindow: (contents) =>
+    mainWindow !== null && contents === mainWindow.webContents,
+})
 
 // one app, one set of sidecars: a second instance would fight over the SQLite
 // file and the port, so hand off to the primary window and quit

@@ -62,11 +62,13 @@ function getSystemTheme(): ResolvedTheme {
   return window.matchMedia(COLOR_SCHEME_QUERY).matches ? "dark" : "light"
 }
 
+// So colours switch at once rather than each fading at its own pace. An element
+// marked `data-keep-transition` keeps its motion: a control whose choice is the theme.
 function disableTransitionsTemporarily() {
   const style = document.createElement("style")
   style.appendChild(
     document.createTextNode(
-      "*,*::before,*::after{-webkit-transition:none!important;transition:none!important}"
+      "*:not([data-keep-transition]),*::before,*::after{-webkit-transition:none!important;transition:none!important}"
     )
   )
   document.head.appendChild(style)
@@ -176,7 +178,11 @@ export function ThemeProvider({
       }
 
       // Cmd/Ctrl+Shift+D, so a bare "d" while typing never flips the theme.
-      if (!(event.metaKey || event.ctrlKey) || !event.shiftKey || event.altKey) {
+      if (
+        !(event.metaKey || event.ctrlKey) ||
+        !event.shiftKey ||
+        event.altKey
+      ) {
         return
       }
 

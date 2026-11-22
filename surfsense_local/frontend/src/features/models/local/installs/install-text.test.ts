@@ -46,16 +46,16 @@ describe("what an install event says", () => {
     expect(
       installMessage({
         type: "error",
-        message: "This download needs 5.0 GB free; this computer has 2.1 GB.",
+        message: "This download needs 5.0 GB free; this drive has 2.1 GB.",
         code: "not_enough_disk",
         needed_bytes: 5_000_000_000,
         free_bytes: 2_140_000_000,
       })
-    ).toBe("This download needs 5 GB free; this computer has 2.1 GB.")
+    ).toBe("This download needs 5 GB free; this drive has 2.1 GB.")
   })
 
   it("keeps the backend's sentence when the disk refusal lacks a number", () => {
-    const message = "This download needs 5.0 GB free; this computer has 2.1 GB."
+    const message = "This download needs 5.0 GB free; this drive has 2.1 GB."
 
     expect(
       installMessage({ type: "error", message, code: "not_enough_disk" })
@@ -74,6 +74,43 @@ describe("what an install event says", () => {
         message,
         code: "not_enough_disk",
         free_bytes: 2_140_000_000,
+      })
+    ).toBe(message)
+  })
+
+  it("words a failed search check from its raw counts", () => {
+    expect(
+      installMessage({
+        type: "error",
+        message: "backend prose",
+        code: "retrieval_check_failed",
+        found: 7,
+        asked: 10,
+      })
+    ).toBe("It found 7 of 10 answers first; a search model has to find all 10.")
+  })
+
+  it("keeps the backend's sentence when the failed check lacks a count", () => {
+    const message =
+      "It found 7 of 10 answers first; a search model has to find all 10."
+
+    expect(
+      installMessage({ type: "error", message, code: "retrieval_check_failed" })
+    ).toBe(message)
+    expect(
+      installMessage({
+        type: "error",
+        message,
+        code: "retrieval_check_failed",
+        found: 7,
+      })
+    ).toBe(message)
+    expect(
+      installMessage({
+        type: "error",
+        message,
+        code: "retrieval_check_failed",
+        asked: 10,
       })
     ).toBe(message)
   })

@@ -1,33 +1,26 @@
-import type { ComponentType } from "react"
+import { useState, type ComponentType } from "react"
 
 import { Button } from "@/components/ui/button"
-import { DownloadCircle02Icon, LicenseIcon } from "@/components/ui/icons"
+import { LicenseIcon, Video01Icon } from "@/components/ui/icons"
+import { GuidesDialog } from "@/features/guides/guides-dialog"
 import type { LicenseState } from "@/features/license/api"
 import { useLicense } from "@/features/license/use-license"
-import { useCheckForUpdates } from "@/features/updates/use-check-for-updates"
-import {
-  updatesBridge,
-  useUpdateState,
-} from "@/features/updates/use-update-state"
 import { intl } from "@/i18n/intl"
-import type { UpdateState } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
 // `good` and `bad` keep their colour on hover, where ghost would otherwise
 // repaint them: a status light that changes colour under the pointer is no
 // longer reporting anything.
 const TONE = {
-  quiet: "text-muted-foreground",
-  offer: "text-notice hover:text-notice",
-  wrong: "text-amber-600 dark:text-amber-500",
   good: "text-emerald-600 hover:text-emerald-600 dark:text-emerald-500 dark:hover:text-emerald-500",
   bad: "text-destructive hover:text-destructive",
+  // A way in, not a status: the ghost button's own colours.
+  plain: "",
 } as const
 
 type Row = {
   label: string
   tone: keyof typeof TONE
-  busy?: boolean
 }
 
 function FooterRow({
@@ -41,10 +34,10 @@ function FooterRow({
 }) {
   return (
     <Button
+      static
       type="button"
       variant="ghost"
       size="xs"
-      disabled={row.busy}
       className={cn("w-full justify-start px-2 font-normal", TONE[row.tone])}
       onClick={onClick}
     >
@@ -102,68 +95,12 @@ function licenseRow(state: LicenseState): Row {
   return { label: label(), tone }
 }
 
-function updateRow(state: UpdateState): Row {
-  switch (state.status) {
-    case "checking":
-      return {
-        label: intl.formatMessage({
-          id: "dashboard_footer_update_checking_status",
-          defaultMessage: "Checking…",
-        }),
-        tone: "quiet",
-        busy: true,
-      }
-    case "downloading":
-      return {
-        label: intl.formatMessage({
-          id: "dashboard_footer_update_downloading_status",
-          defaultMessage: "Downloading…",
-        }),
-        tone: "quiet",
-        busy: true,
-      }
-    case "ready":
-      return {
-        label: intl.formatMessage({
-          id: "dashboard_footer_update_restart_button",
-          defaultMessage: "Restart to update",
-        }),
-        tone: "offer",
-      }
-    case "up-to-date":
-      return {
-        label: intl.formatMessage({
-          id: "dashboard_footer_update_current_status",
-          defaultMessage: "Up to date",
-        }),
-        tone: "quiet",
-      }
-    case "error":
-      return {
-        label: intl.formatMessage({
-          id: "dashboard_footer_update_failed_status",
-          defaultMessage: "Update check failed",
-        }),
-        tone: "wrong",
-      }
-    default:
-      return {
-        label: intl.formatMessage({
-          id: "dashboard_footer_update_check_button",
-          defaultMessage: "Check for updates",
-        }),
-        tone: "quiet",
-      }
-  }
-}
-
 /**
- * The sidebar's bottom edge, holding only what is worth a glance: where the
- * license stands, and where the app stands on updates.
+ * The sidebar's bottom edge: the guides, and where the license stands, at a
+ * glance. Updates show in the title bar instead.
  *
- * Either row can be absent -- no bridge outside the desktop app, no license row
- * until its status arrives -- so the strip goes with them rather than leaving a
- * bordered gap.
+ * The license row is absent until its status arrives, rather than guessing,
+ * and while licensing is off, as in every release since ADR 0092.
  */
 export function SidebarFooter({
   onOpenLicense,
@@ -171,37 +108,29 @@ export function SidebarFooter({
   onOpenLicense: () => void
 }) {
   const license = useLicense().data
-  const updates = updatesBridge()
-  const state = useUpdateState()
-  const checkForUpdates = useCheckForUpdates()
-
-  const currentLicenseRow = license ? licenseRow(license.state) : null
-
-  if (!currentLicenseRow && !updates) return null
-
-  // Installing is local and needs no permission; checking goes through consent.
-  const onUpdateClick = async () => {
-    if (!updates) return
-    if (state.status === "ready") return void updates.install()
-    await checkForUpdates()
-  }
+  const [guidesOpen, setGuidesOpen] = useState(false)
 
   return (
     <div className="flex flex-col gap-0.5 border-t p-2">
-      {currentLicenseRow ? (
+      <FooterRow
+        icon={Video01Icon}
+        row={{
+          label: intl.formatMessage({
+            id: "dashboard_footer_guides_button",
+            defaultMessage: "Guides and videos",
+          }),
+          tone: "plain",
+        }}
+        onClick={() => setGuidesOpen(true)}
+      />
+      {license?.licensing ? (
         <FooterRow
           icon={LicenseIcon}
-          row={currentLicenseRow}
+          row={licenseRow(license.state)}
           onClick={onOpenLicense}
         />
       ) : null}
-      {updates ? (
-        <FooterRow
-          icon={DownloadCircle02Icon}
-          row={updateRow(state)}
-          onClick={() => void onUpdateClick()}
-        />
-      ) : null}
+      <GuidesDialog open={guidesOpen} onOpenChange={setGuidesOpen} />
     </div>
   )
 }

@@ -15,7 +15,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 # replacing the account key is a release that trusts both rather than a recall
 # that invalidates every license already issued. Newest first.
 KEYGEN_PUBLIC_KEYS_HEX = (
-    "cef8ffb796122d0126d29e6db03df39305417d4fe271bc234a9bc62f0521c41e",
+    "cef8ffb796122d0126d29e6db03df39305417d4fe271bc234a9bc62f0521c41e",  # pragma: allowlist secret
 )
 
 # A laptop clock a few minutes fast is not tampering; keygen-go uses the same.
@@ -38,9 +38,13 @@ class Verified:
     plan: str
     email: str
     expiry: datetime
+    # A team's seats or a Business license's people; shown, never enforced.
     max_users: int | None
     issued: datetime
     file_expiry: datetime | None
+    firm: str | None
+    # Entitlement codes of the job plugins it unlocks, such as JOB_QUESTIONNAIRE.
+    jobs: tuple[str, ...]
 
 
 def verify(certificate: str, now: datetime) -> Verified:
@@ -78,18 +82,36 @@ def verify_signature(certificate: str) -> Verified:
 
     payload = json.loads(base64.b64decode(enc))
     meta, attributes = payload["meta"], payload["data"]["attributes"]
+    metadata = attributes["metadata"]
 
     return Verified(
         key=attributes["key"],
-        plan=attributes["metadata"]["plan"],
-        email=attributes["metadata"]["email"],
+        plan=metadata["plan"],
+        email=metadata["email"],
         expiry=_instant(attributes["expiry"]),
         max_users=attributes["maxUsers"],
         issued=_instant(meta["issued"]),
         file_expiry=None if meta["expiry"] is None else _instant(meta["expiry"]),
+        firm=_firm(metadata.get("firm")),
+        jobs=_jobs(metadata.get("jobs")),
     )
 
 
 def _instant(iso: str) -> datetime:
     parsed = datetime.fromisoformat(iso)
     return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
+
+
+def _firm(typed: object) -> str | None:
+    """As typed at checkout; absent on every license but Business."""
+    if not isinstance(typed, str):
+        return None
+    return typed.strip() or None
+
+
+def _jobs(codes: object) -> tuple[str, ...]:
+    """Comma-separated codes; absent on a license that unlocks no job."""
+    if not isinstance(codes, str):
+        return ()
+    trimmed = (code.strip() for code in codes.split(","))
+    return tuple(dict.fromkeys(code for code in trimmed if code))

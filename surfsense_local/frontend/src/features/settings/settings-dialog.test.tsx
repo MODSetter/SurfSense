@@ -5,9 +5,22 @@ import userEvent from "@testing-library/user-event"
 
 import { THEME_STORAGE_KEY, ThemeProvider } from "@/components/theme-provider"
 import { TooltipProvider } from "@/components/ui/tooltip"
+import type { LicenseStatus } from "@/features/license/api"
 import { render } from "@/test-utils"
 
 import { SettingsDialog, type SettingsSectionId } from "./settings-dialog"
+
+// What /license/status answers with no license stored: every field, as the API sends it.
+const NO_LICENSE: LicenseStatus = {
+  state: "none",
+  plan: null,
+  email: null,
+  expiry: null,
+  max_users: null,
+  firm: null,
+  jobs: [],
+  licensing: true,
+}
 
 function SettingsHarness() {
   const [section, setSection] = useState<SettingsSectionId>("general")
@@ -83,20 +96,44 @@ describe("SettingsDialog", () => {
     vi.unstubAllGlobals()
   })
 
+  it("offers Storage only where main can move folders", () => {
+    const nav = () =>
+      Array.from(
+        screen
+          .getByRole("navigation", { name: "System" })
+          .querySelectorAll("button"),
+        (b) => b.textContent
+      )
+
+    const { unmount } = render(<SettingsHarness />)
+    expect(nav()).not.toContain("Storage")
+    unmount()
+
+    window.surfsense = {
+      ...window.surfsense!,
+      storage: { state: async () => null } as never,
+    }
+    render(<SettingsHarness />)
+    expect(nav()).toEqual(["Resources", "Storage", "Office support", "Network"])
+    delete window.surfsense!.storage
+  })
+
   it("groups the sections into Settings, Models, System and App", () => {
     render(<SettingsHarness />)
 
     const groups = {
-      Settings: ["General", "License"],
+      // License only while licensing runs, which no release does (ADR 0092).
+      Settings: ["General", "Plugins"],
       Models: [
         "Text gen",
         "Image gen",
         "Image edit",
         "Audio",
+        "Speech recognition",
         "Video",
         "Embedding",
       ],
-      System: ["Resources", "Office support", "Network", "Plugins"],
+      System: ["Resources", "Office support", "Network"],
       App: ["Report issue", "About"],
     }
     for (const [group, sections] of Object.entries(groups)) {
@@ -106,6 +143,38 @@ describe("SettingsDialog", () => {
       ).toEqual(sections)
     }
   })
+
+  it.each([
+    [true, ["General", "License", "Plugins"]],
+    [false, ["General", "Plugins"]],
+  ])(
+    "lists License only while licensing runs (%s)",
+    async (licensing, shown) => {
+      const fetches = vi.fn(async (input: RequestInfo | URL) =>
+        String(input) === "/license/status"
+          ? Response.json({ ...NO_LICENSE, licensing })
+          : Response.json([])
+      )
+      vi.stubGlobal("fetch", fetches)
+      render(<SettingsHarness />)
+
+      const nav = () =>
+        Array.from(
+          screen
+            .getByRole("navigation", { name: "Settings" })
+            .querySelectorAll("button"),
+          (b) => b.textContent
+        )
+      await waitFor(() =>
+        expect(fetches).toHaveBeenCalledWith(
+          "/license/status",
+          expect.anything()
+        )
+      )
+      await waitFor(() => expect(nav()).toEqual(shown))
+      vi.unstubAllGlobals()
+    }
+  )
 
   it("shows the embedding model the library was built with, and offers no way to change it", async () => {
     vi.stubGlobal(
@@ -214,10 +283,17 @@ describe("SettingsDialog", () => {
   it("scrolls every section's heading with its content", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => Response.json([]))
+      // The License section reads its status's fields; every other section copes with a list.
+      vi.fn(async (input: RequestInfo | URL) =>
+        String(input) === "/license/status"
+          ? Response.json(NO_LICENSE)
+          : Response.json([])
+      )
     )
     const user = userEvent.setup()
     render(<SettingsHarness />)
+    // License is listed once its status says licensing runs.
+    await screen.findByRole("button", { name: "License" })
 
     for (const [nav, heading] of [
       ["General", "General"],
@@ -376,6 +452,15 @@ describe("SettingsDialog", () => {
       name: "audio model in use",
     })
     await waitFor(() => expect(audio.textContent).toContain("tts-1"))
+
+    await user.click(screen.getByRole("button", { name: "Speech recognition" }))
+
+    expect(
+      await screen.findByRole("heading", { name: "Speech recognition models" })
+    ).toBeTruthy()
+    expect(
+      await screen.findByText("No speech recognition model yet")
+    ).toBeTruthy()
   })
 
   it("shows nothing half-loaded while model data loads", async () => {
@@ -393,5 +478,27 @@ describe("SettingsDialog", () => {
     ).toBeTruthy()
     expect(screen.queryByText("No chat model yet")).toBeNull()
     expect(screen.queryByRole("status")).toBeNull()
+  })
+})
+
+describe("SettingsDialog in the Docker image", { tags: ["docker"] }, () => {
+  it("lists Access after General, where the sign-in password is set", () => {
+    render(<SettingsHarness />)
+
+    const nav = screen.getByRole("navigation", { name: "Settings" })
+    expect(
+      Array.from(nav.querySelectorAll("button"), (b) => b.textContent)
+    ).toEqual(["General", "Access", "Plugins"])
+  })
+})
+
+describe("SettingsDialog in the Docker image", { tags: ["docker"] }, () => {
+  it("has no Storage section: the volume decides where the files are", () => {
+    render(<SettingsHarness />)
+
+    const system = screen.getByRole("navigation", { name: "System" })
+    expect(
+      Array.from(system.querySelectorAll("button"), (b) => b.textContent)
+    ).not.toContain("Storage")
   })
 })

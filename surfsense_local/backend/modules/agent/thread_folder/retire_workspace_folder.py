@@ -40,7 +40,7 @@ def retire_once(session: Session, workspace_id: int) -> None:
         for thread_id in session.scalars(
             select(ChatThread.id).where(
                 ChatThread.workspace_id == workspace_id,
-                ChatThread.opencode_session_id.is_not(None),
+                ChatThread.agent_engine.is_not(None),
             )
         )
     }

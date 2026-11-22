@@ -1,0 +1,184 @@
+{
+  "points": [
+    {
+      "key": "marking",
+      "title": "Marking and identification",
+      "covers": "Whether information must be marked or identified as confidential to be protected, or is protected when its nature shows it is confidential.",
+      "queries": [
+        "marked as confidential",
+        "identified as confidential",
+        "reasonably understood as confidential"
+      ]
+    },
+    {
+      "key": "business-information",
+      "title": "Business information",
+      "covers": "Whether confidential information covers business information, such as plans, pricing and customers, and not only technical information.",
+      "queries": [
+        "technical or business information",
+        "definition of confidential information"
+      ]
+    },
+    {
+      "key": "oral-disclosures",
+      "title": "Oral disclosures",
+      "covers": "Whether information disclosed orally or visually, not only in writing, can be confidential information.",
+      "queries": [
+        "disclosed orally",
+        "in any form",
+        "oral or visual disclosure"
+      ]
+    },
+    {
+      "key": "use-for-purpose",
+      "title": "Use only for the purpose",
+      "covers": "Whether the recipient may use confidential information only for the purpose of the agreement.",
+      "queries": [
+        "use only for the purpose",
+        "use of confidential information"
+      ]
+    },
+    {
+      "key": "employees",
+      "title": "Sharing with employees",
+      "covers": "Whether the recipient may share confidential information with its own employees who need to know it.",
+      "queries": [
+        "disclose to employees",
+        "need to know",
+        "representatives"
+      ]
+    },
+    {
+      "key": "advisors",
+      "title": "Sharing with advisors and contractors",
+      "covers": "Whether the recipient may share confidential information with its agents, advisors, contractors or other third parties who need to know it.",
+      "queries": [
+        "advisors contractors agents",
+        "representatives",
+        "third parties"
+      ]
+    },
+    {
+      "key": "compelled-disclosure",
+      "title": "Notice of a compelled disclosure",
+      "covers": "Whether the recipient must notify the discloser before disclosing confidential information that a law, regulation, subpoena or court order requires it to disclose.",
+      "queries": [
+        "required by law",
+        "subpoena or court order",
+        "advance notice of the required disclosure"
+      ]
+    },
+    {
+      "key": "confidential-discussions",
+      "title": "Confidentiality of the discussions",
+      "covers": "Whether the existence, terms or status of the parties' discussions or of the agreement must be kept confidential.",
+      "queries": [
+        "existence and status of the discussions",
+        "terms of this agreement"
+      ]
+    },
+    {
+      "key": "reverse-engineering",
+      "title": "Reverse engineering",
+      "covers": "Whether the recipient is barred from reverse engineering, decompiling or disassembling anything that holds or embodies confidential information.",
+      "queries": [
+        "reverse engineer",
+        "decompile",
+        "disassemble"
+      ]
+    },
+    {
+      "key": "independent-development",
+      "title": "Independent development",
+      "covers": "Whether the recipient may independently develop information, products or technology similar to the confidential information without breaching the agreement.",
+      "queries": [
+        "independently developed",
+        "developing similar products"
+      ]
+    },
+    {
+      "key": "third-party-information",
+      "title": "Information from third parties",
+      "covers": "Whether information the recipient rightfully receives from a third party without a duty of confidentiality is outside the agreement.",
+      "queries": [
+        "received from a third party",
+        "without confidentiality restrictions"
+      ]
+    },
+    {
+      "key": "no-licence",
+      "title": "No licence",
+      "covers": "Whether the agreement grants the recipient no licence or other right in the discloser's confidential information or intellectual property.",
+      "queries": [
+        "grants no license",
+        "retains all rights",
+        "intellectual property"
+      ]
+    },
+    {
+      "key": "return-or-destruction",
+      "title": "Return or destruction",
+      "covers": "Whether the recipient must return or destroy confidential information when the agreement ends or when the discloser asks.",
+      "queries": [
+        "return or destroy",
+        "upon request",
+        "expires or terminates"
+      ]
+    },
+    {
+      "key": "copies",
+      "title": "Copies",
+      "covers": "Whether, and when, the recipient may make copies or reproductions of confidential information.",
+      "queries": [
+        "copies",
+        "reproduce"
+      ]
+    },
+    {
+      "key": "non-solicitation",
+      "title": "Non-solicitation",
+      "covers": "Whether the recipient is barred from soliciting or hiring the discloser's employees or other representatives.",
+      "queries": [
+        "solicit",
+        "hire employees",
+        "non-solicitation"
+      ]
+    },
+    {
+      "key": "survival",
+      "title": "Survival",
+      "covers": "Whether the confidentiality obligations continue after the agreement expires or is terminated.",
+      "queries": [
+        "survive",
+        "expiration or termination",
+        "confidentiality period"
+      ]
+    },
+    {
+      "key": "retained-copies",
+      "title": "Retained copies",
+      "covers": "Whether the recipient may keep some confidential information after returning or destroying it, such as backup copies or copies the law requires it to keep.",
+      "queries": [
+        "retain",
+        "backup",
+        "record retention",
+        "required by law"
+      ]
+    }
+  ],
+  "prompts": {
+    "system": "prompts/system.md",
+    "point": "prompts/point.md",
+    "repair": "prompts/repair.md"
+  },
+  "min_quote_chars": 15,
+  "passages_per_point": 6,
+  "settings": [
+    {
+      "key": "external_comments",
+      "label": "Explain each change to the other side",
+      "description": "Each tracked change carries a short comment the other side may read. Off, SurfSense's comments stay in Studio.",
+      "default": true
+    }
+  ]
+}

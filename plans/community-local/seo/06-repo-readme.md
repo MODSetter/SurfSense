@@ -24,14 +24,27 @@ whose installers carry the agent. It is about 450 words under six H2s, at the
 short end of the [length table](#length-the-biggest-projects-have-the-shortest-readmes).
 In order:
 
-1. **The header.** Badges, the banner and the H1, then the bold line **"The
-   air-gapped, open-source NotebookLM alternative."**, which keeps the terms the
-   repo ranks for, and the sub-line "The AI agent that researches, transforms
-   and edits your documents, on your machine.", which leads with the edit, as
-   the [file agent strategy](../file-agent-strategy.md#the-headline) asks. Then
-   the link row, Trendshift and the language row.
-2. **The demo video** (below), one paragraph, the download table and the sunset
-   callout, which goes on 18 Oct 2026 here and in every translation.
+1. **The header.** Badges, the banner and the H1, then the bold line
+   **"Air-gapped, private AI for confidential documents."** and the sub-line
+   "Open-source NotebookLM alternative that runs on your computer.": the two
+   sentences of the repo description that 2.4.0 sets (agreed 9 Nov 2026). The
+   banner's alt text says the same. The sub-line keeps "open-source NotebookLM
+   alternative", the phrase the repo ranks first for. Until 2.4.0 the bold line
+   was "The air-gapped, open-source NotebookLM alternative." and the sub-line
+   "The AI agent that researches, transforms and edits your documents, on your
+   machine.", which led with the edit, as the
+   [file agent strategy](../file-agent-strategy.md#the-headline) asked; the
+   opening paragraph still says it. Then the link row, Trendshift and the
+   language row.
+2. **The demo videos** (below), one paragraph and the download table. Since
+   2.4.0 the paragraph opens "a free, open-source desktop app for confidential
+   documents" and calls the agent private, matching the header; it said
+   "documents you can't upload" and "privacy-focused" before. The sunset
+   callout was removed after 18 Oct 2026, here and in every translation. Since
+   22 Oct 2026 the table links `https://www.surfsense.com/downloads/<platform>?src=readme`
+   rather than GitHub's `/releases/latest/download/`: the site counts the
+   download and redirects to the release it pins
+   ([updates](../../../docs/architecture/updates.md#download-links)).
 3. **Quick start** in three steps: install and onboard, drop files or folders in
    the sources, ask the agent. A five-step version with screenshots was cut
    before its images were recorded.
@@ -39,20 +52,45 @@ In order:
    from with citations, creates, edits as a copy and transforms, with three
    footnotes. It replaced "What SurfSense makes", the table of Studio outputs,
    because what the agent does to the user's own files is now the pitch.
-5. **How it compares**, against NotebookLM (now Gemini Notebook) alone: offline
+5. **Plugins**, added on 15 Oct 2026 once SurfSense's plugins shipped (2.2.1),
+   is two paragraphs. The first says where to connect plugins: MCP servers from
+   the plugin registry, or any added by URL, which stay off until allowed. The
+   second, **Built in, free**, says the agent and **Add from the web**, in
+   Sources, search the web through a SearXNG server the user adds in Settings ›
+   Network (2.4.0 has no default server) and read pages and YouTube
+   transcripts on the user's own connection, with no plugin and no license.
+   They replaced the table of SurfSense's own plugins, and the line on their
+   license and free 14-day trial, in November 2026, when SurfSense's web
+   plugins became built-in tools
+   ([ADR 0081](../../../docs/adr/0081-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)).
+   The section replaced **Star history**, under the rule that anything added
+   replaces something, and sits above the comparison, as the maintainer asked.
+   Since 2.4.0 SurfSense is free with licensing off
+   ([ADR 0092](../../../docs/adr/0092-surfsense-is-free-and-licensing-is-off.md)),
+   so the README names no license, plan or price, and it still names no job
+   before an eval row backs it
+   ([file agent strategy](../file-agent-strategy.md#the-headline), item 4).
+   Each change goes into every translation.
+6. **How it compares**, against NotebookLM (now Gemini Notebook) alone: offline
    use, whether documents leave the machine, editing files, licence and models.
    "Everything stays on your machine", the comparisons with local chat apps and
    study tools, and the concession on audio and video overviews went; the
    privacy claims survive as the opening paragraph's last sentence and two rows.
-6. **Community**, **Star history** and **License**. License says Apache-2.0 and
-   links `LICENSE`, which names the BSL 1.1 exception for
-   `surfsense_backend/app/proprietary/`.
+7. **Community** and **License**. License says Apache-2.0 and links `LICENSE`.
+   Since 15 Oct 2026 the root `LICENSE` is the plain Apache text with no
+   preamble, so GitHub's About panel names the license instead of showing "View
+   license". Since 2.4.0 the whole repo is Apache-2.0: `backend/plugins/proprietary/`,
+   the last folder under the BSL 1.1, was relicensed, and its own `LICENSE` says so.
 
 The repo's About field, read on 11 Oct 2026, follows the header rather than the
 [project description](#project-description) below: "Air-gapped,
 privacy-focused, open-source NotebookLM alternative. AI agent that researches,
 transforms, and edits your documents." and a Discord link. It has nine topics,
-not the sixteen below.
+not the sixteen below. With 2.4.0 it becomes "Air-gapped, private AI for
+confidential documents. Open-source NotebookLM alternative that runs on your
+computer. Join our Discord: https://discord.gg/ejRNvftDp9", with 20 topics
+(agreed 9 Nov 2026), and the README's header follows it. Re-check the repo's
+rankings four weeks after the change.
 
 **Changing it.** Edit `README.md` first, then make the same change in every
 `README.<locale>.md`. Each follows the English section for section and keeps its
@@ -68,9 +106,8 @@ own register and terms. In each one:
 
 The top comment of `README.md` says the same in brief.
 
-**The format table** was checked cell by cell against `c5ff7938a` on `dev`
-(9 Oct 2026). v2.2.0 contains it; between the two, only the composer's mode
-menus (#2211) and the version bump changed the app, and neither touches a cell.
+**The format table** was checked cell by cell against `3da73d28e` on `dev`
+(2 Nov 2026), for v2.3.0, which added the Books row and image edits.
 Before each release, re-check every cell against what it ships
 ([`RELEASE.md`](../../../surfsense_local/RELEASE.md), step 4), and change the
 translations with any cell that moves:
@@ -80,20 +117,23 @@ translations with any cell that moves:
 | Research: every listed format is read and cited; scanned pages and images through OCR, in Latin, Chinese and Japanese script | [`storage.py`](../../../surfsense_local/backend/modules/documents/storage.py) (the types accepted), [`parsing.py`](../../../surfsense_local/backend/worker/ingestion/parsing.py) (RapidOCR); the scripts OCR misreads are a [documents](../../../docs/architecture/documents.md#known-gaps) Known gap |
 | Excel: the agent reads formulas | [`read_workbook.py`](../../../surfsense_local/backend/modules/agent/tool_endpoint/read_workbook.py) |
 | Create Word, PDF, PowerPoint and Excel; Word and PowerPoint from the user's own file as a template; Excel with formulas and native charts | [`render_document.py`](../../../surfsense_local/backend/modules/agent/tool_endpoint/render_document.py) (`DOCUMENT_FORMATS`, `template_source_id`), the [`surfsense-documents`](../../../surfsense_local/backend/modules/agent/skills/surfsense-documents/SKILL.md) skill |
-| Create Markdown, a web page, images and infographics (with an image model), a podcast, mind maps, flashcards and quizzes | [`formats.py`](../../../surfsense_local/backend/modules/artifacts/formats.py); the podcast's default voice is in [studio](../../../docs/architecture/studio.md#formats) |
+| Read EPUB, MOBI and AZW3 books; a MOBI or AZW3 book with DRM, or a KFX book, is refused at upload | [`storage.py`](../../../surfsense_local/backend/modules/documents/storage.py), [`upload_check.py`](../../../surfsense_local/backend/modules/documents/kindle_books/upload_check.py) |
+| Create Markdown, a web page, images and infographics (with an image model), a podcast, mind maps, flashcards and quizzes; edit an image or infographic by instruction | [`formats.py`](../../../surfsense_local/backend/modules/artifacts/formats.py); the podcast's default voice is in [studio](../../../docs/architecture/studio.md#formats); editing in [studio](../../../docs/architecture/studio.md#editing-a-picture) |
 | Edit Word body text as tracked changes and comments, Excel cell values and formulas, PowerPoint text on slides and notes, and delete or duplicate slides, always on a copy | [`revise_document.py`](../../../surfsense_local/backend/modules/agent/tool_endpoint/revise_document.py) and its [engines](../../../surfsense_local/backend/modules/artifacts/revised_copies/engines/) |
 | PDF: fill and flatten forms; stamp a watermark, page numbers, a header or a footer; merge, split, extract, rotate and reorder pages, each into a new PDF | [`pdf_form.py`](../../../surfsense_local/backend/modules/agent/tool_endpoint/pdf_form.py), [`pdf_stamp.py`](../../../surfsense_local/backend/modules/agent/tool_endpoint/pdf_stamp.py), [`pdf_pages.py`](../../../surfsense_local/backend/modules/agent/tool_endpoint/pdf_pages.py) |
 | Analyse CSV and Excel with pandas and chart the results | [`analyze_data.py`](../../../surfsense_local/backend/modules/agent/tool_endpoint/analyze_data.py) |
 | Place images in new documents | [`list_images.py`](../../../surfsense_local/backend/modules/agent/tool_endpoint/list_images.py) |
 | Word and PowerPoint to PDF with Office support, which is never in the installer | [`convert_document.py`](../../../surfsense_local/backend/modules/agent/tool_endpoint/convert_document.py), [office pack](../../../docs/architecture/office-pack.md) |
 
-**The demo video** is a GitHub upload, not a file in the repo: a
+**The demo videos** are GitHub uploads, not files in the repo: each a
 `github.com/user-attachments/assets/...` URL alone on its line, which GitHub
-plays inline. All eleven READMEs use the same one. To replace it, drag an MP4
-under 10 MB into any comment box in this repo, copy the `user-attachments` link
-GitHub writes, and swap the URL in every README.
+plays inline. All eleven READMEs use the same two. Each sits under a bold
+caption on its own line, translated in each README: the videos are stacked, so a
+caption below one would read as the title of the next. To replace one, drag an
+MP4 under 10 MB into any comment box in this repo, copy the `user-attachments`
+link GitHub writes, and swap the URL in every README.
 
-The video, added on 9 Oct 2026, shows the agent redlining a city contract as a
+The first video, added on 9 Oct 2026, shows the agent redlining a city contract as a
 revised copy, with tracked changes and a comment on each change. It is step 4 of
 the Boston demo plan, `references/demo-data/Boston-demo-plan.md`, which git
 ignores along with its sources and the credits for them; the plan names Qwen3.8
@@ -117,6 +157,9 @@ ignores along with its sources and the credits for them; the plan names Qwen3.8
   billed. The rehearsal's own check, a scratch test never committed, failed one
   run on how it worded the mutual right ("the City or the Contractor"), which
   the copy does hold. The run folders are in `references/live-runs/rehearsal/`.
+
+The second video, added on 25 Oct 2026, shows **Add from the web** adding
+sources, then the agent turning them into an HTML web page.
 
 ## Project description
 
@@ -554,8 +597,8 @@ RBAC or connector feature from the hosted product, all of which are sunset.
       German, French, Japanese, Korean and Russian followed on 22 Sep, and all
       ten follow the 9 Oct README (#2212).
 - [x] **Fill `REPLACE-ME-DATE` in the sunset callout** — 18 October 2026
-      (T+30 from 18 Sep 2026 launch). Still **delete the callout at T+30**
-      along with the "Importing from the hosted app" link.
+      (T+30 from 18 Sep 2026 launch). Done: the callout was deleted from every
+      README after 18 Oct 2026.
 - [ ] **Set the description and topics** in repo settings. They are not in any
       file, so they are not in any PR, which is how they stay wrong.
 

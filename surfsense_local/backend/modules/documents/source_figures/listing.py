@@ -1,16 +1,17 @@
 from sqlalchemy.orm import Session
 
-from modules.documents.models import Document, DocumentStatus, DocumentType
+from modules.documents.models import DocumentStatus, DocumentType
 from modules.documents.original_file import original_path
 from modules.documents.source_figures.figure import SourceFigure, from_index_entry
+from modules.documents.source_figures.figures_pass import queue_figures_pass
 from modules.documents.source_figures.layout import can_hold_figures, read_index
 from modules.documents.source_figures.source import (
     kept_figures_dir,
     source_in_workspace,
 )
-from modules.documents.tasks import extract_figures
-from shared.queue import ingest_queue
+from modules.documents.tasks import PRIORITY_ASKED
 
+# Still being read: ingest keeps them, or settles a Word file's as it ends.
 _INGEST_WILL_KEEP_THEM = (DocumentStatus.PENDING, DocumentStatus.PROCESSING)
 
 
@@ -23,7 +24,9 @@ def list_figures(
 ) -> list[SourceFigure]:
     """The figures kept from one source, in the order the source shows them.
 
-    A source ingested before figures were kept gets the figures-only pass queued.
+    A ready source ingest left without them gets the figures-only pass queued:
+    a PDF read from its text layer, a Word file read without Docling, or one
+    ingested before figures were kept.
     """
     document = source_in_workspace(session, workspace_id, document_id)
     if document.document_type is not DocumentType.FILE:
@@ -37,18 +40,8 @@ def list_figures(
     if original is None or not can_hold_figures(original):
         return []
     if document.status is DocumentStatus.READY:
-        _queue_figures_pass(document)
+        # Someone is waiting on it: ahead of a folder import, behind a note.
+        queue_figures_pass(document.id, PRIORITY_ASKED)
     elif document.status not in _INGEST_WILL_KEEP_THEM:
         return []
     raise FiguresPending(f"the figures of source {document.id} are being extracted")
-
-
-def _queue_figures_pass(document: Document) -> None:
-    # Once is enough: the pass reads the whole file, and a caller polls.
-    wanted = extract_figures.s(document.id)
-    waiting = any(
-        task.name == wanted.name and task.args == wanted.args
-        for task in ingest_queue.pending()
-    )
-    if not waiting:
-        ingest_queue.enqueue(wanted)

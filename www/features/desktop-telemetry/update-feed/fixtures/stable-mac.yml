@@ -1,0 +1,11 @@
+version: 2.2.3
+files:
+  - url: SurfSense-arm64.zip
+    sha512: GV/g0Q1MRkWRmgvD7RRNrwEOAiiMIRp1cGmgRc7lWpGg8xWnKKVLc1CZD58EDB8p2Pt/LgmsAMghezrM8skupg==
+    size: 1338360154
+  - url: SurfSense-arm64.dmg
+    sha512: gbtr+hbisU89CNAT9kI6xKIt51ra6DiOH5Im4ybC4ivuL8dFYXGzLFEUVAK3B5Du55eHq/WXSI2ugIu/WnSexg==
+    size: 1357516813
+path: SurfSense-arm64.zip
+sha512: GV/g0Q1MRkWRmgvD7RRNrwEOAiiMIRp1cGmgRc7lWpGg8xWnKKVLc1CZD58EDB8p2Pt/LgmsAMghezrM8skupg==
+releaseDate: '2026-10-21T10:15:37.088Z'

@@ -1,0 +1,16 @@
+{
+  "client_id": "https://plugins.surfsense.com/oauth/client.json",
+  "client_name": "SurfSense",
+  "client_uri": "https://surfsense.com",
+  "redirect_uris": [
+    "https://plugins.surfsense.com/oauth/callback"
+  ],
+  "grant_types": [
+    "authorization_code",
+    "refresh_token"
+  ],
+  "response_types": [
+    "code"
+  ],
+  "token_endpoint_auth_method": "none"
+}

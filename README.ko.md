@@ -11,14 +11,14 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Discord](https://img.shields.io/discord/1359368468260192417?label=Discord)](https://discord.gg/ejRNvftDp9)
 
-  <a href="https://www.surfsense.com/"><img alt="SurfSense, 네트워크와 분리해 쓰는 오픈소스 NotebookLM 대안" src="surfsense_web/public/homepage/banner.png" /></a>
+  <a href="https://www.surfsense.com/"><img alt="SurfSense, 네트워크와 분리해 쓰는 기밀 문서용 프라이빗 AI" src="www/public/homepage/banner.png" /></a>
 
   <h1>SurfSense</h1>
 
   <p>
-    <b>네트워크와 분리해 쓰는 오픈소스 NotebookLM 대안.</b>
+    <b>네트워크와 분리해 쓰는 기밀 문서용 프라이빗 AI.</b>
     <br />
-    내 컴퓨터에서 문서를 조사하고, 변환하고, 편집하는 AI 에이전트.
+    내 컴퓨터에서 실행되는 오픈소스 NotebookLM 대안.
   </p>
 
   <p>
@@ -26,6 +26,7 @@
     <a href="#형식별로-하는-일">형식</a> ·
     <a href="#빠른-시작">빠른 시작</a> ·
     <a href="#비교">비교</a> ·
+    <a href="#플러그인">플러그인</a> ·
     <a href="https://www.surfsense.com/pricing">요금</a> ·
     <a href="https://discord.gg/ejRNvftDp9">Discord</a>
   </p>
@@ -37,18 +38,26 @@
   </p>
 </div>
 
+**추적된 변경과 메모로 계약서를 레드라인 처리합니다**
+
 https://github.com/user-attachments/assets/88326b9d-e763-46db-9635-75f9df9e8682
 
-SurfSense는 업로드할 수 없는 문서를 위한 무료 오픈소스 데스크톱 앱입니다. 프라이버시를 중시하는 NotebookLM 스타일의 AI 에이전트로, 내 컴퓨터에서 문서를 조사하고, 변환하고, 편집합니다. 색인은 내 디스크에 남고, 모델은 로컬이든 원격이든 내가 고르며, 만들 계정도 없습니다.
+**웹에서 소스를 추가하고 웹 페이지로 만듭니다**
+
+https://github.com/user-attachments/assets/073577b7-f055-4f59-8540-330bd764aeb0
+
+SurfSense는 기밀 문서를 위한 무료 오픈소스 데스크톱 앱입니다. NotebookLM 스타일의 프라이빗 AI 에이전트로, 내 컴퓨터에서 문서를 조사하고, 변환하고, 편집합니다. 색인은 내 디스크에 남고, 모델은 로컬이든 원격이든 내가 고르며, 만들 계정도 없습니다.
 
 | 플랫폼 | 다운로드 |
 |---|---|
-| **Windows** x64 | [SurfSense-Setup.exe](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense-Setup.exe) |
-| **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense-arm64.dmg) |
-| **Linux** x64 | [AppImage](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense.AppImage) · [deb](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense.deb) |
+| **Windows** x64 | [SurfSense-Setup.exe](https://www.surfsense.com/downloads/windows?src=readme) |
+| **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
+| **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
+| **Docker** Linux, macOS | `curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh \| bash` |
+| **Docker** Windows (Docker Desktop) | `irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 \| iex` |
 
 > [!NOTE]
-> **호스팅 웹 앱을 쓰셨나요?** 2026년 10월 18일 전에 워크스페이스를 내보낸 다음 이 앱으로 가져오세요. 자세한 내용은 [종료 안내 페이지](https://www.surfsense.com/sunset)에 있습니다.
+> Docker로 서버에 직접 호스팅하고, 네트워크의 어느 기기에서든 열 수 있습니다. 업데이트하려면 같은 명령을 다시 실행하세요.
 
 ## 빠른 시작
 
@@ -65,9 +74,11 @@ SurfSense는 업로드할 수 없는 문서를 위한 무료 오픈소스 데스
 | **Excel** `.xlsx` | ✓ 에이전트가 수식도 읽음 | ✓ 수식과 네이티브 차트 포함 | ✓ 셀 값과 수식 | pandas로 분석하고 결과를 차트로 |
 | **PowerPoint** `.pptx` | ✓ | ✓ 또는 내 `.pptx`를 템플릿으로 | 슬라이드와 노트의 텍스트 바꾸기, 슬라이드 삭제·복제 | PDF로¹ |
 | **CSV** | ✓ | — | — | pandas로 분석하고 결과를 차트로 |
-| **이미지** PNG, JPEG, TIFF, BMP, WebP | ✓ OCR로 텍스트 인식³ | 이미지와 인포그래픽² | — | 새 문서에 넣기 |
+| **이미지** PNG, JPEG, TIFF, BMP, WebP | ✓ OCR로 텍스트 인식³ | 이미지와 인포그래픽, 지시로 편집² | — | 새 문서에 넣기 |
 | **Markdown**, 일반 텍스트 | ✓ | ✓ Markdown | — | — |
 | **HTML** | ✓ | ✓ 웹 페이지 | — | — |
+| **전자책** EPUB, MOBI, AZW3 | ✓ DRM 없는 책 | — | — | — |
+| **녹음 파일** WAV, MP3, FLAC, Ogg Vorbis | ✓ 내 컴퓨터에서 텍스트로 변환 | — | — | — |
 | **팟캐스트** (오디오) | — | ✓ 스크립트 포함, 기본적으로 내 컴퓨터에서 음성 생성 | — | — |
 | **마인드맵, 플래시카드, 퀴즈** | — | ✓ 앱 안에서 | — | — |
 
@@ -75,6 +86,12 @@ SurfSense는 업로드할 수 없는 문서를 위한 무료 오픈소스 데스
 
 편집, 변환, PDF 도구는 항상 새 파일을 만들며, 원본은 절대 바뀌지 않습니다. 지금은 PDF, Word, Excel에서 할 수 있는 일이 가장 많고, 다른 형식의 지원도 계속 나아지고 있습니다.
 
+
+## 플러그인
+
+**설정 › 플러그인**에서 [플러그인 레지스트리](backend/plugins/registry)에 있는 DeepWiki, Notion 같은 MCP 서버 또는 URL로 직접 추가한 서버를 연결하세요. 허용하기 전까지 꺼져 있습니다.
+
+**기본 제공, 무료:** 에이전트도 소스에 있는 **웹에서 추가**도 설정 › 네트워크에서 직접 추가한 SearXNG 서버를 통해 웹을 검색하고, 내 인터넷 연결로 페이지와 YouTube 스크립트를 읽습니다. 플러그인도 라이선스도 필요 없습니다.
 
 ## 비교
 
@@ -92,18 +109,6 @@ SurfSense는 업로드할 수 없는 문서를 위한 무료 오픈소스 데스
 - **기여:** PR은 `dev` 브랜치를 대상으로 엽니다. 개발 루프는 [CONTRIBUTING.md](CONTRIBUTING.md)와 [`surfsense_local/`](./surfsense_local)에서 확인하세요. 동작 방식은 [`docs/`](docs/README.md)에 있습니다.
 
 <a href="https://github.com/MODSetter/SurfSense/graphs/contributors"><img src="https://contrib.rocks/image?repo=MODSetter/SurfSense" alt="SurfSense 기여자" /></a>
-
-## 스타 기록
-
-<p align="center">
-  <a href="https://www.star-history.com/#MODSetter/SurfSense&Date">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date&theme=dark" />
-      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
-      <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
-    </picture>
-  </a>
-</p>
 
 ## 라이선스
 

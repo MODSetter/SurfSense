@@ -125,8 +125,10 @@ def test_cases_run_in_parallel_lanes_each_with_its_own_ports_data_and_temp(
 ) -> None:
     """Three lanes start together, none sharing a port block, data dir or temp dir."""
     models = [_model(f"m/{n}") for n in range(3)]
-    sweep = _sweep(tmp_path, {}, models)
-    sweep.child_env["STAND_IN_SECONDS"] = "1.0"
+    # Long enough to outlast starting three processes, 2.09 s apart on Windows.
+    case_seconds = 5.0
+    sweep = _sweep(tmp_path, {f"m/{n}|smoke": ["slow"] for n in range(3)}, models)
+    sweep.child_env["STAND_IN_SLOW_SECONDS"] = str(case_seconds)
 
     Runner(sweep).run()
 
@@ -135,7 +137,9 @@ def test_cases_run_in_parallel_lanes_each_with_its_own_ports_data_and_temp(
     assert len({r["data_dir"] for r in first_wave}) == 3
     assert len({r["temp"] for r in first_wave}) == 3
     assert {r["provider"] for r in first_wave} == {"openrouter"}
-    assert max(r["start"] for r in first_wave) - min(r["start"] for r in first_wave) < 1
+    # A case runs `case_seconds` after it starts: every lane started before the first ended.
+    starts = [r["start"] for r in first_wave]
+    assert max(starts) < min(starts) + case_seconds
 
 
 def test_a_transient_fault_is_retried_and_three_in_a_row_leave_the_model_unresolved(

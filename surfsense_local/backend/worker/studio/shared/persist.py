@@ -4,6 +4,7 @@ import shutil
 
 from sqlalchemy.orm import Session
 
+from modules.artifacts.comic.pages import is_comic_page
 from modules.artifacts.models import Artifact, ArtifactFile, ArtifactFileRole
 from modules.documents.models import Document
 from modules.embedding.active import ActiveIndex, require_active_index
@@ -38,7 +39,9 @@ def persist(
     source; the sidecar's files hold only the deliverable bytes.
     """
     logger.info("studio: persist artifact %s indexing", artifact.id)
-    index, passages, vectors = _embed(session, built.markdown)
+    # A comic's page is found through its comic, as a PDF's pages are.
+    searchable = "" if is_comic_page(artifact.artifact_metadata) else built.markdown
+    index, passages, vectors = _embed(session, searchable)
     document.title = built.title
     document.content = built.markdown
     indexing.replace_chunks(session, document, index, passages, vectors)

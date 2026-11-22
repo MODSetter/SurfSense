@@ -19,9 +19,11 @@ def unpack_debs(tarball: Path, into: Path) -> Path:
     with tarfile.open(tarball) as archive:
         archive.extractall(debs, filter="data")
     into.mkdir(parents=True, exist_ok=True)
-    # DEBS/desktop-integration/ is left out: it links into /usr, outside the tree.
+    # The menus package links into /usr, outside the tree, and the data filter
+    # refuses that; TDF has also shipped it under DEBS/desktop-integration/.
     for deb in sorted(debs.glob("*/DEBS/*.deb")):
-        _extract_deb(deb, into)
+        if "-debian-menus_" not in deb.name:
+            _extract_deb(deb, into)
     _remove(debs)
     roots = sorted((into / "opt").glob("libreoffice*"))
     if not roots:

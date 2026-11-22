@@ -1,0 +1,40 @@
+---
+date: "2026-10-27"
+version: "2.2.5"
+---
+
+## What's New in v2.2.5
+
+v2.2.5 adds Reddit and Instagram to Add from the web, opens a result's link in your browser, and fixes a quit that could leave SurfSense running in the background. Get it from the [downloads page](/downloads).
+
+### Add sources from the web
+
+- **Reddit and Instagram**: The picker under the box searches Reddit and Instagram too, and their links are added by their own plugins. A Reddit post comes with up to 99 of its comments, and a subreddit, a user or a search opens into its posts. An Instagram post or reel is added on its own, and a profile opens into its latest 12 posts. Its reels page opens into its latest 12 reels.
+- **Links that open**: Each result shows its whole link. Clicking it shows the site and the full address first, then opens the page in your browser.
+- **Easier to scan**: Each result leads with its site's badge, and its details, such as a subreddit and an author, are set apart.
+
+### License
+
+- **14-day trial**: A trial license now lasts 14 days. Trials already sent keep their own expiry.
+- **Start a free trial**: In Settings › License it opens the pricing page, which shows the free plan beside the paid one.
+
+### Usage statistics
+
+These apply only if you said yes to usage statistics. Show exactly what's sent, in Settings › About, has the next report and the last one sent.
+
+- **Your first week**: For 7 days after you install, each report counts since the install, and a short report goes out when onboarding reaches a new step, at most 4 in all. A setup report never counts you as active.
+- **GPU the model runtime can't reach**: The report says whether the runtime could use your graphics card, and names its maker from the system when the runtime can't, instead of reporting an unknown GPU.
+
+### No longer broken
+
+- **Quitting twice**: Quitting again while SurfSense was still shutting down could leave its background processes running, holding the database. Every process now stops before SurfSense exits.
+- **Chat turns in order**: Two turns made in the same second could be read back in the wrong order, most often on Windows.
+
+### Settings
+
+- **Settings › Models**: The chat model's Agentic test results no longer show. They were internal measurements.
+
+### Developers
+
+- **One core, two entries**: The sidecar supervisor moved to `surfsense_local/sidecars/`, and `surfsense_local/headless/` boots the same sidecars without Electron, for the Docker image to come. There is no image yet ([ADR 0072](https://github.com/MODSetter/SurfSense/blob/main/docs/adr/0072-the-desktop-and-the-container-are-two-entries-over-one-core.md)).
+- **Usage report 1.1**: [Contract 05](https://github.com/MODSetter/SurfSense/blob/main/docs/contracts/05-desktop-telemetry.md) adds `trigger` and `hardware.gpu_runtime`. Reports from v2.2.4 still validate.

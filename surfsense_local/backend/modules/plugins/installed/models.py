@@ -46,6 +46,17 @@ class CheckFailure(enum.StrEnum):
     LICENSE_INVALID = "license_invalid"
 
 
+# The plugin host's verdict on the license: only the host saying so sets or clears one.
+LICENSE_FAILURES = frozenset(
+    {
+        CheckFailure.NEEDS_LICENSE,
+        CheckFailure.LICENSE_EXPIRED,
+        CheckFailure.LICENSE_REVOKED,
+        CheckFailure.LICENSE_INVALID,
+    }
+)
+
+
 class InstalledPlugin(Base):
     """A plugin the user connected, the list entry it was connected from, and its sign-in.
 
@@ -60,7 +71,6 @@ class InstalledPlugin(Base):
     source: Mapped[PluginSource] = mapped_column(text_enum(PluginSource))
     # One plugin per server, so a server's tools and key are never split across two.
     url: Mapped[str] = mapped_column(unique=True)
-    publisher: Mapped[str]
     # The entry as listed at connect: name, auth, hosts, access. Kept so a plugin whose
     # entry later leaves its list still shows what it was.
     entry: Mapped[dict[str, Any]] = mapped_column(JSON)
@@ -73,6 +83,8 @@ class InstalledPlugin(Base):
     # When SurfSense last listed the server, and why that failed; None when it answered.
     checked_at: Mapped[datetime | None]
     check_failure: Mapped[CheckFailure | None] = mapped_column(text_enum(CheckFailure))
+    # Set while the user has disconnected it: no sign-in, no tools offered, still listed.
+    disconnected_at: Mapped[datetime | None]
 
     @property
     def credential(self) -> str | None:

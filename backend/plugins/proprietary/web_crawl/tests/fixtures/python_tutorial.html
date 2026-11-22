@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta property="og:title" content="The Python Tutorial" />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://docs.python.org/3/tutorial/index.html" />
+<meta property="og:site_name" content="Python documentation" />
+<meta property="og:description" content="Python is an easy to learn, powerful programming language. It has efficient high-level data structures and a simple but effective approach to object-oriented programming. Python’s elegant syntax an..." />
+<meta property="og:image:width" content="1146" />
+<meta property="og:image:height" content="600" />
+<meta property="og:image" content="https://docs.python.org/3.15/_images/social_previews/summary_tutorial_index_4224eef5.png" />
+<meta property="og:image:alt" content="Python is an easy to learn, powerful programming language. It has efficient high-level data structures and a simple but effective approach to object-oriented programming. Python’s elegant syntax an..." />
+<meta name="description" content="Python is an easy to learn, powerful programming language. It has efficient high-level data structures and a simple but effective approach to object-oriented programming. Python’s elegant syntax an..." />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="theme-color" content="#3776ab">
+
+    <title>The Python Tutorial &#8212; Python 3.15.0 documentation</title><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+    <link rel="stylesheet" type="text/css" href="../_static/classic.css?v=234b1a7c" />
+    <link rel="stylesheet" type="text/css" href="../_static/pydoctheme.css?v=48df1187" />
+    <link id="pygments_dark_css" media="(prefers-color-scheme: dark)" rel="stylesheet" type="text/css" href="../_static/pygments_dark.css?v=0fc419ee" />
+    
+    <script src="../_static/documentation_options.js?v=0fe728b1"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    
+    <script src="../_static/sidebar.js"></script>
+    
+    <link rel="search" type="application/opensearchdescription+xml"
+          title="Search within Python 3.15.0 documentation"
+          href="../_static/opensearch.xml"/>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="copyright" title="Copyright" href="../copyright.html" />
+    <link rel="next" title="1. Whetting Your Appetite" href="appetite.html" />
+    <link rel="prev" title="Changelog" href="../whatsnew/changelog.html" />
+    
+      
+      <script defer file-types="bz2,epub,zip" data-domain="docs.python.org" src="https://analytics.python.org/js/script.file-downloads.outbound-links.js"></script>
+      
+      <link rel="canonical" href="https://docs.python.org/3/tutorial/index.html">
+      
+    
+
+    
+    <style>
+      @media only screen {
+        table.full-width-table {
+            width: 100%;
+        }
+      }
+    </style>
+<link rel="stylesheet" href="../_static/pydoctheme_dark.css" media="(prefers-color-scheme: dark)" id="pydoctheme_dark_css">
+    <link rel="shortcut icon" type="image/png" href="../_static/py.svg">
+            <script type="text/javascript" src="../_static/copybutton.js"></script>
+            <script type="text/javascript" src="../_static/menu.js"></script>
+            <script type="text/javascript" src="../_static/search-focus.js"></script>
+            <script type="text/javascript" src="../_static/themetoggle.js"></script> 
+            <script type="text/javascript" src="../_static/rtd_switcher.js"></script>
+            <meta name="readthedocs-addons-api-version" content="1">
+
+  </head>
+<body>
+<div class="mobile-nav">
+    <input type="checkbox" id="menuToggler" class="toggler__input" aria-controls="navigation"
+           aria-pressed="false" aria-expanded="false" role="button" aria-label="Menu">
+    <nav class="nav-content" role="navigation">
+        <label for="menuToggler" class="toggler__label">
+            <span></span>
+        </label>
+        <span class="nav-items-wrapper">
+            <a href="https://www.python.org/" class="nav-logo">
+                <img src="../_static/py.svg" alt="Python logo">
+            </a>
+            <span class="version_switcher_placeholder"></span>
+            <form role="search" class="search" action="../search.html" method="get">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" class="search-icon">
+                    <path fill-rule="nonzero" fill="currentColor" d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 001.48-5.34c-.47-2.78-2.79-5-5.59-5.34a6.505 6.505 0 00-7.27 7.27c.34 2.8 2.56 5.12 5.34 5.59a6.5 6.5 0 005.34-1.48l.27.28v.79l4.25 4.25c.41.41 1.08.41 1.49 0 .41-.41.41-1.08 0-1.49L15.5 14zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"></path>
+                </svg>
+                <input placeholder="Quick search" aria-label="Quick search" type="search" name="q">
+                <input type="submit" value="Go">
+            </form>
+        </span>
+    </nav>
+    <div class="menu-wrapper">
+        <nav class="menu" role="navigation" aria-label="main navigation">
+            <div class="language_switcher_placeholder"></div>
+            
+<label class="theme-selector-label">
+    Theme
+    <select class="theme-selector" oninput="activateTheme(this.value)">
+        <option value="auto" selected>Auto</option>
+        <option value="light">Light</option>
+        <option value="dark">Dark</option>
+    </select>
+</label>
+  <div>
+    <h4>Previous topic</h4>
+    <p class="topless"><a href="../whatsnew/changelog.html"
+                          title="previous chapter">Changelog</a></p>
+  </div>
+  <div>
+    <h4>Next topic</h4>
+    <p class="topless"><a href="appetite.html"
+                          title="next chapter"><span class="section-number">1. </span>Whetting Your Appetite</a></p>
+  </div>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const title = document.querySelector('meta[property="og:title"]').content;
+        const elements = document.querySelectorAll('.improvepage');
+        const pageurl = window.location.href.split('?')[0];
+        elements.forEach(element => {
+            const url = new URL(element.href.split('?')[0].replace("-nojs", ""));
+            url.searchParams.set('pagetitle', title);
+            url.searchParams.set('pageurl', pageurl);
+            url.searchParams.set('pagesource', "tutorial/index.rst");
+            element.href = url.toString();
+        });
+    });
+  </script>
+  <div role="note" aria-label="source link">
+    <h3>This page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../bugs.html">Report a bug</a></li>
+      <li><a class="improvepage" href="../improve-page-nojs.html">Improve this page</a></li>
+      <li>
+        <a href="https://github.com/python/cpython/blob/3.15/Doc/tutorial/index.rst?plain=1"
+            rel="nofollow">Show source
+        </a>
+      </li>
+      
+    </ul>
+  </div>
+        </nav>
+    </div>
+</div>
+
+  
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="appetite.html" title="1. Whetting Your Appetite"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="../whatsnew/changelog.html" title="Changelog"
+             accesskey="P">previous</a> |</li>
+
+          <li class="root-icon"><img src="../_static/py.svg" alt="Python logo" style="vertical-align: middle; margin-top: -1px"></li>
+          <li><a href="https://www.python.org/">Python</a> &#187;</li>
+          <li class="switchers">
+            <div class="language_switcher_placeholder"></div>
+            <div class="version_switcher_placeholder"></div>
+          </li>
+          <li>
+              
+          </li>
+    <li id="cpython-language-and-version">
+      <a href="../index.html">3.15.0 Documentation</a> &#187;
+    </li>
+
+        <li class="nav-item nav-item-this"><a href="">The Python Tutorial</a></li>
+                <li class="right">
+                    
+
+    <div class="inline-search" role="search">
+        <form class="inline-search" action="../search.html" method="get">
+          <input placeholder="Quick search" aria-label="Quick search" type="search" name="q" id="search-box">
+          <input type="submit" value="Go">
+        </form>
+    </div>
+                     |
+                </li>
+            <li class="right">
+<label class="theme-selector-label">
+    Theme
+    <select class="theme-selector" oninput="activateTheme(this.value)">
+        <option value="auto" selected>Auto</option>
+        <option value="light">Light</option>
+        <option value="dark">Dark</option>
+    </select>
+</label> |</li>
+            
+      </ul>
+    </div>    
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="the-python-tutorial">
+<span id="tutorial-index"></span><h1>The Python Tutorial<a class="headerlink" href="#the-python-tutorial" title="Link to this heading">¶</a></h1>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>This tutorial is designed for
+<em>programmers</em> that are new to the Python language,
+<strong>not</strong> <em>beginners</em> who are new to programming.</p>
+</div>
+<p>Python is an easy to learn, powerful programming language. It has efficient
+high-level data structures and a simple but effective approach to
+object-oriented programming. Python’s elegant syntax and dynamic typing,
+together with its interpreted nature, make it an ideal language for scripting
+and rapid application development in many areas on most platforms.</p>
+<p>The Python interpreter and the extensive standard library are freely available
+in source or binary form for all major platforms from the Python website,
+<a class="reference external" href="https://www.python.org/">https://www.python.org/</a>, and may be freely distributed. The same site also
+contains distributions of and pointers to many free third party Python modules,
+programs and tools, and additional documentation.</p>
+<p>The Python interpreter is easily extended with new functions and data types
+implemented in C or C++ (or other languages callable from C). Python is also
+suitable as an extension language for customizable applications.</p>
+<p>This tutorial introduces the reader informally to the basic concepts and
+features of the Python language and system. Be aware that it expects you to
+have a basic understanding of programming in general. It helps to have a Python
+interpreter handy for hands-on experience, but all examples are self-contained,
+so the tutorial can be read off-line as well.</p>
+<p>For a description of standard objects and modules, see <a class="reference internal" href="../builtins/index.html#builtins-index"><span class="std std-ref">Python built-ins reference</span></a> and
+<a class="reference internal" href="../library/index.html#library-index"><span class="std std-ref">The Python standard library</span></a>.  <a class="reference internal" href="../reference/index.html#reference-index"><span class="std std-ref">The Python Language Reference</span></a> gives a more formal definition of
+the language.  To write extensions in C or C++, read <a class="reference internal" href="../extending/index.html#extending-index"><span class="std std-ref">Extending and Embedding the Python Interpreter</span></a> and
+<a class="reference internal" href="../c-api/index.html#c-api-index"><span class="std std-ref">Python/C API reference manual</span></a>. There are also several books covering Python in depth.</p>
+<p>This tutorial does not attempt to be comprehensive and cover every single
+feature, or even every commonly used feature. Instead, it introduces many of
+Python’s most noteworthy features, and will give you a good idea of the
+language’s flavor and style. After reading it, you will be able to read and
+write Python modules and programs, and you will be ready to learn more about the
+various Python library modules described in <a class="reference internal" href="../library/index.html#library-index"><span class="std std-ref">The Python standard library</span></a>.</p>
+<p>The <a class="reference internal" href="../glossary.html#glossary"><span class="std std-ref">Glossary</span></a> is also worth going through.</p>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="appetite.html">1. Whetting Your Appetite</a></li>
+<li class="toctree-l1"><a class="reference internal" href="interpreter.html">2. Using the Python Interpreter</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="interpreter.html#invoking-the-interpreter">2.1. Invoking the Interpreter</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="interpreter.html#argument-passing">2.1.1. Argument Passing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="interpreter.html#interactive-mode">2.1.2. Interactive Mode</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="interpreter.html#the-interpreter-and-its-environment">2.2. The Interpreter and Its Environment</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="interpreter.html#source-code-encoding">2.2.1. Source Code Encoding</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="introduction.html">3. An Informal Introduction to Python</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="introduction.html#using-python-as-a-calculator">3.1. Using Python as a Calculator</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="introduction.html#numbers">3.1.1. Numbers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="introduction.html#text">3.1.2. Text</a></li>
+<li class="toctree-l3"><a class="reference internal" href="introduction.html#lists">3.1.3. Lists</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="introduction.html#first-steps-towards-programming">3.2. First Steps Towards Programming</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="controlflow.html">4. More Control Flow Tools</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="controlflow.html#if-statements">4.1. <code class="xref std std-keyword docutils literal notranslate"><span class="pre">if</span></code> Statements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="controlflow.html#for-statements">4.2. <code class="xref std std-keyword docutils literal notranslate"><span class="pre">for</span></code> Statements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="controlflow.html#the-range-function">4.3. The <code class="xref py py-func docutils literal notranslate"><span class="pre">range()</span></code> Function</a></li>
+<li class="toctree-l2"><a class="reference internal" href="controlflow.html#break-and-continue-statements">4.4. <code class="xref std std-keyword docutils literal notranslate"><span class="pre">break</span></code> and <code class="xref std std-keyword docutils literal notranslate"><span class="pre">continue</span></code> Statements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="controlflow.html#else-clauses-on-loops">4.5. <code class="xref std std-keyword docutils literal notranslate"><span class="pre">else</span></code> Clauses on Loops</a></li>
+<li class="toctree-l2"><a class="reference internal" href="controlflow.html#pass-statements">4.6. <code class="xref std std-keyword docutils literal notranslate"><span class="pre">pass</span></code> Statements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="controlflow.html#match-statements">4.7. <code class="xref std std-keyword docutils literal notranslate"><span class="pre">match</span></code> Statements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="controlflow.html#defining-functions">4.8. Defining Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="controlflow.html#more-on-defining-functions">4.9. More on Defining Functions</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="controlflow.html#default-argument-values">4.9.1. Default Argument Values</a></li>
+<li class="toctree-l3"><a class="reference internal" href="controlflow.html#keyword-arguments">4.9.2. Keyword Arguments</a></li>
+<li class="toctree-l3"><a class="reference internal" href="controlflow.html#special-parameters">4.9.3. Special parameters</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="controlflow.html#positional-or-keyword-arguments">4.9.3.1. Positional-or-Keyword Arguments</a></li>
+<li class="toctree-l4"><a class="reference internal" href="controlflow.html#positional-only-parameters">4.9.3.2. Positional-Only Parameters</a></li>
+<li class="toctree-l4"><a class="reference internal" href="controlflow.html#keyword-only-arguments">4.9.3.3. Keyword-Only Arguments</a></li>
+<li class="toctree-l4"><a class="reference internal" href="controlflow.html#function-examples">4.9.3.4. Function Examples</a></li>
+<li class="toctree-l4"><a class="reference internal" href="controlflow.html#recap">4.9.3.5. Recap</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="controlflow.html#arbitrary-argument-lists">4.9.4. Arbitrary Argument Lists</a></li>
+<li class="toctree-l3"><a class="reference internal" href="controlflow.html#unpacking-argument-lists">4.9.5. Unpacking Argument Lists</a></li>
+<li class="toctree-l3"><a class="reference internal" href="controlflow.html#lambda-expressions">4.9.6. Lambda Expressions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="controlflow.html#documentation-strings">4.9.7. Documentation Strings</a></li>
+<li class="toctree-l3"><a class="reference internal" href="controlflow.html#function-annotations">4.9.8. Function Annotations</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="controlflow.html#intermezzo-coding-style">4.10. Intermezzo: Coding Style</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="datastructures.html">5. Data Structures</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="datastructures.html#more-on-lists">5.1. More on Lists</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="datastructures.html#using-lists-as-stacks">5.1.1. Using Lists as Stacks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="datastructures.html#using-lists-as-queues">5.1.2. Using Lists as Queues</a></li>
+<li class="toctree-l3"><a class="reference internal" href="datastructures.html#list-comprehensions">5.1.3. List Comprehensions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="datastructures.html#nested-list-comprehensions">5.1.4. Nested List Comprehensions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="datastructures.html#unpacking-in-lists-and-list-comprehensions">5.1.5. Unpacking in Lists and List Comprehensions</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="datastructures.html#the-del-statement">5.2. The <code class="xref std std-keyword docutils literal notranslate"><span class="pre">del</span></code> statement</a></li>
+<li class="toctree-l2"><a class="reference internal" href="datastructures.html#tuples-and-sequences">5.3. Tuples and Sequences</a></li>
+<li class="toctree-l2"><a class="reference internal" href="datastructures.html#sets">5.4. Sets</a></li>
+<li class="toctree-l2"><a class="reference internal" href="datastructures.html#dictionaries">5.5. Dictionaries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="datastructures.html#looping-techniques">5.6. Looping Techniques</a></li>
+<li class="toctree-l2"><a class="reference internal" href="datastructures.html#more-on-conditions">5.7. More on Conditions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="datastructures.html#comparing-sequences-and-other-types">5.8. Comparing Sequences and Other Types</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules.html">6. Modules</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules.html#more-on-modules">6.1. More on Modules</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="modules.html#executing-modules-as-scripts">6.1.1. Executing modules as scripts</a></li>
+<li class="toctree-l3"><a class="reference internal" href="modules.html#the-module-search-path">6.1.2. The Module Search Path</a></li>
+<li class="toctree-l3"><a class="reference internal" href="modules.html#compiled-python-files">6.1.3. “Compiled” Python files</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="modules.html#standard-modules">6.2. Standard Modules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules.html#the-dir-function">6.3. The <code class="xref py py-func docutils literal notranslate"><span class="pre">dir()</span></code> Function</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules.html#packages">6.4. Packages</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="modules.html#importing-from-a-package">6.4.1. Importing * From a Package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="modules.html#intra-package-references">6.4.2. Intra-package References</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="inputoutput.html">7. Input and output</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="inputoutput.html#fancier-output-formatting">7.1. Fancier output formatting</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="inputoutput.html#formatted-string-literals">7.1.1. Formatted string literals</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputoutput.html#the-string-format-method">7.1.2. The string format() method</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputoutput.html#manual-string-formatting">7.1.3. Manual string formatting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputoutput.html#old-string-formatting">7.1.4. Old string formatting</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="inputoutput.html#reading-and-writing-files">7.2. Reading and writing files</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="inputoutput.html#methods-of-file-objects">7.2.1. Methods of file objects</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputoutput.html#saving-structured-data-with-json">7.2.2. Saving structured data with <code class="xref py py-mod docutils literal notranslate"><span class="pre">json</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="errors.html">8. Errors and Exceptions</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="errors.html#syntax-errors">8.1. Syntax Errors</a></li>
+<li class="toctree-l2"><a class="reference internal" href="errors.html#exceptions">8.2. Exceptions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="errors.html#handling-exceptions">8.3. Handling Exceptions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="errors.html#raising-exceptions">8.4. Raising Exceptions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="errors.html#exception-chaining">8.5. Exception Chaining</a></li>
+<li class="toctree-l2"><a class="reference internal" href="errors.html#user-defined-exceptions">8.6. User-defined Exceptions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="errors.html#defining-clean-up-actions">8.7. Defining Clean-up Actions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="errors.html#predefined-clean-up-actions">8.8. Predefined Clean-up Actions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="errors.html#raising-and-handling-multiple-unrelated-exceptions">8.9. Raising and Handling Multiple Unrelated Exceptions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="errors.html#enriching-exceptions-with-notes">8.10. Enriching Exceptions with Notes</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="classes.html">9. Classes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="classes.html#a-word-about-names-and-objects">9.1. A Word About Names and Objects</a></li>
+<li class="toctree-l2"><a class="reference internal" href="classes.html#python-scopes-and-namespaces">9.2. Python Scopes and Namespaces</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="classes.html#scopes-and-namespaces-example">9.2.1. Scopes and Namespaces Example</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="classes.html#a-first-look-at-classes">9.3. A First Look at Classes</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="classes.html#class-definition-syntax">9.3.1. Class Definition Syntax</a></li>
+<li class="toctree-l3"><a class="reference internal" href="classes.html#class-objects">9.3.2. Class Objects</a></li>
+<li class="toctree-l3"><a class="reference internal" href="classes.html#instance-objects">9.3.3. Instance Objects</a></li>
+<li class="toctree-l3"><a class="reference internal" href="classes.html#method-objects">9.3.4. Method Objects</a></li>
+<li class="toctree-l3"><a class="reference internal" href="classes.html#class-and-instance-variables">9.3.5. Class and Instance Variables</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="classes.html#random-remarks">9.4. Random Remarks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="classes.html#inheritance">9.5. Inheritance</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="classes.html#multiple-inheritance">9.5.1. Multiple Inheritance</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="classes.html#private-variables">9.6. Private Variables</a></li>
+<li class="toctree-l2"><a class="reference internal" href="classes.html#odds-and-ends">9.7. Odds and Ends</a></li>
+<li class="toctree-l2"><a class="reference internal" href="classes.html#iterators">9.8. Iterators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="classes.html#generators">9.9. Generators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="classes.html#generator-expressions">9.10. Generator Expressions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="stdlib.html">10. Brief tour of the standard library</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="stdlib.html#operating-system-interface">10.1. Operating system interface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="stdlib.html#file-wildcards">10.2. File wildcards</a></li>
+<li class="toctree-l2"><a class="reference internal" href="stdlib.html#command-line-arguments">10.3. Command-line arguments</a></li>
+<li class="toctree-l2"><a class="reference internal" href="stdlib.html#error-output-redirection-and-program-termination">10.4. Error output redirection and program termination</a></li>
+<li class="toctree-l2"><a class="reference internal" href="stdlib.html#string-pattern-matching">10.5. String pattern matching</a></li>
+<li class="toctree-l2"><a class="reference internal" href="stdlib.html#mathematics">10.6. Mathematics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="stdlib.html#internet-access">10.7. Internet access</a></li>
+<li class="toctree-l2"><a class="reference internal" href="stdlib.html#dates-and-times">10.8. Dates and times</a></li>
+<li class="toctree-l2"><a class="reference internal" href="stdlib.html#data-compression">10.9. Data compression</a></li>
+<li class="toctree-l2"><a class="reference internal" href="stdlib.html#performance-measurement">10.10. Performance measurement</a></li>
+<li class="toctree-l2"><a class="reference internal" href="stdlib.html#quality-control">10.11. Quality control</a></li>
+<li class="toctree-l2"><a class="reference internal" href="stdlib.html#batteries-included">10.12. Batteries included</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="stdlib2.html">11. Brief tour of the standard library — part II</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="stdlib2.html#output-formatting">11.1. Output formatting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="stdlib2.html#templating">11.2. Templating</a></li>
+<li class="toctree-l2"><a class="reference internal" href="stdlib2.html#working-with-binary-data-record-layouts">11.3. Working with binary data record layouts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="stdlib2.html#multi-threading">11.4. Multi-threading</a></li>
+<li class="toctree-l2"><a class="reference internal" href="stdlib2.html#logging">11.5. Logging</a></li>
+<li class="toctree-l2"><a class="reference internal" href="stdlib2.html#weak-references">11.6. Weak references</a></li>
+<li class="toctree-l2"><a class="reference internal" href="stdlib2.html#tools-for-working-with-lists">11.7. Tools for working with lists</a></li>
+<li class="toctree-l2"><a class="reference internal" href="stdlib2.html#decimal-floating-point-arithmetic">11.8. Decimal floating-point arithmetic</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="venv.html">12. Virtual Environments and Packages</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="venv.html#introduction">12.1. Introduction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="venv.html#creating-virtual-environments">12.2. Creating Virtual Environments</a></li>
+<li class="toctree-l2"><a class="reference internal" href="venv.html#managing-packages-with-pip">12.3. Managing Packages with pip</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="whatnow.html">13. What Now?</a></li>
+<li class="toctree-l1"><a class="reference internal" href="interactive.html">14. Interactive Input Editing and History Substitution</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="interactive.html#tab-completion-and-history-editing">14.1. Tab Completion and History Editing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="interactive.html#alternatives-to-the-interactive-interpreter">14.2. Alternatives to the Interactive Interpreter</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="floatingpoint.html">15. Floating-Point Arithmetic:  Issues and Limitations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="floatingpoint.html#representation-error">15.1. Representation Error</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="appendix.html">16. Appendix</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="appendix.html#interactive-mode">16.1. Interactive Mode</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="appendix.html#error-handling">16.1.1. Error Handling</a></li>
+<li class="toctree-l3"><a class="reference internal" href="appendix.html#executable-python-scripts">16.1.2. Executable Python Scripts</a></li>
+<li class="toctree-l3"><a class="reference internal" href="appendix.html#the-interactive-startup-file">16.1.3. The Interactive Startup File</a></li>
+<li class="toctree-l3"><a class="reference internal" href="appendix.html#the-customization-modules">16.1.4. The Customization Modules</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+  <div>
+    <h4>Previous topic</h4>
+    <p class="topless"><a href="../whatsnew/changelog.html"
+                          title="previous chapter">Changelog</a></p>
+  </div>
+  <div>
+    <h4>Next topic</h4>
+    <p class="topless"><a href="appetite.html"
+                          title="next chapter"><span class="section-number">1. </span>Whetting Your Appetite</a></p>
+  </div>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const title = document.querySelector('meta[property="og:title"]').content;
+        const elements = document.querySelectorAll('.improvepage');
+        const pageurl = window.location.href.split('?')[0];
+        elements.forEach(element => {
+            const url = new URL(element.href.split('?')[0].replace("-nojs", ""));
+            url.searchParams.set('pagetitle', title);
+            url.searchParams.set('pageurl', pageurl);
+            url.searchParams.set('pagesource', "tutorial/index.rst");
+            element.href = url.toString();
+        });
+    });
+  </script>
+  <div role="note" aria-label="source link">
+    <h3>This page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../bugs.html">Report a bug</a></li>
+      <li><a class="improvepage" href="../improve-page-nojs.html">Improve this page</a></li>
+      <li>
+        <a href="https://github.com/python/cpython/blob/3.15/Doc/tutorial/index.rst?plain=1"
+            rel="nofollow">Show source
+        </a>
+      </li>
+      
+    </ul>
+  </div>
+        </div>
+<div id="sidebarbutton" title="Collapse sidebar">
+<span>«</span>
+</div>
+
+      </div>
+      <div class="clearer"></div>
+    </div>  
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="appetite.html" title="1. Whetting Your Appetite"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="../whatsnew/changelog.html" title="Changelog"
+             >previous</a> |</li>
+
+          <li class="root-icon"><img src="../_static/py.svg" alt="Python logo" style="vertical-align: middle; margin-top: -1px"></li>
+          <li><a href="https://www.python.org/">Python</a> &#187;</li>
+          <li class="switchers">
+            <div class="language_switcher_placeholder"></div>
+            <div class="version_switcher_placeholder"></div>
+          </li>
+          <li>
+              
+          </li>
+    <li id="cpython-language-and-version">
+      <a href="../index.html">3.15.0 Documentation</a> &#187;
+    </li>
+
+        <li class="nav-item nav-item-this"><a href="">The Python Tutorial</a></li>
+                <li class="right">
+                    
+
+    <div class="inline-search" role="search">
+        <form class="inline-search" action="../search.html" method="get">
+          <input placeholder="Quick search" aria-label="Quick search" type="search" name="q" id="search-box">
+          <input type="submit" value="Go">
+        </form>
+    </div>
+                     |
+                </li>
+            <li class="right">
+<label class="theme-selector-label">
+    Theme
+    <select class="theme-selector" oninput="activateTheme(this.value)">
+        <option value="auto" selected>Auto</option>
+        <option value="light">Light</option>
+        <option value="dark">Dark</option>
+    </select>
+</label> |</li>
+            
+      </ul>
+    </div>  
+    <div class="footer">
+    &copy; <a href="../copyright.html">Copyright</a> 2001 Python Software Foundation.
+    <br>
+    This page is licensed under the Python Software Foundation License Version 2.
+    <br>
+    Examples, recipes, and other code in the documentation are additionally licensed under the Zero Clause BSD License.
+    <br>
+    
+      See <a href="/license.html">History and License</a> for more information.<br>
+    
+    
+    <br>
+
+    The Python Software Foundation is a non-profit corporation.
+<a href="https://www.python.org/psf/donations/">Please donate.</a>
+<br>
+    <br>
+      Last updated on Oct 14, 2026 (00:02 UTC).
+    
+      <a href="/bugs.html">Found a bug</a>?
+    
+    <br>
+
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.2.3.
+    </div>
+
+    <script type="text/javascript" src="../_static/switchers.js"></script>
+  </body>
+</html>

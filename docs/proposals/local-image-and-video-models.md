@@ -30,7 +30,7 @@ Audio's catalog grows too, on the plan in [local audio models](local-audio-model
 |---|---|---|
 | In the installer | only in a local `pnpm dist`, which runs `build:sdcpp`; release CI never stages `sd-server`, so no published release offers a local image model | Windows from upstream's archive with its runtime; Linux and macOS compiled in release CI |
 | Image models | SD 1.5, SDXL and SDXL Turbo, one self-contained file each | FLUX.2 klein 4B, Z-Image Turbo and ERNIE-Image Turbo first; SD 1.5 and SDXL kept; SDXL Turbo removed |
-| Image editing | a slot nothing reads, with no local runtime | FLUX.2 klein 4B from the same files, and LongCat-Image-Edit, chosen in Settings and onboarding; which feature reads the slot is not decided |
+| Image editing | a slot nothing reads, with no local runtime | FLUX.2 klein 4B from the same files, and LongCat-Image-Edit, chosen in Settings and onboarding, and read by Studio's image edit ([studio](../architecture/studio.md#editing-a-picture)) |
 | Video | the same | Wan2.1 T2V 1.3B and Wan2.2 TI2V 5B, chosen in Settings and onboarding; which feature reads the slot is not decided |
 | A build | one GGUF, or weights and a projector | weights, VAE, text encoder and projector; a file two models share is downloaded once |
 | `sd-server` | runs from start with the image selection, and keeps it resident after the first image | runs for the job that needs it, one model at a time, stopped 5 minutes after the last job |
@@ -152,7 +152,7 @@ A VAE comes from Comfy-Org's ungated copy when the vendor's repo is gated, as BF
 
 ### One model, for the job that needs it
 
-- **The runtime route answers from Studio's jobs.** `GET /llm/image/local/runtime` answers with the model set for the slot that the oldest running sd.cpp job needs, whether `image_gen`, `image_edit` or `video_gen`. With none running, it keeps the last one for 5 minutes after the last job ended, and then answers none. Electron's existing poll starts, restarts or stops `sd-server` to match ([`watch-image-model.ts`](../../surfsense_local/electron/src/main/sidecars/watch-image-model.ts)).
+- **The runtime route answers from Studio's jobs.** `GET /llm/image/local/runtime` answers with the model set for the slot that the oldest running sd.cpp job needs, whether `image_gen`, `image_edit` or `video_gen`. With none running, it keeps the last one for 5 minutes after the last job ended, and then answers none. Electron's existing poll starts, restarts or stops `sd-server` to match ([`watch-image-model.ts`](../../surfsense_local/sidecars/watch-image-model.ts)).
 - **Jobs that need the same model share it**; sd-server runs requests one at a time. A job that needs another model waits until it is the oldest. Studio runs four jobs at once ([ADR 0008](../adr/0008-two-job-queues.md)), so without this two jobs could each hold a model.
 - **A job checks the model before it posts.** `GET /sdapi/v1/sd-models` names the file sd-server was launched with, since `/v1/models` always answers `sd-cpp-local`. There is no health route; `GET /` answers once the server is listening.
 - **5 minutes** is the same backstop audio uses, and Ollama's default; SwarmUI clears VRAM after 10. It keeps a second image or an edit right after the first from reloading.
@@ -167,7 +167,7 @@ sd-server's default generation settings come from its launch flags, so each mode
 | Task | Route | Why this one |
 |---|---|---|
 | Generate | `POST /v1/images/generations` | unchanged |
-| Edit, once a feature reads the slot | `POST /sdcpp/v1/img_gen` with `ref_images`, polled at `/sdcpp/v1/jobs/{id}` | `/v1/images/edits` also makes the first image the `init_image`, which runs image-to-image at a strength of 0.75, not the reference edit these models are trained for |
+| Edit | `POST /sdcpp/v1/img_gen` with `ref_images`, polled at `/sdcpp/v1/jobs/{id}` | `/v1/images/edits` also makes the first image the `init_image`, which runs image-to-image at a strength of 0.75, not the reference edit these models are trained for |
 | Video | `POST /sdcpp/v1/vid_gen`, polled at `/sdcpp/v1/jobs/{id}` | the only video route. `video_frames` defaults to 1, so the client sends it, a multiple of four plus one for Wan. A finished result is kept 600 s |
 
 **A clip is WebM (VP8)**, sd-server's default container, which Electron's Chromium plays. Every app checked that writes MP4 ships or finds ffmpeg (InvokeAI through `imageio-ffmpeg`, SwarmUI and Wan2GP likewise, LocalAI from `PATH`); WebM needs nothing added. The artifact is `video/webm`.
@@ -211,7 +211,7 @@ The classifier reads them: `generate` is `IMAGE_GEN`, `edit` is `IMAGE_EDIT`, an
 ## Studio
 
 - **Image and Infographic** keep their path, now at each model's own defaults.
-- **Editing has no Studio feature yet.** The editing slot can be filled, in Settings and onboarding, but what reads it, and whether an edit replaces an image or makes a new one, is a product decision still to take. A Studio Edit that made a new artifact per edit was built and taken out for that reason.
+- **Studio's image edit reads the slot.** An edit makes the image's next version, not a new artifact and not a replacement ([ADR 0077](../adr/0077-an-image-edit-is-the-next-version.md), [studio](../architecture/studio.md#editing-a-picture)).
 - **Video has no Studio feature yet.** The video slot can be filled, in Settings and onboarding, but what reads it, such as a Studio format that renders a clip from the sources, is a product decision still to take.
 - **Neither is retried** after a failure, like an image: a retry would render again.
 

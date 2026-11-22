@@ -1,0 +1,67 @@
+import type { Metadata } from "next";
+
+/**
+ * Metadata and structured data for the audience and job pages. Each page states its own
+ * title, description and keywords, from its brief in
+ * `plans/community-local/seo/09-audience-pages.md`; the shape around them is the one every
+ * page on this site sets.
+ */
+
+const SITE = "https://www.surfsense.com";
+
+export type AudiencePageMeta = {
+	path: string;
+	/** At most 60 characters. */
+	title: string;
+	/** At most 155 characters. */
+	description: string;
+	keywords: string[];
+	imageAlt: string;
+};
+
+export function audiencePageMetadata(page: AudiencePageMeta): Metadata {
+	const url = `${SITE}${page.path}`;
+	return {
+		title: page.title,
+		description: page.description,
+		keywords: page.keywords,
+		alternates: { canonical: url },
+		openGraph: {
+			title: page.title,
+			description: page.description,
+			url,
+			siteName: "SurfSense",
+			type: "website",
+			images: [{ url: "/og-image.png", width: 1200, height: 630, alt: page.imageAlt }],
+		},
+		twitter: {
+			card: "summary_large_image",
+			title: page.title,
+			description: page.description,
+			images: ["/og-image.png"],
+		},
+	};
+}
+
+/** `SoftwareApplication` for the free app, as the homepage states it. */
+export function audiencePageSchema(
+	page: Pick<AudiencePageMeta, "path" | "description">,
+	/** `EducationalApplication` on the study pages. */
+	category = "BusinessApplication"
+) {
+	return {
+		"@context": "https://schema.org",
+		"@type": "SoftwareApplication",
+		name: "SurfSense",
+		applicationCategory: category,
+		operatingSystem: "Windows, macOS, Linux",
+		description: page.description,
+		url: `${SITE}${page.path}`,
+		offers: {
+			"@type": "Offer",
+			name: "Free",
+			price: 0,
+			priceCurrency: "USD",
+		},
+	};
+}

@@ -3,6 +3,10 @@ import { cleanup, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
 import { fakeInstallApi } from "@/features/models/local/installs/fake-install-api"
+import {
+  fakeSpeechRow,
+  SPEECH_INSTALLED,
+} from "@/features/models/local/transcription/fake-speech-rows"
 import { render } from "@/test-utils"
 
 import { AudioModelsSettings } from "./audio-models-settings"
@@ -167,6 +171,29 @@ describe("audio model settings", () => {
     ])
     // One language is named rather than counted.
     expect(facts("8 voices").at(-1)).toBe("English")
+  })
+
+  it("leaves speech recognition models to their own section", async () => {
+    vi.stubGlobal(
+      "fetch",
+      serving([
+        audioRow(),
+        fakeSpeechRow({}, SPEECH_INSTALLED),
+        fakeSpeechRow(
+          { id: "nemotron-other", name: "Nemotron Other" },
+          { catalog_id: "opaque-other" }
+        ),
+      ])
+    )
+    const user = userEvent.setup()
+    render(<AudioModelsSettings onModelUnavailable={() => undefined} />)
+
+    // Neither the one on disk nor the one to download is a voice.
+    expect(await screen.findByText("No audio model yet")).toBeTruthy()
+    expect(screen.queryByText(/Nemotron/)).toBeNull()
+    await user.click(screen.getByRole("button", { name: "Add model" }))
+    expect(await screen.findByText("Kokoro 82M")).toBeTruthy()
+    expect(screen.queryByText(/Nemotron/)).toBeNull()
   })
 
   it("uses a downloaded audio model through audio.cpp", async () => {

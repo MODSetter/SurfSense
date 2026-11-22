@@ -18,7 +18,6 @@ def store_first_party_plugin(
         kind=PluginKind.REMOTE,
         source=PluginSource.FIRST_PARTY,
         url=entry.url,
-        publisher=entry.publisher,
         entry=entry.model_dump(exclude_none=True),
         credential_kind=entry.auth.type if entry.auth.type != "none" else None,
     )

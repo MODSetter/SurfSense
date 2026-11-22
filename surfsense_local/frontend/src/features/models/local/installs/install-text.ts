@@ -91,6 +91,19 @@ const installText: Record<string, (event: InstallEvent) => string | null> = {
       defaultMessage:
         "The downloaded file did not match the expected one. Retry the download.",
     }),
+  retrieval_check_failed: (event) =>
+    event.type === "error" &&
+    typeof event.found === "number" &&
+    typeof event.asked === "number"
+      ? intl.formatMessage(
+          {
+            id: "models_error_install_retrieval_check_failed",
+            defaultMessage:
+              "It found {found, number} of {asked, plural, one {# answer} other {# answers}} first; a search model has to find all {asked, number}.",
+          },
+          { found: event.found, asked: event.asked }
+        )
+      : null,
   not_enough_disk: (event) =>
     event.type === "error" &&
     typeof event.needed_bytes === "number" &&
@@ -99,7 +112,7 @@ const installText: Record<string, (event: InstallEvent) => string | null> = {
           {
             id: "models_error_install_not_enough_disk",
             defaultMessage:
-              "This download needs {needed, number, ::unit/gigabyte .#} free; this computer has {free, number, ::unit/gigabyte .#}.",
+              "This download needs {needed, number, ::unit/gigabyte .#} free; this drive has {free, number, ::unit/gigabyte .#}.",
           },
           {
             needed: event.needed_bytes / 1e9,
@@ -107,6 +120,12 @@ const installText: Record<string, (event: InstallEvent) => string | null> = {
           }
         )
       : null,
+  model_storage_unavailable: () =>
+    intl.formatMessage({
+      id: "models_error_install_model_storage_unavailable",
+      defaultMessage:
+        "The drive with your models folder isn’t connected. Connect it and restart SurfSense to download models.",
+    }),
   too_big: () =>
     intl.formatMessage({
       id: "models_error_install_too_big",

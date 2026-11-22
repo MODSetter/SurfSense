@@ -2,6 +2,7 @@
 
 from collections.abc import Callable
 
+from modules.llm.providers import llamacpp
 from modules.llm.resolution import ResolvedGeneration
 from shared import cancellation
 from worker.studio.office.script_failed import StudioScriptFailedError
@@ -10,6 +11,17 @@ from worker.studio.shared.artifact import Built, Source
 
 # A script that fails is shown its error twice before the job gives up.
 ATTEMPTS = 3
+# A deck's script measured 10,842 characters, about 3,000 tokens. A small local
+# model that loops otherwise writes until the window is full: 130,171 characters
+# in 272 s, measured, before the script failed anyway.
+LOCAL_SCRIPT_MAX_TOKENS = 16_384
+# A failed reply longer than this ran on rather than broke on one line: shown
+# back, it fills the window (41,015 tokens of 40,960), so it is asked for anew.
+REPLAY_CHARS = 48_000
+RAN_ON = (
+    "Your previous script never finished: it ran on, repeating itself. Write "
+    "the whole script again, shorter, and end by saving the file."
+)
 
 
 def drafted(
@@ -21,20 +33,34 @@ def drafted(
     """`run` turns the model's reply into the built file, or raises
     StudioScriptFailedError with what the model is shown to fix it."""
     repair: generate.Repair | None = None
+    ran_on = False
+    local = model.selection.provider == llamacpp.PROVIDER
     for attempt in range(ATTEMPTS):
         # Outside the try below: a cancel must not be mistaken for a broken script.
         cancellation.raise_if_cancelled()
-        raw = generate.run_model(model, system, sources, repair=repair)
+        raw = generate.run_model(
+            model,
+            system,
+            sources,
+            after_sources=RAN_ON if ran_on else None,
+            repair=repair,
+            max_tokens=LOCAL_SCRIPT_MAX_TOKENS if local else None,
+        )
         try:
             return run(raw)
         except StudioScriptFailedError as error:
             if attempt == ATTEMPTS - 1:
                 raise
-            repair = generate.Repair(
-                reply=raw,
-                instruction=(
-                    f"That script failed: {error.shown}. Return the whole script "
-                    "corrected, changing only what the error points to."
-                ),
+            ran_on = len(raw) > REPLAY_CHARS
+            repair = (
+                None
+                if ran_on
+                else generate.Repair(
+                    reply=raw,
+                    instruction=(
+                        f"That script failed: {error.shown}. Return the whole script "
+                        "corrected, changing only what the error points to."
+                    ),
+                )
             )
     raise AssertionError("unreachable")  # pragma: no cover

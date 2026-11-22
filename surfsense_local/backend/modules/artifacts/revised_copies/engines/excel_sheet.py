@@ -150,6 +150,73 @@ class Sheet:
     def formula_count(self) -> int:
         return sum(1 for _ in self.data.iter(self._q("f")))
 
+    def cached_result(self, coord: Coord) -> Content:
+        """What a formula cell last showed, as the file stores it; EMPTY when it stores none."""
+        cell = self._cells.get(coord)
+        raw = self._child(cell, "v") if cell is not None else None
+        if raw is None or raw.text is None or self._child(cell, "f") is None:
+            return EMPTY
+        kind = cell.get("t", "n")
+        if kind in ("str", "e"):
+            return Content("text", _unescape(raw.text))
+        if kind == "s" and raw.text.strip().isdigit():
+            text = self._shared_text(int(raw.text))
+            return Content("text", _unescape(text)) if text is not None else EMPTY
+        if kind == "b":
+            return Content("boolean", raw.text.strip() == "1")
+        try:
+            return Content("number", float(raw.text))
+        except ValueError:
+            return EMPTY
+
+    def style_of(self, coord: Coord) -> int:
+        """The cell's style, or the one a new cell there would take."""
+        cell = self._cells.get(coord)
+        style = cell.get("s") if cell is not None else None
+        if style is None and cell is None:
+            row = self._rows.get(coord[1])
+            style = (
+                self._style_for(row, coord[0])
+                if row is not None
+                else next(
+                    (
+                        s
+                        for low, high, s in self._column_styles
+                        if low <= coord[0] <= high
+                    ),
+                    None,
+                )
+            )
+        return int(style) if style and style.isdigit() else 0
+
+    def column_rows(self, column: int) -> list[int]:
+        """The rows holding a cell in this column, top down."""
+        return sorted(row for col, row in self._cells if col == column)
+
+    @property
+    def merges(self) -> list[Area]:
+        return list(self._merges)
+
+    def hidden_rows(self) -> frozenset[int]:
+        return frozenset(
+            number
+            for number, row in self._rows.items()
+            if row.get("hidden") in ("1", "true")
+        )
+
+    def hidden_columns(self) -> frozenset[int]:
+        hidden: set[int] = set()
+        for col in self.root.iter(self._q("col")):
+            if col.get("hidden") in ("1", "true"):
+                hidden.update(
+                    range(int(col.get("min", "0")), int(col.get("max", "0")) + 1)
+                )
+        return frozenset(hidden)
+
+    def cells(self) -> list[Coord]:
+        """Every cell the sheet holds, row by row."""
+        return sorted(self._cells, key=lambda coord: (coord[1], coord[0]))
+
     # --- writing -------------------------------------------------------------
 
     def write(self, coord: Coord, content: Content) -> bool:
@@ -316,6 +383,15 @@ def content_from(
     if isinstance(value, int | float):
         return Content("number", value)
     return Content("text", value)
+
+
+def shown_value(content: Content) -> str:
+    """A value as a dropdown lists it: text as it is, numbers as Excel writes them."""
+    if content.kind == "boolean":
+        return "TRUE" if content.value else "FALSE"
+    if content.kind == "number":
+        return _number(content.value)
+    return str(content.value)
 
 
 def valid_number(value: object) -> bool:

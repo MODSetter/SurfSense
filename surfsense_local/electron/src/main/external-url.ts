@@ -1,8 +1,8 @@
 // The only links the app hands to the OS browser: the SurfSense site, the
 // project's own GitHub repository, its Discord invite, an OpenRouter model's
 // page, where OpenRouter names a speech model's voices, and OpenAI's sign-in
-// page for a ChatGPT subscription, and a plugin provider's sign-in page that
-// returns to SurfSense. Anything else is dropped so a crafted link in content
+// page for a ChatGPT subscription, Claude Code's install guide for a Claude
+// plan, and a plugin provider's sign-in page that returns to SurfSense. Anything else is dropped so a crafted link in content
 // cannot open arbitrary pages.
 const SITE_HOSTS = new Set(["surfsense.com", "www.surfsense.com"])
 const REPO_PATH = "/MODSetter/SurfSense"
@@ -11,6 +11,8 @@ const DISCORD_INVITE = "/ejRNvftDp9"
 // opens OpenRouter's own site; no other host or deeper path gets through.
 const OPENROUTER_MODEL = /^\/[\w.-]+\/[\w.:-]+$/
 const OPENAI_AUTHORIZE = "/api/accounts/authorize"
+// A Claude plan runs the user's own Claude Code, which SurfSense never installs.
+const CLAUDE_CODE_SETUP = "https://code.claude.com/docs/en/setup"
 
 // Only a sign-in that returns its code to the API's own loopback listener;
 // one naming any other redirect would hand the code to someone else.
@@ -74,7 +76,26 @@ export function allowedExternalUrl(url: string): string | null {
   ) {
     return parsed.href
   }
+  if (parsed.href === CLAUDE_CODE_SETUP) return parsed.href
   if (isLoopbackSignIn(parsed)) return parsed.href
   if (isPluginSignIn(parsed)) return parsed.href
   return null
+}
+
+/**
+ * A link from content (a chat reply, a Studio document, a tool's result) that the
+ * user confirmed in the app's link popup, which showed its host first. Any https
+ * page; never another scheme, or an address carrying a user name or password.
+ */
+export function confirmedExternalUrl(url: string): string | null {
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch {
+    return null
+  }
+  if (parsed.protocol !== "https:" || parsed.username || parsed.password) {
+    return null
+  }
+  return parsed.href
 }

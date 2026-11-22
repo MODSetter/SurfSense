@@ -1,0 +1,47 @@
+---
+date: "2026-10-09"
+version: "2.2.0"
+---
+
+## What's New in v2.2.0
+
+v2.2.0 is the first desktop release whose installers include the agent. Each new chat runs in Basic (Q&A), which answers from your sources, or Agentic, which works on your files. Sources also gets folders, and replies keep running in the background. Get it from the [downloads page](/downloads).
+
+### Basic (Q&A) and Agentic
+
+- **One mode per chat**: Pick the mode in the composer when you start a chat. A chat keeps its mode, so picking the other one opens a new chat. SurfSense remembers your choice for each model.
+- **Open to capable models**: Agentic works with any model that can use tools and has a context window of at least 32,768 tokens. New chats start in Agentic only on a model that passed SurfSense's Agentic tests and runs on a server. 270 models are now rated, up from 11, and Settings › Text gen shows your model's result.
+- **Only what you tick**: An Agentic chat sees only the sources you ticked, and it can't take images yet.
+
+### What the agent does with your files
+
+- **Office files and PDFs**: The agent makes Word, PDF, PowerPoint and Excel files from your sources, and can use a ticked `.docx` or `.pptx` as a template. Each edit becomes a new version in Studio.
+- **Revised copies**: The agent edits a copy of your Word, Excel or PowerPoint file, never the original. Word edits show as tracked changes, with comments where needed. In Studio you can Accept all or Reject all, and download With changes or Clean.
+- **PDF tools and data analysis**: The agent can merge, split, rotate and stamp PDF pages, fill in PDF forms, and turn ticked spreadsheets and CSV files into tables and charts.
+- **Office support**: Settings › Office support downloads LibreOffice only after you agree, or uses a copy you already have. It gives exact Word and PowerPoint previews, true totals in the spreadsheets the agent makes, and conversion to PDF.
+
+### Sources and Studio
+
+- **Folders**: Organize Sources into folders, upload a whole folder, and tick a folder to use everything inside. Chat, Studio and the agent read exactly what you tick.
+- **Resizable columns**: Drag the edge of Sources or Studio to resize it.
+- **Refine**: Rewrites a Word or PDF document that Studio made into its next version.
+- **Markdown**: The Summary format is now Markdown and downloads as a `.md` file.
+
+### Chats that keep going
+
+- **Background replies**: A reply keeps running when you switch chats, reload or close the window, and several chats can answer at once. The Chats dialog marks chats that are writing, need your approval or are unread, and SurfSense asks before quitting while replies run.
+- **Smooth streaming**: Long chats no longer lag or freeze while a reply streams.
+- **Qwen3.8 27B**: Now first in the curated chat models. It reads images and is meant for 24 GB machines.
+
+### No longer broken
+
+- Deleting an image or audio model while it's in use no longer leaves it half removed.
+- A message with more images than the model's context window can hold is refused up front, saying how many fit.
+- Signing out of or deleting a ChatGPT connection now revokes its sign-in at OpenAI.
+- Screen readers announce "Reply finished" when a reply ends.
+
+### Known issues
+
+- **The first start needs free disk space**: v2.2.0 copies your library database before upgrading it, so the first start needs free space about the size of `~/.surfsense/surfsense.db`. Without it, SurfSense closes without a message. Free some space and start it again.
+- **Going back to v2.1.0 needs a manual restore**: v2.1.0 can't open the upgraded database. Quit SurfSense and replace `~/.surfsense/surfsense.db` with the copy saved at the upgrade, `~/.surfsense/backups/0023-0027.db`, before you reinstall v2.1.0.
+- **An interrupted cloud import can miss chats**: If an import from the hosted app stops partway, importing the same export again doesn't bring in the missed chats. Keep your export ZIP, delete the imported workspace and import the ZIP again.

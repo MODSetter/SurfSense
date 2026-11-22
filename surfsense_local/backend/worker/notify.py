@@ -5,14 +5,23 @@ import httpx
 
 from modules.artifacts.models import Artifact
 from modules.documents.models import Document
-from modules.events.schemas import EventKind
+from modules.events.schemas import EventKind, Progress
 
 logger = logging.getLogger(__name__)
 
 
-def notify_document_updates(document: Document) -> None:
-    """Tell the API a document's row changed, so it can push the change to the UI."""
-    _notify(document.workspace_id, EventKind.DOCUMENTS, document.id, document.status.value)
+def notify_document_updates(
+    document: Document, progress: Progress | None = None
+) -> None:
+    """Tell the API a document's row changed, so it can push the change to the UI.
+    `progress`: a recording's, once per transcribed window."""
+    _notify(
+        document.workspace_id,
+        EventKind.DOCUMENTS,
+        document.id,
+        document.status.value,
+        progress,
+    )
 
 
 def notify_artifact_updates(artifact: Artifact) -> None:
@@ -25,7 +34,13 @@ def notify_artifact_updates(artifact: Artifact) -> None:
     )
 
 
-def _notify(workspace_id: int, kind: EventKind, row_id: int, status: str) -> None:
+def _notify(
+    workspace_id: int,
+    kind: EventKind,
+    row_id: int,
+    status: str,
+    progress: Progress | None = None,
+) -> None:
     """Fire the loopback change notice, best-effort.
 
     Worker and API share the database, so a dropped notice costs the client only
@@ -37,16 +52,21 @@ def _notify(workspace_id: int, kind: EventKind, row_id: int, status: str) -> Non
         return
 
     host = os.environ.get("SURFSENSE_LOCAL_HOST", "127.0.0.1")
+    notice: dict = {
+        "workspace_id": workspace_id,
+        "kind": kind.value,
+        "ids": [row_id],
+        "status": status,
+    }
+    if progress is not None:
+        notice["progress"] = progress.model_dump()
     try:
         httpx.post(
             f"http://{host}:{port}/internal/events",
-            json={
-                "workspace_id": workspace_id,
-                "kind": kind.value,
-                "ids": [row_id],
-                "status": status,
-            },
+            json=notice,
             timeout=2.0,
         )
     except Exception as error:
-        logger.warning("could not notify the API of %s %s: %s", kind.value, row_id, error)
+        logger.warning(
+            "could not notify the API of %s %s: %s", kind.value, row_id, error
+        )

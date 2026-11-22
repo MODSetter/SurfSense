@@ -1,6 +1,6 @@
 """sd.cpp behind the engine seam: image models in sd-server's folder."""
 
-from collections.abc import AsyncIterator, Callable, Sequence
+from collections.abc import AsyncIterator, Callable, Sequence, Set
 from pathlib import Path
 
 from modules.llm.catalog.local.build import Build, BuildFile
@@ -44,7 +44,7 @@ class SdCppEngine:
         models: Sequence[CuratedModel],
         mint: Callable[[Build], str],
         *,
-        selected: str | None,
+        selected: Set[str],
     ) -> tuple[LocalRow, ...]:
         if self._images_dir is None:
             return ()

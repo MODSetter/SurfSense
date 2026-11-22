@@ -27,6 +27,7 @@ import { intl } from "@/i18n/intl"
 import type { ModelType } from "../../model-type"
 import type { ModelSelection } from "../../selection/api"
 import { useSelect } from "../../selection/use-selection"
+import { VoiceField } from "../voices/voice-field"
 import {
   testConnectionChat,
   testConnectionImage,
@@ -46,11 +47,21 @@ function messageFrom(error: unknown) {
 function Explanation({
   modelType,
   model,
+  plan,
 }: {
   modelType: ModelType
   model: ConnectionModel
+  plan: boolean
 }) {
   const image = modelType === "image_gen"
+  // A plan bills nothing per prompt; it fills the chat slot alone.
+  if (plan && modelType === "text_gen") {
+    return intl.formatMessage({
+      id: "models_try_dialog_chat_plan_body",
+      defaultMessage:
+        "Chat support is confirmed. Testing sends one short prompt, which counts toward your plan’s limits.",
+    })
+  }
   if (modelType === "audio_gen") {
     return model.capability_source === "unknown"
       ? intl.formatMessage({
@@ -100,6 +111,7 @@ export function TryModelDialog({
   modelType,
   model,
   unlisted,
+  plan = false,
   onOpenChange,
   onOpenChangeComplete,
   onSelected,
@@ -108,6 +120,8 @@ export function TryModelDialog({
   modelType: ModelType
   model: ConnectionModel
   unlisted: boolean
+  /** A ChatGPT or Claude plan: a test uses the plan's limits, not money. */
+  plan?: boolean
   onOpenChange: (open: boolean) => void
   onOpenChangeComplete: (open: boolean) => void
   onSelected?: (selection: ModelSelection) => void
@@ -117,7 +131,9 @@ export function TryModelDialog({
   const [reply, setReply] = useState<string | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [voice, setVoice] = useState("")
+  // On its first voice, because a server publishing them may have no default.
+  const published = model.voices ?? []
+  const [voice, setVoice] = useState(published[0]?.id ?? "")
   const [confirmUnlisted, setConfirmUnlisted] = useState<string | null>(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
 
@@ -204,34 +220,56 @@ export function TryModelDialog({
             )}
           </DialogTitle>
           <DialogDescription>
-            <Explanation modelType={modelType} model={model} />
+            <Explanation modelType={modelType} model={model} plan={plan} />
           </DialogDescription>
         </DialogHeader>
         {modelType === "audio_gen" ? (
           <div className="space-y-1.5">
-            <Input
-              aria-label={intl.formatMessage({
-                id: "models_try_dialog_voice_aria",
-                defaultMessage: "Voice",
-              })}
-              placeholder={intl.formatMessage({
-                id: "models_try_dialog_voice_placeholder",
-                defaultMessage: "Voice ID (optional)",
-              })}
-              className="select-text"
-              value={voice}
-              maxLength={100}
-              spellCheck={false}
-              autoCapitalize="off"
-              autoCorrect="off"
-              onChange={(event) => setVoice(event.target.value)}
-            />
+            {published.length ? (
+              <VoiceField
+                voices={published}
+                value={voice}
+                label={intl.formatMessage({
+                  id: "models_try_dialog_voice_aria",
+                  defaultMessage: "Voice",
+                })}
+                placeholder={intl.formatMessage({
+                  id: "models_try_dialog_voice_listed_placeholder",
+                  defaultMessage: "Voice ID",
+                })}
+                onChange={setVoice}
+              />
+            ) : (
+              <Input
+                aria-label={intl.formatMessage({
+                  id: "models_try_dialog_voice_aria",
+                  defaultMessage: "Voice",
+                })}
+                placeholder={intl.formatMessage({
+                  id: "models_try_dialog_voice_placeholder",
+                  defaultMessage: "Voice ID (optional)",
+                })}
+                className="select-text"
+                value={voice}
+                maxLength={100}
+                spellCheck={false}
+                autoCapitalize="off"
+                autoCorrect="off"
+                onChange={(event) => setVoice(event.target.value)}
+              />
+            )}
             <p className="text-xs text-muted-foreground">
-              {intl.formatMessage({
-                id: "models_try_dialog_voice_body",
-                defaultMessage:
-                  "Empty uses the server’s default voice, if it has one.",
-              })}
+              {published.length
+                ? intl.formatMessage({
+                    id: "models_try_dialog_voice_listed_body",
+                    defaultMessage:
+                      "Choose one of this model’s voices, or type a voice ID.",
+                  })
+                : intl.formatMessage({
+                    id: "models_try_dialog_voice_body",
+                    defaultMessage:
+                      "Empty uses the server’s default voice, if it has one.",
+                  })}
             </p>
           </div>
         ) : null}
@@ -268,7 +306,13 @@ export function TryModelDialog({
             {reply}
           </p>
         ) : null}
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        {error ? (
+          // A provider's reason can hold a long address to copy, in a grid an
+          // unbroken one would widen past the dialog.
+          <p className="text-sm wrap-anywhere text-destructive select-text">
+            {error}
+          </p>
+        ) : null}
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             {intl.formatMessage({
@@ -276,7 +320,16 @@ export function TryModelDialog({
               defaultMessage: "Cancel",
             })}
           </Button>
-          <Button variant="outline" disabled={testing} onClick={runTest}>
+          <Button
+            variant="outline"
+            disabled={
+              testing ||
+              (modelType === "audio_gen" &&
+                published.length > 0 &&
+                !voice.trim())
+            }
+            onClick={runTest}
+          >
             {testing ? <Spinner data-icon="inline-start" /> : null}
             {modelType === "image_gen"
               ? intl.formatMessage({

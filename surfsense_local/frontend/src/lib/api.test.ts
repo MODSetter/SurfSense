@@ -32,20 +32,21 @@ describe("api base url", () => {
     expect(await callHealthWith(undefined)).toBe("/health")
   })
 
-  it("falls back to VITE_API_BASE without the Electron bridge", async () => {
-    vi.stubEnv("VITE_API_BASE", "/api")
-    expect(await callHealthWith(undefined)).toBe("/api/health")
-  })
-
   it("prefers the packaged apiUrl over VITE_API_BASE", async () => {
     vi.stubEnv("VITE_API_BASE", "/api")
     expect(await callHealthWith({ apiUrl: "http://127.0.0.1:9999" })).toBe(
       "http://127.0.0.1:9999/health"
     )
   })
+})
 
-  it("builds media and download links from VITE_API_BASE", async () => {
-    vi.stubEnv("VITE_API_BASE", "/api")
+// No Electron bridge: the API is on the page's own origin, under /api.
+describe("api base url in the Docker image", { tags: ["docker"] }, () => {
+  it("calls the API under /api", async () => {
+    expect(await callHealthWith(undefined)).toBe("/api/health")
+  })
+
+  it("builds media and download links under /api", async () => {
     vi.stubGlobal("window", {})
     vi.resetModules()
     const { apiUrl } = await import("./api")

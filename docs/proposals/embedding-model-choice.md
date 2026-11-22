@@ -136,7 +136,7 @@ Missing any one of them would make the embedder swappable, which is the failure 
 
 A live search filtered to `sentence-similarity` and `feature-extraction`. The onboarding search that exists today ([`hugging-face-search.tsx`](../../surfsense_local/frontend/src/features/onboarding/model-step/local/hugging-face-search.tsx)) goes through the llama.cpp engine and reads GGUF files, so this is a second search beside it, reading different files.
 
-- **Runnable means ONNX.** The API process ships onnxruntime without torch ([`api.spec`](../../surfsense_local/backend/bundling/api.spec)), so a repo with only safetensors is shown as not runnable.
+- **Runnable means ONNX.** The API process ships onnxruntime without torch ([`api_inputs.py`](../../surfsense_local/backend/bundling/api_inputs.py)), so a repo with only safetensors is shown as not runnable.
 - **Which file.** A generic int8 file (`model_int8.onnx`, `model_quantized.onnx`) first, then the full-precision `onnx/model.onnx` or `model.onnx`; otherwise the repo is refused. A file's external data (`.onnx_data`) downloads with it. Never a file tuned for one CPU (`*avx2*`, `*avx512*`, `*arm64*`), an `O1` to `O4` optimised variant, or an `fp16`, `q4` or `bnb4` build: fp16 runs slowly on a CPU and the rest are made for other hardware or runtimes. A bad quantisation is caught by the probe and the sanity check.
 - **Refused:** gated repos, repos Hugging Face's security scan flags, and repos without a `tokenizer.json`.
 - **Evidence:** the repo's pipeline tag and its sentence-transformers files. A repo that ships them is `declared`; one with only the tag is `inferred`.
@@ -257,7 +257,7 @@ bge is bundled and cannot become unreachable. Chat's check for missing files in 
 
 ## Onboarding
 
-1. A new step before the chat model. It is not a model slot: [`slot.ts`](../../surfsense_local/frontend/src/features/onboarding/model-step/kinds/slot.ts) is typed to `ModelType`, and the embedder is not a selection. The step list needs a kind of step that is not one.
+1. A new step before the chat model. It is not a model slot: the embedder is not a selection, so the step list needs a kind of step that is not one ([`step-kind.ts`](../../surfsense_local/frontend/src/features/onboarding/model-step/kinds/step-kind.ts)).
 2. Curated models come first, bge preselected, each with its download size and one line on what it is for: *"Choose Multilingual only if your documents or questions are in more than one language."* Hugging Face search and remote models sit below.
 3. A local pick not on disk resolves first (size, whether it is on disk, any error), then downloads with the hash check. A remote pick connects. Then the probe and the sanity check run, and the pick gets its label. The click is a user action, so the egress dialog may appear once.
 4. Before the user continues, the step says what cannot be undone: that the model is fixed for this library, what its label means, and for remote, where every document goes. A Hugging Face pick shows its download size with one line: *"Larger models make adding documents slower and use more memory, and this choice can't be changed later."*

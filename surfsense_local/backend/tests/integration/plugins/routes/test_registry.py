@@ -16,7 +16,7 @@ from modules.plugins.lists.registry import (
 )
 from shared.config import get_plugin_host_settings
 from shared.db import create_session_factory
-from tests.mcp_test_server import RequiringToken, notes_server, serving
+from tests.mcp_test_server import RequiringHeader, RequiringToken, notes_server, serving
 from tests.registry_stand_in import SVG, StandInRegistry, entry
 
 pytestmark = pytest.mark.integration
@@ -28,12 +28,14 @@ def registry(monkeypatch: pytest.MonkeyPatch) -> Iterator[StandInRegistry]:
     stand_in = StandInRegistry()
     notes = notes_server()
     keyed = notes_server()
+    headed = notes_server()
     app = stand_in.app(
         {
             "notes": notes.streamable_http_app(),
             "keyed": RequiringToken(keyed.streamable_http_app(), "k-1"),
+            "headed": RequiringHeader(headed.streamable_http_app(), "x-api-key", "k-9"),
         },
-        [notes, keyed],
+        [notes, keyed, headed],
     )
     monkeypatch.setattr(registry_origin, "reads_repository", lambda: False)
     monkeypatch.setattr(
@@ -50,6 +52,7 @@ async def allow_third_party(client: AsyncClient) -> None:
     assert allowed.status_code == 204
 
 
+@pytest.mark.third_party_off
 async def test_nothing_is_fetched_while_third_party_plugins_are_off(
     client: AsyncClient, registry: StandInRegistry
 ) -> None:
@@ -65,13 +68,18 @@ async def test_nothing_is_fetched_while_third_party_plugins_are_off(
 async def test_a_signed_registry_is_listed_once_third_party_plugins_are_allowed(
     client: AsyncClient, registry: StandInRegistry
 ) -> None:
-    """Partners are verified; community plugins are shown by their author."""
+    """A plugin proven to be its author's is verified; the rest are community, both by their author."""
     registry.publish(
         [
-            entry("notes"),
+            entry(
+                "notes",
+                about="Search and count your notes.",
+                tools=["search", "count"],
+                added="2026-10",
+            ),
             entry(
                 "keyed",
-                publisher="partner",
+                verification="verified",
                 author="Keyed Inc.",
                 auth={
                     "type": "token",
@@ -90,21 +98,50 @@ async def test_a_signed_registry_is_listed_once_third_party_plugins_are_allowed(
     assert listed["third_party_off"] is False
     assert listed["fetched_at"] is not None
     notes, keyed = listed["plugins"]
-    assert (notes["id"], notes["publisher"], notes["verified"]) == (
+    assert (notes["id"], notes["verification"], notes["verified"]) == (
         "notes",
         "community",
         False,
     )
-    assert notes["author"] == "Jane Doe"
+    assert notes["author"] == "Notes Project"
+    assert notes["about"] == "Search and count your notes."
+    assert notes["tools"] == ["search", "count"]
+    assert notes["added"] == "2026-10"
+    assert keyed["added"] is None
+    assert keyed["about"] is None
+    assert keyed["tools"] is None
     assert notes["connected"] is False
-    assert (keyed["publisher"], keyed["verified"], keyed["author"]) == (
-        "partner",
+    assert (keyed["verification"], keyed["verified"], keyed["author"]) == (
+        "verified",
         True,
         "Keyed Inc.",
     )
+    # As this build reaches it: a developer's plugin host stands in for SurfSense's.
+    assert (notes["server_host"], notes["sign_in_hosts"]) == (notes["hosts"][0], [])
     assert (keyed["auth_type"], keyed["auth_title"]) == ("token", "API key")
     assert keyed["access_note"] == "Requires a Keyed account."
     assert registry.requests == ["/plugins.json", "/plugins.json.sig"]
+
+
+async def test_an_oauth_plugin_lists_its_sign_in_hosts_apart_from_its_server(
+    client: AsyncClient, registry: StandInRegistry
+) -> None:
+    """The server receives every call; a sign-in host only the sign-in."""
+    registry.publish(
+        [
+            entry(
+                "notes",
+                auth={"type": "oauth"},
+                hosts=["plugins.surfsense.com", "accounts.example.com"],
+            )
+        ]
+    )
+    await allow_third_party(client)
+
+    [notes] = (await client.get("/plugins/registry")).json()["plugins"]
+
+    assert notes["server_host"] == notes["hosts"][0]
+    assert notes["sign_in_hosts"] == ["accounts.example.com"]
 
 
 def refresh_every_time(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -216,16 +253,16 @@ async def test_with_no_verified_copy_the_list_is_unavailable(
     assert listed.json()["detail"]["code"] == "registry_unavailable"
 
 
+@pytest.mark.usefixtures("first_party_sample")
 async def test_entries_only_the_first_party_list_may_hold_are_dropped(
     client: AsyncClient, registry: StandInRegistry
 ) -> None:
-    """No fetched file can claim to be SurfSense, take its ids, or outrun this app."""
+    """No fetched file can take the license, take SurfSense's ids, or outrun this app."""
     registry.publish(
         [
-            entry("claims-surfsense", publisher="surfsense"),
             entry("wants-license", auth={"type": "license"}),
             entry("sells-license", access="license"),
-            entry("reddit"),
+            entry("news"),
             entry("from-the-future", min_app_version="99.0.0"),
             entry("from-the-past", min_app_version="2.0.0"),
             entry("notes"),
@@ -314,7 +351,7 @@ async def test_in_development_the_checkout_s_list_is_read_unsigned(
 async def test_a_plugin_with_no_sign_in_connects_from_the_registry(
     client: AsyncClient, registry: StandInRegistry
 ) -> None:
-    """Stored as the registry's, its publisher the list's."""
+    """Stored as the registry's."""
     registry.publish([entry("notes")])
     await allow_third_party(client)
 
@@ -322,7 +359,7 @@ async def test_a_plugin_with_no_sign_in_connects_from_the_registry(
 
     assert connected.status_code == 201, connected.text
     plugin = connected.json()
-    assert (plugin["source"], plugin["publisher"]) == ("registry", "community")
+    assert plugin["source"] == "registry"
     assert [tool["name"] for tool in plugin["tools"]] == ["search", "count"]
     listed = (await client.get("/plugins/registry")).json()["plugins"]
     assert [p["id"] for p in listed if p["connected"]] == ["notes"]
@@ -345,6 +382,143 @@ async def test_a_token_plugin_connects_with_its_key_and_never_returns_it(
     assert "k-1" not in (await client.get("/plugins")).text
 
 
+async def test_a_headers_plugin_connects_with_each_header_its_entry_names(
+    client: AsyncClient, registry: StandInRegistry
+) -> None:
+    """The entry names the header and words it; the value is the user's, and stays inside."""
+    registry.publish(
+        [
+            entry(
+                "headed",
+                auth={
+                    "type": "headers",
+                    "headers": [{"name": "x-api-key", "label": "Exa API key"}],
+                },
+            )
+        ]
+    )
+    await allow_third_party(client)
+
+    listed = (await client.get("/plugins/registry")).json()["plugins"][0]
+    connected = await client.post(
+        "/plugins/registry/headed",
+        json={"headers": [{"name": "x-api-key", "value": "k-9"}]},
+    )
+
+    assert listed["auth_type"] == "headers"
+    assert listed["auth_headers"] == [
+        {"name": "x-api-key", "label": "Exa API key", "description": None}
+    ]
+    assert connected.status_code == 201, connected.text
+    assert connected.json()["auth_type"] == "headers"
+    assert connected.json()["header_names"] == ["x-api-key"]
+    assert "k-9" not in (await client.get("/plugins")).text
+
+
+async def test_a_headers_entry_adds_its_prefix_to_the_value_typed(
+    client: AsyncClient, registry: StandInRegistry
+) -> None:
+    """`Bearer ` is the entry's to add, so the user pastes the key alone."""
+    registry.publish(
+        [
+            entry(
+                "keyed",
+                auth={
+                    "type": "headers",
+                    "headers": [{"name": "Authorization", "prefix": "Bearer "}],
+                },
+            )
+        ]
+    )
+    await allow_third_party(client)
+
+    connected = await client.post(
+        "/plugins/registry/keyed",
+        json={"headers": [{"name": "Authorization", "value": "k-1"}]},
+    )
+
+    assert connected.status_code == 201, connected.text
+
+
+async def test_editing_a_registry_plugins_headers_keeps_its_entrys_wording(
+    client: AsyncClient, registry: StandInRegistry
+) -> None:
+    """The reviewed entry still names the headers and adds their prefix."""
+    named = {
+        "type": "headers",
+        "headers": [{"name": "Authorization", "prefix": "Bearer "}],
+    }
+    registry.publish([entry("keyed", auth=named)])
+    await allow_third_party(client)
+    await client.post(
+        "/plugins/registry/keyed",
+        json={"headers": [{"name": "Authorization", "value": "k-1"}]},
+    )
+
+    replaced = await client.put(
+        "/plugins/keyed/headers",
+        json={"headers": [{"name": "Authorization", "value": "k-1"}]},
+    )
+    other = await client.put(
+        "/plugins/keyed/headers", json={"headers": [{"name": "x-other", "value": "v"}]}
+    )
+
+    assert replaced.status_code == 200, replaced.text
+    assert replaced.json()["check_failure"] is None
+    assert other.status_code == 422
+    assert other.json()["detail"]["code"] == "plugin_header_not_allowed"
+
+
+async def test_a_header_the_entry_does_not_name_is_refused(
+    client: AsyncClient, registry: StandInRegistry
+) -> None:
+    """Values go only in the headers the reviewed entry names."""
+    registry.publish(
+        [entry("headed", auth={"type": "headers", "headers": [{"name": "x-api-key"}]})]
+    )
+    await allow_third_party(client)
+
+    refused = await client.post(
+        "/plugins/registry/headed",
+        json={"headers": [{"name": "x-other", "value": "v"}]},
+    )
+
+    assert refused.status_code == 422
+    assert refused.json()["detail"]["code"] == "plugin_header_not_allowed"
+
+
+async def test_an_entry_taking_only_registered_apps_is_kept_needing_the_users_own(
+    client: AsyncClient, registry: StandInRegistry
+) -> None:
+    """Kept before any request: the entry already knows the provider takes no other."""
+    registry.publish([entry("notes", auth={"type": "oauth", "user_client": True})])
+    await allow_third_party(client)
+
+    listed = (await client.get("/plugins/registry")).json()["plugins"][0]
+    kept = await client.post("/plugins/registry/notes", json={})
+
+    assert listed["user_client"] is True
+    assert kept.status_code == 201, kept.text
+    assert kept.json()["needs_own_app"] == "needs_client"
+    assert kept.json()["check_failure"] == "sign_in"
+    (plugin,) = (await client.get("/plugins")).json()
+    assert plugin["source"] == "registry"
+
+
+async def test_a_registry_naming_a_transport_still_lists(
+    client: AsyncClient, registry: StandInRegistry
+) -> None:
+    """An older list may name SSE; the app speaks Streamable HTTP alone, and reads no transport."""
+    registry.publish([entry("notes", transport="sse"), entry("keyed")])
+    await allow_third_party(client)
+
+    listed = (await client.get("/plugins/registry")).json()["plugins"]
+
+    assert [p["id"] for p in listed] == ["notes", "keyed"]
+    assert all("transport" not in p for p in listed)
+
+
+@pytest.mark.third_party_off
 async def test_nothing_connects_from_the_registry_while_third_party_plugins_are_off(
     client: AsyncClient, registry: StandInRegistry
 ) -> None:

@@ -1,0 +1,8 @@
+version: 2.2.3
+files:
+  - url: SurfSense-Setup.exe
+    sha512: W4tisJ3ctecrvGbkA6ibMQqWgAhjFNexPOOPtBa602DSzi7eO6zU4sbeF/hYaXVPJksOuUmczyUaa4trrVbvHQ==
+    size: 1216797720
+path: SurfSense-Setup.exe
+sha512: W4tisJ3ctecrvGbkA6ibMQqWgAhjFNexPOOPtBa602DSzi7eO6zU4sbeF/hYaXVPJksOuUmczyUaa4trrVbvHQ==
+releaseDate: '2026-10-21T10:03:17.403Z'

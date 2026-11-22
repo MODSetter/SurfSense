@@ -1,42 +1,97 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { PlusIcon } from "@/components/ui/icons"
-import { Skeleton } from "@/components/ui/skeleton"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { SettingsSection } from "@/features/settings/settings-section"
 import { intl } from "@/i18n/intl"
 
 import {
+  firstPartyQueryKey,
   listPlugins,
   pluginsQueryKey,
-  thirdPartyAllowed,
-  thirdPartyQueryKey,
+  registryQueryKey,
+  type Plugin,
+  type SignInStarted,
 } from "./api"
-import { AddPluginDialog } from "./add-plugin-dialog"
-import { FirstPartyPlugins } from "./first-party-plugins"
-import { PluginRow } from "./plugin-row"
-import { RegistryPlugins } from "./registry-plugins"
-import { ThirdPartySwitch } from "./third-party-switch"
-import { usePluginChanges } from "./use-plugin-changes"
+import { AddPluginDialog } from "./add-custom/add-plugin-dialog"
+import { BrowsePlugins } from "./browse/browse-plugins"
+import { connectedToast } from "./connect-toasts"
+import { OpenPluginContext } from "./open-plugin"
+import { OpenedSignInContext } from "./sign-in/opened-sign-in"
+import { usePluginSignIn } from "./sign-in/use-plugin-sign-in"
+import { PluginSearchField } from "./search/plugin-search-field"
+import { PluginSearchResults } from "./search/plugin-search-results"
+import { refreshLicenseVerdict } from "./license-verdict"
+import { YourPlugins } from "./yours/your-plugins"
+
+type Tab = "yours" | "browse"
+
+/** Where Plugins opens from elsewhere: Browse, or the Add custom plugin dialog. */
+export type PluginsStart = "browse" | "add"
 
 export function PluginsSettings({
+  start,
   onOpenLicense,
 }: {
+  start?: PluginsStart
   /** Shown on a plugin whose license was refused. */
   onOpenLicense?: () => void
 }) {
   const queryClient = useQueryClient()
-  const [adding, setAdding] = useState(false)
+  const [adding, setAdding] = useState(start === "add")
+  // A license changed or expired since the last answer shows here, not at the next turn.
+  useEffect(() => {
+    void refreshLicenseVerdict(queryClient, { ifStale: true })
+  }, [queryClient])
+  const [query, setQuery] = useState("")
+  // Whose details show in Yours: here, so a plugin just kept to finish can open.
+  const [openId, setOpenId] = useState<string | null>(null)
+  // While searching, results from both tabs replace them, so the tabs wait.
+  const searching = query.trim() !== ""
   const plugins = useQuery({
     queryKey: pluginsQueryKey,
     queryFn: ({ signal }) => listPlugins(signal),
   })
-  const thirdParty = useQuery({
-    queryKey: thirdPartyQueryKey,
-    queryFn: ({ signal }) => thirdPartyAllowed(signal),
+  // Chosen once the list first answers, so connecting from Browse keeps the user there.
+  const [tab, setTab] = useState<Tab | null>(
+    start === "browse" ? "browse" : null
+  )
+  // Followed here, so a sign-in outlives the row, page or dialog that started it.
+  const [signingIn, setSigningIn] = useState<string | null>(null)
+  const refresh = () =>
+    Promise.all(
+      [pluginsQueryKey, registryQueryKey, firstPartyQueryKey].map((queryKey) =>
+        queryClient.invalidateQueries({ queryKey })
+      )
+    )
+  const signIn = usePluginSignIn(() => {
+    const name = queryClient
+      .getQueryData<Plugin[]>(pluginsQueryKey)
+      ?.find((plugin) => plugin.id === signingIn)?.name
+    if (name) connectedToast(name)
+    void refresh()
   })
-  const changes = usePluginChanges()
+  const followSignIn = (pluginId: string, started: SignInStarted) => {
+    setSigningIn(pluginId)
+    signIn.follow(started)
+  }
+  // Browse, its pages and search finish a plugin in its details in Yours.
+  const openPlugin = async (pluginId: string, started?: SignInStarted) => {
+    setAdding(false)
+    setQuery("")
+    setTab("yours")
+    // The browser opens at once; the details follow once the list has the plugin.
+    if (started) followSignIn(pluginId, started)
+    await refresh()
+    setOpenId(pluginId)
+  }
+  if (tab === null && plugins.data) {
+    setTab(plugins.data.length ? "yours" : "browse")
+  } else if (tab === null && plugins.error) {
+    setTab("yours")
+  }
 
   return (
     <SettingsSection
@@ -50,83 +105,89 @@ export function PluginsSettings({
           "Tools from MCP servers that the agent can use. Plugins work in Agentic threads.",
       })}
     >
-      <FirstPartyPlugins />
-      <ThirdPartySwitch
-        allowed={thirdParty.data ?? false}
-        onChange={(allowed) => changes.thirdParty.mutate(allowed)}
-      />
-      <RegistryPlugins allowed={thirdParty.data ?? false} />
-      <div className="mt-8 mb-3 flex items-center justify-between gap-4">
-        <h3 className="text-sm font-medium">
-          {intl.formatMessage({
-            id: "plugins_settings_servers_title",
-            defaultMessage: "MCP servers",
-          })}
-        </h3>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          onClick={() => setAdding(true)}
+      <OpenPluginContext.Provider
+        value={(id, started) => void openPlugin(id, started)}
+      >
+        <OpenedSignInContext.Provider
+          value={{
+            pluginId: signingIn,
+            state: signIn.state,
+            cancel: signIn.cancel,
+            follow: followSignIn,
+          }}
         >
-          <PlusIcon data-icon="inline-start" />
-          {intl.formatMessage({
-            id: "plugins_settings_add_button",
-            defaultMessage: "Add MCP server",
-          })}
-        </Button>
-      </div>
-      {plugins.isLoading ? (
-        <Skeleton className="h-24 w-full" />
-      ) : plugins.error ? (
-        <p role="alert" className="text-sm text-destructive">
-          {intl.formatMessage({
-            id: "plugins_settings_load_error",
-            defaultMessage: "Couldn’t load plugins.",
-          })}
-        </p>
-      ) : plugins.data?.length ? (
-        <div className="flex flex-col gap-3">
-          {plugins.data.map((plugin) => (
-            <PluginRow
-              key={plugin.id}
-              plugin={plugin}
-              thirdPartyAllowed={thirdParty.data ?? false}
-              disconnecting={
-                changes.disconnect.isPending &&
-                changes.disconnect.variables === plugin.id
-              }
-              checking={
-                changes.check.isPending && changes.check.variables === plugin.id
-              }
-              onCheck={() => changes.check.mutate(plugin.id)}
-              onEnabled={(enabled) =>
-                changes.plugin.mutate({ plugin: plugin.id, enabled })
-              }
-              onTool={(tool, change) =>
-                changes.tool.mutate({ plugin: plugin.id, tool, change })
-              }
-              onDisconnect={() => changes.disconnect.mutate(plugin.id)}
-              onOpenLicense={onOpenLicense}
-            />
-          ))}
-        </div>
-      ) : (
-        <p className="text-sm text-muted-foreground">
-          {intl.formatMessage({
-            id: "plugins_settings_empty",
-            defaultMessage: "No MCP servers yet. Add one by its URL.",
-          })}
-        </p>
-      )}
-      <AddPluginDialog
-        open={adding}
-        onOpenChange={setAdding}
-        onAdded={() => {
-          setAdding(false)
-          void queryClient.invalidateQueries({ queryKey: pluginsQueryKey })
-        }}
-      />
+          <Tabs
+            value={tab ?? "yours"}
+            onValueChange={(value: Tab) => {
+              setTab(value)
+              // Coming back to Yours shows the list, as it did when Yours held this itself.
+              setOpenId(null)
+            }}
+            className="gap-5"
+          >
+            <div className="flex items-center justify-between gap-4">
+              <TabsList variant="pill" activateOnFocus>
+                <TabsTrigger value="yours" disabled={searching}>
+                  {intl.formatMessage({
+                    id: "plugins_settings_yours_label",
+                    defaultMessage: "Yours",
+                  })}
+                </TabsTrigger>
+                <TabsTrigger value="browse" disabled={searching}>
+                  {intl.formatMessage({
+                    id: "plugins_settings_browse_label",
+                    defaultMessage: "Browse",
+                  })}
+                </TabsTrigger>
+              </TabsList>
+              <div className="flex min-w-0 items-center gap-2">
+                <PluginSearchField value={query} onChange={setQuery} />
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-8 shrink-0"
+                  onClick={() => setAdding(true)}
+                >
+                  <PlusIcon data-icon="inline-start" />
+                  {intl.formatMessage({
+                    id: "plugins_settings_add_custom_button",
+                    defaultMessage: "Add custom plugin",
+                  })}
+                </Button>
+              </div>
+            </div>
+            {searching ? (
+              <PluginSearchResults
+                query={query}
+                plugins={plugins}
+                onOpenLicense={onOpenLicense}
+              />
+            ) : (
+              <>
+                <TabsContent value="yours">
+                  <YourPlugins
+                    plugins={plugins}
+                    openId={openId}
+                    onOpenIdChange={setOpenId}
+                    onBrowse={() => setTab("browse")}
+                    onAdd={() => setAdding(true)}
+                    onOpenLicense={onOpenLicense}
+                  />
+                </TabsContent>
+                <TabsContent value="browse">
+                  <BrowsePlugins />
+                </TabsContent>
+              </>
+            )}
+          </Tabs>
+          <AddPluginDialog
+            open={adding}
+            onOpenChange={setAdding}
+            onAdded={() => setTab("yours")}
+          />
+        </OpenedSignInContext.Provider>
+      </OpenPluginContext.Provider>
     </SettingsSection>
   )
 }

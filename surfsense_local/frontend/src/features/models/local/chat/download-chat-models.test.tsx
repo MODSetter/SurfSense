@@ -374,6 +374,45 @@ describe("model catalog", () => {
     })
   })
 
+  it("says in a toast when Use fails, in the app's words, and nothing under the list", async () => {
+    const said =
+      "The local runtime is not running, so a local model cannot be used yet."
+    vi.stubGlobal(
+      "fetch",
+      serving(
+        catalog({
+          rows: [row({}, [build({ installed_as: "Qwen3-8B-Q4_K_M" })])],
+        }),
+        (path, init) =>
+          path === "/llm/selection/text_gen" && init?.method === "PUT"
+            ? Response.json(
+                {
+                  detail: { code: "local_runtime_unavailable", message: said },
+                },
+                { status: 503 }
+              )
+            : null
+      )
+    )
+    const user = userEvent.setup()
+
+    render(<DownloadChatModels />)
+    await user.click(
+      await screen.findByRole("button", { name: "Use Qwen3 8B Q4_K_M" })
+    )
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        "Couldn’t use this model",
+        expect.objectContaining({
+          description:
+            "The local model runtime isn’t running, so this model can’t be used yet.",
+        })
+      )
+    )
+    expect(screen.queryByText(said)).toBeNull()
+  })
+
   it("installs a reduced speed model with no confirmation step", async () => {
     // It runs, slower, and llama.cpp places the layers. Measured: an RTX 3050
     // runs an 8B at roughly 28% on the processor without noticeable lag, so
@@ -581,7 +620,13 @@ describe("model catalog", () => {
     vi.stubGlobal(
       "fetch",
       serving(catalog(), (path, init) => {
-        calls.push(`${init?.method ?? "GET"} ${path}`)
+        const put = init?.method === "PUT"
+        calls.push(
+          put && path === "/egress"
+            ? `PUT /egress ${JSON.parse(String(init?.body)).destinations.join(",")}`
+            : `${init?.method ?? "GET"} ${path}`
+        )
+        if (path === "/egress" && put) return Response.json([])
         if (path === "/egress") {
           return Response.json([
             {
@@ -592,7 +637,6 @@ describe("model catalog", () => {
             },
           ])
         }
-        if (path.startsWith("/egress/")) return Response.json({})
         return null
       })
     )
@@ -612,7 +656,7 @@ describe("model catalog", () => {
     await user.click(screen.getByRole("button", { name: "Allow" }))
 
     await waitFor(() =>
-      expect(calls).toContain("PUT /egress/host:huggingface.co")
+      expect(calls).toContain("PUT /egress host:huggingface.co")
     )
   })
 
@@ -625,9 +669,9 @@ describe("model catalog", () => {
     })
     vi.stubGlobal(
       "fetch",
-      serving(catalog(), (path) => {
-        if (path === "/egress") return null
-        if (path.startsWith("/egress/")) return Response.json({})
+      serving(catalog(), (path, init) => {
+        if (path === "/egress" && init?.method === "PUT")
+          return Response.json([])
         return null
       })
     )

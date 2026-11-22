@@ -11,14 +11,14 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Discord](https://img.shields.io/discord/1359368468260192417?label=Discord)](https://discord.gg/ejRNvftDp9)
 
-  <a href="https://www.surfsense.com/"><img alt="SurfSense، بديل NotebookLM المعزول عن الشبكة والمفتوح المصدر" src="surfsense_web/public/homepage/banner.png" /></a>
+  <a href="https://www.surfsense.com/"><img alt="SurfSense: ذكاء اصطناعي خاص ومعزول عن الشبكة للمستندات السرية" src="www/public/homepage/banner.png" /></a>
 
   <h1>SurfSense</h1>
 
   <p>
-    <b>بديل NotebookLM المعزول عن الشبكة والمفتوح المصدر.</b>
+    <b>ذكاء اصطناعي خاص ومعزول عن الشبكة للمستندات السرية.</b>
     <br />
-    وكيل الذكاء الاصطناعي الذي يبحث في المستندات ويحوّلها ويحرّرها، على الجهاز نفسه.
+    بديل NotebookLM مفتوح المصدر يعمل على الجهاز نفسه.
   </p>
 
   <p>
@@ -26,6 +26,7 @@
     <a href="#ما-يفعله-بكل-صيغة">الصيغ</a> ·
     <a href="#بداية-سريعة">بداية سريعة</a> ·
     <a href="#كيف-يقارن-بغيره">المقارنة</a> ·
+    <a href="#الإضافات">الإضافات</a> ·
     <a href="https://www.surfsense.com/pricing">الأسعار</a> ·
     <a href="https://discord.gg/ejRNvftDp9">Discord</a>
   </p>
@@ -37,18 +38,26 @@
   </p>
 </div>
 
+**مراجعة عقد بتغييرات متعقَّبة وتعليقات**
+
 https://github.com/user-attachments/assets/88326b9d-e763-46db-9635-75f9df9e8682
 
-يُعد SurfSense تطبيق سطح مكتب مجانيًا ومفتوح المصدر للمستندات التي لا يمكن رفعها. وهو وكيل ذكاء اصطناعي يركّز على الخصوصية، على طريقة NotebookLM، يبحث في المستندات ويحوّلها ويحرّرها على الجهاز نفسه. يبقى الفهرس على القرص، ويُختار النموذج بحسب الرغبة، محليًا كان أو بعيدًا، ولا حساب أصلًا.
+**إضافة مصادر من الويب، ثم تحويلها إلى صفحة ويب**
+
+https://github.com/user-attachments/assets/073577b7-f055-4f59-8540-330bd764aeb0
+
+يُعد SurfSense تطبيق سطح مكتب مجانيًا ومفتوح المصدر للمستندات السرية. وهو وكيل ذكاء اصطناعي خاص، على طريقة NotebookLM، يبحث في المستندات ويحوّلها ويحرّرها على الجهاز نفسه. يبقى الفهرس على القرص، ويُختار النموذج بحسب الرغبة، محليًا كان أو بعيدًا، ولا حساب أصلًا.
 
 | المنصة | التنزيل |
 |---|---|
-| **Windows** x64 | [SurfSense-Setup.exe](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense-Setup.exe) |
-| **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense-arm64.dmg) |
-| **Linux** x64 | [AppImage](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense.AppImage) · [deb](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense.deb) |
+| **Windows** x64 | [SurfSense-Setup.exe](https://www.surfsense.com/downloads/windows?src=readme) |
+| **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
+| **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
+| **Docker** Linux, macOS | `curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh \| bash` |
+| **Docker** Windows (Docker Desktop) | `irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 \| iex` |
 
 > [!NOTE]
-> **هل استُخدم تطبيق الويب المستضاف؟** تُصدَّر مساحات العمل قبل 18 أكتوبر 2026، ثم تُستورد هنا. التفاصيل في [صفحة الإيقاف](https://www.surfsense.com/sunset).
+> مع Docker تستضيفه بنفسك على خادم وتفتحه من أي جهاز على شبكتك. شغّل الأمر نفسه مرة أخرى للتحديث.
 
 ## بداية سريعة
 
@@ -65,15 +74,23 @@ https://github.com/user-attachments/assets/88326b9d-e763-46db-9635-75f9df9e8682
 | **Excel** `.xlsx` | ✓ ويقرأ الوكيل الصيغ الحسابية أيضًا | ✓ مع صيغ حسابية ومخططات أصلية | ✓ قيم الخلايا والصيغ الحسابية | التحليل باستخدام pandas وتمثيل النتائج بمخططات |
 | **PowerPoint** `.pptx` | ✓ | ✓ أو انطلاقًا من ملف `.pptx` خاص يُعتمد قالبًا | استبدال النص في الشرائح والملاحظات؛ وحذف الشرائح أو تكرارها | إلى PDF¹ |
 | **CSV** | ✓ | — | — | التحليل باستخدام pandas وتمثيل النتائج بمخططات |
-| **الصور** PNG, JPEG, TIFF, BMP, WebP | ✓ يُقرأ نصها بالتعرّف الضوئي على الحروف (OCR)³ | صور وإنفوجرافيك (Infographic)² | — | إدراجها في مستندات جديدة |
+| **الصور** PNG, JPEG, TIFF, BMP, WebP | ✓ يُقرأ نصها بالتعرّف الضوئي على الحروف (OCR)³ | صور وإنفوجرافيك (Infographic)، تُعدَّل بتعليمات² | — | إدراجها في مستندات جديدة |
 | **Markdown**، والنص العادي | ✓ | ✓ Markdown | — | — |
 | **HTML** | ✓ | ✓ صفحة ويب | — | — |
+| **الكتب الإلكترونية** EPUB, MOBI, AZW3 | ✓ دون DRM | — | — | — |
+| **التسجيلات الصوتية** WAV وMP3 وFLAC وOgg Vorbis | ✓ تُفرَّغ نصيًا على جهازك | — | — | — |
 | **بودكاست صوتي** (Podcast) | — | ✓ مع تفريغ نصي، وتُولَّد الأصوات على الجهاز نفسه افتراضيًا | — | — |
 | **الخرائط الذهنية (Mind map)، والبطاقات التعليمية (Flashcards)، والاختبارات (Quiz)** | — | ✓ داخل التطبيق | — | — |
 
 <sub>¹ مع دعم Office (Office support)، أي LibreOffice، الذي يُفعَّل من الإعدادات (Settings)؛ ولا يأتي ضمن برنامج التثبيت أبدًا. ² يتطلب نموذج صور، محليًا أو بعيدًا؛ ولا يُختار أي نموذج افتراضيًا. ³ يقرأ OCR النصوص المكتوبة بالحروف اللاتينية والصينية واليابانية.</sub>
 
 عمليات التحرير والتحويل وأدوات PDF تُنشئ دائمًا ملفًا جديدًا، ولا يتغيّر الملف الأصلي أبدًا. تحظى ملفات PDF وWord وExcel اليوم بأوسع الإمكانات، ويتحسّن دعم الصيغ الأخرى باستمرار.
+
+## الإضافات
+
+تُربط من **الإعدادات › الإضافات** (Settings › Plugins): خوادم MCP من [سجل الإضافات](backend/plugins/registry)، مثل DeepWiki وNotion، أو أي خادم يُضاف عبر عنوان URL. تبقى معطّلة إلى أن يُسمح بها.
+
+**مدمج ومجاني:** الوكيل و**إضافة من الويب** (Add from the web)، الموجودة في المصادر (Sources)، يبحثان في الويب من خلال خادم SearXNG يُضاف في الإعدادات › الشبكة (Settings › Network)، ويقرآن الصفحات والتفريغ النصي لمقاطع فيديو YouTube عبر اتصال الجهاز نفسه بالإنترنت، دون الحاجة إلى إضافة أو رخصة.
 
 ## كيف يقارن بغيره
 
@@ -91,18 +108,6 @@ https://github.com/user-attachments/assets/88326b9d-e763-46db-9635-75f9df9e8682
 - **المساهمة:** تُفتح طلبات السحب على الفرع `dev`، وحلقة التطوير مشروحة في [CONTRIBUTING.md](CONTRIBUTING.md) و[`surfsense_local/`](./surfsense_local). أما طريقة عمل التطبيق ففي [`docs/`](docs/README.md).
 
 <a href="https://github.com/MODSetter/SurfSense/graphs/contributors"><img src="https://contrib.rocks/image?repo=MODSetter/SurfSense" alt="المساهمون في SurfSense" /></a>
-
-## تاريخ النجوم
-
-<p align="center">
-  <a href="https://www.star-history.com/#MODSetter/SurfSense&Date">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date&theme=dark" />
-      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
-      <img alt="مخطط تاريخ النجوم" src="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
-    </picture>
-  </a>
-</p>
 
 ## الرخصة
 

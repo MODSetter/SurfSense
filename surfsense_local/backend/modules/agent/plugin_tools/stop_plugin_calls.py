@@ -1,4 +1,8 @@
-"""On Stop, the plugin host is told to end the thread's calls, on whichever copy runs them."""
+"""On Stop, the plugin host is told to end the thread's calls, on whichever copy runs them.
+
+A call a runtime gave up on alone is ended by the gateway, which sees its cancel
+(plugin_gateway/host_calls.py).
+"""
 
 import logging
 from urllib.parse import urlsplit, urlunsplit
@@ -16,18 +20,23 @@ TIMEOUT_SECONDS = 5.0
 async def stop_plugin_calls(plugins: list[TurnPlugin]) -> None:
     """Once per host and sign-in; a host that cannot be reached leaves its call to run out."""
     stops = {
-        (_origin(plugin.url), plugin.headers.get("authorization", "")): plugin.headers
-        for plugin in plugins
-        if CALLS_HEADER in plugin.headers
+        (origin(server.url), server.headers.get("authorization", "")): server.headers
+        for server in (plugin.upstream for plugin in plugins if plugin.on_plugin_host)
+        if server is not None and CALLS_HEADER in server.headers
     }
+    for (host, _), headers in stops.items():
+        await stop_host_calls(host, headers)
+
+
+async def stop_host_calls(host: str, headers: dict[str, str]) -> None:
+    """End every call of the thread the headers name, on the host at `host`."""
     async with httpx.AsyncClient(timeout=TIMEOUT_SECONDS) as http:
-        for (origin, _), headers in stops.items():
-            try:
-                await http.post(f"{origin}/cancel", headers=headers)
-            except httpx.HTTPError:
-                logger.warning("could not stop the plugin calls on %s", origin)
+        try:
+            await http.post(f"{host}/cancel", headers=headers)
+        except httpx.HTTPError:
+            logger.warning("could not stop the plugin calls on %s", host)
 
 
-def _origin(url: str) -> str:
+def origin(url: str) -> str:
     parts = urlsplit(url)
     return urlunsplit((parts.scheme, parts.netloc, "", "", ""))

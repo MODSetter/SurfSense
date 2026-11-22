@@ -8,7 +8,7 @@ import {
 } from "@/features/models/selection/api"
 
 export type NewChatModePicks = {
-  // Per model, the mode picked this session; the API remembers it once a chat opens in it.
+  // Per model, the mode picked this session, shown before the API has saved it.
   picks: Readonly<Record<string, ChatMode>>
   pick: (model: SelectionTarget, mode: ChatMode) => void
   // Per model, the gate the API refused an Agentic chat with this session: a
@@ -17,11 +17,8 @@ export type NewChatModePicks = {
   block: (model: SelectionTarget, gate: string) => void
 }
 
-/**
- * The mode the next new chat opens in, and whether the user chose it. Only a
- * choice is remembered: a default sent back as one would outlast its score.
- */
-export type NewChatChoice = { mode: ChatMode; chosen: boolean }
+/** The mode the next new chat opens in. */
+export type NewChatChoice = { mode: ChatMode }
 
 // Without a provider, nothing is picked and the model's own default holds.
 export const NewChatModeContext = createContext<NewChatModePicks>({
@@ -65,7 +62,7 @@ export function resolveNewChatChoice(
   const picked = picks[modelKey(model)]
   const wanted = picked ?? modes.default_mode
   const mode = wanted === "agentic" && !modes.agentic_allowed ? "basic" : wanted
-  return { mode, chosen: picked === mode }
+  return { mode }
 }
 
 export function useChatModes(model: ModelSelection | null) {
@@ -77,12 +74,8 @@ export function useNewChatChoice(model: ModelSelection | null) {
   const { picks, blocks } = useContext(NewChatModeContext)
   const choice = resolveNewChatChoice(model, picks, blocks)
   const mode = choice?.mode ?? null
-  const chosen = choice?.chosen ?? false
   // Held while it says the same, so the runtime's send is not made anew.
-  return useMemo<NewChatChoice | null>(
-    () => (mode ? { mode, chosen } : null),
-    [mode, chosen]
-  )
+  return useMemo<NewChatChoice | null>(() => (mode ? { mode } : null), [mode])
 }
 
 export function useNewChatMode(model: ModelSelection | null) {

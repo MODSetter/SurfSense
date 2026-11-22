@@ -31,3 +31,17 @@ def test_a_connection_can_query_vec0(tmp_path: Path) -> None:
     engine = create_db_engine(tmp_path / "vec.db")
     with engine.connect() as connection:
         assert connection.exec_driver_sql("SELECT vec_version()").scalar()
+
+
+def test_a_connection_caps_what_the_write_ahead_log_keeps_on_disk(
+    tmp_path: Path,
+) -> None:
+    """A checkpoint resets the log without shrinking it; past 64 MB a reset truncates it."""
+    engine = create_db_engine(tmp_path / "wal.db")
+    try:
+        with engine.connect() as connection:
+            limit = connection.execute(text("PRAGMA journal_size_limit")).scalar()
+    finally:
+        engine.dispose()
+
+    assert limit == 64 * 1024 * 1024

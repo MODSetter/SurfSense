@@ -187,6 +187,16 @@ def row_read(row: LocalRow, in_use: Mapping[str, list[ModelType]]) -> dict:
             if row.voicing
             else None
         ),
+        "transcription": (
+            {
+                "peak_mb": row.transcription.peak_mb,
+                "window_s": row.transcription.window_s,
+                "detects_language": row.transcription.detects_language,
+                "languages": list(row.transcription.languages),
+            }
+            if row.transcription
+            else None
+        ),
     }
 
 

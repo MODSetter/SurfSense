@@ -1,5 +1,7 @@
 """Text to vectors, run as the spec says, in process on the CPU."""
 
+import hashlib
+import logging
 from enum import StrEnum
 from functools import lru_cache
 from pathlib import Path
@@ -7,10 +9,16 @@ from typing import Any
 
 import numpy as np
 
-from modules.embedding.bundled import BGE, bundled_dir
+from modules.embedding.bundled import bundled_dir, is_bundled
+from modules.embedding.fp32_upcast import upcast
 from modules.embedding.pooling import pool
+from modules.embedding.precision import runs_at_fp32
 from modules.embedding.spec import EmbedderSpec
 from shared.config import get_storage_settings
+
+log = logging.getLogger(__name__)
+
+_PROVIDERS = ["CPUExecutionProvider"]
 
 
 class Purpose(StrEnum):
@@ -22,11 +30,7 @@ class Purpose(StrEnum):
 
 def model_dir(spec: EmbedderSpec) -> Path:
     """bge in the read-only pack the app ships; anything else where it downloaded."""
-    if (spec.repo, spec.revision, spec.weights) == (
-        BGE.repo,
-        BGE.revision,
-        BGE.weights,
-    ):
+    if is_bundled(spec):
         return bundled_dir()
     return get_storage_settings().embedding_models_dir / spec.id
 
@@ -47,7 +51,10 @@ def embed(spec: EmbedderSpec, texts: list[str], purpose: Purpose) -> list[list[f
     prefixed = [prefix + text for text in texts]
     vectors: list[list[float]] = []
     for start in range(0, len(prefixed), spec.batch):
-        vectors.extend(_embed_batch(spec, prefixed[start : start + spec.batch]))
+        last = start + spec.batch >= len(prefixed)
+        vectors.extend(
+            _embed_batch(spec, prefixed[start : start + spec.batch], shrink=last)
+        )
 
     wrong = next((len(v) for v in vectors if len(v) != spec.dimension), None)
     if wrong is not None:
@@ -60,10 +67,12 @@ def embed(spec: EmbedderSpec, texts: list[str], purpose: Purpose) -> list[list[f
 
 def width(spec: EmbedderSpec, text: str) -> int:
     """How wide the model's vectors really are, whatever its spec says."""
-    return len(_embed_batch(spec, [text])[0])
+    return len(_embed_batch(spec, [text], shrink=True)[0])
 
 
-def _embed_batch(spec: EmbedderSpec, texts: list[str]) -> list[list[float]]:
+def _embed_batch(
+    spec: EmbedderSpec, texts: list[str], *, shrink: bool
+) -> list[list[float]]:
     session, encoder = _loaded(spec, model_dir(spec))
     encoded = encoder.encode_batch(texts)
     feed = {
@@ -81,11 +90,25 @@ def _embed_batch(spec: EmbedderSpec, texts: list[str]) -> list[list[float]]:
             np.arange(ids.shape[1]), ids.shape
         ).copy()
 
-    output = session.run(None, feed)[0]
+    output = session.run(None, feed, _shrinking_arena() if shrink else None)[0]
     pooled = pool(spec.pooling, output, feed["attention_mask"])
     if spec.normalize:
         pooled = pooled / np.linalg.norm(pooled, axis=1, keepdims=True)
     return pooled.astype(np.float32).tolist()
+
+
+def _shrinking_arena() -> Any:
+    """Run options that hand the arena's unused memory back once the run ends.
+
+    The arena grows to a batch's activations and keeps them: 32 passages of 480
+    tokens left a process at 1,230 MB, 245 MB after shrinking, at the same speed.
+    With no arena at all every batch allocates afresh, which measured 18-30% slower.
+    """
+    import onnxruntime as ort
+
+    options = ort.RunOptions()
+    options.add_run_config_entry("memory.enable_memory_arena_shrinkage", "cpu:0")
+    return options
 
 
 @lru_cache(maxsize=2)
@@ -98,10 +121,47 @@ def _loaded(spec: EmbedderSpec, directory: Path) -> tuple[Any, Any]:
     encoder = Tokenizer.from_file(str(directory / spec.tokenizer.path))
     encoder.enable_truncation(max_length=spec.max_tokens)
     encoder.enable_padding()
-    session = ort.InferenceSession(
-        str(directory / spec.weights.path), providers=["CPUExecutionProvider"]
-    )
+    session = _session(ort, spec, directory / spec.weights.path)
     return session, encoder
+
+
+def _session(ort: Any, spec: EmbedderSpec, weights: Path) -> Any:
+    """The pinned file upcast to FP32 where that runs faster, else the file as is."""
+    # A missing file is left to the as-shipped open, which raises the real error.
+    if runs_at_fp32(spec) and weights.is_file():
+        try:
+            session = ort.InferenceSession(
+                upcast(_pinned_bytes(spec, weights)), providers=_PROVIDERS
+            )
+        except Exception:
+            log.warning(
+                "%s runs at FP16: its FP32 upcast failed", spec.id, exc_info=True
+            )
+        else:
+            _drop_model_bytes(spec, session)
+            return session
+    return ort.InferenceSession(str(weights), providers=_PROVIDERS)
+
+
+def _drop_model_bytes(spec: EmbedderSpec, session: Any) -> None:
+    # The wrapper keeps the bytes to rebuild on a provider fallback, which a
+    # CPU-only session never takes: 126 MB held per process for nothing.
+    if hasattr(session, "_model_bytes"):
+        session._model_bytes = None
+    else:
+        log.warning(
+            "%s: onnxruntime has no _model_bytes to clear, so it may hold the "
+            "upcast model for the session's life",
+            spec.id,
+        )
+
+
+def _pinned_bytes(spec: EmbedderSpec, weights: Path) -> bytes:
+    # The upcast was measured on this exact file; any other is opened as it is.
+    model = weights.read_bytes()
+    if hashlib.sha256(model).hexdigest() != spec.weights.sha256:
+        raise ValueError(f"{weights} is not the {spec.id} file its spec pins")
+    return model
 
 
 def release_sessions() -> None:

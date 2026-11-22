@@ -1,13 +1,13 @@
 """Before a turn, an OAuth plugin's token that expires within half an hour is refreshed.
 
-Longer than any turn runs, so opencode never holds an expired token mid-reply. A changed
-token changes the header, so the plugin is given to opencode again (`given_servers.py`).
+So a plugin whose refresh is refused is left out before the model is offered its tools,
+rather than failing a call mid-reply. The gateway refreshes one a server refuses later.
 """
 
 from sqlalchemy.orm import Session
 
 from api.dependencies import transact
-from modules.agent.plugin_tools.give_plugins import UnavailablePlugin
+from modules.agent.plugin_tools.unavailable_plugin import UnavailablePlugin
 from modules.plugins.gateway.listing import list_tools
 from modules.plugins.installed.models import InstalledPlugin
 from modules.plugins.remote.sign_in.oauth.oauth_credential import OAUTH

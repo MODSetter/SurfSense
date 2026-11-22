@@ -11,14 +11,14 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Discord](https://img.shields.io/discord/1359368468260192417?label=Discord)](https://discord.gg/ejRNvftDp9)
 
-  <a href="https://www.surfsense.com/"><img alt="SurfSense, die netzgetrennte Open-Source-Alternative zu NotebookLM" src="surfsense_web/public/homepage/banner.png" /></a>
+  <a href="https://www.surfsense.com/"><img alt="SurfSense: netzgetrennte, private KI für vertrauliche Dokumente" src="www/public/homepage/banner.png" /></a>
 
   <h1>SurfSense</h1>
 
   <p>
-    <b>Die netzgetrennte Open-Source-Alternative zu NotebookLM.</b>
+    <b>Netzgetrennte, private KI für vertrauliche Dokumente.</b>
     <br />
-    Der KI-Agent, der in deinen Dokumenten recherchiert, sie umwandelt und bearbeitet – auf deinem Rechner.
+    Open-Source-Alternative zu NotebookLM, die auf deinem Rechner läuft.
   </p>
 
   <p>
@@ -26,6 +26,7 @@
     <a href="#was-surfsense-mit-jedem-format-macht">Formate</a> ·
     <a href="#schnellstart">Schnellstart</a> ·
     <a href="#surfsense-im-vergleich">Vergleich</a> ·
+    <a href="#plugins">Plugins</a> ·
     <a href="https://www.surfsense.com/pricing">Preise</a> ·
     <a href="https://discord.gg/ejRNvftDp9">Discord</a>
   </p>
@@ -37,18 +38,26 @@
   </p>
 </div>
 
+**Einen Vertrag mit nachverfolgten Änderungen und Kommentaren redigieren**
+
 https://github.com/user-attachments/assets/88326b9d-e763-46db-9635-75f9df9e8682
 
-SurfSense ist eine kostenlose Open-Source-Desktop-App für Dokumente, die du nicht hochladen kannst. Ein auf Datenschutz ausgelegter KI-Agent im Stil von NotebookLM, der auf deinem Rechner in deinen Dokumenten recherchiert, sie umwandelt und bearbeitet. Der Index bleibt auf deiner Festplatte, du wählst das Modell, lokal oder remote, und es gibt kein Konto.
+**Quellen aus dem Web hinzufügen und daraus eine Webseite machen**
+
+https://github.com/user-attachments/assets/073577b7-f055-4f59-8540-330bd764aeb0
+
+SurfSense ist eine kostenlose Open-Source-Desktop-App für vertrauliche Dokumente. Ein privater KI-Agent im Stil von NotebookLM, der auf deinem Rechner in deinen Dokumenten recherchiert, sie umwandelt und bearbeitet. Der Index bleibt auf deiner Festplatte, du wählst das Modell, lokal oder remote, und es gibt kein Konto.
 
 | Plattform | Download |
 |---|---|
-| **Windows** x64 | [SurfSense-Setup.exe](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense-Setup.exe) |
-| **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense-arm64.dmg) |
-| **Linux** x64 | [AppImage](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense.AppImage) · [deb](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense.deb) |
+| **Windows** x64 | [SurfSense-Setup.exe](https://www.surfsense.com/downloads/windows?src=readme) |
+| **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
+| **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
+| **Docker** Linux, macOS | `curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh \| bash` |
+| **Docker** Windows (Docker Desktop) | `irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 \| iex` |
 
 > [!NOTE]
-> **Die gehostete Web-App genutzt?** Exportiere deine Workspaces vor dem 18. Oktober 2026 und importiere sie hier. Siehe [die Abschaltungsseite](https://www.surfsense.com/sunset).
+> Mit Docker betreibst du es selbst auf einem Server und öffnest es von jedem Gerät in deinem Netzwerk. Führe denselben Befehl erneut aus, um es zu aktualisieren.
 
 ## Schnellstart
 
@@ -65,15 +74,23 @@ SurfSense ist eine kostenlose Open-Source-Desktop-App für Dokumente, die du nic
 | **Excel** `.xlsx` | ✓ der Agent liest auch Formeln | ✓ mit Formeln und nativen Diagrammen | ✓ Zellwerte und Formeln | Mit pandas analysieren, Ergebnisse als Diagramm darstellen |
 | **PowerPoint** `.pptx` | ✓ | ✓ oder aus deiner eigenen `.pptx` als Vorlage | Text auf Folien und in Notizen ersetzen; Folien löschen oder duplizieren | In PDF¹ |
 | **CSV** | ✓ | — | — | Mit pandas analysieren, Ergebnisse als Diagramm darstellen |
-| **Bilder** PNG, JPEG, TIFF, BMP, WebP | ✓ Text per OCR erkannt³ | Bilder und Infografiken² | — | In neue Dokumente einfügen |
+| **Bilder** PNG, JPEG, TIFF, BMP, WebP | ✓ Text per OCR erkannt³ | Bilder und Infografiken, per Anweisung bearbeitet² | — | In neue Dokumente einfügen |
 | **Markdown**, reiner Text | ✓ | ✓ Markdown | — | — |
 | **HTML** | ✓ | ✓ Webseite | — | — |
+| **Bücher** EPUB, MOBI, AZW3 | ✓ ohne DRM | — | — | — |
+| **Aufnahmen** WAV, MP3, FLAC, Ogg Vorbis | ✓ auf deinem Rechner transkribiert | — | — | — |
 | **Podcast** (Audio) | — | ✓ mit Transkript, standardmäßig auf deinem Rechner vertont | — | — |
 | **Mindmaps, Karteikarten, Quizze** | — | ✓ in der App | — | — |
 
 <sub>¹ Mit Office-Unterstützung (LibreOffice), die du in den Einstellungen einschaltest; LibreOffice ist nie im Installationsprogramm enthalten. ² Braucht ein Bildmodell, lokal oder remote; standardmäßig ist keins ausgewählt. ³ Die OCR erkennt lateinische, chinesische und japanische Schrift.</sub>
 
 Bearbeitungen, Umwandlungen und PDF-Werkzeuge erzeugen immer eine neue Datei; dein Original wird nie verändert. Bei PDF, Word und Excel kann SurfSense heute am meisten, und die Unterstützung der anderen Formate wird laufend besser.
+
+## Plugins
+
+Verbinde sie unter **Einstellungen › Plugins**: MCP-Server aus der [Plugin-Registry](backend/plugins/registry), etwa DeepWiki und Notion, oder jeden, den du per URL hinzufügst. Sie bleiben aus, bis du sie erlaubst.
+
+**Eingebaut und kostenlos:** Der Agent und **Aus dem Web hinzufügen** in den Quellen durchsuchen das Web über einen SearXNG-Server, den du unter Einstellungen › Netzwerk hinzufügst, und lesen Seiten und YouTube-Transkripte über deine eigene Verbindung, ohne Plugin und ohne Lizenz.
 
 ## SurfSense im Vergleich
 
@@ -91,18 +108,6 @@ Bearbeitungen, Umwandlungen und PDF-Werkzeuge erzeugen immer eine neue Datei; de
 - **Mitwirken:** PRs werden gegen `dev` geöffnet; siehe [CONTRIBUTING.md](CONTRIBUTING.md) und [`surfsense_local/`](./surfsense_local) für die Entwicklungsschleife. Wie SurfSense funktioniert, steht in [`docs/`](docs/README.md).
 
 <a href="https://github.com/MODSetter/SurfSense/graphs/contributors"><img src="https://contrib.rocks/image?repo=MODSetter/SurfSense" alt="SurfSense-Mitwirkende" /></a>
-
-## Sterneverlauf
-
-<p align="center">
-  <a href="https://www.star-history.com/#MODSetter/SurfSense&Date">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date&theme=dark" />
-      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
-      <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
-    </picture>
-  </a>
-</p>
 
 ## Lizenz
 

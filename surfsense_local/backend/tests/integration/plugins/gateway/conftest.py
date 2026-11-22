@@ -47,19 +47,16 @@ async def connect(
     plugin_id: str,
     source: FakeSource,
     *,
-    publisher: str = "surfsense",
+    first_party: bool = True,
     url: str | None = None,
 ) -> InstalledPlugin:
     """A plugin connected the way Connect leaves it: its row and its first listing."""
     plugin = InstalledPlugin(
         id=plugin_id,
         kind=PluginKind.REMOTE,
-        source=PluginSource.FIRST_PARTY
-        if publisher == "surfsense"
-        else PluginSource.REGISTRY,
+        source=PluginSource.FIRST_PARTY if first_party else PluginSource.REGISTRY,
         # Loopback needs no consent; one server per plugin, as the database requires.
         url=url or f"http://127.0.0.1:9/{plugin_id}/mcp",
-        publisher=publisher,
         entry={"name": plugin_id.title(), "hosts": []},
     )
     session.add(plugin)

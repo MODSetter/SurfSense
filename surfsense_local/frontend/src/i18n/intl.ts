@@ -12,6 +12,7 @@ import {
   type AppLocale,
   type Locale,
 } from "./locales"
+import { localeSource } from "./locale-source"
 
 type Catalog = Record<FormatjsIntl.Message["ids"], MessageFormatElement[]>
 
@@ -27,22 +28,25 @@ const english = compiled[`./compiled/${BASE_LOCALE}.json`] ?? {}
 
 // Every language is bundled so text is there on the first render, and each is
 // merged over English, so a key it lacks shows its English, never its id.
+// On the dev server English has no catalog: each call's own defaultMessage
+// renders, so an edited message hot-reloads with its component (vite.config.ts).
+// Tests and the build read the catalog.
 const catalogs = Object.fromEntries(
   LOCALES.map((locale) => [
     locale,
     locale === BASE_LOCALE
-      ? english
+      ? import.meta.env.MODE === "development"
+        ? {}
+        : english
       : { ...english, ...compiled[`./compiled/${locale}.json`] },
   ])
 ) as Record<Locale, Catalog>
 
-// Main owns the language and preload reports it before the first paint. No
-// bridge (tests, a bare `vite`) or a language the app does not ship is English.
+// On the desktop main reports it before the first paint; in a browser it comes
+// from the browser's languages and choice. A language the app does not ship is English.
 function reportedLocale(): AppLocale {
-  const reported = window.surfsense?.locale?.get()
-  return reported !== undefined && isAppLocale(reported)
-    ? reported
-    : BASE_LOCALE
+  const reported = localeSource().get()
+  return isAppLocale(reported) ? reported : BASE_LOCALE
 }
 
 const locale = reportedLocale()

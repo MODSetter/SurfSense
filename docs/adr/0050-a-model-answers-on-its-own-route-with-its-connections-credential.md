@@ -1,6 +1,6 @@
 # ADR 0050: A remote text model answers on the route its manifest entry records, with its connection's credential, and SurfSense owns a ChatGPT plan's sign-in for both engines
 
-- **Status:** Accepted
+- **Status:** Accepted; that SurfSense owns a plan's sign-in for both engines narrowed to the ChatGPT plan by [ADR 0057](0057-a-claude-plan-runs-through-the-users-own-claude-code.md)
 - **Date:** 2026-10-07
 - **Supersedes:** [ADR 0038](0038-chatgpt-plans-sign-in-through-openai-not-codex.md) in part: its request body and the consequence that a plan model has no tools or structured output
 - **Source:** [OpenAI, Sign in with ChatGPT: preview limitations](https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations)

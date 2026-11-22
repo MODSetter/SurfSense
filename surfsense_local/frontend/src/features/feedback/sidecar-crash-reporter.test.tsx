@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { act, cleanup, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { Toaster } from "sonner"
+import { Toaster, toast } from "sonner"
 
 import { stubUpdateBridge } from "@/features/updates/stub-bridge"
 import { render } from "@/test-utils"
@@ -31,7 +31,20 @@ function stubCrashBridge() {
   }
 }
 
-afterEach(() => {
+// TIME_BEFORE_UNMOUNT in sonner: a closing toast removes itself this long
+// after, on a timer it never clears.
+const TOAST_REMOVAL_MS = 200
+
+afterEach(async () => {
+  // Every toast closes now and is removed while this file's window still
+  // exists. Left to its own timers, one fired after the window was gone
+  // ("window is not defined"), failing the run though every test passed.
+  act(() => {
+    toast.dismiss()
+  })
+  await act(
+    () => new Promise((resolve) => setTimeout(resolve, TOAST_REMOVAL_MS + 50))
+  )
   cleanup()
   delete window.surfsense
   vi.restoreAllMocks()
@@ -65,5 +78,29 @@ describe("sidecar crash reports", () => {
 
     view.unmount()
     expect(bridge.isListening()).toBe(false)
+  })
+
+  it("names the agent, and says it tries again rather than asking for a restart", async () => {
+    const bridge = stubCrashBridge()
+    render(
+      <>
+        <SidecarCrashReporter />
+        <Toaster />
+      </>
+    )
+
+    act(() => bridge.crash({ name: "opencode", code: 1 }))
+
+    const toast = (
+      await screen.findByText("The agent stopped")
+    ).closest<HTMLElement>("[data-sonner-toast]")!
+    expect(
+      within(toast).getByText(
+        "SurfSense will try again with your next Agentic message."
+      )
+    ).toBeTruthy()
+    expect(
+      within(toast).queryByText("Restart SurfSense to restore it.")
+    ).toBeNull()
   })
 })

@@ -1,5 +1,6 @@
-"""The installed audio models as audio.cpp's server loads them: the recorded
+"""The installed voice models as audio.cpp's server loads them: the recorded
 file and the family the manifest names, which is what the server dispatches on.
+Recognisers run on a server of their own (`installed_recognisers.py`).
 """
 
 from collections.abc import Collection, Mapping, Sequence
@@ -33,7 +34,7 @@ def installed_audio(
     *,
     bundled: bool = False,
 ) -> list[InstalledAudio]:
-    """Every audio build installed in `folder`, in the manifest's order."""
+    """Every voice build installed in `folder`, in the manifest's order."""
     by_id = {m.id: m for m in models}
     return [
         InstalledAudio(
@@ -41,10 +42,11 @@ def installed_audio(
             row.id,
             by_id[row.id].evidence.architecture,
             folder / installs[build.installed_as].weights[0],
-            by_id[row.id].audio,  # type: ignore[arg-type]  # an audio row's entry has one
+            audio,
             bundled,
         )
         for row in audio_catalog(models, installs, files, lambda _: "")
+        if (audio := by_id[row.id].audio) is not None
         for build in row.builds
         if build.installed_as is not None
     ]

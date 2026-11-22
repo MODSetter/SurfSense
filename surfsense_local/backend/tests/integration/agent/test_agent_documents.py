@@ -92,8 +92,8 @@ async def test_the_agent_loads_its_skill_and_may_read_the_folder_it_is_in(
     """A skill can point at files beside it, outside the agent's own folder."""
     skill_file = skills_folder().resolve() / DOCUMENTS_SKILL / "SKILL.md"
     agent_api.model.replies = [
-        call("skill", {"name": DOCUMENTS_SKILL}),
-        call("read", {"filePath": str(skill_file)}),
+        call("skill", {"id": DOCUMENTS_SKILL}),
+        call("read", {"path": str(skill_file)}),
         ("text", "Ready."),
     ]
     thread = await open_thread(agent_api)

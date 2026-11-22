@@ -1,0 +1,117 @@
+name: Submit a plugin
+description: List your MCP server as a plugin anyone can connect in SurfSense
+title: "[plugin submission] "
+labels: [plugin-submission]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Fill this in and a bot checks your server, then comments with what to fix or what happens next. To fix something, edit the issue and it checks again.
+
+        **We support** remote MCP servers on a public HTTPS address:
+        - **Transport:** Streamable HTTP only. Servers on the older HTTP+SSE can't be listed.
+        - **Sign-in:** none, a key each user pastes, or OAuth.
+
+        Local (stdio) servers can't be listed yet.
+
+  - type: input
+    id: name
+    attributes:
+      label: Plugin name
+      description: Up to 80 characters. Its id is made from this, and is never reused.
+      placeholder: Acme Docs
+    validations:
+      required: true
+  - type: input
+    id: url
+    attributes:
+      label: MCP server URL
+      description: Your server's MCP endpoint, https, with no credentials in it.
+      placeholder: https://mcp.acme.example/mcp
+    validations:
+      required: true
+  - type: input
+    id: publisher
+    attributes:
+      label: Publisher
+      description: The company or project that runs the server, not a person. Up to 80 characters.
+      placeholder: Acme Inc.
+    validations:
+      required: true
+  - type: input
+    id: description
+    attributes:
+      label: One-line description
+      description: The line on your plugin's page. Up to 200 characters.
+      placeholder: Search and read Acme's public documentation.
+    validations:
+      required: true
+  - type: textarea
+    id: about
+    attributes:
+      label: About
+      description: For your plugin's page, up to 600 characters. What it lets someone do, and when it helps.
+    validations:
+      required: true
+  - type: input
+    id: privacy_policy
+    attributes:
+      label: Privacy policy URL
+      placeholder: https://acme.example/privacy
+    validations:
+      required: true
+  - type: input
+    id: homepage
+    attributes:
+      label: Homepage
+      placeholder: https://acme.example
+  - type: textarea
+    id: icon
+    attributes:
+      label: Icon
+      description: Drag a square PNG (at least 64×64) or SVG in here, or paste an https link to one. At most 32 KB, and an SVG with no scripts or outside references. Without one, SurfSense shows your name's first letter.
+  - type: dropdown
+    id: access
+    attributes:
+      label: Who can use it
+      options:
+        - Free (a free account is fine)
+        - "Paid: users need a plan or subscription you sell"
+    validations:
+      required: true
+  - type: input
+    id: access_note
+    attributes:
+      label: What users must buy or have
+      description: Only if it is not free. Up to 200 characters.
+      placeholder: An Acme Pro plan.
+  - type: textarea
+    id: tools
+    attributes:
+      label: Tool names
+      description: The name of every tool your server has, one per line, including the ones it lists only after sign-in. The plugin's page shows them.
+      placeholder: |
+        search_docs
+        read_page
+    validations:
+      required: true
+  - type: textarea
+    id: prompt
+    attributes:
+      label: A prompt to try
+      description: Something to ask an Agentic chat, and the tools it should call.
+      placeholder: What do Acme's docs say about rate limits? (search_docs, then read_page)
+    validations:
+      required: true
+  - type: textarea
+    id: reviewer_sign_in
+    attributes:
+      label: How a reviewer signs in
+      description: Only if your plugin needs a key or an account, so a maintainer can try it. Say what is needed, never the key itself.
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Before you send
+      options:
+        - label: There's no key, token or password in this issue.
+          required: true

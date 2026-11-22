@@ -406,7 +406,7 @@ def test_the_build_in_use_leads_its_row(tmp_path: Path) -> None:
         scan(tmp_path, {}),
         BUDGETS["discrete-24gb"],
         lambda b: b.quantization,
-        selected="Qwen3-8B-Q4_K_M",
+        selected={"Qwen3-8B-Q4_K_M"},
     )
 
     row = next(r for r in result.rows if r.id == "qwen3-8b")

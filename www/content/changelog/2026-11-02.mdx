@@ -1,0 +1,67 @@
+---
+date: "2026-11-02"
+version: "2.3.0"
+---
+
+## What's New in v2.3.0
+
+v2.3.0 brings SurfSense to your own server as a Docker image, edits Studio's images and infographics by instruction, and reads EPUB, MOBI and AZW3 books. Get the desktop app from the [downloads page](/downloads).
+
+### SurfSense on your server, with Docker
+
+- **One image**: `ghcr.io/modsetter/surfsense` runs the desktop app's whole stack in one container, with the same local models on the processor, your remote connections and your license. Open it from any device on your network, on port 4929.
+- **One-line install**: `curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash`, or on Windows with Docker Desktop, `irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 | iex`. Run the same command again to update.
+- **A password on every instance**: You set it the first time you open SurfSense, and Settings › Access changes it. A server reachable from the internet can set it before its first start.
+- **HTTPS**: For a name on your network or a public domain, so the browser lets you dictate from another device.
+- **Sign-ins from another device**: Plugin sign-ins return to the device you started them on. A ChatGPT sign-in finishes when you paste the address its tab ended on.
+- **Your language**: Without the desktop app, Match system follows the browser's languages.
+- **No usage statistics**: The Docker image keeps none.
+- **Replaces the old self-hosted stack**: That stack now lives on the `legacy` branch, on port 3929, so both can run side by side while you move your data over.
+
+### Edit images in Studio
+
+- **Edit by instruction**: Over an image or infographic Studio made, the edit box changes it into its next version, such as a new colour scheme or a changed title. Each edit starts from the version open, so edits chain, and every earlier version stays.
+- **Local or remote**: FLUX.2 klein 4B both draws and edits, from one download. A remote model that takes a picture in and gives one back works too.
+- **Says what it needs**: Without an image editing model, the edit box says so before you type, with a link to choose one.
+
+### Books as sources
+
+- **EPUB, MOBI and AZW3**: Add a book as a source and chat with it, cited like any other. A MOBI or AZW3 book with DRM, or a KFX book, Amazon's newer format, is refused when you upload it.
+
+### Voice input
+
+- **Set up in Settings**: Settings › Speech recognition offers the models and their downloads, and a download can be cancelled.
+- **Records in the composer**: The recording strip sits inside the composer's own row, with Stop and insert in Send's place. A problem shows as a toast.
+- **HTTPS**: Where the browser withholds the microphone, dictation says it needs HTTPS.
+
+### Models
+
+- **What this model can do**: Settings shows, under the chat model in use, what Chat offers, what Studio makes with it, and what a stronger model adds.
+- **Image links that load**: Image requests ask for the picture itself, and a link that still comes back is fetched with the connection you allowed. A DALL-E image no longer fails until its storage host is allowed.
+
+### Updates
+
+- **Check for updates in the title bar**: On every platform, the title bar's pill checks for updates when there's nothing to install, and reports the result once.
+
+### Onboarding and the interface
+
+- **New welcome screen**: An animated horizon in the theme's colours.
+- **Quieter messages**: A message's time and Copy show only while you hover over it.
+- **Tidier columns**: Every column's title sits on one row, and a column's edge shows a short grip to drag.
+
+### No longer broken
+
+- **Folder uploads**: A folder upload keeps going past a file it can't read, such as one Office holds open.
+- **YouTube live links**: A youtube.com/live link is added as its video.
+- **Sources that can't load**: A source whose reader won't load fails with the reason instead of waiting.
+- **Studio jobs**: A version whose job can't be queued fails instead of waiting forever.
+
+### Known issues
+
+- **Edits are slow on a processor**: Editing an image locally without a graphics card took 11 to 16 minutes in testing, about twice as long as drawing one.
+- **No GPU in Docker yet**: The image runs local models on the processor only.
+
+### Developers
+
+- **Decisions**: [ADR 0074](https://github.com/MODSetter/SurfSense/blob/main/docs/adr/0074-docker-sign-in-is-a-surfsense-page-that-caddy-enforces.md) makes Docker sign-in a SurfSense page that Caddy enforces. [ADR 0075](https://github.com/MODSetter/SurfSense/blob/main/docs/adr/0075-what-differs-in-docker-is-gated-by-one-build-flag-or-the-bridge.md) gates what differs in Docker by one build flag or the bridge. [ADR 0076](https://github.com/MODSetter/SurfSense/blob/main/docs/adr/0076-the-legacy-stack-lives-on-its-own-branch.md) moves the legacy stack to its own branch. [ADR 0077](https://github.com/MODSetter/SurfSense/blob/main/docs/adr/0077-an-image-edit-is-the-next-version.md) makes an image edit the next version. [ADR 0078](https://github.com/MODSetter/SurfSense/blob/main/docs/adr/0078-a-picture-a-connected-model-returns-is-fetched-with-its-connection.md) fetches a picture a connected model returns with its connection.
+- **Docker settings**: `SURFSENSE_PASSWORD`, `SURFSENSE_BIND`, `SURFSENSE_PORT`, `SURFSENSE_ALLOWED_HOSTS` and `SURFSENSE_AUTH` are described in [Docker access](https://github.com/MODSetter/SurfSense/blob/main/docs/architecture/docker-access.md).

@@ -5,7 +5,9 @@ from collections.abc import AsyncIterator
 import httpx
 
 from modules.llm.connections.conversation_fields import conversation_fields
+from modules.llm.connections.conversation_headers import conversation_headers
 from modules.llm.connections.key_headers import key_headers
+from modules.llm.connections.model_list_url import model_list_url
 from modules.llm.connections.service import parse_models
 from modules.llm.profile import Fingerprint, from_remote
 from modules.llm.providers.prompt_reuse import chunk_reuse, log_reuse
@@ -32,6 +34,10 @@ TIMEOUT = httpx.Timeout(FIRST_TOKEN_SECONDS, connect=5.0)
 # the dialog.
 LISTING_TIMEOUT = httpx.Timeout(120.0, connect=5.0)
 MAX_ERROR_CHARS = 400
+
+
+class StreamedError(RuntimeError):
+    """A failure the endpoint reported inside a stream it had already begun."""
 
 
 class OpenAICompatibleChatProvider:
@@ -75,14 +81,14 @@ class OpenAICompatibleChatProvider:
     async def health(self) -> bool:
         try:
             async with self._client() as client:
-                reply = await client.get(f"{self._base_url}/models")
+                reply = await client.get(model_list_url(self._base_url))
                 return reply.status_code == 200
         except httpx.HTTPError:
             return False
 
     async def models(self) -> list[Model]:
         async with self._client() as client:
-            reply = await client.get(f"{self._base_url}/models")
+            reply = await client.get(model_list_url(self._base_url))
             reply.raise_for_status()
             discovered = parse_models(reply.json())
         return [
@@ -112,7 +118,7 @@ class OpenAICompatibleChatProvider:
     async def inspect(self, name: str) -> Fingerprint:
         """What this endpoint's listing reveals about one model, for prompt tiering."""
         async with self._client() as client:
-            reply = await client.get(f"{self._base_url}/models")
+            reply = await client.get(model_list_url(self._base_url))
             reply.raise_for_status()
             payload = reply.json()
         rows = payload.get("data") if isinstance(payload, dict) else None
@@ -182,7 +188,7 @@ class OpenAICompatibleChatProvider:
         if self._prompt_progress is not None:
             body.update(self._prompt_progress)
         async for delta in with_deadlines(
-            self._stream(body),
+            self._stream(body, conversation_headers(self._base_url, conversation)),
             first_item_seconds=FIRST_TOKEN_SECONDS,
             between_items_seconds=BETWEEN_TOKENS_SECONDS,
             subject="the model",
@@ -192,12 +198,17 @@ class OpenAICompatibleChatProvider:
         ):
             yield delta
 
-    async def _stream(self, body: dict[str, object]) -> AsyncIterator[Delta]:
+    async def _stream(
+        self, body: dict[str, object], headers: dict[str, str]
+    ) -> AsyncIterator[Delta]:
         """The deltas as the endpoint sends them, with no waiting rule of its own."""
         async with (
             self._client(TIMEOUT) as client,
             client.stream(
-                "POST", f"{self._base_url}/chat/completions", json=body
+                "POST",
+                f"{self._base_url}/chat/completions",
+                json=body,
+                headers=headers,
             ) as reply,
         ):
             if reply.status_code >= 400:
@@ -264,6 +275,11 @@ def _delta(line: str) -> Delta | None:
     if not payload or payload == "[DONE]":
         return None
     chunk = json.loads(payload)
+    # Past the first token the status is already 200, so llama.cpp and
+    # OpenRouter send a failure as a chunk. Skipped, it ended a cut-off reply
+    # as though the model had finished.
+    if error := chunk.get("error"):
+        raise StreamedError(_streamed_message(error))
     if progress := _prompt_progress(chunk.get("prompt_progress")):
         return Delta("", progress=progress)
     choices = chunk.get("choices")
@@ -287,6 +303,13 @@ def _reuse(line: str) -> tuple[int, int] | None:
         return None
     chunk = json.loads(payload)
     return chunk_reuse(chunk) if isinstance(chunk, dict) else None
+
+
+def _streamed_message(error: object) -> str:
+    message = error.get("message") if isinstance(error, dict) else error
+    if isinstance(message, str) and message.strip():
+        return message.strip()[:MAX_ERROR_CHARS]
+    return "the endpoint reported an error mid-stream"
 
 
 def _prompt_progress(reported: object) -> PromptProgress | None:

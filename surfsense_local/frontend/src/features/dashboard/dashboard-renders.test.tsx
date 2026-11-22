@@ -126,6 +126,7 @@ const artifacts = [1, 2].map((id) => ({
   version: null,
   spec_kind: null,
   refinable: false,
+  image_editable: false,
 }))
 
 beforeEach(() => {

@@ -1,0 +1,1 @@
+Before this goes to a person, read the passages once more, part by part, as the rules say a reviewer reads them. If the passages settle every part of the question, answer with the quotes that settle them. If a part is still open, answer $fallback and say in the comment which part. Either is a good outcome: give the one the passages support.

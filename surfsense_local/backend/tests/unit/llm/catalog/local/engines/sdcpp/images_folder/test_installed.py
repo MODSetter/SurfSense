@@ -57,7 +57,7 @@ def test_a_model_missing_one_of_its_files_is_not_installed(tmp_path) -> None:
     put(tmp_path, "klein-Q4_0.gguf")
     engine = SdCppEngine(tmp_path, [model])
 
-    (row,) = engine.rows([model], lambda b: "id", selected=None)
+    (row,) = engine.rows([model], lambda b: "id", selected=frozenset())
 
     assert row.builds[0].installed_as is None
     assert row.builds[0].download_bytes == 730

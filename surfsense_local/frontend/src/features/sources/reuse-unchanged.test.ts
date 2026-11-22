@@ -46,6 +46,22 @@ describe("reuseUnchanged", () => {
     expect(merged[2]).toBe(current[0])
   })
 
+  it("keeps a recording whose transcription reads the same", () => {
+    const recording = (done_s: number): WorkspaceDocument => ({
+      ...source(1, "processing"),
+      mime_type: "audio/mpeg",
+      transcription: {
+        language: null,
+        progress: { done_s, total_s: 3480 },
+        awaiting: false,
+      },
+    })
+    const current = [recording(84)]
+
+    expect(reuseUnchanged(current, [recording(84)])).toBe(current)
+    expect(reuseUnchanged(current, [recording(112)])[0]).not.toBe(current[0])
+  })
+
   it("counts a field only one side has as a change", () => {
     const current = [source(1)]
     // An API without folders sends no folder_id.

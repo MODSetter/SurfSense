@@ -13,5 +13,6 @@ def replace_key(
     """Only a key the server just accepted is saved, with what it listed as the check."""
     plugin.credential_kind = "token"
     plugin.credential = token
+    plugin.disconnected_at = None
     plugin.entry = {**plugin.entry, "auth": {"type": "token"}}
     record_check(session, plugin, tools)

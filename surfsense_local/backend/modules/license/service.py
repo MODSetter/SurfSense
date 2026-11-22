@@ -1,9 +1,10 @@
 from datetime import UTC, datetime
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from modules.license.licensing import licensing_on
 from modules.license.models import LicenseState
 from modules.license.verify import MAX_CLOCK_DRIFT, Verified, verify, verify_signature
 
@@ -16,6 +17,10 @@ class LicenseStatus(BaseModel):
     email: str | None = None
     expiry: datetime | None = None
     max_users: int | None = None
+    firm: str | None = None
+    jobs: list[str] = Field(default_factory=list)
+    # Whether licensing runs at all: off, the app hides every licence screen (ADR 0092).
+    licensing: bool = Field(default_factory=licensing_on)
 
 
 def now() -> datetime:
@@ -63,6 +68,8 @@ def _status(row: LicenseState, verified: Verified, instant: datetime) -> License
         email=verified.email,
         expiry=verified.expiry,
         max_users=verified.max_users,
+        firm=verified.firm,
+        jobs=list(verified.jobs),
     )
 
 

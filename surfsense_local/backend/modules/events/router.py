@@ -67,5 +67,8 @@ async def publish_event(payload: InternalEvent, broker: EventBrokerDep) -> Respo
 
 def _event(event: dict) -> bytes:
     """One named SSE event: an `event:` name the client listens for, then its JSON."""
-    data = json.dumps({"ids": event["ids"], "status": event["status"]})
+    frame = {"ids": event["ids"], "status": event["status"]}
+    if "progress" in event:
+        frame["progress"] = event["progress"]
+    data = json.dumps(frame)
     return f"event: {event['kind']}\ndata: {data}\n\n".encode()

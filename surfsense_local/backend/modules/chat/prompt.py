@@ -26,6 +26,24 @@ _NO_SOURCES = (
     "typescript, sql, or bash."
 )
 
+# Replaces _NO_SOURCES while ticked sources are not ready yet, which a question
+# asked straight after an upload meets. Fixed text: the count rides with the
+# question, so the system message stays the cached start of the prompt.
+_STILL_READING = (
+    "Some of the sources the user selected are still being read, so they cannot "
+    "be searched yet, and nothing that could be searched matched this question. "
+    "The app's note just before the question says how many; the user did not "
+    "write it.\n\n"
+    "- Start by telling the user, in one sentence, how many of their selected "
+    "sources are still being read and that they can ask again once those are "
+    "ready.\n"
+    "- Then, if the answer is general knowledge, give it in the same reply. "
+    "Never guess details about the user's own documents, products or people.\n"
+    "- Respond in the same language as the question.\n"
+    "- Label fenced code blocks with their language, such as python, "
+    "typescript, sql, or bash."
+)
+
 # A chunk that contains these could otherwise close a source early and forge its
 # own, so its angle brackets are defanged before it goes between the tags.
 _TAGS = re.compile(
@@ -61,18 +79,27 @@ class TurnGrounding:
     """
 
     instruction: str
-    # None when nothing matched; the instruction then says so instead.
+    # What goes ahead of the question: the excerpts, or how many sources are
+    # still being read. None when nothing matched; the instruction says so.
     excerpts: str | None
     citations: list[Citation]
 
 
-def build_context(hits: list[Hit], tier: Tier) -> TurnGrounding:
+def build_context(hits: list[Hit], tier: Tier, indexing: int = 0) -> TurnGrounding:
     """The instruction, this turn's excerpts and the citations their ids point at.
 
     Hits become `[n]`-labelled excerpts grouped by document. The model cites
     `[n]`; resolve_citations rewrites those to `[citation:<chunk_id>]`. No hits
-    sends an instruction with nothing to cite, the same for every tier.
+    sends an instruction with nothing to cite, the same for every tier; with
+    `indexing` ticked sources not ready yet, it says they are still being read.
     """
+    if not hits and indexing:
+        selected = (
+            "1 selected source is"
+            if indexing == 1
+            else f"{indexing} selected sources are"
+        )
+        return TurnGrounding(_STILL_READING, f"{selected} still being read.", [])
     if not hits:
         return TurnGrounding(_NO_SOURCES, None, [])
     # The model copies a visible [n]; the server rewrites it to

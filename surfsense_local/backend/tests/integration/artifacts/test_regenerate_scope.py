@@ -146,4 +146,6 @@ async def test_regenerate_with_no_sources_left_says_so(
     again = await client.post(f"/artifacts/{artifact_id}/regenerate")
 
     assert again.status_code == 409
-    assert again.json()["detail"] == "None of this artifact's sources are left."
+    assert (
+        again.json()["detail"]["message"] == "None of this artifact's sources are left."
+    )

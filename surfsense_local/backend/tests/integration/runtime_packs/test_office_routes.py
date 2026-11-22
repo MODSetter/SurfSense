@@ -149,7 +149,7 @@ async def test_once_allowed_it_downloads_unpacks_checks_and_is_installed(
     client: AsyncClient, office: Office
 ) -> None:
     """The pinned host first, then its mirror; the smoke runs before it is in place."""
-    await client.put(f"/egress/{DESTINATION}", json={"enabled": True})
+    await client.put("/egress", json={"destinations": [DESTINATION], "enabled": True})
     started = await client.post("/runtime-packs/office/install")
     assert started.status_code == 202
 
@@ -176,7 +176,7 @@ async def test_a_failed_check_leaves_nothing_installed_and_says_why(
     from modules.runtime_packs.office.soffice.errors import OfficeFailed
 
     office.smoke_error = OfficeFailed("LibreOffice wrote no pdf")
-    await client.put(f"/egress/{DESTINATION}", json={"enabled": True})
+    await client.put("/egress", json={"destinations": [DESTINATION], "enabled": True})
     await client.post("/runtime-packs/office/install")
 
     status = await _settled(client)
@@ -189,7 +189,7 @@ async def test_removing_it_deletes_the_pack(
     client: AsyncClient, office: Office
 ) -> None:
     """Back to not installed, with the version folder gone."""
-    await client.put(f"/egress/{DESTINATION}", json={"enabled": True})
+    await client.put("/egress", json={"destinations": [DESTINATION], "enabled": True})
     await client.post("/runtime-packs/office/install")
     await _settled(client)
 
@@ -203,7 +203,7 @@ async def test_installing_again_while_the_pack_is_installed_is_refused(
     client: AsyncClient, office: Office
 ) -> None:
     """A reinstall deleted the version folder in place, under a LibreOffice run using it."""
-    await client.put(f"/egress/{DESTINATION}", json={"enabled": True})
+    await client.put("/egress", json={"destinations": [DESTINATION], "enabled": True})
     await client.post("/runtime-packs/office/install")
     await _settled(client)
 
@@ -224,7 +224,7 @@ async def test_removing_a_pack_in_use_forgets_nothing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Windows refuses the rename while LibreOffice runs: the confirmed install stays chosen too."""
-    await client.put(f"/egress/{DESTINATION}", json={"enabled": True})
+    await client.put("/egress", json={"destinations": [DESTINATION], "enabled": True})
     await client.post("/runtime-packs/office/install")
     await _settled(client)
     _found_install(tmp_path / "found", "26.8")
@@ -251,7 +251,7 @@ async def test_a_cancel_while_unpacking_waits_for_the_unpack_to_stop(
 ) -> None:
     """msiexec and tar run on after a cancel; a new install must not unpack beside them."""
     office.unpack_gate = threading.Event()
-    await client.put(f"/egress/{DESTINATION}", json={"enabled": True})
+    await client.put("/egress", json={"destinations": [DESTINATION], "enabled": True})
     await client.post("/runtime-packs/office/install")
     await _reached(client, "unpacking")
     try:
@@ -276,7 +276,7 @@ async def test_a_second_cancel_still_waits_for_the_unpack_to_stop(
 ) -> None:
     """Cancel clicked twice: the second deleted the staging folder under tar, which wrote it again."""
     office.unpack_gate = threading.Event()
-    await client.put(f"/egress/{DESTINATION}", json={"enabled": True})
+    await client.put("/egress", json={"destinations": [DESTINATION], "enabled": True})
     await client.post("/runtime-packs/office/install")
     await _reached(client, "unpacking")
     try:
@@ -309,7 +309,7 @@ async def test_an_install_that_cannot_replace_a_held_folder_leaves_no_staging(
         return renamed(self, target)
 
     monkeypatch.setattr(Path, "rename", held)
-    await client.put(f"/egress/{DESTINATION}", json={"enabled": True})
+    await client.put("/egress", json={"destinations": [DESTINATION], "enabled": True})
     await client.post("/runtime-packs/office/install")
 
     status = await _settled(client)
@@ -398,7 +398,7 @@ async def test_once_office_support_was_on_the_offer_never_shows_again(
     client: AsyncClient, office: Office
 ) -> None:
     """Removing it later is the user's choice, not a reason to offer it again."""
-    await client.put(f"/egress/{DESTINATION}", json={"enabled": True})
+    await client.put("/egress", json={"destinations": [DESTINATION], "enabled": True})
     await client.post("/runtime-packs/office/install")
     await _settled(client)
 

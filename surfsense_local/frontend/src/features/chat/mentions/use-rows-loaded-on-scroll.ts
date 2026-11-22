@@ -1,0 +1,58 @@
+import { useCallback, useEffect, useRef, useState } from "react"
+
+import { useStableCallback } from "@/hooks/use-stable-callback"
+
+import { useMentionPopoverScope } from "./mention-popover-scope"
+
+// About four screens of the list, whose rows are not virtualized.
+const ROWS_PER_LOAD = 30
+const NEAR_END_ROWS = 5
+const NEAR_END_PX = 96
+
+/** How many of a list's rows to draw, more as scrolling or the arrow keys near the
+ *  end. Everything is in memory, so this bounds rendering rather than fetching. */
+export function useRowsLoadedOnScroll(total: number) {
+  const { highlightedIndex, highlightIndex } = useMentionPopoverScope()
+  const [loaded, setLoaded] = useState(ROWS_PER_LOAD)
+  // Stable, as `rows` is a ref callback; bails out once all are drawn, with no render.
+  const loadMore = useStableCallback(() =>
+    setLoaded((n) => (n < total ? n + ROWS_PER_LOAD : n))
+  )
+  const previous = useRef(highlightedIndex)
+
+  useEffect(() => {
+    const before = previous.current
+    previous.current = highlightedIndex
+    const movingDown = highlightedIndex > before
+    if (highlightedIndex >= loaded && highlightedIndex !== before + 1) {
+      // The popover wrapped up to the list's true end, which is not drawn.
+      highlightIndex(Math.min(loaded, total) - 1)
+    } else if (
+      movingDown &&
+      highlightedIndex >= loaded - NEAR_END_ROWS &&
+      loaded < total
+    ) {
+      loadMore()
+    }
+  }, [highlightIndex, highlightedIndex, loadMore, loaded, total])
+
+  const rows = useCallback(
+    (element: HTMLElement | null) => {
+      const list = element?.closest<HTMLElement>(
+        "[data-slot=scroll-fade-viewport]"
+      )
+      if (!list) return
+      // The scrolling area outlives each list, and a new one starts at its top.
+      list.scrollTop = 0
+      const onScroll = () => {
+        const left = list.scrollHeight - list.scrollTop - list.clientHeight
+        if (left < NEAR_END_PX) loadMore()
+      }
+      list.addEventListener("scroll", onScroll, { passive: true })
+      return () => list.removeEventListener("scroll", onScroll)
+    },
+    [loadMore]
+  )
+
+  return { shown: Math.min(loaded, total), rows }
+}

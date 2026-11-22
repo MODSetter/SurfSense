@@ -8,9 +8,10 @@ import {
 import { intl } from "@/i18n/intl"
 
 import { useRefreshModels } from "../../models-query"
-import type { ModelType } from "../../model-type"
 import type { Connection } from "./api"
 import { ConnectionForm } from "./connection-form"
+import { ElevenLabsForm } from "./elevenlabs/elevenlabs-form"
+import { elevenLabsKeyBody } from "./elevenlabs/key-body"
 
 /**
  * Adding or editing a server, over whatever page asked. Saving refreshes and
@@ -19,7 +20,6 @@ import { ConnectionForm } from "./connection-form"
 export function ConnectionDialog({
   open,
   connection,
-  modelType,
   onOpenChange,
   onOpenChangeComplete,
   onCreated,
@@ -27,8 +27,6 @@ export function ConnectionDialog({
   open: boolean
   /** The server to edit; absent to add one. */
   connection?: Connection
-  /** The slot being filled, so only ways to connect that can fill it are offered. */
-  modelType?: ModelType
   onOpenChange: (open: boolean) => void
   /** Where a caller clears `connection`, once the dialog has finished closing. */
   onOpenChangeComplete?: (open: boolean) => void
@@ -62,31 +60,44 @@ export function ConnectionDialog({
                 })}
           </DialogTitle>
           <DialogDescription>
-            {connection
-              ? intl.formatMessage({
-                  id: "models_connection_dialog_edit_body",
-                  defaultMessage:
-                    "Servers are shared by every model type, so a change here applies to all of them.",
-                })
-              : intl.formatMessage({
-                  id: "models_connection_dialog_add_body",
-                  defaultMessage:
-                    "Any server that implements the OpenAI API, such as vLLM, LM Studio or OpenRouter.",
-                })}
+            {connection?.auth_kind === "elevenlabs"
+              ? elevenLabsKeyBody()
+              : connection
+                ? intl.formatMessage({
+                    id: "models_connection_dialog_edit_body",
+                    defaultMessage:
+                      "Servers are shared by every model type, so a change here applies to all of them.",
+                  })
+                : intl.formatMessage({
+                    id: "models_connection_dialog_add_body",
+                    defaultMessage:
+                      "Any server that implements the OpenAI API, such as vLLM, LM Studio or OpenRouter.",
+                  })}
           </DialogDescription>
         </DialogHeader>
         {/* The popup unmounts after closing, so each opening starts blank. */}
-        <ConnectionForm
-          key={connection?.id ?? "new"}
-          connection={connection}
-          modelType={modelType}
-          onCancel={() => onOpenChange(false)}
-          onSaved={(saved) => {
-            void refresh()
-            onOpenChange(false)
-            if (!connection) onCreated?.(saved)
-          }}
-        />
+        {connection?.auth_kind === "elevenlabs" ? (
+          <ElevenLabsForm
+            key={connection.id}
+            connection={connection}
+            onCancel={() => onOpenChange(false)}
+            onSaved={() => {
+              void refresh()
+              onOpenChange(false)
+            }}
+          />
+        ) : (
+          <ConnectionForm
+            key={connection?.id ?? "new"}
+            connection={connection}
+            onCancel={() => onOpenChange(false)}
+            onSaved={(saved) => {
+              void refresh()
+              onOpenChange(false)
+              if (!connection) onCreated?.(saved)
+            }}
+          />
+        )}
       </DialogContent>
     </Dialog>
   )

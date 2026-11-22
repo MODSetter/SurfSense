@@ -32,10 +32,10 @@ class SelectedModel(Base):
         ),
         CheckConstraint(
             # Each local runtime serves its own types: llama.cpp answers text,
-            # sd-server draws, edits and animates, audio.cpp speaks.
+            # sd-server draws, edits and animates, audio.cpp speaks and hears.
             "(provider <> 'llamacpp' OR model_type = 'text_gen') AND "
             "(provider <> 'sdcpp' OR model_type IN ('image_gen', 'image_edit', 'video_gen')) AND "
-            "(provider <> 'audiocpp' OR model_type = 'audio_gen')",
+            "(provider <> 'audiocpp' OR model_type IN ('audio_gen', 'speech_to_text'))",
             name="local_runtime_type",
         ),
     )
@@ -99,7 +99,10 @@ class ProviderConnection(Base):
     __tablename__ = "provider_connections"
     __table_args__ = (
         CheckConstraint("provider = 'openai_compatible'", name="provider"),
-        CheckConstraint("auth_kind IN ('api_key', 'chatgpt')", name="auth_kind"),
+        CheckConstraint(
+            "auth_kind IN ('api_key', 'chatgpt', 'claude_plan', 'elevenlabs')",
+            name="auth_kind",
+        ),
         UniqueConstraint("label"),
     )
 
@@ -112,6 +115,8 @@ class ProviderConnection(Base):
     catalog_provider: Mapped[str] = mapped_column(server_default="custom")
     api_key_ciphertext: Mapped[bytes | None]
     # `chatgpt` signs in with a ChatGPT account: no key, OAuth tokens instead.
+    # `claude_plan` holds nothing: the user's own Claude Code keeps the sign-in.
+    # `elevenlabs` holds a key like `api_key`, and speaks ElevenLabs' own API.
     auth_kind: Mapped[str] = mapped_column(server_default="api_key")
     # Encrypted JSON of the token set; NULL on a `chatgpt` row means signed out.
     oauth_ciphertext: Mapped[bytes | None]

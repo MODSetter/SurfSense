@@ -1,0 +1,108 @@
+---
+title: Updating
+description: Update the SurfSense Docker image, pin a version, back up your data, and uninstall
+---
+
+The Docker image has no in-app updater. The title bar's update pill and the update options in Settings are desktop-only, and the image never checks for updates itself. You update by pulling a newer image.
+
+A new image is published with each desktop release. `latest` moves when the release is published, together with the desktop app's updater.
+
+## Update with the installer
+
+Run the same command you installed with, from any folder:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
+```
+
+```powershell
+irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 | iex
+```
+
+It finds your install by its container, running or stopped. After `docker compose down` there is no container, so run the installer from the folder that holds your `surfsense` folder; from anywhere else it makes a new install. It keeps `.env`, replaces `docker-compose.yml` with the current one, pulls, and restarts. It removes the image it replaced, and says whether anything changed:
+
+```text
+SurfSense updated to 2.3.0
+```
+
+or `SurfSense 2.3.0 is already up to date`.
+
+## Update by hand
+
+From the install folder:
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+This keeps your `docker-compose.yml`. The installer also refreshes that file, so prefer it when a release changes the compose settings. Old images stay on disk until you remove them with `docker image prune`.
+
+## Automatic updates
+
+SurfSense ships no automatic updater for Docker. If you want one, schedule the installer command or `docker compose pull && docker compose up -d` yourself, for example with cron.
+
+## Pin a version
+
+Set the tag in `.env`:
+
+```dotenv
+SURFSENSE_VERSION=2.3.0
+```
+
+Then `docker compose up -d`. A pinned install stays on that version; the installer leaves it there and says so. Set it back to `latest` to follow releases again.
+
+| Tag | Points at |
+|---|---|
+| `latest` | The newest published release |
+| `2.3` | The newest published `2.3.x` |
+| `2.3.0` | Exactly that release |
+
+## What happens on start
+
+When a new version starts, it backs up the database into `backups/` in the data volume, then migrates it. The first start after an update can take a little longer.
+
+An older version may not read a database a newer one has migrated. To go back, pin the older version and restore a backup of the volume taken before the update.
+
+## Back up your data
+
+All your data is in one volume, `surfsense_surfsense_data`. Stop SurfSense, archive the volume, and start it again. From the install folder:
+
+```bash
+docker compose down
+docker run --rm -v surfsense_surfsense_data:/data -v "$PWD":/backup ubuntu \
+  tar czf /backup/surfsense-data.tar.gz -C /data .
+docker compose up -d
+```
+
+To restore, empty the volume and extract the backup into it. This deletes everything in the volume now, including anything added since the backup:
+
+```bash
+docker compose down
+docker run --rm -v surfsense_surfsense_data:/data -v "$PWD":/backup ubuntu \
+  sh -c 'find /data -mindepth 1 -delete && tar xzf /backup/surfsense-data.tar.gz -C /data'
+docker compose up -d
+```
+
+Also keep a copy of `.env`. If you set `SURFSENSE_SECRET` there, your stored provider keys can't be read without it.
+
+## Uninstall
+
+From the install folder:
+
+```bash
+docker compose down
+```
+
+This removes the container and keeps your data. To delete your data too, which cannot be undone:
+
+```bash
+docker compose down -v
+```
+
+Then remove the image and the install folder:
+
+```bash
+docker image rm ghcr.io/modsetter/surfsense:latest
+cd .. && rm -rf surfsense
+```

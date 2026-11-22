@@ -7,11 +7,10 @@ from fastapi import HTTPException, status
 
 from modules.agent.opencode_runtime import AgentUnavailableError, connect_opencode
 from modules.chat.models import ChatThread
-from shared.config import get_storage_settings
 
 
-async def stored_step(thread: ChatThread, part_id: str) -> dict[str, Any]:
-    """The tool part `part_id` of the thread's session.
+async def stored_step(thread: ChatThread, call_id: str) -> dict[str, Any]:
+    """The tool call `call_id` of the thread's session, as opencode stored it.
 
     A thread on screen has started opencode already, so this needs no new configuration.
     """
@@ -21,16 +20,15 @@ async def stored_step(thread: ChatThread, part_id: str) -> dict[str, Any]:
         client = connect_opencode()
     except AgentUnavailableError as error:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(error)) from error
-    folder = get_storage_settings().thread_working_dir(thread.workspace_id, thread.id)
     async with client:
         try:
-            messages = await client.messages(folder, thread.opencode_session_id)
+            messages = await client.messages(thread.opencode_session_id)
         except httpx.HTTPError as error:
             raise HTTPException(
                 status.HTTP_502_BAD_GATEWAY, f"opencode did not answer: {error}"
             ) from error
     for message in messages:
-        for part in message.get("parts", []):
-            if part.get("id") == part_id and part.get("type") == "tool":
-                return part
+        for item in message.get("content") or []:
+            if item.get("id") == call_id and item.get("type") == "tool":
+                return item
     raise HTTPException(status.HTTP_404_NOT_FOUND, "no such step in this thread")

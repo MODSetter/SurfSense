@@ -1,0 +1,51 @@
+---
+title: Run a model on your computer
+description: Download a chat model in Settings, so your chats never leave your computer
+---
+
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+
+<GuideVideo slug="local-model" poster="/guides/local-model/poster.webp" title="Downloading a chat model to run on this computer" />
+
+A model on your computer keeps your questions and documents on it, and works offline once it's downloaded. [On this computer](/docs/v2/models/local) has the details.
+
+<Steps>
+<Step>
+
+### Open Settings › Text gen
+
+Click the gear at the bottom left to open **Settings**, then **Text gen** under **Models**. **In use:** names the model that answers in chat now.
+
+![Settings, Text gen, with the model in use and the models on this computer](/guides/local-model/01-text-gen.webp)
+
+</Step>
+<Step>
+
+### Pick a model that fits
+
+Click **Add model** and scroll to **On this computer**. SurfSense shows what it found, such as **Graphics card** and its memory, and judges every model against it:
+
+- A model with no badge runs at full speed.
+- **Reduced speed** runs partly on the processor, so it's slower.
+- **Won’t fit** needs more memory than this computer has.
+
+The model with the ribbon is recommended for your computer.
+
+![Models tested by SurfSense, each with its size and a Download button](/guides/local-model/02-fits-this-computer.webp)
+
+</Step>
+<Step>
+
+### Download it
+
+Click **Download** on the model you want. When it's done, it reads **In use**, and the next reply in any chat comes from it. To switch back later, click **Use** on another model.
+
+![The downloaded model marked In use](/guides/local-model/03-downloaded.webp)
+
+</Step>
+</Steps>
+
+## Next
+
+- [Use a model from a server or provider](/docs/v2/guides/connect-a-server), such as OpenRouter.
+- [Models](/docs/v2/models) compares the ways to get one.

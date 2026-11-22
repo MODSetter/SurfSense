@@ -1,0 +1,45 @@
+---
+date: "2026-09-26"
+version: "2.0.3"
+---
+
+## What's New in v2.0.3
+
+v2.0.3 changes how the desktop app runs models. Chat now runs on a llama.cpp runtime bundled with the app instead of Ollama, image and podcast models come from the same catalog, and each model is checked against your hardware before you download it. The app also speaks ten languages. Get it from the [downloads page](/downloads).
+
+### Local models
+
+- **llama.cpp replaces Ollama**: The bundled runtime uses your graphics card through Vulkan on Windows and Linux and Metal on Apple Silicon.
+- **Sized for your computer**: Seven curated chat models, Qwen3 from 0.6B to 32B plus Gemma 3 4B, are checked against your memory and graphics card, and a star marks the one recommended for you. Anything else can be found by searching Hugging Face, once you allow SurfSense to contact it.
+- **Downloads that keep going**: A download keeps running when you leave its page, a second one waits its turn, and a cancelled one picks up where it stopped when you try again.
+- **One section per model type**: Settings has Text gen, Image gen, Image edit, Audio and Video sections, each listing local models next to models from your servers. Setup walks through the same steps, and only a chat model is required.
+- **Upgrading from v2.0.2**: A chat model chosen through Ollama can't carry over. Choose one again in Settings › Text gen.
+
+### Images and podcasts in Studio
+
+- **More image models**: FLUX.2 klein 4B, Z-Image Turbo, ERNIE-Image Turbo and LongCat-Image join Stable Diffusion 1.5 and XL. Listed models must allow commercial use, so SDXL Turbo is gone.
+- **Room to generate**: Studio unloads the chat model before a local image or podcast, and it loads again on your next question.
+- **Image editing and video, early**: You can already choose image editing and video models, but no Studio format uses them yet.
+- **New podcast voices**: Podcasts are voiced by Kokoro 82M, Supertonic 3 or KittenTTS Mini 0.8. Kokoro ships with the app and is selected automatically, so podcasts work without setup. Voices are grouped by Female and Male.
+
+### Chat and search
+
+- **Watch a model think**: Thinking models stream their reasoning, then fold it away as "Thought for N seconds". A long think no longer times out.
+- **Better ranking**: Search now ranks by meaning and keywords together. On our 266-query test, the passage holding the answer was among the five sent to chat 98% of the time, up from 50%.
+- **More grounded small models**: A rewritten prompt took Qwen3 1.7B from 24 to 30 grounded answers out of 33 in our chat test.
+
+### Around the app
+
+- **Ten languages**: English, German, Spanish, French, Hindi, Japanese, Korean, Brazilian Portuguese, Russian and Simplified Chinese. The app follows your system language, or you can pick one in Settings › General › Language.
+- **Report issue**: A button in the sidebar and on every error toast shows this session's log and opens a prefilled GitHub bug report, with the log copied to your clipboard to paste in.
+- **Settings › About**: Your version, update checks, links and Copy system info. macOS also gets a Help menu.
+
+### No longer broken
+
+- The app opens instead of stopping at "SurfSense could not start" when a saved key can't be read, a server is unreachable or network access is off. A notice by the chat box says why.
+- Cancelling a Studio job stops the model within about a second, so chat no longer waits behind a cancelled mind map.
+
+### Developers
+
+- Chat and retrieval evals live in `surfsense_local/backend/scripts`, and the search decisions are in ADRs 0031 to 0033.
+- CI now runs the desktop tests, with one workflow per product.

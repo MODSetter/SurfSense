@@ -1,6 +1,6 @@
 # ADR 0018: Provider keys are encrypted with a per-install secret kept in the OS keychain
 
-- **Status:** Accepted
+- **Status:** Accepted; amended by [ADR 0091](0091-an-update-key-vouches-for-every-update-from-2-4-0-on.md): a `secret.bin` the keychain cannot open is set aside and tried again at each launch, never overwritten
 - **Date:** 2026-09-14
 - **Source:** [Pivot plan L234](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/00d-pivot-plan.md#L234), [Connections plan L89–97](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/api/05b-openai-compatible-connections.md#L89-L97)
 
@@ -11,7 +11,7 @@ A remote connection's API key has to be usable by the processes that make the ca
 ## Decision
 
 - Envelope encryption. Electron keeps one random 32-byte secret per install in `secret.bin`, in its userData directory, encrypted with `safeStorage`, the OS keychain ([`electron/src/main/secret.ts`](../../surfsense_local/electron/src/main/secret.ts)).
-- Electron passes the secret as `SURFSENSE_LOCAL_SECRET` to the API and both workers ([`sidecars/python.ts`](../../surfsense_local/electron/src/main/sidecars/python.ts)). llama-server and sd-server do not get it.
+- Electron passes the secret as `SURFSENSE_LOCAL_SECRET` to the API and both workers ([`sidecars/python.ts`](../../surfsense_local/sidecars/python.ts)). llama-server and sd-server do not get it.
 - The backend derives a Fernet key from the secret with SHA-256 and stores each provider key encrypted in `provider_connections.api_key_ciphertext` ([`shared/secrets.py`](../../surfsense_local/backend/shared/secrets.py)). Revision `0007` dropped the plaintext `api_key` column.
 - The API never returns a key. A connection reads back `has_api_key` only.
 

@@ -1,11 +1,15 @@
-"""The frozen worker runs document scripts with every library a script is told it has.
+"""The frozen worker runs document scripts with every library a script is told it has,
+and decodes a recording in its decode child.
 
 A script is not analysed when the worker is frozen, so whatever it imports, or
-a library imports for it by name, ships only if the spec says so.
+a library imports for it by name, ships only if the spec says so; the decode
+child's miniaudio loads a cffi backend by name too.
+
+The frozen binary comes from tests/packaging/frozen_backend.py: the release
+build's, or one frozen from the spec.
 """
 
 import io
-import subprocess
 import sys
 from pathlib import Path
 
@@ -14,6 +18,8 @@ import openpyxl
 import pypdfium2
 import pytest
 
+from tests.packaging.frozen_backend import frozen_backend
+from worker.audio_decode.run import decode_in_child
 from worker.document_script.analysis_run import AnalysisInput, run_analysis_script
 from worker.document_script.run import run_document_script
 
@@ -53,26 +59,8 @@ with PdfPages(os.environ["OUTPUT_PATH"]) as pages:
 
 @pytest.fixture(scope="module")
 def frozen_worker(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    """The worker frozen from bundling/worker.spec, as the installer ships it."""
-    build = tmp_path_factory.mktemp("frozen-worker")
-    subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "PyInstaller",
-            str(BACKEND / "bundling" / "worker.spec"),
-            "--noconfirm",
-            "--distpath",
-            str(build / "dist"),
-            "--workpath",
-            str(build / "build"),
-        ],
-        cwd=BACKEND,
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    return build / "dist" / "worker" / "worker"
+    """The backend frozen from bundling/backend.spec, as the installer ships it."""
+    return frozen_backend(tmp_path_factory.mktemp("frozen-backend"))
 
 
 @pytest.fixture
@@ -173,3 +161,15 @@ def test_a_frozen_worker_analyses_a_workbook_with_pandas(tmp_path: Path) -> None
     assert run.ok, run.traceback_tail
     assert run.stdout == "12\n"
     assert run.kept == ("stock.csv", "stock.png")
+
+
+@pytest.mark.usefixtures("as_frozen")
+def test_a_frozen_worker_decodes_a_recording_in_its_child(tmp_path: Path) -> None:
+    """worker --decode-audio reads an MP3 to 16 kHz mono, as ingest starts it."""
+    tone = BACKEND / "tests" / "fixtures" / "audio" / "tone.mp3"
+    out = tmp_path / "audio16k.raw"
+
+    outcome = decode_in_child(tone, out, between_polls=lambda: None)
+
+    assert outcome.kind == "decoded", outcome
+    assert out.stat().st_size == pytest.approx(16000 * 2, rel=0.05)

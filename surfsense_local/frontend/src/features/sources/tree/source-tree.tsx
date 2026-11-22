@@ -9,10 +9,13 @@ import {
 } from "react"
 
 import { getFileViewer } from "@/features/file-viewers/registry"
+import { motionIsReduced } from "@/features/motion-preference/motion-preference"
 import { useStableCallback } from "@/hooks/use-stable-callback"
 import { intl } from "@/i18n/intl"
 
 import type { WorkspaceDocument } from "../api"
+import { downloadsOriginals } from "../download-original"
+import type { TranscriptionPace } from "../transcription/pace"
 import { DocumentRow } from "./document-row"
 import { FolderRow } from "./folder-row"
 import type { SourceFolder } from "./folders-api"
@@ -32,6 +35,8 @@ export type DocumentRowActions = {
   onRename?: (document: WorkspaceDocument) => void
   onEditNote?: (documentId: number) => void
   onSelectionChange: (documentId: number, selected: boolean) => void
+  // Opens Settings › Speech recognition, from a waiting recording's set-up.
+  onOpenSpeechSettings?: () => void
 }
 
 /** What a folder row asks of its owner; absent, the tree has no folder actions. */
@@ -59,6 +64,7 @@ export const SourceTree = memo(function SourceTree({
   dropFolder,
   takesFiles,
   labelledBy,
+  transcriptionPaces,
 }: {
   index: SourceIndex
   expanded: ReadonlySet<number>
@@ -75,6 +81,8 @@ export const SourceTree = memo(function SourceTree({
   // Whether rows take files dropped from the desktop.
   takesFiles: boolean
   labelledBy: string
+  // Each running transcription's speed, by document id.
+  transcriptionPaces?: ReadonlyMap<number, TranscriptionPace>
 }) {
   const rows = useMemo(
     () => visibleRows(index, expanded, filter),
@@ -93,7 +101,10 @@ export const SourceTree = memo(function SourceTree({
     if (highlightedDocumentId === null) return
     rowElements.current
       .get(documentKey(highlightedDocumentId))
-      ?.scrollIntoView({ behavior: "smooth", block: "nearest" })
+      ?.scrollIntoView({
+        behavior: motionIsReduced() ? "auto" : "smooth",
+        block: "nearest",
+      })
   }, [highlightedDocumentId])
 
   const focusRow = (row: TreeRow | undefined) => {
@@ -126,7 +137,8 @@ export const SourceTree = memo(function SourceTree({
       documentActions.onPreview?.(document.id)
     } else if (
       document.status === "ready" &&
-      document.document_type === "FILE"
+      document.document_type === "FILE" &&
+      !downloadsOriginals()
     ) {
       documentActions.onOpen(document.id)
     }
@@ -279,6 +291,7 @@ export const SourceTree = memo(function SourceTree({
             events={rowEvents}
             actions={documentActions}
             onMoveRequest={onMoveRequest}
+            pace={transcriptionPaces?.get(row.document.id)}
           />
         )
       )}

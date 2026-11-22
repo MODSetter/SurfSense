@@ -11,14 +11,14 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Discord](https://img.shields.io/discord/1359368468260192417?label=Discord)](https://discord.gg/ejRNvftDp9)
 
-  <a href="https://www.surfsense.com/"><img alt="SurfSense，可物理隔离运行的开源 NotebookLM 替代品" src="surfsense_web/public/homepage/banner.png" /></a>
+  <a href="https://www.surfsense.com/"><img alt="SurfSense，可物理隔离运行、面向机密文档的私有 AI" src="www/public/homepage/banner.png" /></a>
 
   <h1>SurfSense</h1>
 
   <p>
-    <b>可物理隔离运行的开源 NotebookLM 替代品。</b>
+    <b>可物理隔离运行、面向机密文档的私有 AI。</b>
     <br />
-    在你自己的电脑上研究、转换和编辑文档的 AI 智能体。
+    在你自己的电脑上运行的开源 NotebookLM 替代品。
   </p>
 
   <p>
@@ -26,6 +26,7 @@
     <a href="#每种格式能做什么">格式</a> ·
     <a href="#快速开始">快速开始</a> ·
     <a href="#surfsense-与同类工具对比">对比</a> ·
+    <a href="#插件">插件</a> ·
     <a href="https://www.surfsense.com/pricing">定价</a> ·
     <a href="https://discord.gg/ejRNvftDp9">Discord</a>
   </p>
@@ -37,18 +38,26 @@
   </p>
 </div>
 
+**用修订和批注批改合同**
+
 https://github.com/user-attachments/assets/88326b9d-e763-46db-9635-75f9df9e8682
 
-SurfSense 是一款免费开源的桌面应用，专为那些不能上传的文档而做。它是一个注重隐私、类似 NotebookLM 的 AI 智能体，在你自己的电脑上研究、转换和编辑你的文档。索引留在你的硬盘里，模型由你来选，本地或远程都可以，而且不需要账号。
+**从网上添加来源，再把它们做成网页**
+
+https://github.com/user-attachments/assets/073577b7-f055-4f59-8540-330bd764aeb0
+
+SurfSense 是一款免费开源的桌面应用，专为机密文档而做。它是一个私有的、类似 NotebookLM 的 AI 智能体，在你自己的电脑上研究、转换和编辑你的文档。索引留在你的硬盘里，模型由你来选，本地或远程都可以，而且不需要账号。
 
 | 平台 | 下载 |
 |---|---|
-| **Windows** x64 | [SurfSense-Setup.exe](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense-Setup.exe) |
-| **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense-arm64.dmg) |
-| **Linux** x64 | [AppImage](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense.AppImage) · [deb](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense.deb) |
+| **Windows** x64 | [SurfSense-Setup.exe](https://www.surfsense.com/downloads/windows?src=readme) |
+| **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://www.surfsense.com/downloads/mac?src=readme) |
+| **Linux** x64 | [AppImage](https://www.surfsense.com/downloads/linux-appimage?src=readme) · [deb](https://www.surfsense.com/downloads/linux-deb?src=readme) |
+| **Docker** Linux, macOS | `curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh \| bash` |
+| **Docker** Windows (Docker Desktop) | `irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 \| iex` |
 
 > [!NOTE]
-> **用过托管版 Web 应用？** 请在 2026 年 10 月 18 日之前导出你的工作区，再导入到这里。详见[下线说明页](https://www.surfsense.com/sunset)。
+> 用 Docker 在服务器上自托管，并在你网络中的任何设备上打开。再次运行同一条命令即可更新。
 
 ## 快速开始
 
@@ -65,15 +74,23 @@ SurfSense 是一款免费开源的桌面应用，专为那些不能上传的文�
 | **Excel** `.xlsx` | ✓ 智能体还会读取公式 | ✓ 带公式和原生图表 | ✓ 单元格的值和公式 | 用 pandas 分析，并把结果做成图表 |
 | **PowerPoint** `.pptx` | ✓ | ✓ 也可以用你自己的 `.pptx` 作模板 | 替换幻灯片和备注中的文字；删除或复制幻灯片 | 转为 PDF¹ |
 | **CSV** | ✓ | — | — | 用 pandas 分析，并把结果做成图表 |
-| **图像** PNG、JPEG、TIFF、BMP、WebP | ✓ 通过 OCR 识别其中的文字³ | 图像和信息图² | — | 放入新文档 |
+| **图像** PNG、JPEG、TIFF、BMP、WebP | ✓ 通过 OCR 识别其中的文字³ | 图像和信息图，可按指令编辑² | — | 放入新文档 |
 | **Markdown**、纯文本 | ✓ | ✓ Markdown | — | — |
 | **HTML** | ✓ | ✓ 网页 | — | — |
+| **电子书** EPUB、MOBI、AZW3 | ✓ 无 DRM | — | — | — |
+| **录音** WAV、MP3、FLAC、Ogg Vorbis | ✓ 在你的电脑上转写 | — | — | — |
 | **播客**（音频） | — | ✓ 附文字稿，默认在你的电脑上配音 | — | — |
 | **思维导图、记忆卡片、测验** | — | ✓ 在应用内 | — | — |
 
 <sub>¹ 需要在设置中开启 Office 支持（LibreOffice）；安装程序中从不包含它。² 需要一个图像模型，本地或远程均可；默认不选择任何模型。³ OCR 可识别拉丁字母、中文和日文。</sub>
 
 编辑、转换和 PDF 工具总是生成一个新文件，你的原文件永远不会被改动。目前 PDF、Word 和 Excel 能做的事最多，对其他格式的支持也在不断改进。
+
+## 插件
+
+在**设置 › 插件**中连接它们：来自[插件注册表](backend/plugins/registry)的 MCP 服务器，例如 DeepWiki 和 Notion，或者你通过网址添加的任意服务器。在你允许之前，它们一直保持关闭。
+
+**内置且免费：** 智能体以及来源中的**从网页添加**都通过你在 设置 › 网络 中添加的 SearXNG 服务器在网上搜索，并使用你自己的网络连接读取网页和 YouTube 文字稿，既不需要插件，也不需要许可证。
 
 ## SurfSense 与同类工具对比
 
@@ -91,18 +108,6 @@ SurfSense 是一款免费开源的桌面应用，专为那些不能上传的文�
 - **参与贡献：** PR 请提交到 `dev` 分支；开发流程见 [CONTRIBUTING.md](CONTRIBUTING.md) 和 [`surfsense_local/`](./surfsense_local)。工作原理见 [`docs/`](docs/README.md)。
 
 <a href="https://github.com/MODSetter/SurfSense/graphs/contributors"><img src="https://contrib.rocks/image?repo=MODSetter/SurfSense" alt="为 SurfSense 做出贡献的人" /></a>
-
-## Star 历史
-
-<p align="center">
-  <a href="https://www.star-history.com/#MODSetter/SurfSense&Date">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date&theme=dark" />
-      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
-      <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
-    </picture>
-  </a>
-</p>
 
 ## 许可证
 

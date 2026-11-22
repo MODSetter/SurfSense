@@ -134,6 +134,54 @@ async def test_a_scope_sent_with_a_turn_is_kept_for_the_next(
     assert threads[0]["source_scope"]["document_ids"] == [ids[1]]
 
 
+async def test_a_question_asked_while_its_sources_are_read_is_told_so(
+    client: AsyncClient, engine: Engine, real_model: object, llamacpp_server: list
+) -> None:
+    """Nothing ticked is ready to search yet, so the model is told the sources
+    are still being read, not that the knowledge base does not cover this."""
+    with create_session_factory(engine)() as session:
+        workspace = Workspace(name="w")
+        session.add(workspace)
+        session.flush()
+        library = ensure_managed_root(session, workspace.id)
+        for title in ("budget", "minutes"):
+            session.add(
+                Document(
+                    workspace_id=workspace.id,
+                    title=title,
+                    document_type=DocumentType.NOTE,
+                    content=FINANCE,
+                    folder_id=library.id,
+                )
+            )
+        session.add(
+            SelectedModel(
+                model_type=ModelType.TEXT_GEN,
+                provider="llamacpp",
+                name="Qwen3-1.7B-Q4_K_M",
+            )
+        )
+        session.commit()
+        workspace_id = workspace.id
+    thread_id = await _thread(client, workspace_id)
+
+    cited = await _cited(
+        client, thread_id, {"text": "revenue?", "source_scope": {"all": True}}
+    )
+
+    sent = next(
+        request["messages"]
+        for request in llamacpp_server
+        if request["messages"][0]["role"] == "system"
+    )
+    assert cited == set()
+    assert "still being read" in sent[0]["content"]
+    assert "knowledge base does not cover" not in sent[0]["content"]
+    assert sent[-1]["content"] == (
+        "2 selected sources are still being read.\n\nQuestion: revenue?"
+    )
+
+
 async def test_ticks_made_between_turns_are_stored_with_their_counts(
     client: AsyncClient, engine: Engine
 ) -> None:

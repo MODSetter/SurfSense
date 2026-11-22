@@ -48,13 +48,15 @@ function api(now: OfficeStatus, after: OfficeStatus = now): Call[] {
           headers: { "Content-Type": "application/x-ndjson" },
         })
       }
-      if (url.pathname.startsWith("/egress/")) {
-        return Response.json({
-          destination: OFFER.destination,
-          host: OFFER.host,
-          enabled: true,
-          last_call_at: null,
-        })
+      if (url.pathname === "/egress" && init?.method === "PUT") {
+        return Response.json([
+          {
+            destination: OFFER.destination,
+            host: OFFER.host,
+            enabled: true,
+            last_call_at: null,
+          },
+        ])
       }
       return Response.json(method === "GET" ? now : after)
     })
@@ -91,8 +93,8 @@ describe("office support settings", () => {
       expect(changes(calls)).toEqual([
         {
           method: "PUT",
-          path: `/egress/${OFFER.destination}`,
-          body: { enabled: true },
+          path: "/egress",
+          body: { destinations: [OFFER.destination], enabled: true },
         },
         { method: "POST", path: "/runtime-packs/office/install", body: null },
       ])

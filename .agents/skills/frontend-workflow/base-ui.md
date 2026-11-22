@@ -1,7 +1,7 @@
 # Base UI in the desktop frontend
 
 `surfsense_local/frontend` builds its `components/ui/` on Base UI (shadcn
-`base-nova`). `surfsense_web` is still on Radix (`new-york`): none of this
+`base-nova`). `www` is still on Radix (`new-york`): none of this
 applies there.
 
 These are the rules that compile fine and still break. Check
@@ -14,6 +14,16 @@ These are the rules that compile fine and still break. Check
   `nativeButton={false}`.
 - A link styled as a button is a real `<a>` with `buttonVariants(...)`. Base
   UI's `Button` gives whatever it renders `role="button"`.
+
+## Buttons
+
+- Every button is `Button` from `components/ui/button.tsx`; ESLint rejects a raw
+  `<button>`. An element with its own layout (a card, a stretched row link, a
+  flip surface) is `variant="bare"`: the focus ring and transition, no looks.
+- Press feedback lives only in `Button`: a 0.95 scale on every button, popup
+  triggers included, in 150ms and back over 250ms on a no-overshoot curve. A
+  wide button or a row passes `static` and presses by colour instead. No
+  `active:` scale or translate in a className; ESLint rejects that too.
 
 ## Menus
 
@@ -46,9 +56,20 @@ These are the rules that compile fine and still break. Check
   its state in a store (see `features/egress/ask-egress.ts`).
 - A nested dialog renders no backdrop. The parent dims and shrinks through
   `data-nested-dialog-open` and `--nested-dialogs`, already in the wrappers.
-- A popup inside a modal dialog (the combobox, through `container`) portals
-  into a host element within the dialog, which hides everything outside itself from
-  assistive technology.
+- Popups carry no `z-index`. `#root` has `isolation: isolate` (Base UI's
+  setup), so portals sit above the app and stack by the order they opened:
+  a nested dialog's own click blocker then covers its parent. A `z-index` on a
+  popup lifts it above that blocker and leaves the parent clickable. The
+  toaster portals to `<body>`, outside `#root`, to stay above dialogs.
+- A popup takes its default portal, inside a modal dialog too. A host element
+  within the dialog paints it by page order, under anything later that makes a
+  stacking context: a disabled button's opacity showed through the list.
+- A combobox choosing one value keeps its `ComboboxInput` inside
+  `ComboboxContent`, with `ComboboxTrigger` showing the value (shadcn's Popup
+  pattern). With the input outside, the chosen label sits in the search, and a
+  render with new `items` resets what was typed.
+- A field taking any text with suggestions is `Autocomplete`, which shares the
+  combobox's parts and keeps what is typed as its value (see `voice-field.tsx`).
 
 ## Tooltips and tabs
 

@@ -33,7 +33,11 @@ Docling 2.125, Ryzen 7 5800X, with the parser settings from
   warm disk cache and 34 s in the first frozen run we logged. This is not GPU work.
 - **Per page, 8 threads, generated corpus:** 3.0 s born-digital, 5.2 s scanned,
   6.0 s photographed. Layout is about 0.7 to 1 s a page and TableFormer about
-  2 s a table.
+  2 s a table. The born-digital figure includes the OCR stage, which changed
+  nothing on born-digital budget pages: with it off, Docling's Markdown was
+  byte-identical and 1.44 to 1.59 times as fast. A born-digital PDF whose pages
+  all pass the text-layer triage no longer reaches Docling
+  ([ADR 0059](../adr/0059-a-born-digital-pdf-is-read-from-its-text-layer.md)).
 - **Scans and photos:** OCR dominates, and within it text recognition: 3.5 s of
   4.5 s on one full-page scan. The OCR stage is one thread and does not overlap
   pages.

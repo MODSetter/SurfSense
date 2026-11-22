@@ -188,5 +188,16 @@
     ],
     "supporting": [4],
     "facts": ["tagus-harbour-77"]
+  },
+  {
+    "id": "still-reading-general",
+    "question": "What is the capital of Australia?",
+    "indexing": 2,
+    "facts": ["Canberra"]
+  },
+  {
+    "id": "still-reading-own-docs",
+    "question": "What deposit does my new lease ask for?",
+    "indexing": 1
   }
 ]

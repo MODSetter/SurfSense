@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query"
-import { useId, useState, type FormEvent } from "react"
+import { useId, useState, type SubmitEvent } from "react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -65,7 +65,7 @@ export function NoteEditorDialog({
 
   const cleanTitle = cleanSourceTitle(title)
 
-  const submit = async (event: FormEvent) => {
+  const submit = async (event: SubmitEvent) => {
     event.preventDefault()
     if (!cleanTitle) return
     setSaving(true)

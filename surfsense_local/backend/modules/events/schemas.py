@@ -12,6 +12,14 @@ class EventKind(enum.StrEnum):
     FOLDERS = "folders"
 
 
+class Progress(BaseModel):
+    """How far a row's long job has come, in seconds of its media: a
+    recording's transcription."""
+
+    done_s: float
+    total_s: float
+
+
 class InternalEvent(BaseModel):
     """A notice that some rows changed, fanned out as one SSE event.
 
@@ -22,3 +30,6 @@ class InternalEvent(BaseModel):
     kind: EventKind
     ids: list[int]
     status: str
+    # Sent once per step of a long job and never stored, like chat's
+    # prompt-progress frame; a late listener reads the row instead.
+    progress: Progress | None = None

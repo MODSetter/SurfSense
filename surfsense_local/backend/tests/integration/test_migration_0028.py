@@ -30,10 +30,9 @@ def _connect_plugin(engine: Engine, failure: str) -> None:
         connection.execute(
             text(
                 "INSERT INTO installed_plugins"
-                "(id, kind, source, url, publisher, entry, enabled, check_failure) "
+                "(id, kind, source, url, entry, enabled, check_failure) "
                 "VALUES ('reddit', 'remote', 'first_party', "
-                "'https://plugins.surfsense.com/reddit/mcp', 'surfsense', '{}', 1, "
-                ":failure)"
+                "'https://plugins.surfsense.com/reddit/mcp', '{}', 1, :failure)"
             ),
             {"failure": failure},
         )

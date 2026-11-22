@@ -5,7 +5,7 @@ import { intl } from "@/i18n/intl"
 
 /**
  * The other way in, kept to one line under the local list. Servers connected
- * earlier, even on the step before, are named so they are reused, not re-added.
+ * earlier are named so they are reused, not re-added.
  */
 export function ServerOption({
   connections,
@@ -21,7 +21,7 @@ export function ServerOption({
         id: "onboarding_server_option_aria",
         defaultMessage: "Use a server",
       })}
-      className="flex items-center justify-between gap-4 pb-1"
+      className="flex items-center justify-between gap-4"
     >
       <div className="min-w-0">
         <h3 className="flex items-center gap-2 text-sm font-medium">

@@ -68,11 +68,28 @@ def test_the_window_never_drops_below_the_floor() -> None:
     assert plan.verdict.state is FitState.PARTIAL
 
 
-def test_the_window_never_exceeds_what_the_model_was_trained_for() -> None:
-    """Capped at the model's own context_length, however much memory there is."""
+def test_the_window_stops_at_the_top_rung_however_much_memory_there_is() -> None:
+    """The cache is allocated whole at load; past Agentic's 32,768 it buys nothing
+    the app uses, and on Windows even graphics memory counts against the page file."""
     plan = plan_load(QWEN3_1_7B, 1050 * MIB, budget(64000))
 
-    assert plan.n_ctx == QWEN3_1_7B.context_length
+    assert plan.n_ctx == CONTEXT_RUNGS[-1] == 32768
+
+
+def test_a_model_trained_between_two_rungs_keeps_its_trained_length() -> None:
+    """The cap is the top rung, not the nearest one: 12,288 stays 12,288."""
+    trained_12k = ModelShape("llama", 30, 3, 64, 64, 12288, 49152)
+
+    plan = plan_load(trained_12k, 100 * MIB, budget(64000))
+
+    assert plan.n_ctx == 12288
+
+
+def test_a_long_context_model_on_a_big_card_widens_no_further_than_the_top_rung() -> None:
+    """Trained to 131,072, it would otherwise take 2.4 GiB more on a 24 GB card."""
+    plan = plan_load(GEMMA_LIKE, 2500 * MIB, card(24000))
+
+    assert plan.n_ctx == 32768
 
 
 def test_a_roomy_machine_widens_the_window_rather_than_leaving_it_at_the_floor() -> None:

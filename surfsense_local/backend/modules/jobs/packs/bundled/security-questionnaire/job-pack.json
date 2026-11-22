@@ -1,0 +1,32 @@
+{
+  "schema": "surfsense-job-pack/1",
+  "id": "surfsense-security-questionnaire",
+  "version": "0.4.4",
+  "name": "Security questionnaire",
+  "publisher": "SurfSense",
+  "description": "Fills in a client's security questionnaire workbook from your firm's own policies, with a source and quote for every answer.",
+  "access": "paid",
+  "license_file": "LICENSE.md",
+  "jobs": [
+    {
+      "key": "security-questionnaire",
+      "name": "Security questionnaire",
+      "description": "Fill in a security or due-diligence questionnaire workbook from the firm's own policies.",
+      "runner": "workbook-rows/1",
+      "config": "jobs/security-questionnaire/job.json",
+      "skill": "skills/surfsense-job-security-questionnaire",
+      "entitlement": "JOB_QUESTIONNAIRE"
+    }
+  ],
+  "files": {
+    "jobs/security-questionnaire/job.json": "fbe805540073f9086673c97378e74eecc25d57ce8a0d9e9c933cec0c9dae783e",
+    "jobs/security-questionnaire/prompts/question.md": "0bc39b917fbb609f11d7496b4b3988d0e26cdbd232244240b9465191c72bea52",
+    "jobs/security-questionnaire/prompts/repair.md": "9058d18279e87c6c208a3d43f7e4407e8c91f556445d8d643342afb9bfd654d1",
+    "jobs/security-questionnaire/prompts/second_look.md": "7ae401f8c64a1b2b43185bbdb8eae3927b81568b6628399fccc681f1bfe6c83a",
+    "jobs/security-questionnaire/prompts/suggestion_check.md": "1e314505c3fba5caf04befdfc9a49cb57d99f234c37412accbea527520896be1",
+    "jobs/security-questionnaire/prompts/system.md": "be47e48024bef296ce718bbbb29b074049984fae9a4e5dd3f74474d245b21b46",
+    "jobs/security-questionnaire/prompts/verify.md": "48641943e7068eaee34806e3c1378a9f193fd3a5ec9041fd74585414ade519df",
+    "LICENSE.md": "d01e6dcea9278c0da752ae8b1ac1852ab7487c87c2665f2b66523866395c3d8b",
+    "skills/surfsense-job-security-questionnaire/SKILL.md": "5560332b7646b833b6394bc46f7e6f586bc1b0f38a1d895c6c6ec885965d34cd"
+  }
+}

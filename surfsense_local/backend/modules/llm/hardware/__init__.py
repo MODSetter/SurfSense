@@ -9,7 +9,7 @@ from modules.llm.hardware.devices import Device, DeviceType
 from modules.llm.hardware.gpu_status import GpuStatus, classify
 from modules.llm.hardware.inventory import SystemInventory, system_inventory
 from modules.llm.hardware.libraries import GgmlLibraries, load
-from modules.llm.hardware.os_gpu import os_reports_gpu
+from modules.llm.hardware.os_gpu import os_adapter_names, os_reports_gpu
 from modules.llm.hardware.probe import probe_devices_in_process
 from modules.llm.hardware.probe_subprocess import probe_devices
 from modules.llm.hardware.selection import select_device
@@ -30,6 +30,7 @@ __all__ = [
     "encode_line",
     "fit_target_mib",
     "load",
+    "os_adapter_names",
     "os_reports_gpu",
     "probe_devices",
     "probe_devices_in_process",

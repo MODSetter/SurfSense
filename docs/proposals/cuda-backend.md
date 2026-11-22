@@ -1,7 +1,7 @@
 ---
 status: deferred
 code:
-  - surfsense_local/electron/scripts/fetch-llamacpp.mjs
+  - surfsense_local/runtimes/fetch-llamacpp.mjs
   - surfsense_local/electron/electron-builder.yml
 ---
 

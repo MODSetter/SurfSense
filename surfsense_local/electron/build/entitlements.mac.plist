@@ -21,5 +21,10 @@
     <true/>
     <key>com.apple.security.network.server</key>
     <true/>
+
+    <!-- Speech recognition: the hardened runtime refuses the microphone without
+         it, and askForMediaAccess can crash the app. The helpers inherit it. -->
+    <key>com.apple.security.device.audio-input</key>
+    <true/>
 </dict>
 </plist>
