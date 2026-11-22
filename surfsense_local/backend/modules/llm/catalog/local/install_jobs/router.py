@@ -59,7 +59,9 @@ async def start_install(
     plan = service.resolve_install(payload.catalog_id)
     if plan is None:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, STALE_ID)
-    await transact(session, egress.require, egress.HUGGINGFACE)
+    if plan.in_place is None:
+        # A model used where another app keeps it reaches no host at all.
+        await transact(session, egress.require, egress.HUGGINGFACE)
 
     label, model_types = describe_install(service, payload.catalog_id, plan)
     session_factory = request.app.state.session_factory

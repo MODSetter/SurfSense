@@ -197,6 +197,18 @@ def row_read(row: LocalRow, in_use: Mapping[str, list[ModelType]]) -> dict:
             if row.transcription
             else None
         ),
+        "found_in": (
+            {
+                "app": row.found_in.app,
+                "path": row.found_in.path,
+                "source": row.found_in.source,
+                "architecture": row.found_in.architecture,
+                "parameters": row.found_in.parameters,
+                "quantization": row.found_in.quantization,
+            }
+            if row.found_in
+            else None
+        ),
     }
 
 

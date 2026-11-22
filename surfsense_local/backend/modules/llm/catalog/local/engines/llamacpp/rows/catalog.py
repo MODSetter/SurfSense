@@ -169,6 +169,10 @@ def _installed_as(
     """This build as it sits on disk, or None."""
     basename = build.weights.path.rsplit("/", 1)[-1]
     for d in downloaded:
+        if d.found_in is not None:
+            # Another app's file keeps its own row: it was not downloaded, and
+            # removing it from SurfSense must never read as deleting a build.
+            continue
         record = d.record
         if record is not None:
             # An unfinished record is not an install: its row keeps offering
@@ -203,14 +207,18 @@ def _downloaded_row(d: DownloadedModel, budget: HardwareBudget) -> LocalRow:
                 gguf=d.projector_kv,
             ),
         )
-    quantization = (
-        d.record.quantization if d.record else quantization_label(d.path.name)
-    )
+    if d.found_in is not None:
+        quantization = d.found_in.quantization
+    elif d.record:
+        quantization = d.record.quantization
+    else:
+        quantization = quantization_label(d.path.name)
     tools, reasoning = template_support(d.template)
     return LocalRow(
         id=d.model_id,
-        origin=Origin.DOWNLOADED,
-        name=d.model_id,
+        origin=Origin.ELSEWHERE if d.found_in else Origin.DOWNLOADED,
+        name=d.found_in.name if d.found_in else d.model_id,
+        found_in=d.found_in,
         family="",
         classification=d.classification,
         support=LocalSupport(

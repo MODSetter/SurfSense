@@ -28,6 +28,7 @@ from modules.llm.capability import capability_of
 from modules.llm.capability.modes.router import router as modes_router
 from modules.llm.capability.read import capability_read
 from modules.llm.catalog.local.dependencies import LocalCatalogDep
+from modules.llm.catalog.local.elsewhere_router import router as elsewhere_router
 from modules.llm.catalog.local.engines.engine import LocalEngine
 from modules.llm.catalog.local.install_jobs.router import router as install_jobs_router
 from modules.llm.catalog.local.router import router as local_catalog_router
@@ -68,6 +69,7 @@ from shared.config import get_llm_settings
 
 router = APIRouter(prefix="/llm", tags=["llm"])
 router.include_router(local_catalog_router)
+router.include_router(elsewhere_router)
 router.include_router(install_jobs_router)
 router.include_router(remote_catalog_router)
 # Before the connections router, so `chatgpt` and `claude` are never read as
