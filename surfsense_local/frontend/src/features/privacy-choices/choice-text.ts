@@ -8,12 +8,12 @@ import type { PrivacyState } from "@/lib/api"
 export type ChoiceText = { summary: string; details: string; label: string }
 
 export function updatesText(state: PrivacyState): ChoiceText {
-  const { host, fallbackHost } = state.updates
+  const { host, mirror } = state.updates
   const label = intl.formatMessage({
     id: "privacy_choices_updates_details_aria",
     defaultMessage: "What an update check sends",
   })
-  if (!fallbackHost)
+  if (mirror)
     return {
       label,
       summary: intl.formatMessage({
@@ -40,7 +40,7 @@ export function updatesText(state: PrivacyState): ChoiceText {
       {
         id: "privacy_choices_updates_details_body",
         defaultMessage:
-          "Once a day, SurfSense asks {host} for a newer version, sending your IP address, the app’s version and your system, but no ID. If that fails, github.com sees only your IP address and operating system. Updates download from github.com and githubusercontent.com and install when you quit.",
+          "Once a day, SurfSense asks {host} for a newer version, sending only your IP address, the app’s name and your operating system, and no ID. Updates download from github.com and githubusercontent.com and install when you quit.",
       },
       { host }
     ),

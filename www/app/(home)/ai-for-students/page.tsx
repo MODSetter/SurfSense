@@ -90,7 +90,7 @@ const QUESTIONS: AudienceQuestion[] = [
 export default function AiForStudentsPage() {
 	return (
 		<>
-			<JsonLd data={audiencePageSchema(PAGE, undefined, "EducationalApplication")} />
+			<JsonLd data={audiencePageSchema(PAGE, "EducationalApplication")} />
 
 			<AudienceHero
 				badge="AI for students"

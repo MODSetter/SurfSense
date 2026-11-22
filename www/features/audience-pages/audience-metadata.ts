@@ -43,22 +43,12 @@ export function audiencePageMetadata(page: AudiencePageMeta): Metadata {
 	};
 }
 
-/**
- * `SoftwareApplication` for the free app, as the homepage states it, with the Business offer
- * beside it on a page that sells a job.
- */
+/** `SoftwareApplication` for the free app, as the homepage states it. */
 export function audiencePageSchema(
 	page: Pick<AudiencePageMeta, "path" | "description">,
-	business?: { price: number; checkoutPath: string },
 	/** `EducationalApplication` on the study pages. */
 	category = "BusinessApplication"
 ) {
-	const free = {
-		"@type": "Offer",
-		name: "Free",
-		price: 0,
-		priceCurrency: "USD",
-	};
 	return {
 		"@context": "https://schema.org",
 		"@type": "SoftwareApplication",
@@ -67,17 +57,11 @@ export function audiencePageSchema(
 		operatingSystem: "Windows, macOS, Linux",
 		description: page.description,
 		url: `${SITE}${page.path}`,
-		offers: business
-			? [
-					free,
-					{
-						"@type": "Offer",
-						name: "Business",
-						price: business.price,
-						priceCurrency: "USD",
-						url: `${SITE}${business.checkoutPath}`,
-					},
-				]
-			: free,
+		offers: {
+			"@type": "Offer",
+			name: "Free",
+			price: 0,
+			priceCurrency: "USD",
+		},
 	};
 }

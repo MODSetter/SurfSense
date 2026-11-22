@@ -11,14 +11,14 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Discord](https://img.shields.io/discord/1359368468260192417?label=Discord)](https://discord.gg/ejRNvftDp9)
 
-  <a href="https://www.surfsense.com/"><img alt="SurfSense，可物理隔离运行的开源 NotebookLM 替代品" src="www/public/homepage/banner.png" /></a>
+  <a href="https://www.surfsense.com/"><img alt="SurfSense，可物理隔离运行、面向机密文档的私有 AI" src="www/public/homepage/banner.png" /></a>
 
   <h1>SurfSense</h1>
 
   <p>
-    <b>可物理隔离运行的开源 NotebookLM 替代品。</b>
+    <b>可物理隔离运行、面向机密文档的私有 AI。</b>
     <br />
-    在你自己的电脑上研究、转换和编辑文档的 AI 智能体。
+    在你自己的电脑上运行的开源 NotebookLM 替代品。
   </p>
 
   <p>
@@ -46,7 +46,7 @@ https://github.com/user-attachments/assets/88326b9d-e763-46db-9635-75f9df9e8682
 
 https://github.com/user-attachments/assets/073577b7-f055-4f59-8540-330bd764aeb0
 
-SurfSense 是一款免费开源的桌面应用，专为那些不能上传的文档而做。它是一个注重隐私、类似 NotebookLM 的 AI 智能体，在你自己的电脑上研究、转换和编辑你的文档。索引留在你的硬盘里，模型由你来选，本地或远程都可以，而且不需要账号。
+SurfSense 是一款免费开源的桌面应用，专为机密文档而做。它是一个私有的、类似 NotebookLM 的 AI 智能体，在你自己的电脑上研究、转换和编辑你的文档。索引留在你的硬盘里，模型由你来选，本地或远程都可以，而且不需要账号。
 
 | 平台 | 下载 |
 |---|---|
@@ -90,7 +90,7 @@ SurfSense 是一款免费开源的桌面应用，专为那些不能上传的文�
 
 在**设置 › 插件**中连接它们：来自[插件注册表](backend/plugins/registry)的 MCP 服务器，例如 DeepWiki 和 Notion，或者你通过网址添加的任意服务器。在你允许之前，它们一直保持关闭。
 
-**内置且免费：** 智能体以及来源中的**从网页添加**都通过 SearXNG 在网上搜索，并使用你自己的网络连接读取网页和 YouTube 文字稿，既不需要插件，也不需要许可证。
+**内置且免费：** 智能体以及来源中的**从网页添加**都通过你在 设置 › 网络 中添加的 SearXNG 服务器在网上搜索，并使用你自己的网络连接读取网页和 YouTube 文字稿，既不需要插件，也不需要许可证。
 
 ## SurfSense 与同类工具对比
 

@@ -67,9 +67,9 @@ export default async function PluginsPage() {
 					</span>
 				</h1>
 				<p className={cn(siteText.lede, "mt-6 max-w-2xl")}>{lede}</p>
-				{/* The paid jobs are plugins too, but each has a page of its own; point there. */}
+				{/* The jobs are plugins too, but each has a page of its own; point there. */}
 				<p className={cn(siteText.body, "mt-4 max-w-2xl text-sm")}>
-					Looking for the paid jobs? The{" "}
+					Looking for the jobs? The{" "}
 					<Link className={siteText.link} href={CONTRACT_REDLINE_URL}>
 						contract redline
 					</Link>{" "}
@@ -77,7 +77,7 @@ export default async function PluginsPage() {
 					<Link className={siteText.link} href={SECURITY_QUESTIONNAIRE_URL}>
 						security questionnaire
 					</Link>{" "}
-					are job plugins that come with Business.
+					are job plugins built into the app, free like the rest of it.
 				</p>
 				<PluginBrowser registryPlugins={listed} submitUrl={submitUrl} docsUrl={registryUrl} />
 			</section>

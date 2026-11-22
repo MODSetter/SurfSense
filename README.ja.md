@@ -11,14 +11,14 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Discord](https://img.shields.io/discord/1359368468260192417?label=Discord)](https://discord.gg/ejRNvftDp9)
 
-  <a href="https://www.surfsense.com/"><img alt="SurfSense。ネットワークから切り離して使える、オープンソースの NotebookLM 代替" src="www/public/homepage/banner.png" /></a>
+  <a href="https://www.surfsense.com/"><img alt="SurfSense。ネットワークから切り離して使える、機密文書のためのプライベート AI" src="www/public/homepage/banner.png" /></a>
 
   <h1>SurfSense</h1>
 
   <p>
-    <b>ネットワークから切り離して使える、オープンソースの NotebookLM 代替。</b>
+    <b>ネットワークから切り離して使える、機密文書のためのプライベート AI。</b>
     <br />
-    自分のマシン上で、手元の文書を調査し、変換し、編集する AI エージェント。
+    自分のコンピューターで動く、オープンソースの NotebookLM 代替。
   </p>
 
   <p>
@@ -46,7 +46,7 @@ https://github.com/user-attachments/assets/88326b9d-e763-46db-9635-75f9df9e8682
 
 https://github.com/user-attachments/assets/073577b7-f055-4f59-8540-330bd764aeb0
 
-SurfSense は、アップロードできない文書のための、無料のオープンソース・デスクトップアプリです。プライバシーを重視した NotebookLM のような AI エージェントが、手元の文書を自分のマシン上で調査し、変換し、編集します。索引は自分のディスクに残り、モデルはローカルでもリモートでも自分で選べます。アカウントも要りません。
+SurfSense は、機密文書のための、無料のオープンソース・デスクトップアプリです。NotebookLM のようなプライベートな AI エージェントが、手元の文書を自分のマシン上で調査し、変換し、編集します。索引は自分のディスクに残り、モデルはローカルでもリモートでも自分で選べます。アカウントも要りません。
 
 | プラットフォーム | ダウンロード |
 |---|---|
@@ -90,7 +90,7 @@ SurfSense は、アップロードできない文書のための、無料のオ�
 
 **設定 › プラグイン**で、[プラグインレジストリ](backend/plugins/registry)にある DeepWiki や Notion などの MCP サーバーや、URL を指定して自分で追加したサーバーを接続します。許可するまではオフのままです。
 
-**標準搭載・無料：** エージェントも、ソースにある**ウェブから追加**も、SearXNG を通じてウェブを検索し、自分のインターネット接続でページと YouTube の文字起こしを読み取ります。プラグインもライセンスも不要です。
+**標準搭載・無料：** エージェントも、ソースにある**ウェブから追加**も、設定 › ネットワーク で追加した SearXNG サーバーを通じてウェブを検索し、自分のインターネット接続でページと YouTube の文字起こしを読み取ります。プラグインもライセンスも不要です。
 
 ## SurfSenseの比較
 

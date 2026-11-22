@@ -129,7 +129,7 @@ and do not attempt to defeat the check. Each job plugin shows the name of the or
 its licence was issued to.
 
 **5.10 Feature build request (n).** A Business licence includes one feature build request
-per licence year. Send it by email to rohan@surfsense.com from the address the licence is
+per licence year. Send it by email to vermarohanfinal@gmail.com from the address the licence is
 registered to. We reply within 5 business days with yes or no and, for a yes, the scope we
 would build. A request that fits about a week of engineering work and the direction of the
 product goes to the top of our queue and ships in the open source application for everyone.

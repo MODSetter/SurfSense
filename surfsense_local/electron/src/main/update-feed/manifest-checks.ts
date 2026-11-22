@@ -1,9 +1,6 @@
-import { githubReleaseDownload } from "./feed-addresses.ts"
-
-// What the updates.surfsense.com route may name, as it validates it too. A
-// manifest outside these is never used: the check falls back to GitHub.
+// What a signed manifest must still hold before electron-updater acts on it. The
+// signature says SurfSense wrote it; these say it is one electron-updater can use.
 const RELEASE_VERSION = /^\d+\.\d+\.\d+$/
-const RELEASE_FILE = /^SurfSense[-A-Za-z0-9._]*\.(exe|zip|dmg|AppImage|deb|rpm)$/
 
 type Manifest = Record<string, unknown>
 
@@ -34,28 +31,7 @@ function hasFiles(manifest: Manifest): boolean {
   return Array.isArray(manifest.files) && manifest.files.length > 0
 }
 
-/** Why our feed's manifest is unusable, or null when it names only this version's GitHub release files. */
-export function feedManifestProblem(value: unknown): string | null {
-  const manifest = asManifest(value)
-  if (manifest === null) return "not a manifest"
-  const version = releaseVersion(manifest)
-  if (version === null) return "no release version"
-  const files = hasFiles(manifest) ? (manifest.files as unknown[]) : []
-  // The route passes sha512 through untouched, so a file without one was mangled.
-  if (!files.length || files.some((file) => typeof asManifest(file)?.sha512 !== "string")) {
-    return "no files"
-  }
-  const prefix = githubReleaseDownload(version)
-  const outside = addresses(manifest).some(
-    (address) =>
-      typeof address !== "string" ||
-      !address.startsWith(prefix) ||
-      !RELEASE_FILE.test(address.slice(prefix.length))
-  )
-  return outside ? "a file outside the GitHub release" : null
-}
-
-/** GitHub's own manifest is the source of truth, so only its shape is checked. */
+/** Why GitHub's manifest is unusable, or null: a release version and at least one file. */
 export function githubManifestProblem(value: unknown): string | null {
   const manifest = asManifest(value)
   if (manifest === null) return "not a manifest"

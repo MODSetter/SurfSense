@@ -7,7 +7,6 @@ import { EMAIL, REPO_URL } from "@/components/site/site-content";
  * are: the sections are layout, this is the thing that actually gets edited.
  */
 
-export const CALL_URL = "https://cal.com/mod-rohan";
 export const DISCORD_URL = "https://discord.gg/ejRNvftDp9";
 export const ISSUES_URL = `${REPO_URL}/issues`;
 export const DISCUSSIONS_URL = `${REPO_URL}/discussions`;
@@ -22,21 +21,15 @@ export type Channel = {
 };
 
 /**
- * Four ways in, ordered by how much of our time they ask for. A bug report
- * routed to a sales call helps nobody, so each cell says plainly what it is
+ * Three ways in. SurfSense is free and kept up by its creator as a side project, so there
+ * are no licences, sales calls or procurement to route; each cell says plainly what it is
  * for rather than leaving the visitor to guess which address to use.
  */
 export const CHANNELS: Channel[] = [
 	{
-		eyebrow: "Licences and rollouts",
-		title: "Book a call",
-		body: "Thirty minutes with the person who builds it. Best for team licences, procurement questions and deciding whether SurfSense fits how your team already works.",
-		action: { label: "Find a time", href: CALL_URL, external: true },
-	},
-	{
 		eyebrow: "Anything else",
 		title: "Send an email",
-		body: "Licence keys, invoices, partnerships, press, or a question that does not fit anywhere else. We read every message and usually reply within one business day.",
+		body: "Privacy requests, security reports, press, or a question that does not fit anywhere else. Every message is read, though a reply can take a few days.",
 		action: { label: EMAIL, href: `mailto:${EMAIL}` },
 	},
 	{

@@ -13,44 +13,21 @@ A job does paperwork from your firm's own documents:
 
 Each run makes a revised copy of your file in [Studio](/docs/v2/studio). Your own file is never changed.
 
-Step-by-step guides, with videos: [Start a trial and add your license](/docs/v2/guides/business-trial), [Fill in a security questionnaire from your policies](/docs/v2/guides/security-questionnaire) and [Redline a contract against your playbook](/docs/v2/guides/contract-redline).
+Step-by-step guides, with videos: [Fill in a security questionnaire from your policies](/docs/v2/guides/security-questionnaire) and [Redline a contract against your playbook](/docs/v2/guides/contract-redline).
 
 ## What you need
 
-Jobs come with a SurfSense Business license, and with its free 14-day trial. See [pricing](/pricing), and [License](/docs/v2/license) to add yours.
+Jobs are part of the free app, from SurfSense 2.4.0. They need no license, account or trial. On an older version, [update SurfSense](/docs/v2/updates) first.
 
 A job answers with the chat model selected in Settings. A model that runs on your computer keeps your documents on it, but it is usually smaller and leaves more questions for a person to answer.
 
 ## Open Jobs
 
-Click **Jobs** in the left sidebar, below **Plugins**. Each job has a row. When your license is what stops a job, Jobs says so once, in a box above the jobs, and marks each job it stops: **Business** for a job your license doesn't include, **Locked** for the rest. A job that is ready shows **Run**; one your license includes but that isn't downloaded yet offers **Download** on its own row:
-
-| When | The row says | Buttons |
-|---|---|---|
-| The job is on this computer and your license includes it | The job's version | **Run**, **Settings** |
-| Your license includes the job, but it isn't downloaded yet | "Your license includes this job. Download it to run it on this computer." | **Download**, **Import pack file**, **Contact support** |
-| You have no license | "Jobs come with a SurfSense Business license. Try it free for 14 days." | **Start 14-day trial**, **See pricing**, **Add license** |
-| A trial license that doesn't include the job | "Your license doesn’t include the job marked Business. Jobs come with a Business license, which you can try free for 14 days." | **Start 14-day trial**, **See pricing**, **Replace license** |
-| Another plan, such as Individual or Team | "Your Individual license doesn’t include the job marked Business: jobs come with Business. If your license has moved to Business, Check for renewal fetches its new file." | **Check for renewal**, **See pricing** |
-| Your 14-day trial has ended | "Your 14-day trial has ended. To keep running jobs, buy a Business license, then replace the trial’s license with the one we email you." | **See pricing**, **Replace license** |
-| Your license has ended | "Your license has ended, so the job marked Locked can’t run. If it was renewed, Check for renewal fetches the new file." | **Check for renewal**, **See pricing** |
-| Your computer's clock is behind | "This computer’s clock is behind the last time SurfSense ran. Set the clock right to run the job marked Locked." | None. Set the clock right, and the jobs run again. |
-
-**Start 14-day trial** opens the [downloads page](/downloads), where you ask for the trial by email. **See pricing** opens [pricing](/pricing), and **Contact support** the [contact page](/contact). **Add license** and **Replace license** open Settings › License.
+Click **Jobs** in the left sidebar, below **Plugins**. Each job has a row with **Run** and **Settings**.
 
 ## Get the job
 
-When you add or replace a license that includes jobs, SurfSense downloads them from its license server, `api.surfsense.com`. The first time, SurfSense asks "Allow downloading your jobs?": choose **Allow**. If you chose **Cancel**, choose **Download** on the job's row when you're ready.
-
-After that, SurfSense keeps the job up to date. It checks for a newer version each time it starts and once a day, and after you choose **Check for renewal**. To check now, open Settings › License and choose **Check for updates** under **Jobs on this computer**, which lists each job your license includes with its version, or "Not downloaded yet".
-
-SurfSense never replaces a job while a run of it is under way. If a check comes during a run, SurfSense checks again on its own once the run ends.
-
-### Without internet
-
-No internet on this computer? Choose **Contact support** and ask SurfSense support for the job pack file. Then choose **Import pack file**, on the job's row in Jobs or in Settings › License, and pick the `.zip` file. Importing sends nothing.
-
-SurfSense installs a job pack only if SurfSense signed it, and never one older than the version you have.
+The jobs come with SurfSense, so there is nothing to download or add: SurfSense installs them itself when it starts. A newer version of a job comes with a newer version of SurfSense.
 
 ## Run a job
 
@@ -160,52 +137,12 @@ For a contract, tick it and your playbook, and ask the agent to review the contr
 
 A **Basic (Q&A)** chat can't run jobs. Use **Jobs** in the sidebar instead.
 
-## When your license ends
+## On an older version
 
-When your license ends, its jobs stop running, and Jobs says why above them. Everything a job made stays in Studio. The job stays on your computer too, so it runs again once a license includes it.
-
-- A Business license ends 30 days after the year you paid for, and Settings › License shows **Expires** with the date. If it was renewed, **Check for renewal** fetches the new file.
-- When your 14-day trial ends, buy a Business license with **See pricing**, then add the license we email you with **Replace license**.
-
-## If a job won't download
-
-| If SurfSense says | What to do |
-|---|---|
-| SurfSense didn’t contact its license server, api.surfsense.com. Try again and choose Allow, or allow it in Settings › Network. | You chose **Cancel** when SurfSense asked. Choose **Download** or **Check for updates** again, then **Allow**, or tick **License server** in Settings › Network. |
-| Add a license that includes jobs first. | Add your Business license in Settings › License. SurfSense then downloads its jobs. |
-| Your license has ended, or this computer’s clock is behind, so no job can be downloaded. | Open Settings › License. If your license has ended, see [When your license ends](#when-your-license-ends). If the clock is behind, set it right, then try again. |
-| Your license includes no jobs to download. | Check that Settings › License shows your Business license, with Security questionnaire among its jobs. |
-| Security questionnaire needs a newer version of SurfSense. Update the app, then download it again. | [Update SurfSense](/docs/v2/updates), then choose **Download**. |
-| SurfSense’s license server didn’t accept this license, so it sent nothing. Check for renewal in Settings › License, or contact SurfSense support. | Check that Settings › License shows the license you bought. A refunded license gets no jobs. Get help from [surfsense.com/license](/license). |
-| Your license doesn’t include Security questionnaire. | Check that Settings › License shows your Business license, with Security questionnaire among its jobs. |
-| Security questionnaire comes only in a pack with a job your license doesn’t include, so SurfSense’s license server sent nothing. Contact SurfSense support. | Choose **Contact support** under **Jobs on this computer** in Settings › License, and say which job it is. |
-| Your license has changed on SurfSense’s license server. Check for renewal in Settings › License, then download Security questionnaire again. | Choose **Check for renewal** in Settings › License. SurfSense fetches the latest file of your license, then downloads the job again. |
-| SurfSense’s license server has no license with this key. | Get a fresh copy of your license from [surfsense.com/license](/license). |
-| SurfSense’s license server has no download for Security questionnaire. | Choose **Contact support** under **Jobs on this computer** in Settings › License, and say which job it is. |
-| Jobs were downloaded too often with this license. Try again in an hour. | Wait an hour, then try again. |
-| SurfSense’s license server couldn’t send Security questionnaire. Try again later. | Try again later, or ask support for the job pack file and import it. |
-| The download of Security questionnaire didn’t pass SurfSense’s checks, so it wasn’t installed. | [Update SurfSense](/docs/v2/updates), then try again. If SurfSense says this again, choose **Contact support** under **Jobs on this computer** in Settings › License. |
-| SurfSense couldn’t save Security questionnaire on this computer. Check that the disk has room, then try again. | Free some space on the disk, then choose **Download** again. |
-| A run of Security questionnaire was under way, so any newer version waits. SurfSense checks again once the run ends. | Nothing to do: SurfSense checks again on its own once the run ends, as long as **License server** stays ticked in Settings › Network. If you untick it before then, choose **Check for updates** in Settings › License once the run ends, then **Allow**. |
-| A run of Security questionnaire was under way, so any newer version waits until the run ends. | Nothing to do: SurfSense checks again on its own once the run ends, as long as **License server** stays ticked in Settings › Network. If you untick it before then, choose **Check for updates** in Settings › License once the run ends, then **Allow**. |
-| Security questionnaire comes in the same pack as a job whose run was under way, so it waits. SurfSense tries again once the run ends. | Nothing to do: SurfSense tries again on its own once the run ends, as long as **License server** stays ticked in Settings › Network. If you untick it before then, choose **Download** once the run ends, then **Allow**. |
-| Security questionnaire comes in the same pack as a job whose run was under way, so it waits until the run ends. | Nothing to do: SurfSense tries again on its own once the run ends, as long as **License server** stays ticked in Settings › Network. If you untick it before then, choose **Download** in Settings › License once the run ends, then **Allow**. |
-
-### If a pack file won't import
-
-| If SurfSense says | What to do |
-|---|---|
-| This file isn’t a SurfSense job pack. Choose the job pack’s .zip file. | Choose the `.zip` file that support sent you. |
-| This file is larger than a job pack can be (50 MB). | Choose the `.zip` file that support sent you. |
-| This job pack was changed after SurfSense signed it, or SurfSense didn’t sign it, so it can’t be used. | Ask support for the file again. |
-| This job pack needs a newer version of SurfSense. Update the app, then import it again. | [Update SurfSense](/docs/v2/updates), then import the file again. |
-| A newer version of this job is already installed. | Nothing to do: you already have a newer version. |
-| A different copy of this version is already installed. Import a newer version instead. | Ask support for a newer version of the job pack file, then import it. |
-| A run of this job is still going. Import the pack once it finishes. | Wait for the run to end, then import the file again. |
-| SurfSense couldn’t save the pack on this computer. Check that the disk has room, then try again. | Free some space on the disk, then import the file again. |
+Versions before 2.4.0 needed a SurfSense Business license or its trial for jobs, and downloaded them from SurfSense's license server, which closed on 27 November 2026. If an older version says a job needs a license, can't be downloaded, or that the license server didn't answer, [update SurfSense](/docs/v2/updates) to 2.4.0 or later. Everything a job made stays in Studio.
 
 ## What jobs send
 
-Getting a job sends SurfSense's license server, `api.surfsense.com`, your license key, the job's code, the version you already have and the kinds of job your version of SurfSense can run, with your IP address. Nothing is sent until you allow it, and you can untick **License server** in Settings › Network at any time. Importing a pack file sends nothing.
+The jobs come with the app, so getting them sends nothing.
 
 Running a job sends SurfSense nothing. Your documents are read on your computer, and go only to the models you chose for the job, the one that answers and the one that checks, when they don't run on your computer. See [privacy](/docs/v2/privacy).

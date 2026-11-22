@@ -20,6 +20,7 @@
 			"!!blob-report",
 			"!!playwright/.auth",
 			"!app/(home)/plugins/first-party-plugins.json",
+			"!static-hosts/public",
 			"!**/*.svg"
 		],
 		"maxSize": 1048576

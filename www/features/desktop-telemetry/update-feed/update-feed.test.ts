@@ -123,6 +123,26 @@ test("stagingPercentage passes through untouched", async () => {
 	assert.match(body, /\nstagingPercentage: 25\n$/);
 });
 
+// From 2.4.0 on, each release also publishes frozen stable.yml and stable-mac.yml: 2.4.0's
+// files with a tag line, so older apps go to 2.4.0 before anything newer.
+const FROZEN = `tag: v2.2.3\n${fixture("stable.yml")}`;
+
+test("a frozen manifest's tag line, its own version, passes through with the files pinned", async () => {
+	const { response, body } = await check("stable.yml", FROZEN);
+	assert.equal(response.status, 200);
+	const lines = body.trimEnd().split("\n");
+	assert.equal(lines[0], "tag: v2.2.3");
+	assert.ok(lines.includes(`  - url: ${PINNED}SurfSense-Setup.exe`), body);
+	assert.ok(lines.includes(`path: ${PINNED}SurfSense-Setup.exe`), body);
+});
+
+test("the tag line may sit anywhere at the top level, as in the mac file", async () => {
+	const mac = `${fixture("stable-mac.yml")}tag: v2.2.3\n`;
+	const { response, body } = await check("stable-mac.yml", mac);
+	assert.equal(response.status, 200);
+	assert.match(body, /\ntag: v2\.2\.3\n$/);
+});
+
 test("GitHub's latest release is fetched with nothing from the app's request", async () => {
 	const { calls } = await check("stable-mac.yml", fixture("stable-mac.yml"));
 	assert.equal(calls.length, 1);
@@ -204,6 +224,19 @@ const HOSTILE: Record<string, string> = {
 		"  - url: SurfSense-Setup.exe\n      https://evil.example/x.exe"
 	),
 	"an unknown key": `${stable}releaseNotes: hello\n`,
+	"a tag for another version": `tag: v2.2.2\n${stable}`,
+	"a tag for a newer version": `tag: v9.9.9\n${stable}`,
+	"a tag without its v": `tag: 2.2.3\n${stable}`,
+	"a quoted tag": `tag: 'v2.2.3'\n${stable}`,
+	"a tag with a suffix": `tag: v2.2.3-evil\n${stable}`,
+	"a tag naming a url": `tag: https://evil.example/v2.2.3\n${stable}`,
+	"an empty tag": `tag:\n${stable}`,
+	"two tags": `tag: v2.2.3\ntag: v2.2.3\n${stable}`,
+	"an indented tag": `${stable}  tag: v2.2.3\n`,
+	"a tag inside a file entry": stable.replace(
+		"    size: 1216797720",
+		"    size: 1216797720\n    tag: v2.2.3"
+	),
 	"a comment": `# hi\n${stable}`,
 	"a document marker": `---\n${stable}`,
 	"windows line endings": stable.replace(/\n/g, "\r\n"),

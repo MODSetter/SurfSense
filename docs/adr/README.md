@@ -52,9 +52,9 @@ The Date is the day the decision was first written down. Source links are permal
 | 0015 | [Remote models come through named OpenAI-compatible connections, discovered live](0015-openai-compatible-connections.md) | Accepted, in part revised by the model catalog proposal, in part superseded by 0038 |
 | 0016 | [The app sends no telemetry or crash reports](0016-no-telemetry.md) | Superseded by 0070 |
 | 0017 | [Every outbound destination is off until the user allows it](0017-egress-off-by-default.md) | Accepted, in part superseded by 0027, amended by 0070 |
-| 0018 | [Provider keys are encrypted with a per-install secret kept in the OS keychain](0018-keychain-envelope-encryption.md) | Accepted |
+| 0018 | [Provider keys are encrypted with a per-install secret kept in the OS keychain](0018-keychain-envelope-encryption.md) | Accepted, amended by 0091 |
 | 0019 | [Licenses are signed files verified offline, and they gate only plugins and priority support](0019-offline-licenses.md) | Accepted, amended by 0080 |
-| 0020 | [The new app and the legacy app share one release feed and are kept apart by update channel](0020-two-update-channels.md) | Accepted, amended by 0070 |
+| 0020 | [The new app and the legacy app share one release feed and are kept apart by update channel](0020-two-update-channels.md) | Accepted, amended by 0070 and 0091 |
 | 0021 | [There is no Intel Mac build](0021-no-intel-mac-build.md) | Accepted |
 | 0022 | [Hosted accounts move to the app as a markdown-only export that is re-embedded locally](0022-markdown-only-cloud-import.md) | Accepted |
 | 0023 | [Every hosted sunset behaviour sits behind a runtime flag, and nothing is deleted or redirected unconditionally](0023-sunset-behind-flags.md) | Accepted |
@@ -98,7 +98,7 @@ The Date is the day the decision was first written down. Source links are permal
 | 0067 | [SurfSense's B2B jobs ship as paid plugins that run on the user's machine and unlock with a SurfSense license](0067-b2b-jobs-ship-as-paid-plugins.md) | Superseded by 0092 |
 | 0068 | [SurfSense calls its own plugins to pull a link into Sources, with no agent](0068-surfsense-calls-its-own-plugins-to-pull-a-link-into-sources.md) | Accepted, amended by 0081 |
 | 0069 | [On opencode 2.x the agent calls tools natively, holds the plugin tools its task needs from a catalogue of every ready plugin, and no plugin speaks SSE](0069-opencode-calls-tools-natively-and-holds-what-a-turn-needs.md) | Accepted |
-| 0070 | [The app may send opt-in, ID-less update checks and usage statistics](0070-opt-in-id-less-update-checks-and-usage-statistics.md) | Accepted |
+| 0070 | [The app may send opt-in, ID-less update checks and usage statistics](0070-opt-in-id-less-update-checks-and-usage-statistics.md) | Accepted, the update check's request in part superseded by 0091 |
 | 0071 | [Package managers ship the GitHub release files, and a package manager that installs SurfSense owns its updates](0071-package-managers-ship-the-release-files-and-own-their-updates.md) | Accepted |
 | 0072 | [The desktop app and the Docker container are two entries over one core, and the supervisor and runtime staging leave `electron/`](0072-the-desktop-and-the-container-are-two-entries-over-one-core.md) | Accepted |
 | 0073 | [The Docker GPU image is one CUDA 12.8 variant, with `-cuda13` to follow for arm64, and each runtime has one source shared with the desktop](0073-the-docker-gpu-image-is-one-cuda-12-8-variant-from-upstream-builds.md) | Accepted |
@@ -119,4 +119,5 @@ The Date is the day the decision was first written down. Source links are permal
 | 0088 | [The app draws Word and Excel files with one renderer](0088-the-app-draws-word-and-excel-files-with-one-renderer.md) | Accepted |
 | 0089 | [Any image model changes a picture: one that takes pictures edits it, any other draws it again](0089-any-image-model-changes-a-picture.md) | Accepted |
 | 0090 | [A document waits on the server for the pictures it places](0090-a-document-waits-on-the-server-for-its-pictures.md) | Accepted |
+| 0091 | [From 2.4.0 on, SurfSense's own update key vouches for an update, not a certificate's name](0091-an-update-key-vouches-for-every-update-from-2-4-0-on.md) | Accepted |
 | 0092 | [SurfSense is free; licensing is off, the job packs ship in the app under Apache-2.0, and web search has no default server](0092-surfsense-is-free-and-licensing-is-off.md) | Accepted |

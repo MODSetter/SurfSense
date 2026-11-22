@@ -164,7 +164,7 @@ layout.
   the title tag and the wordmark, as today; the H1 has not carried it since
   October. The line under it carries the familiar hook: "A NotebookLM-style
   notebook that runs on your own computer, with no account and no SurfSense
-  cloud. Pick a local model and nothing is sent anywhere."
+  cloud."
 - **New band after the logos, "Who it's for":** a card per audience with one
   line and a keyword link, the internal-link hub for the new pages. A card
   shows once its page exists: students, teachers and business on both sites,

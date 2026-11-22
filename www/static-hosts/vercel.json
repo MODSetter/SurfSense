@@ -1,0 +1,82 @@
+{
+	"$schema": "https://openapi.vercel.sh/vercel.json",
+	"framework": null,
+	"outputDirectory": "public",
+	"cleanUrls": false,
+	"trailingSlash": false,
+	"rewrites": [
+		{
+			"source": "/health",
+			"has": [{ "type": "host", "value": "plugins.surfsense.com" }],
+			"destination": "/_health/plugins.txt"
+		},
+		{
+			"source": "/health",
+			"has": [{ "type": "host", "value": "api.surfsense.com" }],
+			"destination": "/_health/api.json"
+		},
+		{ "source": "/oauth/callback", "destination": "/oauth/callback.html" }
+	],
+	"headers": [
+		{
+			"source": "/(.*)",
+			"headers": [
+				{ "key": "X-Content-Type-Options", "value": "nosniff" },
+				{ "key": "Referrer-Policy", "value": "no-referrer" }
+			]
+		},
+		{
+			"source": "/health",
+			"headers": [{ "key": "Cache-Control", "value": "no-store" }]
+		},
+		{
+			"source": "/health",
+			"has": [{ "type": "host", "value": "plugins.surfsense.com" }],
+			"headers": [{ "key": "Content-Type", "value": "text/plain; charset=utf-8" }]
+		},
+		{
+			"source": "/health",
+			"has": [{ "type": "host", "value": "api.surfsense.com" }],
+			"headers": [{ "key": "Content-Type", "value": "application/json" }]
+		},
+		{
+			"source": "/plugins.json",
+			"headers": [
+				{ "key": "Content-Type", "value": "application/json" },
+				{ "key": "Cache-Control", "value": "public, max-age=300" }
+			]
+		},
+		{
+			"source": "/plugins.json.sig",
+			"headers": [
+				{ "key": "Content-Type", "value": "text/plain; charset=utf-8" },
+				{ "key": "Cache-Control", "value": "public, max-age=300" }
+			]
+		},
+		{
+			"source": "/icons/(.*)",
+			"headers": [
+				{ "key": "Cache-Control", "value": "public, max-age=300" },
+				{
+					"key": "Content-Security-Policy",
+					"value": "default-src 'none'; style-src 'unsafe-inline'; sandbox"
+				}
+			]
+		},
+		{
+			"source": "/oauth/client.json",
+			"headers": [
+				{ "key": "Content-Type", "value": "application/json" },
+				{ "key": "Cache-Control", "value": "public, max-age=300" }
+			]
+		},
+		{
+			"source": "/oauth/callback",
+			"headers": [
+				{ "key": "Content-Type", "value": "text/html; charset=utf-8" },
+				{ "key": "Cache-Control", "value": "no-store" },
+				{ "key": "Content-Security-Policy", "value": "frame-ancestors 'none'" }
+			]
+		}
+	]
+}

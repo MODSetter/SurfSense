@@ -24,13 +24,19 @@ const idsBefore = listBeforeBusiness.plugins.map((plugin) => plugin.id);
 // What stays is built into the app, on the pages its plugins had.
 const idsAfter = BUILT_IN_SOURCES.map((source) => source.id);
 
-test("the Individual checkout page sends its visitors to Business", () => {
-	assert.deepEqual(redirect("/pricing/individual"), {
-		destination: "/pricing/business",
-		permanent: true,
-	});
+test("the old checkout pages send their visitors to /pricing, temporarily", () => {
+	for (const path of ["/pricing/individual", "/pricing/business"]) {
+		assert.deepEqual(redirect(path), { destination: "/pricing", permanent: false }, path);
+	}
 	assert.equal(redirect("/pricing"), null);
-	assert.equal(redirect("/pricing/business"), null);
+});
+
+test("no redirect to a pricing page is permanent", () => {
+	for (const rule of launchRedirects()) {
+		if (rule.source.startsWith("/pricing") || rule.destination.startsWith("/pricing")) {
+			assert.equal(rule.permanent, false, rule.source);
+		}
+	}
 });
 
 test("a retired scraper's page and its old address both land on /plugins", () => {

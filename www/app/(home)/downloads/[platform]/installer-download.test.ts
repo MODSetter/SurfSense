@@ -191,7 +191,7 @@ test("a browser's GET counts one download, after the redirect is sent", async ()
 
 test("src keeps the known channels and counts anything else as other", async () => {
 	for (const [src, expected] of [
-		...["site", "readme", "email", "app", "pricing", "other"].map((s) => [s, s]),
+		...["site", "readme", "email", "app", "pricing", "legacy", "other"].map((s) => [s, s]),
 		["you@x.com", "other"],
 		["", "other"],
 	]) {

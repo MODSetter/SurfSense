@@ -13,7 +13,7 @@ export const REPO_URL = "https://github.com/MODSetter/SurfSense";
 export const DISCORD_URL = "https://discord.gg/ejRNvftDp9";
 export const DOWNLOADS_URL = "/downloads";
 /** The inbox the contact and pricing pages give out. */
-export const EMAIL = "rohan@surfsense.com";
+export const EMAIL = "vermarohanfinal@gmail.com";
 
 /**
  * The cross-cutting professional page. The slug is the page's primary keyword

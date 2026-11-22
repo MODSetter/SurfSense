@@ -1,51 +1,37 @@
 import type { Metadata } from "next";
 import {
-	BUSINESS_META_DESCRIPTION,
-	BUSINESS_META_TITLE,
-	BUSINESS_PLANS,
-	BUSINESS_PRICING_FAQ,
-	BUSINESS_PRICING_LEDE,
-	BUSINESS_PRICING_SCHEMA,
-	LICENCE_COMPARISON,
-} from "@/app/(home)/pricing/business-pricing-content";
+	PRICING_FAQ,
+	PRICING_META_DESCRIPTION,
+	PRICING_META_TITLE,
+	PRICING_SCHEMA,
+} from "@/app/(home)/pricing/pricing-content";
 import {
-	PricingComparison,
 	PricingHero,
-	PricingPlans,
+	PricingIncludes,
 	PricingQuestions,
 } from "@/app/(home)/pricing/pricing-sections";
 import { JsonLd } from "@/components/site/json-ld";
 
 /**
- * Pricing page.
+ * Pricing page: SurfSense is free.
  *
- * Rendered in the site design: the palette, ruled column, navigation and footer
- * all come from `app/(home)/layout.tsx`, and every style on this page resolves
- * from `app/(home)/home.css`.
+ * Rendered in the site design: the palette, ruled column, navigation and footer all come
+ * from `app/(home)/layout.tsx`, and every style on this page resolves from
+ * `app/(home)/home.css`. The copy is `pricing-content.ts`.
  *
- * The copy is `business-pricing-content.ts`; `pricing-content.ts` holds what the
- * pricing pages share, and the two items the brief asks for that are
- * deliberately left out.
- *
- * A server component with no client JavaScript — the FAQ uses native
- * details/summary and the only interactive elements are links.
+ * The URL stays: installed apps, old licence emails and search results open it.
  */
 
 const canonicalUrl = "https://www.surfsense.com/pricing";
 
-/** Title, meta and the lead-with-free rule come from the `/pricing` brief in
- *  `plans/community-local/seo/02-page-briefs.md` (B5). */
-const metaTitle = BUSINESS_META_TITLE;
-const metaDescription = BUSINESS_META_DESCRIPTION;
-
 export const metadata: Metadata = {
-	title: metaTitle,
-	description: metaDescription,
+	title: PRICING_META_TITLE,
+	description: PRICING_META_DESCRIPTION,
 	keywords: [
 		"surfsense pricing",
+		"is surfsense free",
 		"is notebooklm free",
 		"notebooklm pricing",
-		"notebooklm cost",
 		"open source notebooklm alternative",
 		"private ai assistant",
 		"self-hosted ai workspace",
@@ -54,8 +40,8 @@ export const metadata: Metadata = {
 		canonical: canonicalUrl,
 	},
 	openGraph: {
-		title: metaTitle,
-		description: metaDescription,
+		title: PRICING_META_TITLE,
+		description: PRICING_META_DESCRIPTION,
 		url: canonicalUrl,
 		siteName: "SurfSense",
 		type: "website",
@@ -63,8 +49,8 @@ export const metadata: Metadata = {
 	},
 	twitter: {
 		card: "summary_large_image",
-		title: metaTitle,
-		description: metaDescription,
+		title: PRICING_META_TITLE,
+		description: PRICING_META_DESCRIPTION,
 		images: ["/og-image.png"],
 	},
 };
@@ -72,11 +58,10 @@ export const metadata: Metadata = {
 export default function PricingPage() {
 	return (
 		<>
-			<JsonLd data={BUSINESS_PRICING_SCHEMA} />
-			<PricingHero lede={BUSINESS_PRICING_LEDE} />
-			<PricingPlans plans={BUSINESS_PLANS} />
-			<PricingComparison rows={LICENCE_COMPARISON} />
-			<PricingQuestions questions={BUSINESS_PRICING_FAQ} />
+			<JsonLd data={PRICING_SCHEMA} />
+			<PricingHero />
+			<PricingIncludes />
+			<PricingQuestions questions={PRICING_FAQ} />
 		</>
 	);
 }

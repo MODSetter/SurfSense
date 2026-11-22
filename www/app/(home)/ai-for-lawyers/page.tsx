@@ -15,7 +15,6 @@ import {
 	AudienceQuestions,
 } from "@/features/audience-pages/audience-sections";
 import { UseCaseSection } from "@/features/guides/use-case-section";
-import { FIRST_PERSON_PRICE, yearlyPriceLabel } from "../pricing/business-price";
 
 /**
  * AI for lawyers. Brief: `plans/community-local/seo/09-audience-pages.md`, `/ai-for-lawyers`.
@@ -27,8 +26,6 @@ import { FIRST_PERSON_PRICE, yearlyPriceLabel } from "../pricing/business-price"
  * rule that satisfies, and quote no accuracy figure for the redline before the maintainer has
  * checked the eval's stance file.
  */
-
-const PRICE = yearlyPriceLabel(FIRST_PERSON_PRICE);
 
 const PAGE: AudiencePageMeta = {
 	path: LAWYERS_URL,
@@ -72,7 +69,8 @@ const QUESTIONS: AudienceQuestion[] = [
 	},
 	{
 		question: "How much does the contract redline cost?",
-		answer: `It comes with a Business licence, at ${PRICE} a year for each person who uses SurfSense's job plugins, and a 14-day free trial needs only an email address. Everything else in the app is free.`,
+		answer:
+			"Nothing. The contract redline is part of the free app, with no licence, trial or account, like everything else SurfSense does.",
 	},
 ];
 
@@ -86,7 +84,7 @@ export default function AiForLawyersPage() {
 				title="Private AI for lawyers: client files stay on"
 				highlight="your computer"
 				lede="SurfSense is a free, open-source AI app that runs on your own computer. Add a matter's documents, ask questions across them with a citation for every point, and turn them into memos, chronologies and decks. With a local model, nothing is sent anywhere."
-				note="No account, and no vendor copy of your files. Business adds the contract redline, with a 14-day free trial."
+				note="No account, and no vendor copy of your files. The contract redline job is free too."
 				link={{ label: "See pricing", href: "/pricing" }}
 			/>
 
@@ -142,7 +140,7 @@ export default function AiForLawyersPage() {
 					{
 						heading: "Review a contract against your firm's playbook",
 						icon: LegalDocument01Icon,
-						body: "The contract redline checks a Word contract against your own positions or standard agreement, and returns a copy with tracked changes and a comment on each one. It comes with Business.",
+						body: "The contract redline checks a Word contract against your own positions or standard agreement, and returns a copy with tracked changes and a comment on each one. It is free, like the rest of the app.",
 						link: { label: "How the contract redline works", href: CONTRACT_REDLINE_URL },
 					},
 					{
@@ -155,13 +153,12 @@ export default function AiForLawyersPage() {
 
 			<AudienceClosing
 				badge="Pricing"
-				heading="Free for every lawyer. Business adds the jobs."
+				heading="Free for every lawyer, jobs included"
 				link={{ label: "See pricing", href: "/pricing" }}
 			>
 				<p>
-					The app and every update are free, with no account and no usage cap. A Business licence
-					adds SurfSense's job plugins, the contract redline and the security questionnaire, at{" "}
-					{PRICE} a year for each person who uses them. You can try both free for 14 days.
+					The app and every update are free, with no account, no licence and no usage cap. The jobs,
+					the contract redline and the security questionnaire, are part of the free app.
 				</p>
 			</AudienceClosing>
 

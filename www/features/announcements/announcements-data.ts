@@ -17,6 +17,24 @@ import type { Announcement } from "@/features/announcements/announcement.types";
  */
 export const announcements: Announcement[] = [
 	{
+		id: "2026-11-25-surfsense-is-winding-down",
+		title: "SurfSense is winding down as a company, and the app stays free",
+		description:
+			"SurfSense Inc. closes on 27 November 2026. From version 2.4.0 the app is free with every feature included, and its creator keeps maintaining it as a side project.",
+		category: "info",
+		// `date` is the day 2.4.0 is released. The start time has passed on purpose: the post
+		// goes live when main deploys with that release, not on a fixed day before it.
+		date: "2026-11-25T00:00:00Z",
+		startTime: "2026-11-21T00:00:00Z",
+		endTime: "2026-12-27T00:00:00Z",
+		audience: "all",
+		isImportant: false,
+		link: {
+			label: "Download SurfSense",
+			url: "/downloads",
+		},
+	},
+	{
 		id: "2026-09-18-surfsense-2-desktop-app",
 		title: "SurfSense 2.0: a free desktop app that keeps your documents on your computer",
 		description:

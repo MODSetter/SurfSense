@@ -6,7 +6,16 @@ import {
 } from "@/features/downloads/app-release";
 
 /** Where the link that led here lives. Anything else is counted as `other`. */
-export const DOWNLOAD_SOURCES = ["site", "readme", "email", "app", "pricing", "other"] as const;
+export const DOWNLOAD_SOURCES = [
+	"site",
+	"readme",
+	"email",
+	"app",
+	"pricing",
+	// The sunset page legacy 0.0.x apps open (`app/sunset`).
+	"legacy",
+	"other",
+] as const;
 
 export type DownloadSource = (typeof DOWNLOAD_SOURCES)[number];
 

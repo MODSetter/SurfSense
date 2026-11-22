@@ -1,11 +1,10 @@
-// Where update manifests come from (contract 05, part A). Only the small
-// manifest goes through us; installers download from the GitHub release.
-
-export const SURFSENSE_FEED = "https://updates.surfsense.com/api/updates/"
+// Where update manifests come from (contract 05, part A; ADR 0091): GitHub's
+// Latest release, or an admin policy's mirror. Installers download from the
+// release the manifest's version names.
 
 const RELEASES = "https://github.com/MODSetter/SurfSense/releases"
 
-/** Read directly whenever our feed fails; it moves only when a release is published. */
+/** It moves only when a release is published. */
 export const GITHUB_LATEST_DOWNLOAD = `${RELEASES}/latest/download/`
 
 export function githubReleaseDownload(version: string): string {
@@ -17,9 +16,13 @@ export function feedBase(base: string): string {
   return base.endsWith("/") ? base : `${base}/`
 }
 
-/** electron-updater's names for the "stable" channel (Provider.getChannelFilePrefix). */
+/**
+ * The signed manifest for this platform, under electron-builder's names for its
+ * `release` channel. Apps before 2.4.0 read the `stable` channel's, which every
+ * release after 2.4.0 freezes on 2.4.0 for them.
+ */
 export function channelFile(platform: string, arch: string): string {
-  if (platform === "darwin") return "stable-mac.yml"
-  if (platform === "linux") return arch === "x64" ? "stable-linux.yml" : `stable-linux-${arch}.yml`
-  return "stable.yml"
+  if (platform === "darwin") return "release-mac.yml"
+  if (platform === "linux") return arch === "x64" ? "release-linux.yml" : `release-linux-${arch}.yml`
+  return "release.yml"
 }

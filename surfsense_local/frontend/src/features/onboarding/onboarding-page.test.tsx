@@ -1211,8 +1211,8 @@ describe("the privacy choices", () => {
       user,
       "What an update check sends"
     )
-    expect(updatesDetails).toContain("updates.surfsense.com")
-    expect(updatesDetails).toContain("github.com")
+    expect(updatesDetails).not.toContain("updates.surfsense.com")
+    expect(updatesDetails).toContain("asks github.com")
     expect(updatesDetails).toContain("your IP address")
     expect(updatesDetails).toContain("githubusercontent.com")
     await user.unhover(
@@ -1250,7 +1250,7 @@ describe("the privacy choices", () => {
     expect(bridge.calls.some((call) => call.startsWith("usage:"))).toBe(false)
   })
 
-  it("lists the update request's only headers before any check", async () => {
+  it("lists the update request's only header before any check: GitHub gets nothing of ours", async () => {
     vi.stubGlobal("fetch", backend())
     stubPrivacyBridge()
     const user = userEvent.setup()
@@ -1265,13 +1265,13 @@ describe("the privacy choices", () => {
     const dialog = await screen.findByRole("dialog", {
       name: "What an update check sends",
     })
+    expect(dialog.textContent).toContain("User-Agent")
     for (const header of [
-      "User-Agent",
       "X-SurfSense-Version",
       "X-SurfSense-Platform",
       "X-SurfSense-OS",
     ])
-      expect(dialog.textContent).toContain(header)
+      expect(dialog.textContent).not.toContain(header)
   })
 
   it("takes a policy's lock as that row's answer", async () => {

@@ -5,7 +5,6 @@ import { addSources } from "./add-sources.mjs";
 import { agentDocuments } from "./agent-documents.mjs";
 import { analyseASpreadsheet } from "./analyse-a-spreadsheet.mjs";
 import { askAndCite } from "./ask-and-cite.mjs";
-import { businessTrial } from "./business-trial.mjs";
 import { connectAServer } from "./connect-a-server.mjs";
 import { contractRedline } from "./contract-redline.mjs";
 import { images } from "./images.mjs";
@@ -53,7 +52,6 @@ export const WALKTHROUGHS = [
 	voiceInput,
 	privacyNetwork,
 	updates,
-	businessTrial,
 	securityQuestionnaire,
 	contractRedline,
 ];
