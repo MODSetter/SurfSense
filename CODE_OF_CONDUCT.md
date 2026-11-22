@@ -72,7 +72,7 @@ violation, and this Code of Conduct reinforces encouraged behaviors and norms
 that can help avoid conflicts and minimize harm.
 
 When an incident does occur, it is important to report it promptly. Email
-`rohan@surfsense.com`. Do not post reports in public GitHub issues or Discord
+`vermarohanfinal@gmail.com`. Do not post reports in public GitHub issues or Discord
 channels.
 
 Community Moderators take reports of violations seriously and will make every

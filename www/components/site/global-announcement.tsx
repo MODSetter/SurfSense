@@ -1,5 +1,5 @@
 import { cn } from "@/components/ui/cn";
-import { Alert02Icon, InformationCircleIcon } from "@/components/ui/icons";
+import { Alert02Icon, ArrowRightIcon, InformationCircleIcon } from "@/components/ui/icons";
 import {
 	GLOBAL_ANNOUNCEMENT_ENABLED,
 	GLOBAL_ANNOUNCEMENT_MESSAGE,
@@ -17,22 +17,26 @@ const TONES = {
 	},
 };
 
+/** The wind-down notice, from `announcement.md`'s banner line. */
+const WIND_DOWN_MESSAGE =
+	"SurfSense Inc. winds down on Nov 27. SurfSense stays free and open source, maintained by its creator.";
+const WIND_DOWN_LINK = { label: "Get 2.4.0", href: "/downloads" };
+
 /**
- * Site-wide banner at the top of every page, toggled from Vercel with
- * NEXT_PUBLIC_GLOBAL_ANNOUNCEMENT_ENABLED, _MESSAGE and _TONE (`info`, the
- * default, or `warning` for downtime).
+ * Site-wide banner at the top of every page.
+ *
+ * By default it carries the wind-down notice, which ships with the code so it needs no
+ * Vercel setting. NEXT_PUBLIC_GLOBAL_ANNOUNCEMENT_ENABLED, _MESSAGE and _TONE (`info`, the
+ * default, or `warning` for downtime) still replace it with another one-line notice.
  *
  * Sticky, and publishes its height as `--fd-banner-height`: the docs layout
  * offsets its sticky header by that variable, and so does the site nav.
  */
 export function GlobalAnnouncement() {
-	const message = GLOBAL_ANNOUNCEMENT_MESSAGE.trim();
-
-	if (!GLOBAL_ANNOUNCEMENT_ENABLED || !message) {
-		return null;
-	}
-
-	const tone = TONES[GLOBAL_ANNOUNCEMENT_TONE];
+	const custom = GLOBAL_ANNOUNCEMENT_ENABLED ? GLOBAL_ANNOUNCEMENT_MESSAGE.trim() : "";
+	const message = custom || WIND_DOWN_MESSAGE;
+	const link = custom ? null : WIND_DOWN_LINK;
+	const tone = TONES[custom ? GLOBAL_ANNOUNCEMENT_TONE : "info"];
 
 	return (
 		<div
@@ -49,6 +53,17 @@ export function GlobalAnnouncement() {
 				<span className="truncate" title={message}>
 					{message}
 				</span>
+				{/* A plain link, not next/link: on `/sunset` its `<base target="_blank">` must
+				    send it to the browser rather than navigate inside a legacy app's window. */}
+				{link ? (
+					<a
+						href={link.href}
+						className="inline-flex shrink-0 items-center gap-1 font-semibold underline underline-offset-2 hover:no-underline focus-visible:rounded-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+					>
+						{link.label}
+						<ArrowRightIcon className="size-3.5" aria-hidden="true" />
+					</a>
+				) : null}
 			</div>
 		</div>
 	);

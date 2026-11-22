@@ -62,7 +62,7 @@ From the chat, **+ › Plugins › Add plugin** takes you to **Browse plugins** 
 | **Off** | You switched it off. Its key and tool settings are kept. |
 | **Connect** | Not connected yet, or disconnected. A grey note says what Connect will ask: "Needs an OAuth app", "Needs more access", "Sign-in expired" or "Key refused". |
 | **Couldn’t connect** | The server didn't answer. Open the plugin and use **Refresh tools** once it's back. |
-| **Needs a license**, **License expired**, **License revoked**, **License not recognized** | A SurfSense plugin your license doesn't unlock. See [License](/docs/v2/license). |
+| **Needs a license**, **License expired**, **License revoked**, **License not recognized** | On a version before 2.4.0: one of SurfSense's own paid plugins, which closed on 27 November 2026. Remove it, and see [License](/docs/v2/license). |
 | **Third-party plugins are off** | A third-party or custom plugin while **Allow third-party plugins** is off. |
 | **No longer listed** | The publisher's plugin was removed from the list. It is no longer used. |
 | **SSE not supported** | A plugin added over the older SSE transport in an earlier version. Remove it and add its Streamable HTTP address, which often ends in `/mcp`. |
@@ -74,7 +74,6 @@ Click a plugin in Yours to open its details. At the top is one action, **Connect
 - **Refresh tools** asks the server for its tools again.
 - **Edit connection** or **Edit headers** changes the keys you gave it.
 - **Change OAuth app**, when you signed in with your own app.
-- **License settings**, when your license was refused.
 - **Submit to the registry**, on a custom plugin.
 - **Remove** deletes the plugin, its key and its tool settings.
 
@@ -114,7 +113,7 @@ Plugins work in **Agentic** chats. The agent picks the right tool from your ques
 - **Read a step.** Each plugin call shows as a step named after the plugin and tool. Open it to see the whole result.
 - **Save to Sources.** On a finished plugin step, **Save to Sources** keeps its result as a note in your Sources, so later chats can cite it. Saving the same step again updates that note.
 
-When a plugin can't be used, the reply says so above its steps and carries on without it: for example "Couldn’t reach Notion", "Sign in to Notion again", "Notion needs more access" or "Amazon needs a SurfSense license".
+When a plugin can't be used, the reply says so above its steps and carries on without it: for example "Couldn’t reach Notion", "Sign in to Notion again" or "Notion needs more access".
 
 ## Plugins and Add from the web
 

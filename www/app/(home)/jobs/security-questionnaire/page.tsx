@@ -23,8 +23,6 @@ import {
 	AudienceQuestions,
 	AudienceSteps,
 } from "@/features/audience-pages/audience-sections";
-import { FIRST_PERSON_PRICE, yearlyPriceLabel } from "../../pricing/business-price";
-import { BUSINESS_CHECKOUT_URL } from "../../pricing/business-pricing-content";
 
 /**
  * The security questionnaire job. Brief: `plans/community-local/seo/09-audience-pages.md`,
@@ -35,7 +33,7 @@ import { BUSINESS_CHECKOUT_URL } from "../../pricing/business-pricing-content";
  * Pages for named questionnaires (HECVAT, CAIQ, SIG Lite) follow `08-b2b-artifact-jobs.md` later.
  */
 
-const PRICE = yearlyPriceLabel(FIRST_PERSON_PRICE);
+const GUIDE_URL = "/docs/v2/guides/security-questionnaire";
 
 const PAGE: AudiencePageMeta = {
 	path: SECURITY_QUESTIONNAIRE_URL,
@@ -58,7 +56,7 @@ const QUESTIONS: AudienceQuestion[] = [
 	{
 		question: "What does the security questionnaire need?",
 		answer:
-			"The questionnaire as an Excel workbook (.xlsx), your firm's policies in Sources, a chat model selected in Settings, and a Business licence or its 14-day trial. Save a Word or older Excel file as .xlsx first.",
+			"The questionnaire as an Excel workbook (.xlsx), your firm's policies in Sources, and a chat model selected in Settings. It is free, like the rest of the app, with no licence. Save a Word or older Excel file as .xlsx first.",
 	},
 	{
 		question: "Will it make up answers?",
@@ -85,20 +83,15 @@ const QUESTIONS: AudienceQuestion[] = [
 export default function SecurityQuestionnairePage() {
 	return (
 		<>
-			<JsonLd
-				data={audiencePageSchema(PAGE, {
-					price: FIRST_PERSON_PRICE,
-					checkoutPath: BUSINESS_CHECKOUT_URL,
-				})}
-			/>
+			<JsonLd data={audiencePageSchema(PAGE)} />
 
 			<AudienceHero
 				badge="Security questionnaire"
 				title="Answer a security questionnaire in the customer's own spreadsheet, from"
 				highlight="your own policies"
 				lede="Add the questionnaire a customer sent you, as an Excel workbook, and your firm's policies. SurfSense fills in a copy, gives the source of each answer, and leaves what it can't back with a quote for a person to check."
-				note="A job plugin that comes with SurfSense Business. Try it free for 14 days."
-				link={{ label: "See pricing", href: "/pricing" }}
+				note="A job built into SurfSense, free for everyone, with no licence or account."
+				link={{ label: "Read the guide", href: GUIDE_URL }}
 			/>
 
 			<AudienceSteps
@@ -185,14 +178,13 @@ export default function SecurityQuestionnairePage() {
 			</AudienceNotes>
 
 			<AudienceClosing
-				badge="Pricing"
-				heading="Comes with Business, free for 14 days"
-				link={{ label: "See pricing", href: "/pricing" }}
+				badge="Free"
+				heading="Free in the app, for everyone"
+				link={{ label: "Read the guide", href: GUIDE_URL }}
 			>
 				<p>
-					The security questionnaire is a job plugin in SurfSense Business, with the contract
-					redline, at {PRICE} a year for each person who uses them. A 14-day trial of both needs
-					only an email address, with no card and no account. Run an accounting firm?{" "}
+					The security questionnaire is built into SurfSense, with the contract redline, and is free
+					like the rest of the app: no licence, no account and no card. Run an accounting firm?{" "}
 					<Link className={siteText.link} href={ACCOUNTANTS_URL}>
 						See what else SurfSense does for accountants
 					</Link>

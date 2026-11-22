@@ -1,9 +1,10 @@
 /**
- * Redirects for what retired when Business went on sale, the platform scrapers and the
- * Individual licence, for `next.config.mts`. Kept out of it, like `docs-redirects.mts`, so
- * `launch-redirects.test.ts` can check them.
+ * Redirects for what retired, the platform scrapers and the paid plans, for `next.config.mts`.
+ * Kept out of it, like `docs-redirects.mts`, so `launch-redirects.test.ts` can check them.
  *
- * Permanent: the Individual licence and the retired scrapers do not come back.
+ * The retired scrapers' redirects are permanent: they do not come back. The old pricing
+ * pages' are temporary, because a browser caches a 308 for good and `/pricing` itself may
+ * change; never add a permanent redirect to a page that may go away.
  */
 
 type Redirect = { source: string; destination: string; permanent: boolean };
@@ -52,9 +53,10 @@ function pluginRedirects(): Redirect[] {
 	];
 }
 
-/** Individual is no longer sold, so its checkout page hands over to Business's. */
+/** SurfSense is free, so the old checkout pages hand over to `/pricing`, which says so. */
 const PRICING_REDIRECTS: Redirect[] = [
-	{ source: "/pricing/individual", destination: "/pricing/business", permanent: true },
+	{ source: "/pricing/individual", destination: "/pricing", permanent: false },
+	{ source: "/pricing/business", destination: "/pricing", permanent: false },
 ];
 
 export function launchRedirects(): Redirect[] {

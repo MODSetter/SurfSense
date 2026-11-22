@@ -69,7 +69,7 @@ const QUESTIONS: AudienceQuestion[] = [
 export default function PodcastGeneratorPage() {
 	return (
 		<>
-			<JsonLd data={audiencePageSchema(PAGE, undefined, "MultimediaApplication")} />
+			<JsonLd data={audiencePageSchema(PAGE, "MultimediaApplication")} />
 
 			<AudienceHero
 				badge="Podcast generator"

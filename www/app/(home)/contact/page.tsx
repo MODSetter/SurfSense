@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import {
 	ContactBugReports,
 	ContactChannels,
-	ContactEnterprise,
 	ContactHero,
 } from "@/app/(home)/contact/contact-sections";
 
@@ -21,7 +20,7 @@ const canonicalUrl = "https://www.surfsense.com/contact";
 
 const metaTitle = "Contact SurfSense";
 const metaDescription =
-	"Book a call, send an email, file a GitHub issue or ask in Discord. Team licences, enterprise procurement and bug reports all go to a person, not a form.";
+	"Send an email, file a GitHub issue or ask in Discord. SurfSense is free and open source, and every message goes to a person, not a form.";
 
 export const metadata: Metadata = {
 	title: metaTitle,
@@ -51,7 +50,6 @@ export default function ContactPage() {
 			<ContactHero />
 			<ContactChannels />
 			<ContactBugReports />
-			<ContactEnterprise />
 		</>
 	);
 }

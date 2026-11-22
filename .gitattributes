@@ -26,3 +26,6 @@ Makefile text eol=lf
 *.woff2 binary
 *.ttf binary
 *.eot binary
+
+# Served byte for byte at plugins.surfsense.com and api.surfsense.com; never convert.
+www/static-hosts/public/** -text

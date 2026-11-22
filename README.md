@@ -46,6 +46,8 @@
   </p>
 </div>
 
+> **SurfSense is now free.** SurfSense Inc. is winding down operations on November 27, 2026. SurfSense continues as a free, open-source (Apache-2.0) app, maintained by Rohan Verma as a side project for the time being. Version 2.4.0 unlocks everything, jobs included, with no licence needed. The hosted services (licences, the hosted plugins and hosted web search) end on November 27; for web search, add your own SearXNG server in Settings. Your data stays on your computer. [Download 2.4.0](https://www.surfsense.com/downloads).
+
 **Redline a contract with tracked changes and comments**
 
 https://github.com/user-attachments/assets/88326b9d-e763-46db-9635-75f9df9e8682
