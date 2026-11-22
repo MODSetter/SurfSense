@@ -101,17 +101,7 @@ function UpdatesRow() {
         id: "egress_network_app_updates_label",
         defaultMessage: "App updates",
       })}
-      host={
-        updates?.fallbackHost
-          ? intl.formatMessage(
-              {
-                id: "egress_network_app_updates_host_label",
-                defaultMessage: "{host}, falls back to {fallback}",
-              },
-              { host: updates.host, fallback: updates.fallbackHost }
-            )
-          : (updates?.host ?? "github.com")
-      }
+      host={updates?.host ?? "github.com"}
       enabled={prefs.automatic}
       lastCallAt={prefs.lastCheckedAt ?? null}
       locked={state ? updatesLockedText(state) : null}

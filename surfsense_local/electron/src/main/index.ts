@@ -170,7 +170,9 @@ function bootContext({ storage, modelsUnavailable }: SettledStorage): BootContex
           modelStorageUnavailable: true,
         }
       : storage.modelsMoved && { modelStorageDir: storage.modelsRoot }),
-    secret: loadSecret(join(app.getPath("userData"), "secret.bin"), safeStorage),
+    secret: loadSecret(join(app.getPath("userData"), "secret.bin"), safeStorage, (line) =>
+      warnMain(sessionLog, line)
+    ),
     // Packaged: bundled embedding, voice, and parser packs. Dev: same staging dir.
     modelsDir: packaged
       ? join(resources, "models")

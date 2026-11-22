@@ -132,10 +132,10 @@ export type PrivacyState = {
     lockedReason: "policy" | "channel" | null
     // The package manager that owns updates; null unless that is the lock.
     channel: InstallChannel | null
-    // updates.surfsense.com, or the mirror an admin policy names.
+    // github.com, or the mirror an admin policy names.
     host: string
-    // null with a mirror, which never falls back.
-    fallbackHost: "github.com" | null
+    // A mirror is the only host asked, and it hears the app's version and system.
+    mirror: boolean
     lastCheckedAt: string | null
     // The last request to `host`, exactly as sent.
     lastRequest: { url: string; headers: Record<string, string> } | null

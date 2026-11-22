@@ -1,6 +1,6 @@
 # Contract 5: desktop telemetry
 
-What the desktop app may send about itself, and only with the user's yes: at most one automatic update check per UTC day, plus the checks the user starts, and an opt-in usage report. Version 1, revision 1.2 (29 Oct 2026). Revision 1.1 adds the first week's setup reports, the report's `trigger` and `hardware.gpu_runtime`. Revision 1.2 adds `install_age`, `active.age` and the week's `days_used_7` and `days_used_28`, so retention and how often an install is used read by cohort with no ID. The schema number stays 1 and every addition is optional, so the reports of an app from 2.2.4 to 2.3.1 stay valid. The reverse does not hold: the route before revision 1.1 answers 400 to `trigger`, `gpu_runtime`, and `week` or `hardware` outside its flags, and the route before revision 1.2 answers 400 to `install_age`, `active.age` and `days_used_*`, so the `/api/usage` route that accepts a revision is deployed to `usage.surfsense.com` before any app that sends it is released. It binds four parts that ship apart: the Electron main process, the app's UI, the app's local API, and the website routes at `updates.surfsense.com` and `usage.surfsense.com`. Why the app sends anything at all is [ADR 0070](../adr/0070-opt-in-id-less-update-checks-and-usage-statistics.md); how the app does it is [usage statistics](../architecture/usage-statistics.md) and [updates](../architecture/updates.md).
+What the desktop app may send about itself, and only with the user's yes: at most one automatic update check per UTC day, plus the checks the user starts, and an opt-in usage report. Version 1, revision 1.2 (29 Oct 2026). Revision 1.1 adds the first week's setup reports, the report's `trigger` and `hardware.gpu_runtime`. Revision 1.2 adds `install_age`, `active.age` and the week's `days_used_7` and `days_used_28`, so retention and how often an install is used read by cohort with no ID. Revision 1.3 (21 Nov 2026) changes part A for apps from 2.4.0 on: they read a signed manifest straight from GitHub, so the route at `updates.surfsense.com` serves only 2.2.4 to 2.3.1, and the bridge's `updates.fallbackHost` becomes `updates.mirror` ([ADR 0091](../adr/0091-an-update-key-vouches-for-every-update-from-2-4-0-on.md)). The schema number stays 1 and every addition is optional, so the reports of an app from 2.2.4 to 2.3.1 stay valid. The reverse does not hold: the route before revision 1.1 answers 400 to `trigger`, `gpu_runtime`, and `week` or `hardware` outside its flags, and the route before revision 1.2 answers 400 to `install_age`, `active.age` and `days_used_*`, so the `/api/usage` route that accepts a revision is deployed to `usage.surfsense.com` before any app that sends it is released. It binds four parts that ship apart: the Electron main process, the app's UI, the app's local API, and the website routes at `updates.surfsense.com` and `usage.surfsense.com`. Why the app sends anything at all is [ADR 0070](../adr/0070-opt-in-id-less-update-checks-and-usage-statistics.md); how the app does it is [usage statistics](../architecture/usage-statistics.md) and [updates](../architecture/updates.md).
 
 No part of this contract carries an identifier. Not `x-user-staging-id`, not a licence key, not an install ID, not a cookie, anywhere.
 
@@ -8,9 +8,11 @@ No part of this contract carries an identifier. Not `x-user-staging-id`, not a l
 
 ### The app (Electron main)
 
-- electron-updater runs with a custom provider. The feed base is `https://updates.surfsense.com/api/updates/`; an admin policy's `updateFeed` (part C) may replace it with an `https` mirror.
-- It requests `GET <base><channelFile>`, where `channelFile` is `stable.yml` (Windows), `stable-mac.yml` (macOS), `stable-linux.yml` (Linux x64) or `stable-linux-arm64.yml` (Linux arm64).
-- That one request, and no other, carries these headers:
+From 2.4.0:
+
+- electron-updater runs with a custom provider. The feed base is `https://github.com/MODSetter/SurfSense/releases/latest/download/`; an admin policy's `updateFeed` (part C) may replace it with an `https` mirror that serves the same files verbatim.
+- It requests `GET <base><channelFile>`, where `channelFile` is `release.yml` (Windows), `release-mac.yml` (macOS), `release-linux.yml` (Linux x64) or `release-linux-arm64.yml` (Linux arm64).
+- To GitHub that request carries no header of SurfSense's and no staging ID, only the `User-Agent: SurfSense` the outbound session sets. To a mirror, and no other host, it also carries these headers:
 
   | Header | Value |
   |---|---|
@@ -18,11 +20,14 @@ No part of this contract carries an identifier. Not `x-user-staging-id`, not a l
   | `X-SurfSense-Platform` | one of `win32-x64`, `win32-arm64`, `darwin-arm64`, `darwin-x64`, `linux-x64`, `linux-arm64` |
   | `X-SurfSense-OS` | one of `windows-10`, `windows-11`, `macos-<major number>`, `linux` |
 
-- Timeout 10 s. On **any** failure of our feed (a network error, the timeout, a status other than 200, a body that is not a valid manifest, a missing version, or any file URL that is not exactly `https://github.com/MODSetter/SurfSense/releases/download/v<version>/<file name>`), the provider fetches `https://github.com/MODSetter/SurfSense/releases/latest/download/<channelFile>` directly, with no SurfSense header and no staging ID, and uses that, resolving a relative file name to `https://github.com/MODSetter/SurfSense/releases/download/v<version>/<name>`. Only when GitHub fails too does the check fail.
-- **Updates are never blocked because `updates.surfsense.com` is down, slow or wrong.** The one exception: with an admin policy's `updateFeed` mirror there is no GitHub fallback, because such sites reach nothing else.
+- **The signature.** The manifest's first line is `surfsenseSignature: <signature>`, the signature in canonical standard base64 (88 characters) and the line ending in `\n`. It is Ed25519 over the bytes `surfsense-update-manifest/1\n`, then `channelFile` and `\n`, then every byte of the file after that first line. The app uses the manifest only when one of the two public keys it compiles in verifies it, and parses only those signed bytes. A manifest with no such line, or one neither key verifies, fails the check. There is no fallback, signed or not, and so a manifest's version, files, `sha512` values and URLs are all SurfSense's.
+- Timeout 30 s for GitHub, following redirects, and 10 s for a mirror. A relative file name resolves to `https://github.com/MODSetter/SurfSense/releases/download/v<version>/<name>`, `version` being the signed manifest's, or to the mirror's base. electron-updater then checks each download's sha512 against the manifest.
+
+Apps from 2.2.4 to 2.3.1 keep this part's earlier form. They ask `https://updates.surfsense.com/api/updates/<stable channel file>`, with the three headers above and a 10 s timeout. On any failure of that host (a network error, the timeout, a status other than 200, a body that is not a valid manifest, a missing version, or any file URL that is not exactly `https://github.com/MODSetter/SurfSense/releases/download/v<version>/<file name>`), they ask `https://github.com/MODSetter/SurfSense/releases/latest/download/<stable channel file>` directly, with no SurfSense header and no staging ID, and build installer URLs from the version. Every release after 2.4.0 serves them `stable.yml` and `stable-mac.yml` frozen on 2.4.0.
 
 ### The website route (`www`, served at `updates.surfsense.com`)
 
+- Only apps from 2.2.4 to 2.3.1 ask it; from 2.4.0 the app reads GitHub directly.
 - `GET /api/updates/<file>`. `file` must match `^stable(-mac|-linux(-arm64)?)?\.yml$`; anything else, `latest*.yml` included, answers 404.
 - It fetches `https://github.com/MODSetter/SurfSense/releases/latest/download/<file>`, following redirects, revalidated every 900 s.
 - It requires a `version: x.y.z` line, and every `url:` and `path:` value to be a bare file name matching `^SurfSense[-A-Za-z0-9._]*\.(exe|zip|dmg|AppImage|deb|rpm)$`, or already the exact absolute GitHub prefix for that version. It rewrites each to `https://github.com/MODSetter/SurfSense/releases/download/v<version>/<name>` and leaves `sha512`, `size`, `releaseDate` and `stagingPercentage` untouched. A top-level `tag: v<version>` line, which the frozen `stable*.yml` files carry from 2.4.0 on, passes through untouched only when it is exactly `v` plus the manifest's own `version`; any other `tag:` is a 502.
@@ -187,8 +192,8 @@ getState(): Promise<{
     locked: boolean
     lockedReason: "policy" | "channel" | null
     channel: "scoop" | "aur" | "snap" | "flatpak" | "nix" | "apt" | null // only when lockedReason is "channel"
-    host: string
-    fallbackHost: "github.com" | null
+    host: string // "github.com", or the policy's mirror
+    mirror: boolean // the mirror is the only host asked, and hears the three headers
     lastCheckedAt: string | null
     lastRequest: { url: string; headers: Record<string, string> } | null
   }
@@ -237,7 +242,7 @@ Details the first implementation settled, within the contract:
 - `getState()` answers `null` to anything but the app's own window, and `previewUsageReport()` answers `null` on a machine whose platform or OS has no label above, which then sends no report.
 - `privacy.json` also keeps `attempts`, `{ "day", "count" }`, so the three attempts a day hold across restarts. It is never sent.
 - The summary's `hardware` is `null` when the machine's memory cannot be read; Electron main then buckets `os.totalmem()` itself and reports the GPU and its memory as `unknown`. Electron main reads the summary with a 5 s timeout, and a summary it cannot read leaves every `week` value `unknown`.
-- Electron main asks GitHub with a 30 s timeout, longer than the 10 s on our feed, since it is the last resort, and refuses a redirect from our feed so the headers never reach another host.
+- From 2.4.0 Electron main asks GitHub with a 30 s timeout and a mirror with 10 s, following redirects; only a mirror gets the three headers. 2.2.4 to 2.3.1 asked GitHub with 30 s, as the last resort, and refused a redirect from `updates.surfsense.com` so the headers never reached another host.
 - `lastRequest` is the last request to `host` since the app started; it is kept in memory only.
 - A packaged app reads its channel once at startup, first match wins: a `resources/install-channel` file holding one of the six ids, which a repackager writes (Scoop, an AUR PKGBUILD, a Nix derivation); then, on Linux only, SurfSense's own snap (`snap`: `SNAP_NAME` is `surfsense-local` and the executable is under `$SNAP`, so another snap's variables inherited by a normal install do not count), `FLATPAK_ID` set or `/.flatpak-info` present (`flatpak`), an executable under `/nix/store/` (`nix`), and `resources/package-type` reading `deb` while `/etc/apt/sources.list.d/surfsense.list` exists (`apt`). Anything unreadable counts as no channel.
 
@@ -245,5 +250,5 @@ Details the first implementation settled, within the contract:
 
 - The app's local API (`surfsense_local/backend`): `tests/integration/usage_statistics/test_summary_route.py` and `tests/unit/usage_statistics/` for the summary's buckets, hardware, language and counts.
 - The app's UI (`surfsense_local/frontend`): the privacy step in `src/features/onboarding/onboarding-page.test.tsx`, `src/features/privacy-choices/usage-statistics-settings.test.tsx` and `src/features/egress/network-settings.test.tsx`.
-- Electron main (`surfsense_local/electron`): the feed provider, the usage reporter, the policy reader, the install-channel detector, `privacy.json` and the bridge's IPC, each in a `*.test.ts` beside its module.
+- Electron main (`surfsense_local/electron`): the feed provider, the manifest signature, the Windows installer check, the usage reporter, the policy reader, the install-channel detector, `privacy.json` and the bridge's IPC, each in a `*.test.ts` beside its module; `scripts/electron-updater-signed-feed.test.mjs` runs electron-updater's own updater against a local server through the provider.
 - The website routes (`www`): validation, rewriting and the 404, 502, 400, 413 and 415 answers of both routes.

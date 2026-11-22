@@ -169,8 +169,8 @@ function describeClaudePlan(hosts: string[]): DestinationCopy {
   }
 }
 
-// An admin policy's mirror never falls back to GitHub and serves the download
-// too; an Electron main without the privacy bridge reads GitHub's releases alone.
+// An admin policy's mirror is the only host asked and serves the download too;
+// an Electron main without the privacy bridge reads GitHub's releases list.
 function updatesBody(host: string, purpose?: string) {
   if (purpose === "update_mirror")
     return intl.formatMessage(
@@ -194,7 +194,7 @@ function updatesBody(host: string, purpose?: string) {
     {
       id: "egress_app_updates_prompt_body",
       defaultMessage:
-        "Once a day, SurfSense asks {host} whether a newer version exists. The request sends your IP address, the app’s name and version, your operating system and its architecture, and no ID. If {host} cannot answer, SurfSense asks github.com instead, sending only your IP address and the app’s name. A newer version downloads from github.com, whose download host, githubusercontent.com, also sees your IP address. It installs when you restart from the prompt or the next time you quit. Allowing also turns on the daily check, which you can switch off in Settings › Network.",
+        "Once a day, SurfSense asks {host} whether a newer version exists. The request sends only your IP address, the app’s name and your operating system, and no ID. A newer version downloads from {host}, whose download host, githubusercontent.com, also sees your IP address. It installs when you restart from the prompt or the next time you quit. Allowing also turns on the daily check, which you can switch off in Settings › Network.",
     },
     { host }
   )

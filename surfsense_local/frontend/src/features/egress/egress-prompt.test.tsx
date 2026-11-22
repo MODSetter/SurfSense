@@ -214,25 +214,23 @@ describe("egress prompt", () => {
     expect(dialog.textContent).not.toContain("excerpts of your documents")
   })
 
-  it("tells the truth about update checks: version, system and architecture, no ID, GitHub behind", async () => {
+  it("tells the truth about update checks: GitHub only, the app's name and system, no ID", async () => {
     render(<EgressPrompt />)
 
     void askEgress({
       destination: "app_updates",
-      host: "updates.surfsense.com",
+      host: "github.com",
       allow: async () => undefined,
     })
 
     const dialog = await screen.findByRole("alertdialog", {
       name: "Allow SurfSense to check for updates?",
     })
-    expect(dialog.textContent).toContain("asks updates.surfsense.com")
+    expect(dialog.textContent).toContain("asks github.com whether")
     expect(dialog.textContent).toContain(
-      "the app’s name and version, your operating system and its architecture, and no ID"
+      "only your IP address, the app’s name and your operating system, and no ID"
     )
-    expect(dialog.textContent).toContain(
-      "asks github.com instead, sending only your IP address and the app’s name"
-    )
+    expect(dialog.textContent).not.toContain("updates.surfsense.com")
     // Every host the answer reaches, the download's included.
     expect(dialog.textContent).toContain(
       "githubusercontent.com, also sees your IP address"

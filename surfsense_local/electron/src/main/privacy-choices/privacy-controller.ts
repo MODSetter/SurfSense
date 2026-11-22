@@ -19,8 +19,10 @@ export type PrivacyState = {
     lockedReason: UpdatesLockReason | null
     /** The package manager that owns updates; null unless that is the lock. */
     channel: InstallChannel | null
+    /** github.com, or the admin policy's mirror. */
     host: string
-    fallbackHost: "github.com" | null
+    /** A mirror is the only host asked, and it hears the app's version and system. */
+    mirror: boolean
     lastCheckedAt: string | null
     lastRequest: ManifestRequest | null
   }
@@ -58,7 +60,7 @@ export function createPrivacyController(deps: {
   store: PrivacyStore
   readUpdatePrefs: () => UpdatePrefs
   writeUpdatePrefs: (prefs: UpdatePrefs) => void
-  updates: { host: string; fallbackHost: "github.com" | null }
+  updates: { host: string; mirror: boolean }
   lastRequest: () => ManifestRequest | null
   usageHost: string
   reporter: Pick<UsageReporter, "preview" | "nudge">
@@ -87,7 +89,7 @@ export function createPrivacyController(deps: {
         lockedReason: updatesLock,
         channel: updatesLock === "channel" ? deps.installChannel : null,
         host: deps.updates.host,
-        fallbackHost: deps.updates.fallbackHost,
+        mirror: deps.updates.mirror,
         lastCheckedAt: prefs.lastCheckedAt ?? null,
         lastRequest: deps.lastRequest(),
       },

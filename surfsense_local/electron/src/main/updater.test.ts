@@ -9,10 +9,11 @@ import {
 import { attachUpdater, parseUpdatePrefs, type UpdateState } from "./updater.ts"
 
 const FEED: UpdateFeed = {
-  base: "https://updates.surfsense.com/api/updates/",
+  base: "https://github.com/MODSetter/SurfSense/releases/latest/download/",
   mirror: false,
-  channelFile: "stable.yml",
-  headers: { "X-SurfSense-Version": "2.2.3" },
+  channelFile: "release.yml",
+  headers: {},
+  trustedKeys: [],
   fetch: (async () => new Response(null, { status: 503 })) as typeof fetch,
 }
 
@@ -153,7 +154,7 @@ test("a check says whether it read a manifest, so a failed one can be retried", 
   assert.equal(await updates.check(), true)
 
   fake.updater.checkForUpdates = async () => {
-    throw new Error("updates.surfsense.com (unreachable) and github.com (unreachable) could not be used")
+    throw new Error("github.com could not be used (unreachable)")
   }
   assert.equal(await updates.check(), false)
 
