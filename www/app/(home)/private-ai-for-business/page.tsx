@@ -306,7 +306,7 @@ export default function PrivateAiForBusinessPage() {
 						</div>
 						<p className="mt-6">
 							<Link className={siteText.forward} href="/pricing">
-								What a licence adds <ArrowRightIcon aria-hidden="true" className="size-4" />
+								Why it is free <ArrowRightIcon aria-hidden="true" className="size-4" />
 							</Link>
 						</p>
 					</div>

@@ -23,8 +23,6 @@ import {
 	AudienceQuestions,
 	AudienceSteps,
 } from "@/features/audience-pages/audience-sections";
-import { FIRST_PERSON_PRICE, yearlyPriceLabel } from "../../pricing/business-price";
-import { BUSINESS_CHECKOUT_URL } from "../../pricing/business-pricing-content";
 
 /**
  * The contract redline job. Brief: `plans/community-local/seo/09-audience-pages.md`,
@@ -35,13 +33,13 @@ import { BUSINESS_CHECKOUT_URL } from "../../pricing/business-pricing-content";
  * before the release that ships it. No accuracy figure goes on it before the maintainer has checked the eval's stance file.
  */
 
-const PRICE = yearlyPriceLabel(FIRST_PERSON_PRICE);
+const GUIDE_URL = "/docs/v2/guides/contract-redline";
 
 const PAGE: AudiencePageMeta = {
 	path: CONTRACT_REDLINE_URL,
 	title: "AI Contract Review Against Your Own Playbook | SurfSense",
 	description:
-		"SurfSense reviews a Word contract against your firm's playbook and returns tracked changes and comments, on your own computer. 14-day free trial.",
+		"SurfSense reviews a Word contract against your firm's playbook and returns tracked changes and comments, on your own computer. Free and open source.",
 	keywords: [
 		"ai contract review",
 		"contract review ai",
@@ -60,7 +58,7 @@ const QUESTIONS: AudienceQuestion[] = [
 	{
 		question: "What does the contract redline need?",
 		answer:
-			"A contract as a Word file (.docx), your firm's playbook in Sources, a chat model selected in Settings, and a Business licence or its 14-day trial. Save an older Word file (.doc) as .docx first.",
+			"A contract as a Word file (.docx), your firm's playbook in Sources, and a chat model selected in Settings. It is free, like the rest of the app, with no licence. Save an older Word file (.doc) as .docx first.",
 	},
 	{
 		question: "Does it make up positions?",
@@ -87,20 +85,15 @@ const QUESTIONS: AudienceQuestion[] = [
 export default function ContractRedlinePage() {
 	return (
 		<>
-			<JsonLd
-				data={audiencePageSchema(PAGE, {
-					price: FIRST_PERSON_PRICE,
-					checkoutPath: BUSINESS_CHECKOUT_URL,
-				})}
-			/>
+			<JsonLd data={audiencePageSchema(PAGE)} />
 
 			<AudienceHero
 				badge="Contract redline"
 				title="AI contract review against your own playbook, as tracked changes in"
 				highlight="Word"
 				lede="Add a contract you received, as a Word file, and your firm's playbook. SurfSense checks the contract one review point at a time and marks up a copy with tracked changes and comments. It never makes up a position: where your playbook says nothing, the contract is left as it is."
-				note="A job plugin that comes with SurfSense Business. Try it free for 14 days."
-				link={{ label: "See pricing", href: "/pricing" }}
+				note="A job built into SurfSense, free for everyone, with no licence or account."
+				link={{ label: "Read the guide", href: GUIDE_URL }}
 			/>
 
 			<AudienceSteps
@@ -189,14 +182,13 @@ export default function ContractRedlinePage() {
 			</AudienceNotes>
 
 			<AudienceClosing
-				badge="Pricing"
-				heading="Comes with Business, free for 14 days"
-				link={{ label: "See pricing", href: "/pricing" }}
+				badge="Free"
+				heading="Free in the app, for everyone"
+				link={{ label: "Read the guide", href: GUIDE_URL }}
 			>
 				<p>
-					The contract redline is a job plugin in SurfSense Business, with the security
-					questionnaire, at {PRICE} a year for each person who uses them. A 14-day trial of both
-					needs only an email address, with no card and no account. Working on a legal team?{" "}
+					The contract redline is built into SurfSense, with the security questionnaire, and is free
+					like the rest of the app: no licence, no account and no card. Working on a legal team?{" "}
 					<Link className={siteText.link} href={LAWYERS_URL}>
 						See what else SurfSense does for lawyers
 					</Link>

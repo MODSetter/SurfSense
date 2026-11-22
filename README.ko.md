@@ -11,14 +11,14 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Discord](https://img.shields.io/discord/1359368468260192417?label=Discord)](https://discord.gg/ejRNvftDp9)
 
-  <a href="https://www.surfsense.com/"><img alt="SurfSense, 네트워크와 분리해 쓰는 오픈소스 NotebookLM 대안" src="www/public/homepage/banner.png" /></a>
+  <a href="https://www.surfsense.com/"><img alt="SurfSense, 네트워크와 분리해 쓰는 기밀 문서용 프라이빗 AI" src="www/public/homepage/banner.png" /></a>
 
   <h1>SurfSense</h1>
 
   <p>
-    <b>네트워크와 분리해 쓰는 오픈소스 NotebookLM 대안.</b>
+    <b>네트워크와 분리해 쓰는 기밀 문서용 프라이빗 AI.</b>
     <br />
-    내 컴퓨터에서 문서를 조사하고, 변환하고, 편집하는 AI 에이전트.
+    내 컴퓨터에서 실행되는 오픈소스 NotebookLM 대안.
   </p>
 
   <p>
@@ -46,7 +46,7 @@ https://github.com/user-attachments/assets/88326b9d-e763-46db-9635-75f9df9e8682
 
 https://github.com/user-attachments/assets/073577b7-f055-4f59-8540-330bd764aeb0
 
-SurfSense는 업로드할 수 없는 문서를 위한 무료 오픈소스 데스크톱 앱입니다. 프라이버시를 중시하는 NotebookLM 스타일의 AI 에이전트로, 내 컴퓨터에서 문서를 조사하고, 변환하고, 편집합니다. 색인은 내 디스크에 남고, 모델은 로컬이든 원격이든 내가 고르며, 만들 계정도 없습니다.
+SurfSense는 기밀 문서를 위한 무료 오픈소스 데스크톱 앱입니다. NotebookLM 스타일의 프라이빗 AI 에이전트로, 내 컴퓨터에서 문서를 조사하고, 변환하고, 편집합니다. 색인은 내 디스크에 남고, 모델은 로컬이든 원격이든 내가 고르며, 만들 계정도 없습니다.
 
 | 플랫폼 | 다운로드 |
 |---|---|
@@ -91,7 +91,7 @@ SurfSense는 업로드할 수 없는 문서를 위한 무료 오픈소스 데스
 
 **설정 › 플러그인**에서 [플러그인 레지스트리](backend/plugins/registry)에 있는 DeepWiki, Notion 같은 MCP 서버 또는 URL로 직접 추가한 서버를 연결하세요. 허용하기 전까지 꺼져 있습니다.
 
-**기본 제공, 무료:** 에이전트도 소스에 있는 **웹에서 추가**도 SearXNG 서버를 통해 웹을 검색하고, 내 인터넷 연결로 페이지와 YouTube 스크립트를 읽습니다. 플러그인도 라이선스도 필요 없습니다.
+**기본 제공, 무료:** 에이전트도 소스에 있는 **웹에서 추가**도 설정 › 네트워크에서 직접 추가한 SearXNG 서버를 통해 웹을 검색하고, 내 인터넷 연결로 페이지와 YouTube 스크립트를 읽습니다. 플러그인도 라이선스도 필요 없습니다.
 
 ## 비교
 

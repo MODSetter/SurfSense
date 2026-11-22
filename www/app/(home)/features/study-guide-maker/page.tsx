@@ -71,7 +71,7 @@ const QUESTIONS: AudienceQuestion[] = [
 export default function StudyGuideMakerPage() {
 	return (
 		<>
-			<JsonLd data={audiencePageSchema(PAGE, undefined, "EducationalApplication")} />
+			<JsonLd data={audiencePageSchema(PAGE, "EducationalApplication")} />
 
 			<AudienceHero
 				badge="Study guide maker"

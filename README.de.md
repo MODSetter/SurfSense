@@ -11,14 +11,14 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Discord](https://img.shields.io/discord/1359368468260192417?label=Discord)](https://discord.gg/ejRNvftDp9)
 
-  <a href="https://www.surfsense.com/"><img alt="SurfSense, die netzgetrennte Open-Source-Alternative zu NotebookLM" src="www/public/homepage/banner.png" /></a>
+  <a href="https://www.surfsense.com/"><img alt="SurfSense: netzgetrennte, private KI für vertrauliche Dokumente" src="www/public/homepage/banner.png" /></a>
 
   <h1>SurfSense</h1>
 
   <p>
-    <b>Die netzgetrennte Open-Source-Alternative zu NotebookLM.</b>
+    <b>Netzgetrennte, private KI für vertrauliche Dokumente.</b>
     <br />
-    Der KI-Agent, der in deinen Dokumenten recherchiert, sie umwandelt und bearbeitet – auf deinem Rechner.
+    Open-Source-Alternative zu NotebookLM, die auf deinem Rechner läuft.
   </p>
 
   <p>
@@ -46,7 +46,7 @@ https://github.com/user-attachments/assets/88326b9d-e763-46db-9635-75f9df9e8682
 
 https://github.com/user-attachments/assets/073577b7-f055-4f59-8540-330bd764aeb0
 
-SurfSense ist eine kostenlose Open-Source-Desktop-App für Dokumente, die du nicht hochladen kannst. Ein auf Datenschutz ausgelegter KI-Agent im Stil von NotebookLM, der auf deinem Rechner in deinen Dokumenten recherchiert, sie umwandelt und bearbeitet. Der Index bleibt auf deiner Festplatte, du wählst das Modell, lokal oder remote, und es gibt kein Konto.
+SurfSense ist eine kostenlose Open-Source-Desktop-App für vertrauliche Dokumente. Ein privater KI-Agent im Stil von NotebookLM, der auf deinem Rechner in deinen Dokumenten recherchiert, sie umwandelt und bearbeitet. Der Index bleibt auf deiner Festplatte, du wählst das Modell, lokal oder remote, und es gibt kein Konto.
 
 | Plattform | Download |
 |---|---|
@@ -90,7 +90,7 @@ Bearbeitungen, Umwandlungen und PDF-Werkzeuge erzeugen immer eine neue Datei; de
 
 Verbinde sie unter **Einstellungen › Plugins**: MCP-Server aus der [Plugin-Registry](backend/plugins/registry), etwa DeepWiki und Notion, oder jeden, den du per URL hinzufügst. Sie bleiben aus, bis du sie erlaubst.
 
-**Eingebaut und kostenlos:** Der Agent und **Aus dem Web hinzufügen** in den Quellen durchsuchen das Web über SearXNG und lesen Seiten und YouTube-Transkripte über deine eigene Verbindung, ohne Plugin und ohne Lizenz.
+**Eingebaut und kostenlos:** Der Agent und **Aus dem Web hinzufügen** in den Quellen durchsuchen das Web über einen SearXNG-Server, den du unter Einstellungen › Netzwerk hinzufügst, und lesen Seiten und YouTube-Transkripte über deine eigene Verbindung, ohne Plugin und ohne Lizenz.
 
 ## SurfSense im Vergleich
 

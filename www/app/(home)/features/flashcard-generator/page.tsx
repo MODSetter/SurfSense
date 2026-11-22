@@ -64,7 +64,7 @@ const QUESTIONS: AudienceQuestion[] = [
 export default function FlashcardGeneratorPage() {
 	return (
 		<>
-			<JsonLd data={audiencePageSchema(PAGE, undefined, "EducationalApplication")} />
+			<JsonLd data={audiencePageSchema(PAGE, "EducationalApplication")} />
 			<BreadcrumbNav
 				className="flex justify-center pt-8"
 				items={[

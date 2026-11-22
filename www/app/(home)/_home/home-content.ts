@@ -214,9 +214,9 @@ export const USE_CASES: { eyebrow: string; headline: string; slugs: UseCaseSlug[
 	],
 };
 
-/** The paid jobs, in the user guide's words: a job does paperwork from your firm's own documents. */
+/** The jobs, in the user guide's words: a job does paperwork from your firm's own documents. */
 export const JOBS_STRIP: { body: string; actions: Action[] } = {
-	body: "SurfSense Business adds jobs that do paperwork from your firm's own documents.",
+	body: "SurfSense's jobs do paperwork from your firm's own documents, free like the rest of the app.",
 	actions: [
 		{ label: "Contract redline", href: CONTRACT_REDLINE_URL },
 		{ label: "Security questionnaire", href: SECURITY_QUESTIONNAIRE_URL },
@@ -278,7 +278,7 @@ export const FEATURES: {
 	{
 		key: "plugins",
 		heading: "Open source, with web search built in",
-		// The platform scrapers retired with Business; web search, YouTube and Web Crawl are built in.
+		// The platform scrapers retired; web search, YouTube and Web Crawl are built in.
 		body: "Reading web pages, YouTube and web search is built in and free. Plugins add more.",
 		points: [
 			{

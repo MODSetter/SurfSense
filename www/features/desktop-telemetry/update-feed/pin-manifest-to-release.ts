@@ -18,8 +18,15 @@ const TOP_LEVEL_LINE = /^([A-Za-z][A-Za-z0-9]*):(?: (.*))?$/;
 const FILE_START_LINE = /^ {2}- url: (.*)$/;
 const FILE_FIELD_LINE = /^ {4}([A-Za-z][A-Za-z0-9]*): (.*)$/;
 
+// A frozen stable*.yml (2.4.0's file, served from each later release so old apps
+// reach 2.4.0 first) adds `tag: v<version>`, which sends electron-updater to that
+// version's release. Only that exact value passes: checkStructure compares it
+// with the manifest's own version.
+const TAG = /^v[0-9.]+$/;
+
 const TOP_LEVEL_VALUES = new Map<string, RegExp>([
 	["version", APP_VERSION],
+	["tag", TAG],
 	["files", /^$/],
 	["path", /^\S+$/],
 	["sha512", SHA512],
@@ -84,6 +91,10 @@ function checkStructure(lines: Line[]): string {
 	const version = lines.find((line) => line.kind === "top" && line.key === "version");
 	if (!version || version.kind !== "top") throw new Error("no version");
 	if (fileCount === 0) throw new Error("no files");
+	const tag = lines.find((line) => line.kind === "top" && line.key === "tag");
+	if (tag && tag.kind === "top" && tag.value !== `v${version.value}`) {
+		throw new Error("tag is not the manifest's own version");
+	}
 	return version.value;
 }
 

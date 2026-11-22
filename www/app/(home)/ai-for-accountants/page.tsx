@@ -20,7 +20,6 @@ import {
 	AudienceQuestions,
 } from "@/features/audience-pages/audience-sections";
 import { UseCaseSection } from "@/features/guides/use-case-section";
-import { FIRST_PERSON_PRICE, yearlyPriceLabel } from "../pricing/business-price";
 
 /**
  * AI for accountants. Brief: `plans/community-local/seo/09-audience-pages.md`,
@@ -28,13 +27,11 @@ import { FIRST_PERSON_PRICE, yearlyPriceLabel } from "../pricing/business-price"
  *
  * The exact phrases draw little search (about 50 a month in clickstream; Google's 6,600 for
  * `ai for accountants` has absorbed accounting-software searches), so this page is where
- * outreach, trial emails and demos send accounting firms as much as a search page.
+ * outreach and demos send accounting firms as much as a search page.
  *
  * It sells the security questionnaire. Any line on what a regulator requires of a firm goes through a
  * compliance read first; this page says only where the data is.
  */
-
-const PRICE = yearlyPriceLabel(FIRST_PERSON_PRICE);
 
 const PAGE: AudiencePageMeta = {
 	path: ACCOUNTANTS_URL,
@@ -68,7 +65,8 @@ const QUESTIONS: AudienceQuestion[] = [
 	},
 	{
 		question: "Is SurfSense free for an accounting firm?",
-		answer: `Yes. The app and every update are free for any use, client work included. A Business licence is needed only for SurfSense's job plugins, such as the security questionnaire, at ${PRICE} a year for each person who uses them.`,
+		answer:
+			"Yes. The app, every update and its jobs, such as the security questionnaire, are free for any use, client work included, with no licence and no account.",
 	},
 	{
 		question: "Does SurfSense work offline?",
@@ -87,7 +85,7 @@ export default function AiForAccountantsPage() {
 				title="Private AI for accountants: client files stay on"
 				highlight="your computer"
 				lede="SurfSense is a free, open-source AI app that runs on your own computer. Add returns, statements, ledgers and engagement letters, ask questions with a citation for every point, and turn them into reports, spreadsheets and client decks. With a local model, nothing is sent anywhere."
-				note="Business adds the security questionnaire, for the clients who send you one, with a 14-day free trial."
+				note="The security questionnaire job, for the clients who send you one, is free too."
 				link={{ label: "See pricing", href: "/pricing" }}
 			/>
 
@@ -151,7 +149,7 @@ export default function AiForAccountantsPage() {
 					{
 						heading: "Answer a client's security questionnaire",
 						icon: SecurityCheckIcon,
-						body: "When a client sends a security questionnaire as an Excel workbook, the security questionnaire job fills it in from your firm's policies and gives the source of each answer. It comes with Business.",
+						body: "When a client sends a security questionnaire as an Excel workbook, the security questionnaire job fills it in from your firm's policies and gives the source of each answer. It is free, like the rest of the app.",
 						link: {
 							label: "How the security questionnaire works",
 							href: SECURITY_QUESTIONNAIRE_URL,
@@ -162,13 +160,12 @@ export default function AiForAccountantsPage() {
 
 			<AudienceClosing
 				badge="Pricing"
-				heading="Free for every accountant. Business adds the jobs."
+				heading="Free for every accountant, jobs included"
 				link={{ label: "See pricing", href: "/pricing" }}
 			>
 				<p>
-					The app and every update are free, with no account and no usage cap. A Business licence
-					adds SurfSense's job plugins, the security questionnaire and the contract redline, at{" "}
-					{PRICE} a year for each person who uses them. You can try both free for 14 days.
+					The app and every update are free, with no account, no licence and no usage cap. The jobs,
+					the security questionnaire and the contract redline, are part of the free app.
 				</p>
 			</AudienceClosing>
 

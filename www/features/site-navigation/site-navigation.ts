@@ -61,8 +61,8 @@ export function menuItems(menu: NavMenu): SiteMenuItem[] {
 	return menu.groups.flatMap((group) => group.items);
 }
 
-/** The audience and job pages that sell Business's jobs, for the sitemap. */
-export const BUSINESS_PAGES = [
+/** The audience and job pages for work, for the sitemap. */
+export const WORK_PAGES = [
 	LAWYERS_URL,
 	ACCOUNTANTS_URL,
 	CONTRACT_REDLINE_URL,
