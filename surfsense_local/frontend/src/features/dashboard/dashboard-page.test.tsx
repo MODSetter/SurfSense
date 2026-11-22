@@ -2483,7 +2483,6 @@ describe("dashboard chat", () => {
     first.unmount()
     render(page)
     await screen.findByRole("treeitem", { name: "Research" })
-    await user.click(screen.getByRole("button", { name: "Expand Research" }))
     await waitFor(() => expect(folder("Research")).toBe("true"))
     expect(sourceRow("Guide.txt")).toBe("true")
   })
