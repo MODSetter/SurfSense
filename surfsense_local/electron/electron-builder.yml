@@ -66,12 +66,20 @@ afterSign: ./scripts/opencode/after-sign.mjs
 # The legacy 0.0.x desktop lives in the same repo and its updater reads
 # latest*.yml; this app publishes stable*.yml. Both manifests now sit on the
 # same release (see legacy-update-bridge in release-local.yml), so the channel
-# is the only thing keeping either app from parsing the other's.
+# is the only thing keeping either app from parsing the other's. Every release
+# after the 2.4.0 handover builds with `-c.publish.channel=release` instead and
+# signs its release*.yml (ADR 0091).
 publish:
   provider: github
   owner: MODSetter
   repo: SurfSense
   channel: stable
+  # Written into app-update.yml whatever signs the build, so NsisUpdater always
+  # calls the app's verifier (src/main/installer-signature/), which accepts any
+  # publisher Windows trusts. Left to the signer, a build signed without Azure
+  # would write none, and updates to it would skip the signature check entirely.
+  publisherName:
+    - SurfSense
 
 # Artifact names carry no version, so `/releases/latest/download/<name>` is a
 # permalink the README and the site can hardcode. electron-updater is fine with
@@ -183,6 +191,13 @@ mac:
   gatekeeperAssess: false
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
+  # Squirrel.Mac installs an update only if it meets the running app's designated
+  # requirement, checked in SQRLUpdater and again in ShipIt. This one asks for a
+  # Developer ID signature from any team, so a build from a future Apple team
+  # installs over 2.4.0; the signed manifest says which build (ADR 0091).
+  # electron-builder stamps it on every file it signs, helpers and frameworks
+  # included, so it names no identifier, which only the main bundle would meet.
+  requirements: build/designated-requirement.txt
   # The microphone prompt's sentence; askForMediaAccess needs one, and Electron's
   # own says only that the app needs the microphone.
   extendInfo:

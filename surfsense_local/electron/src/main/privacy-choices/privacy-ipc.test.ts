@@ -41,10 +41,10 @@ function mainProcess(
     store: { read: () => file, update: (change) => (file = change(file)) },
     readUpdatePrefs: () => prefs,
     writeUpdatePrefs: (next) => (prefs = next),
-    updates: { host: "updates.surfsense.com", fallbackHost: "github.com" },
+    updates: { host: "github.com", mirror: false },
     lastRequest: () => ({
-      url: "https://updates.surfsense.com/api/updates/stable-linux.yml",
-      headers: { "X-SurfSense-Version": "2.2.4" },
+      url: "https://github.com/MODSetter/SurfSense/releases/latest/download/release-linux.yml",
+      headers: { "User-Agent": "SurfSense" },
     }),
     usageHost: "usage.surfsense.com",
     reporter: {
@@ -99,12 +99,12 @@ test("the state says where each switch sends, what was sent, and that nothing wa
       locked: false,
       lockedReason: null,
       channel: null,
-      host: "updates.surfsense.com",
-      fallbackHost: "github.com",
+      host: "github.com",
+      mirror: false,
       lastCheckedAt: null,
       lastRequest: {
-        url: "https://updates.surfsense.com/api/updates/stable-linux.yml",
-        headers: { "X-SurfSense-Version": "2.2.4" },
+        url: "https://github.com/MODSetter/SurfSense/releases/latest/download/release-linux.yml",
+        headers: { "User-Agent": "SurfSense" },
       },
     },
     usageStatistics: {

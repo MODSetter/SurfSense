@@ -19,8 +19,10 @@ export function surfSenseFeedOptions(feed: UpdateFeed): SurfSenseFeedOptions {
 }
 
 /**
- * electron-updater's custom provider (providerFactory.js "custom"): the manifest
- * from our feed or GitHub, and the installer from the GitHub release either way.
+ * electron-updater's custom provider (providerFactory.js "custom"): the signed
+ * manifest from GitHub or an admin's mirror, and the installer from the release
+ * its version names, or from the mirror. electron-updater checks each download
+ * against the manifest's sha512, so the signature vouches for the installer too.
  */
 export class SurfSenseFeedProvider extends Provider<UpdateInfo> {
   private readonly feed: UpdateFeed
@@ -45,7 +47,8 @@ export class SurfSenseFeedProvider extends Provider<UpdateInfo> {
     return latestManifest(this.feed)
   }
 
-  // Our feed's files are already absolute; GitHub's are names on the version's release.
+  // GitHub's are names on the version's own release, not Latest's: a release that
+  // carries an earlier Windows build's release.yml forward points at that build.
   resolveFiles(updateInfo: UpdateInfo): ResolvedUpdateFileInfo[] {
     const base = this.feed.mirror
       ? feedBase(this.feed.base)

@@ -101,7 +101,7 @@ export function attachUpdater(
   // Merged into every download's headers (AppUpdater.computeRequestHeaders), so
   // nothing of ours rides along to GitHub.
   updater.requestHeaders = null
-  // The manifest from updates.surfsense.com, falling back to GitHub; never
+  // The signed manifest from GitHub, or the policy's mirror; never
   // `updater.channel`, whose setter turns on allowDowngrade.
   updater.setFeedURL(surfSenseFeedOptions(feed))
   updater.on("update-available", (info: { version: string }) => {
