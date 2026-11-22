@@ -204,8 +204,8 @@ export function useThreadScope({
       } else if (activeThread.source_scope !== undefined) {
         setSourceScope(activeThread.source_scope ?? EVERY_SOURCE)
       } else {
-        // An entry without a scope was made by this client: the ticks on
-        // screen opened it, and stay.
+        // A fallback: the API always sends a thread's scope. An entry without
+        // one keeps the ticks on screen.
         keepScopeForChat()
       }
     }

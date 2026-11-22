@@ -22,8 +22,8 @@ export type ChatThread = {
   title: string | null
   // The agent answers this thread: it opened in Agentic mode, and keeps it.
   uses_agent: boolean
-  // The ticks it stored; null is every source. Absent on a thread the client
-  // made itself before the list was read again.
+  // The ticks it stored; null is every source. The API always sends it;
+  // optional only for the fallback in use-thread-scope.ts.
   source_scope?: SourceScope | null
   created_at: string
   updated_at: string

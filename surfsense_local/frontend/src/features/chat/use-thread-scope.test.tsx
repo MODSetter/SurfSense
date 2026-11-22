@@ -155,7 +155,7 @@ describe("a new chat's ticks", () => {
     created_at: "2026-09-05T00:00:00Z",
     updated_at: "2026-09-05T00:00:00Z",
   }
-  // As the runtime puts it in the list: the API's answer carries no scope.
+  // The fallback: an entry without a scope, which the API never sends.
   const opened: ChatThread = {
     id: 11,
     workspace_id: 1,
