@@ -1,6 +1,6 @@
 # ADR 0070: The app may send opt-in, ID-less update checks and usage statistics
 
-- **Status:** Accepted
+- **Status:** Accepted; the update check's request superseded from 2.4.0 on by [ADR 0091](0091-an-update-key-vouches-for-every-update-from-2-4-0-on.md): it reads a signed `release*.yml` straight from GitHub, with no SurfSense header, and `updates.surfsense.com` serves only 2.2.4 to 2.3.1
 - **Date:** 2026-10-21
 - **Supersedes:** [ADR 0016](0016-no-telemetry.md); amends [ADR 0017](0017-egress-off-by-default.md), [ADR 0020](0020-two-update-channels.md) and [ADR 0060](0060-one-consent-question-per-user-action.md)
 

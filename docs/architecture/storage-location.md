@@ -15,7 +15,7 @@ Settings › Storage moves the downloaded models, or all of a user's data, to an
 
 ## What stays behind
 
-`electron/` never moves: Chromium holds its files open, and `secret.bin` must not depend on a drive, since `loadSecret` mints a new secret when it cannot read one and that orphans every stored API key. `api-url` stays because `surfsense-plugins` looks for it in the home folder. A backup of a moved install therefore spans two folders.
+`electron/` never moves: Chromium holds its files open, and `secret.bin` must not depend on a drive, since `loadSecret` mints a new secret when it cannot find one, and that orphans every stored API key; a file the keychain refuses is only set aside, as `secret.bin.unreadable` beside it. `api-url` stays because `surfsense-plugins` looks for it in the home folder. A backup of a moved install therefore spans two folders.
 
 The bundled packs in the app's `resources/models` stay with the app.
 

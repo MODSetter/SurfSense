@@ -1,6 +1,6 @@
 # ADR 0018: Provider keys are encrypted with a per-install secret kept in the OS keychain
 
-- **Status:** Accepted
+- **Status:** Accepted; amended by [ADR 0091](0091-an-update-key-vouches-for-every-update-from-2-4-0-on.md): a `secret.bin` the keychain cannot open is set aside and tried again at each launch, never overwritten
 - **Date:** 2026-09-14
 - **Source:** [Pivot plan L234](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/00d-pivot-plan.md#L234), [Connections plan L89–97](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/api/05b-openai-compatible-connections.md#L89-L97)
 
