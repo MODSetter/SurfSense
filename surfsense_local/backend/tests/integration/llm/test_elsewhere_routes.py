@@ -10,10 +10,12 @@ from pathlib import Path
 import pytest
 from httpx import AsyncClient
 
+from modules.llm.catalog.local import service as service_module
 from modules.llm.catalog.local.dependencies import get_local_catalog
 from modules.llm.catalog.local.engines.llamacpp.elsewhere.looking import (
     Surroundings,
 )
+from modules.llm.fit import HardwareBudget
 from modules.llm.providers.llamacpp import PRESET_FILE
 from shared.config import get_llm_settings
 from tests.integration.llm.conftest import INSTALLED
@@ -32,13 +34,17 @@ ELSEWHERE = "/llm/catalog/local/elsewhere"
 
 @pytest.fixture
 def home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """A Linux home folder SurfSense looks in, with nothing in it yet."""
+    """A Linux home folder SurfSense looks in, with nothing in it yet, on a
+    machine with room: pricing must not hang on what this computer has free."""
     home = tmp_path / "home"
     home.mkdir()
     monkeypatch.setattr(
         "modules.llm.catalog.local.dependencies.this_computer",
         lambda: Surroundings(home, {}, "linux"),
     )
+    gib = 1024**3
+    roomy = HardwareBudget(16 * gib, 16 * gib, gib, 32 * gib, False, True)
+    monkeypatch.setattr(service_module, "build_budget", lambda *_, **__: roomy)
     get_local_catalog.cache_clear()
     return home
 
@@ -116,7 +122,8 @@ async def test_removing_a_model_used_in_place_never_deletes_its_file(
     client: AsyncClient, llamacpp_server: str, qwen_in_ollama: Path
 ) -> None:
     """Deleting from SurfSense forgets the model; Ollama's blob stays where it was."""
-    await _use(client, await _found_row(client))
+    job = await _use(client, await _found_row(client))
+    assert job["event"]["type"] == "complete", job
 
     reply = await client.delete("/llm/models/ollama-qwen3-8b")
 
@@ -147,7 +154,7 @@ async def test_looking_can_be_turned_off_and_added_folders_are_still_read(
     body = added.json()
     assert body["folders"] == [str(folder)]
     assert [(r["name"], r["found_in"]["app"]) for r in body["rows"]] == [
-        ("Mistral 7B Instruct", "folder")
+        ("Mistral-7B-Instruct", "folder")
     ]
 
     removed = await client.request(
@@ -170,7 +177,7 @@ async def test_a_picked_file_is_offered_to_use(
 
     assert reply.status_code == 200, reply.text
     row = reply.json()["row"]
-    assert (row["name"], row["found_in"]["quantization"]) == ("Qwen3 4B", "Q5_K_M")
+    assert (row["name"], row["found_in"]["quantization"]) == ("Qwen3-4B", "Q5_K_M")
     assert row["builds"][0]["catalog_id"]
 
 

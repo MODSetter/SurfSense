@@ -1,23 +1,37 @@
-"""What a found file is called on the screen, from its own header.
+"""What a found file is called on the screen, and what its header says about it.
 
-Another app's file names are its own business: Ollama's are content hashes,
-and Jan names every model `model.gguf`. The header names the model, its tensor
-table counts the parameters, and `general.file_type` states the quantization.
-The file name is read for one thing only, the quantizer's own label
-(`UD-Q4_K_XL`), which no header holds, as the catalog does for a download.
+A model is called what the person would recognise it by: an Ollama tag, else the
+file's own name less its build (`Qwen3-8B-UD-Q4_K_XL.gguf` is Qwen3-8B), which is
+how LM Studio and Hugging Face show it. Ollama's file names are content hashes
+and Jan names every model `model.gguf`, so those are called by the header's
+`general.name`, else by the folder. The header's name is a fallback rather than
+the rule because converters fill it unevenly: measured, one SmolLM2 Instruct
+file calls itself "Smollm2 135M 8k Lc100K Mix1 Ep2".
+
+Everything else comes from the header: the tensor table counts the parameters,
+`general.file_type` states the quantization where the name has no label, and
+`<architecture>.context_length` the window.
 """
 
 import math
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
 from gguf.constants import Keys, LlamaFileType
 
-from modules.llm.catalog.local.quantization import UNKNOWN, quantization_label
+from modules.llm.catalog.local.quantization import (
+    UNKNOWN,
+    label_in,
+    quantization_label,
+)
 from modules.llm.gguf import GgufHeader
 
 # Jan's name for every model file; its folder carries the model's id.
 _GENERIC_STEM = "model"
+# A content address, as Ollama and the hub's blob store name files.
+_HASHED = re.compile(r"^(sha256[-:])?[0-9a-f]{32,}$", re.IGNORECASE)
+_SPLIT = re.compile(r"-\d{5}-of-\d{5}$", re.IGNORECASE)
 
 
 @dataclass(frozen=True)
@@ -38,7 +52,11 @@ def label_of(header: GgufHeader, path: Path, *, name: str | None = None) -> Mode
     architecture = str(meta.get(Keys.General.ARCHITECTURE) or "")
     context = meta.get(Keys.LLM.CONTEXT_LENGTH.format(arch=architecture))
     return ModelLabel(
-        name=name or _header_name(meta) or _file_name(path),
+        name=name
+        or _own_name(path)
+        or _header_name(meta)
+        or path.parent.name
+        or path.name,
         architecture=architecture,
         parameters=_parameters(header),
         quantization=_quantization(meta, path),
@@ -51,10 +69,17 @@ def _header_name(meta: dict) -> str:
     return value.strip() if isinstance(value, str) else ""
 
 
-def _file_name(path: Path) -> str:
-    stem = path.name.removesuffix(".gguf")
-    if stem.lower() == _GENERIC_STEM and path.parent.name:
-        return path.parent.name
+def _own_name(path: Path) -> str:
+    """The file's name less its build and split, or empty where the name says
+    nothing about the model: a content hash, or Jan's `model.gguf`."""
+    stem = _SPLIT.sub("", path.name.removesuffix(".gguf"))
+    if stem.lower() == _GENERIC_STEM or _HASHED.match(stem):
+        return ""
+    if label := label_in(stem):
+        # A label reads UD-; the file may write UD_.
+        build = re.escape(label).replace(r"UD\-", "UD[-_]")
+        trimmed = re.sub(rf"[-_.]{build}$", "", stem, flags=re.IGNORECASE)
+        return trimmed or stem
     return stem
 
 

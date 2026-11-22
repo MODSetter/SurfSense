@@ -219,6 +219,15 @@ flash-attn = on
   and the fused flash-attention kernel is skipped, after which attention falls
   back to the CPU silently. An `f16` plan writes none of them.
 
+A section's `model` may name a file outside the models directory: a model
+used where another app keeps it ([catalog](catalog.md#models-other-apps-downloaded)).
+Measured at `b11050` on Windows, the router lists such a section, hands the
+worker the path as `--model`, and loads and answers from it, an Ollama blob with
+no `.gguf` extension included. The parser ends a value at `#` or `;`, quoted or
+not, so the worker gets the path cut short and fails to load;
+`preset_can_name()` in `providers/llamacpp/preset.py` says which paths a section
+can carry, and a found file whose path it refuses is not offered.
+
 The file is `models.ini` in the models directory, named once on each side
 (`PRESET_FILE`). `write_presets()` leaves the existing file and its mtime alone
 when the rendered text is unchanged. A real change is written to a sibling
@@ -227,7 +236,7 @@ when the rendered text is unchanged. A real change is written to a sibling
 ## From download to answerable
 
 llama.cpp's catalog engine, `LlamaCppEngine.reprice()` ([`models_folder/preset.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/models_folder/preset.py)), writes the preset for every `.gguf` in the models
-directory, at API startup (on the warm thread, after the device probe), after
+directory and every model used in place, at its own path, at API startup (on the warm thread, after the device probe), after
 every install and after every delete. A catalog read also rewrites it when the
 folder contains a readable model that the preset does not name. Later catalog
 reads find its section and do not keep moving the file's modification time and
@@ -398,7 +407,9 @@ There is no `pull()`. Fetching weights by name made sense when the runtime owned
 the download; here SurfSense fetches the GGUF itself, because an in-process fetch
 is the only place `egress.require()` can hold, and it buys resume as well.
 
-Delete unlinks the file rather than calling `DELETE /models`. The router only
+Delete unlinks the file rather than calling `DELETE /models`, except for a
+model used where another app keeps it, which is only forgotten: its record goes,
+the preset is rewritten, and the file stays that app's. The router only
 removes what it downloaded into its own cache and refuses everything else:
 measured, `model name=… is not removable (not from cache)`, a 500, with the file
 left on disk. Everything SurfSense installs lands in `--models-dir`, so that call

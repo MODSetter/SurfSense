@@ -1,9 +1,10 @@
-"""What a found file is called on the screen, read from its own header.
+"""What a found file is called on the screen, and what its header says about it.
 
-Another app's file names are its own business: Ollama's are content hashes and
-Jan names every model `model.gguf`. The header names the model, counts its
-parameters in its tensor table and states its quantization, so those are read;
-the file name is consulted only for the quantizer's label, which no header holds.
+A model is called what a person would recognise: an Ollama tag, else the file's
+own name less its build, as LM Studio and Hugging Face show it. Ollama's names
+are hashes and Jan names every model `model.gguf`, so those fall back to the
+header's `general.name`, then the folder. Parameters, quantization and window
+come from the header.
 """
 
 from pathlib import Path
@@ -26,12 +27,41 @@ def _header(**fields):
     return read_header_prefix(chat_model_bytes(**fields))
 
 
-def test_a_model_is_named_by_its_header() -> None:
-    """`general.name` names the model and `general.architecture` its kind."""
+def test_a_file_another_app_named_is_called_by_that_name_less_its_build() -> None:
+    """The name a person sees in LM Studio, without the build it also shows."""
     label = label_of(_header(name="Qwen3 8B"), Path("/m/Qwen3-8B-Q4_K_M.gguf"))
 
-    assert label.name == "Qwen3 8B"
+    assert label.name == "Qwen3-8B"
     assert label.architecture == "qwen3"
+
+
+@pytest.mark.parametrize(
+    ("file", "name"),
+    [
+        ("Qwen3.5-4B-UD-Q4_K_XL.gguf", "Qwen3.5-4B"),
+        ("SmolLM2-135M-Instruct-Q4_0.gguf", "SmolLM2-135M-Instruct"),
+        ("llama3.1-heretic.Q2_K.gguf", "llama3.1-heretic"),
+        ("big-Q4_K_M-00001-of-00003.gguf", "big"),
+        ("my-finetune.gguf", "my-finetune"),
+    ],
+)
+def test_the_build_and_the_split_come_off_a_file_name(file: str, name: str) -> None:
+    """Measured: one SmolLM2 Instruct header names itself after a training run."""
+    header = _header(name="Smollm2 135M 8k Lc100K Mix1 Ep2")
+
+    assert label_of(header, Path("/m") / file).name == name
+
+
+def test_a_file_named_by_its_hash_is_named_by_its_header() -> None:
+    """An Ollama blob picked by hand has no tag and a hash for a name."""
+    assert label_of(_header(name="Qwen3 8B"), BLOB).name == "Qwen3 8B"
+
+
+def test_a_file_called_model_is_named_by_its_header() -> None:
+    """Jan's file is `model.gguf`; its header names the model."""
+    path = Path("/jan/data/llamacpp/models/Jan-v3.5-4B-Q4_K_XL/model.gguf")
+
+    assert label_of(_header(name="Jan-v3.5-4B"), path).name == "Jan-v3.5-4B"
 
 
 def test_an_ollama_model_is_named_by_the_tag_its_user_pulled() -> None:
@@ -41,14 +71,9 @@ def test_an_ollama_model_is_named_by_the_tag_its_user_pulled() -> None:
     assert label.name == "qwen3:8b"
 
 
-def test_a_model_whose_header_names_nothing_is_named_by_its_file() -> None:
-    """With no name in the header, the file's own name is the label."""
-    label = label_of(_header(name=None), Path("/m/my-finetune-Q5_K_M.gguf"))
-
-    assert label.name == "my-finetune-Q5_K_M"
-
-
-def test_a_file_called_model_is_named_by_its_folder() -> None:
+def test_a_file_called_model_whose_header_names_nothing_is_named_by_its_folder() -> (
+    None
+):
     """Jan keeps each model as `<model id>/model.gguf`."""
     path = Path("/jan/data/llamacpp/models/Jan-v3.5-4B-Q4_K_XL/model.gguf")
 

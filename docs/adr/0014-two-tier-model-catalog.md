@@ -1,6 +1,6 @@
 # ADR 0014: The model catalog is a curated offline manifest plus Hugging Face search, and SurfSense downloads the files itself
 
-- **Status:** Accepted; the `rank` decision is superseded by [ADR 0026](0026-curated-order-is-list-position.md), the two egress destinations by [ADR 0027](0027-egress-consent-per-host.md), and the manifest, the denylist and header reads on opening a search result by the [model catalog proposal](../proposals/model-catalog.md), in progress
+- **Status:** Accepted; the `rank` decision is superseded by [ADR 0026](0026-curated-order-is-list-position.md), the two egress destinations by [ADR 0027](0027-egress-consent-per-host.md), and the manifest, the denylist and header reads on opening a search result by the [model catalog proposal](../proposals/model-catalog.md), in progress; a GGUF already on the computer, which had no screen, is used in place by [ADR 0093](0093-a-gguf-another-app-downloaded-is-used-where-it-lies.md)
 - **Date:** 2026-09-19
 - **Source:** [llama.cpp runtime plan L50–51](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/api/07-llamacpp-runtime.md#L50-L51), [llama.cpp runtime plan L59–65](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/api/07-llamacpp-runtime.md#L59-L65)
 

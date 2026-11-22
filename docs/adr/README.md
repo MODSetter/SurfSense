@@ -121,3 +121,4 @@ The Date is the day the decision was first written down. Source links are permal
 | 0090 | [A document waits on the server for the pictures it places](0090-a-document-waits-on-the-server-for-its-pictures.md) | Accepted |
 | 0091 | [From 2.4.0 on, SurfSense's own update key vouches for an update, not a certificate's name](0091-an-update-key-vouches-for-every-update-from-2-4-0-on.md) | Accepted |
 | 0092 | [SurfSense is free; licensing is off, the job packs ship in the app under Apache-2.0, and web search has no default server](0092-surfsense-is-free-and-licensing-is-off.md) | Accepted |
+| 0093 | [A GGUF another app downloaded is found in that app's folder and used where it lies, never copied](0093-a-gguf-another-app-downloaded-is-used-where-it-lies.md) | Accepted |
