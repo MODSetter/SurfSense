@@ -67,13 +67,13 @@ You can change both later.
 
 ### Update checks
 
-When you allow update checks, SurfSense asks `updates.surfsense.com` once a day whether a newer version exists. If that host can't answer, it asks `github.com` instead. A check sends:
+When you allow update checks, SurfSense asks `github.com` once a day whether a newer version exists. A check sends:
 
 - your IP address, as every request does
 - the user agent `SurfSense`, with no version
-- the app's version, your system and its processor (such as `win32-x64`), and your OS version (such as `windows-11`)
+- which operating system the update is for
 
-It sends no cookies and no ID. Settings › About › **Show exactly what's sent** shows the last request SurfSense made, with every header. Updates themselves download from GitHub. See [updates](/docs/v2/updates).
+It sends no cookies and no ID. Versions before 2.4.0 ask `updates.surfsense.com` first, with the app's version, your system and its processor (such as `win32-x64`), and your OS version (such as `windows-11`). Settings › About › **Show exactly what's sent** shows the last request SurfSense made, with every header. Updates themselves download from GitHub. See [updates](/docs/v2/updates).
 
 ### Usage statistics
 
@@ -95,7 +95,7 @@ An administrator can turn update checks or usage statistics off for everyone on 
 | macOS | `/Library/Application Support/SurfSense/policy.json` |
 | Linux | `/etc/surfsense/policy.json` |
 
-`"updates": "off"` and `"usageStatistics": "off"` turn each off. `"updateFeed"` names an `https` mirror, and SurfSense then asks nowhere else. A locked setting says why in Settings.
+`"updates": "off"` and `"usageStatistics": "off"` turn each off. `"updateFeed"` names an `https` mirror, and SurfSense then asks nowhere else. From 2.4.0 the mirror serves each release's `release.yml`, `release-mac.yml` and `release-linux.yml` exactly as the release carries them, beside its installers: SurfSense checks their signature as it does GitHub's. A locked setting says why in Settings.
 
 ## API keys
 

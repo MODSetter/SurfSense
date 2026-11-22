@@ -54,11 +54,8 @@ describe("network settings", () => {
     const user = userEvent.setup()
     render(<NetworkSettings />)
 
-    expect(
-      await screen.findByText(
-        /updates\.surfsense\.com, falls back to github\.com/
-      )
-    ).toBeTruthy()
+    expect(await screen.findByText(/^github\.com/)).toBeTruthy()
+    expect(screen.queryByText(/updates\.surfsense\.com/)).toBeNull()
     expect(await screen.findByText(/usage\.surfsense\.com/)).toBeTruthy()
     const usage = screen.getByRole("checkbox", {
       name: "Allow Usage statistics",

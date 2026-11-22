@@ -6,9 +6,9 @@ import { updatesLockedText } from "./locked-text"
 import { SentBody } from "./sent-body"
 
 // The only headers a check sends: the user agent Electron main's session sets
-// on every request, and contract 05's three (part A), with what each holds.
-function headerRows() {
-  return [
+// on every request, and, to an admin's mirror only, contract 05's three (part A).
+function headerRows(mirror: boolean) {
+  const rows = [
     {
       name: "User-Agent",
       value: intl.formatMessage({
@@ -38,6 +38,7 @@ function headerRows() {
       }),
     },
   ]
+  return mirror ? rows : rows.slice(0, 1)
 }
 
 function requestText(request: {
@@ -52,7 +53,7 @@ function requestText(request: {
 
 /** Where an update check goes, and the last one exactly as it was sent. */
 export function UpdateRequestDetails({ state }: { state: PrivacyState }) {
-  const { host, fallbackHost, lastRequest, lastCheckedAt } = state.updates
+  const { host, mirror, lastRequest, lastCheckedAt } = state.updates
   const locked = updatesLockedText(state)
   return (
     <div className="flex flex-col gap-3 text-sm">
@@ -66,25 +67,18 @@ export function UpdateRequestDetails({ state }: { state: PrivacyState }) {
           { host }
         )}
       </p>
-      <p className="text-pretty text-muted-foreground">
-        {fallbackHost
-          ? intl.formatMessage(
-              {
-                id: "privacy_choices_update_fallback_body",
-                defaultMessage:
-                  "If {host} fails or answers with something unexpected, SurfSense asks {fallback} for the same file directly, with only the User-Agent header, so updates never depend on {host}.",
-              },
-              { host, fallback: fallbackHost }
-            )
-          : intl.formatMessage(
-              {
-                id: "privacy_choices_update_mirror_body",
-                defaultMessage:
-                  "{host} is the update server your organization set. SurfSense asks nowhere else.",
-              },
-              { host }
-            )}
-      </p>
+      {mirror ? (
+        <p className="text-pretty text-muted-foreground">
+          {intl.formatMessage(
+            {
+              id: "privacy_choices_update_mirror_body",
+              defaultMessage:
+                "{host} is the update server your organization set. SurfSense asks nowhere else.",
+            },
+            { host }
+          )}
+        </p>
+      ) : null}
       {locked ? <p className="text-muted-foreground">{locked}</p> : null}
       <h3 className="mt-1 text-sm font-medium">
         {intl.formatMessage({
@@ -123,7 +117,7 @@ export function UpdateRequestDetails({ state }: { state: PrivacyState }) {
             })}
           </p>
           <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
-            {headerRows().map((row) => (
+            {headerRows(mirror).map((row) => (
               <div key={row.name} className="contents">
                 <dt className="font-mono">{row.name}</dt>
                 <dd className="text-muted-foreground">{row.value}</dd>
