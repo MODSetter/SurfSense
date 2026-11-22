@@ -1,11 +1,14 @@
 name: Desktop Release
 
 # Builds the desktop app (surfsense_local) into per-OS installers and attaches
-# them to a GitHub Release on the `stable` channel. The legacy 0.0.x desktop
-# reads `latest*.yml`; the `legacy-update-bridge` job below puts those back on
-# every release so it keeps landing on v0.0.40 and its sunset redirect.
-# `release-extras` then adds the install scripts, the apt repository and, last,
-# SHA256SUMS. `snap` packs the Snap Store build; nothing waits on it.
+# them to a GitHub Release. Apps from 2.4.0 on read signed `release*.yml`;
+# `update-manifests` signs them, and after the 2.4.0 handover also freezes
+# `stable.yml` and `stable-mac.yml` on 2.4.0 for every app before it (ADR 0091).
+# The legacy 0.0.x desktop reads `latest*.yml`; the `legacy-update-bridge` job
+# below puts those back on every release so it keeps landing on v0.0.40 and its
+# sunset redirect. `release-extras` then adds the install scripts, the apt
+# repository and, last, SHA256SUMS, and `update-gate` checks every manifest on
+# the draft. `snap` packs the Snap Store build; nothing waits on it.
 #
 # Trigger: push a tag like `v2.0.0`, matching surfsense_local/VERSION. Or run
 # manually for a dry run.
@@ -18,7 +21,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version (e.g. 0.0.1) for a dry run without a tag"
+        description: "Version (e.g. 0.0.1) for a dry run without a tag; the handover's number (2.4.0), or a later one, also signs the update manifests"
         required: true
         default: "0.0.0-test"
       publish:
@@ -29,11 +32,83 @@ on:
           - never
           - always
         default: "never"
+      sign_windows:
+        description: "Sign the Windows build through Azure, as a tag does (uses the signing quota)"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
 
 jobs:
+  # Which update manifests this version publishes (ADR 0091). The repository
+  # variable UPDATE_HANDOVER_VERSION names the handover release, 2.4.0, which keeps
+  # the stable channel and adds signed copies of its stable*.yml as release*.yml.
+  # Every later release builds on the release channel, signs its own release*.yml,
+  # and freezes stable.yml and stable-mac.yml on the handover for the apps before
+  # it, whose updaters check only the old certificates. WINDOWS_SIGNING=off ships a
+  # release with no Windows build: Windows stays on the last signed one.
+  update-path:
+    runs-on: ubuntu-latest
+    outputs:
+      route: ${{ steps.route.outputs.route }}
+      channel: ${{ steps.route.outputs.channel }}
+      handover: ${{ steps.route.outputs.handover }}
+      windows: ${{ steps.route.outputs.windows }}
+    steps:
+      - name: Pick the update path
+        id: route
+        env:
+          HANDOVER: ${{ vars.UPDATE_HANDOVER_VERSION }}
+          WINDOWS_SIGNING: ${{ vars.WINDOWS_SIGNING || 'azure' }}
+          EVENT: ${{ github.event_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+          SIGN_WINDOWS: ${{ inputs.sign_windows }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = "workflow_dispatch" ]; then VERSION="$INPUT_VERSION"; else VERSION="${GITHUB_REF#refs/tags/v}"; fi
+          RELEASE_NUMBER='^[0-9]+\.[0-9]+\.[0-9]+$'
+          if ! grep -qE "$RELEASE_NUMBER" <<<"$VERSION"; then
+            # A test number (0.0.0-test) signs nothing; build refuses to publish one.
+            ROUTE=before
+          elif ! grep -qE "$RELEASE_NUMBER" <<<"$HANDOVER"; then
+            if [ "$EVENT" = "push" ]; then
+              echo "::error::Set the repository variable UPDATE_HANDOVER_VERSION to the handover release (2.4.0): it decides which update manifests v$VERSION publishes (surfsense_local/RELEASE.md)."
+              exit 1
+            fi
+            echo "::notice::UPDATE_HANDOVER_VERSION is not set, so this dry run signs no update manifests."
+            ROUTE=before
+          elif [ "$VERSION" = "$HANDOVER" ]; then
+            ROUTE=handover
+          elif [ "$(printf '%s\n%s\n' "$VERSION" "$HANDOVER" | sort -V | head -n 1)" = "$HANDOVER" ]; then
+            ROUTE=after
+          else
+            if [ "$EVENT" = "push" ]; then
+              echo "::error::v$VERSION is older than the handover release v$HANDOVER: every release from the handover on carries signed release*.yml, so tag $HANDOVER or later."
+              exit 1
+            fi
+            ROUTE=before
+          fi
+          # Windows signs on a tag, and on a dry run asked to; never while WINDOWS_SIGNING is off.
+          if [ "$WINDOWS_SIGNING" != off ] && { [ "$EVENT" = "push" ] || [ "$SIGN_WINDOWS" = true ]; }; then
+            WINDOWS=azure
+          else
+            WINDOWS=none
+          fi
+          if [ "$EVENT" = "push" ] && [ "$ROUTE" = handover ] && [ "$WINDOWS" != azure ]; then
+            echo "::error::The handover release must ship a company-signed Windows build: every Windows app before it checks that certificate."
+            exit 1
+          fi
+          if [ "$ROUTE" = after ]; then CHANNEL=release; else CHANNEL=stable; fi
+          echo "v$VERSION: update path $ROUTE, channel $CHANNEL, Windows signing $WINDOWS"
+          {
+            echo "route=$ROUTE"
+            echo "channel=$CHANNEL"
+            echo "handover=$HANDOVER"
+            echo "windows=$WINDOWS"
+          } >> "$GITHUB_OUTPUT"
+
   # Windows and Linux compile it; macOS downloads upstream's in its own job.
   audiocpp:
     uses: ./.github/workflows/build-audiocpp.yml
@@ -54,7 +129,7 @@ jobs:
     secrets: inherit
 
   build:
-    needs: [audiocpp, sdcpp, notarization, opencv]
+    needs: [audiocpp, sdcpp, notarization, opencv, update-path]
     runs-on: ${{ matrix.os }}
     outputs:
       # Every leg resolves the same number; the snap job stamps it on the snap.
@@ -121,15 +196,11 @@ jobs:
       - name: Detect release signing eligibility
         id: sign
         run: |
-          # Windows signs through Azure only on production tag pushes (v*), so a
-          # dry run's Windows build is unsigned. macOS signs and notarizes
-          # whenever its secrets are present, dry runs in this repo included;
-          # contributor forks lack them and build unsigned.
-          if [ "${{ github.event_name }}" = "push" ] && [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            echo "prod=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "prod=false" >> "$GITHUB_OUTPUT"
-          fi
+          # Windows signs through Azure on a tag push, and on a dry run started
+          # with sign_windows, unless WINDOWS_SIGNING is off (update-path). macOS
+          # signs and notarizes whenever its secrets are present, dry runs in this
+          # repo included; contributor forks lack them and build unsigned.
+          echo "prod=${{ needs.update-path.outputs.windows == 'azure' }}" >> "$GITHUB_OUTPUT"
 
       - name: Setup uv
         uses: astral-sh/setup-uv@v8.1.0
@@ -316,6 +387,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PROD: ${{ steps.sign.outputs.prod }}
+          # stable for the handover release, release after it (update-path).
+          CHANNEL: ${{ needs.update-path.outputs.channel }}
+          # A tag whose Windows build cannot be signed uploads none of it: the
+          # release then carries the last signed build's release.yml instead.
+          PUBLISH: ${{ (github.event_name == 'push' && runner.os == 'Windows' && needs.update-path.outputs.windows != 'azure') && 'never' || inputs.publish || 'always' }}
           # macOS only: on Windows electron-builder would sign every .exe with
           # this .p12 through signtool, so a dry run never signed as a tag does.
           CSC_LINK: ${{ runner.os == 'macOS' && secrets.MAC_CERT_P12_BASE64 || '' }}
@@ -324,7 +400,7 @@ jobs:
           APPLE_APP_SPECIFIC_PASSWORD: ${{ runner.os == 'macOS' && secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
           APPLE_TEAM_ID: ${{ runner.os == 'macOS' && secrets.APPLE_TEAM_ID || '' }}
           # Windows Azure Trusted Signing — the service principal is only wired
-          # in on production tags (see the CLI flags below).
+          # in when Windows signs (see the CLI flags below).
           WINDOWS_PUBLISHER_NAME: ${{ vars.WINDOWS_PUBLISHER_NAME }}
           AZURE_CODESIGN_ENDPOINT: ${{ vars.AZURE_CODESIGN_ENDPOINT }}
           AZURE_CODESIGN_ACCOUNT: ${{ vars.AZURE_CODESIGN_ACCOUNT }}
@@ -334,11 +410,12 @@ jobs:
           AZURE_CLIENT_SECRET: ${{ steps.sign.outputs.prod == 'true' && secrets.AZURE_CLIENT_SECRET || '' }}
         run: |
           CMD=(pnpm exec electron-builder ${{ matrix.platform }} \
-            --publish "${{ inputs.publish || 'always' }}" \
+            --publish "$PUBLISH" \
             -c.npmRebuild=false \
-            -c.extraMetadata.version="${{ steps.version.outputs.VERSION }}")
+            -c.extraMetadata.version="${{ steps.version.outputs.VERSION }}" \
+            -c.publish.channel="$CHANNEL")
 
-          # Windows signing via Azure Trusted Signing, production tags only.
+          # Windows signing via Azure Trusted Signing, when Windows signs.
           if [ "$PROD" = "true" ] && [ "$RUNNER_OS" = "Windows" ]; then
             CMD+=(-c.win.azureSignOptions.publisherName="$WINDOWS_PUBLISHER_NAME")
             CMD+=(-c.win.azureSignOptions.endpoint="$AZURE_CODESIGN_ENDPOINT")
@@ -347,6 +424,25 @@ jobs:
           fi
 
           "${CMD[@]}"
+
+      # NsisUpdater checks an update's signature only while app-update.yml names a
+      # publisher; the app's verifier then accepts any Windows trusts (ADR 0091).
+      # Without one, this build and every update to it would install unchecked.
+      - name: Check app-update.yml names a publisher (Windows)
+        if: runner.os == 'Windows'
+        working-directory: surfsense_local/electron
+        run: node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/update-signing/check-publisher-name.mjs release/win-unpacked/resources/app-update.yml
+
+      # The manifests electron-builder wrote, for update-manifests to sign. A
+      # small artifact of their own, so that job never downloads an installer.
+      - name: Upload the update manifests
+        uses: actions/upload-artifact@v7
+        with:
+          name: update-manifests-${{ matrix.os }}
+          path: |
+            surfsense_local/electron/release/stable*.yml
+            surfsense_local/electron/release/release*.yml
+          if-no-files-found: error
 
       # electron-builder's afterSign hook (electron/scripts/opencode/after-sign.mjs) already
       # ran this on macOS and Windows once the app was signed, before any installer
@@ -517,7 +613,10 @@ jobs:
 
       # The dmg is LZFSE (electron-builder.yml `dmg.format`). Checks hdiutil made it
       # so, that it verifies and mounts, that the app inside is signed, and times the
-      # verify and the copy out a user waits through.
+      # verify and the copy out a user waits through. A Developer ID build must also
+      # carry the designated requirement Squirrel.Mac holds its next update to, in
+      # the dmg and in the update zip, pass Gatekeeper and be notarized and stapled
+      # (ADR 0091); a fork's build is not Developer ID signed and skips those.
       - name: Smoke the dmg (macOS)
         if: runner.os == 'macOS'
         working-directory: surfsense_local/electron
@@ -531,6 +630,21 @@ jobs:
           trap 'hdiutil detach "$MNT" -force >/dev/null 2>&1 || true' EXIT
           test -d "$MNT/SurfSense.app"
           codesign --verify --deep --strict --verbose=2 "$MNT/SurfSense.app"
+          if codesign -dv --verbose=2 "$MNT/SurfSense.app" 2>&1 | grep -q '^Authority=Developer ID Application:'; then
+            node scripts/mac-signing/designated-requirement.mjs "$MNT/SurfSense.app"
+            spctl -a -vv -t exec "$MNT/SurfSense.app"
+            xcrun stapler validate "$MNT/SurfSense.app"
+            UNZIPPED=$(mktemp -d)
+            ditto -x -k release/SurfSense-arm64.zip "$UNZIPPED"
+            codesign --verify --deep --strict --verbose=2 "$UNZIPPED/SurfSense.app"
+            node scripts/mac-signing/designated-requirement.mjs "$UNZIPPED/SurfSense.app"
+            rm -rf "$UNZIPPED"
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            echo "::error::a tag's Mac app must be Developer ID signed: Gatekeeper and every installed app's updater would refuse this one"
+            exit 1
+          else
+            echo "::notice::not Developer ID signed: the designated requirement, Gatekeeper and notarization are not checked"
+          fi
           COPY=$(mktemp -d)
           time ditto "$MNT/SurfSense.app" "$COPY/SurfSense.app"
           # The backend a Mac user launches: stripped, then signed with the
@@ -548,6 +662,124 @@ jobs:
       - name: Check installer sizes
         working-directory: surfsense_local/electron
         run: node scripts/check-installer-size.mjs
+
+  # The update manifests apps from 2.4.0 on read, each signed with UPDATE_SIGNING_KEY
+  # (ADR 0091). The handover release signs copies of its own stable*.yml. A later
+  # one signs its own release*.yml, makes stable-linux.yml their unsigned copy
+  # (Linux checks no signature, so older apps skip the hop), and freezes stable.yml
+  # and stable-mac.yml on the handover: the apps before it check only the company
+  # certificates, which sign the handover and nothing after it. A release with no
+  # signed Windows build carries Latest's release.yml forward. A tag's run uploads
+  # them to the draft; a dry run keeps them on the run.
+  update-manifests:
+    if: needs.update-path.outputs.route != 'before'
+    needs: [update-path, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: bash
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      VERSION: ${{ needs.build.outputs.version }}
+      HANDOVER: ${{ needs.update-path.outputs.handover }}
+      ROUTE: ${{ needs.update-path.outputs.route }}
+      WINDOWS: ${{ needs.update-path.outputs.windows }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          package_json_file: surfsense_local/electron/package.json
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: surfsense_local/electron/pnpm-lock.yaml
+
+      # electron-updater's own manifest reader, for the checks.
+      - name: Install the app's update code
+        working-directory: surfsense_local/electron
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      # A re-run after the undraft would swap live manifests under users' feet.
+      - name: Refuse a published release
+        if: github.event_name == 'push'
+        run: |
+          if [ "$(gh release view "$GITHUB_REF_NAME" --json isDraft --jq .isDraft)" != true ]; then
+            echo "::error::$GITHUB_REF_NAME is already published; this job only fills the draft."; exit 1
+          fi
+
+      - name: Fetch the build's manifests
+        uses: actions/download-artifact@v8
+        with:
+          pattern: update-manifests-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/built
+
+      - name: Sign and freeze the update manifests
+        env:
+          UPDATE_SIGNING_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}
+        run: |
+          set -euo pipefail
+          BUILT="$RUNNER_TEMP/built"
+          OUT="$RUNNER_TEMP/manifests"
+          mkdir -p "$OUT"
+          sign() { node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON surfsense_local/electron/scripts/update-signing/sign-manifest.mjs "$@"; }
+          if [ "$ROUTE" = handover ]; then
+            for platform in "" -mac -linux; do
+              sign "$BUILT/stable$platform.yml" "$OUT/release$platform.yml"
+            done
+          else
+            for platform in -mac -linux; do
+              sign "$BUILT/release$platform.yml" "$OUT/release$platform.yml"
+            done
+            cp "$BUILT/release-linux.yml" "$OUT/stable-linux.yml"
+            if [ "$WINDOWS" = azure ]; then
+              sign "$BUILT/release.yml" "$OUT/release.yml"
+            else
+              # Signed when that build shipped, so it is uploaded as served; the checks below verify it.
+              curl -fsSL -o "$OUT/release.yml" "https://github.com/${GH_REPO}/releases/latest/download/release.yml"
+            fi
+            for f in stable.yml stable-mac.yml; do
+              curl -fsSL -o "$RUNNER_TEMP/handover-$f" \
+                "https://github.com/${GH_REPO}/releases/download/v${HANDOVER}/$f"
+              printf 'tag: v%s\n' "$HANDOVER" | cat - "$RUNNER_TEMP/handover-$f" > "$OUT/$f"
+              # A silent no-op here would offer every app before the handover a build it refuses.
+              grep -qx "tag: v${HANDOVER}" "$OUT/$f"
+              grep -qx "version: ${HANDOVER}" "$OUT/$f"
+            done
+          fi
+          ls -l "$OUT"
+
+      # The gate's offline checks, before anything reaches the draft: the handover's
+      # stable*.yml are the build's own, so they join the folder for the comparison.
+      - name: Check the manifests
+        run: |
+          set -euo pipefail
+          CHECK="$RUNNER_TEMP/check"
+          mkdir -p "$CHECK"
+          cp "$RUNNER_TEMP/manifests"/* "$CHECK/"
+          if [ "$ROUTE" = handover ]; then cp "$RUNNER_TEMP/built"/stable*.yml "$CHECK/"; fi
+          node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON surfsense_local/electron/scripts/update-signing/check-release-manifests.mjs "$CHECK" \
+            --version "$VERSION" --handover "$HANDOVER" ${{ needs.update-path.outputs.windows != 'azure' && needs.update-path.outputs.route == 'after' && '--windows-carried' || '' }}
+
+      - name: Upload them to the draft
+        if: github.event_name == 'push'
+        run: gh release upload "$GITHUB_REF_NAME" "$RUNNER_TEMP/manifests"/* --clobber
+
+      - name: Keep them on the run
+        uses: actions/upload-artifact@v7
+        with:
+          name: update-manifests
+          path: ${{ runner.temp }}/manifests/*
+          if-no-files-found: error
 
   # GitHub's Latest badge is on 2.x, but the legacy 0.0.x desktop resolves
   # updates through /releases/latest and reads latest*.yml from whatever that
@@ -729,7 +961,7 @@ jobs:
   # SHA256SUMS stale; re-run the job then.
   release-extras:
     if: github.event_name == 'push'
-    needs: [build, legacy-update-bridge]
+    needs: [build, legacy-update-bridge, update-manifests]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -813,3 +1045,54 @@ jobs:
           fi
           (cd "$RUNNER_TEMP/held" && sha256sum --check --ignore-missing "$RUNNER_TEMP/SHA256SUMS")
           gh release upload "$TAG" "$RUNNER_TEMP/SHA256SUMS" --clobber
+
+  # The last job before the undraft: every update manifest on the draft, read as
+  # each installed generation will read it (ADR 0091, RELEASE.md). The nine names
+  # are there, release*.yml verify against the keys the app compiles in, the frozen
+  # stable files send older apps to the handover, and after the handover its
+  # installers still hash to what those files say. Publish only once it is green.
+  update-gate:
+    if: github.event_name == 'push'
+    needs: [update-path, release-extras]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          package_json_file: surfsense_local/electron/package.json
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: surfsense_local/electron/pnpm-lock.yaml
+
+      - name: Install the app's update code
+        working-directory: surfsense_local/electron
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      # Drafts are missing from /releases/tags/<tag>, but gh reads them by tag.
+      - name: Download the draft's manifests
+        run: |
+          set -euo pipefail
+          gh release download "$GITHUB_REF_NAME" --dir "$RUNNER_TEMP/draft" \
+            --pattern 'stable*.yml' --pattern 'release*.yml' --pattern 'latest*.yml'
+          ls -l "$RUNNER_TEMP/draft"
+
+      - name: Check every update manifest on the draft
+        run: |
+          node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON surfsense_local/electron/scripts/update-signing/check-release-manifests.mjs "$RUNNER_TEMP/draft" \
+            --version "${GITHUB_REF_NAME#v}" --handover "${{ needs.update-path.outputs.handover }}" --legacy --handover-assets \
+            ${{ needs.update-path.outputs.windows != 'azure' && needs.update-path.outputs.route == 'after' && '--windows-carried' || '' }}
