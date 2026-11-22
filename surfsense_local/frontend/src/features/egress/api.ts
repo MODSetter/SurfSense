@@ -46,8 +46,6 @@ const CLAUDE_SIGN_IN_HOST = "platform.claude.com"
 
 // SurfSense's own plugins: one of the two hosts the license key is sent to.
 const SURFSENSE_PLUGIN_HOST = "plugins.surfsense.com"
-// SurfSense's own SearXNG server, where Add from the web searches by default.
-const SURFSENSE_SEARCH_HOST = "searxng.surfsense.com"
 // HUGGINGFACE's host: a page read there shares model search's row.
 const HUGGINGFACE_HOST = "huggingface.co"
 
@@ -102,13 +100,6 @@ export function describeDestination(
         },
         { host: HUGGINGFACE_HOST }
       )
-    )
-  if (purpose === "web_search" && host === SURFSENSE_SEARCH_HOST)
-    details.push(
-      intl.formatMessage({
-        id: "egress_web_search_surfsense_body",
-        defaultMessage: "SurfSense runs this server.",
-      })
     )
   // The registry's own copy already says this; a plugin's does not.
   if (purpose === "plugin" && [host, ...also].includes(SURFSENSE_PLUGIN_HOST))
@@ -301,15 +292,9 @@ function describeOne(destination: string, host: string, purpose?: string) {
     }
   }
   // A search goes to a SearXNG server, which asks search engines in turn.
-  if (purpose === "web_search" || host === SURFSENSE_SEARCH_HOST) {
+  if (purpose === "web_search") {
     return {
-      label:
-        host === SURFSENSE_SEARCH_HOST
-          ? intl.formatMessage({
-              id: "egress_web_search_label",
-              defaultMessage: "Web search",
-            })
-          : host,
+      label: host,
       title: intl.formatMessage(
         {
           id: "egress_web_search_prompt_title",

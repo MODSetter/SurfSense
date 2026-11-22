@@ -28,7 +28,6 @@ export type GuideSlug =
   | "plugins"
   | "transcribe-a-recording"
   | "voice-input"
-  | "business-trial"
   | "security-questionnaire"
   | "contract-redline"
   | "privacy-network"

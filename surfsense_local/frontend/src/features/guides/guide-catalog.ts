@@ -244,14 +244,6 @@ export const GUIDE_AREAS: readonly GuideArea[] = [
       }),
     guides: [
       {
-        slug: "business-trial",
-        title: () =>
-          intl.formatMessage({
-            id: "guides_dialog_business_trial_link",
-            defaultMessage: "Start a trial and add your license",
-          }),
-      },
-      {
         slug: "security-questionnaire",
         title: () =>
           intl.formatMessage({

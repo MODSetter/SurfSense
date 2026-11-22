@@ -6,6 +6,7 @@ import { intl } from "@/i18n/intl"
 import { JobRowItem } from "./job-row"
 import { jobRows } from "./job-rows"
 import { LicenseOffer } from "./license-offer"
+import { ImportPackButton } from "./packs/import-pack-button"
 import { useDeliveries } from "./packs/download-job-packs"
 import { JobRunsList } from "./runs/job-runs-list"
 import { useJobPacks } from "./use-job-packs"
@@ -66,11 +67,13 @@ export function JobList({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3">
-        <LicenseOffer
-          rows={rows}
-          license={license.data}
-          onOpenLicense={onOpenLicense}
-        />
+        {license.data.licensing ? (
+          <LicenseOffer
+            rows={rows}
+            license={license.data}
+            onOpenLicense={onOpenLicense}
+          />
+        ) : null}
         <ul className="flex flex-col gap-3">
           {rows.map((row) => (
             <JobRowItem
@@ -87,6 +90,8 @@ export function JobList({
             />
           ))}
         </ul>
+        {/* With licensing off nothing is downloaded: a pack file is imported. */}
+        {license.data.licensing ? null : <ImportPackButton size="sm" />}
       </div>
       <JobRunsList
         workspaceId={workspaceId}

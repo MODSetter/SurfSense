@@ -9,6 +9,8 @@ code:
 
 # Bundles: plugins that run on the user's machine
 
+> **Since 21 Nov 2026 SurfSense is free** ([ADR 0092](../../../adr/0092-surfsense-is-free-and-licensing-is-off.md)): the Business Source License code and the job packs are Apache-2.0, the jobs ship in the app, and licensing is off. What this proposal says about paid jobs, licences and the Business Source License is kept as history.
+
 > Deferred. Remote plugins are built ([plugins](../../../architecture/plugins.md)). A bundle is `kind: bundle` in the registry: an MCP server that runs on the user's computer, for offline and air-gapped use, local software, and private processing. It is picked up when something needs it ([what is not built](../README.md)). Since 22 Oct 2026 SurfSense's B2B jobs need it, so it comes before the security questionnaire's beta ([below](#first-local-paid-bundles-surfsenses-b2b-jobs)).
 
 The files in this folder are the earlier design, written when a plugin was a sidebar action with a form that wrote notes into Sources. Its local-runtime parts are what bundles will build on, and some are built: the runner in [`modules/plugins/bundles/runner/`](../../../../surfsense_local/backend/modules/plugins/bundles/runner/), the SDK, the CLI's author commands and the manifest rules in [`backend/plugins/bundles/core/`](../../../../backend/plugins/bundles/core/). Where a file here disagrees with how remote plugins are built ([plugins](../../../architecture/plugins.md), [plugin registry](../../../architecture/plugin-registry.md)), they hold.

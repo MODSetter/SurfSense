@@ -14,6 +14,9 @@ export type LicenseStatus = {
   firm: string | null
   // Entitlement codes of the job plugins it unlocks, such as JOB_QUESTIONNAIRE.
   jobs: string[]
+  // Whether licensing runs at all. Off in every release since SurfSense became
+  // free (ADR 0092): every licence screen hides and every job runs.
+  licensing: boolean
 }
 
 export function readLicense(signal?: AbortSignal): Promise<LicenseStatus> {

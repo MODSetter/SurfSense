@@ -1,5 +1,7 @@
 # Desktop app overview
 
+> **SurfSense's own servers are not running since 27 Nov 2026, kept for a relaunch** ([ADR 0092](../adr/0092-surfsense-is-free-and-licensing-is-off.md)). The app is free and calls no licence server; web search goes only to a SearXNG server the user names.
+
 SurfSense is a desktop app for research over your own documents: add files, ask questions that are answered with citations into them, and turn them into deliverables such as summaries, slides, quizzes and podcasts. It serves one person on one machine and works offline: the parser, the embedding model and the model runtimes run locally, and everything the app knows lives on this machine, in one SQLite file and the files under its data directory. This page is the map of `surfsense_local/`; each feature has its own page, listed at the end.
 
 **Code:** [`surfsense_local/backend/`](../../surfsense_local/backend/), [`surfsense_local/frontend/`](../../surfsense_local/frontend/), [`surfsense_local/electron/`](../../surfsense_local/electron/)
@@ -28,11 +30,10 @@ Electron main ─┬─ api            FastAPI on 127.0.0.1, free port    ─┐
 
 BrowserWindow (Vite SPA) ── HTTP ──> api
 api ── admission ── HTTP ──> llama-server, remote OpenAI-compatible endpoints
-api ── HTTP ──> api.surfsense.com: a renewed license file, job packs
 worker-studio, opencode ── POST /internal/models/text/generate, /agent/model/v1 ──> api
 worker-studio ── HTTP ──> sd-server, audiocpp, remote image and speech endpoints
 worker-plugins ── HTTP ──> each site and www.youtube.com, the links added from the web
-api ── HTTP ──> searxng.surfsense.com or the user's SearXNG, each site and www.youtube.com: a search in Add from the web, the agent's web tools
+api ── HTTP ──> the SearXNG server the user names, each site and www.youtube.com: a search in Add from the web, the agent's web tools
 worker-ingest, worker-studio, worker-plugins ── POST /internal/events ──> api ── SSE /workspaces/{id}/events
 ```
 

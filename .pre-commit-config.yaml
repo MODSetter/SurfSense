@@ -43,7 +43,8 @@ repos:
             surfsense_local/backend/modules/llm/catalog/(local|remote)/manifest/models\.json|
             backend/plugins/registry/published/plugins\.json|
             www/scripts/guides/demo-documents/manifest\.json|
-            surfsense_local/backend/scripts/capability_list/sweep/.*\.(json|jsonl)
+            surfsense_local/backend/scripts/capability_list/sweep/.*\.(json|jsonl)|
+            surfsense_local/backend/modules/jobs/packs/bundled/.*
           )$
 
   # Aliased so desktop-tests.yml runs it alone: `pre-commit run bandit-desktop`.

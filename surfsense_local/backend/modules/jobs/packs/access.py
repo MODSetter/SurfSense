@@ -2,7 +2,8 @@
 carries the job's entitlement, as every Business licence and the Business trial do (ADR 0080).
 
 The licence's own expiry is the end of the period paid for plus 30 days, which is the grace
-already, so the app adds none. The developer switch runs paid jobs without a licence. Like
+already, so the app adds none. With licensing off (ADR 0092) every job runs, as under the
+developer switch, which runs paid jobs without a licence. Like
 every check in the app this is honesty, not enforcement: delivery by the licence server and
 the pack's terms are what hold (ADR 0067).
 """
@@ -17,6 +18,7 @@ from typing import Literal
 from sqlalchemy.orm import Session
 
 from modules.jobs.packs.manifest import PackJob, PackManifest
+from modules.license.licensing import licensing_on
 from modules.license.service import LicenseStatus, status
 
 DEV_SWITCH = "SURFSENSE_LOCAL_JOBS_UNLOCKED"
@@ -36,7 +38,11 @@ class Access:
 def job_access(session: Session, manifest: PackManifest, job: PackJob) -> Access:
     """The one check a run passes when it starts and again when the worker works it out, so
     a retried run is checked too; the pack listing says what it would answer."""
-    if manifest.access == "free" or os.environ.get(DEV_SWITCH) == "1":
+    if (
+        not licensing_on()
+        or manifest.access == "free"
+        or os.environ.get(DEV_SWITCH) == "1"
+    ):
         return Access(True, "")
     if job.entitlement is None:
         return Access(

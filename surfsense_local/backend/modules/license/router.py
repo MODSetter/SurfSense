@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
 
 from api.dependencies import SessionDep
+from modules.license.licensing_off import refuse_while_licensing_off
 from modules.license.renewal.license_refresh import refresh_license
 from modules.license.renewal.refresh_failed import RefreshFailedError
 from modules.license.service import (
@@ -36,7 +37,9 @@ def put_license(payload: LicenseImport, session: SessionDep) -> LicenseStatus:
     "/refresh", response_model=LicenseStatus, summary="Fetch the renewed license file"
 )
 async def refresh_file(session: SessionDep) -> LicenseStatus:
-    """Settings' check for a renewal: the license server's current file for the stored key."""
+    """Settings' check for a renewal: the license server's current file for the stored key.
+    409 `licensing_off` while licensing is off."""
+    refuse_while_licensing_off()
     try:
         return await refresh_license(session)
     except RefreshFailedError as failed:

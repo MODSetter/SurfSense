@@ -1,6 +1,6 @@
 # ADR 0081: SurfSense's platform scrapers retire, and reading web pages, YouTube and search move into the app for free
 
-- **Status:** Accepted
+- **Status:** Accepted; in part superseded by [ADR 0092](0092-surfsense-is-free-and-licensing-is-off.md): web search going to SurfSense's own SearXNG server; it has no default server
 - **Date:** 2026-11-01, revised 2026-11-02
 - **Supersedes:** [ADR 0025](0025-scraper-client-as-paid-plugin.md): the hosted scraper client shipping as a paid plugin. Its rules that a trial unlocks paid plugins ([ADR 0019](0019-offline-licenses.md)) and that a plugin's hosts need the user's consent ([ADR 0017](0017-egress-off-by-default.md)) stand.
 - **Amends:** [ADR 0047](0047-premium-plugins-are-source-available.md): its first paid plugins being remote ones on SurfSense's servers, the scrapers; [ADR 0054](0054-surfsenses-plugins-run-on-one-plugin-host.md): the plugin host running SurfSense's plugins "free and paid", with one scraper plugin per platform; [ADR 0068](0068-surfsense-calls-its-own-plugins-to-pull-a-link-into-sources.md): "The license is the gate" for Add from the web, its pullers for the retired platforms, and where the remaining pullers run

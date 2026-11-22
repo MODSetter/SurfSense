@@ -170,19 +170,33 @@ async def test_a_server_that_does_not_answer_is_unreachable(
     }
 
 
-async def test_surfsenses_server_is_asked_about_before_the_first_search(
+async def test_search_is_off_until_a_server_is_named(
+    client: AsyncClient, workspace_id: int
+) -> None:
+    """No default server: nothing is sent, no host is asked about, and the dialog says why."""
+    searched = await client.post(search_url(workspace_id), json={"query": "tides"})
+
+    assert searched.status_code == 409
+    assert searched.json()["detail"]["code"] == "search_server_none"
+    listed = [row["destination"] for row in (await client.get("/egress")).json()]
+    assert not any("searxng" in destination for destination in listed)
+
+
+async def test_a_named_server_is_asked_about_before_the_first_search(
     client: AsyncClient, workspace_id: int
 ) -> None:
     """No license, no plugin: the one question is the server's host, recorded off."""
+    await client.put("/web-search/server", json={"url": "https://search.firm.example"})
+
     searched = await client.post(search_url(workspace_id), json={"query": "tides"})
 
     assert searched.status_code == 403
     detail = searched.json()["detail"]
     assert detail["code"] == "egress_disabled"
-    assert detail["hosts"] == ["searxng.surfsense.com"]
+    assert detail["hosts"] == ["search.firm.example"]
     assert detail["purpose"] == "web_search"
     listed = (await client.get("/egress")).json()
-    row = next(r for r in listed if r["destination"] == "host:searxng.surfsense.com")
+    row = next(r for r in listed if r["destination"] == "host:search.firm.example")
     assert row["enabled"] is False
 
 

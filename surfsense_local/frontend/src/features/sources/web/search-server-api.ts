@@ -1,9 +1,8 @@
 import { requestJson } from "@/lib/api"
 
 export type SearchServer = {
-  // Null while searches go to SurfSense's server, `default_url`.
+  // Null while no server is named: search is off (ADR 0092).
   url: string | null
-  default_url: string
 }
 
 export const searchServerQueryKey = ["web-search", "server"] as const
@@ -12,7 +11,7 @@ export function readSearchServer(signal?: AbortSignal): Promise<SearchServer> {
   return requestJson<SearchServer>("/web-search/server", { signal })
 }
 
-/** Null goes back to SurfSense's server. Contacts nothing: the next search asks. */
+/** Null turns search off. Contacts nothing: the next search asks. */
 export function chooseSearchServer(url: string | null): Promise<SearchServer> {
   return requestJson<SearchServer>("/web-search/server", {
     method: "PUT",

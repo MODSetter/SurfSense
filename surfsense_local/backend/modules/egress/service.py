@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from modules.egress.models import EgressDestination
+from modules.license.licensing import licensing_on
 from modules.llm.models import ProviderConnection
 
 HOST_PREFIX = "host:"
@@ -25,6 +26,14 @@ LICENSE_SERVER = f"{HOST_PREFIX}api.surfsense.com"
 # Contacted whether or not a connection points at them, so they are listed with
 # no connection to discover them from.
 BUILT_IN = (HUGGINGFACE, PLUGIN_HOST, LICENSE_SERVER)
+
+
+def built_in() -> tuple[str, ...]:
+    """The built-in hosts this app contacts: with licensing off (ADR 0092) nothing reaches
+    the license server, so it is not listed, even where an earlier version left its row."""
+    if licensing_on():
+        return BUILT_IN
+    return tuple(host for host in BUILT_IN if host != LICENSE_SERVER)
 
 
 class EgressDeniedError(Exception):
@@ -144,8 +153,9 @@ def list_destinations(session: Session) -> list[EgressDestination]:
     rows = {row.destination: row for row in session.scalars(select(EgressDestination))}
     # Every host row too: one an endpoint named for its image has no connection.
     hosts = _connection_hosts(session) | {d for d in rows if d.startswith(HOST_PREFIX)}
+    listed = built_in()
     return [
         rows.get(destination)
         or EgressDestination(destination=destination, enabled=False)
-        for destination in [*BUILT_IN, *sorted(hosts - set(BUILT_IN))]
+        for destination in [*listed, *sorted(hosts - set(BUILT_IN))]
     ]

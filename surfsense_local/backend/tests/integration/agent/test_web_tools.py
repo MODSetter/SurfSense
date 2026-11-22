@@ -104,12 +104,26 @@ async def test_a_search_server_not_allowed_is_refused_and_listed_to_allow(
 ) -> None:
     """A turn cannot ask: the step offers the question, Settings > Network lists the host."""
     workspace_id = await tools.workspace()
+    await tools.client.put(
+        "/web-search/server", json={"url": "https://search.firm.example"}
+    )
 
     text, is_error = await tools.call(workspace_id, "search_web", {"query": "tides"})
 
     assert is_error
-    assert text.startswith(f"{REFUSED}searxng.surfsense.com.\n")
-    assert await listed_off(tools, "searxng.surfsense.com")
+    assert text.startswith(f"{REFUSED}search.firm.example.\n")
+    assert await listed_off(tools, "search.firm.example")
+
+
+async def test_search_is_off_while_no_server_is_named(tools: ToolEndpoint) -> None:
+    """No default server: the model reads why, and that a given link can still be read."""
+    workspace_id = await tools.workspace()
+
+    text, is_error = await tools.call(workspace_id, "search_web", {"query": "tides"})
+
+    assert is_error
+    assert text.startswith("Web search is off")
+    assert "surfsense_read_web_page" in text
 
 
 async def test_a_page_is_read_as_its_main_text_with_its_title_and_link(

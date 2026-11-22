@@ -26,6 +26,7 @@ from modules.jobs.packs.delivery.automatic_delivery import (
 from modules.jobs.packs.delivery.delivery_schedule import delivering_daily
 from modules.jobs.packs.delivery.held_back import HELD_BACK
 from modules.jobs.packs.installed import installed_packs, packs_dir
+from modules.license.licensing import OVERRIDE
 from modules.workspaces.models import Workspace
 from shared.db import create_session_factory
 from tests.integration.artifacts.job_runs.started_runs import start_run
@@ -190,6 +191,8 @@ async def test_the_api_downloads_the_license_s_jobs_once_it_starts(
 ) -> None:
     """The schedule rides the API's lifespan, and asks nothing of the renewal's route."""
     monkeypatch.setattr("api.main._warm_catalog", lambda _factory: None)
+    # The app's own packs are another test's: only the delivered one is listed here.
+    monkeypatch.setattr("api.main.install_bundled_packs", lambda _factory: None)
     await add_license(client)
     offer(license_server, tmp_path)
 
@@ -798,3 +801,30 @@ async def test_two_follow_ups_at_once_check_a_code_once(
 
     assert caplog.text.count("job packs checked again once their runs ended") == 1
     assert caplog.text.count(NO_LICENSE) == 1
+
+
+async def test_with_licensing_off_the_api_asks_no_license_server_and_installs_its_packs(
+    client: AsyncClient,
+    license_server: StandInLicenseServer,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """As a release starts (ADR 0092): neither the renewal nor the delivery runs, even for a
+    licence due both, and the packs the app ships are installed instead."""
+    monkeypatch.setattr("api.main._warm_catalog", lambda _factory: None)
+    await add_license(client, business_license(expiry="2026-09-20T00:00:00.000Z"))
+    offer(license_server, tmp_path)
+    monkeypatch.delenv(OVERRIDE)
+
+    async with lifespan(create_app()):
+        # Longer than a startup check takes to send, had either loop started.
+        await asyncio.sleep(0.5)
+
+    assert license_server.pack_asked == []
+    assert license_server.asked == []
+    listed = {p["id"]: p for p in (await client.get("/job-packs")).json()}
+    assert set(listed) == {
+        "surfsense-contract-redline",
+        "surfsense-security-questionnaire",
+    }
+    assert all(pack["unlocked"] for pack in listed.values())

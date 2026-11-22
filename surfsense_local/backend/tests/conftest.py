@@ -14,6 +14,9 @@ os.environ["SURFSENSE_LOCAL_DATA_DIR"] = (
     or tempfile.mkdtemp(prefix="surfsense-tests-")
 )
 os.environ.setdefault("SURFSENSE_LOCAL_SECRET", "test-secret")
+# The licensing code is off in every release (ADR 0092) but kept, so its tests run it on;
+# the off-mode tests unset this themselves.
+os.environ.setdefault("SURFSENSE_LOCAL_LICENSING", "1")
 
 import pytest
 from httpx import ASGITransport, AsyncClient

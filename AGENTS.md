@@ -97,7 +97,7 @@ Follow [CONTRIBUTING.md](CONTRIBUTING.md). The parts agents miss:
 - `gh pr create --body` skips the PR template. Keep its headings: What, Why, `Fixes #`, How to test.
 - Commit messages and PR titles are Conventional Commits, `type(scope): summary`. The commitizen hook runs only where it is installed; CI does not run it.
 - A new feature starts as a proposal PR in `docs/proposals/`, not as code.
-- `backend/plugins/proprietary/` is Business Source License 1.1 and changed only by maintainers: ask one before changing it. A change to `docs/contracts/` needs the owners of both sides.
+- The whole repository is Apache-2.0, `backend/plugins/proprietary/` included since 21 Nov 2026 ([ADR 0092](docs/adr/0092-surfsense-is-free-and-licensing-is-off.md)). A change to `docs/contracts/` needs the owners of both sides.
 
 ## Skills
 

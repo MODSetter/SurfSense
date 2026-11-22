@@ -24,7 +24,7 @@ async def test_each_plugin_answers_at_its_own_path() -> None:
 
 
 async def test_without_proprietary_the_free_plugins_still_run(tmp_path: Path) -> None:
-    """The open build: no Business Source License code, and nothing missing but it."""
+    """Without proprietary/: the other plugins still run, and nothing is missing but its plugins."""
     root = tmp_path / "plugins"
     shutil.copytree(SAMPLES, root)
     shutil.rmtree(root / "proprietary")

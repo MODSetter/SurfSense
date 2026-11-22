@@ -2,6 +2,8 @@ import { ApiError } from "@/lib/api"
 
 // What the dialog shows above its rows when a search or an add fails.
 export type WebProblem =
+  // No SearXNG server is named, so nothing was searched (ADR 0092).
+  | { kind: "search_off" }
   | { kind: "search_unreachable"; host: string }
   | { kind: "search_failed"; host: string }
   | { kind: "network_off"; hosts: string[] }
@@ -10,6 +12,7 @@ export type WebProblem =
 export function webProblem(cause: unknown): WebProblem {
   if (!(cause instanceof ApiError)) return { kind: "failed" }
   const host = typeof cause.detail.host === "string" ? cause.detail.host : ""
+  if (cause.code === "search_server_none") return { kind: "search_off" }
   if (cause.code === "search_unreachable") {
     return { kind: "search_unreachable", host }
   }

@@ -106,6 +106,14 @@ def api_inputs() -> tuple[list, list, list]:
             "modules/plugins/lists/first_party/icons",
         )
     )
+    # Read by path, so the analyser cannot see it. Without it a frozen build installs
+    # none of the job packs the app ships (ADR 0092), and Jobs lists nothing to run.
+    datas.append(
+        (
+            str(BACKEND / "modules" / "jobs" / "packs" / "bundled"),
+            "modules/jobs/packs/bundled",
+        )
+    )
 
     # shared/app_version.py reads the release version from the package's metadata,
     # which a frozen build has only if copied. Without it no registry entry with a

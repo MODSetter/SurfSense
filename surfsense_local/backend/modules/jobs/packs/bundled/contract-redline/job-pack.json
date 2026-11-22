@@ -1,0 +1,29 @@
+{
+  "schema": "surfsense-job-pack/1",
+  "id": "surfsense-contract-redline",
+  "version": "0.1.1",
+  "name": "Contract redline",
+  "publisher": "SurfSense",
+  "description": "Reviews a counterparty's Word contract against your firm's own playbook and returns a revised copy with tracked changes and comments.",
+  "access": "paid",
+  "license_file": "LICENSE.md",
+  "jobs": [
+    {
+      "key": "contract-redline",
+      "name": "Contract redline",
+      "description": "Review a Word contract (.docx), such as an NDA, against the firm's playbook and redline it with tracked changes.",
+      "runner": "word-clauses/1",
+      "config": "jobs/contract-redline/job.json",
+      "skill": "skills/surfsense-job-contract-redline",
+      "entitlement": "JOB_CONTRACT_REDLINE"
+    }
+  ],
+  "files": {
+    "jobs/contract-redline/job.json": "c5e597ecead4a94a0ca366119c5efcdd7e7a2ce26360f4adbf918666e53534a6",
+    "jobs/contract-redline/prompts/point.md": "7602bd4fecea37ba9325549cfac5c2fca04facd739ad209ef4de345b96d6e975",
+    "jobs/contract-redline/prompts/repair.md": "7c39561882282608758ea6bba9174a94b8dd6a60485985f6ec8961316d0d0d76",
+    "jobs/contract-redline/prompts/system.md": "86a88321019bac04322bfa9b59c389532e522179f759be68e618cd27b1ac573f",
+    "LICENSE.md": "d01e6dcea9278c0da752ae8b1ac1852ab7487c87c2665f2b66523866395c3d8b",
+    "skills/surfsense-job-contract-redline/SKILL.md": "151104091a1916221fa01b240a9289ba77e23a5e476a09a2e767416d1cb6f97c"
+  }
+}

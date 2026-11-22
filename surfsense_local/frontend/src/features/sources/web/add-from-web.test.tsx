@@ -608,12 +608,32 @@ describe("adding sources from the web", () => {
     expect(await within(dialog).findByText("Already in Sources")).toBeTruthy()
   })
 
+  it("says search is off until a server is added, and that links still work", async () => {
+    const user = userEvent.setup()
+    serving({
+      search: refused(409, {
+        code: "search_server_none",
+        message: "Web search is off until a SearXNG server is added.",
+      }),
+    })
+    render(<WebHarness />)
+    const dialog = await openDialog(user)
+
+    await ask(user, dialog, "tides")
+
+    expect(
+      await within(dialog).findByText(
+        "Web search is off until you add a SearXNG server in Settings › Network. You can still paste links to add."
+      )
+    ).toBeTruthy()
+  })
+
   it("says when the search server can't be reached, and where to choose another", async () => {
     const user = userEvent.setup()
     serving({
       search: refused(502, {
         code: "search_unreachable",
-        host: "searxng.surfsense.com",
+        host: "search.firm.example",
         message: "the search server could not be reached",
       }),
     })
@@ -624,7 +644,7 @@ describe("adding sources from the web", () => {
 
     expect(
       await within(dialog).findByText(
-        "SurfSense couldn’t reach the search server at searxng.surfsense.com. Check your connection, or choose another server in Settings › Network."
+        "SurfSense couldn’t reach the search server at search.firm.example. Check your connection, or choose another server in Settings › Network."
       )
     ).toBeTruthy()
   })

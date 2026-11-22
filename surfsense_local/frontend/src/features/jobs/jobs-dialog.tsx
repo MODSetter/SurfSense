@@ -48,7 +48,8 @@ const LIST: JobsView = { name: "list" }
 
 // Job screens name the firm a Business license is for (ADR 0080).
 function JobsHeader() {
-  const firm = useLicense().data?.firm?.trim()
+  const license = useLicense().data
+  const firm = license?.licensing ? license.firm?.trim() : undefined
   return (
     <DialogHeader>
       <DialogTitle className="text-xl">

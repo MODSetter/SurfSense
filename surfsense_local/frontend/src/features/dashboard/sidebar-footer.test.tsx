@@ -17,6 +17,7 @@ function license(state: LicenseStatus["state"]): LicenseStatus {
     max_users: null,
     firm: null,
     jobs: [],
+    licensing: true,
   }
 }
 
@@ -79,6 +80,16 @@ describe("the license row", () => {
     expect(row.className).toContain("hover:text-emerald-600")
   })
 
+  it("is absent while licensing is off, as in every release", async () => {
+    stubLicense({ ...license("none"), licensing: false })
+    const { container } = renderFooter()
+
+    // The status has arrived once the license query settles; the row never shows.
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalled())
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(container.textContent).toBe("Guides and videos")
+  })
+
   it("stays out of the way until the status arrives", async () => {
     vi.stubGlobal(
       "fetch",
@@ -134,8 +145,10 @@ describe("the guides row", () => {
       .getAllByRole("link")
       .map((link) => new URL(link.getAttribute("href") ?? "").pathname)
       .filter((path) => path !== "/docs/v2/guides")
-    expect(pages).toHaveLength(27)
-    expect(new Set(pages).size).toBe(27)
+    // The trial guide left with licensing (ADR 0092).
+    expect(pages).toHaveLength(26)
+    expect(new Set(pages).size).toBe(26)
+    expect(pages).not.toContain("/docs/v2/guides/business-trial")
   })
 })
 

@@ -51,6 +51,7 @@ async def test_a_valid_file_is_active_and_shows_its_plan(client: AsyncClient) ->
         "max_users": None,
         "firm": None,
         "jobs": [],
+        "licensing": True,
     }
 
 
@@ -69,6 +70,7 @@ async def test_a_business_license_shows_its_firm_people_and_jobs(
         "max_users": 5,
         "firm": "Example Accounting LLP",
         "jobs": ["JOB_QUESTIONNAIRE"],
+        "licensing": True,
     }
 
 
@@ -259,6 +261,7 @@ async def test_a_fresh_install_has_no_license(client: AsyncClient) -> None:
         "max_users": None,
         "firm": None,
         "jobs": [],
+        "licensing": True,
     }
 
 

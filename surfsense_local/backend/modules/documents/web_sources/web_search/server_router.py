@@ -2,9 +2,8 @@ from fastapi import APIRouter
 
 from api.dependencies import SessionDep
 from modules.documents.web_sources.web_search.search_server import (
-    DEFAULT_SEARCH_SERVER,
     choose_search_server,
-    chosen_search_server,
+    search_server,
 )
 from modules.documents.web_sources.web_search.server_schemas import (
     SearchServerRead,
@@ -20,15 +19,13 @@ router = APIRouter(prefix="/web-search", tags=["documents"])
     summary="The SearXNG server Add from the web searches with",
 )
 def read_search_server(session: SessionDep) -> SearchServerRead:
-    return SearchServerRead(
-        url=chosen_search_server(session), default_url=DEFAULT_SEARCH_SERVER
-    )
+    return SearchServerRead(url=search_server(session))
 
 
 @router.put(
     "/server",
     response_model=SearchServerRead,
-    summary="Search with another SearXNG server, or SurfSense's again",
+    summary="Search with a SearXNG server, or turn search off",
 )
 def update_search_server(
     payload: SearchServerUpdate, session: SessionDep

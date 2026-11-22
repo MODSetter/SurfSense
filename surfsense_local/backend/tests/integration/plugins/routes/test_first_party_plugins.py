@@ -4,6 +4,7 @@ from contextlib import ExitStack
 import pytest
 from httpx import AsyncClient
 
+from modules.license.licensing import OVERRIDE
 from shared.config import get_plugin_host_settings
 from tests.license_samples import (
     INDIVIDUAL_KEY,
@@ -284,3 +285,20 @@ async def test_a_fresh_verdict_is_not_asked_for_again(
     await client.post("/plugins/license/check", params={"if_stale": True})
 
     assert len(host.license_asks) == 1
+
+
+async def test_with_licensing_off_the_key_is_never_sent_nor_the_verdict_asked(
+    client: AsyncClient, host: RequiringLicense, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """As a release runs (ADR 0092): a licence imported earlier stays on this computer."""
+    await import_license(client, "individual.lic")
+    monkeypatch.delenv(OVERRIDE)
+
+    connected = await client.post("/plugins/first-party/news")
+    asked = len(host.authorizations)
+    checked = await client.post("/plugins/license/check")
+
+    assert connected.status_code == 201, connected.text
+    assert set(host.authorizations) == {None}
+    assert checked.status_code == 204
+    assert len(host.authorizations) == asked

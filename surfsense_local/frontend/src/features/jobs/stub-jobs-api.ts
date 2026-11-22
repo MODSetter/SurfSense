@@ -109,6 +109,7 @@ export const NO_LICENSE: LicenseStatus = {
   max_users: null,
   firm: null,
   jobs: [],
+  licensing: true,
 }
 
 export const INDIVIDUAL: LicenseStatus = {
@@ -119,6 +120,7 @@ export const INDIVIDUAL: LicenseStatus = {
   max_users: null,
   firm: null,
   jobs: [],
+  licensing: true,
 }
 
 export const BUSINESS: LicenseStatus = {
@@ -129,6 +131,7 @@ export const BUSINESS: LicenseStatus = {
   max_users: 5,
   firm: "Example Accounting LLP",
   jobs: ["JOB_QUESTIONNAIRE"],
+  licensing: true,
 }
 
 /** A trial issued before trials carried jobs. */
@@ -140,12 +143,14 @@ export const TRIAL: LicenseStatus = {
   max_users: null,
   firm: null,
   jobs: [],
+  licensing: true,
 }
 
 export const BUSINESS_TRIAL: LicenseStatus = {
   ...TRIAL,
   firm: "Example Accounting LLP",
   jobs: ["JOB_QUESTIONNAIRE"],
+  licensing: true,
 }
 
 /** A ready PDF source; a higher id was added later. */
