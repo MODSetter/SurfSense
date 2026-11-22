@@ -71,6 +71,8 @@ function kindOf(
   license: LicenseStatus
 ): JobRowKind {
   if (installed?.job.unlocked) return "available"
+  // With licensing off (ADR 0092) whatever is installed runs.
+  if (installed && !license.licensing) return "available"
   if (installed?.job.locked_code)
     return lockedKind(installed.job.locked_code, license)
   if (code === null) return "no_entitlement"
@@ -133,8 +135,17 @@ function row(
 }
 
 /** The catalog's jobs in order, then installed jobs it does not sell by
- *  name, then the license's codes neither covers. */
+ *  name, then the license's codes neither covers. With licensing off, only
+ *  the installed jobs: nothing is sold or downloaded (ADR 0092). */
 export function jobRows(
+  packs: readonly PackInfo[],
+  license: LicenseStatus
+): JobRow[] {
+  const rows = everyJobRow(packs, license)
+  return license.licensing ? rows : rows.filter((row) => row.job !== null)
+}
+
+function everyJobRow(
   packs: readonly PackInfo[],
   license: LicenseStatus
 ): JobRow[] {

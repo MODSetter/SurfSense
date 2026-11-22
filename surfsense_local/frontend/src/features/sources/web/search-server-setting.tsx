@@ -50,7 +50,7 @@ export function SearchServerSetting() {
           {intl.formatMessage({
             id: "sources_search_server_body",
             defaultMessage:
-              "Add from the web searches through a SearXNG server: SurfSense’s own, unless you name another, such as your organization’s.",
+              "Add from the web and the agent search through a SearXNG server you name, such as your organization’s or your own. Search is off until you add one; links you paste still open.",
           })}
         </p>
       </div>
@@ -58,7 +58,6 @@ export function SearchServerSetting() {
         <Input
           aria-labelledby={headingId}
           value={shown}
-          placeholder={server.data?.default_url}
           onChange={(event) => setDraft(event.target.value)}
         />
         <Button
@@ -78,8 +77,8 @@ export function SearchServerSetting() {
             onClick={() => choose.mutate(null)}
           >
             {intl.formatMessage({
-              id: "sources_search_server_reset_button",
-              defaultMessage: "Use SurfSense’s",
+              id: "sources_search_server_off_button",
+              defaultMessage: "Turn search off",
             })}
           </Button>
         ) : null}

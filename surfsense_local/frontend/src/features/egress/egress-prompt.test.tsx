@@ -516,7 +516,7 @@ describe("egress prompt", () => {
     }
   )
 
-  it("says a search goes to a SearXNG server, and that SurfSense runs its own", async () => {
+  it("says a search goes to the SearXNG server the user named", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () =>
@@ -525,8 +525,8 @@ describe("egress prompt", () => {
             detail: {
               code: "egress_disabled",
               message: "off",
-              destination: "host:searxng.surfsense.com",
-              host: "searxng.surfsense.com",
+              destination: "host:search.firm.example",
+              host: "search.firm.example",
               purpose: "web_search",
             },
           },
@@ -541,13 +541,14 @@ describe("egress prompt", () => {
     }).catch(() => {})
 
     const dialog = await screen.findByRole("alertdialog", {
-      name: "Allow searching with searxng.surfsense.com?",
+      name: "Allow searching with search.firm.example?",
     })
     expect(dialog.textContent).toContain("a SearXNG server")
     expect(dialog.textContent).toContain(
       "A search the agent writes can carry words from your chats or files, but nothing else from them is sent."
     )
-    expect(dialog.textContent).toContain("SurfSense runs this server.")
+    // There is no SurfSense search server any more (ADR 0092).
+    expect(dialog.textContent).not.toContain("SurfSense runs this server.")
   })
 
   it("never mentions a license key to a third-party plugin's host", async () => {

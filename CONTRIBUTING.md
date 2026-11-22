@@ -54,11 +54,10 @@ Small, focused PRs are easier to review.
 - After editing anything under `docs/` or `plans/`, run `python scripts/check_docs.py`.
 - [Allow edits from maintainers](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/allowing-changes-to-a-pull-request-branch-created-from-a-fork) lets us help on the branch.
 - New files follow [AGENTS.md](AGENTS.md). Existing packages do not need a layout rewrite unless that is the issue.
-- `backend/plugins/proprietary/` is Business Source License 1.1, and only maintainers change it. A pull request from anyone else that touches them is closed.
 - Keep `.env` and secrets out of the commit.
 
 ## Review and merge
 
-CI on the PR should be green. `code-quality.yml` runs the docs checker, file checks and a secrets scan on every PR, and fails one from anyone but a maintainer that touches `proprietary/`. Each product lints, scans and tests itself when its files change: `desktop-tests.yml` for `surfsense_local`. The self-hosted stack is tested on the `legacy` branch. [CODEOWNERS](.github/CODEOWNERS) asks the maintainer who owns the files you touched to review. One maintainer approval is enough to merge. Merged work lands on `dev` and reaches `main` with the next release.
+CI on the PR should be green. `code-quality.yml` runs the docs checker, file checks and a secrets scan on every PR. Each product lints, scans and tests itself when its files change: `desktop-tests.yml` for `surfsense_local`. The self-hosted stack is tested on the `legacy` branch. [CODEOWNERS](.github/CODEOWNERS) asks the maintainer who owns the files you touched to review. One maintainer approval is enough to merge. Merged work lands on `dev` and reaches `main` with the next release.
 
 If you work with a coding agent, [AGENTS.md](AGENTS.md) gives it the same rules, along with the repo's layout and commands.

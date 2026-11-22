@@ -383,6 +383,13 @@ export function AddFromWebDialog({
 }
 
 function problemText(problem: WebProblem): string {
+  if (problem.kind === "search_off") {
+    return intl.formatMessage({
+      id: "sources_web_search_off_error",
+      defaultMessage:
+        "Web search is off until you add a SearXNG server in Settings › Network. You can still paste links to add.",
+    })
+  }
   if (problem.kind === "search_unreachable") {
     return intl.formatMessage(
       {

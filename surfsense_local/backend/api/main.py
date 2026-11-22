@@ -49,10 +49,12 @@ from modules.events.router import router as events_router
 from modules.folders.finish_deletes import finish_interrupted_deletes
 from modules.folders.router import router as folders_router
 from modules.health.router import router as health_router
+from modules.jobs.packs.bundled_packs import install_bundled_packs
 from modules.jobs.packs.delivery.delivery_schedule import delivering_daily
 from modules.jobs.packs.delivery.router import router as job_pack_delivery_router
 from modules.jobs.packs.dev_packs import install_dev_packs
 from modules.jobs.router import router as jobs_router
+from modules.license.licensing import licensing_on
 from modules.license.renewal.renewal_schedule import renewing_daily
 from modules.license.router import router as license_router
 from modules.llm.admission.local_runtime import LocalAdmission
@@ -133,6 +135,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             session.commit()
             begin_counting(session)
         app.state.session_factory = session_factory
+        # The app's own packs first, so a developer's version of one replaces it.
+        install_bundled_packs(session_factory)
         install_dev_packs()
         # A thread too: a large subtree takes a while, and it is out of every
         # scope and the tree meanwhile.
@@ -163,14 +167,26 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         async with (
             _opencode_proxy(session_factory),
             serving_claude_proxy(session_factory, get_settings().host),
-            renewing_daily(session_factory),
-            delivering_daily(session_factory),
+            licensing_loops(session_factory),
         ):
             yield
     finally:
         await close_claude_runs()
         await close_engines()
         engine.dispose()
+
+
+@asynccontextmanager
+async def licensing_loops(
+    session_factory: sessionmaker[Session],
+) -> AsyncIterator[None]:
+    """The licence's renewal and its job packs' delivery, each daily; neither runs with
+    licensing off, so nothing asks SurfSense's licence server (ADR 0092)."""
+    if not licensing_on():
+        yield
+        return
+    async with renewing_daily(session_factory), delivering_daily(session_factory):
+        yield
 
 
 @asynccontextmanager

@@ -6,8 +6,6 @@ import { render } from "@/test-utils"
 
 import { SearchServerSetting } from "./search-server-setting"
 
-const DEFAULT = "https://searxng.surfsense.com"
-
 /** The API's search server route, keeping what it was sent. */
 function serving(answer?: (url: string | null) => Response) {
   let url: string | null = null
@@ -23,7 +21,7 @@ function serving(answer?: (url: string | null) => Response) {
         if (refused) return refused
         url = body.url
       }
-      return Response.json({ url, default_url: DEFAULT })
+      return Response.json({ url })
     })
   )
   return sent
@@ -35,18 +33,22 @@ afterEach(() => {
 })
 
 describe("the search server setting", () => {
-  it("shows SurfSense's server until another is named", async () => {
+  it("says search is off until a server is named, and offers none of its own", async () => {
     serving()
     render(<SearchServerSetting />)
 
     const field = await screen.findByRole("textbox", { name: "Web search" })
 
-    await waitFor(() => expect(field.getAttribute("placeholder")).toBe(DEFAULT))
+    expect(
+      await screen.findByText(/Search is off until you add one/)
+    ).toBeTruthy()
     expect((field as HTMLInputElement).value).toBe("")
-    expect(screen.queryByRole("button", { name: "Use SurfSense’s" })).toBeNull()
+    expect(field.getAttribute("placeholder")).toBeNull()
+    expect(screen.queryByRole("button", { name: "Turn search off" })).toBeNull()
+    expect(document.body.textContent).not.toContain("surfsense.com")
   })
 
-  it("saves a firm's own server, and goes back to SurfSense's on request", async () => {
+  it("saves a firm's own server, and turns search off on request", async () => {
     const sent = serving()
     const user = userEvent.setup()
     render(<SearchServerSetting />)
@@ -57,7 +59,7 @@ describe("the search server setting", () => {
     )
     await user.click(screen.getByRole("button", { name: "Save" }))
     await user.click(
-      await screen.findByRole("button", { name: "Use SurfSense’s" })
+      await screen.findByRole("button", { name: "Turn search off" })
     )
 
     await waitFor(() =>

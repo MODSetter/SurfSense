@@ -196,3 +196,24 @@ describe("job rows", () => {
     })
   })
 })
+
+describe("job rows with licensing off", () => {
+  const free = (license: typeof BUSINESS) => ({ ...license, licensing: false })
+
+  it("makes every installed job available, whatever the license says", () => {
+    for (const license of [NO_LICENSE, ended(BUSINESS), TRIAL]) {
+      const rows = jobRows([lockedPack("expired")], free(license))
+
+      expect(rows.map((row) => [row.key, row.job, row.kind])).toEqual([
+        ["JOB_QUESTIONNAIRE", "test-questionnaire", "available"],
+      ])
+    }
+  })
+
+  it("lists no job that is not installed, nor a license's own codes", () => {
+    expect(jobRows([], free(BUSINESS))).toEqual([])
+    expect(jobRows([TEST_PACK], free(BUSINESS)).map((row) => row.kind)).toEqual(
+      ["available"]
+    )
+  })
+})

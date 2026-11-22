@@ -19,6 +19,7 @@ const NO_LICENSE: LicenseStatus = {
   max_users: null,
   firm: null,
   jobs: [],
+  licensing: true,
 }
 
 function SettingsHarness() {
@@ -121,7 +122,8 @@ describe("SettingsDialog", () => {
     render(<SettingsHarness />)
 
     const groups = {
-      Settings: ["General", "License", "Plugins"],
+      // License only while licensing runs, which no release does (ADR 0092).
+      Settings: ["General", "Plugins"],
       Models: [
         "Text gen",
         "Image gen",
@@ -141,6 +143,38 @@ describe("SettingsDialog", () => {
       ).toEqual(sections)
     }
   })
+
+  it.each([
+    [true, ["General", "License", "Plugins"]],
+    [false, ["General", "Plugins"]],
+  ])(
+    "lists License only while licensing runs (%s)",
+    async (licensing, shown) => {
+      const fetches = vi.fn(async (input: RequestInfo | URL) =>
+        String(input) === "/license/status"
+          ? Response.json({ ...NO_LICENSE, licensing })
+          : Response.json([])
+      )
+      vi.stubGlobal("fetch", fetches)
+      render(<SettingsHarness />)
+
+      const nav = () =>
+        Array.from(
+          screen
+            .getByRole("navigation", { name: "Settings" })
+            .querySelectorAll("button"),
+          (b) => b.textContent
+        )
+      await waitFor(() =>
+        expect(fetches).toHaveBeenCalledWith(
+          "/license/status",
+          expect.anything()
+        )
+      )
+      await waitFor(() => expect(nav()).toEqual(shown))
+      vi.unstubAllGlobals()
+    }
+  )
 
   it("shows the embedding model the library was built with, and offers no way to change it", async () => {
     vi.stubGlobal(
@@ -258,6 +292,8 @@ describe("SettingsDialog", () => {
     )
     const user = userEvent.setup()
     render(<SettingsHarness />)
+    // License is listed once its status says licensing runs.
+    await screen.findByRole("button", { name: "License" })
 
     for (const [nav, heading] of [
       ["General", "General"],
@@ -452,7 +488,7 @@ describe("SettingsDialog in the Docker image", { tags: ["docker"] }, () => {
     const nav = screen.getByRole("navigation", { name: "Settings" })
     expect(
       Array.from(nav.querySelectorAll("button"), (b) => b.textContent)
-    ).toEqual(["General", "Access", "License", "Plugins"])
+    ).toEqual(["General", "Access", "Plugins"])
   })
 })
 

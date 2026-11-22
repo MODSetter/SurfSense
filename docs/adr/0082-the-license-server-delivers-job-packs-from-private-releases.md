@@ -1,6 +1,6 @@
 # ADR 0082: The license server delivers job packs itself, from a private repository's releases, to a license whose jobs list them
 
-- **Status:** Accepted
+- **Status:** Superseded by [ADR 0092](0092-surfsense-is-free-and-licensing-is-off.md): the job packs ship in the app, and the licence server delivers nothing (was: Accepted)
 - **Date:** 2026-11-03
 - **Source:** [ADR 0067 L18–30](https://github.com/MODSetter/SurfSense/blob/51c593551cc8efae53473708eb2a03671a91e1c7/docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md#L18-L30), [bundles README L132–166](https://github.com/MODSetter/SurfSense/blob/51c593551cc8efae53473708eb2a03671a91e1c7/docs/proposals/plugins/bundles/README.md#L132-L166), [ADR 0080](0080-surfsense-sells-one-business-license-priced-per-person.md) L14 and L31, maintainer decisions, 3 Nov 2026 (no permalink)
 

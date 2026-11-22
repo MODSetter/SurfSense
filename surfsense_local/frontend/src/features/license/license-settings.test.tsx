@@ -26,6 +26,7 @@ const NONE: LicenseStatus = {
   max_users: null,
   firm: null,
   jobs: [],
+  licensing: true,
 }
 
 const ACTIVE: LicenseStatus = {
@@ -36,6 +37,7 @@ const ACTIVE: LicenseStatus = {
   max_users: null,
   firm: null,
   jobs: [],
+  licensing: true,
 }
 
 // As docs/contracts/license-sample/business.lic reads.
@@ -47,6 +49,7 @@ const BUSINESS: LicenseStatus = {
   max_users: 5,
   firm: "Example Accounting LLP",
   jobs: ["JOB_QUESTIONNAIRE"],
+  licensing: true,
 }
 
 const CERTIFICATE =

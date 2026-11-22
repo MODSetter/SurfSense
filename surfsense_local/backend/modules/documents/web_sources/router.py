@@ -52,8 +52,10 @@ async def search_web(
 ) -> WebResults:
     """POST, so the app asks the network question: a search is the user's own action."""
 
-    def allowed_server(s: Session) -> tuple[str, EgressDeniedError | None]:
+    def allowed_server(s: Session) -> tuple[str | None, EgressDeniedError | None]:
         server = search_server(s)
+        if server is None:
+            return None, None
         refusal = refused_search_host(s, server)
         if refusal is None and (destination := host_destination(server)):
             record_last_call(s, destination)
@@ -63,6 +65,15 @@ async def search_web(
     server, refusal = await transact(session, allowed_server)
     if refusal is not None:
         raise refusal
+    if server is None:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            {
+                "code": SEARCH_SERVER_NONE,
+                "message": "Web search is off until a SearXNG server is added in "
+                "Settings > Network.",
+            },
+        )
     try:
         return await search_rows(server, payload.query, payload.source, payload.page)
     except SearchUnreachableError as error:
@@ -71,6 +82,8 @@ async def search_web(
         raise _search_refusal("search_failed", server) from error
 
 
+# No server is named, so nothing was sent; links pasted in still open.
+SEARCH_SERVER_NONE = "search_server_none"
 # The dialog words each `code` itself, naming the server's host.
 _SEARCH_REFUSALS = {
     "search_unreachable": "the search server could not be reached",

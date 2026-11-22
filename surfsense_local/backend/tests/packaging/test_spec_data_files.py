@@ -98,6 +98,13 @@ def test_the_api_ships_the_first_party_plugin_list_with_its_icons() -> None:
     assert "modules/plugins/lists/first_party/icons" in bundled
 
 
+def test_the_api_ships_the_job_packs_it_installs_at_start() -> None:
+    """The API installs them into the data folder; the worker reads that copy."""
+    bundled = literal_data_paths(BUNDLING / "api_inputs.py")
+
+    assert "modules/jobs/packs/bundled" in bundled
+
+
 def test_the_worker_ships_the_files_reading_a_web_page_opens_by_path() -> None:
     """Without them a frozen worker fails every link added from the web, and only there."""
     inputs = (BUNDLING / "worker_inputs.py").read_text()

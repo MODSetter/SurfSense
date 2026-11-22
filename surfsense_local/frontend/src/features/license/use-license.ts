@@ -11,6 +11,12 @@ import { readLicense, type LicenseStatus } from "./api"
 
 export const licenseQueryKey = ["license"] as const
 
+/** Whether licensing runs; false until the status arrives, so no licence
+ *  screen flashes up in the free app (ADR 0092). */
+export function useLicensing() {
+  return useLicense().data?.licensing === true
+}
+
 /**
  * Shared, so Settings and the sidebar cannot disagree about what is installed.
  * Importing a file writes the result straight into this cache; every reader
@@ -38,7 +44,7 @@ export function usePublishLicense() {
     void queryClient.invalidateQueries({ queryKey: jobsKeys.packs() })
     // What the jobs' last downloads came to was said of the file this replaces.
     forgetDeliveries(queryClient)
-    if (status.state === "active" && status.jobs.length > 0)
+    if (status.licensing && status.state === "active" && status.jobs.length > 0)
       void downloadJobPacks(queryClient, status.jobs)
   }
 }

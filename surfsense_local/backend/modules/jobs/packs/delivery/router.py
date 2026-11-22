@@ -21,6 +21,7 @@ from modules.jobs.packs.installed import packs_dir
 from modules.jobs.packs.listing import PackInfo, pack_listing
 from modules.jobs.packs.manifest import ENTITLEMENT, PackRefusedError
 from modules.jobs.runs.in_flight import pack_in_use
+from modules.license.licensing_off import refuse_while_licensing_off
 
 router = APIRouter(tags=["jobs"])
 
@@ -56,7 +57,8 @@ async def download(
     Network, raised after the plan's commit so Settings lists the host. The host is asked
     for even when a run holds every code back, as the check made once the run ends never
     asks, though sending nothing stamps no call there; a licence code no request may carry
-    is an unknown job, and asks for no host."""
+    is an unknown job, and asks for no host. 409 `licensing_off` while licensing is off."""
+    refuse_while_licensing_off()
     sessions = request.app.state.session_factory
     try:
         delivery = await deliver_packs(

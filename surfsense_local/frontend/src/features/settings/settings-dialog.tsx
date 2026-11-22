@@ -42,6 +42,7 @@ import {
   type PluginsStart,
 } from "@/features/plugins/plugins-settings"
 import { LicenseSettings } from "@/features/license/license-settings"
+import { useLicensing } from "@/features/license/use-license"
 import type { ImportAccepted } from "@/features/migration/api"
 import { ImportBundleButton } from "@/features/migration/import-bundle"
 import type { ModelSelection } from "@/features/models/selection/api"
@@ -246,10 +247,12 @@ const ALL_SECTIONS = [
 
 // Access is the Docker image's sign-in (ADR 0074); the desktop has none.
 // Storage needs main: the Docker image's folder is its volume, and a snap can reach no other.
-function settingsSections() {
+// License only while licensing runs, which no release does since ADR 0092.
+function settingsSections(licensing: boolean) {
   return ALL_SECTIONS.filter(
     (section) =>
       (section.id !== "access" || IN_CONTAINER) &&
+      (section.id !== "license" || licensing) &&
       (section.id !== "storage" || window.surfsense?.storage !== undefined)
   )
 }
@@ -388,7 +391,7 @@ export function SettingsDialog({
   onModelSelected: (selection: ModelSelection) => void
   onImported?: (accepted: ImportAccepted) => Promise<void> | void
 }) {
-  const sections = settingsSections()
+  const sections = settingsSections(useLicensing())
   const activeSection =
     sections.find((candidate) => candidate.id === section) ?? sections[0]
 

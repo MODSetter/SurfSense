@@ -1,5 +1,7 @@
 # Backend
 
+> **Not running since 27 Nov 2026, kept for a relaunch** ([ADR 0092](../adr/0092-surfsense-is-free-and-licensing-is-off.md)). SurfSense Inc. closed and its servers went with it; this describes the code as it stands, which nothing serves.
+
 `backend/` is the one SurfSense backend: what runs on SurfSense's own servers, as one process in one container, at `plugins.surfsense.com` and, after the cutover, `api.surfsense.com`. Each module is a folder; `server/` runs them together. Its modules are the [license portal](license/portal.md), the mailer it sends with, and SurfSense's plugins, served by the [plugin host](plugin-host.md); the [registry](plugin-registry.md) and the deferred bundles sit beside the plugins in `plugins/`.
 
 **Code:** [`backend/`](../../backend/)
@@ -13,7 +15,7 @@
 | [`mailer/`](../../backend/mailer/) | Mail over SMTP; the license emails are its first user |
 | [`plugins/host/`](../../backend/plugins/host/) | Serves each plugin at `/<id>/mcp`, with Stop, the usage meter and the `/license` check ([plugin host](plugin-host.md)) |
 | [`plugins/mcp_server/`](../../backend/plugins/mcp_server/) | What each plugin's server builds on: who may call it, progress, results |
-| [`plugins/proprietary/`](../../backend/plugins/proprietary/) | The paid plugins, their shared scraping and the license check, under the Business Source License 1.1 |
+| [`plugins/proprietary/`](../../backend/plugins/proprietary/) | The paid plugins, their shared scraping and the license check, under Apache-2.0 since 21 Nov 2026 (formerly the Business Source License 1.1) |
 | [`plugins/registry/`](../../backend/plugins/registry/) | The third-party plugin list, served by its own static container ([registry](plugin-registry.md)) |
 | [`plugins/bundles/`](../../backend/plugins/bundles/) | Deferred: the earlier, local design's SDK and tooling |
 

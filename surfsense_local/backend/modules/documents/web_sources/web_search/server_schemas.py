@@ -37,13 +37,12 @@ ServerAddress = Annotated[
 
 
 class SearchServerRead(BaseModel):
-    # None while searches go to SurfSense's server.
+    # None while no server is named: search is off.
     url: str | None
-    default_url: str
 
 
 class SearchServerUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    # None goes back to SurfSense's server.
+    # None turns search off.
     url: ServerAddress | None

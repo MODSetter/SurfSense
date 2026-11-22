@@ -1,5 +1,7 @@
 # License portal
 
+> **Not running since 27 Nov 2026, kept for a relaunch** ([ADR 0092](../../adr/0092-surfsense-is-free-and-licensing-is-off.md)). SurfSense Inc. closed and its servers went with it; this describes the code as it stands, which nothing serves.
+
 The one [backend](../backend.md) sells, delivers and re-delivers the desktop app's license file, and serves a license the job packs its jobs unlock, with no accounts and no license table. Stripe and Keygen are the system of record: every search is a filter over Keygen license metadata, and the one direct read is by a derived id, and the license routes take no session, read no user table and touch no Postgres. Control of an inbox replaces the login, because a license is only ever mailed to the address it is registered to. Where having no table would cost a guarantee, the code moves the guarantee into Keygen instead of adding a table. Stripe and Keygen hold everything but the job packs, which are a private repository's GitHub releases that the server reads, checks and keeps in memory ([job packs](#job-packs)).
 
 **Code:** [`backend/license/`](../../../backend/license/), [`backend/mailer/`](../../../backend/mailer/), [`www/app/(home)/license/`](../../../www/app/\(home\)/license/)

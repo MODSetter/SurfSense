@@ -1,4 +1,4 @@
-"""Settings > Network's search server: SurfSense's, or one the user names."""
+"""Settings > Network's search server: none until the user names one."""
 
 import pytest
 from httpx import AsyncClient
@@ -8,13 +8,13 @@ pytestmark = pytest.mark.integration
 SERVER = "/web-search/server"
 
 
-async def test_searches_go_to_surfsenses_server_until_another_is_named(
+async def test_no_server_is_named_until_the_user_names_one(
     client: AsyncClient,
 ) -> None:
-    """The default is named, so Settings can show where searches go."""
+    """There is no default server, so a fresh install searches nowhere."""
     read = await client.get(SERVER)
 
-    assert read.json() == {"url": None, "default_url": "https://searxng.surfsense.com"}
+    assert read.json() == {"url": None}
 
 
 async def test_a_firms_own_server_is_kept_without_its_trailing_slash(
@@ -32,7 +32,7 @@ async def test_a_firms_own_server_is_kept_without_its_trailing_slash(
     )
 
 
-async def test_choosing_none_goes_back_to_surfsenses_server(
+async def test_choosing_none_turns_search_off_again(
     client: AsyncClient,
 ) -> None:
     """The setting's reset."""

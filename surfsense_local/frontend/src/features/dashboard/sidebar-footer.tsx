@@ -99,7 +99,8 @@ function licenseRow(state: LicenseState): Row {
  * The sidebar's bottom edge: the guides, and where the license stands, at a
  * glance. Updates show in the title bar instead.
  *
- * The license row is absent until its status arrives, rather than guessing.
+ * The license row is absent until its status arrives, rather than guessing,
+ * and while licensing is off, as in every release since ADR 0092.
  */
 export function SidebarFooter({
   onOpenLicense,
@@ -122,7 +123,7 @@ export function SidebarFooter({
         }}
         onClick={() => setGuidesOpen(true)}
       />
-      {license ? (
+      {license?.licensing ? (
         <FooterRow
           icon={LicenseIcon}
           row={licenseRow(license.state)}

@@ -1,4 +1,5 @@
-"""The web search tool: a SearXNG server's results, as Add from the web searches."""
+"""The web search tool: the user's SearXNG server's results, as Add from the web searches;
+off while the user has named none."""
 
 import asyncio
 from typing import Any
@@ -60,6 +61,12 @@ def _search(session: Session, scope: TurnScope, arguments: dict[str, Any]) -> st
     ):
         raise ToolCallError(f"page is a number from 1 to {MAX_PAGES}.")
     server = search_server(session)
+    if server is None:
+        raise ToolCallError(
+            "Web search is off: the user has added no SearXNG server in Settings > "
+            "Network. Answer without searching, or read a link the user gives with "
+            "surfsense_read_web_page."
+        )
     host = urlsplit(server).hostname or server
     require_hosts(session, [host], WEB_SEARCH)
     try:
