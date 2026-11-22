@@ -1,5 +1,7 @@
 """The names a revised copy is saved under: the source's, so the user knows which file it is."""
 
+import sys
+
 import pytest
 
 from modules.artifacts.revised_copies.downloads import NAME_BYTES, download_name
@@ -20,6 +22,17 @@ def test_a_macro_workbook_keeps_its_suffix() -> None:
 def test_characters_no_file_system_takes_are_dropped_from_the_suffix() -> None:
     """A translated suffix cannot break the saved name."""
     assert download_name("Plan.docx", 2, 're<vi>sed:/"') == "Plan (revised v2).docx"
+
+
+def test_a_backslash_is_dropped_from_the_suffix() -> None:
+    """Windows reads it as a folder separator, like the slash."""
+    assert download_name("Plan.docx", 2, "re\\vised") == "Plan (revised v2).docx"
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="a Windows name holds no backslash")
+def test_a_backslash_in_the_source_name_is_dropped() -> None:
+    """A macOS or Linux file name may hold one, and Windows cannot save it."""
+    assert download_name("Q3\\Q4.docx", 1, "revised") == "Q3Q4 (revised v1).docx"
 
 
 def test_a_windows_device_name_gets_a_leading_underscore() -> None:

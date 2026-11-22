@@ -70,7 +70,7 @@ git push origin dev
 
 ### 4. Merge `dev` into `main`
 
-Open the release pull request, read its checks, and merge it. Security Scan runs detect-secrets over every file the release changes since `main`, so it flags pinned sha256 hashes and test fixtures; read each finding ([#2225](https://github.com/MODSetter/SurfSense/issues/2225)).
+Open the release pull request, read its checks, and merge it. Security Scan runs detect-secrets over the files the release changes since `main`, except paths excluded by its hook in `.pre-commit-config.yaml`, such as `*.test.ts` and `fixtures/`. It flags pinned sha256 hashes that lack a `# pragma: allowlist secret`; read each finding.
 
 Before merging, re-check every cell of the root README's format table against `dev` ([06-repo-readme](../plans/community-local/seo/06-repo-readme.md#the-readme-since-9-oct-2026)). A cell that changes, changes in every `README.<locale>.md` too, in a commit on `dev` before the merge.
 
