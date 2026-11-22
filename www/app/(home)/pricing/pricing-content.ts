@@ -1,5 +1,3 @@
-import { REPO_URL } from "@/components/site/site-content";
-
 /**
  * `/pricing`'s copy. SurfSense has been free since SurfSense Inc. wound down on 27 November
  * 2026: no licences, trials, checkout or Business plan, and every job is part of the free app.
@@ -9,8 +7,6 @@ import { REPO_URL } from "@/components/site/site-content";
  * `/pricing/individual` redirect here with temporary redirects
  * (`features/business-launch/launch-redirects.mts`).
  */
-
-export const SELF_BUILD_URL = REPO_URL;
 
 /**
  * Answers are written as quotable definitions: one plain paragraph an AI Overview or a People

@@ -19,14 +19,14 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Discord](https://img.shields.io/discord/1359368468260192417?label=Discord)](https://discord.gg/ejRNvftDp9)
 
-  <a href="https://www.surfsense.com/"><img alt="SurfSense, the air-gapped open-source NotebookLM alternative" src="www/public/homepage/banner.png" /></a>
+  <a href="https://www.surfsense.com/"><img alt="SurfSense: air-gapped, private AI for confidential documents" src="www/public/homepage/banner.png" /></a>
 
   <h1>SurfSense</h1>
 
   <p>
-    <b>The air-gapped, open-source NotebookLM alternative.</b>
+    <b>Air-gapped, private AI for confidential documents.</b>
     <br />
-    The AI agent that researches, transforms and edits your documents, on your machine.
+    Open-source NotebookLM alternative that runs on your computer.
   </p>
 
   <p>
@@ -46,8 +46,6 @@
   </p>
 </div>
 
-> **SurfSense is now free.** SurfSense Inc. is winding down operations on November 27, 2026. SurfSense continues as a free, open-source (Apache-2.0) app, maintained by Rohan Verma as a side project for the time being. Version 2.4.0 unlocks everything, jobs included, with no licence needed. The hosted services (licences, the hosted plugins and hosted web search) end on November 27; for web search, add your own SearXNG server in Settings. Your data stays on your computer. [Download 2.4.0](https://www.surfsense.com/downloads).
-
 **Redline a contract with tracked changes and comments**
 
 https://github.com/user-attachments/assets/88326b9d-e763-46db-9635-75f9df9e8682
@@ -56,7 +54,7 @@ https://github.com/user-attachments/assets/88326b9d-e763-46db-9635-75f9df9e8682
 
 https://github.com/user-attachments/assets/073577b7-f055-4f59-8540-330bd764aeb0
 
-SurfSense is a free, open-source desktop app for documents you can't upload. A privacy-focused, NotebookLM-style AI agent that researches, transforms and edits your documents, on your machine. The index stays on your disk, you pick the model, local or remote, and there is no account.
+SurfSense is a free, open-source desktop app for confidential documents. A private, NotebookLM-style AI agent that researches, transforms and edits your documents, on your machine. The index stays on your disk, you pick the model, local or remote, and there is no account.
 
 | Platform | Download |
 |---|---|
@@ -100,7 +98,7 @@ Edits, conversions and PDF tools always make a new file; your original is never 
 
 Connect them in **Settings › Plugins**: MCP servers from the [plugin registry](backend/plugins/registry), such as DeepWiki and Notion, or any you add by URL. They stay off until you allow them.
 
-**Built in, free:** the agent and **Add from the web**, in Sources, search the web through SearXNG and read pages and YouTube transcripts on your own connection, with no plugin and no license.
+**Built in, free:** the agent and **Add from the web**, in Sources, search the web through a SearXNG server you add in Settings › Network, and read pages and YouTube transcripts on your own connection, with no plugin and no license.
 
 ## How it compares
 

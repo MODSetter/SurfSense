@@ -1,8 +1,4 @@
-import {
-	FREE_INCLUDES,
-	type PricingQuestion,
-	SELF_BUILD_URL,
-} from "@/app/(home)/pricing/pricing-content";
+import { FREE_INCLUDES, type PricingQuestion } from "@/app/(home)/pricing/pricing-content";
 import { HomeBadge } from "@/components/site/home-badge";
 import { sectionSpacing } from "@/components/site/home-section-spacing";
 import { FAQJsonLd } from "@/components/site/json-ld";
@@ -28,19 +24,6 @@ export function PricingHero() {
 			<p className={cn(siteText.lede, "mx-auto mt-8 max-w-2xl")}>
 				SurfSense is <span className="text-primary">free</span>: the app, every update and every
 				job, with no licence, no account, no trial and no usage cap.
-			</p>
-			<p className={cn(siteText.body, "mx-auto mt-5 max-w-2xl text-sm")}>
-				SurfSense Inc. wound down on 27 November 2026, and SurfSense carries on as a free,
-				open-source app, maintained by its creator. Prefer to build it yourself?{" "}
-				<a
-					className={siteText.link}
-					href={SELF_BUILD_URL}
-					target="_blank"
-					rel="noreferrer noopener"
-				>
-					The source is public
-				</a>
-				.
 			</p>
 			<div className="mt-10 flex justify-center">
 				<HomeDownloadButton tone="dark" placement="pricing" />

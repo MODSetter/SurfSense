@@ -11,14 +11,14 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Discord](https://img.shields.io/discord/1359368468260192417?label=Discord)](https://discord.gg/ejRNvftDp9)
 
-  <a href="https://www.surfsense.com/"><img alt="SurfSense, l'alternative open source à NotebookLM, isolée du réseau" src="www/public/homepage/banner.png" /></a>
+  <a href="https://www.surfsense.com/"><img alt="SurfSense : une IA privée, isolée du réseau, pour vos documents confidentiels" src="www/public/homepage/banner.png" /></a>
 
   <h1>SurfSense</h1>
 
   <p>
-    <b>L'alternative open source à NotebookLM, isolée du réseau.</b>
+    <b>Une IA privée, isolée du réseau, pour vos documents confidentiels.</b>
     <br />
-    L'agent IA qui fait des recherches dans vos documents, les transforme et les modifie, sur votre machine.
+    L'alternative open source à NotebookLM qui fonctionne sur votre ordinateur.
   </p>
 
   <p>
@@ -46,7 +46,7 @@ https://github.com/user-attachments/assets/88326b9d-e763-46db-9635-75f9df9e8682
 
 https://github.com/user-attachments/assets/073577b7-f055-4f59-8540-330bd764aeb0
 
-SurfSense est une application de bureau gratuite et open source pour les documents que vous ne pouvez pas téléverser. Un agent IA dans l'esprit de NotebookLM, axé sur la confidentialité, qui fait des recherches dans vos documents, les transforme et les modifie, sur votre machine. L'index reste sur votre disque, vous choisissez le modèle, local ou distant, et il n'y a pas de compte à créer.
+SurfSense est une application de bureau gratuite et open source pour vos documents confidentiels. Un agent IA privé, dans l'esprit de NotebookLM, qui fait des recherches dans vos documents, les transforme et les modifie, sur votre machine. L'index reste sur votre disque, vous choisissez le modèle, local ou distant, et il n'y a pas de compte à créer.
 
 | Plateforme | Téléchargement |
 |---|---|
@@ -90,7 +90,7 @@ Les modifications, les conversions et les outils PDF créent toujours un nouveau
 
 Connectez-les dans **Paramètres › Plugins** : des serveurs MCP issus du [registre de plugins](backend/plugins/registry), comme DeepWiki et Notion, ou tout serveur que vous ajoutez par URL. Ils restent désactivés tant que vous ne les autorisez pas.
 
-**Intégré et gratuit :** l'agent et **Ajouter depuis le web**, dans les Sources, effectuent leurs recherches sur le web via SearXNG et lisent les pages et les transcriptions YouTube depuis votre propre connexion, sans plugin ni licence.
+**Intégré et gratuit :** l'agent et **Ajouter depuis le web**, dans les Sources, effectuent leurs recherches sur le web via un serveur SearXNG que vous ajoutez dans Paramètres › Réseau, et lisent les pages et les transcriptions YouTube depuis votre propre connexion, sans plugin ni licence.
 
 ## Comparaison
 
