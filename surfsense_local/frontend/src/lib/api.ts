@@ -67,6 +67,11 @@ declare global {
       sessionLog?: {
         read: () => Promise<string[]>
       }
+      // The system's own dialog for a GGUF file, or a folder of them: the path
+      // the person chose, or null. Mirrors electron/src/preload/index.ts.
+      models?: {
+        pick: (kind: "file" | "folder") => Promise<string | null>
+      }
       // The system's switch for SurfSense's microphone; Electron decides the
       // page's own permission. Mirrors electron/src/preload/index.ts.
       microphone?: {

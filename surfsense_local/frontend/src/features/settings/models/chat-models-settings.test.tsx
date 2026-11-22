@@ -407,6 +407,63 @@ describe("chat model settings", () => {
     await waitFor(() => expect(onModelUnavailable).toHaveBeenCalledOnce())
   })
 
+  it("stops using a model another app keeps, and never deletes it", async () => {
+    // Its file is Ollama's: the dialog says so, and the button is not Delete.
+    const deleted: string[] = []
+    vi.stubGlobal(
+      "fetch",
+      serving({
+        rows: [
+          row(
+            {
+              id: "ollama-qwen3-8b",
+              origin: "elsewhere",
+              name: "qwen3:8b",
+              family: "",
+              found_in: {
+                app: "ollama",
+                path: "/home/ana/.ollama/models/blobs/sha256-ab12",
+                source: "qwen3:8b",
+                architecture: "qwen3",
+                parameters: 8_190_735_360,
+                quantization: "Q4_K_M",
+              },
+            },
+            [build({ catalog_id: "", installed_as: "ollama-qwen3-8b" })]
+          ),
+        ],
+        extra: (path, init) => {
+          if (init?.method !== "DELETE") return null
+          deleted.push(path)
+          return Response.json({
+            name: "ollama-qwen3-8b",
+            selection_cleared: false,
+          })
+        },
+      })
+    )
+    const user = userEvent.setup()
+
+    renderSettings()
+    expect(await screen.findByText("Used where it is, in Ollama")).toBeTruthy()
+    expect(screen.queryByRole("button", { name: "Delete qwen3:8b" })).toBeNull()
+    await user.click(
+      screen.getByRole("button", { name: "Stop using qwen3:8b" })
+    )
+
+    expect(screen.getByText("Stop using qwen3:8b?")).toBeTruthy()
+    expect(
+      screen.getByText(
+        "SurfSense stops using this file and deletes nothing. It stays where it is, in Ollama."
+      )
+    ).toBeTruthy()
+    await user.click(screen.getByRole("button", { name: "Stop using" }))
+
+    await waitFor(() =>
+      expect(deleted).toEqual(["/llm/models/ollama-qwen3-8b"])
+    )
+  })
+
   it("names the server a model in use comes from", async () => {
     vi.stubGlobal(
       "fetch",

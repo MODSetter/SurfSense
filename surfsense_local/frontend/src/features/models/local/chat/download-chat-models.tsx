@@ -10,6 +10,7 @@ import { toastUseFailure } from "../../selection/toast-use-failure"
 import { useSelect } from "../../selection/use-selection"
 import { DeleteModelDialog } from "../../your-models/delete-model-dialog"
 import type { YourModelRow } from "../../your-models/your-model-row"
+import { ElsewhereSection } from "../elsewhere/elsewhere-section"
 import { useInstall } from "../installs/use-install"
 import type { LocalBuild, LocalRow } from "./api"
 import { HardwareSummary } from "./hardware-summary"
@@ -104,22 +105,20 @@ export function DownloadChatModels({
 
   // No confirmation for a partial fit: it runs, slower, and llama.cpp places
   // the layers. Only physics blocks, and that is already `can_install`.
+  const chooseInstalled = (name: string) => {
+    if (busy) return
+    void select
+      .mutateAsync({
+        target: { provider: "llamacpp", connection_id: null, name },
+      })
+      .then((selection) => onSelected?.(selection))
+      .catch(toastUseFailure)
+  }
+
   const act = (build: LocalBuild) => {
     if (busy) return
-    if (build.installed_as) {
-      void select
-        .mutateAsync({
-          target: {
-            provider: "llamacpp",
-            connection_id: null,
-            name: build.installed_as,
-          },
-        })
-        .then((selection) => onSelected?.(selection))
-        .catch(toastUseFailure)
-    } else {
-      void install(build.catalog_id)
-    }
+    if (build.installed_as) chooseInstalled(build.installed_as)
+    else void install(build.catalog_id)
   }
 
   const confirmDelete = () => {
@@ -159,6 +158,9 @@ export function DownloadChatModels({
           </AlertDescription>
         </Alert>
       ) : null}
+
+      {/* Above the downloads: a model another app already has costs none. */}
+      <ElsewhereSection manage onUse={chooseInstalled} disabled={busy} />
 
       {curated.length > 0 ? (
         <section className="flex flex-col gap-2.5" aria-labelledby={headingId}>

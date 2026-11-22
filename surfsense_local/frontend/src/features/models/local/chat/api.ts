@@ -105,10 +105,25 @@ export type Transcription = {
   languages: string[]
 }
 
+/** A model another app keeps, read from its own header. */
+export type FoundIn = {
+  /** Whose folder it is in; see `appName()`. */
+  app: string
+  /** The file the runtime opens, where that app keeps it. */
+  path: string
+  /** That app's name for it, or the repo it came from. */
+  source: string | null
+  architecture: string
+  /** Counted from the tensor table. */
+  parameters: number | null
+  quantization: string
+}
+
 export type LocalRow = {
   id: string
   source: "local"
-  origin: "curated" | "downloaded" | "search"
+  /** `elsewhere`: another app downloaded it, and it is used where it lies. */
+  origin: "curated" | "downloaded" | "search" | "elsewhere"
   name: string
   family: string
   types: string[]
@@ -136,6 +151,8 @@ export type LocalRow = {
   voicing?: Voicing | null
   /** A speech recognition model's memory, languages and language detection. */
   transcription?: Transcription | null
+  /** Another app's model, used where it lies. Absent from an older server. */
+  found_in?: FoundIn | null
   /**
    * The build the row shows and its Download fetches, and why the server chose
    * it. Absent for a searched repo, which lists every build and leads with none.
