@@ -6,10 +6,12 @@ every payload shape returns 200 while the worker's argv stays byte identical.
 calculation reaches the runtime.
 """
 
+from pathlib import Path
+
 import pytest
 
 from modules.llm.fit import KvPrecision
-from modules.llm.providers.llamacpp import ModelPreset, render_presets
+from modules.llm.providers.llamacpp import ModelPreset, render_presets, write_presets
 
 pytestmark = pytest.mark.unit
 
@@ -132,3 +134,20 @@ def test_the_context_floor_is_stated_for_the_fitter_too() -> None:
     ini = render_presets([a_preset(n_ctx=16384)])
 
     assert "fit-ctx = 16384" in ini
+
+
+def test_a_path_outside_ascii_is_written_as_utf8(tmp_path: Path) -> None:
+    """llama.cpp opens the paths it reads as UTF-8 whatever the system's code
+    page, so a model under a user folder such as `José` or `张伟` must reach it
+    in UTF-8, not in Windows' ANSI code page."""
+    preset = a_preset(
+        model_id="Qwen3-8B-中文",
+        path="C:/Users/José/张伟/Qwen3-8B-中文.gguf",
+    )
+    ini = tmp_path / "models.ini"
+
+    write_presets(ini, [preset])
+
+    written = ini.read_bytes().decode("utf-8")
+    assert "[Qwen3-8B-中文]" in written
+    assert "model = C:/Users/José/张伟/Qwen3-8B-中文.gguf" in written

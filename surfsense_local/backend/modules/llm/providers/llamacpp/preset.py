@@ -101,13 +101,14 @@ def _section(preset: ModelPreset) -> str:
 
 def write_presets(path: Path, presets: list[ModelPreset]) -> None:
     """Replace a changed preset atomically, so a half-written INI never loads."""
-    rendered = render_presets(presets)
+    # UTF-8 whatever the code page: llama.cpp opens the paths it reads as UTF-8.
+    rendered = render_presets(presets).encode("utf-8")
     try:
-        if path.read_text() == rendered:
+        if path.read_bytes() == rendered:
             return
     except FileNotFoundError:
         pass
 
     temporary = path.with_suffix(f"{path.suffix}.tmp")
-    temporary.write_text(rendered)
+    temporary.write_bytes(rendered)
     temporary.replace(path)
