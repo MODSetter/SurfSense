@@ -569,28 +569,43 @@ def _laid_out(
             pages[-1][1].append(a["text"])
         elif b.kind in _TEXT:
             items = [a["text"]] if b.kind == "paragraph" else list(a["items"])
-            sizes = [_item_lines(t, _BOX_CHARACTERS) for t in items]
+            # An item longer than a slide holds goes on in pieces, split between
+            # words; a piece after the first carries on its item, unnumbered.
+            pieces = [
+                (piece, k > 0)
+                for item in items
+                for k, piece in enumerate(_pieces(item, whole * _BOX_CHARACTERS))
+            ]
+            sizes = [_item_lines(p, _BOX_CHARACTERS) for p, _ in pieces]
             start = 0
-            while start < len(items):
-                # A list that would fit a slide of its own moves there whole.
+            while start < len(pieces):
+                # What would fit a slide of its own moves there whole, and so does
+                # a piece the room left cannot hold.
                 need, room = sum(sizes[start:]), int((bottom - top - pad) / line)
-                go_on_if(need > room and (need <= whole or room < 2))
+                go_on_if(
+                    sizes[start] > room or (need > room and (need <= whole or room < 2))
+                )
                 room = int((bottom - top - pad) / line)
                 end, used = start, 0
-                while end < len(items) and (used + sizes[end] <= room or end == start):
+                while end < len(pieces) and (used + sizes[end] <= room or end == start):
                     used, end = used + sizes[end], end + 1
                 height = line * used + pad
                 box = slide.shapes.add_textbox(left, top, width, height)
                 box.text_frame.word_wrap = True
-                part = (
-                    b
-                    if b.kind == "paragraph"
-                    else _Block(b.kind, {"items": items[start:end]})
+                chunk = pieces[start:end]
+                part = _Block(
+                    b.kind,
+                    {
+                        "items": [p for p, _ in chunk],
+                        "continued": [c for _, c in chunk],
+                    },
                 )
-                _fill(box.text_frame, [(i, part)], Pt(18), first_number=start + 1)
+                # The list's numbering counts the items begun before this box.
+                begun = sum(1 for _, carried in pieces[:start] if not carried)
+                _fill(box.text_frame, [(i, part)], Pt(18), first_number=begun + 1)
                 top += height + Cm(0.3)
                 start = end
-                if start < len(items):
+                if start < len(pieces):
                     slide, top = new_slide(), first_top
         elif b.kind == "table":
             rows = _table_rows(a)
@@ -670,11 +685,13 @@ def _fill(
     list that runs on from another slide counts on from `first_number`."""
     first = True
     for _, b in blocks:
-        items = [b.args["text"]] if b.kind == "paragraph" else b.args["items"]
-        for item in items:
+        items = b.args["items"] if "items" in b.args else [b.args["text"]]
+        carried = b.args.get("continued") or [False] * len(items)
+        for item, carried_on in zip(items, carried, strict=True):
             par = frame.paragraphs[0] if first else frame.add_paragraph()
             first = False
-            _list_style(par, b.kind, first_number)
+            kind = "continued" if carried_on and b.kind != "paragraph" else b.kind
+            _list_style(par, kind, first_number)
             for piece, bold, italic in _runs(item):
                 run = par.add_run()
                 run.text, run.font.bold, run.font.italic = piece, bold, italic
@@ -682,7 +699,8 @@ def _fill(
 
 
 def _list_style(par: Any, kind: str, first_number: int = 1) -> None:
-    """A bullet, a number or neither, as the paragraph's own formatting."""
+    """A bullet, a number or neither, as the paragraph's own formatting; a list
+    item's `continued` piece is indented as the item, with no mark of its own."""
     from pptx.oxml.ns import qn
 
     p_pr = par._p.get_or_add_pPr()
@@ -700,7 +718,29 @@ def _list_style(par: Any, kind: str, first_number: int = 1) -> None:
         if first_number > 1:
             number["startAt"] = str(first_number)
         p_pr.append(p_pr.makeelement(qn("a:buAutoNum"), number))
+    elif kind == "continued":
+        p_pr.set("marL", "342900")
+        p_pr.set("indent", "0")
+        p_pr.append(p_pr.makeelement(qn("a:buNone"), {}))
     else:
         p_pr.set("marL", "0")
         p_pr.set("indent", "0")
         p_pr.append(p_pr.makeelement(qn("a:buNone"), {}))
+
+
+def _pieces(text: str, limit: int) -> list[str]:
+    """`text` as it is when it is at most `limit` characters, else in pieces of
+    at most that, each broken at a space when there is one."""
+    if len(text) <= limit:
+        return [text]
+    pieces: list[str] = []
+    rest = text
+    while len(rest) > limit:
+        cut = rest.rfind(" ", 0, limit + 1)
+        if cut <= 0:
+            cut = limit
+        pieces.append(rest[:cut].rstrip())
+        rest = rest[cut:].lstrip()
+    if rest:
+        pieces.append(rest)
+    return pieces

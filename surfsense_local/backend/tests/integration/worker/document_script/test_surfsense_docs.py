@@ -328,3 +328,76 @@ def test_a_list_longer_than_a_slide_runs_on_in_order_and_counts_on() -> None:
     assert steps == [f"Step {n}" for n in range(1, 41)]
     assert starts[0] is None and starts[1:] == ["13", "25", "37"]
     assert any(s.has_table for s in list(deck.slides)[-1].shapes)
+
+
+def _boxes(deck: pptx.Presentation) -> list[tuple[int, object]]:
+    """Every text box below a title after the cover, with its slide's number."""
+    return [
+        (n, shape)
+        for n, slide in enumerate(deck.slides)
+        if n > 0
+        for shape in slide.shapes
+        if shape.has_text_frame and shape != slide.shapes.title
+    ]
+
+
+def test_an_item_the_room_left_cannot_hold_moves_to_a_slide_of_its_own() -> None:
+    """Twelve lines of one bullet below an intro would run past the slide's foot."""
+    deck = _deck(
+        "from surfsense_docs import Doc\n"
+        'doc = Doc("Notes")\n'
+        'doc.heading("Points")\n'
+        'doc.paragraph("Intro")\n'
+        'doc.bullets(["x" * 1200, "End"])\n'
+        'doc.table(["A", "B"], [["1", "2"]])\n'
+        "doc.save()\n"
+    )
+
+    for _, shape in _boxes(deck):
+        assert shape.top + shape.height <= deck.slide_height
+    where = {s.text_frame.paragraphs[0].text[:5]: n for n, s in _boxes(deck)}
+    assert where["Intro"] < where["xxxxx"]
+
+
+def test_a_paragraph_longer_than_a_slide_goes_on_in_pieces_between_words() -> None:
+    """A thousand words take several slides, every word kept and in order."""
+    deck = _deck(
+        "from surfsense_docs import Doc\n"
+        'doc = Doc("Essay")\n'
+        'doc.heading("Body")\n'
+        'doc.paragraph(" ".join(f"w{n}" for n in range(1000)))\n'
+        'doc.table(["A"], [["1"]])\n'
+        "doc.save()\n"
+    )
+
+    words: list[str] = []
+    for _, shape in _boxes(deck):
+        assert shape.top + shape.height <= deck.slide_height
+        words += shape.text_frame.text.split()
+    assert words == [f"w{n}" for n in range(1000)]
+    assert len(deck.slides) > 3
+
+
+def test_a_long_numbered_item_carries_on_unnumbered_and_the_next_counts_on() -> None:
+    """A piece that carries on an item has no number of its own."""
+    deck = _deck(
+        "from surfsense_docs import Doc\n"
+        'doc = Doc("Steps")\n'
+        'doc.heading("How")\n'
+        'doc.numbered(["Short", "y " * 1000, "After"])\n'
+        'doc.table(["A"], [["1"]])\n'
+        "doc.save()\n"
+    )
+
+    marks = {}
+    for _, shape in _boxes(deck):
+        for paragraph in shape.text_frame.paragraphs:
+            p_pr = paragraph._p.pPr
+            number = p_pr.find(qn("a:buAutoNum"))
+            marks.setdefault(paragraph.text.strip()[:5], []).append(
+                None if number is None else number.get("startAt", "1")
+            )
+    assert marks["Short"] == ["1"]
+    assert marks["After"] == ["3"]
+    # The long item's first piece is numbered 2; its other pieces have no number.
+    assert marks["y y y"][0] is not None and set(marks["y y y"][1:]) == {None}
