@@ -16,6 +16,7 @@ import html
 import os
 import re
 from dataclasses import dataclass, field
+from itertools import groupby
 from typing import Any
 
 _BOLD = re.compile(r"\*\*(.+?)\*\*")
@@ -738,28 +739,33 @@ _Run = tuple[str, bool, bool]
 
 def _split_runs(runs: list[_Run], limit: int) -> list[list[_Run]]:
     """Runs as they are when they hold at most `limit` characters, else in
-    pieces of at most that, broken at a space when there is one; a run cut in
-    two keeps its bold and italic on both sides."""
-    pieces: list[list[_Run]] = [[]]
-    room = limit
-    for text, bold, italic in runs:
-        while len(text) > room:
-            cut = text.rfind(" ", 0, room + 1)
-            if cut <= 0 and pieces[-1]:
-                # No space early enough in this run: it starts the next piece.
-                pieces.append([])
-                room = limit
-                continue
-            cut = cut if cut > 0 else room
-            if head := text[:cut].rstrip():
-                pieces[-1].append((head, bold, italic))
-            pieces.append([])
-            room = limit
-            text = text[cut:].lstrip()
-        if text:
-            pieces[-1].append((text, bold, italic))
-            room -= len(text)
-    return [piece for piece in pieces if piece] or [[]]
+    pieces of at most that, broken at the last space before the limit whatever
+    run it is in, so a word half bold stays whole; only a word longer than a
+    piece is cut. Each character keeps its bold and italic."""
+    chars = [(c, bold, italic) for text, bold, italic in runs for c in text]
+    if len(chars) <= limit:
+        return [list(runs)]
+    pieces: list[list[_Run]] = []
+    while len(chars) > limit:
+        cut = next((k for k in range(limit, 0, -1) if chars[k][0] == " "), limit)
+        pieces.append(_grouped(chars[:cut]))
+        chars = chars[cut:]
+        while chars and chars[0][0] == " ":
+            chars = chars[1:]
+    if chars:
+        pieces.append(_grouped(chars))
+    return pieces
+
+
+def _grouped(chars: list[tuple[str, bool, bool]]) -> list[_Run]:
+    """Characters back into runs, one for each stretch of the same bold and
+    italic, without the spaces at the end."""
+    while chars and chars[-1][0] == " ":
+        chars = chars[:-1]
+    return [
+        ("".join(c for c, _, _ in stretch), bold, italic)
+        for (bold, italic), stretch in groupby(chars, key=lambda c: (c[1], c[2]))
+    ]
 
 
 def _run_lines(runs: list[_Run], per_line: int) -> int:

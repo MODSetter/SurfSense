@@ -427,3 +427,28 @@ def test_bold_across_a_piece_boundary_stays_bold_with_no_marks_shown() -> None:
     assert words and all(run.font.bold for run in words)
     short = [run.text for run in runs if run.font.bold and "and bold" in run.text]
     assert short == ["and bold"]
+
+
+def test_a_word_half_bold_at_a_piece_edge_moves_whole_to_the_next_piece() -> None:
+    """The last space before the limit is found across runs, not only in one."""
+    deck = _deck(
+        "from surfsense_docs import Doc\n"
+        'doc = Doc("Essay")\n'
+        'doc.heading("Body")\n'
+        'doc.paragraph("word " * 239 + "pre**fix** tail")\n'
+        'doc.table(["A"], [["1"]])\n'
+        "doc.save()\n"
+    )
+
+    paragraphs = [
+        paragraph
+        for _, shape in _boxes(deck)
+        for paragraph in shape.text_frame.paragraphs
+    ]
+    (whole,) = [p for p in paragraphs if "fix" in p.text]
+    assert whole.text == "prefix tail"
+    assert [(r.text, bool(r.font.bold)) for r in whole.runs] == [
+        ("pre", False),
+        ("fix", True),
+        (" tail", False),
+    ]
