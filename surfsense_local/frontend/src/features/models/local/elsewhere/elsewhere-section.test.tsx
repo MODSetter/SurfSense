@@ -372,4 +372,69 @@ describe("models other apps downloaded", () => {
       ])
     )
   })
+
+  it("keeps the pickers off while the step is busy", async () => {
+    vi.stubGlobal("fetch", serving(elsewhere({ rows: [], looked_in: [] })))
+    const pick = withPicker("/home/ana/Downloads/Qwen3-4B-Q5_K_M.gguf")
+    const user = userEvent.setup()
+
+    render(<ElsewhereSection onUse={vi.fn()} disabled />)
+    const file = await screen.findByRole("button", { name: "Choose a file…" })
+    const folder = screen.getByRole("button", { name: "Add a folder…" })
+    await user.click(file)
+
+    expect((file as HTMLButtonElement).disabled).toBe(true)
+    expect((folder as HTMLButtonElement).disabled).toBe(true)
+    expect(pick).not.toHaveBeenCalled()
+  })
+
+  it("shows a file picked as the step turned busy, and leaves it to Use", async () => {
+    // The dialog is open while something else starts: what it returns must
+    // not choose a model or start a second install behind that.
+    const installs = fakeInstallApi()
+    const picked = found(
+      {
+        id: "opaque-picked",
+        name: "Qwen3 4B",
+        found_in: {
+          app: "folder",
+          path: "/home/ana/Downloads/Qwen3-4B-Q5_K_M.gguf",
+          source: null,
+          architecture: "qwen3",
+          parameters: 4_022_468_096,
+          quantization: "Q5_K_M",
+        },
+      },
+      [build({ catalog_id: "opaque-picked", quantization: "Q5_K_M" })]
+    )
+    vi.stubGlobal(
+      "fetch",
+      serving(elsewhere({ rows: [], looked_in: [] }), (path, init) =>
+        path === `${ELSEWHERE}/file`
+          ? Response.json({ row: picked })
+          : installs.handle(path, init)
+      )
+    )
+    let answer: (path: string | null) => void = () => undefined
+    const pick = vi.fn(
+      () =>
+        new Promise<string | null>((resolve) => {
+          answer = resolve
+        })
+    )
+    vi.stubGlobal("surfsense", { models: { pick } })
+    const onUse = vi.fn()
+    const user = userEvent.setup()
+
+    const view = render(<ElsewhereSection onUse={onUse} />)
+    await user.click(
+      await screen.findByRole("button", { name: "Choose a file…" })
+    )
+    view.rerender(<ElsewhereSection onUse={onUse} disabled />)
+    answer("/home/ana/Downloads/Qwen3-4B-Q5_K_M.gguf")
+
+    expect(await screen.findByText("Qwen3 4B")).toBeTruthy()
+    expect(installs.started).toEqual([])
+    expect(onUse).not.toHaveBeenCalled()
+  })
 })

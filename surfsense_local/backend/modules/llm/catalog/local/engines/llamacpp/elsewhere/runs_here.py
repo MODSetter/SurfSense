@@ -15,8 +15,11 @@ header's own evidence:
   file holding tensors it did not create.
 """
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
+from numbers import Integral
+from typing import Any
 
 from gguf.constants import MODEL_ARCH_NAMES, Keys
 
@@ -92,7 +95,9 @@ def unusable(header: GgufHeader | None) -> Unusable | None:
         return UNREADABLE
     kind = kind_of(header)
     if kind.kind is FileKind.SHARD:
-        if int(header.metadata.get(Keys.Split.LLM_KV_SPLIT_NO, 0)) != 0:
+        # Only the first part is the model; a part number that is not a number
+        # says nothing, and must cost this file rather than the scan.
+        if split_number(header.metadata, Keys.Split.LLM_KV_SPLIT_NO) != 0:
             return NOT_A_MODEL
     elif kind.kind is not FileKind.MODEL:
         return NOT_A_MODEL
@@ -107,3 +112,12 @@ def unusable(header: GgufHeader | None) -> Unusable | None:
     if any(t.name.startswith(COMPANION_TENSOR_PREFIXES) for t in header.tensors):
         return VISION_INSIDE
     return None
+
+
+def split_number(meta: Mapping[str, Any], key: str) -> int | None:
+    """A split key's value as a whole number, or None: the format lets a writer
+    put any type under any key, and the reader keeps what it was given."""
+    value = meta.get(key, 0)
+    if isinstance(value, bool) or not isinstance(value, Integral):
+        return None
+    return int(value)

@@ -20,6 +20,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from gguf.constants import Keys
+
 from modules.llm.catalog.local.engines.llamacpp.builds.in_repo import (
     preferred_projector,
 )
@@ -40,8 +42,10 @@ from modules.llm.catalog.local.engines.llamacpp.elsewhere.places import (
 from modules.llm.catalog.local.engines.llamacpp.elsewhere.runs_here import (
     MISSING_PARTS,
     PATH,
+    UNREADABLE,
     Unusable,
     UnusableCode,
+    split_number,
     unusable,
 )
 from modules.llm.catalog.local.engines.llamacpp.elsewhere.tree import in_tree
@@ -135,10 +139,27 @@ def find_file(path: Path, app: App = App.FOLDER) -> FoundModel | Skipped:
 def judge(
     candidate: Candidate, group_projectors: Sequence[tuple[Path, dict]] = ()
 ) -> FoundModel | Skipped:
-    """One file: a model to offer, or why not."""
+    """One file: a model to offer, or why not. Never raises.
+
+    These files were written by other programs, and the format lets a writer
+    put any type under any key. A header holding a value nothing here expected
+    costs that file, judged unreadable as one that will not parse is, and never
+    the rest of a look.
+    """
+    try:
+        return _judge(candidate, group_projectors)
+    except Exception:  # broad on purpose: see the docstring
+        logger.warning("could not read the header of %s", candidate.path.name)
+        name = candidate.name or candidate.path.name
+        return Skipped(candidate.app, candidate.path, name, UNREADABLE)
+
+
+def _judge(
+    candidate: Candidate, group_projectors: Sequence[tuple[Path, dict]]
+) -> FoundModel | Skipped:
     header = header_of(candidate.path)
     problem = unusable(header)
-    if problem is None and candidate.missing_parts:
+    if problem is None and header is not None and not _every_part(candidate, header):
         problem = MISSING_PARTS
     if problem is None and not preset_can_name(candidate.path):
         problem = PATH
@@ -167,6 +188,24 @@ def judge(
         projector_bytes=_size(projector) if projector else 0,
         source=candidate.source,
     )
+
+
+def _every_part(candidate: Candidate, header: GgufHeader) -> bool:
+    """Every part the header counts is on disk beside the first, under the names
+    llama.cpp finds a split's parts by; a single file is one part of one. The
+    header is the authority on the count: a first part saved as `model.gguf`, or
+    under names that count fewer parts, cannot load."""
+    if candidate.missing_parts or not all(_is_file(p) for p in candidate.parts):
+        return False
+    count = split_number(header.metadata, Keys.Split.LLM_KV_SPLIT_COUNT)
+    return count is not None and len(candidate.parts) == max(count, 1)
+
+
+def _is_file(path: Path) -> bool:
+    try:
+        return path.is_file()
+    except OSError:
+        return False
 
 
 def header_of(path: Path) -> GgufHeader | None:

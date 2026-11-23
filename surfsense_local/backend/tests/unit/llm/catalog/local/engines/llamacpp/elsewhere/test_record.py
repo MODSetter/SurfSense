@@ -4,10 +4,15 @@ The record lives beside the preset in the models folder, so it moves with the
 folder, and it holds paths and names only: the files stay the other app's.
 """
 
+import threading
+import time
 from pathlib import Path
 
 import pytest
 
+from modules.llm.catalog.local.engines.llamacpp.elsewhere import (
+    record as record_module,
+)
 from modules.llm.catalog.local.engines.llamacpp.elsewhere.find import (
     FoundModel,
     find_models,
@@ -145,3 +150,36 @@ def test_a_record_that_will_not_parse_reads_as_a_fresh_one(models_dir: Path) -> 
     record = read_record(models_dir)
 
     assert (record.look, record.folders, record.models) == (True, (), ())
+
+
+def test_changes_made_at_once_all_land(
+    tmp_path: Path, models_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The routes run in threads: the switch, a folder and a model recorded at
+    the same moment each keep their change, and each write is whole."""
+    real_write = record_module.write_record
+
+    def slow_write(folder: Path, record) -> None:
+        time.sleep(0.05)  # widen the window two unserialised writers race in
+        real_write(folder, record)
+
+    monkeypatch.setattr(record_module, "write_record", slow_write)
+    ollama_store(tmp_path / "ollama", "qwen3", "8b", chat_model_bytes())
+    (found,) = _found(Place(App.OLLAMA, tmp_path / "ollama", Layout.OLLAMA))
+    work = [
+        lambda: set_look(models_dir, False),
+        lambda: add_folder(models_dir, tmp_path / "D" / "models"),
+        lambda: use_in_place(models_dir, found),
+    ]
+    threads = [threading.Thread(target=step) for step in work]
+
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    record = read_record(models_dir)
+    assert record.look is False
+    assert record.folders == (str(tmp_path / "D" / "models"),)
+    assert [m.model_id for m in record.models] == ["ollama-qwen3-8b"]
+    assert sorted(p.name for p in models_dir.iterdir()) == [RECORD_FILE]

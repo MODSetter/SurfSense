@@ -61,16 +61,15 @@ def found_in(found: FoundModel) -> FoundIn:
 
 def read_again(used: InPlace) -> FoundModel | None:
     """The recorded file as its header reads now, or None once it cannot be used."""
-    parts = tuple(Path(part) for part in used.parts)
+    # `judge` checks every part is still there, as it does for any file.
     outcome = judge(
         Candidate(
             used.app,
             Path(used.path),
-            parts,
+            tuple(Path(part) for part in used.parts),
             projector=Path(used.projector) if used.projector else None,
             name=used.name,
             source=used.source,
-            missing_parts=not all(part.is_file() for part in parts),
         )
     )
     return outcome if isinstance(outcome, FoundModel) else None

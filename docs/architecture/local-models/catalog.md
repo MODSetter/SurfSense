@@ -528,7 +528,9 @@ KoboldCpp saves a model beside its executable, wherever that was unpacked, so it
 is reached by adding that folder. Only folder listings, these apps' own small
 settings files and GGUF headers are read; nothing is written there and nothing
 is sent. A tree is read at most its place's depth down, never into a hidden or
-linked folder, and stops after 20,000 entries. A place that does not exist, or
+linked folder, and lists at most 20,000 entries in all, each folder's taken from
+the listing before any is held or sorted; the files read before the budget ran
+out are kept. A place that does not exist, or
 that the system refuses (another user's folder, a confined snap's dot folders),
 finds nothing.
 
@@ -552,7 +554,9 @@ runtime does not:
 
 - the header says it is a model: not a projector, adapter, imatrix or a later
   part of a split. A split build is offered from its first part, sized by all of
-  them, and only when every part is beside it;
+  them, and only when every part its header's `split.count` counts is on disk
+  under the names llama.cpp finds parts by; a first part saved as `model.gguf`
+  is reported, and every part is checked again before Use;
 - the classifier makes it a chat model, so an embedder is skipped with its
   group's sentence;
 - its architecture is in llama.cpp's own table, the pinned `gguf` package's
@@ -569,7 +573,10 @@ runtime does not:
 What fails one of these is counted, with its name, its app and an
 `UnusableCode` (`unreadable`, `not_a_model`, `unknown_architecture`,
 `vision_inside`, `path`, `missing_parts`) or the classifier's own code. A file
-that will not parse or is a companion is passed over without a word. SurfSense's
+that will not parse or is a companion is passed over without a word, and so is
+one whose header holds a value of a type nothing here expected (a part number
+that is a word, a file type that is a list): `judge()` never raises, so one
+such file costs itself, never the rest of the look. SurfSense's
 own models folder is never offered back, and a file reached from two places is
 one model, found by the first.
 
@@ -595,7 +602,10 @@ in `elsewhere.json` in the models folder
 ([`record.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/elsewhere/record.py)):
 the runtime's name for it, its path, every part, its projector, its app and its
 name. The record is kept apart from `installs.json`, since every file that one
-names is SurfSense's to delete and none this one names ever is. The runtime's
+names is SurfSense's to delete and none this one names ever is. Every change
+reads it, changes it and writes it back under one lock, because the routes run
+in threads beside the install job, and each write goes through a temporary file
+of its own. The runtime's
 name starts with whose file it is (`ollama-qwen3-8b`, `lmstudio-Qwen3-8B-Q4_K_M`,
 `hf-`, `jan-`, `gpt4all-`, and `local-` for a picked file), keeps only
 `[A-Za-z0-9._-]`, adds the quantization unless the name already holds it or an

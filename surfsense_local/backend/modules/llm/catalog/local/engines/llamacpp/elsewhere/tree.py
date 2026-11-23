@@ -2,13 +2,15 @@
 
 The walk is bounded, because a folder a person adds may be a whole drive: it
 goes `depth` folders down, never into a hidden folder or through a linked one,
-and stops after `_MOST_ENTRIES` entries. A split build is one candidate for all
-of its parts, offered from its first.
+and lists at most `_MOST_ENTRIES` entries in all, keeping the files it read
+before the budget ran out. A split build is one candidate for all of its parts,
+offered from its first.
 """
 
 import logging
 import os
 import re
+from itertools import islice
 from pathlib import Path
 
 from modules.llm.catalog.local.engines.llamacpp.elsewhere.candidate import Candidate
@@ -39,14 +41,19 @@ def _walk(
 ) -> None:
     try:
         with os.scandir(folder) as listing:
-            entries = sorted(listing, key=lambda e: e.name)
+            # No more than the budget leaves, before anything is held or sorted:
+            # a folder a person adds may be a whole drive. One past it is read,
+            # so running out is noticed.
+            entries = sorted(
+                islice(listing, max(budget[0], 0) + 1), key=lambda e: e.name
+            )
     except OSError:
         return
     files = []
     for entry in entries:
         budget[0] -= 1
         if budget[0] < 0:
-            return
+            break  # what was read is kept, below
         if entry.name.startswith("."):
             continue
         try:

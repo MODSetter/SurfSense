@@ -17,6 +17,7 @@ from tests.unit.llm.catalog.local.engines.llamacpp.elsewhere.files import (
     Q4_K_M,
     chat_model_bytes,
 )
+from tests.unit.llm.gguf.build import STRING, UINT32, array, kv
 
 pytestmark = pytest.mark.unit
 
@@ -121,3 +122,18 @@ def test_a_file_that_states_no_quantization_says_so() -> None:
 def test_the_context_is_the_window_the_model_was_trained_for() -> None:
     """The context is `<architecture>.context_length`, as the header states it."""
     assert label_of(_header(context=262144), BLOB).context == 262144
+
+
+@pytest.mark.parametrize(
+    "file_type",
+    [
+        array("general.file_type", UINT32, [15, 15]),
+        kv("general.file_type", STRING, "Q4"),
+    ],
+    ids=["a list", "a word"],
+)
+def test_a_file_type_that_is_not_a_number_is_unknown(file_type: bytes) -> None:
+    """A writer can put a list or a string where the number belongs."""
+    header = read_header_prefix(chat_model_bytes(file_type=None, extra=[file_type]))
+
+    assert label_of(header, BLOB).quantization == "unknown"

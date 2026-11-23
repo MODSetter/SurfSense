@@ -11,7 +11,12 @@ from pathlib import Path
 
 import pytest
 
-from modules.llm.catalog.local.engines.llamacpp.elsewhere.find import find_models
+from modules.llm.catalog.local.engines.llamacpp.elsewhere import tree as tree_module
+from modules.llm.catalog.local.engines.llamacpp.elsewhere.candidate import Candidate
+from modules.llm.catalog.local.engines.llamacpp.elsewhere.find import (
+    find_models,
+    judge,
+)
 from modules.llm.catalog.local.engines.llamacpp.elsewhere.places import (
     App,
     Layout,
@@ -20,6 +25,7 @@ from modules.llm.catalog.local.engines.llamacpp.elsewhere.places import (
 from modules.llm.catalog.local.engines.llamacpp.elsewhere.runs_here import (
     UnusableCode,
 )
+from modules.llm.catalog.local.engines.llamacpp.elsewhere.tree import in_tree
 from tests.unit.llm.catalog.local.engines.llamacpp.elsewhere.files import (
     chat_model_bytes,
     ollama_store,
@@ -27,6 +33,7 @@ from tests.unit.llm.catalog.local.engines.llamacpp.elsewhere.files import (
     write_embedder,
     write_projector,
 )
+from tests.unit.llm.gguf.build import STRING, UINT32, kv
 
 pytestmark = pytest.mark.unit
 
@@ -380,3 +387,123 @@ def test_finding_changes_nothing_on_disk(tmp_path: Path) -> None:
 
     after = {p: (p.stat().st_size, p.stat().st_mtime_ns) for p in tmp_path.rglob("*")}
     assert after == before
+
+
+# Files no reader expected ----------------------------------------------------------
+
+
+def test_one_malformed_header_costs_that_file_and_not_the_scan(tmp_path: Path) -> None:
+    """A value of the wrong type anywhere in one header must not stop the others
+    being found: that file is unreadable, and passed over like any other."""
+    good = write_chat_model(tmp_path / "good-Q4_K_M.gguf")
+    (tmp_path / "bad-shape-Q4_K_M.gguf").write_bytes(
+        chat_model_bytes(block_count=kv("qwen3.block_count", STRING, "many"))
+    )
+    (tmp_path / "bad-part-Q4_K_M.gguf").write_bytes(
+        chat_model_bytes(
+            extra=[kv("split.no", STRING, "first"), kv("split.count", UINT32, 2)]
+        )
+    )
+
+    finding = find_models([_tree(App.FOLDER, tmp_path)])
+
+    assert [m.path for m in finding.models] == [good]
+
+
+def test_a_file_that_trips_the_reader_is_judged_unreadable(tmp_path: Path) -> None:
+    """What a pick of the same file is refused with."""
+    bad = tmp_path / "bad-Q4_K_M.gguf"
+    bad.write_bytes(chat_model_bytes(block_count=kv("qwen3.block_count", STRING, "x")))
+
+    outcome = judge(Candidate(App.FOLDER, bad, (bad,)))
+
+    assert outcome.unusable.code is UnusableCode.UNREADABLE
+
+
+# Every part of a split ---------------------------------------------------------------
+
+
+def test_a_split_saved_under_one_file_name_is_reported_with_parts_missing(
+    tmp_path: Path,
+) -> None:
+    """llama.cpp finds a split's other parts by their names, so a first part
+    saved as `model.gguf` cannot load whatever sits beside it."""
+    write_chat_model(tmp_path / "model.gguf", split=(0, 2))
+
+    finding = find_models([_tree(App.FOLDER, tmp_path)])
+
+    assert finding.models == ()
+    assert [s.unusable.code for s in finding.skipped] == [UnusableCode.MISSING_PARTS]
+
+
+def test_a_split_whose_names_count_fewer_parts_than_its_header_is_reported(
+    tmp_path: Path,
+) -> None:
+    """The header is the authority on how many parts there are."""
+    write_chat_model(tmp_path / "big-Q4_K_M-00001-of-00002.gguf", split=(0, 3))
+    write_chat_model(tmp_path / "big-Q4_K_M-00002-of-00002.gguf", split=(1, 3))
+
+    finding = find_models([_tree(App.FOLDER, tmp_path)])
+
+    assert finding.models == ()
+    assert [s.unusable.code for s in finding.skipped] == [UnusableCode.MISSING_PARTS]
+
+
+def test_a_part_gone_since_the_listing_makes_the_split_missing(tmp_path: Path) -> None:
+    """Judged again before use, a split whose later part was deleted is refused."""
+    write_chat_model(tmp_path / "big-Q4_K_M-00001-of-00002.gguf", split=(0, 2))
+    second = write_chat_model(tmp_path / "big-Q4_K_M-00002-of-00002.gguf", split=(1, 2))
+    (found,) = find_models([_tree(App.FOLDER, tmp_path)]).models
+    second.unlink()
+
+    outcome = judge(Candidate(found.app, found.path, found.parts))
+
+    assert outcome.unusable.code is UnusableCode.MISSING_PARTS
+
+
+# The entry budget ----------------------------------------------------------------------
+
+
+def test_a_model_read_before_the_budget_ran_out_is_kept(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The walk stops at its budget, but keeps what it had already read."""
+    monkeypatch.setattr(tree_module, "_MOST_ENTRIES", 6)
+    model = write_chat_model(tmp_path / "a-Q4_K_M.gguf")
+    for n in range(6):
+        (tmp_path / f"note-{n}.txt").write_text("x")
+
+    assert [c.path for c in in_tree(tmp_path, App.FOLDER, depth=0)] == [model]
+
+
+def test_a_huge_folder_is_listed_no_further_than_the_budget(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A folder a person adds may be a whole drive: entries past the budget are
+    never read, let alone held and sorted."""
+    monkeypatch.setattr(tree_module, "_MOST_ENTRIES", 5)
+    for n in range(50):
+        (tmp_path / f"f{n:02}.txt").write_text("x")
+    listed: list[str] = []
+    real_scandir = os.scandir
+
+    class Counted:
+        def __init__(self, path: str) -> None:
+            self._listing = real_scandir(path)
+
+        def __enter__(self) -> "Counted":
+            return self
+
+        def __exit__(self, *_: object) -> None:
+            self._listing.close()
+
+        def __iter__(self):
+            for entry in self._listing:
+                listed.append(entry.name)
+                yield entry
+
+    monkeypatch.setattr(tree_module.os, "scandir", Counted)
+
+    in_tree(tmp_path, App.FOLDER, depth=0)
+
+    assert len(listed) <= 6

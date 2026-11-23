@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -47,10 +47,18 @@ export function ElsewhereSection({
     modelType: "text_gen",
   })
   const [picked, setPicked] = useState<LocalRow[]>([])
+  // Read when a pick returns, not when it started: the dialog may stay open
+  // while something else on the page begins.
+  const busy = useRef(disabled)
+  useEffect(() => {
+    busy.current = disabled
+  }, [disabled])
   const picker = usePickModel((row) => {
     const build = row.builds[0]
     if (!build) return
     setPicked((rows) => [row, ...rows.filter((r) => r.id !== row.id)])
+    // Busy now, the file is only shown; its Use chooses it once the page is free.
+    if (busy.current) return
     if (build.installed_as) onUse(build.installed_as)
     else if (build.catalog_id) void install(build.catalog_id)
   })
@@ -83,7 +91,11 @@ export function ElsewhereSection({
     if (!disabled) void install(build.catalog_id)
   }
   const pickButtons = picker.available ? (
-    <PickButtons picking={picker.picking} onPick={picker.pick} />
+    <PickButtons
+      picking={picker.picking}
+      disabled={disabled}
+      onPick={picker.pick}
+    />
   ) : null
 
   if (!rows.length && !manage) {
@@ -198,18 +210,22 @@ function disclosure(look: boolean, lookedIn: string[]): string {
 
 function PickButtons({
   picking,
+  disabled,
   onPick,
 }: {
   picking: PickKind | null
+  /** The page is choosing or installing a model: a pick waits for it. */
+  disabled: boolean
   onPick: (kind: PickKind) => void
 }) {
+  const off = disabled || picking !== null
   return (
     <div className="flex shrink-0 items-center gap-1.5">
       <Button
         type="button"
         size="sm"
         variant="outline"
-        disabled={picking !== null}
+        disabled={off}
         onClick={() => onPick("file")}
       >
         {picking === "file" ? (
@@ -226,7 +242,7 @@ function PickButtons({
         type="button"
         size="sm"
         variant="outline"
-        disabled={picking !== null}
+        disabled={off}
         onClick={() => onPick("folder")}
       >
         {picking === "folder" ? (

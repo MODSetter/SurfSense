@@ -16,6 +16,7 @@ Everything else comes from the header: the tensor table counts the parameters,
 import math
 import re
 from dataclasses import dataclass
+from numbers import Integral
 from pathlib import Path
 
 from gguf.constants import Keys, LlamaFileType
@@ -95,8 +96,12 @@ def _quantization(meta: dict, path: Path) -> str:
     if label != UNKNOWN:
         return label
     file_type = meta.get(Keys.General.FILE_TYPE)
+    # Only a whole number names a type; a list or a string a writer put there
+    # says nothing, and must cost this label rather than the scan.
+    if isinstance(file_type, bool) or not isinstance(file_type, Integral):
+        return UNKNOWN
     try:
-        named = LlamaFileType(int(file_type)).name if file_type is not None else ""
+        named = LlamaFileType(int(file_type)).name
     except ValueError:
         return UNKNOWN
     if not named or named == LlamaFileType.GUESSED.name:

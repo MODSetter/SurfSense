@@ -4,10 +4,17 @@ place, whether to look in those apps' folders, and which folders a person added.
 Kept beside the preset in the models folder, so it moves with it, and kept
 apart from `installs.json`: everything that record names is SurfSense's to
 delete, and nothing this one names ever is.
+
+Every change reads the record, changes it and writes it back under one lock,
+since the routes run in threads beside the install job: two at once must both
+land, not the later one undo the earlier.
 """
 
 import json
+import os
 import re
+import tempfile
+import threading
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -35,6 +42,8 @@ _PREFIX = {
 # What a preset section, a URL path segment and a file name can all carry.
 _UNSAFE = re.compile(r"[^A-Za-z0-9._-]+")
 _LONGEST = 80
+# Around each read-modify-write; one API process writes the record.
+_CHANGING = threading.Lock()
 
 
 @dataclass(frozen=True)
@@ -99,41 +108,51 @@ def write_record(models_dir: Path, record: ElsewhereRecord) -> None:
         "folders": list(record.folders),
         "models": [_plain(model) for model in record.models],
     }
-    temporary = models_dir / f"{RECORD_FILE}.tmp"
-    temporary.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-    temporary.replace(models_dir / RECORD_FILE)
+    # A name of its own, so a write can never publish another's half.
+    handle, name = tempfile.mkstemp(
+        dir=models_dir, prefix=f"{RECORD_FILE}.", suffix=".tmp"
+    )
+    try:
+        with os.fdopen(handle, "w", encoding="utf-8") as file:
+            file.write(json.dumps(payload, indent=2) + "\n")
+        Path(name).replace(models_dir / RECORD_FILE)
+    except BaseException:
+        Path(name).unlink(missing_ok=True)
+        raise
 
 
 def use_in_place(models_dir: Path, found: "FoundModel") -> InPlace:
     """Record a found model for use where it lies. The same file keeps the
     name it was given, so a selection naming it stays good."""
-    record = read_record(models_dir)
-    path = str(found.path)
-    for model in record.models:
-        if model.path == path:
-            return model
-    used = InPlace(
-        model_id=_new_id(models_dir, record, found),
-        app=found.app,
-        path=path,
-        parts=tuple(str(part) for part in found.parts),
-        projector=str(found.projector) if found.projector else None,
-        name=found.label.name,
-        source=found.source,
-    )
-    write_record(models_dir, replace(record, models=(*record.models, used)))
-    return used
+    with _CHANGING:
+        record = read_record(models_dir)
+        path = str(found.path)
+        for model in record.models:
+            if model.path == path:
+                return model
+        used = InPlace(
+            model_id=_new_id(models_dir, record, found),
+            app=found.app,
+            path=path,
+            parts=tuple(str(part) for part in found.parts),
+            projector=str(found.projector) if found.projector else None,
+            name=found.label.name,
+            source=found.source,
+        )
+        write_record(models_dir, replace(record, models=(*record.models, used)))
+        return used
 
 
 def forget(models_dir: Path, model_id: str) -> bool:
     """Stop using a model in place. Its file is not touched. False when the
     record never named it."""
-    record = read_record(models_dir)
-    kept = tuple(m for m in record.models if m.model_id != model_id)
-    if len(kept) == len(record.models):
-        return False
-    write_record(models_dir, replace(record, models=kept))
-    return True
+    with _CHANGING:
+        record = read_record(models_dir)
+        kept = tuple(m for m in record.models if m.model_id != model_id)
+        if len(kept) == len(record.models):
+            return False
+        write_record(models_dir, replace(record, models=kept))
+        return True
 
 
 def in_place(models_dir: Path, model_id: str) -> InPlace | None:
@@ -148,26 +167,29 @@ def in_place_path(models_dir: Path, model_id: str) -> Path | None:
 
 
 def set_look(models_dir: Path, look: bool) -> ElsewhereRecord:
-    record = replace(read_record(models_dir), look=look)
-    write_record(models_dir, record)
-    return record
+    with _CHANGING:
+        record = replace(read_record(models_dir), look=look)
+        write_record(models_dir, record)
+        return record
 
 
 def add_folder(models_dir: Path, folder: Path) -> ElsewhereRecord:
-    record = read_record(models_dir)
-    if str(folder) not in record.folders:
-        record = replace(record, folders=(*record.folders, str(folder)))
-        write_record(models_dir, record)
-    return record
+    with _CHANGING:
+        record = read_record(models_dir)
+        if str(folder) not in record.folders:
+            record = replace(record, folders=(*record.folders, str(folder)))
+            write_record(models_dir, record)
+        return record
 
 
 def remove_folder(models_dir: Path, folder: Path) -> ElsewhereRecord:
-    record = read_record(models_dir)
-    record = replace(
-        record, folders=tuple(f for f in record.folders if f != str(folder))
-    )
-    write_record(models_dir, record)
-    return record
+    with _CHANGING:
+        record = read_record(models_dir)
+        record = replace(
+            record, folders=tuple(f for f in record.folders if f != str(folder))
+        )
+        write_record(models_dir, record)
+        return record
 
 
 def _new_id(models_dir: Path, record: ElsewhereRecord, found: "FoundModel") -> str:

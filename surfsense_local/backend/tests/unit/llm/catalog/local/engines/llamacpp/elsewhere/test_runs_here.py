@@ -22,7 +22,7 @@ from modules.llm.providers.llamacpp.preset import preset_can_name
 from tests.unit.llm.catalog.local.engines.llamacpp.elsewhere.files import (
     chat_model_bytes,
 )
-from tests.unit.llm.gguf.build import BOOL, STRING, UINT32, gguf, kv
+from tests.unit.llm.gguf.build import BOOL, STRING, UINT32, array, gguf, kv
 
 pytestmark = pytest.mark.unit
 
@@ -147,3 +147,19 @@ def test_the_preset_cannot_name_a_path_its_parser_would_cut(path: str) -> None:
     """Measured at b11050: llama.cpp's preset parser ends a value at `#` or `;`,
     quoted or not, and the worker then fails to open what is left."""
     assert not preset_can_name(Path(path))
+
+
+@pytest.mark.parametrize(
+    "part",
+    [kv("split.no", STRING, "first"), array("split.no", UINT32, [0, 1])],
+    ids=["a word", "a list"],
+)
+def test_a_shard_whose_part_number_is_not_a_number_is_not_offered(part: bytes) -> None:
+    """A header holds any value under any key; a part number that is not one
+    says nothing about the file, so it is passed over rather than raised."""
+    shard = chat_model_bytes(extra=[part, kv("split.count", UINT32, 2)])
+
+    found = unusable(read_header_prefix(shard))
+
+    assert found is not None
+    assert found.code is UnusableCode.NOT_A_MODEL

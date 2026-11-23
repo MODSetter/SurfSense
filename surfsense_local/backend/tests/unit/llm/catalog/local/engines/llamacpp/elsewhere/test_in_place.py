@@ -10,6 +10,7 @@ from pathlib import Path
 
 import pytest
 
+from modules.llm.catalog.local.build import Build, BuildFile, FileRole
 from modules.llm.catalog.local.engines.llamacpp.elsewhere.find import find_models
 from modules.llm.catalog.local.engines.llamacpp.elsewhere.places import (
     App,
@@ -20,6 +21,8 @@ from modules.llm.catalog.local.engines.llamacpp.elsewhere.record import (
     read_record,
     use_in_place,
 )
+from modules.llm.catalog.local.install.codes import InstallCode
+from modules.llm.catalog.local.install.plan import InstallPlan, InstallRefusedError
 from modules.llm.catalog.local.manifest import load_local_manifest
 from modules.llm.catalog.local.rows import Origin
 from modules.llm.catalog.local.service import LocalCatalogService
@@ -147,3 +150,23 @@ async def test_the_runtime_types_a_model_used_in_place_by_its_own_header(
     assert model.installed
     assert [t.value for t in model.types] == ["text_gen"]
     assert model.known
+
+
+async def test_using_a_split_whose_part_went_away_since_the_listing_is_refused(
+    tmp_path: Path, service: LocalCatalogService, models_dir: Path
+) -> None:
+    """Read again before use: the runtime could not open a split missing a part,
+    so the install ends as a gone file and nothing is recorded."""
+    folder = tmp_path / "pub" / "repo"
+    write_chat_model(folder / "big-Q4_K_M-00001-of-00002.gguf", split=(0, 2))
+    second = write_chat_model(folder / "big-Q4_K_M-00002-of-00002.gguf", split=(1, 2))
+    (found,) = find_models([Place(App.LM_STUDIO, tmp_path, Layout.TREE)]).models
+    second.unlink()
+    weights = BuildFile(FileRole.WEIGHTS, found.path.name, found.weights_bytes)
+    plan = InstallPlan("", Build("Q4_K_M", (weights,)), "llamacpp", in_place=found)
+
+    with pytest.raises(InstallRefusedError) as refused:
+        await service.llamacpp.check(plan)
+
+    assert refused.value.code is InstallCode.FILE_GONE
+    assert read_record(models_dir).models == ()

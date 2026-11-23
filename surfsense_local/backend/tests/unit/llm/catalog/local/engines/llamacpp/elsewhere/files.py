@@ -32,11 +32,17 @@ def chat_model_bytes(
     file_type: int | None = Q4_K_M,
     tensors: list[tuple[str, list[int]]] | None = None,
     split: tuple[int, int] | None = None,
+    block_count: bytes | None = None,
+    extra: list[bytes] | None = None,
 ) -> bytes:
-    """A chat model's header: what llama.cpp's loader and our estimator read."""
+    """A chat model's header: what llama.cpp's loader and our estimator read.
+
+    `block_count` replaces that entry and `extra` adds raw ones, for a header
+    holding values no reader expects, since the format lets a writer put any
+    type under any key."""
     entries = [
         kv("general.architecture", STRING, architecture),
-        kv(f"{architecture}.block_count", UINT32, 36),
+        block_count or kv(f"{architecture}.block_count", UINT32, 36),
         kv(f"{architecture}.context_length", UINT32, context),
         kv(f"{architecture}.embedding_length", UINT32, embedding),
         kv(f"{architecture}.attention.head_count", UINT32, 32),
@@ -56,6 +62,7 @@ def chat_model_bytes(
             kv("split.no", UINT32, number),
             kv("split.count", UINT32, count),
         ]
+    entries += extra or []
     rows = tensors if tensors is not None else [("token_embd.weight", [embedding, 3])]
     return gguf(entries, [tensor(n, dims) for n, dims in rows])
 
