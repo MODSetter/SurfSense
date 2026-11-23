@@ -125,6 +125,14 @@ def worker_inputs() -> tuple[list, list, list]:
     # Every prompt a case ships, plus office's per-format SKILL.md: all read through
     # importlib.resources, so the analyser does not see them as source.
     datas += collect_data_files("worker.studio", includes=["**/*.md"])
+    # The documents skill's helper is copied by path into every document script's
+    # run folder (worker/document_script/run_folder.py), so it ships as source.
+    datas.append(
+        (
+            str(BACKEND / "worker" / "document_script" / "surfsense_docs.py"),
+            "worker/document_script",
+        )
+    )
     # Studio's Web page prompt carries the agent's design guide whole (ADR 0066).
     datas += collect_data_files(
         "modules.agent", includes=["skills/surfsense-html/design.md"]
