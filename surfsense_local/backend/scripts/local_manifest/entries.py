@@ -119,11 +119,28 @@ ENTRIES: tuple[Entry, ...] = (
         # No Qwen or bartowski GGUF repo exists for it yet.
         aliases=("Qwen/Qwen3.8-27B",),
     ),
-    # Below 24 GB, the one small model that passed every agent case on an 8 GB
-    # card's memory, 22 Nov 2026: its Q8_0 six of six on llama.cpp b11050, its
-    # Q4_K_M on a 6 GB card three of six, so Q8_0 is its default
-    # (docs/adr/0094-the-star-goes-to-a-model-that-runs-the-agent.md). Qwen3 32B, 14B and
-    # 8B, here until then, never passed an agent case.
+    # Above Spark by the maintainer's call, 23 Nov 2026, "for now": in the app it
+    # was the more reliable of the two in Studio. It reads images, and it passed
+    # the agent's document cases only with the documents helper of #2455
+    # (capability_list/local/local-screen-v2.json). The star goes to it where its
+    # 4-bit build keeps the agent's window, from 10 GB cards and 16 GB Macs; an
+    # 8 GB card keeps Spark (docs/adr/0094-the-star-goes-to-a-model-that-runs-the-agent.md).
+    Entry(
+        id="nemotron-3.5-bolt-e4b",
+        name="Nemotron 3.5 Bolt E4B",
+        family="Nemotron 3.5",
+        publisher="NVIDIA",
+        description="Agentic chats and images, on graphics cards from 10 GB and Macs from 16 GB",
+        license="openmdw-1.1",
+        source_repo="nvidia/NVIDIA-Nemotron-3.5-Bolt-E4B-BF16",
+        repo="unsloth/NVIDIA-Nemotron-3.5-Bolt-E4B-GGUF",
+        aliases=("nvidia/NVIDIA-Nemotron-3.5-Bolt-E4B-BF16",),
+    ),
+    # The one small model that passed every agent case on an 8 GB card's
+    # memory, 22 Nov 2026: its Q8_0 six of six on llama.cpp b11050, its Q4_K_M on
+    # a 6 GB card three of six, so Q8_0 is its default. The star on an 8 GB card,
+    # where Nemotron's 4-bit build cannot keep the agent's window. Qwen3 32B, 14B
+    # and 8B, here until then, never passed an agent case.
     Entry(
         id="spark-x2.6-4b",
         name="Spark-X2.6 4B",
@@ -135,19 +152,6 @@ ENTRIES: tuple[Entry, ...] = (
         repo="XHToken/Spark-X2.6-4B-GGUF",
         aliases=("XHToken/Spark-X2.6-4B",),
         default_quantization="Q8_0",
-    ),
-    # Reads images, and passed the agent's document cases there only once the
-    # short documents skill was on; never starred over Spark, which is smaller.
-    Entry(
-        id="nemotron-3.5-bolt-e4b",
-        name="Nemotron 3.5 Bolt E4B",
-        family="Nemotron 3.5",
-        publisher="NVIDIA",
-        description="Reads images, for 8 GB graphics cards",
-        license="openmdw-1.1",
-        source_repo="nvidia/NVIDIA-Nemotron-3.5-Bolt-E4B-BF16",
-        repo="unsloth/NVIDIA-Nemotron-3.5-Bolt-E4B-GGUF",
-        aliases=("nvidia/NVIDIA-Nemotron-3.5-Bolt-E4B-BF16",),
     ),
     _qwen3("4B", "Quick answers without a graphics card"),
     Entry(

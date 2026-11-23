@@ -200,11 +200,12 @@ preferred first, and nothing in it is a score.
 
 The shipped twenty-four, most preferred first within each type. Seven chat
 models. Qwen3.8 27B (8 builds from `unsloth/`, reads images) leads, as the one
-local model whose remote runs passed the agent ladder. Then Spark-X2.6-4B
-(`Q4_K_M` and `Q8_0` from its publisher's `XHToken/Spark-X2.6-4B-GGUF`,
-defaulting to `Q8_0`), the one small model that passed every agent case on an
-8 GB card's memory; Nemotron 3.5 Bolt E4B (7 builds from `unsloth/`, reads
-images), whose licence, OpenMDW-1.1, is `other` on the card; and, with 18
+local model whose remote runs passed the agent ladder. Then Nemotron 3.5 Bolt
+E4B (7 builds from `unsloth/`, reads images), whose licence, OpenMDW-1.1, is
+`other` on the card, above Spark by the maintainer's call of 23 Nov 2026 as the
+more reliable of the two in Studio; Spark-X2.6-4B (`Q4_K_M` and `Q8_0` from its
+publisher's `XHToken/Spark-X2.6-4B-GGUF`, defaulting to `Q8_0`), the one small
+model that passed every agent case on an 8 GB card's memory; and, with 18
 builds each from `unsloth/`, Qwen3 4B, Gemma 3 4B (reads images), Qwen3 1.7B
 and 0.6B. Qwen3 32B, 14B and 8B left on 22 Nov 2026: none passed an agent case
 ([ADR 0094](../../adr/0094-the-star-goes-to-a-model-that-runs-the-agent.md)).

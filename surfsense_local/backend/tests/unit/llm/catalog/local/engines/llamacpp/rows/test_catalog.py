@@ -52,6 +52,10 @@ BUDGETS = {
 }
 # An 8 GB card driving the display, with less of it free than the idle one above.
 BUSY_8GB = HardwareBudget(6600 * MIB, 8188 * MIB, 1024 * MIB, 14336 * MIB, False, True)
+# A 10 GB card, as the RTX 3080 the maintainer chose the star order on.
+CARD_10GB = HardwareBudget(
+    9200 * MIB, 10240 * MIB, 1024 * MIB, 16000 * MIB, False, True
+)
 CURATED = load_local_manifest().models
 
 
@@ -137,14 +141,44 @@ def test_a_tight_machine_steps_down_a_build_before_a_model() -> None:
 
 
 def test_an_eight_gigabyte_card_stars_the_model_that_runs_the_agent() -> None:
-    """The one small model measured to run the agent, at its own default, Q8_0,
-    which the load keeps resident at the agent's window."""
+    """Nemotron 3.5 Bolt E4B ranks first, but its 4-bit build cannot keep the
+    agent's window on an 8 GB card: the star is Spark-X2.6-4B, at its own
+    default, Q8_0, which the load keeps resident at that window."""
     result = catalog(BUDGETS["discrete-8gb"])
     star = next(r for r in result.rows if r.id == result.recommended_id)
 
     (picked,) = [b for b in star.builds if b.recommended]
     assert (star.id, picked.build.quantization) == ("spark-x2.6-4b", "Q8_0")
     assert window(star.id, picked, BUDGETS["discrete-8gb"]) == AGENT_WINDOW
+
+
+@pytest.mark.parametrize(
+    "budget",
+    [CARD_10GB, BUDGETS["discrete-24gb"], BUDGETS["unified-16gb"]],
+    ids=["card-10gb", "card-24gb", "mac-16gb"],
+)
+def test_where_its_four_bit_build_keeps_the_window_nemotron_takes_the_star(
+    budget,
+) -> None:
+    """The maintainer's call, 23 Nov 2026: Nemotron was the more reliable of the
+    two in the app, so it ranks above Spark, and the rule picks it wherever it
+    runs the agent as resident as Spark would."""
+    result = catalog(budget)
+    star = next(r for r in result.rows if r.id == result.recommended_id)
+
+    (picked,) = [b for b in star.builds if b.recommended]
+    assert (star.id, picked.build.quantization) == (
+        "nemotron-3.5-bolt-e4b",
+        "UD-Q4_K_XL",
+    )
+    assert window(star.id, picked, budget) == AGENT_WINDOW
+
+
+def test_nemotron_ranks_above_spark_in_the_manifest() -> None:
+    """The order among models that run the agent is the manifest's (ADR 0026)."""
+    ids = [m.id for m in CURATED]
+
+    assert ids.index("nemotron-3.5-bolt-e4b") < ids.index("spark-x2.6-4b")
 
 
 def test_a_model_never_measured_for_the_agent_never_takes_the_star_for_it() -> None:
@@ -156,7 +190,7 @@ def test_a_model_never_measured_for_the_agent_never_takes_the_star_for_it() -> N
     (picked,) = [b for b in tiny.builds if b.recommended]
 
     assert window(tiny.id, picked, BUDGETS["discrete-24gb"]) == AGENT_WINDOW
-    assert result.recommended_id == "spark-x2.6-4b"
+    assert result.recommended_id == "nemotron-3.5-bolt-e4b"
 
 
 @pytest.mark.parametrize("budget_name", ["no-gpu-16gb", "no-gpu-4gb", "no-gpu-32gb"])
@@ -171,7 +205,7 @@ def test_without_a_graphics_card_only_a_small_build_is_recommended(
         for build in row.builds:
             if build.recommended:
                 assert build.build.footprint_bytes <= PROCESSOR_STAR_CEILING_BYTES
-    assert result.recommended_id != "spark-x2.6-4b"
+    assert result.recommended_id not in ("nemotron-3.5-bolt-e4b", "spark-x2.6-4b")
 
 
 def test_without_a_graphics_card_the_star_answers_in_basic_chat() -> None:

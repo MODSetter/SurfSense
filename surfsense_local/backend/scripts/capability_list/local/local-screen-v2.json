@@ -1,0 +1,26 @@
+{
+  "date": "2026-11-22",
+  "suite": "local-screen",
+  "how": "As local-screen-v1.json (smoke, pdf-brief and board-pack, each run twice, against llama.cpp b11050 on an RTX 3080 held to an 8 GB card's budget, with the app's preset: a 32,768-token window and four slots; a case passes only when both of its runs passed), with one difference: the two document cases ran with the documents helper, the short documents skill, the syntax check and the no-format rule that #2455 ships, so this row holds only once that change is in. Smoke needs no document. The decision it backs is docs/adr/0094-the-star-goes-to-a-model-that-runs-the-agent.md.",
+  "models": [
+    {
+      "id": "unsloth/NVIDIA-Nemotron-3.5-Bolt-E4B-GGUF/NVIDIA-Nemotron-3.5-Bolt-E4B-UD-Q4_K_XL.gguf",
+      "key": "nemotron-3-5-bolt-e4b",
+      "reads_images": true,
+      "status": "done",
+      "level": "agent",
+      "smoke": "pass",
+      "pdf_brief": "pass",
+      "board_pack": "pass",
+      "passed": 2,
+      "counted": 2,
+      "run": 2,
+      "measured_on": "2026-11-22",
+      "notes": [
+        "UD-Q4_K_XL with its F16 projector: smoke 2 of 2; with the documents helper, pdf-brief 2 of 2 and board-pack 2 of 2.",
+        "Without the helper, as the app shipped before #2455: pdf-brief 1 of 2, board-pack 0 of 2.",
+        "In the maintainer's own use of the app on 23 Nov 2026 it was more reliable in Studio than Spark-X2.6-4B, which this list does not measure."
+      ]
+    }
+  ]
+}

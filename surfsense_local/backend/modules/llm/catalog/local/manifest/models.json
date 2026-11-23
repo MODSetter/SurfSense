@@ -341,138 +341,11 @@
       ]
     },
     {
-      "id": "spark-x2.6-4b",
-      "name": "Spark-X2.6 4B",
-      "family": "Spark-X2.6",
-      "publisher": "XHToken",
-      "description": "Agentic chats on graphics cards from 8 GB and Macs from 16 GB",
-      "license": "apache-2.0",
-      "source_repo": "XHToken/Spark-X2.6-4B",
-      "aliases": [
-        "XHToken/Spark-X2.6-4B"
-      ],
-      "evidence": {
-        "architecture": "spark2_5",
-        "pipeline_tag": "text-generation",
-        "parameters_b": 4.11
-      },
-      "context": 1048576,
-      "template": {
-        "tools": true,
-        "reasoning": true,
-        "system_role": true
-      },
-      "sampling": null,
-      "image": null,
-      "shape": {
-        "block_count": 36,
-        "head_count_kv": 4,
-        "key_length": 256,
-        "value_length": 256,
-        "n_vocab": 131072,
-        "sliding_window": 512,
-        "expert_count": 0,
-        "embedding_length": 2560,
-        "feed_forward_length": 10240,
-        "expert_feed_forward_length": 0,
-        "expert_shared_feed_forward_length": 0,
-        "expert_used_count": 0,
-        "sliding_window_pattern": 0,
-        "sliding_window_layers": [
-          true,
-          true,
-          true,
-          false,
-          true,
-          true,
-          true,
-          false,
-          true,
-          true,
-          true,
-          false,
-          true,
-          true,
-          true,
-          false,
-          true,
-          true,
-          true,
-          false,
-          true,
-          true,
-          true,
-          false,
-          true,
-          true,
-          true,
-          false,
-          true,
-          true,
-          true,
-          false,
-          true,
-          true,
-          true,
-          false
-        ],
-        "key_length_swa": 0,
-        "value_length_swa": 0,
-        "head_count_kv_layers": [],
-        "shared_kv_layers": 0,
-        "kv_lora_rank": 0,
-        "key_length_mla": 0
-      },
-      "default_quantization": "Q8_0",
-      "builds": [
-        {
-          "quantization": "Q4_K_M",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "XHToken/Spark-X2.6-4B-GGUF",
-              "upstream_repo": null,
-              "revision": "9d716770ac7477776de5f891f70cdf98b003a5cd",
-              "path": "Spark-X2.6-4B-Q4_K_M.gguf",
-              "size_bytes": 3543441312,
-              "sha256": "91cb2811aebb47ac916aa619d27d4cdd7f4143106b7917accb8ead4cd7f5cbd9"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "Q8_0",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "XHToken/Spark-X2.6-4B-GGUF",
-              "upstream_repo": null,
-              "revision": "9d716770ac7477776de5f891f70cdf98b003a5cd",
-              "path": "Spark-X2.6-4B-Q8_0.gguf",
-              "size_bytes": 4375021824,
-              "sha256": "145c2aa606820663f26ad530b8fc141ed885e2e9ca29f9be7c3bfe8931d58b81"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        }
-      ]
-    },
-    {
       "id": "nemotron-3.5-bolt-e4b",
       "name": "Nemotron 3.5 Bolt E4B",
       "family": "Nemotron 3.5",
       "publisher": "NVIDIA",
-      "description": "Reads images, for 8 GB graphics cards",
+      "description": "Agentic chats and images, on graphics cards from 10 GB and Macs from 16 GB",
       "license": "openmdw-1.1",
       "source_repo": "nvidia/NVIDIA-Nemotron-3.5-Bolt-E4B-BF16",
       "aliases": [
@@ -793,6 +666,133 @@
                 "clip.has_vision_encoder": true,
                 "clip.vision.projection_dim": 2560
               }
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "spark-x2.6-4b",
+      "name": "Spark-X2.6 4B",
+      "family": "Spark-X2.6",
+      "publisher": "XHToken",
+      "description": "Agentic chats on graphics cards from 8 GB and Macs from 16 GB",
+      "license": "apache-2.0",
+      "source_repo": "XHToken/Spark-X2.6-4B",
+      "aliases": [
+        "XHToken/Spark-X2.6-4B"
+      ],
+      "evidence": {
+        "architecture": "spark2_5",
+        "pipeline_tag": "text-generation",
+        "parameters_b": 4.11
+      },
+      "context": 1048576,
+      "template": {
+        "tools": true,
+        "reasoning": true,
+        "system_role": true
+      },
+      "sampling": null,
+      "image": null,
+      "shape": {
+        "block_count": 36,
+        "head_count_kv": 4,
+        "key_length": 256,
+        "value_length": 256,
+        "n_vocab": 131072,
+        "sliding_window": 512,
+        "expert_count": 0,
+        "embedding_length": 2560,
+        "feed_forward_length": 10240,
+        "expert_feed_forward_length": 0,
+        "expert_shared_feed_forward_length": 0,
+        "expert_used_count": 0,
+        "sliding_window_pattern": 0,
+        "sliding_window_layers": [
+          true,
+          true,
+          true,
+          false,
+          true,
+          true,
+          true,
+          false,
+          true,
+          true,
+          true,
+          false,
+          true,
+          true,
+          true,
+          false,
+          true,
+          true,
+          true,
+          false,
+          true,
+          true,
+          true,
+          false,
+          true,
+          true,
+          true,
+          false,
+          true,
+          true,
+          true,
+          false,
+          true,
+          true,
+          true,
+          false
+        ],
+        "key_length_swa": 0,
+        "value_length_swa": 0,
+        "head_count_kv_layers": [],
+        "shared_kv_layers": 0,
+        "kv_lora_rank": 0,
+        "key_length_mla": 0
+      },
+      "default_quantization": "Q8_0",
+      "builds": [
+        {
+          "quantization": "Q4_K_M",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "XHToken/Spark-X2.6-4B-GGUF",
+              "upstream_repo": null,
+              "revision": "9d716770ac7477776de5f891f70cdf98b003a5cd",
+              "path": "Spark-X2.6-4B-Q4_K_M.gguf",
+              "size_bytes": 3543441312,
+              "sha256": "91cb2811aebb47ac916aa619d27d4cdd7f4143106b7917accb8ead4cd7f5cbd9"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q8_0",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "XHToken/Spark-X2.6-4B-GGUF",
+              "upstream_repo": null,
+              "revision": "9d716770ac7477776de5f891f70cdf98b003a5cd",
+              "path": "Spark-X2.6-4B-Q8_0.gguf",
+              "size_bytes": 4375021824,
+              "sha256": "145c2aa606820663f26ad530b8fc141ed885e2e9ca29f9be7c3bfe8931d58b81"
             }
           ],
           "run": {
