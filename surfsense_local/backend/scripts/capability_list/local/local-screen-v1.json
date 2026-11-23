@@ -1,0 +1,25 @@
+{
+  "date": "2026-11-22",
+  "suite": "local-screen",
+  "how": "The live suite's smoke case, then pdf-brief and board-pack, each run twice, against llama.cpp b11050 on an RTX 3080 held to an 8 GB card's budget (--fit-target, 7,206 MiB free less the app's 1 GiB margin), with the app's preset: a 32,768-token window and four slots. A case passes only when both of its runs passed. The decision it backs is docs/adr/0094-the-star-goes-to-a-model-that-runs-the-agent.md.",
+  "models": [
+    {
+      "id": "XHToken/Spark-X2.6-4B-GGUF/Spark-X2.6-4B-Q8_0.gguf",
+      "key": "spark-x2-6-4b",
+      "reads_images": false,
+      "status": "done",
+      "level": "agent",
+      "smoke": "pass",
+      "pdf_brief": "pass",
+      "board_pack": "pass",
+      "passed": 2,
+      "counted": 2,
+      "run": 2,
+      "measured_on": "2026-11-22",
+      "notes": [
+        "Q8_0: smoke 2 of 2, pdf-brief 2 of 2, board-pack 2 of 2; first token 2.2 s after loading, 104 tok/s.",
+        "Q4_K_M on a 6 GB card's budget (5,234 MiB free): smoke 2 of 2, pdf-brief 1 of 2, board-pack 0 of 2."
+      ]
+    }
+  ]
+}

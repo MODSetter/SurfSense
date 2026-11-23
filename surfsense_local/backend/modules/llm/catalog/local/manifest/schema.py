@@ -133,6 +133,9 @@ class CuratedModel(BaseModel):
     embedding: EmbeddingDefaults | None = None
     # Text models only: an image model is not priced by the llama.cpp estimator.
     shape: ShapeSpec | None = None
+    # A chat model's own default build, where a measurement beats the preference
+    # order's first; None for every model the order serves.
+    default_quantization: str | None = None
     builds: list[ManifestBuild] = Field(min_length=1)
 
     @model_validator(mode="after")
@@ -183,6 +186,13 @@ class CuratedModel(BaseModel):
         labels = [b.quantization for b in self.builds]
         if len(labels) != len(set(labels)):
             raise ValueError(f"{self.id}: a quantization is listed twice")
+        return self
+
+    @model_validator(mode="after")
+    def _default_is_a_build(self) -> "CuratedModel":
+        named = self.default_quantization
+        if named is not None and named not in {b.quantization for b in self.builds}:
+            raise ValueError(f"{self.id}: its default {named} is not one of its builds")
         return self
 
     def as_builds(self) -> list[Build]:
