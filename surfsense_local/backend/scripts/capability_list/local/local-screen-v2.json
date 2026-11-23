@@ -17,7 +17,8 @@
       "run": 2,
       "measured_on": "2026-11-22",
       "notes": [
-        "UD-Q4_K_XL with its F16 projector: smoke 2 of 2; with the documents helper, pdf-brief 2 of 2 and board-pack 2 of 2.",
+        "UD-Q4_K_XL with its F16 projector: smoke 2 of 2; with the documents helper, pdf-brief 2 of 2 and board-pack 2 of 2 (22 Nov 2026, the experiment's version of #2455).",
+        "On #2455's final text (096cb6eb7), 23 Nov 2026: pdf-brief 2 of 2 and board-pack 2 of 2. On its earlier text, whose no-format rule had been cut to one sentence (684b70a6f): pdf-brief 1 of 2, board-pack 0 of 2, the agent offering a summary instead of a document.",
         "Without the helper, as the app shipped before #2455: pdf-brief 1 of 2, board-pack 0 of 2.",
         "In the maintainer's own use of the app on 23 Nov 2026 it was more reliable in Studio than Spark-X2.6-4B, which this list does not measure."
       ]
