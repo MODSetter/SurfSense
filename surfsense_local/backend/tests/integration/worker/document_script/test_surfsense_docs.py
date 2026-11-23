@@ -279,3 +279,52 @@ def test_a_long_table_in_a_deck_runs_on_with_its_header_and_bold_total() -> None
         ["Total", "4,650"]
     ]
     assert total_bold is True
+
+
+def test_speaker_notes_stay_with_the_slide_their_content_went_on_to(
+    tmp_path: Path,
+) -> None:
+    """Two pictures under one heading make two slides, each with its own notes."""
+    square = tmp_path / "square.png"
+    Image.new("RGB", (800, 800), "white").save(square)
+    deck = _deck(
+        "from surfsense_docs import Doc\n"
+        'doc = Doc("Site visit")\n'
+        'doc.heading("Photos")\n'
+        'doc.image("front")\n'
+        'doc.notes("This is the front gate.")\n'
+        'doc.image("back")\n'
+        'doc.notes("And the yard behind it.")\n'
+        "doc.save()\n",
+        {"front": square, "back": square},
+    )
+
+    notes = [s.notes_slide.notes_text_frame.text for s in list(deck.slides)[1:]]
+    assert notes == ["This is the front gate.", "And the yard behind it."]
+
+
+def test_a_list_longer_than_a_slide_runs_on_in_order_and_counts_on() -> None:
+    """Forty steps and a table: no text box is taller than its slide."""
+    deck = _deck(
+        "from surfsense_docs import Doc\n"
+        'doc = Doc("Runbook")\n'
+        'doc.heading("Steps")\n'
+        'doc.numbered([f"Step {n}" for n in range(1, 41)])\n'
+        'doc.table(["Owner", "Hours"], [["Ops", 12]])\n'
+        "doc.save()\n"
+    )
+
+    steps: list[str] = []
+    starts: list[str | None] = []
+    for slide in list(deck.slides)[1:]:
+        assert slide.shapes.title.text == "Steps"
+        for shape in slide.shapes:
+            assert shape.top + shape.height <= deck.slide_height
+            if shape.has_text_frame and shape != slide.shapes.title:
+                paragraphs = shape.text_frame.paragraphs
+                steps += [p.text for p in paragraphs]
+                number = paragraphs[0]._p.pPr.find(qn("a:buAutoNum"))
+                starts.append(number.get("startAt") if number is not None else None)
+    assert steps == [f"Step {n}" for n in range(1, 41)]
+    assert starts[0] is None and starts[1:] == ["13", "25", "37"]
+    assert any(s.has_table for s in list(deck.slides)[-1].shapes)

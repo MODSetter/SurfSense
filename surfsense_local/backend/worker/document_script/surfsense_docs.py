@@ -476,35 +476,56 @@ def _pptx(doc: Doc, path: str, charts: dict[int, str]) -> None:
     # title; whatever comes before the first heading goes on one under the
     # document's title. Notes join the slide they fall on, the cover before any
     # block.
-    slides: list[tuple[str, list[tuple[int, _Block]], list[str]]] = []
+    slides: list[tuple[str, list[tuple[int, _Block]]]] = []
     cover_notes: list[str] = []
     for i, b in enumerate(doc.blocks):
         if b.kind == "heading":
-            slides.append((_plain(b.args["text"]), [], []))
-        elif b.kind == "notes":
-            (slides[-1][2] if slides else cover_notes).append(b.args["text"])
+            slides.append((_plain(b.args["text"]), []))
+        elif b.kind == "notes" and not slides:
+            cover_notes.append(b.args["text"])
         elif b.kind == "page_break":
-            if slides and slides[-1][1]:
-                slides.append((slides[-1][0], [], []))
+            if slides and any(k.kind != "notes" for _, k in slides[-1][1]):
+                slides.append((slides[-1][0], []))
         else:
             if not slides:
-                slides.append((_plain(doc.title), [], []))
+                slides.append((_plain(doc.title), []))
             slides[-1][1].append((i, b))
-    if cover_notes:
-        cover.notes_slide.notes_text_frame.text = "\n".join(cover_notes)
+    _set_notes(cover, cover_notes)
 
-    for title, blocks, notes in slides:
-        if blocks and all(
-            b.kind in ("paragraph", "bullets", "numbered") for _, b in blocks
+    for title, blocks in slides:
+        shown = [(i, b) for i, b in blocks if b.kind != "notes"]
+        if (
+            shown
+            and all(b.kind in _TEXT for _, b in shown)
+            and sum(_text_lines(b, _BODY_CHARACTERS) for _, b in shown) <= _BODY_LINES
         ):
             slide = deck.slides.add_slide(layouts["Title and Content"])
             slide.shapes.title.text = title
-            _fill(slide.placeholders[1].text_frame, blocks, Pt(20))
+            _fill(slide.placeholders[1].text_frame, shown, Pt(20))
+            _set_notes(slide, [b.args["text"] for _, b in blocks if b.kind == "notes"])
         else:
-            slide = _laid_out(deck, layouts["Title Only"], title, blocks, charts)
-        if notes:
-            slide.notes_slide.notes_text_frame.text = "\n".join(notes)
+            _laid_out(deck, layouts["Title Only"], title, blocks, charts)
     deck.save(path)
+
+
+_TEXT = ("paragraph", "bullets", "numbered")
+# What a Title and Content slide's body holds at 20 pt, and a text box's line at
+# 18 pt across a laid-out slide, in characters: estimates that err short.
+_BODY_LINES, _BODY_CHARACTERS, _BOX_CHARACTERS = 10, 70, 100
+
+
+def _item_lines(text: str, per_line: int) -> int:
+    return max(1, -(-len(_plain(text)) // per_line))
+
+
+def _text_lines(b: _Block, per_line: int) -> int:
+    items = [b.args["text"]] if b.kind == "paragraph" else b.args["items"]
+    return sum(_item_lines(t, per_line) for t in items)
+
+
+def _set_notes(slide: Any, notes: list[str]) -> None:
+    if notes:
+        slide.notes_slide.notes_text_frame.text = "\n".join(notes)
 
 
 def _laid_out(
@@ -513,22 +534,27 @@ def _laid_out(
     title: str,
     blocks: list[tuple[int, _Block]],
     charts: dict[int, str],
-) -> Any:
+) -> None:
     """Text, tables and pictures down Title Only slides, top to bottom. What does
-    not fit below what is there goes on to another slide under the same title,
-    and a long table runs on with its header; the first slide is returned."""
+    not fit below what is there goes on to another slide under the same title: a
+    long list or table runs on, the list's numbering and the table's header row
+    with it. Each speaker note goes on the slide its place in the blocks falls on."""
     from pptx.util import Cm, Pt
 
     left, width = Cm(2), deck.slide_width - Cm(4)
     first_top, bottom = Cm(4), deck.slide_height - Cm(1)
     row_height, least_picture = Cm(0.9), Cm(5)
+    line, pad = Cm(1.1), Cm(0.4)
+    whole = int((bottom - first_top - pad) / line)
+    pages: list[tuple[Any, list[str]]] = []
 
     def new_slide() -> Any:
         made = deck.slides.add_slide(layout)
         made.shapes.title.text = title
+        pages.append((made, []))
         return made
 
-    first = slide = new_slide()
+    slide = new_slide()
     top = first_top
 
     def go_on_if(short: bool) -> None:
@@ -539,14 +565,33 @@ def _laid_out(
 
     for i, b in blocks:
         a = b.args
-        if b.kind in ("paragraph", "bullets", "numbered"):
-            lines = 1 if b.kind == "paragraph" else len(a["items"])
-            height = Cm(1.1 * lines + 0.4)
-            go_on_if(top + height > bottom)
-            box = slide.shapes.add_textbox(left, top, width, height)
-            box.text_frame.word_wrap = True
-            _fill(box.text_frame, [(i, b)], Pt(18))
-            top += height + Cm(0.3)
+        if b.kind == "notes":
+            pages[-1][1].append(a["text"])
+        elif b.kind in _TEXT:
+            items = [a["text"]] if b.kind == "paragraph" else list(a["items"])
+            sizes = [_item_lines(t, _BOX_CHARACTERS) for t in items]
+            start = 0
+            while start < len(items):
+                # A list that would fit a slide of its own moves there whole.
+                need, room = sum(sizes[start:]), int((bottom - top - pad) / line)
+                go_on_if(need > room and (need <= whole or room < 2))
+                room = int((bottom - top - pad) / line)
+                end, used = start, 0
+                while end < len(items) and (used + sizes[end] <= room or end == start):
+                    used, end = used + sizes[end], end + 1
+                height = line * used + pad
+                box = slide.shapes.add_textbox(left, top, width, height)
+                box.text_frame.word_wrap = True
+                part = (
+                    b
+                    if b.kind == "paragraph"
+                    else _Block(b.kind, {"items": items[start:end]})
+                )
+                _fill(box.text_frame, [(i, part)], Pt(18), first_number=start + 1)
+                top += height + Cm(0.3)
+                start = end
+                if start < len(items):
+                    slide, top = new_slide(), first_top
         elif b.kind == "table":
             rows = _table_rows(a)
             header, body = rows[0], rows[1:]
@@ -592,7 +637,8 @@ def _laid_out(
                 run.font.italic, run.font.size = True, Pt(12)
                 top += caption_height
             top += Cm(0.5)
-    return first
+    for page, notes in pages:
+        _set_notes(page, notes)
 
 
 def _deck_table(
@@ -616,23 +662,26 @@ def _deck_table(
                     run.font.bold = r in bold
 
 
-def _fill(frame: Any, blocks: list[tuple[int, _Block]], size: Any) -> None:
+def _fill(
+    frame: Any, blocks: list[tuple[int, _Block]], size: Any, first_number: int = 1
+) -> None:
     """Paragraphs into a text frame, a list as real list paragraphs: PowerPoint
-    draws the bullet or the number, nothing is typed into the text."""
+    draws the bullet or the number, nothing is typed into the text. A numbered
+    list that runs on from another slide counts on from `first_number`."""
     first = True
     for _, b in blocks:
         items = [b.args["text"]] if b.kind == "paragraph" else b.args["items"]
         for item in items:
             par = frame.paragraphs[0] if first else frame.add_paragraph()
             first = False
-            _list_style(par, b.kind)
+            _list_style(par, b.kind, first_number)
             for piece, bold, italic in _runs(item):
                 run = par.add_run()
                 run.text, run.font.bold, run.font.italic = piece, bold, italic
                 run.font.size = size
 
 
-def _list_style(par: Any, kind: str) -> None:
+def _list_style(par: Any, kind: str, first_number: int = 1) -> None:
     """A bullet, a number or neither, as the paragraph's own formatting."""
     from pptx.oxml.ns import qn
 
@@ -647,7 +696,10 @@ def _list_style(par: Any, kind: str) -> None:
     elif kind == "numbered":
         p_pr.set("marL", "342900")
         p_pr.set("indent", "-342900")
-        p_pr.append(p_pr.makeelement(qn("a:buAutoNum"), {"type": "arabicPeriod"}))
+        number = {"type": "arabicPeriod"}
+        if first_number > 1:
+            number["startAt"] = str(first_number)
+        p_pr.append(p_pr.makeelement(qn("a:buAutoNum"), number))
     else:
         p_pr.set("marL", "0")
         p_pr.set("indent", "0")
