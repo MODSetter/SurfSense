@@ -102,6 +102,11 @@ def entry_for(
         "sampling": _sampling(snapshot, reasoning),
         "image": None,
         "shape": _shape_fields(shape),
+        **(
+            {"default_quantization": entry.default_quantization}
+            if entry.default_quantization
+            else {}
+        ),
         "builds": [
             {
                 "quantization": build.quantization,

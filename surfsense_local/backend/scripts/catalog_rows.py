@@ -2,11 +2,14 @@
 
 Run by hand once a sweep is written up, from `surfsense_local/backend`:
 
-    python scripts/catalog_rows.py path/to/sweep-results.json [--date 2026-10-07]
+    python scripts/catalog_rows.py path/to/sweep-results.json [--date 2026-10-07] [--local]
 
 Each screened model becomes an `openrouter-screen` row, at `agent` when it
 passed both cases and `studio_only` otherwise; each assumed flagship an
-`assumed` row. A model the list already names keeps its row unless the new
+`assumed` row. With `--local` the same cases ran on this computer's llama.cpp,
+for a model no provider serves: each row is `local-screen`, and holds only for a
+local copy, pass or fail (the committed input is
+`capability_list/local/local-screen-v1.json`). A model the list already names keeps its row unless the new
 one outranks it (a screening over an assumption), and a model the sweep has
 no verdict for gets none, nor does a variant of it such as its -chat model. The input's shape is in
 `capability_list/sweep_input.py`. A person reviews the diff and commits
@@ -20,7 +23,7 @@ from pathlib import Path
 from capability_list.merge import merged
 from capability_list.shipped import read_shipped, write_shipped
 from capability_list.sweep_input import SweepResults
-from capability_list.sweep_rows import sweep_rows
+from capability_list.sweep_rows import OPENROUTER, THIS_COMPUTER, sweep_rows
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -32,9 +35,14 @@ def main(argv: list[str] | None = None) -> None:
         default=date.today(),
         help="the day the sweep ran, when its results do not say",
     )
+    parser.add_argument(
+        "--local",
+        action="store_true",
+        help="the cases ran on this computer's llama.cpp, not on OpenRouter",
+    )
     args = parser.parse_args(argv)
     sweep = SweepResults.model_validate_json(args.results.read_text("utf-8"))
-    rows = sweep_rows(sweep, args.date)
+    rows = sweep_rows(sweep, args.date, THIS_COMPUTER if args.local else OPENROUTER)
     written, left_out = merged(read_shipped(), rows)
     write_shipped(written)
     for row in rows:

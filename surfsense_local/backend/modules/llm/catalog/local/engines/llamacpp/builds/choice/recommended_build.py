@@ -4,7 +4,9 @@ Never above the default, however much memory is spare: the default is chosen for
 quality per byte, and a larger build that also fits costs several times the
 download for little gain. Never below four bits either: past that floor the star
 belongs on a smaller model. The gate is the speed tier the badge reads, so a
-recommended build never carries a badge saying it will be slow.
+recommended build never carries a badge saying it will be slow, and, where the
+caller passes one, a speed rule the tier cannot see: on the processor alone,
+only a small build answers quickly enough to star (`fit.quick_here`).
 """
 
 from collections.abc import Callable, Sequence
@@ -25,7 +27,10 @@ class Sized(Protocol):
 
 
 def recommended_build[B: Sized](
-    builds: Sequence[B], default: B | None, tier_of: Callable[[B], SpeedTier]
+    builds: Sequence[B],
+    default: B | None,
+    tier_of: Callable[[B], SpeedTier],
+    quick: Callable[[B], bool] = lambda _: True,
 ) -> B | None:
     """The default when it runs well here, else the largest smaller build at or
     above four bits that does, else None: every build physics allows stays
@@ -41,4 +46,7 @@ def recommended_build[B: Sized](
         ),
         key=lambda b: (b is not default, -b.footprint_bytes),
     )
-    return next((b for b in candidates if tier_of(b) in RECOMMENDABLE_TIERS), None)
+    return next(
+        (b for b in candidates if tier_of(b) in RECOMMENDABLE_TIERS and quick(b)),
+        None,
+    )

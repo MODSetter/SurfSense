@@ -198,11 +198,17 @@ preferred first, and nothing in it is a score.
   alias or a build's repo with the same quantization, or, with no record, when
   its file name is the build's own.
 
-The shipped twenty, most preferred first within each type. Eight
-chat models, all from `unsloth/*-GGUF`: Qwen3.8 27B (8 builds, reads images)
-leads, as the one local model whose remote runs passed the agent ladder; then,
-with 18 builds each, Qwen3 32B, 14B, 8B, 4B, Gemma 3 4B (reads images), Qwen3
-1.7B and 0.6B. Six image models. FLUX.2
+The shipped twenty-four, most preferred first within each type. Seven chat
+models. Qwen3.8 27B (8 builds from `unsloth/`, reads images) leads, as the one
+local model whose remote runs passed the agent ladder. Then Spark-X2.6-4B
+(`Q4_K_M` and `Q8_0` from its publisher's `XHToken/Spark-X2.6-4B-GGUF`,
+defaulting to `Q8_0`), the one small model that passed every agent case on an
+8 GB card's memory; Nemotron 3.5 Bolt E4B (7 builds from `unsloth/`, reads
+images), whose licence, OpenMDW-1.1, is `other` on the card; and, with 18
+builds each from `unsloth/`, Qwen3 4B, Gemma 3 4B (reads images), Qwen3 1.7B
+and 0.6B. Qwen3 32B, 14B and 8B left on 22 Nov 2026: none passed an agent case
+([ADR 0094](../../adr/0094-the-star-goes-to-a-model-that-runs-the-agent.md)).
+Six image models. FLUX.2
 klein 4B, Z-Image Turbo and ERNIE-Image Turbo, `Q4_0` then `Q8_0`, each a
 diffusion GGUF with the text encoder and VAE sd.cpp's docs pair it with, from
 their own repos: klein and Z-Image share `unsloth/Qwen3-4B-GGUF`'s `Q4_0`,
@@ -240,7 +246,8 @@ at startup by an empty one, so downloaded models and search still work.
 `scripts/refresh_local_manifest.py`, run by hand; never in CI, at packaging or
 on a request path. `--only ID …` refreshes the named entries and keeps every other
 one exactly as written, so adding a model does not re-pin the rest. `local_manifest/entries.py` is the hand-authored input:
-which models, in which order, from which repo; `VALIDATED`, one in each
+which models, in which order, from which repo, and, only where a measurement
+says so, the build to default to (`default_quantization`); `VALIDATED`, one in each
 engine's `refresh.py`, is the other. For each repo the script reads the
 commit sha, the file listing at that commit (sizes and `lfs.oid` hashes) and the
 repo's `params` file, then the default build's header and its projector's header
@@ -321,11 +328,19 @@ which is its projector:
 
 For each curated chat model, in llama.cpp's [`builds/choice/`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/builds/choice/):
 
-1. **The default**, blind to hardware: the first build in the preference order,
-   `UD-Q4_K_XL` for every shipped chat model.
+1. **The default**, blind to hardware: the build the entry names as
+   `default_quantization`, else the first build in the preference order:
+   `Q8_0` for Spark-X2.6-4B, whose `Q4_K_M` passed half the agent cases its
+   `Q8_0` passed, and `UD-Q4_K_XL` for every other shipped chat model.
 2. **The recommended build** on this machine: the default when its speed tier is
    `FULL` or `LIGHT_SPILL`, else the largest smaller build that is, never one
    above the default and never one below four bits (`RECOMMENDABLE`). Else none.
+   Without a graphics card a build also has to be 3 GiB or smaller
+   (`fit.quick_here`). For a model the capability list says runs the agent on
+   this computer, on a graphics card or Apple's unified memory, the largest
+   such build that `plan_load` keeps resident at the agent's 32,768-token
+   window comes first: a 6 GB card gets a smaller build at the agent's window
+   before the default at a window too short for it.
 
 [`lead_build.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/rows/lead_build.py)
 then names the build each row leads with, which is what its Download fetches, and
@@ -354,9 +369,15 @@ repo and a label would mark the wrong model installed. audio.cpp fills two
 slots, so its rows lead as in use by every name chosen for either: the voice
 podcasts use and the speech model each lead their own row.
 
-**The star** goes to the first curated model, in manifest order, with a
+**The star** goes to the first curated model, in manifest order, whose
+recommended build carries the agent here (step 2), else to the first with a
 recommended build, so a machine short of the preferred model's default gets a
-smaller build of it before a smaller model. Curated rows sort by the fit of the
+smaller build of it before a smaller model, and a machine that can run Agentic
+chats is never steered to a model that only answers in Basic. Without a
+graphics card no model carries the agent, and the star is a quick model for
+Basic ([ADR 0094](../../adr/0094-the-star-goes-to-a-model-that-runs-the-agent.md)).
+A model gains the agent preference only by a row in the capability list that
+holds for a local copy, never by its size or its template. Curated rows sort by the fit of the
 build they lead with, then by manifest position: a refused 32B at the top of a
 small machine's screen is the one thing a model chooser must not do.
 

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "refreshed_at": "2026-10-15",
+  "refreshed_at": "2026-11-23",
   "models": [
     {
       "id": "qwen3.8-27b",
@@ -341,904 +341,81 @@
       ]
     },
     {
-      "id": "qwen3-32b",
-      "name": "Qwen3 32B",
-      "family": "Qwen3",
-      "publisher": "Qwen",
-      "description": "The strongest answers here, for machines with 24 GB or more",
+      "id": "spark-x2.6-4b",
+      "name": "Spark-X2.6 4B",
+      "family": "Spark-X2.6",
+      "publisher": "XHToken",
+      "description": "Agentic chats on 6 to 16 GB graphics cards and 16 GB Macs",
       "license": "apache-2.0",
-      "source_repo": "Qwen/Qwen3-32B",
+      "source_repo": "XHToken/Spark-X2.6-4B",
       "aliases": [
-        "Qwen/Qwen3-32B",
-        "Qwen/Qwen3-32B-GGUF",
-        "bartowski/Qwen_Qwen3-32B-GGUF"
+        "XHToken/Spark-X2.6-4B"
       ],
       "evidence": {
-        "architecture": "qwen3",
+        "architecture": "spark2_5",
         "pipeline_tag": "text-generation",
-        "parameters_b": 32.76
+        "parameters_b": 4.11
       },
-      "context": 40960,
+      "context": 1048576,
       "template": {
         "tools": true,
         "reasoning": true,
         "system_role": true
       },
-      "sampling": {
-        "origin": "unsloth/Qwen3-32B-GGUF@931c84066f88693a02ab8de820cfcd066d913241/params",
-        "thinking": {
-          "temperature": 0.6,
-          "top_p": 0.95,
-          "top_k": 20,
-          "min_p": 0.0
-        },
-        "non_thinking": null
-      },
-      "image": null,
-      "shape": {
-        "block_count": 64,
-        "head_count_kv": 8,
-        "key_length": 128,
-        "value_length": 128,
-        "n_vocab": 151936,
-        "sliding_window": 0,
-        "expert_count": 0,
-        "embedding_length": 5120,
-        "feed_forward_length": 25600,
-        "expert_feed_forward_length": 0,
-        "expert_shared_feed_forward_length": 0,
-        "expert_used_count": 0,
-        "sliding_window_pattern": 0,
-        "sliding_window_layers": [],
-        "key_length_swa": 0,
-        "value_length_swa": 0,
-        "head_count_kv_layers": [],
-        "shared_kv_layers": 0,
-        "kv_lora_rank": 0,
-        "key_length_mla": 0
-      },
-      "builds": [
-        {
-          "quantization": "Q2_K",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-32B-GGUF",
-              "upstream_repo": null,
-              "revision": "931c84066f88693a02ab8de820cfcd066d913241",
-              "path": "Qwen3-32B-Q2_K.gguf",
-              "size_bytes": 12344652448,
-              "sha256": "a44c487474fcbd04f0c9bdaf4396621585c738ffe43019efe58252ff43b7461a"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "UD-Q2_K_XL",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-32B-GGUF",
-              "upstream_repo": null,
-              "revision": "931c84066f88693a02ab8de820cfcd066d913241",
-              "path": "Qwen3-32B-UD-Q2_K_XL.gguf",
-              "size_bytes": 12797352608,
-              "sha256": "b15da97c6f14ab076e858a3e493c708926bb9369212639bfd5f1383614616047"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "Q3_K_S",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-32B-GGUF",
-              "upstream_repo": null,
-              "revision": "931c84066f88693a02ab8de820cfcd066d913241",
-              "path": "Qwen3-32B-Q3_K_S.gguf",
-              "size_bytes": 14389739168,
-              "sha256": "5c07890c2c624971b10f69d80dc78ba05a66786cfacdd580e76820fd1f3affb4"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "Q3_K_M",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-32B-GGUF",
-              "upstream_repo": null,
-              "revision": "931c84066f88693a02ab8de820cfcd066d913241",
-              "path": "Qwen3-32B-Q3_K_M.gguf",
-              "size_bytes": 15971778208,
-              "sha256": "e0292684341bdb66d800f77985769d46af96089645ca3a05f1c71a7cd77d030b"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "UD-Q3_K_XL",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-32B-GGUF",
-              "upstream_repo": null,
-              "revision": "931c84066f88693a02ab8de820cfcd066d913241",
-              "path": "Qwen3-32B-UD-Q3_K_XL.gguf",
-              "size_bytes": 16403102368,
-              "sha256": "cbfdb9471aaab2ed4beeb7419528137a00c5a4aec0519faeb95dcd41886622b8"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "IQ4_XS",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-32B-GGUF",
-              "upstream_repo": null,
-              "revision": "931c84066f88693a02ab8de820cfcd066d913241",
-              "path": "Qwen3-32B-IQ4_XS.gguf",
-              "size_bytes": 17714805408,
-              "sha256": "3c4e43713e75b1c445f551fee3876be5529fe124a1adb49b2d192e74ac0e7a66"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "IQ4_NL",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-32B-GGUF",
-              "upstream_repo": null,
-              "revision": "931c84066f88693a02ab8de820cfcd066d913241",
-              "path": "Qwen3-32B-IQ4_NL.gguf",
-              "size_bytes": 18679495328,
-              "sha256": "e6b7faad5e1ec0bc2dc589a7b62e719715ae7cb98836a1354ef302eeeb37bab4"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "Q4_K_S",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-32B-GGUF",
-              "upstream_repo": null,
-              "revision": "931c84066f88693a02ab8de820cfcd066d913241",
-              "path": "Qwen3-32B-Q4_K_S.gguf",
-              "size_bytes": 18771245728,
-              "sha256": "359efe7aba13c3ad81311b47c101c62a0419eb21ccda7bea553c3fae045232ac"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "Q4_K_M",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-32B-GGUF",
-              "upstream_repo": null,
-              "revision": "931c84066f88693a02ab8de820cfcd066d913241",
-              "path": "Qwen3-32B-Q4_K_M.gguf",
-              "size_bytes": 19762150048,
-              "sha256": "8df67573b2c23484e02ec7af295e39bed7ee774f3771d5fda2978265b59370e7"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "UD-Q4_K_XL",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-32B-GGUF",
-              "upstream_repo": null,
-              "revision": "931c84066f88693a02ab8de820cfcd066d913241",
-              "path": "Qwen3-32B-UD-Q4_K_XL.gguf",
-              "size_bytes": 20021713568,
-              "sha256": "744e6b933517e18af3c2a9885bbfee2c7b6f6a4e2d7be348551e0180aaeceac4"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "Q5_K_S",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-32B-GGUF",
-              "upstream_repo": null,
-              "revision": "931c84066f88693a02ab8de820cfcd066d913241",
-              "path": "Qwen3-32B-Q5_K_S.gguf",
-              "size_bytes": 22635494048,
-              "sha256": "58d4cc51d0985c8779f878351c8b81f3b6b2d15869bcf122124fb58adc785104"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "Q5_K_M",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-32B-GGUF",
-              "upstream_repo": null,
-              "revision": "931c84066f88693a02ab8de820cfcd066d913241",
-              "path": "Qwen3-32B-Q5_K_M.gguf",
-              "size_bytes": 23214832288,
-              "sha256": "bc96ba6bc5ed7d78540d2ca7fe66234c71b821480496c6ac8d12d8c406429446"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "UD-Q5_K_XL",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-32B-GGUF",
-              "upstream_repo": null,
-              "revision": "931c84066f88693a02ab8de820cfcd066d913241",
-              "path": "Qwen3-32B-UD-Q5_K_XL.gguf",
-              "size_bytes": 23233551008,
-              "sha256": "ca5cc286a16eff7309453070cd9712e6e2509855f1cb8f3ab125f933d9738be9"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "Q6_K",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-32B-GGUF",
-              "upstream_repo": null,
-              "revision": "931c84066f88693a02ab8de820cfcd066d913241",
-              "path": "Qwen3-32B-Q6_K.gguf",
-              "size_bytes": 26883307168,
-              "sha256": "47eb3b57d774b7c4f730d3ca1d63c987e03a4c19c925145b777fdd530da4c447"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "UD-Q6_K_XL",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-32B-GGUF",
-              "upstream_repo": null,
-              "revision": "931c84066f88693a02ab8de820cfcd066d913241",
-              "path": "Qwen3-32B-UD-Q6_K_XL.gguf",
-              "size_bytes": 28961586848,
-              "sha256": "374c65fa25d0d0ccba519f4cff6870f0b69a5ce6793e747ef9e125482f0413a8"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "Q8_0",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-32B-GGUF",
-              "upstream_repo": null,
-              "revision": "931c84066f88693a02ab8de820cfcd066d913241",
-              "path": "Qwen3-32B-Q8_0.gguf",
-              "size_bytes": 34817719968,
-              "sha256": "893a858c12e891a53219e59dab3238de0db61567e2fbd0487d2c6348572d78ff"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "UD-Q8_K_XL",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-32B-GGUF",
-              "upstream_repo": null,
-              "revision": "931c84066f88693a02ab8de820cfcd066d913241",
-              "path": "Qwen3-32B-UD-Q8_K_XL.gguf",
-              "size_bytes": 39481015968,
-              "sha256": "ae588534828a4ed716d6a7a24e664d92841607ac6078ad296b44691151045200"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "BF16",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-32B-GGUF",
-              "upstream_repo": null,
-              "revision": "931c84066f88693a02ab8de820cfcd066d913241",
-              "path": "BF16/Qwen3-32B-BF16-00001-of-00002.gguf",
-              "size_bytes": 49871764512,
-              "sha256": "590cc676bffbccaafc2c3cf2b61955aa12e584b7843f9d45cc2930f2812dbb51"
-            },
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-32B-GGUF",
-              "upstream_repo": null,
-              "revision": "931c84066f88693a02ab8de820cfcd066d913241",
-              "path": "BF16/Qwen3-32B-BF16-00002-of-00002.gguf",
-              "size_bytes": 15659811424,
-              "sha256": "5fb0cbc5531c672fd178e57a43e1c16bef85f05e9ea60d7e4f46e02167a2a6c9"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        }
-      ]
-    },
-    {
-      "id": "qwen3-14b",
-      "name": "Qwen3 14B",
-      "family": "Qwen3",
-      "publisher": "Qwen",
-      "description": "Careful answers from long documents, for 16 GB machines",
-      "license": "apache-2.0",
-      "source_repo": "Qwen/Qwen3-14B",
-      "aliases": [
-        "Qwen/Qwen3-14B",
-        "Qwen/Qwen3-14B-GGUF",
-        "bartowski/Qwen_Qwen3-14B-GGUF"
-      ],
-      "evidence": {
-        "architecture": "qwen3",
-        "pipeline_tag": "text-generation",
-        "parameters_b": 14.77
-      },
-      "context": 40960,
-      "template": {
-        "tools": true,
-        "reasoning": true,
-        "system_role": true
-      },
-      "sampling": {
-        "origin": "unsloth/Qwen3-14B-GGUF@a04a82c4739b3ef5fa6da7d10261db2c67dd1985/params",
-        "thinking": {
-          "temperature": 0.6,
-          "top_p": 0.95,
-          "top_k": 20,
-          "min_p": 0.0
-        },
-        "non_thinking": null
-      },
-      "image": null,
-      "shape": {
-        "block_count": 40,
-        "head_count_kv": 8,
-        "key_length": 128,
-        "value_length": 128,
-        "n_vocab": 151936,
-        "sliding_window": 0,
-        "expert_count": 0,
-        "embedding_length": 5120,
-        "feed_forward_length": 17408,
-        "expert_feed_forward_length": 0,
-        "expert_shared_feed_forward_length": 0,
-        "expert_used_count": 0,
-        "sliding_window_pattern": 0,
-        "sliding_window_layers": [],
-        "key_length_swa": 0,
-        "value_length_swa": 0,
-        "head_count_kv_layers": [],
-        "shared_kv_layers": 0,
-        "kv_lora_rank": 0,
-        "key_length_mla": 0
-      },
-      "builds": [
-        {
-          "quantization": "Q2_K",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-14B-GGUF",
-              "upstream_repo": null,
-              "revision": "a04a82c4739b3ef5fa6da7d10261db2c67dd1985",
-              "path": "Qwen3-14B-Q2_K.gguf",
-              "size_bytes": 5753984384,
-              "sha256": "7282a1791062c250b306c8b8c97c77cd130046898d3ac4c1ab3ccaa76fa721f0"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "UD-Q2_K_XL",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-14B-GGUF",
-              "upstream_repo": null,
-              "revision": "a04a82c4739b3ef5fa6da7d10261db2c67dd1985",
-              "path": "Qwen3-14B-UD-Q2_K_XL.gguf",
-              "size_bytes": 6067584384,
-              "sha256": "6abefcfb88de4157acc6109a711af65fdb5a6da2a77a1ac91bdada2ded22fd49"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "Q3_K_S",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-14B-GGUF",
-              "upstream_repo": null,
-              "revision": "a04a82c4739b3ef5fa6da7d10261db2c67dd1985",
-              "path": "Qwen3-14B-Q3_K_S.gguf",
-              "size_bytes": 6657106304,
-              "sha256": "b5dad229e5b047f2627bd90bc0ab1e6dfc02510b904aa1b13d1e152e067d8736"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "Q3_K_M",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-14B-GGUF",
-              "upstream_repo": null,
-              "revision": "a04a82c4739b3ef5fa6da7d10261db2c67dd1985",
-              "path": "Qwen3-14B-Q3_K_M.gguf",
-              "size_bytes": 7321313664,
-              "sha256": "9694f1db203d5a18bea6f19a36be01b2d2c79bf9b7f8df553a4cc5cff870b47e"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "UD-Q3_K_XL",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-14B-GGUF",
-              "upstream_repo": null,
-              "revision": "a04a82c4739b3ef5fa6da7d10261db2c67dd1985",
-              "path": "Qwen3-14B-UD-Q3_K_XL.gguf",
-              "size_bytes": 7593917824,
-              "sha256": "46b8c8a3fda3de374f465be47176c956e44c7ef56ceddf6aa8bafddb1c73d5b6"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "IQ4_XS",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-14B-GGUF",
-              "upstream_repo": null,
-              "revision": "a04a82c4739b3ef5fa6da7d10261db2c67dd1985",
-              "path": "Qwen3-14B-IQ4_XS.gguf",
-              "size_bytes": 8135040384,
-              "sha256": "e24bdda1295a1bb7898b7af9300b86eba0ffba66d8f3dadbc90d00e98ecd5369"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "IQ4_NL",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-14B-GGUF",
-              "upstream_repo": null,
-              "revision": "a04a82c4739b3ef5fa6da7d10261db2c67dd1985",
-              "path": "Qwen3-14B-IQ4_NL.gguf",
-              "size_bytes": 8541363584,
-              "sha256": "e3d692d9e63af04bd212f8b4a1dcc6a49a0fce094343f0757ed0fd0b25473c39"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "Q4_K_S",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-14B-GGUF",
-              "upstream_repo": null,
-              "revision": "a04a82c4739b3ef5fa6da7d10261db2c67dd1985",
-              "path": "Qwen3-14B-Q4_K_S.gguf",
-              "size_bytes": 8573476224,
-              "sha256": "25b653915ea21da7a0983b3804be167b7e205646b87af8a3daa1d8bf2de46111"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "Q4_K_M",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-14B-GGUF",
-              "upstream_repo": null,
-              "revision": "a04a82c4739b3ef5fa6da7d10261db2c67dd1985",
-              "path": "Qwen3-14B-Q4_K_M.gguf",
-              "size_bytes": 9001753984,
-              "sha256": "5eaa0870bd81ed3b58a630a271234cfa604e43ffb3a19cd68e54a80dd9d52a66"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "UD-Q4_K_XL",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-14B-GGUF",
-              "upstream_repo": null,
-              "revision": "a04a82c4739b3ef5fa6da7d10261db2c67dd1985",
-              "path": "Qwen3-14B-UD-Q4_K_XL.gguf",
-              "size_bytes": 9159818624,
-              "sha256": "7f371adeaaf51dc97da927c61e6573e75e3ea33d76ec09dddb8cad00d0d5b6cb"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "Q5_K_S",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-14B-GGUF",
-              "upstream_repo": null,
-              "revision": "a04a82c4739b3ef5fa6da7d10261db2c67dd1985",
-              "path": "Qwen3-14B-Q5_K_S.gguf",
-              "size_bytes": 10263895424,
-              "sha256": "231f2cea7c4ffc2748cb5556ec7190eeef4e19a900d8ae55549d301d7518d26b"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "Q5_K_M",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-14B-GGUF",
-              "upstream_repo": null,
-              "revision": "a04a82c4739b3ef5fa6da7d10261db2c67dd1985",
-              "path": "Qwen3-14B-Q5_K_M.gguf",
-              "size_bytes": 10514570624,
-              "sha256": "305309039ea44df963c01f66d65e949f8eebca238554916df437f02295a3a413"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "UD-Q5_K_XL",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-14B-GGUF",
-              "upstream_repo": null,
-              "revision": "a04a82c4739b3ef5fa6da7d10261db2c67dd1985",
-              "path": "Qwen3-14B-UD-Q5_K_XL.gguf",
-              "size_bytes": 10546437504,
-              "sha256": "f62da26805a70d9963400ca6160843c82e1aaadc714da8b299d0a676676741b8"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "Q6_K",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-14B-GGUF",
-              "upstream_repo": null,
-              "revision": "a04a82c4739b3ef5fa6da7d10261db2c67dd1985",
-              "path": "Qwen3-14B-Q6_K.gguf",
-              "size_bytes": 12121938304,
-              "sha256": "c34d749069d5f19b998498ce84884975c551529548fa6a56b883345d166289c2"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "UD-Q6_K_XL",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-14B-GGUF",
-              "upstream_repo": null,
-              "revision": "a04a82c4739b3ef5fa6da7d10261db2c67dd1985",
-              "path": "Qwen3-14B-UD-Q6_K_XL.gguf",
-              "size_bytes": 13285990784,
-              "sha256": "83e7dcec42952a4ed6e092977c587a9ab8d528d52d0db481df6d694d5181811b"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "Q8_0",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-14B-GGUF",
-              "upstream_repo": null,
-              "revision": "a04a82c4739b3ef5fa6da7d10261db2c67dd1985",
-              "path": "Qwen3-14B-Q8_0.gguf",
-              "size_bytes": 15698534784,
-              "sha256": "90224247d4a8076c0a689e833910f4291bce05dec81f472ebcba321607168ea1"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "UD-Q8_K_XL",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-14B-GGUF",
-              "upstream_repo": null,
-              "revision": "a04a82c4739b3ef5fa6da7d10261db2c67dd1985",
-              "path": "Qwen3-14B-UD-Q8_K_XL.gguf",
-              "size_bytes": 18754560384,
-              "sha256": "2da4750f82103624cbc6f831a5907628670c9b2ba59c4d57e59186c19860f4b3"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "BF16",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-14B-GGUF",
-              "upstream_repo": null,
-              "revision": "a04a82c4739b3ef5fa6da7d10261db2c67dd1985",
-              "path": "Qwen3-14B-BF16.gguf",
-              "size_bytes": 29543424160,
-              "sha256": "1d12adb9b56bea81a1b3b8b2eea0fcf5700307ba4ed5d56d2f64f222ec2d7b72"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        }
-      ]
-    },
-    {
-      "id": "qwen3-8b",
-      "name": "Qwen3 8B",
-      "family": "Qwen3",
-      "publisher": "Qwen",
-      "description": "Balanced chat model for documents, fits most 12 GB machines",
-      "license": "apache-2.0",
-      "source_repo": "Qwen/Qwen3-8B",
-      "aliases": [
-        "Qwen/Qwen3-8B",
-        "Qwen/Qwen3-8B-GGUF",
-        "bartowski/Qwen_Qwen3-8B-GGUF"
-      ],
-      "evidence": {
-        "architecture": "qwen3",
-        "pipeline_tag": "text-generation",
-        "parameters_b": 8.19
-      },
-      "context": 40960,
-      "template": {
-        "tools": true,
-        "reasoning": true,
-        "system_role": true
-      },
-      "sampling": {
-        "origin": "unsloth/Qwen3-8B-GGUF@a6adef130ffb23ddaf1a62fec9dced968c9bc482/params",
-        "thinking": {
-          "temperature": 0.6,
-          "top_p": 0.95,
-          "top_k": 20,
-          "min_p": 0.0
-        },
-        "non_thinking": null
-      },
+      "sampling": null,
       "image": null,
       "shape": {
         "block_count": 36,
-        "head_count_kv": 8,
-        "key_length": 128,
-        "value_length": 128,
-        "n_vocab": 151936,
-        "sliding_window": 0,
+        "head_count_kv": 4,
+        "key_length": 256,
+        "value_length": 256,
+        "n_vocab": 131072,
+        "sliding_window": 512,
         "expert_count": 0,
-        "embedding_length": 4096,
-        "feed_forward_length": 12288,
+        "embedding_length": 2560,
+        "feed_forward_length": 10240,
         "expert_feed_forward_length": 0,
         "expert_shared_feed_forward_length": 0,
         "expert_used_count": 0,
         "sliding_window_pattern": 0,
-        "sliding_window_layers": [],
+        "sliding_window_layers": [
+          true,
+          true,
+          true,
+          false,
+          true,
+          true,
+          true,
+          false,
+          true,
+          true,
+          true,
+          false,
+          true,
+          true,
+          true,
+          false,
+          true,
+          true,
+          true,
+          false,
+          true,
+          true,
+          true,
+          false,
+          true,
+          true,
+          true,
+          false,
+          true,
+          true,
+          true,
+          false,
+          true,
+          true,
+          true,
+          false
+        ],
         "key_length_swa": 0,
         "value_length_swa": 0,
         "head_count_kv_layers": [],
@@ -1246,298 +423,19 @@
         "kv_lora_rank": 0,
         "key_length_mla": 0
       },
+      "default_quantization": "Q8_0",
       "builds": [
-        {
-          "quantization": "Q2_K",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-8B-GGUF",
-              "upstream_repo": null,
-              "revision": "a6adef130ffb23ddaf1a62fec9dced968c9bc482",
-              "path": "Qwen3-8B-Q2_K.gguf",
-              "size_bytes": 3281733440,
-              "sha256": "7226e0183d31dca14d81c6f799ada2944be62160b8b7549a70254fba4124a5cf"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "UD-Q2_K_XL",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-8B-GGUF",
-              "upstream_repo": null,
-              "revision": "a6adef130ffb23ddaf1a62fec9dced968c9bc482",
-              "path": "Qwen3-8B-UD-Q2_K_XL.gguf",
-              "size_bytes": 3501975360,
-              "sha256": "e1b3da4b0b69ece74bc46cbcc4e43177b16366508864230f49b226b800168b0c"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "Q3_K_S",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-8B-GGUF",
-              "upstream_repo": null,
-              "revision": "a6adef130ffb23ddaf1a62fec9dced968c9bc482",
-              "path": "Qwen3-8B-Q3_K_S.gguf",
-              "size_bytes": 3769612096,
-              "sha256": "d9ba948815c357eb7c2c6013ddc22085fb0b2d7802a4fab138ac155c14827f15"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "Q3_K_M",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-8B-GGUF",
-              "upstream_repo": null,
-              "revision": "a6adef130ffb23ddaf1a62fec9dced968c9bc482",
-              "path": "Qwen3-8B-Q3_K_M.gguf",
-              "size_bytes": 4124161856,
-              "sha256": "4924cf38a3b3c4b27ead5ccb93e27027f9418738506ac50a24a70dfe8581a007"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "UD-Q3_K_XL",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-8B-GGUF",
-              "upstream_repo": null,
-              "revision": "a6adef130ffb23ddaf1a62fec9dced968c9bc482",
-              "path": "Qwen3-8B-UD-Q3_K_XL.gguf",
-              "size_bytes": 4307052352,
-              "sha256": "2d8549afad63087f6a78af667aff4834e71fba597830c8806b4edbf5af463e79"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "IQ4_XS",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-8B-GGUF",
-              "upstream_repo": null,
-              "revision": "a6adef130ffb23ddaf1a62fec9dced968c9bc482",
-              "path": "Qwen3-8B-IQ4_XS.gguf",
-              "size_bytes": 4581287744,
-              "sha256": "30a433372c4c986754e30cfaa05848ab78896d38d34b6b275b24c409857801cb"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "IQ4_NL",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-8B-GGUF",
-              "upstream_repo": null,
-              "revision": "a6adef130ffb23ddaf1a62fec9dced968c9bc482",
-              "path": "Qwen3-8B-IQ4_NL.gguf",
-              "size_bytes": 4793624384,
-              "sha256": "07ffccc29bbbf5e11c608d82269bff77a2580ef3a6d60e84707a9f5af6b2e833"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "Q4_K_S",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-8B-GGUF",
-              "upstream_repo": null,
-              "revision": "a6adef130ffb23ddaf1a62fec9dced968c9bc482",
-              "path": "Qwen3-8B-Q4_K_S.gguf",
-              "size_bytes": 4802012992,
-              "sha256": "a0f19938dcdc036ac66a817a34a694fc64d1e2301653a2aaa0380f35df3dcb3c"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
         {
           "quantization": "Q4_K_M",
           "files": [
             {
               "role": "weights",
-              "repo": "unsloth/Qwen3-8B-GGUF",
+              "repo": "XHToken/Spark-X2.6-4B-GGUF",
               "upstream_repo": null,
-              "revision": "a6adef130ffb23ddaf1a62fec9dced968c9bc482",
-              "path": "Qwen3-8B-Q4_K_M.gguf",
-              "size_bytes": 5027784512,
-              "sha256": "120307ba529eb2439d6c430d94104dabd578497bc7bfe7e322b5d9933b449bd4"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "UD-Q4_K_XL",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-8B-GGUF",
-              "upstream_repo": null,
-              "revision": "a6adef130ffb23ddaf1a62fec9dced968c9bc482",
-              "path": "Qwen3-8B-UD-Q4_K_XL.gguf",
-              "size_bytes": 5135722304,
-              "sha256": "34a514d08f7449cb4a694a707aaa2eedccb7bb68290121bf5e5a569b2abe71c3"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "Q5_K_S",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-8B-GGUF",
-              "upstream_repo": null,
-              "revision": "a6adef130ffb23ddaf1a62fec9dced968c9bc482",
-              "path": "Qwen3-8B-Q5_K_S.gguf",
-              "size_bytes": 5720762176,
-              "sha256": "fa08eab86c1d27dafcfb4357759de84b62eaade0a614fadcd644227e4ca0237a"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "Q5_K_M",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-8B-GGUF",
-              "upstream_repo": null,
-              "revision": "a6adef130ffb23ddaf1a62fec9dced968c9bc482",
-              "path": "Qwen3-8B-Q5_K_M.gguf",
-              "size_bytes": 5851113280,
-              "sha256": "159c694b93271e4edc1dc2a305b10cf981032c8f3035a7da00973312f0331504"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "UD-Q5_K_XL",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-8B-GGUF",
-              "upstream_repo": null,
-              "revision": "a6adef130ffb23ddaf1a62fec9dced968c9bc482",
-              "path": "Qwen3-8B-UD-Q5_K_XL.gguf",
-              "size_bytes": 5878081344,
-              "sha256": "4b8feb9b20477613883ad2b6aa0a2e8a697fb9576d3a62d909f4f7991275c22e"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "Q6_K",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-8B-GGUF",
-              "upstream_repo": null,
-              "revision": "a6adef130ffb23ddaf1a62fec9dced968c9bc482",
-              "path": "Qwen3-8B-Q6_K.gguf",
-              "size_bytes": 6725900096,
-              "sha256": "0eaec718fdeab0f429dfa0ec481c090388811f5e63785ddb582292f4ef3c3827"
-            }
-          ],
-          "run": {
-            "args": []
-          },
-          "validated": {
-            "llama_cpp": null
-          }
-        },
-        {
-          "quantization": "UD-Q6_K_XL",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "unsloth/Qwen3-8B-GGUF",
-              "upstream_repo": null,
-              "revision": "a6adef130ffb23ddaf1a62fec9dced968c9bc482",
-              "path": "Qwen3-8B-UD-Q6_K_XL.gguf",
-              "size_bytes": 7490549568,
-              "sha256": "61201e42b1c1021ce15936f23682e56e873bb4af3e8e5aae7558bc1c53a1dd91"
+              "revision": "9d716770ac7477776de5f891f70cdf98b003a5cd",
+              "path": "Spark-X2.6-4B-Q4_K_M.gguf",
+              "size_bytes": 3543441312,
+              "sha256": "91cb2811aebb47ac916aa619d27d4cdd7f4143106b7917accb8ead4cd7f5cbd9"
             }
           ],
           "run": {
@@ -1552,12 +450,279 @@
           "files": [
             {
               "role": "weights",
-              "repo": "unsloth/Qwen3-8B-GGUF",
+              "repo": "XHToken/Spark-X2.6-4B-GGUF",
               "upstream_repo": null,
-              "revision": "a6adef130ffb23ddaf1a62fec9dced968c9bc482",
-              "path": "Qwen3-8B-Q8_0.gguf",
-              "size_bytes": 8709519168,
-              "sha256": "0cfbf745760f07a76ddeb358dd025a27f2e11d1ca9c9a4169a373d52990fe86e"
+              "revision": "9d716770ac7477776de5f891f70cdf98b003a5cd",
+              "path": "Spark-X2.6-4B-Q8_0.gguf",
+              "size_bytes": 4375021824,
+              "sha256": "145c2aa606820663f26ad530b8fc141ed885e2e9ca29f9be7c3bfe8931d58b81"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "nemotron-3.5-bolt-e4b",
+      "name": "Nemotron 3.5 Bolt E4B",
+      "family": "Nemotron 3.5",
+      "publisher": "NVIDIA",
+      "description": "Reads images, for 8 GB graphics cards",
+      "license": "openmdw-1.1",
+      "source_repo": "nvidia/NVIDIA-Nemotron-3.5-Bolt-E4B-BF16",
+      "aliases": [
+        "nvidia/NVIDIA-Nemotron-3.5-Bolt-E4B-BF16"
+      ],
+      "evidence": {
+        "architecture": "gemma4",
+        "pipeline_tag": "text-generation",
+        "parameters_b": 7.52
+      },
+      "context": 131072,
+      "template": {
+        "tools": true,
+        "reasoning": true,
+        "system_role": true
+      },
+      "sampling": null,
+      "image": null,
+      "shape": {
+        "block_count": 42,
+        "head_count_kv": 2,
+        "key_length": 512,
+        "value_length": 512,
+        "n_vocab": 262144,
+        "sliding_window": 512,
+        "expert_count": 0,
+        "embedding_length": 2560,
+        "feed_forward_length": 10240,
+        "expert_feed_forward_length": 0,
+        "expert_shared_feed_forward_length": 0,
+        "expert_used_count": 0,
+        "sliding_window_pattern": 0,
+        "sliding_window_layers": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          false,
+          true,
+          true,
+          true,
+          true,
+          true,
+          false,
+          true,
+          true,
+          true,
+          true,
+          true,
+          false,
+          true,
+          true,
+          true,
+          true,
+          true,
+          false,
+          true,
+          true,
+          true,
+          true,
+          true,
+          false,
+          true,
+          true,
+          true,
+          true,
+          true,
+          false,
+          true,
+          true,
+          true,
+          true,
+          true,
+          false
+        ],
+        "key_length_swa": 256,
+        "value_length_swa": 256,
+        "head_count_kv_layers": [],
+        "shared_kv_layers": 18,
+        "kv_lora_rank": 0,
+        "key_length_mla": 0
+      },
+      "builds": [
+        {
+          "quantization": "UD-Q2_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/NVIDIA-Nemotron-3.5-Bolt-E4B-GGUF",
+              "upstream_repo": null,
+              "revision": "b738967d6da3441a7d1c71fcec15e49e32e16ecd",
+              "path": "NVIDIA-Nemotron-3.5-Bolt-E4B-UD-Q2_K_XL.gguf",
+              "size_bytes": 3742102720,
+              "sha256": "b70fcf46323970cd40b393b99a56087cee645014afa34081925305c9405a9187"
+            },
+            {
+              "role": "projector",
+              "repo": "unsloth/NVIDIA-Nemotron-3.5-Bolt-E4B-GGUF",
+              "upstream_repo": null,
+              "revision": "b738967d6da3441a7d1c71fcec15e49e32e16ecd",
+              "path": "mmproj-F16.gguf",
+              "size_bytes": 990373568,
+              "sha256": "6bc77b7ac2b62cf61bc86757605e45e39f6345373f0a6b76cc5b1ed97f2e233e",
+              "gguf": {
+                "general.type": "mmproj",
+                "general.architecture": "clip",
+                "clip.has_vision_encoder": true,
+                "clip.vision.projection_dim": 2560
+              }
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q3_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/NVIDIA-Nemotron-3.5-Bolt-E4B-GGUF",
+              "upstream_repo": null,
+              "revision": "b738967d6da3441a7d1c71fcec15e49e32e16ecd",
+              "path": "NVIDIA-Nemotron-3.5-Bolt-E4B-UD-Q3_K_XL.gguf",
+              "size_bytes": 4219133120,
+              "sha256": "3f8032b9d2c18536c4ac51b97959a563cc27434de99823640c98147edc62ce9b"
+            },
+            {
+              "role": "projector",
+              "repo": "unsloth/NVIDIA-Nemotron-3.5-Bolt-E4B-GGUF",
+              "upstream_repo": null,
+              "revision": "b738967d6da3441a7d1c71fcec15e49e32e16ecd",
+              "path": "mmproj-F16.gguf",
+              "size_bytes": 990373568,
+              "sha256": "6bc77b7ac2b62cf61bc86757605e45e39f6345373f0a6b76cc5b1ed97f2e233e",
+              "gguf": {
+                "general.type": "mmproj",
+                "general.architecture": "clip",
+                "clip.has_vision_encoder": true,
+                "clip.vision.projection_dim": 2560
+              }
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q4_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/NVIDIA-Nemotron-3.5-Bolt-E4B-GGUF",
+              "upstream_repo": null,
+              "revision": "b738967d6da3441a7d1c71fcec15e49e32e16ecd",
+              "path": "NVIDIA-Nemotron-3.5-Bolt-E4B-UD-Q4_K_XL.gguf",
+              "size_bytes": 5060482240,
+              "sha256": "84ff34f5834b929043f5ae74799e8d562d4056998f6a5923ceb44831e8ad84d6"
+            },
+            {
+              "role": "projector",
+              "repo": "unsloth/NVIDIA-Nemotron-3.5-Bolt-E4B-GGUF",
+              "upstream_repo": null,
+              "revision": "b738967d6da3441a7d1c71fcec15e49e32e16ecd",
+              "path": "mmproj-F16.gguf",
+              "size_bytes": 990373568,
+              "sha256": "6bc77b7ac2b62cf61bc86757605e45e39f6345373f0a6b76cc5b1ed97f2e233e",
+              "gguf": {
+                "general.type": "mmproj",
+                "general.architecture": "clip",
+                "clip.has_vision_encoder": true,
+                "clip.vision.projection_dim": 2560
+              }
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q5_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/NVIDIA-Nemotron-3.5-Bolt-E4B-GGUF",
+              "upstream_repo": null,
+              "revision": "b738967d6da3441a7d1c71fcec15e49e32e16ecd",
+              "path": "NVIDIA-Nemotron-3.5-Bolt-E4B-UD-Q5_K_XL.gguf",
+              "size_bytes": 5832930496,
+              "sha256": "e79fc43c104cd127626b5ed6b4a6d9a3ac108518bb3842c580d399a849cd0cb6"
+            },
+            {
+              "role": "projector",
+              "repo": "unsloth/NVIDIA-Nemotron-3.5-Bolt-E4B-GGUF",
+              "upstream_repo": null,
+              "revision": "b738967d6da3441a7d1c71fcec15e49e32e16ecd",
+              "path": "mmproj-F16.gguf",
+              "size_bytes": 990373568,
+              "sha256": "6bc77b7ac2b62cf61bc86757605e45e39f6345373f0a6b76cc5b1ed97f2e233e",
+              "gguf": {
+                "general.type": "mmproj",
+                "general.architecture": "clip",
+                "clip.has_vision_encoder": true,
+                "clip.vision.projection_dim": 2560
+              }
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q6_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/NVIDIA-Nemotron-3.5-Bolt-E4B-GGUF",
+              "upstream_repo": null,
+              "revision": "b738967d6da3441a7d1c71fcec15e49e32e16ecd",
+              "path": "NVIDIA-Nemotron-3.5-Bolt-E4B-UD-Q6_K_XL.gguf",
+              "size_bytes": 7258879168,
+              "sha256": "dfb738c25ba41219bd51ae4aa07c3f86f8e6e76d7acd918d0502113cb206d548"
+            },
+            {
+              "role": "projector",
+              "repo": "unsloth/NVIDIA-Nemotron-3.5-Bolt-E4B-GGUF",
+              "upstream_repo": null,
+              "revision": "b738967d6da3441a7d1c71fcec15e49e32e16ecd",
+              "path": "mmproj-F16.gguf",
+              "size_bytes": 990373568,
+              "sha256": "6bc77b7ac2b62cf61bc86757605e45e39f6345373f0a6b76cc5b1ed97f2e233e",
+              "gguf": {
+                "general.type": "mmproj",
+                "general.architecture": "clip",
+                "clip.has_vision_encoder": true,
+                "clip.vision.projection_dim": 2560
+              }
             }
           ],
           "run": {
@@ -1572,12 +737,27 @@
           "files": [
             {
               "role": "weights",
-              "repo": "unsloth/Qwen3-8B-GGUF",
+              "repo": "unsloth/NVIDIA-Nemotron-3.5-Bolt-E4B-GGUF",
               "upstream_repo": null,
-              "revision": "a6adef130ffb23ddaf1a62fec9dced968c9bc482",
-              "path": "Qwen3-8B-UD-Q8_K_XL.gguf",
-              "size_bytes": 10824038208,
-              "sha256": "67df3caf1ccc9c9aacff028410e4d5ad9a3a4870f19822a22aa3ac14dcab051b"
+              "revision": "b738967d6da3441a7d1c71fcec15e49e32e16ecd",
+              "path": "NVIDIA-Nemotron-3.5-Bolt-E4B-UD-Q8_K_XL.gguf",
+              "size_bytes": 8192955584,
+              "sha256": "6176bd788769bd58042c165d3dc8e8c86a8ca5c90d5de188a364b31dc9560810"
+            },
+            {
+              "role": "projector",
+              "repo": "unsloth/NVIDIA-Nemotron-3.5-Bolt-E4B-GGUF",
+              "upstream_repo": null,
+              "revision": "b738967d6da3441a7d1c71fcec15e49e32e16ecd",
+              "path": "mmproj-F16.gguf",
+              "size_bytes": 990373568,
+              "sha256": "6bc77b7ac2b62cf61bc86757605e45e39f6345373f0a6b76cc5b1ed97f2e233e",
+              "gguf": {
+                "general.type": "mmproj",
+                "general.architecture": "clip",
+                "clip.has_vision_encoder": true,
+                "clip.vision.projection_dim": 2560
+              }
             }
           ],
           "run": {
@@ -1592,12 +772,27 @@
           "files": [
             {
               "role": "weights",
-              "repo": "unsloth/Qwen3-8B-GGUF",
+              "repo": "unsloth/NVIDIA-Nemotron-3.5-Bolt-E4B-GGUF",
               "upstream_repo": null,
-              "revision": "a6adef130ffb23ddaf1a62fec9dced968c9bc482",
-              "path": "Qwen3-8B-BF16.gguf",
-              "size_bytes": 16388044384,
-              "sha256": "5e416a2020fe63e76ea13c8979be35fc6070aaf3578f7876400c55c2f5c3eb30"
+              "revision": "b738967d6da3441a7d1c71fcec15e49e32e16ecd",
+              "path": "NVIDIA-Nemotron-3.5-Bolt-E4B-BF16.gguf",
+              "size_bytes": 15053099936,
+              "sha256": "800116a575a514f9e45213e48d3037b0a42b2530d9e545be8699b9967df9da10"
+            },
+            {
+              "role": "projector",
+              "repo": "unsloth/NVIDIA-Nemotron-3.5-Bolt-E4B-GGUF",
+              "upstream_repo": null,
+              "revision": "b738967d6da3441a7d1c71fcec15e49e32e16ecd",
+              "path": "mmproj-F16.gguf",
+              "size_bytes": 990373568,
+              "sha256": "6bc77b7ac2b62cf61bc86757605e45e39f6345373f0a6b76cc5b1ed97f2e233e",
+              "gguf": {
+                "general.type": "mmproj",
+                "general.architecture": "clip",
+                "clip.has_vision_encoder": true,
+                "clip.vision.projection_dim": 2560
+              }
             }
           ],
           "run": {
@@ -1614,7 +809,7 @@
       "name": "Qwen3 4B",
       "family": "Qwen3",
       "publisher": "Qwen",
-      "description": "Quick answers on 8 GB machines",
+      "description": "Quick answers without a graphics card",
       "license": "apache-2.0",
       "source_repo": "Qwen/Qwen3-4B",
       "aliases": [

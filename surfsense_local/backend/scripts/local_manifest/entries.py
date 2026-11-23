@@ -1,10 +1,11 @@
 """The hand-authored part of the local manifest: which models, in which order.
 
 Position is preference within each type, most preferred first. The
-recommendation walks this list from the top and stars the first model with a build that runs well on the
-machine, so the order means "good at this app's job" (answering from the user's
-documents with citations that resolve), not general capability. Everything else
-in the written manifest is read from the files.
+recommendation walks this list from the top and stars the first model whose
+build carries the agent on the machine, else the first with a build that runs
+well there, so the order means "good at this app's job" (answering from the
+user's documents with citations that resolve, and Agentic chats), not general
+capability. Everything else in the written manifest is read from the files.
 """
 
 from local_manifest.audiocpp.entry import AudioEntry
@@ -118,10 +119,37 @@ ENTRIES: tuple[Entry, ...] = (
         # No Qwen or bartowski GGUF repo exists for it yet.
         aliases=("Qwen/Qwen3.8-27B",),
     ),
-    _qwen3("32B", "The strongest answers here, for machines with 24 GB or more"),
-    _qwen3("14B", "Careful answers from long documents, for 16 GB machines"),
-    _qwen3("8B", "Balanced chat model for documents, fits most 12 GB machines"),
-    _qwen3("4B", "Quick answers on 8 GB machines"),
+    # Below 24 GB, the one small model that passed every agent case on an 8 GB
+    # card's memory, 22 Nov 2026: its Q8_0 six of six on llama.cpp b11050, its
+    # Q4_K_M on a 6 GB card three of six, so Q8_0 is its default
+    # (docs/adr/0094-the-star-goes-to-a-model-that-runs-the-agent.md). Qwen3 32B, 14B and
+    # 8B, here until then, never passed an agent case.
+    Entry(
+        id="spark-x2.6-4b",
+        name="Spark-X2.6 4B",
+        family="Spark-X2.6",
+        publisher="XHToken",
+        description="Agentic chats on 6 to 16 GB graphics cards and 16 GB Macs",
+        license="apache-2.0",
+        source_repo="XHToken/Spark-X2.6-4B",
+        repo="XHToken/Spark-X2.6-4B-GGUF",
+        aliases=("XHToken/Spark-X2.6-4B",),
+        default_quantization="Q8_0",
+    ),
+    # Reads images, and passed the agent's document cases there only once the
+    # short documents skill was on; never starred over Spark, which is smaller.
+    Entry(
+        id="nemotron-3.5-bolt-e4b",
+        name="Nemotron 3.5 Bolt E4B",
+        family="Nemotron 3.5",
+        publisher="NVIDIA",
+        description="Reads images, for 8 GB graphics cards",
+        license="openmdw-1.1",
+        source_repo="nvidia/NVIDIA-Nemotron-3.5-Bolt-E4B-BF16",
+        repo="unsloth/NVIDIA-Nemotron-3.5-Bolt-E4B-GGUF",
+        aliases=("nvidia/NVIDIA-Nemotron-3.5-Bolt-E4B-BF16",),
+    ),
+    _qwen3("4B", "Quick answers without a graphics card"),
     Entry(
         id="gemma-3-4b",
         name="Gemma 3 4B",

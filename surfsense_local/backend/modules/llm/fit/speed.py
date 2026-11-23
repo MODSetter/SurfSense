@@ -16,7 +16,8 @@ this exists, "should this be recommended" is answered without reference to
 
 from enum import StrEnum
 
-from modules.llm.fit.estimate import FitVerdict
+from modules.llm.fit.budget import HardwareBudget
+from modules.llm.fit.estimate import CONTEXT_RUNGS, FitVerdict
 from modules.llm.fit.states import FitState
 
 # The same quarter and half `copy.py` used to threshold on its own, moved here
@@ -61,3 +62,21 @@ def speed_tier(fit: FitVerdict) -> SpeedTier:
 # recommendation policy no longer has a threshold of its own to drift out of
 # step with the badge's.
 RECOMMENDABLE_TIERS = frozenset({SpeedTier.FULL, SpeedTier.LIGHT_SPILL})
+
+# The window the agent runs at, the agent gate's `WINDOW_FLOOR`: a star that
+# carries the agent is a build the load plan keeps resident at this window.
+AGENT_WINDOW = CONTEXT_RUNGS[-1]
+
+# Without a graphics card the processor reads every weight for every token, and
+# reading a grounded turn's prompt comes first: on a Ryzen 7 5800X even 1.7B and
+# 2B models waited 86 s or more for their first word of the agent's 9,500-token
+# opening, 22 Nov 2026 (docs/adr/0094-the-star-goes-to-a-model-that-runs-the-agent.md).
+# So only a small build is starred there, for Basic chat: about Qwen3 4B at
+# UD-Q4_K_XL. Integrated graphics count as the processor (`selection.py`).
+PROCESSOR_STAR_CEILING_BYTES = 3 * 1024**3
+
+
+def quick_here(footprint_bytes: int, budget: HardwareBudget) -> bool:
+    """Whether a build may be starred for its speed here: any build on a graphics
+    card or Apple's unified memory, only a small one on the processor alone."""
+    return budget.has_gpu or footprint_bytes <= PROCESSOR_STAR_CEILING_BYTES

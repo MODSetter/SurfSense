@@ -6858,6 +6858,31 @@
         "run": 0
       },
       "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "spark-x2-6-4b",
+      "match": {
+        "keys": [
+          "spark-x2-6-4b"
+        ],
+        "served": [
+          "local"
+        ]
+      },
+      "level": "agent",
+      "suite": "local-screen",
+      "suite_version": 1,
+      "measured_on": "2026-11-22",
+      "provider": "llamacpp",
+      "host": "localhost",
+      "model_id": "XHToken/Spark-X2.6-4B-GGUF/Spark-X2.6-4B-Q8_0.gguf",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on this computer's llama.cpp: a PDF brief and a board pack."
     }
   ]
 }

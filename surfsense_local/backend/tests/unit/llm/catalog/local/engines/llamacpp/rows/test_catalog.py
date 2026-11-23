@@ -8,12 +8,21 @@ from pathlib import Path
 
 import pytest
 
+from modules.llm.capability.agent_gate import WINDOW_FLOOR
 from modules.llm.catalog.local.engines.llamacpp.models_folder.scan import scan
 from modules.llm.catalog.local.engines.llamacpp.rows.catalog import local_catalog
 from modules.llm.catalog.local.installs import InstalledBuild, projector_filename
 from modules.llm.catalog.local.manifest import LocalManifest, load_local_manifest
 from modules.llm.catalog.local.rows import LeadReason, Origin
-from modules.llm.fit import BadgeLevel, HardwareBudget, SpeedTier, plan_load, speed_tier
+from modules.llm.fit import (
+    AGENT_WINDOW,
+    PROCESSOR_STAR_CEILING_BYTES,
+    BadgeLevel,
+    HardwareBudget,
+    SpeedTier,
+    plan_load,
+    speed_tier,
+)
 from modules.llm.model_type import ModelType
 from tests.unit.llm.catalog.local.test_manifest import image_entry, manifest
 from tests.unit.llm.gguf.build import BOOL, STRING, UINT32, array, gguf, kv
@@ -25,6 +34,9 @@ BUDGETS = {
     "discrete-6gb": HardwareBudget(
         5234 * MIB, 6002 * MIB, 1024 * MIB, 22750 * MIB, False, True
     ),
+    "discrete-8gb": HardwareBudget(
+        7206 * MIB, 8188 * MIB, 1024 * MIB, 14336 * MIB, False, True
+    ),
     "discrete-24gb": HardwareBudget(
         23000 * MIB, 24576 * MIB, 1024 * MIB, 32000 * MIB, False, True
     ),
@@ -35,8 +47,11 @@ BUDGETS = {
         10922 * MIB, 11468 * MIB, 1024 * MIB, 14336 * MIB, True, True
     ),
     "no-gpu-16gb": HardwareBudget(0, 0, 1024 * MIB, 14 * 1024 * MIB, False, False),
+    "no-gpu-32gb": HardwareBudget(0, 0, 1024 * MIB, 30 * 1024 * MIB, False, False),
     "no-gpu-4gb": HardwareBudget(0, 0, 1024 * MIB, 3 * 1024 * MIB, False, False),
 }
+# An 8 GB card driving the display, with less of it free than the idle one above.
+BUSY_8GB = HardwareBudget(6600 * MIB, 8188 * MIB, 1024 * MIB, 14336 * MIB, False, True)
 CURATED = load_local_manifest().models
 
 
@@ -102,22 +117,84 @@ def test_each_model_recommends_one_build_at_most_and_never_above_its_default(
 
 def test_a_roomy_machine_gets_the_default_build_not_the_largest() -> None:
     """A roomy machine gets the default build not the largest."""
-    row = next(r for r in curated_rows(BUDGETS["discrete-24gb"]) if r.id == "qwen3-8b")
+    row = next(r for r in curated_rows(BUDGETS["discrete-24gb"]) if r.id == "qwen3-4b")
 
     (picked,) = [b for b in row.builds if b.recommended]
     assert picked.build.quantization == row.default_quantization == "UD-Q4_K_XL"
 
 
 def test_a_tight_machine_steps_down_a_build_before_a_model() -> None:
-    """The preferred model at a smaller build before a smaller model."""
-    result = catalog(BUDGETS["unified-16gb"])
+    """An 8 GB card with the display on it has room for Spark-X2.6-4B's Q4_K_M at
+    the agent's window and not its Q8_0 default: the smaller build of the agent
+    model before any other model."""
+    result = catalog(BUSY_8GB)
     star = next(r for r in result.rows if r.id == result.recommended_id)
 
     (picked,) = [b for b in star.builds if b.recommended]
-    assert star.id in {"qwen3-14b", "qwen3-32b"}
-    assert (
-        picked.build.quantization != star.default_quantization or star.id == "qwen3-14b"
-    )
+    assert star.id == "spark-x2.6-4b"
+    assert (star.default_quantization, picked.build.quantization) == ("Q8_0", "Q4_K_M")
+    assert window(star.id, picked, BUSY_8GB) == AGENT_WINDOW
+
+
+def test_an_eight_gigabyte_card_stars_the_model_that_runs_the_agent() -> None:
+    """The one small model measured to run the agent, at its own default, Q8_0,
+    which the load keeps resident at the agent's window."""
+    result = catalog(BUDGETS["discrete-8gb"])
+    star = next(r for r in result.rows if r.id == result.recommended_id)
+
+    (picked,) = [b for b in star.builds if b.recommended]
+    assert (star.id, picked.build.quantization) == ("spark-x2.6-4b", "Q8_0")
+    assert window(star.id, picked, BUDGETS["discrete-8gb"]) == AGENT_WINDOW
+
+
+def test_a_model_never_measured_for_the_agent_never_takes_the_star_for_it() -> None:
+    """Qwen3 0.6B calls tools and keeps a 32K window resident on a 24 GB card,
+    which does not make it a model for Agentic chats: only the capability list
+    says which models run the agent on this computer."""
+    result = catalog(BUDGETS["discrete-24gb"])
+    tiny = next(r for r in result.rows if r.id == "qwen3-0.6b")
+    (picked,) = [b for b in tiny.builds if b.recommended]
+
+    assert window(tiny.id, picked, BUDGETS["discrete-24gb"]) == AGENT_WINDOW
+    assert result.recommended_id == "spark-x2.6-4b"
+
+
+@pytest.mark.parametrize("budget_name", ["no-gpu-16gb", "no-gpu-4gb", "no-gpu-32gb"])
+def test_without_a_graphics_card_only_a_small_build_is_recommended(
+    budget_name,
+) -> None:
+    """The processor alone reads every weight for every token, so only a build
+    that answers quickly is recommended, and the agent is never what wins."""
+    result = catalog(BUDGETS[budget_name])
+
+    for row in curated_rows(BUDGETS[budget_name]):
+        for build in row.builds:
+            if build.recommended:
+                assert build.build.footprint_bytes <= PROCESSOR_STAR_CEILING_BYTES
+    assert result.recommended_id != "spark-x2.6-4b"
+
+
+def test_without_a_graphics_card_the_star_answers_in_basic_chat() -> None:
+    """A 32 GB laptop with no graphics card could hold Qwen3.8 27B, and would wait
+    minutes for each reply: the star is Qwen3 4B, the largest quick model."""
+    assert catalog(BUDGETS["no-gpu-32gb"]).recommended_id == "qwen3-4b"
+
+
+def test_the_agent_window_is_the_agent_gates_floor() -> None:
+    """A star that carries the agent is held to the window the gate asks for."""
+    assert AGENT_WINDOW == WINDOW_FLOOR
+
+
+def window(model_id: str, build_row, budget) -> int:
+    """The window the load would give this build, as the preset writes it."""
+    shape = next(m for m in CURATED if m.id == model_id).model_shape
+    projector = build_row.build.projector
+    return plan_load(
+        shape,
+        build_row.build.weights_bytes,
+        budget,
+        mmproj_bytes=projector.size_bytes if projector else 0,
+    ).n_ctx
 
 
 def test_one_model_is_starred_and_it_is_curated() -> None:
@@ -194,11 +271,11 @@ def a_projector(path: Path, width: int = 1024) -> None:
 
 def test_a_curated_build_on_disk_shows_as_its_curated_row(tmp_path: Path) -> None:
     """A curated build on disk shows as its curated row."""
-    a_model(tmp_path / "Qwen3-8B-Q4_K_M.gguf")
+    a_model(tmp_path / "Qwen3-4B-Q4_K_M.gguf")
 
     result = catalog(BUDGETS["discrete-24gb"], scan(tmp_path, {}))
 
-    row = next(r for r in result.rows if r.id == "qwen3-8b")
+    row = next(r for r in result.rows if r.id == "qwen3-4b")
     installed = [b for b in row.builds if b.installed_as]
     assert [b.build.quantization for b in installed] == ["Q4_K_M"]
     assert all(r.origin is Origin.CURATED for r in result.rows)
@@ -208,22 +285,22 @@ def test_a_curated_model_downloaded_from_an_alias_repo_is_recognised(
     tmp_path: Path,
 ) -> None:
     """A curated model downloaded from an alias repo is recognised."""
-    a_model(tmp_path / "Qwen_Qwen3-8B-Q4_K_M.gguf")
+    a_model(tmp_path / "Qwen_Qwen3-4B-Q4_K_M.gguf")
     record = InstalledBuild(
-        "Qwen_Qwen3-8B-Q4_K_M",
-        "bartowski/Qwen_Qwen3-8B-GGUF",
+        "Qwen_Qwen3-4B-Q4_K_M",
+        "bartowski/Qwen_Qwen3-4B-GGUF",
         "r",
         "Q4_K_M",
-        ("Qwen_Qwen3-8B-Q4_K_M.gguf",),
+        ("Qwen_Qwen3-4B-Q4_K_M.gguf",),
     )
 
     result = catalog(
         BUDGETS["discrete-24gb"], scan(tmp_path, {record.model_id: record})
     )
 
-    row = next(r for r in result.rows if r.id == "qwen3-8b")
+    row = next(r for r in result.rows if r.id == "qwen3-4b")
     assert [b.installed_as for b in row.builds if b.installed_as] == [
-        "Qwen_Qwen3-8B-Q4_K_M"
+        "Qwen_Qwen3-4B-Q4_K_M"
     ]
 
 
@@ -399,17 +476,17 @@ def test_the_starred_row_leads_with_its_recommended_build(budget_name) -> None:
 
 def test_the_build_in_use_leads_its_row(tmp_path: Path) -> None:
     """In use wins over a recommendation."""
-    a_model(tmp_path / "Qwen3-8B-Q4_K_M.gguf")
+    a_model(tmp_path / "Qwen3-4B-Q4_K_M.gguf")
 
     result = local_catalog(
         CURATED,
         scan(tmp_path, {}),
         BUDGETS["discrete-24gb"],
         lambda b: b.quantization,
-        selected={"Qwen3-8B-Q4_K_M"},
+        selected={"Qwen3-4B-Q4_K_M"},
     )
 
-    row = next(r for r in result.rows if r.id == "qwen3-8b")
+    row = next(r for r in result.rows if r.id == "qwen3-4b")
     assert (row.lead.quantization, row.lead.why) == ("Q4_K_M", LeadReason.IN_USE)
 
 

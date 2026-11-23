@@ -37,9 +37,7 @@ def test_the_catalog_renders_before_anything_is_installed(service) -> None:
     catalog = service.catalog()
 
     curated = [
-        r
-        for r in catalog.rows
-        if r.origin is Origin.CURATED and r.engine == "llamacpp"
+        r for r in catalog.rows if r.origin is Origin.CURATED and r.engine == "llamacpp"
     ]
     assert curated
     # A badge names a verdict exactly when it warns.
@@ -450,7 +448,7 @@ async def test_a_file_already_on_disk_with_its_hash_is_not_fetched_again(
 
 def test_a_curated_id_resolves_to_its_pinned_build_without_a_check(service) -> None:
     """A curated id resolves to its pinned build without a check."""
-    row = next(r for r in service.catalog().rows if r.id == "qwen3-8b")
+    row = next(r for r in service.catalog().rows if r.id == "qwen3-4b")
     build = row.builds[0]
 
     plan = service.resolve_install(build.catalog_id)
@@ -479,7 +477,7 @@ async def test_a_curated_build_that_will_not_fit_is_refused_before_download(
     that reaches the route from anywhere else is priced from its committed
     shape and refused as a searched build is, before any bytes move."""
     monkeypatch.setattr(service_module, "available_bytes", lambda: 256 * MIB)
-    plan = curated_plan(service, "qwen3-32b")
+    plan = curated_plan(service, "qwen3.8-27b")
 
     with pytest.raises(InstallRefusedError, match="too big") as refused:
         await service.check(plan)

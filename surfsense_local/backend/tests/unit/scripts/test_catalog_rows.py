@@ -10,7 +10,7 @@ from capability_list.ladder_input import LadderResults
 from capability_list.merge import merged
 from capability_list.rows import COMMITTED_INPUT, measured_rows, with_ladder_rows
 from capability_list.sweep_input import SweepResults
-from capability_list.sweep_rows import sweep_rows
+from capability_list.sweep_rows import THIS_COMPUTER, sweep_rows
 
 from modules.llm.capability.measured.schema import CapabilityList, MeasuredModel
 
@@ -330,3 +330,55 @@ def test_the_script_says_which_variant_waits_and_which_row_it_replaced(
     replaced = "gpt-5-5 (assumed): replaced by this sweep's gpt-5-5 (openrouter-screen)"
     assert replaced in said
     assert "gpt-5-5: agent (2/2)" in said
+
+
+LOCAL_INPUT = (
+    Path(__file__).resolve().parents[3]
+    / "scripts"
+    / "capability_list"
+    / "local"
+    / "local-screen-v1.json"
+)
+
+
+def test_a_screening_on_this_computer_holds_only_for_a_local_copy() -> None:
+    """Spark-X2.6-4B was screened on this computer's llama.cpp: its pass says
+    nothing of a host's copy, and a failure here would say nothing of the
+    full-size model either."""
+    local = SweepResults.model_validate_json(LOCAL_INPUT.read_text(encoding="utf-8"))
+    (row,) = sweep_rows(local, date(2026, 1, 1), THIS_COMPUTER)
+    failed = sweep_rows(
+        SweepResults.model_validate(
+            {
+                "models": [
+                    {
+                        **local.models[0].model_dump(),
+                        "board_pack": "fail",
+                        "passed": 1,
+                        "level": "below",
+                    }
+                ]
+            }
+        ),
+        date(2026, 1, 1),
+        THIS_COMPUTER,
+    )[0]
+
+    assert (row.key, row.level, row.suite) == ("spark-x2-6-4b", "agent", "local-screen")
+    assert row.match.served == ["local"]
+    assert (row.provider, row.host) == ("llamacpp", "localhost")
+    assert "this computer's llama.cpp" in row.note
+    assert (failed.level, failed.match.served) == ("studio_only", ["local"])
+
+
+def test_the_shipped_list_holds_the_local_screens_rows_as_written() -> None:
+    """The list is written, never edited: its local rows are the input's."""
+    local = SweepResults.model_validate_json(LOCAL_INPUT.read_text(encoding="utf-8"))
+    written = {r.key: r for r in sweep_rows(local, date(2026, 1, 1), THIS_COMPUTER)}
+    shipped = {
+        r.key: r
+        for r in shipped_list.read_shipped().models
+        if r.suite == "local-screen"
+    }
+
+    assert shipped == written
