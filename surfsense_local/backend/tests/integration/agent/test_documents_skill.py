@@ -1,4 +1,9 @@
-"""The documents skill as the agent reads it: its examples run in the script runner."""
+"""The documents skill as the agent reads it: its examples run in the script runner.
+
+The skill is a short SKILL.md built on the surfsense_docs helper, which every
+document loads, and files beside it that the agent reads only when a task needs
+them: workbooks.md and by-hand.md.
+"""
 
 import re
 from io import BytesIO
@@ -19,31 +24,79 @@ from worker.document_script.run import run_document_script
 pytestmark = pytest.mark.integration
 
 _EXAMPLE = re.compile(r"^## Example: ([\w ]+)\n\n```python\n(.*?)^```", re.M | re.S)
+_FIRST_SCRIPT = re.compile(r"^```python\n(.*?)^```", re.M | re.S)
+_FILE_ROW = re.compile(r"^\| `([\w.-]+\.md)` \|", re.M)
+# The short skill is read whole for every document, inside a 32K window on a
+# small local model; the rules it held before the helper were 19,000 characters.
+SHORT_SKILL_CHARACTERS = 9_000
+
+
+def _text(name: str = "SKILL.md") -> str:
+    return (skills_folder() / DOCUMENTS_SKILL / name).read_text(encoding="utf-8")
 
 
 def _examples() -> dict[str, str]:
-    """Each example script in the skill, by the heading it is under."""
-    text = (skills_folder() / DOCUMENTS_SKILL / "SKILL.md").read_text(encoding="utf-8")
-    return dict(_EXAMPLE.findall(text))
+    """Each example script in the skill's files, by the heading it is under."""
+    found: dict[str, str] = {}
+    for path in sorted((skills_folder() / DOCUMENTS_SKILL).glob("*.md")):
+        for name, script in _EXAMPLE.findall(path.read_text(encoding="utf-8")):
+            assert name not in found, f"two examples are called {name}"
+            found[name] = script
+    return found
 
 
 def test_the_skill_names_itself_as_opencode_finds_it() -> None:
     """opencode lists a skill by its frontmatter name, and the config allows only that one."""
-    text = (skills_folder() / DOCUMENTS_SKILL / "SKILL.md").read_text(encoding="utf-8")
+    text = _text()
 
     frontmatter = text.split("---")[1]
     assert f"name: {DOCUMENTS_SKILL}\n" in frontmatter
     assert "description: " in frontmatter
 
 
+def test_the_short_skill_stays_short_and_names_every_file_beside_it() -> None:
+    """A file its table does not name is one the agent never learns to read."""
+    text = _text()
+    named = set(_FILE_ROW.findall(text))
+    beside = {
+        path.name
+        for path in (skills_folder() / DOCUMENTS_SKILL).glob("*.md")
+        if path.name != "SKILL.md"
+    }
+
+    assert len(text) < SHORT_SKILL_CHARACTERS, len(text)
+    assert named == beside == {"workbooks.md", "by-hand.md"}
+
+
+@pytest.mark.parametrize(
+    "output_name", ["document.pdf", "document.docx", "document.pptx"]
+)
+def test_the_helper_example_renders_in_every_format_with_its_total_as_typed(
+    output_name: str,
+) -> None:
+    """The short skill's one example is the script most models copy."""
+    found = _FIRST_SCRIPT.search(_text())
+    assert found is not None
+    script = found.group(1)
+    assert script.startswith("from surfsense_docs import Doc")
+
+    result = run_document_script(script, output_name=output_name, images={})
+
+    assert result.ok, f"{result.error}\n{result.traceback_tail}"
+    if output_name == "document.docx":
+        rows = docx.Document(BytesIO(result.output)).tables[0].rows
+        texts = [[cell.text for cell in row.cells] for row in rows]
+        assert texts[-2:] == [["Total", "1,950"], ["Water, each month", "40"]]
+
+
 def test_the_skill_says_what_the_agent_can_look_at_and_what_previews_leave_out() -> (
     None
 ):
     """A source's figures can be opened, and a Word preview shows headers, footers and watermarks."""
-    text = (skills_folder() / DOCUMENTS_SKILL / "SKILL.md").read_text(encoding="utf-8")
+    text = _text()
 
     assert "sources/figures/" in text
-    assert "headers, footers and watermarks" in text
+    assert "headers, footers and watermarks" in _text("by-hand.md")
     # Most local models read no images: opencode answers their `read` with an error.
     assert (
         "If `read` cannot show you the image, place that figure with its caption "

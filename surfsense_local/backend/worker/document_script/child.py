@@ -21,6 +21,9 @@ def main(folder: str) -> None:
     if sys.platform != "win32":
         _die_with_the_worker()
     os.chdir(folder)
+    # The helper copied beside the script is importable, as any module beside a
+    # script run directly would be.
+    sys.path.insert(0, str(Path(folder).resolve()))
     script = str(Path(folder).resolve() / SCRIPT_NAME)
     try:
         runpy.run_path(script, run_name="__main__")
