@@ -9,6 +9,10 @@ from modules.llm.selectable import selectable_for
 def describe_install(
     service: LocalCatalogService, catalog_id: str, plan: InstallPlan
 ) -> tuple[str, tuple[ModelType, ...]]:
+    if plan.in_place is not None:
+        # Offered only as a chat model, so it fills that slot alone.
+        label = plan.in_place.label
+        return f"{label.name} {label.quantization}", (ModelType.TEXT_GEN,)
     for row in service.catalog().rows:
         for build in row.builds:
             if build.catalog_id == catalog_id:

@@ -137,6 +137,12 @@ contextBridge.exposeInMainWorld("surfsense", {
   sessionLog: {
     read: (): Promise<string[]> => ipcRenderer.invoke("session-log:read"),
   },
+  // The system's own dialog for a GGUF model, or a folder of them, that lives
+  // where no scan looks: the path the person chose, or null.
+  models: {
+    pick: (kind: "file" | "folder"): Promise<string | null> =>
+      ipcRenderer.invoke("models:pick", kind),
+  },
   // The system's switch for SurfSense's microphone; the page's own permission is main's.
   microphone: {
     status: (): Promise<MicrophoneAccess> =>

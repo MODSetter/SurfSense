@@ -20,15 +20,20 @@ export function BuildAction({
   installs,
   disabled,
   onAction,
+  inPlace = false,
 }: {
   build: LocalBuild
   label: string
   installs: readonly InstallJob[]
   disabled: boolean
   onAction: (build: LocalBuild) => void
+  /** Another app's file, used where it lies: its install downloads nothing,
+   *  so it reads Use from the start. */
+  inPlace?: boolean
 }) {
   const job = jobFor(installs, build.catalog_id)
   const installed = build.installed_as !== null
+  const usable = installed || inPlace
   // Only physics refuses. Reduced speed installs exactly like full speed, and
   // so does a download while the runtime is down: the API fetches the file.
   const cannotInstall = !installed && !build.can_install
@@ -50,7 +55,7 @@ export function BuildAction({
       className="whitespace-nowrap"
       disabled={disabled || cannotInstall || job !== undefined}
       aria-label={
-        installed
+        usable
           ? intl.formatMessage(
               {
                 id: "models_build_action_use_aria",
@@ -85,8 +90,8 @@ export function BuildAction({
         </>
       ) : (
         <>
-          {!installed ? <DownloadIcon data-icon="inline-start" /> : null}
-          {installed
+          {!usable ? <DownloadIcon data-icon="inline-start" /> : null}
+          {usable
             ? intl.formatMessage({
                 id: "models_build_action_use_button",
                 defaultMessage: "Use",

@@ -66,6 +66,66 @@ async def install_steps(
             **refused.values,
         }
         return
+    if checked.in_place is not None:
+        # Another app's file, used where it lies: nothing to fetch or verify.
+        model_id = service.use_in_place(checked)
+    else:
+        async for frame in _download(service, checked):
+            yield frame
+            if frame["type"] == "error":
+                return
+        model_id = checked.model_id
+    engine = service.engine(checked.engine)
+    ready = InstallStep("complete", "Model is ready", code=InstallCode.READY)
+    async for step in engine.after_install(model_id):
+        if step.kind == "complete":
+            ready = step
+            continue
+        # The model is on disk and the engine refused it: say why, and stop.
+        if step.kind == "error":
+            yield {
+                "type": "error",
+                "message": step.message,
+                "code": step.code,
+                **step.values,
+            }
+            return
+        yield {
+            "type": step.kind,
+            "message": step.message,
+            "code": step.code,
+            "progress": step.progress,
+        }
+    selection = None
+    # Downloaded but not yet served: choosing would ask the same runtime, so the
+    # install ends as downloaded and the model is chosen once it runs.
+    if select and ready.code is not InstallCode.READY_AFTER_RESTART:
+        yield {
+            "type": "selecting",
+            "message": "Selecting model",
+            "code": InstallCode.SELECTING,
+        }
+        with session_factory() as session:
+            chosen = await choose_model(
+                session,
+                model_type or next(iter(slots), engine.model_types[0]),
+                engine.provider,
+                model_id,
+                broker=broker,
+            )
+            selection = SelectionRead.model_validate(chosen).model_dump(mode="json")
+    yield {
+        "type": "complete",
+        "message": ready.message,
+        "code": ready.code,
+        "selection": selection,
+    }
+
+
+async def _download(
+    service: LocalCatalogService, checked: InstallPlan
+) -> AsyncIterator[dict]:
+    """Every file of the build, then the check; an `error` frame ends it."""
     yield {
         "type": "starting",
         "message": "Preparing download",
@@ -105,49 +165,4 @@ async def install_steps(
         "type": "verifying",
         "message": "Checking the model",
         "code": InstallCode.CHECKING,
-    }
-    engine = service.engine(checked.engine)
-    ready = InstallStep("complete", "Model is ready", code=InstallCode.READY)
-    async for step in engine.after_install(checked.model_id):
-        if step.kind == "complete":
-            ready = step
-            continue
-        # The model is on disk and the engine refused it: say why, and stop.
-        if step.kind == "error":
-            yield {
-                "type": "error",
-                "message": step.message,
-                "code": step.code,
-                **step.values,
-            }
-            return
-        yield {
-            "type": step.kind,
-            "message": step.message,
-            "code": step.code,
-            "progress": step.progress,
-        }
-    selection = None
-    # Downloaded but not yet served: choosing would ask the same runtime, so the
-    # install ends as downloaded and the model is chosen once it runs.
-    if select and ready.code is not InstallCode.READY_AFTER_RESTART:
-        yield {
-            "type": "selecting",
-            "message": "Selecting model",
-            "code": InstallCode.SELECTING,
-        }
-        with session_factory() as session:
-            chosen = await choose_model(
-                session,
-                model_type or next(iter(slots), engine.model_types[0]),
-                engine.provider,
-                checked.model_id,
-                broker=broker,
-            )
-            selection = SelectionRead.model_validate(chosen).model_dump(mode="json")
-    yield {
-        "type": "complete",
-        "message": ready.message,
-        "code": ready.code,
-        "selection": selection,
     }
