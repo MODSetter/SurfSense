@@ -10,6 +10,7 @@ import dataclasses
 from collections.abc import Callable, Sequence, Set
 from dataclasses import dataclass
 
+from modules.llm.capability import AGENT_LEVELS, capability_of
 from modules.llm.catalog.local.build import Build, BuildFile, FileRole
 from modules.llm.catalog.local.classifier import classify
 from modules.llm.catalog.local.engines.llamacpp import ENGINE
@@ -37,7 +38,16 @@ from modules.llm.catalog.local.engines.registry import engine_for
 from modules.llm.catalog.local.manifest import CuratedModel
 from modules.llm.catalog.local.quantization import quantization_label
 from modules.llm.catalog.local.rows import BuildRow, LocalRow, LocalSupport, Origin
-from modules.llm.fit import FitState, HardwareBudget, badge, speed_tier
+from modules.llm.fit import (
+    AGENT_WINDOW,
+    FitState,
+    HardwareBudget,
+    ModelShape,
+    badge,
+    plan_load,
+    quick_here,
+    speed_tier,
+)
 
 _STATE_ORDER = {FitState.FITS: 0, FitState.PARTIAL: 1, FitState.TOO_BIG: 2}
 
@@ -58,11 +68,16 @@ def local_catalog(
 ) -> LocalCatalog:
     claimed: set[str] = set()
     curated = []
+    agent: set[str] = set()
     for model in filter(_runs_here, models):
-        row, installed = _curated_row(model, downloaded, budget, catalog_id)
+        row, installed, carries_the_agent = _curated_row(
+            model, downloaded, budget, catalog_id
+        )
         claimed |= installed
         curated.append(row)
-    star = recommended_model(curated)
+        if carries_the_agent:
+            agent.add(row.id)
+    star = recommended_model(curated, agent)
     others = [
         _downloaded_row(d, budget) for d in downloaded if d.model_id not in claimed
     ]
@@ -86,7 +101,7 @@ def _curated_row(
     downloaded: Sequence[DownloadedModel],
     budget: HardwareBudget,
     catalog_id: Callable[[Build], str],
-) -> tuple[LocalRow, set[str]]:
+) -> tuple[LocalRow, set[str], bool]:
     builds = model.as_builds()
     shape = model.model_shape
     fits = {
@@ -95,10 +110,28 @@ def _curated_row(
         )
         for b in builds
     }
-    default = default_build(builds)
-    pick = recommended_build(
-        builds, default, lambda b: speed_tier(fits[b.quantization])
-    )
+    default = default_build(builds, first=model.default_quantization)
+
+    def tier(build: Build):
+        return speed_tier(fits[build.quantization])
+
+    def quick(build: Build) -> bool:
+        return quick_here(build.footprint_bytes, budget)
+
+    # A model measured to run the agent takes the largest build that carries it
+    # here, so a 6 GB card gets the smaller build at the agent's window before
+    # the default at a window too short for it; else the usual step down.
+    pick = None
+    if _measured_for_the_agent(model, budget):
+        pick = recommended_build(
+            builds,
+            default,
+            tier,
+            lambda b: quick(b) and _at_the_agent_window(shape, b, budget),
+        )
+    carries_the_agent = pick is not None
+    if pick is None:
+        pick = recommended_build(builds, default, tier, quick)
     repos = {
         model.source_repo,
         *model.aliases,
@@ -153,7 +186,37 @@ def _curated_row(
             engine=ENGINE,
         ),
         installed,
+        carries_the_agent,
     )
+
+
+def _measured_for_the_agent(model: CuratedModel, budget: HardwareBudget) -> bool:
+    """Whether the shipped capability list says a copy on this computer runs the
+    agent, on a machine where the agent is quick enough to offer: a graphics card
+    or Apple's unified memory. On the processor alone its first reply takes
+    minutes, so no model carries it there."""
+    return (
+        budget.has_gpu
+        and model.model_shape is not None
+        and model.template.tools is not False
+        and capability_of(model.id, None).level in AGENT_LEVELS
+    )
+
+
+def _at_the_agent_window(
+    shape: ModelShape | None, build: Build, budget: HardwareBudget
+) -> bool:
+    """Whether the load the app would perform keeps every layer of this build
+    resident at the agent's window: the window the preset writes, not a guess."""
+    if shape is None:
+        return False
+    plan = plan_load(
+        shape,
+        build.weights_bytes,
+        budget,
+        mmproj_bytes=build.projector.size_bytes if build.projector else 0,
+    )
+    return plan.n_ctx >= AGENT_WINDOW and plan.verdict.state is FitState.FITS
 
 
 def _runs_here(model: CuratedModel) -> bool:

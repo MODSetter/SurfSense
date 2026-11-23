@@ -60,7 +60,7 @@ The Date is the day the decision was first written down. Source links are permal
 | 0023 | [Every hosted sunset behaviour sits behind a runtime flag, and nothing is deleted or redirected unconditionally](0023-sunset-behind-flags.md) | Accepted |
 | 0024 | [The license portal has no accounts and no license tables; Stripe and Keygen are the system of record](0024-portal-without-accounts.md) | Accepted |
 | 0025 | [The hosted scraper API client ships as a paid plugin whose source lives in this repo](0025-scraper-client-as-paid-plugin.md) | Superseded by 0081 |
-| 0026 | [Curated models are ordered by their position in the manifest, with no score](0026-curated-order-is-list-position.md) | Accepted, in part revised by the model catalog proposal |
+| 0026 | [Curated models are ordered by their position in the manifest, with no score](0026-curated-order-is-list-position.md) | Accepted, in part revised by the model catalog proposal and by 0094 |
 | 0027 | [Egress consent is per host, so model search and downloads share one](0027-egress-consent-per-host.md) | Accepted |
 | 0028 | [Model-written code may run on the user's machine without a sandbox, and the agent asks before each shell command](0028-model-written-code-runs-with-approval.md) | Accepted, in part superseded by 0039 |
 | 0029 | [Interface text lives in ICU MessageFormat catalogs, one flat JSON file per language](0029-icu-translation-catalogs.md) | Accepted |
@@ -122,3 +122,5 @@ The Date is the day the decision was first written down. Source links are permal
 | 0091 | [From 2.4.0 on, SurfSense's own update key vouches for an update, not a certificate's name](0091-an-update-key-vouches-for-every-update-from-2-4-0-on.md) | Accepted |
 | 0092 | [SurfSense is free; licensing is off, the job packs ship in the app under Apache-2.0, and web search has no default server](0092-surfsense-is-free-and-licensing-is-off.md) | Accepted |
 | 0093 | [A GGUF another app downloaded is found in that app's folder and used where it lies, never copied](0093-a-gguf-another-app-downloaded-is-used-where-it-lies.md) | Accepted |
+| 0094 | [The star goes to a model that runs the agent here, and to a small one without a graphics card](0094-the-star-goes-to-a-model-that-runs-the-agent.md) | Accepted |
+| 0095 | [The agent scripts documents with a helper and a short skill, and a script that does not parse never runs](0095-documents-are-scripted-with-a-helper-and-a-short-skill.md) | Accepted |

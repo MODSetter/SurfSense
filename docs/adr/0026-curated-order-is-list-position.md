@@ -1,6 +1,6 @@
 # ADR 0026: Curated models are ordered by their position in the manifest, with no score
 
-- **Status:** Accepted; the direction (now most preferred first) and the recommendation rule (now per build, with a four bit floor) are revised by the [model catalog proposal](../proposals/model-catalog.md), in progress. "No score, position only" stands.
+- **Status:** Accepted; the direction (now most preferred first) and the recommendation rule (now per build, with a four bit floor) are revised by the [model catalog proposal](../proposals/model-catalog.md), in progress, and the star by [ADR 0094](0094-the-star-goes-to-a-model-that-runs-the-agent.md): a model that runs the agent here first, and a small one without a graphics card. "No score, position only" stands.
 - **Date:** 2026-09-23
 - **Supersedes:** the `rank` decision in [ADR 0014](0014-two-tier-model-catalog.md), and the llmfit authoring decision in [ADR 0011](0011-llama-cpp-local-runtime.md)
 - **Source:** [llama.cpp runtime plan L61–62](https://github.com/MODSetter/SurfSense/blob/a55d309e84534bbc91656afc7faf494b3d22a39b/plans/community-local/api/07-llamacpp-runtime.md#L61-L62), [llama.cpp runtime plan L1179–1195](https://github.com/MODSetter/SurfSense/blob/a55d309e84534bbc91656afc7faf494b3d22a39b/plans/community-local/api/07-llamacpp-runtime.md#L1179-L1195), commits [5a81b335b](https://github.com/MODSetter/SurfSense/commit/5a81b335b9bc448239bee4f93823c65520801630) and [bdc8e749d](https://github.com/MODSetter/SurfSense/commit/bdc8e749db03805ca2499e9c87ea15e362be989b)

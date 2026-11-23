@@ -86,12 +86,15 @@ async def test_no_row_carries_a_rank_on_the_wire(client: AsyncClient) -> None:
 async def test_each_curated_model_names_its_default_and_at_most_one_recommended_build(
     client: AsyncClient,
 ) -> None:
-    """Each curated model names its default and at most one recommended build."""
+    """Each curated model names its default and at most one recommended build:
+    the preference order's first, or the build its entry names, as Spark-X2.6-4B
+    names Q8_0."""
     body = (await client.get("/llm/catalog/local")).json()
 
     for row in body["rows"]:
         if row["origin"] == "curated" and row["engine"] == "llamacpp":
-            assert row["default_quantization"] == "UD-Q4_K_XL"
+            expected = "Q8_0" if row["id"] == "spark-x2.6-4b" else "UD-Q4_K_XL"
+            assert row["default_quantization"] == expected
             assert sum(b["recommended"] for b in row["builds"]) <= 1
 
 

@@ -280,6 +280,12 @@ def test_the_agent_keeps_its_plan(tmp_path: Path) -> None:
     assert written(path)["experimental"] == {"todo": True}
 
 
+PROMPT_BUDGET = 4500
+"""Characters. 4,000 until the no-format section of ADR 0095: the weak-hardware
+tests measured it whole, and a shortened sentence in its place let a small
+model offer a summary instead of making the document."""
+
+
 def test_surfsenses_own_agent_is_the_default(tmp_path: Path) -> None:
     """SurfSense's prompt replaces opencode's coding one, within its length budget."""
     path = tmp_path / "opencode.json"
@@ -289,7 +295,27 @@ def test_surfsenses_own_agent_is_the_default(tmp_path: Path) -> None:
     agent = config["agents"][config["default_agent"]]
     assert agent["mode"] == "primary"
     assert "outputs" in agent["system"]
-    assert len(agent["system"]) < 4000
+    assert len(agent["system"]) < PROMPT_BUDGET
+
+
+def test_the_prompt_tells_the_agent_to_make_a_document_when_no_format_is_named(
+    tmp_path: Path,
+) -> None:
+    """The section the weak-hardware tests measured, word for word: asked for
+    something to send, a small model offered a summary without it."""
+    path = tmp_path / "opencode.json"
+    write_opencode_config(path, setup())
+
+    config = written(path)
+    system = config["agents"][config["default_agent"]]["system"]
+    assert system.endswith(
+        "# When the user names no format\n\nWhen the user asks for something to "
+        "send, share or print and names no format, do not ask what they want. Read "
+        "the sources, choose the format yourself (a PDF for something to send as it "
+        "is, a Word document for a draft they will edit; a deck only when they ask "
+        "for slides or a presentation), make it now with the surfsense-documents "
+        "skill, and say in one line which you chose."
+    )
 
 
 @pytest.mark.skipif(os.name == "nt", reason="Windows has no POSIX file modes")

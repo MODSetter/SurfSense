@@ -9,9 +9,12 @@ from modules.llm.capability.match_key import match_key
 from modules.llm.capability.model_key import model_key
 
 SCHEMA_VERSION = 1
-# The ladder's eight cases; the two-case screening on OpenRouter; flagships not run.
+# The ladder's eight cases; the two-case screening on OpenRouter; the same two
+# cases on this computer's llama.cpp, for a model no provider serves; flagships
+# not run.
 LADDER_SUITE = "create-and-edit"
 SCREEN_SUITE = "openrouter-screen"
+LOCAL_SCREEN_SUITE = "local-screen"
 ASSUMED_SUITE = "assumed"
 ASSUMED_NOTE = "Not run: an expensive flagship assumed to pass"
 

@@ -17,3 +17,6 @@ class Entry:
     repo: str
     upstream_repo: str | None = None
     aliases: tuple[str, ...] = field(default_factory=tuple)
+    # The build to default to instead of the quantization preference order's
+    # first, only where a measurement says another build of this model is better.
+    default_quantization: str | None = None
