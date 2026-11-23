@@ -401,3 +401,29 @@ def test_a_long_numbered_item_carries_on_unnumbered_and_the_next_counts_on() -> 
     assert marks["After"] == ["3"]
     # The long item's first piece is numbered 2; its other pieces have no number.
     assert marks["y y y"][0] is not None and set(marks["y y y"][1:]) == {None}
+
+
+def test_bold_across_a_piece_boundary_stays_bold_with_no_marks_shown() -> None:
+    """The markup is read before the text is split, so `**` never shows."""
+    deck = _deck(
+        "from surfsense_docs import Doc\n"
+        'doc = Doc("Essay")\n'
+        'doc.heading("Body")\n'
+        'doc.paragraph("**" + "word " * 1000 + "**")\n'
+        'doc.paragraph("Short **and bold** text")\n'
+        'doc.table(["A"], [["1"]])\n'
+        "doc.save()\n"
+    )
+
+    runs = [
+        run
+        for _, shape in _boxes(deck)
+        for paragraph in shape.text_frame.paragraphs
+        for run in paragraph.runs
+    ]
+    assert len({id(shape) for _, shape in _boxes(deck)}) > 2
+    assert not any("*" in run.text for run in runs)
+    words = [run for run in runs if run.text.strip().startswith("word")]
+    assert words and all(run.font.bold for run in words)
+    short = [run.text for run in runs if run.font.bold and "and bold" in run.text]
+    assert short == ["and bold"]

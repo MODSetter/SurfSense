@@ -570,13 +570,16 @@ def _laid_out(
         elif b.kind in _TEXT:
             items = [a["text"]] if b.kind == "paragraph" else list(a["items"])
             # An item longer than a slide holds goes on in pieces, split between
-            # words; a piece after the first carries on its item, unnumbered.
+            # words after its bold and italic are read, so neither is cut in two;
+            # a piece after the first carries on its item, unnumbered.
             pieces = [
                 (piece, k > 0)
                 for item in items
-                for k, piece in enumerate(_pieces(item, whole * _BOX_CHARACTERS))
+                for k, piece in enumerate(
+                    _split_runs(_runs(item), whole * _BOX_CHARACTERS)
+                )
             ]
-            sizes = [_item_lines(p, _BOX_CHARACTERS) for p, _ in pieces]
+            sizes = [_run_lines(p, _BOX_CHARACTERS) for p, _ in pieces]
             start = 0
             while start < len(pieces):
                 # What would fit a slide of its own moves there whole, and so does
@@ -598,6 +601,7 @@ def _laid_out(
                     {
                         "items": [p for p, _ in chunk],
                         "continued": [c for _, c in chunk],
+                        "read": True,
                     },
                 )
                 # The list's numbering counts the items begun before this box.
@@ -682,7 +686,8 @@ def _fill(
 ) -> None:
     """Paragraphs into a text frame, a list as real list paragraphs: PowerPoint
     draws the bullet or the number, nothing is typed into the text. A numbered
-    list that runs on from another slide counts on from `first_number`."""
+    list that runs on from another slide counts on from `first_number`. A block
+    marked `read` holds its items as runs `_runs` already made."""
     first = True
     for _, b in blocks:
         items = b.args["items"] if "items" in b.args else [b.args["text"]]
@@ -692,7 +697,7 @@ def _fill(
             first = False
             kind = "continued" if carried_on and b.kind != "paragraph" else b.kind
             _list_style(par, kind, first_number)
-            for piece, bold, italic in _runs(item):
+            for piece, bold, italic in item if b.args.get("read") else _runs(item):
                 run = par.add_run()
                 run.text, run.font.bold, run.font.italic = piece, bold, italic
                 run.font.size = size
@@ -728,19 +733,34 @@ def _list_style(par: Any, kind: str, first_number: int = 1) -> None:
         p_pr.append(p_pr.makeelement(qn("a:buNone"), {}))
 
 
-def _pieces(text: str, limit: int) -> list[str]:
-    """`text` as it is when it is at most `limit` characters, else in pieces of
-    at most that, each broken at a space when there is one."""
-    if len(text) <= limit:
-        return [text]
-    pieces: list[str] = []
-    rest = text
-    while len(rest) > limit:
-        cut = rest.rfind(" ", 0, limit + 1)
-        if cut <= 0:
-            cut = limit
-        pieces.append(rest[:cut].rstrip())
-        rest = rest[cut:].lstrip()
-    if rest:
-        pieces.append(rest)
-    return pieces
+_Run = tuple[str, bool, bool]
+
+
+def _split_runs(runs: list[_Run], limit: int) -> list[list[_Run]]:
+    """Runs as they are when they hold at most `limit` characters, else in
+    pieces of at most that, broken at a space when there is one; a run cut in
+    two keeps its bold and italic on both sides."""
+    pieces: list[list[_Run]] = [[]]
+    room = limit
+    for text, bold, italic in runs:
+        while len(text) > room:
+            cut = text.rfind(" ", 0, room + 1)
+            if cut <= 0 and pieces[-1]:
+                # No space early enough in this run: it starts the next piece.
+                pieces.append([])
+                room = limit
+                continue
+            cut = cut if cut > 0 else room
+            if head := text[:cut].rstrip():
+                pieces[-1].append((head, bold, italic))
+            pieces.append([])
+            room = limit
+            text = text[cut:].lstrip()
+        if text:
+            pieces[-1].append((text, bold, italic))
+            room -= len(text)
+    return [piece for piece in pieces if piece] or [[]]
+
+
+def _run_lines(runs: list[_Run], per_line: int) -> int:
+    return max(1, -(-sum(len(text) for text, _, _ in runs) // per_line))
