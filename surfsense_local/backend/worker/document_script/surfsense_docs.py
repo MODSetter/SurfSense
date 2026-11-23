@@ -304,9 +304,12 @@ def _docx(doc: Doc, path: str, charts: dict[int, str]) -> None:
             ncols = max(len(r) for r in rows)
             t = d.add_table(rows=len(rows), cols=ncols)
             t.style = "Table Grid"
-            for r, row in enumerate(rows):
+            # Each row's cells once: python-docx's `t.cell(r, c)` rebuilds the
+            # whole grid per call, quadratic in a long table.
+            for r, (row, table_row) in enumerate(zip(rows, t.rows, strict=True)):
+                cells = table_row.cells
                 for c in range(ncols):
-                    cell = t.cell(r, c)
+                    cell = cells[c]
                     cell.text = ""
                     par = cell.paragraphs[0]
                     add_runs(par, row[c] if c < len(row) else "")
@@ -469,9 +472,10 @@ def _pptx(doc: Doc, path: str, charts: dict[int, str]) -> None:
     if doc.subtitle and len(cover.placeholders) > 1:
         cover.placeholders[1].text = _plain(doc.subtitle)
 
-    # Each heading starts a slide; whatever comes before the first goes on one
-    # under the document's title. Notes join the slide they fall on, the cover
-    # before any block.
+    # Each heading starts a slide, and a page break the next one under the same
+    # title; whatever comes before the first heading goes on one under the
+    # document's title. Notes join the slide they fall on, the cover before any
+    # block.
     slides: list[tuple[str, list[tuple[int, _Block]], list[str]]] = []
     cover_notes: list[str] = []
     for i, b in enumerate(doc.blocks):
@@ -480,7 +484,8 @@ def _pptx(doc: Doc, path: str, charts: dict[int, str]) -> None:
         elif b.kind == "notes":
             (slides[-1][2] if slides else cover_notes).append(b.args["text"])
         elif b.kind == "page_break":
-            continue
+            if slides and slides[-1][1]:
+                slides.append((slides[-1][0], [], []))
         else:
             if not slides:
                 slides.append((_plain(doc.title), [], []))
@@ -488,56 +493,127 @@ def _pptx(doc: Doc, path: str, charts: dict[int, str]) -> None:
     if cover_notes:
         cover.notes_slide.notes_text_frame.text = "\n".join(cover_notes)
 
-    left, width = Cm(2), deck.slide_width - Cm(4)
     for title, blocks, notes in slides:
-        text_only = all(
+        if blocks and all(
             b.kind in ("paragraph", "bullets", "numbered") for _, b in blocks
-        )
-        if text_only:
+        ):
             slide = deck.slides.add_slide(layouts["Title and Content"])
             slide.shapes.title.text = title
             _fill(slide.placeholders[1].text_frame, blocks, Pt(20))
         else:
-            slide = deck.slides.add_slide(layouts["Title Only"])
-            slide.shapes.title.text = title
-            top = Cm(4)
-            for i, b in blocks:
-                a = b.args
-                if b.kind in ("paragraph", "bullets", "numbered"):
-                    lines = 1 if b.kind == "paragraph" else len(a["items"])
-                    height = Cm(1.1 * lines + 0.4)
-                    box = slide.shapes.add_textbox(left, top, width, height)
-                    box.text_frame.word_wrap = True
-                    _fill(box.text_frame, [(i, b)], Pt(18))
-                    top += height + Cm(0.3)
-                elif b.kind == "table":
-                    rows = _table_rows(a)
-                    ncols = max(len(r) for r in rows)
-                    height = Cm(0.9 * len(rows))
-                    shape = slide.shapes.add_table(
-                        len(rows), ncols, left, top, width, height
-                    )
-                    for r, row in enumerate(rows):
-                        for c in range(ncols):
-                            cell = shape.table.cell(r, c)
-                            cell.text = _plain(row[c]) if c < len(row) else ""
-                            for par in cell.text_frame.paragraphs:
-                                for run in par.runs:
-                                    run.font.size = Pt(14)
-                                    run.font.bold = r == 0 or _is_total(a, r)
-                    top += height + Cm(0.5)
-                elif b.kind in ("image", "chart"):
-                    src = a["path"] if b.kind == "image" else charts[i]
-                    room = deck.slide_height - top - Cm(1)
-                    pic = slide.shapes.add_picture(src, left, top, height=room)
-                    if pic.width > width:
-                        ratio = width / pic.width
-                        pic.width = int(pic.width * ratio)
-                        pic.height = int(pic.height * ratio)
-                    top += pic.height + Cm(0.5)
+            slide = _laid_out(deck, layouts["Title Only"], title, blocks, charts)
         if notes:
             slide.notes_slide.notes_text_frame.text = "\n".join(notes)
     deck.save(path)
+
+
+def _laid_out(
+    deck: Any,
+    layout: Any,
+    title: str,
+    blocks: list[tuple[int, _Block]],
+    charts: dict[int, str],
+) -> Any:
+    """Text, tables and pictures down Title Only slides, top to bottom. What does
+    not fit below what is there goes on to another slide under the same title,
+    and a long table runs on with its header; the first slide is returned."""
+    from pptx.util import Cm, Pt
+
+    left, width = Cm(2), deck.slide_width - Cm(4)
+    first_top, bottom = Cm(4), deck.slide_height - Cm(1)
+    row_height, least_picture = Cm(0.9), Cm(5)
+
+    def new_slide() -> Any:
+        made = deck.slides.add_slide(layout)
+        made.shapes.title.text = title
+        return made
+
+    first = slide = new_slide()
+    top = first_top
+
+    def go_on_if(short: bool) -> None:
+        """A slide of its own for what does not fit below what this one holds."""
+        nonlocal slide, top
+        if short and top > first_top:
+            slide, top = new_slide(), first_top
+
+    for i, b in blocks:
+        a = b.args
+        if b.kind in ("paragraph", "bullets", "numbered"):
+            lines = 1 if b.kind == "paragraph" else len(a["items"])
+            height = Cm(1.1 * lines + 0.4)
+            go_on_if(top + height > bottom)
+            box = slide.shapes.add_textbox(left, top, width, height)
+            box.text_frame.word_wrap = True
+            _fill(box.text_frame, [(i, b)], Pt(18))
+            top += height + Cm(0.3)
+        elif b.kind == "table":
+            rows = _table_rows(a)
+            header, body = rows[0], rows[1:]
+            ncols = max(len(r) for r in rows)
+            # The total's place among the rows below the header.
+            total_at = len(a["rows"]) if a["bold_total"] else None
+            start = 0
+            while True:
+                go_on_if(int((bottom - top) / row_height) - 1 < min(2, len(body)))
+                fit = max(1, int((bottom - top) / row_height) - 1)
+                chunk = body[start : start + fit]
+                bold = {0} | {k + 1 for k in range(len(chunk)) if start + k == total_at}
+                height = row_height * (len(chunk) + 1)
+                _deck_table(
+                    slide, [header, *chunk], ncols, bold, (left, top, width, height)
+                )
+                top += height + Cm(0.5)
+                start += len(chunk)
+                if start >= len(body):
+                    break
+                slide, top = new_slide(), first_top
+        elif b.kind in ("image", "chart"):
+            src = a["path"] if b.kind == "image" else charts[i]
+            caption = a.get("caption") if b.kind == "image" else None
+            caption_height = Cm(1.2) if caption else 0
+            go_on_if(bottom - top - caption_height < least_picture)
+            room = bottom - top - caption_height
+            if b.kind == "image" and a.get("width_cm"):
+                pic = slide.shapes.add_picture(
+                    src, left, top, width=min(Cm(a["width_cm"]), width)
+                )
+            else:
+                pic = slide.shapes.add_picture(src, left, top, height=room)
+            scale = min(1.0, width / pic.width, room / pic.height)
+            if scale < 1:
+                pic.width, pic.height = int(pic.width * scale), int(pic.height * scale)
+            top += pic.height
+            if caption:
+                box = slide.shapes.add_textbox(left, top, width, caption_height)
+                box.text_frame.word_wrap = True
+                run = box.text_frame.paragraphs[0].add_run()
+                run.text = str(caption)
+                run.font.italic, run.font.size = True, Pt(12)
+                top += caption_height
+            top += Cm(0.5)
+    return first
+
+
+def _deck_table(
+    slide: Any,
+    rows: list[list[str]],
+    ncols: int,
+    bold: set[int],
+    box: tuple[int, int, int, int],
+) -> None:
+    """A table on a slide, the rows in `bold` (by their place here) in bold."""
+    from pptx.util import Pt
+
+    shape = slide.shapes.add_table(len(rows), ncols, *box)
+    for r, row in enumerate(rows):
+        for c in range(ncols):
+            cell = shape.table.cell(r, c)
+            cell.text = _plain(row[c]) if c < len(row) else ""
+            for par in cell.text_frame.paragraphs:
+                for run in par.runs:
+                    run.font.size = Pt(14)
+                    run.font.bold = r in bold
 
 
 def _fill(frame: Any, blocks: list[tuple[int, _Block]], size: Any) -> None:

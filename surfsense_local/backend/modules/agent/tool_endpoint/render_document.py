@@ -180,7 +180,9 @@ def render(
     started = _start(session, scope, request)
     if started.waits_for:
         waiting = RenderedArtifact(started.artifact_id, started.title, started.version)
-        return f"{queued_line(waiting)}\n{waiting_sentence(started.waits_for)}"
+        return _noted(
+            f"{queued_line(waiting)}\n{waiting_sentence(started.waits_for)}", note
+        )
     wait = min(WAIT_SECONDS, deadline - time.monotonic())
     outcome = wait_for_outcome(session, started.artifact_id, wait)
     if outcome is None:
@@ -198,12 +200,13 @@ def render(
         )
     # The first line lets the thread link the version once Studio has made it.
     queued = RenderedArtifact(started.artifact_id, started.title, started.version)
-    return (
+    return _noted(
         f"{queued_line(queued)}\n"
         f"{_version_of(started)} is still being made after "
         f"{time.monotonic() - began:.0f} s, "
         "behind other Studio work. It appears in Studio when it is ready: tell the "
-        "user so, and do not render it again."
+        "user so, and do not render it again.",
+        note,
     )
 
 

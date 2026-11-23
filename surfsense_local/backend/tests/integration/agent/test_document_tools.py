@@ -793,6 +793,27 @@ async def test_a_render_still_running_at_the_limit_says_where_it_will_appear(
     assert "appears in Studio when it is ready" in text
 
 
+async def test_a_queued_render_still_says_what_the_check_fixed(
+    tools: ToolEndpoint, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The script stored is the fixed one, so the model must hear of it either way."""
+    monkeypatch.setattr(render_document, "WAIT_SECONDS", 0.5)
+    workspace_id = await tools.workspace()
+    script = WORD.format(closing="Signed.").removesuffix(")\n")
+
+    text, is_error = await tools.call(
+        workspace_id, "render_document", render(script=script)
+    )
+
+    assert is_error is False
+    assert text.startswith("Queued artifact ")
+    assert "do not render it again." in text
+    assert text.endswith(
+        "Before running the script, SurfSense closed the ( opened on line 8 at the "
+        "end of the script. Check that the result is what you meant."
+    )
+
+
 @pytest.mark.parametrize(
     ("arguments", "says"),
     [

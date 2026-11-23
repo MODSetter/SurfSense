@@ -80,3 +80,21 @@ def test_any_other_syntax_error_comes_back_with_its_line_a_caret_and_a_hint() ->
     assert message.endswith(
         "Hint: add the colon this line needs. Fix it and render again."
     )
+
+
+@pytest.mark.parametrize(
+    ("script", "says"),
+    [
+        ("return 42\n", "'return' outside function"),
+        ("for x in []:\n    pass\nbreak\n", "'break' outside loop"),
+    ],
+)
+def test_what_parses_but_cannot_compile_is_sent_back_before_a_version(
+    script: str, says: str
+) -> None:
+    """`ast.parse` accepts these; the compiler, and so the run, refuses them."""
+    with pytest.raises(ScriptSyntaxError) as refused:
+        checked_script(script)
+
+    assert says in str(refused.value)
+    assert "Hint: " in str(refused.value)

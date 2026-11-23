@@ -42,7 +42,7 @@ doc.save()
 - `table(header, rows, total=None, bold_total=False, after=None)`. Put numbers in as numbers. `total` is the total row as you write it: add up only the rows it covers. A row that is not part of the total, such as a monthly fee below one-off costs, goes in `after`, below it. `bold_total=True` sets the total row in bold. `total="Total"` instead adds a row that sums every number column of `rows`: use it only when each of those columns is an amount to add up.
 - `image(name, width_cm=None, caption=None)` places a picture by the name `surfsense_list_images` or `surfsense_make_image` gave; list every name you use in the call's `images`.
 - `chart(kind, labels, values, title=None, ylabel=None)` draws a `"bar"`, `"line"` or `"pie"` chart.
-- `notes(text)` is what the presenter says, in the speaker notes of the slide it falls on; a PDF or a Word document leaves it out. `page_break()` starts a new page, or a new slide.
+- `notes(text)` is what the presenter says, in the speaker notes of the slide it falls on; a PDF or a Word document leaves it out. `page_break()` starts a new page, or a new slide under the same heading.
 - In a deck each `heading` starts a slide: keep each slide to a few bullets, a table or a chart.
 
 ## Rules for every script

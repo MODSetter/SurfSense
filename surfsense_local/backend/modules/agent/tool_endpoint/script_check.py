@@ -7,7 +7,6 @@ note says what changed; anything else stays the model's to fix, but it learns wh
 and how without a run.
 """
 
-import ast
 import io
 import re
 import tokenize
@@ -34,6 +33,20 @@ _HINTS = (
     ("unterminated string", "a string on this line has no closing quote"),
     ("unterminated triple-quoted", "a triple-quoted string is never closed"),
     ("expected ':'", "add the colon this line needs"),
+    (
+        "outside function",
+        "a script runs from top to bottom, outside any function: remove the "
+        "`return`, `yield` or `await`",
+    ),
+    ("outside loop", "`break` and `continue` work only inside a loop: remove it"),
+    (
+        "not properly in loop",
+        "`break` and `continue` work only inside a loop: remove it",
+    ),
+    (
+        "at module level",
+        "the script is not inside a function: remove the `nonlocal` line",
+    ),
     ("indent", "indent this block with four spaces, the same as the lines around it"),
     (
         "invalid syntax",
@@ -55,17 +68,23 @@ def checked_script(script: str) -> tuple[str, str | None]:
         script = fenced.group(1)
         notes.append("removed the Markdown fence around the script")
     try:
-        ast.parse(script)
+        _compile(script)
         return script, _note(notes)
     except SyntaxError as first:
         fixed, changes = _balanced(script)
         if fixed is not None:
             try:
-                ast.parse(fixed)
+                _compile(fixed)
                 return fixed, _note(notes + changes)
             except SyntaxError:
                 pass
         raise ScriptSyntaxError(_explain(script, first)) from first
+
+
+def _compile(script: str) -> None:
+    """Compiled, not run: `ast.parse` alone lets through what only the compiler
+    refuses, such as a `return` outside a function."""
+    compile(script, "script.py", "exec", dont_inherit=True)
 
 
 def _note(changes: list[str]) -> str | None:

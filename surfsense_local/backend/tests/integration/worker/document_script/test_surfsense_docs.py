@@ -191,3 +191,91 @@ def test_a_tall_picture_is_scaled_to_fit_a_page(tmp_path: Path) -> None:
     section = document.sections[0]
     room = section.page_height - section.top_margin - section.bottom_margin
     assert document.inline_shapes[0].height <= room
+
+
+def _deck(script: str, images: dict[str, Path] | None = None) -> pptx.Presentation:
+    result = run_document_script(
+        script, output_name="document.pptx", images=images or {}
+    )
+    assert result.ok, f"{result.error}\n{result.traceback_tail}"
+    return pptx.Presentation(BytesIO(result.output))
+
+
+def _texts(slide: object) -> list[str]:
+    return [s.text_frame.text for s in slide.shapes if s.has_text_frame]
+
+
+def test_a_second_picture_under_one_heading_goes_on_to_a_slide_of_its_own(
+    tmp_path: Path,
+) -> None:
+    """The second picture once got a negative height, which PowerPoint calls damaged."""
+    square = tmp_path / "square.png"
+    Image.new("RGB", (800, 800), "white").save(square)
+    deck = _deck(
+        "from surfsense_docs import Doc\n"
+        'doc = Doc("Site visit")\n'
+        'doc.heading("Photos")\n'
+        'doc.image("front", caption="The front gate")\n'
+        'doc.image("back")\n'
+        "doc.save()\n",
+        {"front": square, "back": square},
+    )
+
+    slides = list(deck.slides)
+    assert [s.shapes.title.text for s in slides] == ["Site visit", "Photos", "Photos"]
+    for slide in slides[1:]:
+        (picture,) = [s for s in slide.shapes if s.shape_type == MSO_SHAPE_TYPE.PICTURE]
+        assert picture.height > 0
+        assert picture.top + picture.height <= deck.slide_height
+    assert "The front gate" in _texts(slides[1])
+
+
+def test_a_page_break_in_a_deck_starts_a_slide_under_the_same_heading() -> None:
+    """One script makes every format: a page break means a new slide in a deck."""
+    deck = _deck(
+        "from surfsense_docs import Doc\n"
+        'doc = Doc("Plan")\n'
+        'doc.heading("Steps")\n'
+        'doc.paragraph("First the pilot.")\n'
+        "doc.page_break()\n"
+        'doc.paragraph("Then every depot.")\n'
+        "doc.save()\n"
+    )
+
+    slides = list(deck.slides)[1:]
+    assert [s.shapes.title.text for s in slides] == ["Steps", "Steps"]
+    assert "First the pilot." in " ".join(_texts(slides[0]))
+    assert "Then every depot." in " ".join(_texts(slides[1]))
+
+
+def test_a_long_table_in_a_deck_runs_on_with_its_header_and_bold_total() -> None:
+    """Thirty rows and a total do not fit one slide: no row is lost or off the slide."""
+    deck = _deck(
+        "from surfsense_docs import Doc\n"
+        'doc = Doc("Costs")\n'
+        'doc.heading("Every line")\n'
+        "doc.table(\n"
+        '    ["Item", "EUR"],\n'
+        '    [[f"Item {n}", n * 10] for n in range(1, 31)],\n'
+        '    total=["Total", 4650],\n'
+        "    bold_total=True,\n"
+        ")\n"
+        "doc.save()\n"
+    )
+
+    shown: list[list[str]] = []
+    total_bold = None
+    for slide in list(deck.slides)[1:]:
+        assert slide.shapes.title.text == "Every line"
+        (frame,) = [s for s in slide.shapes if s.has_table]
+        assert frame.top + frame.height <= deck.slide_height
+        rows = [[cell.text for cell in row.cells] for row in frame.table.rows]
+        assert rows[0] == ["Item", "EUR"]
+        shown += rows[1:]
+        for row in frame.table.rows:
+            if row.cells[0].text == "Total":
+                total_bold = row.cells[0].text_frame.paragraphs[0].runs[0].font.bold
+    assert shown == [[f"Item {n}", f"{n * 10:,}"] for n in range(1, 31)] + [
+        ["Total", "4,650"]
+    ]
+    assert total_bold is True
