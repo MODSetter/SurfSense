@@ -6,7 +6,7 @@ The tool waits for the run, since the model fixes its script from the error
 
 import logging
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -28,6 +28,7 @@ from modules.agent.tool_endpoint.rendered_label import (
     queued_line,
 )
 from modules.agent.tool_endpoint.same_title_documents import refuse_same_title
+from modules.agent.tool_endpoint.script_check import ScriptSyntaxError, checked_script
 from modules.agent.tool_endpoint.selected_images import refuse_unselected_images
 from modules.agent.tool_endpoint.tool import (
     InlineImage,
@@ -168,6 +169,14 @@ def render(
     _refuse_unselected_template(session, scope, request)
     if request.base_artifact_id is None and scope.known:
         refuse_same_title(session, scope.thread_id, request.title, request.format)
+    # A script that does not parse never reaches Studio: brackets left open are
+    # closed with a note, anything else comes back with its line and a hint, as
+    # one of the turn's failed runs.
+    try:
+        script, note = checked_script(request.script)
+    except ScriptSyntaxError as refused:
+        raise FailedRunError(f"{refused}\n{STOP_RULE}") from refused
+    request = replace(request, script=script)
     started = _start(session, scope, request)
     if started.waits_for:
         waiting = RenderedArtifact(started.artifact_id, started.title, started.version)
@@ -179,9 +188,9 @@ def render(
             f"Artifact {started.artifact_id} was deleted before it was ready."
         )
     if outcome.status is DocumentStatus.READY:
-        return _made(session, scope.folder, started, deadline)
+        return _noted(_made(session, scope.folder, started, deadline), note)
     if outcome.status is DocumentStatus.FAILED:
-        raise FailedRunError(_failed(started, outcome))
+        raise FailedRunError(_noted(_failed(started, outcome), note))
     if outcome.status is DocumentStatus.CANCELLED:
         raise ToolCallError(
             f"{_version_of(started)} was cancelled in Studio. Ask the user before "
@@ -196,6 +205,16 @@ def render(
         "behind other Studio work. It appears in Studio when it is ready: tell the "
         "user so, and do not render it again."
     )
+
+
+def _noted(result: str | ToolResult, note: str | None) -> str | ToolResult:
+    """The result with the script check's note last, so its first line still names
+    the version."""
+    if not note:
+        return result
+    if isinstance(result, ToolResult):
+        return ToolResult(f"{result.text}\n\n{note}", result.images)
+    return f"{result}\n\n{note}"
 
 
 def _request(arguments: dict[str, Any]) -> _Request:
