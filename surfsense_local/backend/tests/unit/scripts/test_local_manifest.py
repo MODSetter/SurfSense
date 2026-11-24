@@ -121,6 +121,9 @@ def test_the_entry_validates_against_the_app_schema() -> None:
     assert model.evidence.architecture == "gemma3"
     assert model.context == 131072
     assert model.template.tools is True
+    raw = written()
+    assert "system_role" not in raw["template"]
+    assert all("run" not in b for b in raw["builds"])
 
 
 def test_the_parameter_count_comes_from_the_tensor_table() -> None:

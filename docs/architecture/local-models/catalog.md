@@ -126,7 +126,7 @@ preferred first, and nothing in it is a score.
       "aliases": ["Qwen/Qwen3-8B", "Qwen/Qwen3-8B-GGUF", "bartowski/Qwen_Qwen3-8B-GGUF"],
       "evidence": { "architecture": "qwen3", "pipeline_tag": "text-generation", "parameters_b": 8.19 },
       "context": 40960,
-      "template": { "tools": true, "reasoning": true, "system_role": true },
+      "template": { "tools": true, "reasoning": true },
       "sampling": { "origin": "unsloth/Qwen3-8B-GGUF@a6adef13…/params", "thinking": { … } },
       "image": null,
       "shape": { "block_count": 36, "head_count_kv": 8, … },
@@ -139,7 +139,6 @@ preferred first, and nothing in it is a score.
               "size_bytes": 5135…, "sha256": "…" }
             // a vision build adds { "role": "projector", …, "gguf": { "clip.has_vision_encoder": true, … } }
           ],
-          "run": { "args": [] },
           "validated": { "llama_cpp": null }
         }
       ]
@@ -1021,6 +1020,6 @@ and the screen in `elsewhere-section.test.tsx`, `download-chat-models.test.tsx`,
 - Only the three voice defaults and Nemotron's `Q8_0` are validated; `validated` is empty on every other build.
 - Qwen3.8 27B is a hybrid model (`qwen35`): the fit estimate charges a KV cache on all 65 layers where 16 keep one, about four times too much, and does not size its recurrent state ([runtime](runtime.md)).
 - Qwen3.8 27B commits no `sampling`: its repo has no `params` file, so it runs on llama-server's defaults rather than the model card's.
-- `template.system_role` and llama.cpp's `run.args` are committed but unread: chat asks the loaded template for its system role, and the router ignores per-model load arguments. sd.cpp's `image` defaults and `run.args` reach sd-server as launch flags. `template.tools` and `template.reasoning` reach a row's support, which the screen does not show.
+- `template.tools` and `template.reasoning` reach a row's support, which the screen does not show.
 - The `audio` block's `chunk_steps` are committed but nothing reads them: short of memory at the default chunk, a podcast refuses rather than stepping down, until a listening test clears the smaller chunks.
 - Browsing is still split by source, a catalog on the Add model page and one group per server, not the one list with Source and Capability filters the proposal describes.

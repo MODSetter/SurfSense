@@ -32,6 +32,8 @@ class Engine:
     entry_block_for: tuple[tuple[ModelType, str], ...] = ()
     # File roles every build must carry beside its weights.
     build_requires: frozenset[FileRole] = frozenset()
+    # Build-level fields this engine reads (e.g. sd.cpp's `run` launch flags).
+    build_owns: frozenset[str] = frozenset()
 
 
 ENGINES = (
@@ -47,6 +49,7 @@ ENGINES = (
         sdcpp_fields.ENTRY_OWNS,
         sdcpp_fields.ENTRY_REQUIRES,
         sdcpp_fields.ENTRY_REQUIRES_ONE_OF,
+        build_owns=sdcpp_fields.BUILD_OWNS,
     ),
     Engine(
         audiocpp.ENGINE,
@@ -66,6 +69,7 @@ ENGINES = (
 )
 
 ENGINE_ENTRY_FIELDS = frozenset().union(*(e.entry_owns for e in ENGINES))
+ENGINE_BUILD_FIELDS = frozenset().union(*(e.build_owns for e in ENGINES))
 
 
 def engine_for(types: Iterable[ModelType]) -> Engine | None:

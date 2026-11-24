@@ -48,3 +48,5 @@ ENTRY_OWNS = frozenset({"image", "video"})
 ENTRY_REQUIRES: frozenset[str] = frozenset()
 # One of these, never both: what the model makes decides its settings.
 ENTRY_REQUIRES_ONE_OF = frozenset({"image", "video"})
+# Launch flags passed to sd-server per build.
+BUILD_OWNS = frozenset({"run"})
