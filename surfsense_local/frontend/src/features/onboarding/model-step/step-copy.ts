@@ -11,8 +11,8 @@ export const STEP_COPY: Record<
     title: () => string
     description: () => string
     noLocal: () => string
-    /** Hugging Face search, GGUF unless a source is given; null for none. */
-    search: { source?: SearchSource; note?: () => string } | null
+    /** Hugging Face search, GGUF unless a source is given. */
+    search: { source?: SearchSource; note?: () => string }
     /** Said above the list, where a choice has a consequence to state. */
     notice?: () => string
   }
@@ -36,90 +36,6 @@ export const STEP_COPY: Record<
           "No tested model can run on this computer. Use a server instead.",
       }),
     search: {},
-  },
-  image_gen: {
-    title: () =>
-      intl.formatMessage({
-        id: "onboarding_image_step_title",
-        defaultMessage: "Choose an image generation model",
-      }),
-    description: () =>
-      intl.formatMessage({
-        id: "onboarding_image_step_body",
-        defaultMessage:
-          "Creates images for you. Run one on this computer, or use one from a server.",
-      }),
-    noLocal: () =>
-      intl.formatMessage({
-        id: "onboarding_image_step_no_local_empty",
-        defaultMessage:
-          "Image models cannot run on this computer. Use a server instead.",
-      }),
-    // sd.cpp has no search: its models are the few the catalog ships.
-    search: null,
-  },
-  image_edit: {
-    title: () =>
-      intl.formatMessage({
-        id: "onboarding_image_edit_step_title",
-        defaultMessage: "Choose an image editing model",
-      }),
-    description: () =>
-      intl.formatMessage({
-        id: "onboarding_image_edit_step_body",
-        defaultMessage:
-          "Edits images for you. Run one on this computer, or use one from a server.",
-      }),
-    noLocal: () =>
-      intl.formatMessage({
-        id: "onboarding_image_edit_step_no_local_empty",
-        defaultMessage:
-          "Image editing models cannot run on this computer. Use a server instead.",
-      }),
-    // Nor has it for editing: the same few models.
-    search: null,
-  },
-  video_gen: {
-    title: () =>
-      intl.formatMessage({
-        id: "onboarding_video_step_title",
-        defaultMessage: "Choose a video generation model",
-      }),
-    description: () =>
-      intl.formatMessage({
-        id: "onboarding_video_step_body",
-        defaultMessage:
-          "Makes short video clips. Run one on this computer, or use one from a server.",
-      }),
-    noLocal: () =>
-      intl.formatMessage({
-        id: "onboarding_video_step_no_local_empty",
-        defaultMessage:
-          "Video models cannot run on this computer. Use a server instead.",
-      }),
-    // Nor for video.
-    search: null,
-  },
-  audio_gen: {
-    title: () =>
-      intl.formatMessage({
-        id: "onboarding_audio_step_title",
-        defaultMessage: "Choose an audio model",
-      }),
-    description: () =>
-      intl.formatMessage({
-        id: "onboarding_audio_step_body",
-        defaultMessage:
-          "Creates podcasts for you. Run one on this computer, or use one from a server.",
-      }),
-    noLocal: () =>
-      intl.formatMessage({
-        id: "onboarding_audio_step_no_local_empty",
-        defaultMessage:
-          "Audio models cannot run on this computer. Use a server instead.",
-      }),
-    // Nor has audio.cpp.
-    search: null,
   },
   embedding: {
     title: () =>

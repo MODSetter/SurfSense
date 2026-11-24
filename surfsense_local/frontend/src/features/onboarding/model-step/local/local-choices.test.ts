@@ -38,4 +38,14 @@ describe("localChoices", () => {
       "curated-b",
     ])
   })
+
+  it("leaves a model another app keeps to the list it was found in", () => {
+    // It shows under "Already on this computer", once.
+    const rows = [
+      row("ollama-qwen3-8b", "elsewhere", { installed: true }),
+      row("curated-a", "curated"),
+    ]
+
+    expect(localChoices(rows).map((choice) => choice.id)).toEqual(["curated-a"])
+  })
 })

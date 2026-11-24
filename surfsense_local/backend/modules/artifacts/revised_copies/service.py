@@ -25,6 +25,7 @@ from modules.artifacts.script_documents.version import (
 )
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.embedding.active import EmbeddingNotChosenError, require_active_index
+from modules.jobs.runs.record import JOB_RUN_KEY
 
 logger = logging.getLogger(__name__)
 
@@ -41,10 +42,12 @@ def create_revised_copy(
     source_sha256: str,
     operations: list[dict[str, Any]],
     chat_thread_id: int | None,
+    job_run: dict[str, Any] | None = None,
 ) -> Artifact:
     """v1: the source's file with the operations applied, a new artifact derived from it.
 
-    `source_sha256` is the file as checked; the job refuses bytes that differ.
+    `source_sha256` is the file as checked; the job refuses bytes that differ. A
+    `job_run` leaves the operations to the worker, which works them out first.
     """
     revision = pending_revision(
         derived_from_document_id=source.document_id,
@@ -64,6 +67,7 @@ def create_revised_copy(
         source_ids=[source.document_id],
         revision=revision,
         chat_thread_id=chat_thread_id,
+        job_run=job_run,
     )
 
 
@@ -110,6 +114,7 @@ def _create(
     source_ids: list[int],
     revision: dict[str, Any],
     chat_thread_id: int | None,
+    job_run: dict[str, Any] | None = None,
 ) -> Artifact:
     # The job indexes the revised text; failing there would apply the edits twice.
     try:
@@ -149,6 +154,7 @@ def _create(
         "spec": None,
         "prompt": None,
         REVISION_KEY: revision,
+        **({JOB_RUN_KEY: job_run} if job_run is not None else {}),
     }
     queue_job(session, artifact)
     logger.info(

@@ -898,9 +898,7 @@ describe("plugins settings", () => {
     await user.clear(address)
     await user.type(address, "https://notes.example/sse")
 
-    expect(
-      within(dialog).getByRole("alert").textContent
-    ).toContain("SSE")
+    expect(within(dialog).getByRole("alert").textContent).toContain("SSE")
     const add = within(dialog).getByRole("button", { name: "Add" })
     expect(add.hasAttribute("disabled")).toBe(true)
 
@@ -1766,7 +1764,7 @@ describe("plugins settings", () => {
     ).toBeTruthy()
   })
 
-  it("lists SurfSense's plugins, which need a license, and connects one", async () => {
+  it("lists SurfSense's plugins, with no license label while licensing is off, and connects one", async () => {
     const calls = api({ plugins: [], allowed: false })
     const user = userEvent.setup()
     render(<PluginsSettings />)
@@ -1775,7 +1773,8 @@ describe("plugins settings", () => {
       name: "By SurfSense",
     })
     expect(within(surfsense).getByText("Reddit")).toBeTruthy()
-    expect(within(surfsense).getByText("License required")).toBeTruthy()
+    // Licensing is off in every release (ADR 0092), so no entry asks for one.
+    expect(within(surfsense).queryByText("License required")).toBeNull()
     // Its icon comes from the list packaged into the app.
     expect(surfsense.querySelector("img")?.getAttribute("src")).toMatch(
       /\/plugins\/first-party\/icons\/reddit$/

@@ -4,7 +4,6 @@ import { sectionSpacing } from "@/components/site/home-section-spacing";
 import { siteText } from "@/components/site/site-text";
 import { cn } from "@/components/ui/cn";
 import { getReleaseAssets } from "@/features/downloads/release-assets";
-import { TrialForm } from "@/features/license/license-forms";
 import { AllReleasesLink, OSDownloadGrid } from "./download-panels";
 
 /**
@@ -16,7 +15,7 @@ import { AllReleasesLink, OSDownloadGrid } from "./download-panels";
 export const metadata: Metadata = {
 	title: "Download SurfSense | Windows, macOS, Linux",
 	description:
-		"Download the SurfSense desktop app for Windows, macOS and Linux. Self-hosted, runs entirely on your machine.",
+		"Download the free SurfSense desktop app for Windows, macOS and Linux. Every feature, no licence, runs entirely on your machine.",
 	alternates: { canonical: "https://www.surfsense.com/downloads" },
 };
 
@@ -27,11 +26,10 @@ export default async function DownloadsPage() {
 		<>
 			<section className={cn("text-center", sectionSpacing.head)}>
 				<HomeBadge>Free desktop app</HomeBadge>
-				<h1 className={cn(siteText.display, "mt-4")}>Download SurfSense With License</h1>
+				<h1 className={cn(siteText.display, "mt-4")}>Download SurfSense</h1>
 				<p className={cn(siteText.lede, "mx-auto mt-6 max-w-xl")}>
-					One installer, no account, no cloud.
+					One installer, every feature, no licence, no account, no cloud.
 				</p>
-				<TrialForm label="Download" note="" />
 			</section>
 
 			{assets.length > 0 ? (

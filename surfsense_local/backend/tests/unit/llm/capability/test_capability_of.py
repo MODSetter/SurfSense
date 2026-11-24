@@ -9,6 +9,7 @@ from modules.llm.capability.measured import loader
 from modules.llm.capability.measured.schema import (
     ASSUMED_SUITE,
     LADDER_SUITE,
+    LOCAL_SCREEN_SUITE,
     SCREEN_SUITE,
     MeasuredModel,
 )
@@ -272,7 +273,8 @@ def test_a_failure_measured_on_a_remote_host_holds_on_this_computer() -> None:
 def test_the_list_shipped_with_the_app_is_provisional_suite_one() -> None:
     """Screening runs, one per cell: provisional until the committed matrix.
 
-    The ladder's 11 rows; a sweep's screened and assumed rows join them.
+    The ladder's 11 rows; a sweep's screened and assumed rows join them, and the
+    local screen's, for a model no provider serves.
     """
     shipped = measured_list()
     ladder = [row for row in shipped.models if row.suite == LADDER_SUITE]
@@ -283,5 +285,15 @@ def test_the_list_shipped_with_the_app_is_provisional_suite_one() -> None:
     assert {row.suite for row in shipped.models} <= {
         LADDER_SUITE,
         SCREEN_SUITE,
+        LOCAL_SCREEN_SUITE,
         ASSUMED_SUITE,
     }
+
+
+def test_a_local_screen_holds_only_for_a_copy_on_this_computer() -> None:
+    """Spark-X2.6-4B was screened on this computer's llama.cpp, so its pass holds
+    for a local copy under the runtime's own file name, and nowhere else."""
+    row = next(r for r in measured_list().models if r.suite == LOCAL_SCREEN_SUITE)
+
+    assert row.match.served == ["local"]
+    assert capability_of("Spark-X2.6-4B-Q8_0", None).level is Level.AGENT

@@ -5,19 +5,21 @@ import { app, ipcMain, session, type BrowserWindow } from "electron"
 // Static on purpose: electron-updater is CJS and exposes `autoUpdater` through
 // a getter, which `await import()` cannot see (named export comes back
 // undefined). require() honours it, and the getter is lazy so dev pays nothing.
-import { autoUpdater } from "electron-updater"
+import { autoUpdater, NsisUpdater } from "electron-updater"
 
 import { updatesLocked, updatesLockReason, usageLockReason } from "../admin-policy/policy-locks.ts"
 import { readPolicy } from "../admin-policy/read-policy.ts"
 import { currentLocale } from "../i18n/app-locale.ts"
+import { acceptAnyTrustedPublisher } from "../installer-signature/any-trusted-publisher.ts"
 import { installChannel } from "../install-channel/install-channel.ts"
 import { warnMain } from "../../../../sidecars/session-log/main-warn.ts"
 import { sessionLog } from "../../../../sidecars/session-log/session-log.ts"
 import { updaterLogger } from "../session-log/updater-log.ts"
 import { osLabel, platformLabel } from "../system-labels.ts"
-import { channelFile, SURFSENSE_FEED } from "../update-feed/feed-addresses.ts"
+import { channelFile, GITHUB_LATEST_DOWNLOAD } from "../update-feed/feed-addresses.ts"
 import { feedHeaders } from "../update-feed/feed-headers.ts"
 import type { ManifestRequest, UpdateFeed } from "../update-feed/latest-manifest.ts"
+import { UPDATE_PUBLIC_KEYS_HEX } from "../update-feed/update-keys.ts"
 import { scheduleDailyUpdateCheck, type DailyUpdateCheck } from "../update-schedule/daily-update-check.ts"
 import { updateCheckRunner } from "../update-schedule/run-update-check.ts"
 import { updaterPendingFolder } from "../updater-cache/pending-folder.ts"
@@ -99,10 +101,12 @@ export function startPrivacyChoices(options: {
   let controller: PrivacyController
   let lastRequest: ManifestRequest | null = null
   const feed: UpdateFeed = {
-    base: policy.updateFeed ?? SURFSENSE_FEED,
+    base: policy.updateFeed ?? GITHUB_LATEST_DOWNLOAD,
     mirror: policy.updateFeed !== null,
     channelFile: channelFile(process.platform, process.arch),
-    headers: feedHeaders({ version, platform, os }),
+    // Only an admin's own mirror hears which version asks; GitHub gets no header of ours.
+    headers: policy.updateFeed ? feedHeaders({ version, platform, os }) : {},
+    trustedKeys: UPDATE_PUBLIC_KEYS_HEX,
     userAgent: OUTBOUND_USER_AGENT,
     fetch: outboundFetch,
     onRequest: (request) => {
@@ -116,7 +120,13 @@ export function startPrivacyChoices(options: {
   // A package manager's install never constructs electron-updater, which would
   // pick a DebUpdater from a repackaged deb's package-type.
   if (app.isPackaged && updatesLock !== "channel") {
-    autoUpdater.logger = updaterLogger(sessionLog)
+    const updaterLog = updaterLogger(sessionLog)
+    autoUpdater.logger = updaterLog
+    // The signed manifest pins the installer's sha512, so any publisher Windows
+    // trusts will do (ADR 0091). It runs only while app-update.yml names a publisher.
+    if (autoUpdater instanceof NsisUpdater) {
+      autoUpdater.verifyUpdateCodeSignature = acceptAnyTrustedPublisher(updaterLog)
+    }
     updates = tidyUpdaterCache(
       autoUpdater,
       attachUpdater(
@@ -155,7 +165,7 @@ export function startPrivacyChoices(options: {
     lock: usageLock,
     endpoint,
     facts: { appVersion: version, platform, os },
-    summary: (since) => readLocalSummary(options.apiUrl, since),
+    summary: (since, firstRun) => readLocalSummary(options.apiUrl, since, firstRun),
     locale: currentLocale,
     totalMemoryBytes: totalmem,
     fetch: outboundFetch,
@@ -170,10 +180,7 @@ export function startPrivacyChoices(options: {
     store,
     readUpdatePrefs: updatePrefs,
     writeUpdatePrefs: saveUpdatePrefs,
-    updates: {
-      host: new URL(feed.base).host,
-      fallbackHost: feed.mirror ? null : "github.com",
-    },
+    updates: { host: new URL(feed.base).host, mirror: feed.mirror },
     lastRequest: () => lastRequest,
     usageHost: new URL(endpoint ?? USAGE_ENDPOINT).host,
     reporter,

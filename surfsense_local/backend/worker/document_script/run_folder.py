@@ -10,6 +10,9 @@ SCRIPT_NAME = "script.py"
 IMAGES_FOLDER = "images"
 # The template's own suffix is kept: python-pptx and python-docx check it.
 TEMPLATE_STEM = "template"
+# The documents skill's helper, copied beside every script so it can
+# `from surfsense_docs import Doc` (modules/agent/skills/surfsense-documents).
+HELPER = Path(__file__).with_name("surfsense_docs.py")
 
 
 def prepare_run_folder(
@@ -22,6 +25,7 @@ def prepare_run_folder(
     """
     (folder / IMAGES_FOLDER).mkdir(parents=True)
     (folder / SCRIPT_NAME).write_text(script, encoding="utf-8")
+    shutil.copyfile(HELPER, folder / HELPER.name)
     for name, source in images.items():
         shutil.copyfile(source, folder / IMAGES_FOLDER / f"{name}.png")
     if template is None:

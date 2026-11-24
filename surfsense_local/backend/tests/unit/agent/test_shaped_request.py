@@ -8,7 +8,10 @@ the machine that cached their prompt; any other endpoint gets nothing new.
 import pytest
 
 from modules.agent.model_endpoint.model_address import ModelAddress
-from modules.agent.model_endpoint.request_shaping import shaped_request
+from modules.agent.model_endpoint.request_shaping import (
+    shaped_headers,
+    shaped_request,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -43,3 +46,33 @@ def test_the_local_runtime_gets_no_session_field() -> None:
     body = shaped_request(TURN, address, "ses_42")
 
     assert not {"session_id", "prompt_cache_key"} & body.keys()
+
+
+def test_opencode_go_is_told_the_agents_session() -> None:
+    """The docs require it on every request, and name the caller's user agent."""
+    address = ModelAddress(
+        "https://opencode.ai/inference/go/openai/v1/chat/completions",
+        {"Authorization": "Bearer oc_sk_test"},
+        "glm-5.3",
+        ("openai_compatible", "glm-5.3", "1"),
+    )
+
+    headers = shaped_headers(address, "ses_42")
+
+    assert headers == {
+        "Authorization": "Bearer oc_sk_test",
+        "x-opencode-session": "ses_42",
+        "User-Agent": "SurfSense",
+    }
+
+
+def test_another_endpoint_keeps_only_its_own_headers() -> None:
+    """A strict endpoint owes nothing to OpenCode's rules."""
+    address = ModelAddress(
+        "https://api.openai.com/v1/chat/completions",
+        {"Authorization": "Bearer sk-test"},
+        "gpt-5.5",
+        ("openai_compatible", "gpt-5.5", "1"),
+    )
+
+    assert shaped_headers(address, "ses_42") == {"Authorization": "Bearer sk-test"}

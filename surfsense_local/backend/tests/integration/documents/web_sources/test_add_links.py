@@ -2,15 +2,13 @@ import pytest
 from httpx import AsyncClient
 
 from shared.queue import ingest_queue, plugins_queue
-from tests.integration.documents.web_sources.conftest import ScraperHost
-from tests.license_samples import import_license
+from tests.integration.documents.web_sources.conftest import allow
 
 pytestmark = pytest.mark.integration
 
 PAGE = "https://tides.example/explained"
-VIDEO = "https://youtu.be/tide1"
+VIDEO = "https://youtu.be/dQw4w9WgXcQ"
 CHANNEL = "https://www.youtube.com/@tides"
-SHORT_TIKTOK = "https://vm.tiktok.com/ZM123/"
 
 
 def add_url(workspace_id: int) -> str:
@@ -19,11 +17,10 @@ def add_url(workspace_id: int) -> str:
 
 
 async def test_each_link_appears_at_once_as_a_pending_source_with_its_pull_queued(
-    client: AsyncClient, workspace_id: int, scraper_host: ScraperHost
+    client: AsyncClient, workspace_id: int
 ) -> None:
-    """Nothing is pulled while the user waits: the dialog closes on the answer."""
-    scraper_host.start()
-    await import_license(client, "individual.lic")
+    """No license: nothing is read while the user waits, and the dialog closes on the answer."""
+    await allow(client, "tides.example", "www.youtube.com")
 
     added = await client.post(add_url(workspace_id), json={"urls": [PAGE, VIDEO]})
 
@@ -34,90 +31,122 @@ async def test_each_link_appears_at_once_as_a_pending_source_with_its_pull_queue
         (VIDEO, "NOTE", "pending"),
     ]
     assert added.json()["duplicates"] == []
-    assert added.json()["rejected"] == []
     assert [(job.name, job.args) for job in plugins_queue.pending()] == [
         ("pull_web_source", (created[0]["id"],)),
         ("pull_web_source", (created[1]["id"],)),
     ]
     assert ingest_queue.pending() == []
-    assert scraper_host.calls == []
     note = (
         await client.get(f"/workspaces/{workspace_id}/documents/{created[1]['id']}")
     ).json()
     assert note["content"] is None
-    assert note["document_metadata"]["source_url"] == VIDEO
-    assert note["document_metadata"]["puller"] == "youtube"
+    assert note["document_metadata"] == {"source_url": VIDEO, "puller": "youtube"}
     listed = (await client.get(f"/workspaces/{workspace_id}/documents")).json()
     assert {d["id"] for d in listed} == {d["id"] for d in created}
 
 
-async def test_a_link_that_is_not_one_thing_is_refused_with_why(
-    client: AsyncClient, workspace_id: int, scraper_host: ScraperHost
+async def test_one_question_names_every_host_the_reads_start_on(
+    client: AsyncClient, workspace_id: int
 ) -> None:
-    """A channel is many videos; a TikTok short link points at a host not allowed."""
-    scraper_host.start()
-    await import_license(client, "individual.lic")
-
+    """A page's own host, and YouTube's for a youtu.be link; nothing is written yet."""
     added = await client.post(
-        add_url(workspace_id), json={"urls": [CHANNEL, SHORT_TIKTOK, PAGE]}
+        add_url(workspace_id), json={"urls": [PAGE, VIDEO, CHANNEL]}
     )
 
+    assert added.status_code == 403
+    detail = added.json()["detail"]
+    assert detail["code"] == "egress_disabled"
+    assert detail["hosts"] == ["tides.example", "www.youtube.com"]
+    assert detail["purpose"] == "web_page"
+    assert (await client.get(f"/workspaces/{workspace_id}/documents")).json() == []
+    assert plugins_queue.pending() == []
+
+
+async def test_a_youtube_link_that_is_no_video_is_added_as_a_page(
+    client: AsyncClient, workspace_id: int
+) -> None:
+    """A channel is read as the page it is, not refused."""
+    await allow(client, "www.youtube.com")
+
+    added = await client.post(add_url(workspace_id), json={"urls": [CHANNEL]})
+
     assert added.status_code == 201, added.text
-    assert [d["title"] for d in added.json()["created"]] == [PAGE]
-    assert added.json()["rejected"] == [
-        {"url": CHANNEL, "reason": "list"},
-        {"url": SHORT_TIKTOK, "reason": "short_link"},
-    ]
+    note = added.json()["created"][0]
+    read = (
+        await client.get(f"/workspaces/{workspace_id}/documents/{note['id']}")
+    ).json()
+    assert read["document_metadata"]["puller"] == "web_page"
 
 
 async def test_a_link_already_in_sources_is_not_added_again(
-    client: AsyncClient, workspace_id: int, scraper_host: ScraperHost
+    client: AsyncClient, workspace_id: int
 ) -> None:
-    """Found by its link, wherever the user filed its source since."""
-    scraper_host.start()
-    await import_license(client, "individual.lic")
+    """Found by its link, wherever the user filed its source since, and not asked about."""
+    await allow(client, "tides.example")
     first = await client.post(add_url(workspace_id), json={"urls": [PAGE]})
+    await client.put(
+        "/egress", json={"destinations": ["host:tides.example"], "enabled": False}
+    )
 
-    again = await client.post(add_url(workspace_id), json={"urls": [PAGE, VIDEO]})
+    again = await client.post(add_url(workspace_id), json={"urls": [PAGE]})
 
     assert again.status_code == 201, again.text
-    assert [d["title"] for d in again.json()["created"]] == [VIDEO]
+    assert again.json()["created"] == []
     assert again.json()["duplicates"] == [
         {"url": PAGE, "document_id": first.json()["created"][0]["id"]}
     ]
 
 
-async def test_without_a_license_no_source_is_made(
-    client: AsyncClient, workspace_id: int, scraper_host: ScraperHost
+@pytest.mark.parametrize(
+    "url", ["file:///etc/passwd", "http://a[b@example.com/", "http:///x.com"]
+)
+async def test_only_web_links_are_taken(
+    client: AsyncClient, workspace_id: int, url: str
 ) -> None:
-    """Refused before anything is written, asked or sent."""
-    scraper_host.start()
-
-    added = await client.post(add_url(workspace_id), json={"urls": [PAGE]})
-
-    assert added.status_code == 403
-    assert added.json()["detail"]["code"] == "license_refused"
-    assert (await client.get(f"/workspaces/{workspace_id}/documents")).json() == []
-    assert plugins_queue.pending() == []
-
-
-async def test_without_consent_for_the_plugin_host_no_source_is_made(
-    client: AsyncClient, workspace_id: int
-) -> None:
-    """The app's prompt asks, then sends the same request again."""
-    await import_license(client, "individual.lic")
-
-    added = await client.post(add_url(workspace_id), json={"urls": [PAGE]})
-
-    assert added.status_code == 403
-    assert added.json()["detail"]["code"] == "egress_disabled"
-    assert (await client.get(f"/workspaces/{workspace_id}/documents")).json() == []
-
-
-async def test_only_web_links_are_taken(client: AsyncClient, workspace_id: int) -> None:
-    """A file path or another scheme never reaches a plugin."""
-    added = await client.post(
-        add_url(workspace_id), json={"urls": ["file:///etc/passwd"]}
-    )
+    """A file path, another scheme, or a link naming no host is never fetched."""
+    added = await client.post(add_url(workspace_id), json={"urls": [url]})
 
     assert added.status_code == 422
+
+
+async def test_a_broken_pasted_link_opens_no_row(
+    client: AsyncClient, workspace_id: int
+) -> None:
+    """Refused as Add refuses it, not failed as a server error."""
+    opened = await client.post(
+        f"/workspaces/{workspace_id}/documents/web/open",
+        json={"urls": [PAGE, "http://["]},
+    )
+
+    assert opened.status_code == 422
+
+
+async def test_pasted_links_open_as_rows_without_reading_them(
+    client: AsyncClient, workspace_id: int
+) -> None:
+    """A preview would cost as much as the pull, so each row is titled by its link."""
+    opened = await client.post(
+        f"/workspaces/{workspace_id}/documents/web/open",
+        json={"urls": [PAGE, VIDEO, PAGE]},
+    )
+
+    assert opened.status_code == 200, opened.text
+    assert opened.json() == {
+        "results": [
+            {
+                "url": PAGE,
+                "title": PAGE,
+                "description": None,
+                "site": "tides.example",
+                "puller": "web_page",
+            },
+            {
+                "url": VIDEO,
+                "title": VIDEO,
+                "description": None,
+                "site": "youtu.be",
+                "puller": "youtube",
+            },
+        ],
+        "more": False,
+    }

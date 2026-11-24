@@ -42,11 +42,6 @@ from modules.agent.plugin_tools.changed_tools import (
     check_changed_tools,
 )
 from modules.agent.plugin_tools.give_plugins import give_plugins, servers
-from modules.agent.plugin_tools.mentions import (
-    Mention,
-    mention_note,
-    mentioned_plugins,
-)
 from modules.agent.plugin_tools.refreshed_sign_ins import refresh_sign_ins
 from modules.agent.plugin_tools.stop_plugin_calls import stop_plugin_calls
 from modules.agent.plugin_tools.turn_plugins import TurnPlugin, turn_plugins
@@ -100,10 +95,9 @@ class _Sending:
 
 @dataclass(frozen=True)
 class _Tools:
-    """What the turn's opencode was given: the plugins mentioned, the plugins, those it
-    cannot use, and the tools it holds of them."""
+    """What the turn's opencode was given: the plugins, those it cannot use, and the
+    tools it holds of them."""
 
-    mentions: list[Mention]
     plugins: list[TurnPlugin]
     unavailable: list[UnavailablePlugin]
     holding: Holding
@@ -257,8 +251,7 @@ async def _stream(
             _drop(prepared)
             raise
         tools = await prepared
-        mentions, plugins, unavailable, holding = (
-            tools.mentions,
+        plugins, unavailable, holding = (
             tools.plugins,
             tools.unavailable,
             tools.holding,
@@ -296,7 +289,7 @@ async def _stream(
                                     for note in (
                                         sending.handover,
                                         sending.sources.note,
-                                        mention_note(mentions),
+                                        sending.sources.mention_note,
                                     )
                                     if note is not None
                                 ],
@@ -429,8 +422,6 @@ async def _prepare_tools(
             UnavailablePlugin(title, "license")
             for title in await refresh_license_verdict(session, if_stale=True)
         ]
-        mentions = await transact(session, mentioned_plugins, text)
-        mentioned = frozenset(m.plugin_id for m in mentions)
         planned = await transact(session, turn_plugins, where, launch_key)
         # The catalogue as planned names the plugins; a check that changes them
         # changes it at the next turn.
@@ -480,7 +471,6 @@ async def _prepare_tools(
             set(held),
             await plugin_tools(session),
             text,
-            mentioned,
         )
         try:
             await _timed(
@@ -497,7 +487,7 @@ async def _prepare_tools(
             logger.warning("%s's plugin rules were not set", folder, exc_info=True)
         took["registered"] = await registered
     unavailable = signed_out + licensed_out + given.unavailable
-    return _Tools(mentions, plugins, unavailable, starting.holding)
+    return _Tools(plugins, unavailable, starting.holding)
 
 
 async def _timed[T](took: dict[str, float], stage: str, work: Awaitable[T]) -> T:

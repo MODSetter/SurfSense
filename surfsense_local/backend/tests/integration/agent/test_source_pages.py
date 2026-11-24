@@ -263,7 +263,7 @@ async def test_a_word_sources_pages_are_printed_by_electron_from_its_original(
     assert "has 2 pages" in text
     assert "Pages 1 and 2 come with this result as images, in order." in text
     assert len(images) == 2
-    assert "headers and footers" in text
+    assert "headers, footers and watermarks" in text
 
 
 async def test_a_word_page_past_what_word_last_saved_says_its_count_is_unknown(

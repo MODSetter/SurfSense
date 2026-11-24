@@ -8,6 +8,8 @@ from modules.llm.selectable import REMOTE_SLOTS
 _SERVES_BY_AUTH: dict[str, tuple[ModelType, ...]] = {
     "chatgpt": (ModelType.TEXT_GEN,),
     "claude_plan": (ModelType.TEXT_GEN,),
+    # ElevenLabs' own API: the audio slot is all this connection speaks.
+    "elevenlabs": (ModelType.AUDIO_GEN,),
 }
 
 

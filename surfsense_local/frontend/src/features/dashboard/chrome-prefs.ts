@@ -1,4 +1,5 @@
 export const RIGHT_PANEL_KEY = "surfsense:right-panel:v1"
+export const SIDEBAR_KEY = "surfsense:sidebar:v1"
 export const SOURCE_PREVIEW_KEY = "surfsense:source-preview:v1"
 
 function readSourcePreviews(): Record<string, number> {
@@ -49,6 +50,22 @@ export function readRightPanelOpen() {
 export function writeRightPanelOpen(open: boolean) {
   try {
     localStorage.setItem(RIGHT_PANEL_KEY, open ? "open" : "collapsed")
+  } catch {
+    // Private browsing and full disks throw.
+  }
+}
+
+export function readSidebarOpen() {
+  try {
+    return localStorage.getItem(SIDEBAR_KEY) !== "collapsed"
+  } catch {
+    return true
+  }
+}
+
+export function writeSidebarOpen(open: boolean) {
+  try {
+    localStorage.setItem(SIDEBAR_KEY, open ? "open" : "collapsed")
   } catch {
     // Private browsing and full disks throw.
   }

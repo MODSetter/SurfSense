@@ -24,6 +24,8 @@ import {
 } from "@/components/ui/tooltip"
 import { intl } from "@/i18n/intl"
 
+import { usePicturesIn } from "@/features/models/pictures-in/use-pictures-in"
+
 import { useEditModelChosen, type RefineSubject } from "./edit-model"
 import { EditModelNotice } from "./edit-model-notice"
 import { messageFrom } from "./use-studio"
@@ -161,7 +163,10 @@ export function RefineBox({
     if (width) box.current?.style.setProperty("--pill-width", `${width + 2}px`)
   }, [shownVersion])
 
-  const labels = subject === "image" ? imageLabels() : documentLabels()
+  const picturesIn = usePicturesIn({ enabled: subject === "image" })
+  // Said only once known: an answer that is not one leaves the usual words.
+  const redraws = picturesIn.data?.source === null
+  const labels = subject === "image" ? imageLabels(redraws) : documentLabels()
   const openLabel = labels.open
 
   const makingLabel = (version: number) =>
@@ -334,7 +339,7 @@ function documentLabels() {
   }
 }
 
-function imageLabels() {
+function imageLabels(redraws: boolean) {
   return {
     open: intl.formatMessage({
       id: "studio_image_edit_open_aria",
@@ -344,10 +349,15 @@ function imageLabels() {
       id: "studio_image_edit_instruction_aria",
       defaultMessage: "How to change this image",
     }),
-    placeholder: intl.formatMessage({
-      id: "studio_image_edit_instruction_placeholder",
-      defaultMessage: "Describe a change, such as a darker background",
-    }),
+    placeholder: redraws
+      ? intl.formatMessage({
+          id: "studio_image_edit_redraw_placeholder",
+          defaultMessage: "Describe a change: the picture is drawn again",
+        })
+      : intl.formatMessage({
+          id: "studio_image_edit_instruction_placeholder",
+          defaultMessage: "Describe a change, such as a darker background",
+        }),
     submit: intl.formatMessage({
       id: "studio_image_edit_submit_button",
       defaultMessage: "Edit",

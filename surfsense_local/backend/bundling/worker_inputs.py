@@ -125,6 +125,14 @@ def worker_inputs() -> tuple[list, list, list]:
     # Every prompt a case ships, plus office's per-format SKILL.md: all read through
     # importlib.resources, so the analyser does not see them as source.
     datas += collect_data_files("worker.studio", includes=["**/*.md"])
+    # The documents skill's helper is copied by path into every document script's
+    # run folder (worker/document_script/run_folder.py), so it ships as source.
+    datas.append(
+        (
+            str(BACKEND / "worker" / "document_script" / "surfsense_docs.py"),
+            "worker/document_script",
+        )
+    )
     # Studio's Web page prompt carries the agent's design guide whole (ADR 0066).
     datas += collect_data_files(
         "modules.agent", includes=["skills/surfsense-html/design.md"]
@@ -156,27 +164,13 @@ def worker_inputs() -> tuple[list, list, list]:
         "modules.plugins.bundles.tasks",
     ]
 
-    # The plugins worker pulls a link added from the web through one of SurfSense's
-    # plugins, found in this list. The list refuses an entry whose icon is not beside it.
-    datas.append(
-        (
-            str(
-                BACKEND
-                / "modules"
-                / "plugins"
-                / "lists"
-                / "first_party"
-                / "plugins.json"
-            ),
-            "modules/plugins/lists/first_party",
-        )
-    )
-    datas.append(
-        (
-            str(BACKEND / "modules" / "plugins" / "lists" / "first_party" / "icons"),
-            "modules/plugins/lists/first_party/icons",
-        )
-    )
+    # The plugins worker reads a link added from the web with trafilatura, which
+    # opens its settings.cfg by path; its fallback extractor, jusText, reads every
+    # stoplist by path; and courlan checks a link's domain against tld's copy of
+    # the public suffix list. No hook collects any of them.
+    datas += collect_data_files("trafilatura", includes=["settings.cfg"])
+    datas += collect_data_files("justext", includes=["stoplists/*.txt"])
+    datas += collect_data_files("tld", includes=["res/*.txt"])
 
     # Document scripts (worker/document_script/) draw charts, and nothing imports
     # matplotlib statically. Naming pyplot runs PyInstaller's own hooks, which add

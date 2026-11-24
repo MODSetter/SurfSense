@@ -1,0 +1,108 @@
+{
+	"$comment": "Public documents the guides are captured with, each checked against its sha256 before a capture. A `url` is fetched from its source and never committed; a `kept` file is in files/: made for the guides from public material, such as a template filled in for a made-up firm or a public text saved as a Word file, which no source serves as it is.",
+	"documents": [
+		{
+			"file": "Security guides/NIST CSF 2.0.pdf",
+			"title": "The NIST Cybersecurity Framework (CSF) 2.0 (NIST CSWP 29)",
+			"publisher": "National Institute of Standards and Technology",
+			"url": "https://nvlpubs.nist.gov/nistpubs/CSWP/NIST.CSWP.29.pdf",
+			"licence": "Public domain in the United States: a work of the US federal government (17 U.S.C. 105)",
+			"retrieved": "2026-11-10",
+			"bytes": 1518858,
+			"sha256": "3c31f46fee98cac0c4323453e5109291a213b4de7fef8c058af9bf67f717433c"
+		},
+		{
+			"file": "Security guides/Security fundamentals.pdf",
+			"title": "Small Business Information Security: The Fundamentals (NISTIR 7621 Rev. 1)",
+			"publisher": "National Institute of Standards and Technology",
+			"url": "https://nvlpubs.nist.gov/nistpubs/ir/2016/NIST.IR.7621r1.pdf",
+			"licence": "Public domain in the United States: a work of the US federal government (17 U.S.C. 105)",
+			"retrieved": "2026-11-10",
+			"bytes": 1266567,
+			"sha256": "edc2fbc5e193f606b985f63f36cf42c57d774ec68ebd2fac8fb978eb8de77374"
+		},
+		{
+			"file": "Security guides/CSF quick start.pdf",
+			"title": "NIST Cybersecurity Framework 2.0: Small Business Quick-Start Guide (NIST SP 1300)",
+			"publisher": "National Institute of Standards and Technology",
+			"url": "https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.1300.pdf",
+			"licence": "Public domain in the United States: a work of the US federal government (17 U.S.C. 105)",
+			"retrieved": "2026-11-10",
+			"bytes": 934230,
+			"sha256": "1e77c1bd63d1e15c48c870b7c17b7c9a2edf6bd5103b0940e72828515c9f1881"
+		},
+		{
+			"file": "Data/known-exploited-vulnerabilities.csv",
+			"title": "Known Exploited Vulnerabilities Catalog, as of 12 November 2025",
+			"publisher": "Cybersecurity and Infrastructure Security Agency (CISA)",
+			"url": "https://web.archive.org/web/20251112183947id_/https://www.cisa.gov/sites/default/files/csv/known_exploited_vulnerabilities.csv",
+			"licence": "Public domain in the United States: a work of the US federal government (17 U.S.C. 105). The Internet Archive's copy, so the bytes stay fixed while CISA's list grows.",
+			"retrieved": "2026-11-10",
+			"bytes": 762331,
+			"sha256": "01bf09c7968c483802890a444d9b0bb0c3a00cb3cf025e9702304ba122ec2d42"
+		},
+		{
+			"file": "Recordings/The Art of War, chapters 1 and 2.mp3",
+			"title": "The Art of War by Sun Tzu, chapters 1 and 2, read for LibriVox",
+			"publisher": "LibriVox, through the Internet Archive",
+			"url": "https://archive.org/download/art_of_war_librivox/art_of_war_01-02_sun_tzu_64kb.mp3",
+			"licence": "Public domain: LibriVox recordings are dedicated to the public domain, and the Lionel Giles translation (1910) is out of copyright",
+			"retrieved": "2026-11-10",
+			"bytes": 4055167,
+			"sha256": "6cb289fa9a13cfc94b18e8a89159da687c60db88c2b6377311f9bc5664d5492f"
+		},
+		{
+			"file": "Firm policies/Written Information Security Plan.docx",
+			"title": "Written Information Security Plan for Example Tax & Accounting, LLC (a made-up firm)",
+			"publisher": "Internal Revenue Service: the sample WISP in Publication 5708, pages 5 to 12 and Attachments A to F, with its blanks filled for a made-up firm",
+			"kept": "Written Information Security Plan.docx",
+			"source": "https://www.irs.gov/pub/irs-pdf/p5708.pdf",
+			"licence": "Public domain in the United States: a work of the US federal government (17 U.S.C. 105)",
+			"retrieved": "2026-10-29",
+			"bytes": 48946,
+			"sha256": "4f5acf7850d15b19384af1583944a8b882a0df9e59e02c843981b38d4dad9ca8"
+		},
+		{
+			"file": "Questionnaires/Supplier security questionnaire.xlsx",
+			"title": "Supplier security questionnaire from a made-up credit union, 15 questions",
+			"publisher": "UK National Cyber Security Centre: the questions are its Supplier assurance questions, word for word",
+			"kept": "Supplier security questionnaire.xlsx",
+			"source": "https://www.ncsc.gov.uk/collection/supply-chain-security/supplier-assurance-questions",
+			"licence": "Contains public sector information licensed under the Open Government Licence v3.0",
+			"retrieved": "2026-10-29",
+			"bytes": 7495,
+			"sha256": "5edb3314e2b07abbca09e41f7929a14f03b33b4a0995eac764c7136398155e50"
+		},
+		{
+			"file": "Voice/Spoken question.wav",
+			"title": "A spoken question, for the dictation walkthrough's microphone",
+			"publisher": "Made for the guides with Windows' built-in speech synthesis (Microsoft David Desktop), then padded with silence",
+			"kept": "Spoken question.wav",
+			"licence": "Made for SurfSense's guides; no third-party content",
+			"retrieved": "2026-11-10",
+			"bytes": 497796,
+			"sha256": "99705051f981866958b67caca9e0ebc479c7810438a50928dc83e3c34d020d35"
+		},
+		{
+			"file": "Contracts/Confidentiality and non-disclosure agreement.docx",
+			"title": "Confidentiality and non-disclosure agreement of 19 November 1998, from an SEC filing",
+			"publisher": "ContractNLI (Koreeda and Manning, Findings of EMNLP 2021), document 406, an NDA filed with the SEC; saved as a Word file with one paragraph per line of the dataset's text, no word changed",
+			"kept": "Confidentiality and non-disclosure agreement.docx",
+			"source": "https://www.sec.gov/Archives/edgar/data/0000813562/000095011799001205/0000950117-99-001205.txt",
+			"licence": "ContractNLI: CC BY 4.0 (https://stanfordnlp.github.io/contract-nli/); the agreement itself is a public SEC filing",
+			"retrieved": "2026-11-06",
+			"bytes": 39525,
+			"sha256": "683ad6916f9937f08c5eb19fbcd002dd3a057b6baf70b111c0baed1e026cecc5"
+		},
+		{
+			"file": "Firm playbook/Bonterms Mutual NDA.pdf",
+			"title": "Bonterms Mutual NDA, version 1.0, standing in for a firm's own standard agreement",
+			"publisher": "Bonterms, linked from https://bonterms.com/download-center/mutual-nda",
+			"url": "https://framerusercontent.com/assets/1hAO0IMpgpG7l7TX7i0YTxwZc.pdf",
+			"licence": "CC BY 4.0",
+			"retrieved": "2026-11-10",
+			"bytes": 151156,
+			"sha256": "7f92b9d136f39f6d8bc4d22c2f726f90076bd95e2833bdc4724f2111a8d269be"
+		}
+	]
+}

@@ -1877,6 +1877,7 @@ name = "surfsense-backend"
 version = "0.1.1"
 source = { virtual = "." }
 dependencies = [
+    { name = "cryptography" },
     { name = "curl-cffi" },
     { name = "disposable-email-domains" },
     { name = "email-validator" },
@@ -1906,6 +1907,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "cryptography", specifier = ">=44" },
     { name = "curl-cffi", specifier = ">=0.16.3" },
     { name = "disposable-email-domains", specifier = ">=0.0.271" },
     { name = "email-validator", specifier = ">=2.3.0" },

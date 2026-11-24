@@ -5,13 +5,15 @@ from dataclasses import dataclass
 from modules.llm.capability.match_key import match_key
 from modules.llm.capability.measured.schema import (
     ASSUMED_SUITE,
+    LOCAL_SCREEN_SUITE,
     SCREEN_SUITE,
     CapabilityList,
     MeasuredModel,
 )
 
-# A suite of its own cases outranks the two-case screening, and that an assumption.
-_RANK = {SCREEN_SUITE: 1, ASSUMED_SUITE: 0}
+# A suite of its own cases outranks the two-case screening, wherever it ran, and
+# that an assumption.
+_RANK = {SCREEN_SUITE: 1, LOCAL_SCREEN_SUITE: 1, ASSUMED_SUITE: 0}
 _MEASURED = 2
 
 

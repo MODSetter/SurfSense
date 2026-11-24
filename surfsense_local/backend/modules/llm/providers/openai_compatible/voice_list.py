@@ -8,7 +8,7 @@ without it leaves the user to type the voices.
 import httpx
 
 from modules.llm.connections.key_headers import key_headers
-from modules.llm.providers.protocols import Voice
+from modules.llm.voices.voice import Voice
 
 __all__ = ["listed_voices"]
 

@@ -1,5 +1,5 @@
 import { useRef, useState } from "react"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/input-group"
 import { ScrollFade } from "@/components/ui/scroll-fade"
 import { capabilityLabel } from "@/features/models/capability/capability-label"
-import { getAvailableGenerationModels } from "@/features/models/chat-candidates/api"
+import { useChatCandidates } from "@/features/models/chat-candidates/use-chat-candidates"
 import { MODELS_QUERY_KEY } from "@/features/models/models-query"
 import {
   modelKey,
@@ -38,11 +38,6 @@ import {
 import { cn } from "@/lib/utils"
 import { intl } from "@/i18n/intl"
 
-// Under the shared models key, so a change made in settings reaches this list.
-const installedModelsQueryKey = [
-  ...MODELS_QUERY_KEY,
-  "chat-candidates",
-] as const
 export const modelControlButtonClassName =
   "flex shrink-0 select-none items-center gap-1.5 rounded-lg px-1.5 py-1 text-[11px] font-normal text-muted-foreground hover:bg-accent hover:text-foreground aria-expanded:bg-accent aria-expanded:text-foreground focus-visible:ring-2 focus-visible:ring-ring/20"
 
@@ -60,12 +55,7 @@ export function ModelPicker({
   const queryClient = useQueryClient()
   const [query, setQuery] = useState("")
   const searchRef = useRef<HTMLInputElement>(null)
-  const installed = useQuery({
-    queryKey: installedModelsQueryKey,
-    queryFn: async ({ signal }) => {
-      return getAvailableGenerationModels(signal)
-    },
-  })
+  const installed = useChatCandidates()
   const selectModel = useMutation({
     mutationFn: (key: string) => {
       const selected = installed.data?.find(

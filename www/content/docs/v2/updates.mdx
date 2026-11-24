@@ -5,6 +5,8 @@ description: How SurfSense checks for updates, installs them, and what a check s
 
 Updates are free for everyone, with or without a [license](/docs/v2/license). SurfSense doesn't check for them until you allow it.
 
+Step-by-step guide, with a video: [Update SurfSense](/docs/v2/guides/updates).
+
 ## Turn on update checks
 
 A new install asks during setup, in **Privacy choices**: answer **Yes** to **Check for updates**.
@@ -21,7 +23,7 @@ You can check from three places:
 - **Settings › About**, with **Check now** under **App updates**.
 - **The macOS menu bar**, with **SurfSense › Check for Updates…**.
 
-A check from the title bar or the menu tells you the result once, in a message: **SurfSense is up to date**, or **Couldn't check for updates**. Settings › About shows the result too.
+A check from the title bar or the menu tells you the result once. The button in the title bar shows **Up to date** for a moment, or **Couldn't check** if the check failed. Settings › About shows the result too, and why a check failed.
 
 ## Install an update
 
@@ -44,15 +46,13 @@ These versions can't install a newer version themselves: the update downloads, t
 
 ## What a check sends
 
-A check asks `updates.surfsense.com` for the newest release for your system. If that server fails, SurfSense asks `github.com` directly, so an update never depends on SurfSense's own server. A check sends:
+A check asks `github.com` for the newest release file for your system. It sends:
 
 - your IP address, as every request does
 - the user agent `SurfSense`, with no version
-- the app's version, such as `2.2.4`
-- your system and processor, such as `win32-x64`
-- your OS version, such as `windows-11` or `macos-15`
+- which operating system the file is for
 
-No cookies and no ID. The fallback to GitHub sends only your IP address and the user agent. The update itself downloads from GitHub.
+No cookies and no ID. SurfSense installs an update only when SurfSense signed that file, so a file from anywhere else is refused, and the update itself downloads from GitHub. Versions before 2.4.0 ask `updates.surfsense.com` first, which also hears the app's version, your system and processor, and your OS version.
 
 To see the last request exactly as it was sent, open Settings › About and choose **Show exactly what's sent** under **App updates**. More on this in [privacy](/docs/v2/privacy#update-checks).
 

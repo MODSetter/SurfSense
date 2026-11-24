@@ -37,6 +37,9 @@ function isSidecarCrash(value: unknown): value is SidecarCrash {
 contextBridge.exposeInMainWorld("surfsense", {
   apiUrl: arg ? arg.slice(FLAG.length) : "http://127.0.0.1:8000",
   platform: process.platform,
+  // Asked when needed: on a first launch the database appears after the page loads.
+  databaseIdentity: (): string | null =>
+    ipcRenderer.sendSync("startup:database-identity") as string | null,
   openDocument: (workspaceId: number, documentId: number): Promise<string> =>
     ipcRenderer.invoke("documents:open", workspaceId, documentId),
   revealDocument: (workspaceId: number, documentId: number): Promise<string> =>
@@ -113,8 +116,32 @@ contextBridge.exposeInMainWorld("surfsense", {
     openDataFolder: (): Promise<string> =>
       ipcRenderer.invoke("about:open-data-folder"),
   },
+  // Where the models and data live, and moving them. Absent where no other drive
+  // can be reached (a confined snap); main opens the picker and holds the plan.
+  storage: (ipcRenderer.sendSync("storage:supported") as boolean)
+    ? {
+        state: () => ipcRenderer.invoke("storage:state"),
+        choose: (kind: "data" | "models") => ipcRenderer.invoke("storage:choose", kind),
+        planDefault: (kind: "data" | "models") =>
+          ipcRenderer.invoke("storage:plan-default", kind),
+        start: (): Promise<boolean> => ipcRenderer.invoke("storage:start"),
+        cancel: (): Promise<void> => ipcRenderer.invoke("storage:cancel"),
+        restart: (): Promise<void> => ipcRenderer.invoke("storage:restart"),
+        onProgress: (listener: (progress: unknown) => void): (() => void) => {
+          const wrapped = (_event: unknown, progress: unknown) => listener(progress)
+          ipcRenderer.on("storage:progress", wrapped)
+          return () => ipcRenderer.removeListener("storage:progress", wrapped)
+        },
+      }
+    : undefined,
   sessionLog: {
     read: (): Promise<string[]> => ipcRenderer.invoke("session-log:read"),
+  },
+  // The system's own dialog for a GGUF model, or a folder of them, that lives
+  // where no scan looks: the path the person chose, or null.
+  models: {
+    pick: (kind: "file" | "folder"): Promise<string | null> =>
+      ipcRenderer.invoke("models:pick", kind),
   },
   // The system's switch for SurfSense's microphone; the page's own permission is main's.
   microphone: {

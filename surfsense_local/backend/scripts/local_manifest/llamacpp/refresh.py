@@ -18,7 +18,10 @@ VALIDATED: dict[str, str] = {}
 async def refresh(client: httpx.AsyncClient, entry: Entry) -> dict[str, Any]:
     snapshot = await repo_at_revision(client, entry.repo)
     builds = pinned_builds(snapshot)
-    chosen = default_build(builds)
+    named = entry.default_quantization
+    if named is not None and named not in {b.quantization for b in builds}:
+        raise UnreadableBuildError(f"{entry.repo}: no {named} build to default to")
+    chosen = default_build(builds, first=named)
     if chosen is None:
         raise UnreadableBuildError(f"{entry.repo}: no build in the preference order")
     weights = await header(client, entry.repo, snapshot.revision, chosen.weights.path)

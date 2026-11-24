@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 
 import { useStableCallback } from "@/hooks/use-stable-callback"
 
 import type { WorkspaceDocument } from "../api"
+import { readRememberedTicks, rememberTicks } from "./remembered-ticks"
 import {
   everySource,
   isDocumentIncluded,
@@ -18,11 +19,30 @@ export const TOP_TICK = -1
 
 /** The ticks in the sources panel, and what chat and Studio send from them. */
 export function useSourceScope(
+  workspaceId: number,
   index: SourceIndex,
   documents: WorkspaceDocument[]
 ) {
-  // Every source by default, as the flat list ticked every ready row.
-  const [marks, setMarks] = useState<ScopeMarks>(() => everySource(true))
+  // The ticks belong to the workspace they were read for, so a switch reloads them.
+  const [held, setHeld] = useState(() => ({
+    workspaceId,
+    marks: readRememberedTicks(workspaceId),
+  }))
+  if (held.workspaceId !== workspaceId) {
+    setHeld({ workspaceId, marks: readRememberedTicks(workspaceId) })
+  }
+  const marks = held.marks
+  const setMarks = useStableCallback(
+    (next: ScopeMarks | ((current: ScopeMarks) => ScopeMarks)) =>
+      setHeld((current) => ({
+        workspaceId: current.workspaceId,
+        marks: typeof next === "function" ? next(current.marks) : next,
+      }))
+  )
+
+  useEffect(() => {
+    rememberTicks(held.workspaceId, held.marks)
+  }, [held])
 
   const derived = useMemo(() => {
     const ticks = ticksOf(marks, index)

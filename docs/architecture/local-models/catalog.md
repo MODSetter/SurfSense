@@ -2,29 +2,30 @@
 
 > **Partly built.** This page describes the local catalog as the code stands. The [model catalog proposal](../../proposals/model-catalog.md) is in progress: the one screen with Source and Capability filters and searched image models are still to come, and this page moves to `model-catalog/local.md` when that work ships.
 
-The model screen offers local models from three origins, all as one row shape:
+The model screen offers local models from four origins, all as one row shape:
 curated models from a packaged manifest of pinned builds, priced offline; files
-already in the models folder, judged from their own headers; and a search over
-every GGUF repo on Hugging Face, which needs the network and is absent when
-egress is off. Every build is priced by the same fit estimate ([`fit.md`](fit.md)).
+already in the models folder, judged from their own headers; files other apps
+downloaded, found in those apps' own folders and used where they lie
+([below](#models-other-apps-downloaded)); and a search over every GGUF repo on
+Hugging Face, which needs the network and is absent when egress is off. Every build is priced by the same fit estimate ([`fit.md`](fit.md)).
 Only curated models are ever recommended, as a model or as a build. Installs key
 on an opaque id the server mints, so the renderer can never name a download.
 
-**Code:** [`surfsense_local/backend/modules/llm/catalog/local/`](../../../surfsense_local/backend/modules/llm/catalog/local/), [`surfsense_local/backend/modules/llm/providers/llamacpp/download.py`](../../../surfsense_local/backend/modules/llm/providers/llamacpp/download.py), [`surfsense_local/backend/scripts/refresh_local_manifest.py`](../../../surfsense_local/backend/scripts/refresh_local_manifest.py), [`surfsense_local/backend/scripts/local_manifest/`](../../../surfsense_local/backend/scripts/local_manifest/), [`surfsense_local/frontend/src/features/models/local/`](../../../surfsense_local/frontend/src/features/models/local/)
-**Decisions:** [ADR 0014](../../adr/0014-two-tier-model-catalog.md), [ADR 0017](../../adr/0017-egress-off-by-default.md), [ADR 0026](../../adr/0026-curated-order-is-list-position.md), [ADR 0027](../../adr/0027-egress-consent-per-host.md)
+**Code:** [`surfsense_local/backend/modules/llm/catalog/local/`](../../../surfsense_local/backend/modules/llm/catalog/local/), [`engines/llamacpp/elsewhere/`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/elsewhere/), [`surfsense_local/backend/modules/llm/providers/llamacpp/download.py`](../../../surfsense_local/backend/modules/llm/providers/llamacpp/download.py), [`surfsense_local/backend/scripts/refresh_local_manifest.py`](../../../surfsense_local/backend/scripts/refresh_local_manifest.py), [`surfsense_local/backend/scripts/local_manifest/`](../../../surfsense_local/backend/scripts/local_manifest/), [`surfsense_local/frontend/src/features/models/local/`](../../../surfsense_local/frontend/src/features/models/local/)
+**Decisions:** [ADR 0014](../../adr/0014-two-tier-model-catalog.md), [ADR 0017](../../adr/0017-egress-off-by-default.md), [ADR 0026](../../adr/0026-curated-order-is-list-position.md), [ADR 0027](../../adr/0027-egress-consent-per-host.md), [ADR 0093](../../adr/0093-a-gguf-another-app-downloaded-is-used-where-it-lies.md)
 
-## Three origins, one row
+## Four origins, one row
 
-| | Curated | Downloaded | Search |
-|---|---|---|---|
-| Source | `manifest/models.json`, packaged | the models folder | `huggingface.co` |
-| Network | none | none | required, egress gated |
-| Priced from | committed `shape`, exact | the file's header, exact | file sizes, an estimate |
-| Type and support from | committed `evidence` and GGUF keys | the file's header | the repo's tag and file names, then the header at install |
-| Default and recommended build | yes | no | no |
-| Can be starred | yes | no | no |
+| | Curated | Downloaded | Elsewhere | Search |
+|---|---|---|---|---|
+| Source | `manifest/models.json`, packaged | the models folder | other apps' folders, and files a person picks | `huggingface.co` |
+| Network | none | none | none | required, egress gated |
+| Priced from | committed `shape`, exact | the file's header, exact | the file's header, exact | file sizes, an estimate |
+| Type and support from | committed `evidence` and GGUF keys | the file's header | the file's header | the repo's tag and file names, then the header at install |
+| Default and recommended build | yes | no | no | no |
+| Can be starred | yes | no | no | no |
 
-Every row is a `LocalRow` ([`rows.py`](../../../surfsense_local/backend/modules/llm/catalog/local/rows.py)):
+Every row is a `LocalRow` ([`rows.py`](../../../surfsense_local/backend/modules/llm/catalog/local/rows.py)), its `origin` one of `curated`, `downloaded`, `elsewhere` or `search`:
 its types (for an image model, the `tasks` its entry names: `generate` is `image_gen`, `edit` is `image_edit`), to which the route adds `selectable_for` ([`selection.md`](selection.md)), its support
 (`context`, `reads_images`, `tools`, `reasoning`), whether the bundled runtime can
 run it and why not, the `engine` that offered it, its builds, the build it leads
@@ -100,7 +101,7 @@ model and `speech_to_text` with a recogniser.
 | Evidence | GGUF metadata keys | tensor names, as sd.cpp dispatches on them (`evidence.py`) | the family key, read from the header's front (`evidence.py`) | the repo config's `model_type`, and its pipeline tag |
 | Manifest fields | `context` (required), `shape`, `template`, `sampling` | `image` defaults, or `video` ones for a video model: one of them (required) | `audio` for a voice model: voices, languages, sample rate, measured memory; or `transcription` for a recogniser: languages, locales, request options, window, measured memory (one of them, required) | `embedding`: width, pooling, normalisation, prefixes, `max_tokens`, `semantic_weight`, `batch`, and `parity` for a converted build (required) |
 | Which files make a build | every build a repo offers, each with the repo's projector (`builds/in_repo.py`) | a GGUF at the repo's root, with the VAE and text encoder the entry names from their own repos (`builds/in_repo.py`) | every GGUF in the model's own folder of a shared repo, alone (`builds/in_repo.py`) | the ONNX weights the entry names, with the repo's `tokenizer.json`, which every build must carry |
-| Default build | the first in a preference order led by `UD-Q4_K_XL` (`builds/choice/`) | the first the entry pins, in its reviewed order (`builds/choice.py`) | the first the entry pins, in its reviewed order (`builds/choice.py`) | its only build: another would be another vector space |
+| Default build | the build the entry names as `default_quantization` (Spark-X2.6-4B's `Q8_0`), else the first in a preference order led by `UD-Q4_K_XL` (`builds/choice/`) | the first the entry pins, in its reviewed order (`builds/choice.py`) | the first the entry pins, in its reviewed order (`builds/choice.py`) | its only build: another would be another vector space |
 | Its folder | `models_folder/`: the scan, the preset, readiness | `images_folder/`: its files, where each lands, legacy downloads, the installed image; `launch.py`: its flags | `audio_folder/`: its files, the installed voice models and recognisers, `server.json` and `transcription.json` | `embeddings/<id>/` under the data directory, not the models pack, which a packaged app ships read-only; bge-small is read in place from the pack |
 | Also | support, pricing, the recommended build, the lead build, the star, search | | | `spec_for`: an entry as the spec an index stores |
 
@@ -198,11 +199,18 @@ preferred first, and nothing in it is a score.
   alias or a build's repo with the same quantization, or, with no record, when
   its file name is the build's own.
 
-The shipped twenty, most preferred first within each type. Eight
-chat models, all from `unsloth/*-GGUF`: Qwen3.8 27B (8 builds, reads images)
-leads, as the one local model whose remote runs passed the agent ladder; then,
-with 18 builds each, Qwen3 32B, 14B, 8B, 4B, Gemma 3 4B (reads images), Qwen3
-1.7B and 0.6B. Six image models. FLUX.2
+The shipped twenty-four, most preferred first within each type. Seven chat
+models. Qwen3.8 27B (8 builds from `unsloth/`, reads images) leads, as the one
+local model whose remote runs passed the agent ladder. Then Nemotron 3.5 Bolt
+E4B (7 builds from `unsloth/`, reads images), whose licence, OpenMDW-1.1, is
+`other` on the card, above Spark by the maintainer's call of 23 Nov 2026 as the
+more reliable of the two in Studio; Spark-X2.6-4B (`Q4_K_M` and `Q8_0` from its
+publisher's `XHToken/Spark-X2.6-4B-GGUF`, defaulting to `Q8_0`), the one small
+model that passed every agent case on an 8 GB card's memory; and, with 18
+builds each from `unsloth/`, Qwen3 4B, Gemma 3 4B (reads images), Qwen3 1.7B
+and 0.6B. Qwen3 32B, 14B and 8B left on 22 Nov 2026: none passed an agent case
+([ADR 0094](../../adr/0094-the-star-goes-to-a-model-that-runs-the-agent.md)).
+Six image models. FLUX.2
 klein 4B, Z-Image Turbo and ERNIE-Image Turbo, `Q4_0` then `Q8_0`, each a
 diffusion GGUF with the text encoder and VAE sd.cpp's docs pair it with, from
 their own repos: klein and Z-Image share `unsloth/Qwen3-4B-GGUF`'s `Q4_0`,
@@ -240,7 +248,8 @@ at startup by an empty one, so downloaded models and search still work.
 `scripts/refresh_local_manifest.py`, run by hand; never in CI, at packaging or
 on a request path. `--only ID …` refreshes the named entries and keeps every other
 one exactly as written, so adding a model does not re-pin the rest. `local_manifest/entries.py` is the hand-authored input:
-which models, in which order, from which repo; `VALIDATED`, one in each
+which models, in which order, from which repo, and, only where a measurement
+says so, the build to default to (`default_quantization`); `VALIDATED`, one in each
 engine's `refresh.py`, is the other. For each repo the script reads the
 commit sha, the file listing at that commit (sizes and `lfs.oid` hashes) and the
 repo's `params` file, then the default build's header and its projector's header
@@ -321,11 +330,19 @@ which is its projector:
 
 For each curated chat model, in llama.cpp's [`builds/choice/`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/builds/choice/):
 
-1. **The default**, blind to hardware: the first build in the preference order,
-   `UD-Q4_K_XL` for every shipped chat model.
+1. **The default**, blind to hardware: the build the entry names as
+   `default_quantization`, else the first build in the preference order:
+   `Q8_0` for Spark-X2.6-4B, whose `Q4_K_M` passed half the agent cases its
+   `Q8_0` passed, and `UD-Q4_K_XL` for every other shipped chat model.
 2. **The recommended build** on this machine: the default when its speed tier is
    `FULL` or `LIGHT_SPILL`, else the largest smaller build that is, never one
    above the default and never one below four bits (`RECOMMENDABLE`). Else none.
+   Without a graphics card a build also has to be 3 GiB or smaller
+   (`fit.quick_here`). For a model the capability list says runs the agent on
+   this computer, on a graphics card or Apple's unified memory, the largest
+   such build that `plan_load` keeps resident at the agent's 32,768-token
+   window comes first: a 6 GB card gets a smaller build at the agent's window
+   before the default at a window too short for it.
 
 [`lead_build.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/rows/lead_build.py)
 then names the build each row leads with, which is what its Download fetches, and
@@ -354,9 +371,15 @@ repo and a label would mark the wrong model installed. audio.cpp fills two
 slots, so its rows lead as in use by every name chosen for either: the voice
 podcasts use and the speech model each lead their own row.
 
-**The star** goes to the first curated model, in manifest order, with a
+**The star** goes to the first curated model, in manifest order, whose
+recommended build carries the agent here (step 2), else to the first with a
 recommended build, so a machine short of the preferred model's default gets a
-smaller build of it before a smaller model. Curated rows sort by the fit of the
+smaller build of it before a smaller model, and a machine that can run Agentic
+chats is never steered to a model that only answers in Basic. Without a
+graphics card no model carries the agent, and the star is a quick model for
+Basic ([ADR 0094](../../adr/0094-the-star-goes-to-a-model-that-runs-the-agent.md)).
+A model gains the agent preference only by a row in the capability list that
+holds for a local copy, never by its size or its template. Curated rows sort by the fit of the
 build they lead with, then by manifest position: a refused 32B at the top of a
 small machine's screen is the one thing a model chooser must not do.
 
@@ -502,16 +525,160 @@ machine, with the sentence a person reads. A header parses in about 50 ms, becau
 counted rather than decoded
 ([`header_prefix.py`](../../../surfsense_local/backend/modules/llm/gguf/header_prefix.py)).
 
+## Models other apps downloaded
+
+A person who already runs local models has them in another app's folder. The
+API finds them there, labels each from its own header, and offers the ones the
+bundled llama.cpp can chat with; Use loads the file where it lies, so nothing is
+downloaded, copied or moved ([ADR 0093](../../adr/0093-a-gguf-another-app-downloaded-is-used-where-it-lies.md)).
+The slice is llama.cpp's [`engines/llamacpp/elsewhere/`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/elsewhere/).
+
+**Where it looks** ([`places.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/elsewhere/places.py)): each app's own default,
+moved only where the app lets a person move it.
+
+| App | Folder | Read as |
+|---|---|---|
+| Ollama | `OLLAMA_MODELS`, else `~/.ollama/models`; on Linux also the service install's `/usr/share/ollama/.ollama/models` | manifests naming blobs |
+| LM Studio | the folder `~/.lmstudio-home-pointer` names, else `~/.lmstudio`, then `~/.cache/lm-studio` (before 0.3), each with `/models` | `publisher/repo/file.gguf` |
+| Hugging Face cache | `HF_HUB_CACHE`, `HUGGINGFACE_HUB_CACHE`, `HF_HOME/hub`, `XDG_CACHE_HOME/huggingface/hub`, else `~/.cache/huggingface/hub` on every system | `models--org--repo/snapshots/<commit>/` |
+| llama.cpp | `LLAMA_CACHE` in both layouts, else `~/.cache/llama.cpp`, `~/Library/Caches/llama.cpp` or `%LOCALAPPDATA%/llama.cpp` | flat files, from builds before `-hf` used the hub cache |
+| Jan | the `data_folder` its `settings.json` names, else `Jan/data` in the system's app folder: `llamacpp/models/` and the older `models/` | `<model id>/model.gguf` |
+| GPT4All | the `modelPath` its `GPT4All.ini` names, else `nomic.ai/GPT4All` in the system's data folder | flat files |
+| A folder a person added | as added, four folders down | GGUF files in folders |
+
+KoboldCpp saves a model beside its executable, wherever that was unpacked, so it
+is reached by adding that folder. Only folder listings, these apps' own small
+settings files and GGUF headers are read; nothing is written there and nothing
+is sent. A tree is read at most its place's depth down, never into a hidden or
+linked folder, and lists at most 20,000 entries in all, each folder's taken from
+the listing before any is held or sorted; the files read before the budget ran
+out are kept. A place that does not exist, or
+that the system refuses (another user's folder, a confined snap's dot folders),
+finds nothing.
+
+**Ollama's store** ([`ollama.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/elsewhere/ollama.py)): `manifests/<host>/<namespace>/<model>/<tag>`
+is a small JSON document whose `application/vnd.ollama.image.model` layer is the
+GGUF, kept in `blobs/` as `sha256-<hex>` with no extension, and whose
+`...image.projector` layer is the vision projector Ollama pairs with it. A model
+is named as `ollama list` names it: `qwen3:8b`, `ana/mymodel:latest`,
+`hf.co/unsloth/Qwen3-8B-GGUF:Q4_K_M`. Two tags of one blob are one model, named
+by the tag that is not `latest`.
+
+**The hub cache** ([`hub_cache.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/elsewhere/hub_cache.py)): only the commit `refs/main` names is
+offered, or, with no ref, every snapshot, newest first, each file once. A
+snapshot's file is a symlink into the repo's `blobs/` where the system allows
+one and a copy where it does not (Windows without developer mode); either way
+it is offered by its snapshot path.
+
+**What is offered** ([`runs_here.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/elsewhere/runs_here.py)), on the header's evidence alone, because
+these files were not chosen for SurfSense and those apps run formats this
+runtime does not:
+
+- the header says it is a model: not a projector, adapter, imatrix or a later
+  part of a split. A split build is offered from its first part, sized by all of
+  them, and only when every part its header's `split.count` counts is on disk
+  under the names llama.cpp finds parts by; a first part saved as `model.gguf`
+  is reported, and every part is checked again before Use;
+- the classifier makes it a chat model, so an embedder is skipped with its
+  group's sentence;
+- its architecture is in llama.cpp's own table, the pinned `gguf` package's
+  `MODEL_ARCH_NAMES`. This fails closed, unlike a file in the models folder:
+  Ollama writes some architectures under names of its own (`gptoss`,
+  `qwen25vl`, `mllama`) that this loader cannot build;
+- its tensor table holds no projector tensors, the `v.`, `a.` and `mm.` names
+  llama.cpp's table gives only `clip`. Ollama's multimodal files keep the vision
+  tower inside the model file, and llama.cpp's loader refuses a file holding
+  tensors it did not create; a test holds the prefixes against the package;
+- its path holds no `#` or `;`, where the preset's parser would cut it
+  ([runtime](runtime.md#the-preset-file)).
+
+What fails one of these is counted, with its name, its app and an
+`UnusableCode` (`unreadable`, `not_a_model`, `unknown_architecture`,
+`vision_inside`, `path`, `missing_parts`) or the classifier's own code. A file
+that will not parse or is a companion is passed over without a word, and so is
+one whose header holds a value of a type nothing here expected (a part number
+that is a word, a file type that is a list): `judge()` never raises, so one
+such file costs itself, never the rest of the look. SurfSense's
+own models folder is never offered back, and a file reached from two places is
+one model, found by the first.
+
+**Its label** ([`labels.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/elsewhere/labels.py)) is the name a person recognises: an Ollama tag,
+else the file's own name less its build and split (`Qwen3.5-4B-UD-Q4_K_XL.gguf`
+is Qwen3.5-4B), as LM Studio and Hugging Face show it. A hash or Jan's
+`model.gguf` says nothing, so those take the header's `general.name`, then the
+folder's name. The header's name is not the rule because converters fill it
+unevenly: one SmolLM2 Instruct file calls itself "Smollm2 135M 8k Lc100K Mix1
+Ep2". Parameters are counted from the tensor table; the quantization is the file
+name's label, else `general.file_type`'s; the window is
+`<architecture>.context_length`. Each row is priced by `price()` like a
+downloaded file, its projector counted.
+
+**A projector** goes with a model only on the other app's own evidence: the
+layer an Ollama manifest records, or, in a folder holding one repo's files (a
+hub snapshot, LM Studio's `publisher/repo`, a Jan model folder), the repo's
+projector by `preferred_projector()`'s name rule, as a searched repo's builds
+take it, once its header sees images and both headers state the same width.
+
+**Using one** is an install job ([below](#install-jobs)) that records the file
+in `elsewhere.json` in the models folder
+([`record.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/elsewhere/record.py)):
+the runtime's name for it, its path, every part, its projector, its app and its
+name. The record is kept apart from `installs.json`, since every file that one
+names is SurfSense's to delete and none this one names ever is. Every change
+reads it, changes it and writes it back under one lock, because the routes run
+in threads beside the install job, and each write goes through a temporary file
+of its own. The runtime's
+name starts with whose file it is (`ollama-qwen3-8b`, `lmstudio-Qwen3-8B-Q4_K_M`,
+`hf-`, `jan-`, `gpt4all-`, and `local-` for a picked file), keeps only
+`[A-Za-z0-9._-]`, adds the quantization unless the name already holds it or an
+Ollama tag settles it, and takes `-2` before it would meet another record or a
+file in the models folder. The same file used again keeps its name. From then on
+the model is one of the folder's: `installed()` reads each recorded file again
+from its header ([`in_place.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/elsewhere/in_place.py)), the preset names it where it
+lies, and its row, `origin: "elsewhere"` with `found_in` (the app, the path, its
+source, the architecture, parameters and quantization), is listed under This
+computer. A curated row never claims it, even by file name, so removing it can
+never read as deleting a build. A recorded file that went away, or stopped being
+one the runtime can chat with, leaves the preset at the next rewrite and keeps
+its record.
+
+**Removing one** forgets the record and rewrites the preset
+(`LlamaCppEngine.stop_using()`); `DELETE /llm/models/{name}` takes that path
+before any file is touched, so another app's file is never unlinked.
+
+**Looking** happens when a screen asks for the list, never on a timer. The
+record also holds `look`, on by default, and the folders a person added. With
+`look` off only the added folders are read; added folders and picked files are
+the person's own act. Each header is read once per process for a path, size and
+modification time, so asking again is a folder listing: on this machine's real
+folders a first look took 0.4 s and the next 11 ms. The Docker image reads
+nothing outside its folders (`this_computer()` in
+[`dependencies.py`](../../../surfsense_local/backend/modules/llm/catalog/local/dependencies.py)
+answers None there): its browser cannot name a path on the server, and the
+container holds no other app's folder. The admin policy does not govern this:
+it governs what leaves the computer, and this sends nothing.
+
+**A file somewhere else** is picked with the system's own dialog: Electron's
+`models:pick` opens it for a `.gguf` file or a folder and hands back only the
+path chosen ([`model-pick-ipc.ts`](../../../surfsense_local/electron/src/main/model-pick/model-pick-ipc.ts)). A file is judged as the scan
+judges one, with the projectors beside it, and comes back as a row to use; a
+folder is added to the record and read from then on. Either refuses with the
+reason's code: one the scan would skip, `not_found`, or `in_models_folder`. A
+file used in place that no look reaches, such as a picked one, still heads the
+list.
+
 ## Install ids
 
 `POST /llm/installs` takes `{"catalog_id": "...", "select": true}`, and
 optionally the `model_type` that `select` fills, the engine's first type when
-absent, so onboarding's editing step installs straight into `image_edit`. Nothing
+absent, so a speech model's download installs straight into `speech_to_text`. Nothing
 else: no repo, file, URL, path or quantization, so the renderer cannot name an
 arbitrary download. A curated build's id is minted once per process and keyed on
 its repo and weights path; a searched build's is a ticket holding the whole build
 and the repo's tag, kept for 300 s, the window the screen's search cache uses.
-Both fail the same way: `422 catalog id is stale or unknown; refresh the catalog`.
+A found model's id is minted once per process for its path, like a curated
+build's, and resolves to the file as last read. All three fail the same way:
+`422 catalog id is stale or unknown; refresh the catalog`.
 
 ## Install jobs
 
@@ -564,7 +731,9 @@ the renderer shows its own line for a code it knows, in the interface language,
 and the frame's English `message` for one it does not
 ([`install-text.ts`](../../../surfsense_local/frontend/src/features/models/local/installs/install-text.ts), [localization](../localization.md#backend-text)).
 A refusal for disk space is `not_enough_disk` with `needed_bytes` and
-`free_bytes` raw, so each language formats the sizes itself. A searched file of
+`free_bytes` raw, so each language formats the sizes itself. While the drive of
+a [moved models folder](../storage-location.md) is away, every install is refused
+with `model_storage_unavailable`. A searched file of
 a type the runtime cannot run is refused with the classifier's sentence and its
 `NotRunnableCode`, as a row is, so the toast is worded like a row's reason. A
 Hugging Face embedder that fails its search check is `retrieval_check_failed`
@@ -579,7 +748,10 @@ only when whole and verified, a cancelled download resumes with a `Range`
 request, and a file already where it lands with its pinned hash is not fetched
 again. One install runs at a time: a second job starts as `queued` and waits
 rather than failing, so a model chosen while another downloads still comes.
-A curated chat build is priced first, from the shape its entry commits and
+A model used in place takes none of the download's steps and asks about no
+host: its job reads the file again, refuses one gone (`file_gone`) or too big
+for the machine, records it, and goes straight to preparing the runtime. A
+curated chat build is priced first, from the shape its entry commits and
 through the same estimate its row shows, and one that is `TOO_BIG` here ends the
 job with the refusal a searched build gets; a build that only spills installs
 with no confirmation, as the screen's own rule says. Before any byte moves, the
@@ -677,6 +849,11 @@ delete is in `modules/llm/router.py` beside the selection routes.
 |---|---|---|
 | `GET /llm/system` | budget, devices, `gpu_status` | none |
 | `GET /llm/catalog/local` | budget, `gpu_status`, every local row, `recommended_id` | none |
+| `GET /llm/catalog/local/elsewhere` | `available`, `look`, `looked_in` (the apps whose folder exists here), `folders`, the rows, `skipped`, budget, `gpu_status` | none |
+| `PUT /llm/catalog/local/elsewhere/look` | the same, after turning looking in other apps' folders on or off | none |
+| `POST /llm/catalog/local/elsewhere/file` | `{row}` for a picked file, or `422` with its `code` and sentence | none |
+| `POST /llm/catalog/local/elsewhere/folders` | the list, with the folder added; `422` as above | none |
+| `DELETE /llm/catalog/local/elsewhere/folders` | the list, with the folder no longer read; its files stay | none |
 | `GET /llm/catalog/local/search?q=&limit=` | hits, described not judged | `host:huggingface.co` |
 | `GET /llm/catalog/local/search/{repo:path}` | the repo's row: builds with exact sizes and estimated fit | `host:huggingface.co` |
 | `POST /llm/installs` | `202` and the job, queued behind any running one | `host:huggingface.co` |
@@ -696,7 +873,9 @@ on search and repo reads, and the job's generic error during an install.
 Settings has one section per model type, **Text gen**, **Image gen**, **Image edit**, **Video**, **Audio** and **Speech recognition** in the nav, each headed **Text generation models**, **Image generation models**, **Image editing models**, **Video generation models**, **Audio generation models** or **Speech recognition models** on its own page.
 Each names the model in use at the top, then groups the slot's models by source:
 **This computer**, every build on disk, curated or not, with Use (when its type
-can fill the slot) or In use and Delete after confirmation; then one group per
+can fill the slot) or In use and Delete after confirmation; a model used where
+another app keeps it says so under its name ("Used where it is, in Ollama"), and
+its action is Stop using, whose confirmation says nothing is deleted; then one group per
 connected server ([`../connections.md`](../connections.md)). **Add model** opens
 one page with both ways in, laid out alike, no card or border around either:
 **Use a server**, collapsed to a Connect button until opened, then **Use your
@@ -720,6 +899,16 @@ same.
 The chat catalog, from the top:
 
 - **A hardware line**, on first paint, with no scan and no button.
+- **Already on this computer**: the models other apps downloaded
+  ([`elsewhere/`](../../../surfsense_local/frontend/src/features/models/local/elsewhere/)), with
+  the switch for looking in other apps' folders and the added folders, each with
+  a button that stops reading it. Each row names the model, the app whose folder
+  it is in, its build, size, parameters and window, its fit badge and **Vision**,
+  and Use, whose one job records the file, loads it and selects it. A line names
+  the apps whose folders were read and says files are used where they are, never
+  changed, and that nothing leaves the computer. **Choose a file…** and **Add a
+  folder…** open the system's dialog, only in the app; what was found and cannot
+  run is counted below the list, each with why on request.
 - **A runtime notice**, only while `GET /llm/providers` reports llama.cpp
   unhealthy, asked again every 15 s and when the window comes back: said once,
   above the rows, never per row. Download stays offered, because an install
@@ -736,6 +925,12 @@ The chat catalog, from the top:
   `host:huggingface.co` is off. Results scroll inside their own capped-height
   list rather than lengthening the page, the same as a server's model list
   ([`../connections.md`](../connections.md)).
+
+Onboarding's chat step leads its **On this computer** list with the same
+section, and leaves models used in place out of the list below it, so each shows
+once. On a computer with nothing found it shows only "Already have a GGUF model
+on this computer?" beside the two pick buttons, and nothing at all in the Docker
+image.
 
 Rules the screen holds:
 
@@ -804,17 +999,24 @@ Rules the screen holds:
 
 Unit tests in
 [`surfsense_local/backend/tests/unit/llm/catalog/local/`](../../../surfsense_local/backend/tests/unit/llm/catalog/local/)
-cover the manifest, builds, the build choice and lead, the classifier, support,
+cover the models other apps downloaded (`engines/llamacpp/elsewhere/`: every
+place per system, each app's layout over folders built the way it writes them,
+the header checks and labels, the record, and a model used in place in the
+preset and the catalog), the manifest, builds, the build choice and lead, the classifier, support,
 pricing through the catalog (the badge matches the load on every budget shape; a
 recommended build never warns), reprice, search against mocked transports, and
 the service's installs, install jobs (`test_install_jobs.py`), the audio.cpp slice's evidence and rows, and each
 engine's refresh assembly; the routes, audio's `server.json` and
 `transcription.json` included (`test_audio_catalog_routes.py`,
 `test_speech_catalog_routes.py`), are covered in
-[`surfsense_local/backend/tests/integration/llm/`](../../../surfsense_local/backend/tests/integration/llm/), the feed over a real socket in `test_install_feed.py`,
-and the screen in `download-chat-models.test.tsx`, `install-view.test.tsx`, `install-text.test.ts`, the settings sections' `chat-models-settings.test.tsx`, `image-models-settings.test.tsx`, `audio-models-settings.test.tsx` and `speech-models-settings.test.tsx`, and the speech set-up in `speech-setup-popover.test.tsx`.
+[`surfsense_local/backend/tests/integration/llm/`](../../../surfsense_local/backend/tests/integration/llm/), the models other apps downloaded in `test_elsewhere_routes.py`, the feed over a real socket in `test_install_feed.py`,
+and the screen in `elsewhere-section.test.tsx`, `download-chat-models.test.tsx`, `install-view.test.tsx`, `install-text.test.ts`, the settings sections' `chat-models-settings.test.tsx`, `image-models-settings.test.tsx`, `audio-models-settings.test.tsx` and `speech-models-settings.test.tsx`, and the speech set-up in `speech-setup-popover.test.tsx`.
 
 ## Known gaps
+
+- A model used in place is recorded by its file. When its app replaces the file, as an Ollama pull of a newer tag prunes the old blob, it is missing until chosen again from the new one, and its record stays until it is removed.
+- A model used in place never takes a curated entry's sampling, even when its file is a curated build's, because no curated row claims it.
+- A picked file in a folder macOS protects (Documents, Downloads, Desktop) may raise the system's own access prompt for the API's process; not measured.
 
 - Only the three voice defaults and Nemotron's `Q8_0` are validated; `validated` is empty on every other build.
 - Qwen3.8 27B is a hybrid model (`qwen35`): the fit estimate charges a KV cache on all 65 layers where 16 keep one, about four times too much, and does not size its recurrent state ([runtime](runtime.md)).

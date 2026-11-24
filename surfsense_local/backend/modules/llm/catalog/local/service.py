@@ -14,10 +14,28 @@ from modules.llm.catalog.local.build import Build
 from modules.llm.catalog.local.engines.audiocpp.audio_folder.espeak import Espeak
 from modules.llm.catalog.local.engines.audiocpp.engine import AudioCppEngine
 from modules.llm.catalog.local.engines.engine import LocalEngine
+from modules.llm.catalog.local.engines.llamacpp.elsewhere.find import (
+    FoundModel,
+    Skipped,
+)
+from modules.llm.catalog.local.engines.llamacpp.elsewhere.in_place import read_again
+from modules.llm.catalog.local.engines.llamacpp.elsewhere.looking import (
+    Elsewhere,
+    Surroundings,
+)
+from modules.llm.catalog.local.engines.llamacpp.elsewhere.places import App
+from modules.llm.catalog.local.engines.llamacpp.elsewhere.record import (
+    read_record,
+    use_in_place,
+)
 from modules.llm.catalog.local.engines.llamacpp.engine import LlamaCppEngine
 from modules.llm.catalog.local.engines.llamacpp.manifest_fields import SamplingSet
 from modules.llm.catalog.local.engines.llamacpp.models_folder.scan import (
     ProjectorNotice,
+)
+from modules.llm.catalog.local.engines.llamacpp.rows.elsewhere import (
+    elsewhere_row,
+    elsewhere_rows,
 )
 from modules.llm.catalog.local.engines.llamacpp.sampling import publisher_sampling
 from modules.llm.catalog.local.engines.llamacpp.search.hits import SearchHit
@@ -27,6 +45,9 @@ from modules.llm.catalog.local.install import download
 from modules.llm.catalog.local.install.codes import InstallCode
 from modules.llm.catalog.local.install.disk_room import refuse_without_room
 from modules.llm.catalog.local.install.plan import InstallPlan, InstallRefusedError
+from modules.llm.catalog.local.install.storage_available import (
+    refuse_while_storage_is_missing,
+)
 from modules.llm.catalog.local.install.tickets import TicketStore
 from modules.llm.catalog.local.install_jobs.jobs import InstallJobs
 from modules.llm.catalog.local.installs import (
@@ -67,6 +88,19 @@ class Catalog:
     projector_notices: tuple[ProjectorNotice, ...]
 
 
+@dataclass(frozen=True)
+class ElsewhereView:
+    """The chat models other apps downloaded, as rows, and what was looked at."""
+
+    # False where nothing outside SurfSense's folders can be read (Docker).
+    available: bool
+    look: bool
+    looked_in: tuple[App, ...]
+    folders: tuple[str, ...]
+    rows: tuple[LocalRow, ...]
+    skipped: tuple[Skipped, ...]
+
+
 class LocalCatalogService:
     def __init__(
         self,
@@ -82,7 +116,10 @@ class LocalCatalogService:
         embeddings_dir: Path | None = None,
         probe: Probe = probe_devices,
         os_gpu: OsGpu = os_reports_gpu,
+        surroundings: Surroundings | None = None,
     ) -> None:
+        """`surroundings` is where other apps keep their models; without it
+        nothing outside SurfSense's own folders is read."""
         self._manifest = manifest
         self._library_dir = library_dir
         self._probe = probe
@@ -129,6 +166,11 @@ class LocalCatalogService:
             self.audiocpp,
             self.onnxruntime,
         )
+        self.elsewhere = Elsewhere(models_dir, surroundings)
+        # One opaque id per found file, minted once per process like a curated
+        # build's, mapped to the file as last read.
+        self._found_tokens: dict[str, str] = {}
+        self._found: dict[str, FoundModel] = {}
 
     def install_lock(self) -> asyncio.Lock:
         return self._install_lock
@@ -173,7 +215,10 @@ class LocalCatalogService:
     def engine_to_delete_from(self, model_id: str) -> LocalEngine | None:
         """The engine a delete of `model_id` belongs to: the one holding it, or
         the one whose record still names it after a delete that stopped part
-        way, when no engine lists a build that is missing files."""
+        way, when no engine lists a build that is missing files, or a model
+        used in place whose file went away."""
+        if self.llamacpp.uses_in_place(model_id):
+            return self.llamacpp
         return self.engine_holding(model_id) or next(
             (
                 e
@@ -223,6 +268,66 @@ class LocalCatalogService:
 
         return mint
 
+    # elsewhere on this computer ----------------------------------------------
+
+    def elsewhere_view(self, selected: str | None = None) -> ElsewhereView:
+        """Every chat model other apps downloaded here, read from its header and
+        priced like any other. No network call of any kind."""
+        look = self.elsewhere.look()
+        used = {model.path: model.model_id for model in look.record.models}
+        listed = {str(model.path) for model in look.finding.models}
+        # A file used in place where no look reaches, such as one picked by
+        # hand, still belongs on this list: first, as the one chosen.
+        chosen = tuple(
+            again
+            for model in look.record.models
+            if model.path not in listed and (again := read_again(model)) is not None
+        )
+        rows = elsewhere_rows(
+            (*chosen, *look.finding.models),
+            self.budget(),
+            self._mint_found,
+            used,
+            selected={selected} if selected else frozenset(),
+        )
+        return ElsewhereView(
+            available=self.elsewhere.available,
+            look=look.record.look,
+            looked_in=look.looked_in,
+            folders=look.record.folders,
+            rows=rows,
+            skipped=look.finding.skipped,
+        )
+
+    def offer_file(self, path: Path, selected: str | None = None) -> LocalRow:
+        """A file a person picked, as a row its Use installs in place. Raises
+        `PickRefusedError` with the reason when it cannot be used."""
+        found = self.elsewhere.pick_file(path)
+        used = {m.path: m.model_id for m in read_record(self.llamacpp.folder).models}
+        used_as = used.get(str(found.path))
+        return elsewhere_row(
+            found,
+            self.budget(),
+            "" if used_as else self._mint_found(found),
+            used_as=used_as,
+            selected={selected} if selected else frozenset(),
+        )
+
+    def use_in_place(self, plan: InstallPlan) -> str:
+        """Record a found model for use where it lies; the runtime's name for it."""
+        if plan.in_place is None:  # pragma: no cover - a caller's invariant
+            raise ValueError("not a model found elsewhere")
+        return use_in_place(self.llamacpp.folder, plan.in_place).model_id
+
+    def _mint_found(self, found: FoundModel) -> str:
+        key = str(found.path)
+        token = self._found_tokens.get(key)
+        if token is None:
+            token = secrets.token_urlsafe(18)
+            self._found_tokens[key] = token
+        self._found[token] = found
+        return token
+
     async def search(self, query: str, *, limit: int = 30) -> list[SearchHit]:
         """Hugging Face search, answered from the cache inside its window.
 
@@ -258,6 +363,17 @@ class LocalCatalogService:
             shape = self._curated_shapes.get(key)
             name = self._curated_entries.get(key, build.runtime_name)
             return InstallPlan(name, build, engine, shape=shape)
+        found = self._found.get(catalog_id)
+        if found is not None:
+            row = elsewhere_row(found, self.budget(), catalog_id)
+            # Named when it is recorded, which happens inside the job.
+            return InstallPlan(
+                "",
+                row.builds[0].build,
+                self.llamacpp.name,
+                shape=found.shape,
+                in_place=found,
+            )
         ticket = self._tickets.resolve(catalog_id)
         if ticket is None:
             return None
@@ -276,9 +392,12 @@ class LocalCatalogService:
         return self._tickets.mint(build, engine=self.onnxruntime.name, model_id=spec.id)
 
     async def check(self, plan: InstallPlan) -> InstallPlan:
-        """The engine's refusals first, then the disk's."""
+        """A missing models drive first, then the engine's refusals, then the disk's."""
+        refuse_while_storage_is_missing()
         engine = self.engine(plan.engine)
         checked = await engine.check(plan)
+        if checked.in_place is not None:
+            return checked  # nothing is fetched, so the disk has nothing to hold
         folder = self._folder(plan.engine)
         fetched = sum(
             f.size_bytes
@@ -302,7 +421,12 @@ class LocalCatalogService:
 
         Files first: Windows refuses to delete one a server still has open, and
         a record dropped before that left the model unlisted with its files on
-        disk."""
+        disk.
+
+        A model used where another app keeps it is only forgotten: its files
+        are that app's, and nothing here unlinks them."""
+        if engine == self.llamacpp.name and self.llamacpp.stop_using(model_id):
+            return
         folder = self._folder(engine)
         for name in install_files(folder, model_id):
             try:

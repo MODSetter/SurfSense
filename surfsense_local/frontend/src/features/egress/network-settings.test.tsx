@@ -54,11 +54,8 @@ describe("network settings", () => {
     const user = userEvent.setup()
     render(<NetworkSettings />)
 
-    expect(
-      await screen.findByText(
-        /updates\.surfsense\.com, falls back to github\.com/
-      )
-    ).toBeTruthy()
+    expect(await screen.findByText(/^github\.com/)).toBeTruthy()
+    expect(screen.queryByText(/updates\.surfsense\.com/)).toBeNull()
     expect(await screen.findByText(/usage\.surfsense\.com/)).toBeTruthy()
     const usage = screen.getByRole("checkbox", {
       name: "Allow Usage statistics",
@@ -68,6 +65,59 @@ describe("network settings", () => {
 
     await waitFor(() => expect(usage.getAttribute("aria-checked")).toBe("true"))
     expect(bridge.calls).toEqual(["usage:true"])
+  })
+
+  it("names SurfSense’s license server by what it is for, and a mirror by its host", async () => {
+    const row = (host: string) => ({
+      destination: `host:${host}`,
+      host,
+      enabled: false,
+      last_call_at: null,
+    })
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json([row("api.surfsense.com"), row("licenses.example.test")])
+      )
+    )
+    render(<NetworkSettings />)
+
+    expect(
+      await screen.findByRole("checkbox", { name: "Allow License server" })
+    ).toBeTruthy()
+    expect(
+      screen.getByRole("checkbox", { name: "Allow licenses.example.test" })
+    ).toBeTruthy()
+  })
+
+  it("names only the Office download's host for Office support, another TDF site by its host", async () => {
+    const row = (host: string) => ({
+      destination: `host:${host}`,
+      host,
+      enabled: false,
+      last_call_at: null,
+    })
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json([
+          row("downloadarchive.documentfoundation.org"),
+          row("wiki.documentfoundation.org"),
+        ])
+      )
+    )
+    render(<NetworkSettings />)
+
+    expect(
+      await screen.findByRole("checkbox", {
+        name: "Allow Office support download",
+      })
+    ).toBeTruthy()
+    expect(
+      screen.getByRole("checkbox", {
+        name: "Allow wiki.documentfoundation.org",
+      })
+    ).toBeTruthy()
   })
 
   it("holds a row a policy locked, and says why", async () => {

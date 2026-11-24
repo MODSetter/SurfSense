@@ -10,7 +10,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import Engine
+from sqlalchemy import Engine, text
 
 from api.config import get_settings
 from api.main import create_app
@@ -29,6 +29,7 @@ from modules.usage_statistics.activity_counts.counts_file import add, start_coun
 from modules.usage_statistics.dependencies import (
     MachineReadings,
     get_machine_readings,
+    get_today,
 )
 from modules.workspaces.models import Workspace
 from shared.db import create_session_factory
@@ -67,17 +68,25 @@ async def client(
     app = create_app()
     app.state.session_factory = create_session_factory(engine)
     app.dependency_overrides[get_machine_readings] = lambda: machine
+    # The days used count back from the day the seeds were dated from, even
+    # when a run crosses UTC midnight.
+    app.dependency_overrides[get_today] = lambda: NOW.date()
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as client:
         yield client
 
 
-async def summary(client: AsyncClient, since: datetime = WEEK_AGO) -> dict:
+async def summary(
+    client: AsyncClient,
+    since: datetime = WEEK_AGO,
+    first_run: datetime | None = None,
+) -> dict:
     """The summary for the week before now, which the weekly report asks for."""
-    response = await client.get(
-        "/usage-statistics/summary", params={"since": since.isoformat()}
-    )
+    params = {"since": since.isoformat()}
+    if first_run is not None:
+        params["first_run"] = first_run.isoformat()
+    response = await client.get("/usage-statistics/summary", params=params)
     assert response.status_code == 200, response.text
     return response.json()
 
@@ -192,6 +201,8 @@ async def test_a_new_install_reports_nothing_done_and_its_machine(
             "studio_outputs": "0",
             "plugin_calls": "0",
             "onboarding": "not_started",
+            "days_used_7": "0",
+            "days_used_28": "0",
         },
         "hardware": {
             "ram_gb": "32-63",
@@ -255,6 +266,9 @@ async def test_a_busy_week_is_reported_in_buckets(
         "studio_outputs": "1-4",
         "plugin_calls": "10+",
         "onboarding": "first_answer",
+        # Today is never counted; the answer nine days ago is inside 28 days only.
+        "days_used_7": "0",
+        "days_used_28": "1",
     }
 
 
@@ -272,6 +286,7 @@ async def test_a_window_that_began_before_counting_is_unknown_not_zero(
         "unknown",
         "unknown",
     )
+    assert (week["days_used_7"], week["days_used_28"]) == ("unknown", "unknown")
     assert week["chat_turns"] == "1-9"
 
 
@@ -282,7 +297,170 @@ async def test_no_counts_file_leaves_only_the_database_facts(
     week = (await summary(client))["week"]
 
     assert week["agent_turns"] == "unknown"
+    assert (week["days_used_7"], week["days_used_28"]) == ("unknown", "unknown")
     assert week["chat_turns"] == "0"
+
+
+def seed_days(engine: Engine, days_ago: dict[str, list[int]]) -> None:
+    """Basic chat turns, notes and Studio outputs made that many days before now."""
+    with create_session_factory(engine)() as session:
+        workspace = Workspace(name="w")
+        session.add(workspace)
+        session.flush()
+        chat = ChatThread(workspace_id=workspace.id, title="chat")
+        session.add(chat)
+        session.flush()
+
+        def at(days: int) -> datetime:
+            return (NOW - timedelta(days=days)).replace(tzinfo=None)
+
+        for days in days_ago.get("turns", []):
+            session.add(
+                ChatMessage(
+                    chat_thread_id=chat.id,
+                    role=MessageRole.USER,
+                    content={"text": "q"},
+                    created_at=at(days),
+                )
+            )
+        for days in days_ago.get("answers", []):
+            session.add(
+                ChatMessage(
+                    chat_thread_id=chat.id,
+                    role=MessageRole.ASSISTANT,
+                    content={"text": "a", "citations": []},
+                    created_at=at(days),
+                )
+            )
+        for days in days_ago.get("notes", []):
+            session.add(
+                Document(
+                    workspace_id=workspace.id,
+                    title="n",
+                    document_type=DocumentType.NOTE,
+                    created_at=at(days),
+                )
+            )
+        for days in days_ago.get("outputs", []):
+            made = Document(
+                workspace_id=workspace.id,
+                title="a",
+                document_type=DocumentType.ARTIFACT,
+                created_at=at(days),
+            )
+            session.add(made)
+            session.flush()
+            session.add(
+                Artifact(
+                    document_id=made.id,
+                    workspace_id=workspace.id,
+                    format="docx",
+                    created_at=at(days),
+                )
+            )
+        session.commit()
+
+
+async def test_days_used_count_each_kind_of_use_once_per_day_before_today(
+    client: AsyncClient, engine: Engine
+) -> None:
+    """Turns, notes, outputs and Agentic counts each mark a day; a reply alone, and today, do not."""
+    start_counting(had_chats=False)
+    seed_days(
+        engine,
+        {
+            "turns": [0, 1, 1, 12],
+            "answers": [5],
+            "notes": [2, 27],
+            "outputs": [3, 40],
+        },
+    )
+    add({Activity.AGENT_TURN: 1}, now=NOW - timedelta(days=6))
+    add({Activity.PLUGIN_CALL: 2}, now=NOW - timedelta(days=20))
+
+    week = (await summary(client))["week"]
+
+    # Within 7 days: 1, 2, 3 and 6 days ago. Within 28: those, plus 12, 20 and 27.
+    assert (week["days_used_7"], week["days_used_28"]) == ("4-6", "4-7")
+
+
+async def test_the_windows_end_seven_and_twenty_eight_days_back(
+    client: AsyncClient, engine: Engine
+) -> None:
+    """Day 7 is inside the shorter window and day 8 outside; so are 28 and 29 for the longer."""
+    start_counting(had_chats=False)
+    seed_days(engine, {"turns": [7, 8, 28, 29]})
+    add({Activity.AGENT_TURN: 1}, now=NOW - timedelta(days=29))
+
+    week = (await summary(client))["week"]
+
+    assert (week["days_used_7"], week["days_used_28"]) == ("1", "2-3")
+
+
+async def test_a_counts_file_begun_ten_days_ago_knows_seven_days_not_twenty_eight(
+    client: AsyncClient, engine: Engine
+) -> None:
+    """An updated install's Agentic days before counting began were never counted."""
+    seed_days(engine, {"turns": [12]})
+    start_counting(had_chats=True, now=NOW - timedelta(days=10))
+    add({Activity.AGENT_TURN: 1}, now=NOW - timedelta(days=1))
+
+    week = (await summary(client))["week"]
+
+    assert (week["days_used_7"], week["days_used_28"]) == ("1", "unknown")
+
+
+async def test_history_dated_before_the_first_run_is_not_a_day_used(
+    client: AsyncClient, engine: Engine
+) -> None:
+    """Chats imported from the hosted app keep their dates; installed today, none counts."""
+    start_counting(had_chats=False)
+    seed_days(engine, {"turns": list(range(1, 26)), "notes": [3]})
+
+    week = (await summary(client, since=NOW, first_run=NOW))["week"]
+
+    assert (week["days_used_7"], week["days_used_28"]) == ("0", "0")
+
+
+async def test_the_first_run_day_itself_counts(
+    client: AsyncClient, engine: Engine
+) -> None:
+    """Installed three days ago: that day and yesterday count, five days ago does not."""
+    start_counting(had_chats=False)
+    seed_days(engine, {"turns": [1, 3, 5]})
+    first_run = NOW - timedelta(days=3)
+
+    week = (await summary(client, since=first_run, first_run=first_run))["week"]
+
+    assert (week["days_used_7"], week["days_used_28"]) == ("2-3", "2-3")
+
+
+@pytest.mark.parametrize(
+    ("days_ago", "used"),
+    [
+        # Today's midnight is today, never counted; yesterday's is one day.
+        ([0, 1], ("1", "1")),
+        # The shorter window's first midnight is inside it.
+        ([7], ("1", "1")),
+    ],
+)
+async def test_a_row_stamped_at_midnight_by_sqlite_counts_on_its_own_day(
+    client: AsyncClient, engine: Engine, days_ago: list[int], used: tuple[str, str]
+) -> None:
+    """CURRENT_TIMESTAMP writes text with no fraction, which a datetime bound misreads."""
+    start_counting(had_chats=False)
+    seed_days(engine, {"turns": days_ago})
+    with create_session_factory(engine)() as session:
+        session.execute(
+            text(
+                "UPDATE chat_messages SET created_at = date(created_at) || ' 00:00:00'"
+            )
+        )
+        session.commit()
+
+    week = (await summary(client))["week"]
+
+    assert (week["days_used_7"], week["days_used_28"]) == used
 
 
 @pytest.mark.parametrize(

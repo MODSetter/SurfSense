@@ -58,7 +58,8 @@ class ConnectionRead(BaseModel):
     base_url: str
     catalog_provider: str
     has_api_key: bool
-    # `api_key`, or `chatgpt` for a connection signed in with a ChatGPT account.
+    # `api_key`, `chatgpt` for a connection signed in with a ChatGPT account,
+    # `claude_plan` for one run through Claude Code, `elevenlabs` for its own API.
     auth_kind: str = "api_key"
     # Only for `chatgpt`: whether it holds tokens, and whose.
     signed_in: bool = False
@@ -67,6 +68,12 @@ class ConnectionRead(BaseModel):
     serves: list[ModelType] = []
     created_at: datetime
     updated_at: datetime
+
+
+class VoiceRead(BaseModel):
+    id: str
+    # The voice's name where the server states one, else its id.
+    label: str
 
 
 class ConnectionModelRead(BaseModel):
@@ -83,6 +90,8 @@ class ConnectionModelRead(BaseModel):
     unusable_reason: str | None = None
     # Its measured level, for a model that can fill the chat slot.
     capability_level: Level | None = None
+    # The voices the endpoint publishes for it; most endpoints publish none.
+    voices: list[VoiceRead] = []
 
 
 class RuntimeFileRead(BaseModel):

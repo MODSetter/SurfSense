@@ -13,3 +13,5 @@ plugins/registry/
 **/.DS_Store
 # The usage meter's file from a local run.
 usage/
+# A local JOB_PACKS_DIR: packs are private and never built into the image.
+job-packs/

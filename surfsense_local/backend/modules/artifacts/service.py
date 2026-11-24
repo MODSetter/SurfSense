@@ -4,6 +4,8 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from modules.artifacts.drawn_images.model import require_image_model
+from modules.artifacts.drawn_images.recipe import image_drawing_of
 from modules.artifacts.formats import FORMATS, FORMATS_BY_KEY, Format
 from modules.artifacts.image_edits.model import require_image_edit_model
 from modules.artifacts.image_edits.recipe import image_edit_of
@@ -12,6 +14,7 @@ from modules.artifacts.queued_job import queue_job
 from modules.artifacts.refused import refused
 from modules.artifacts.schemas import FormatRead, StudioJobCreate
 from modules.artifacts.studio_documents.recipe import refinement, renders_as_stored
+from modules.artifacts.waiting_renders.settle import settle_waiting_renders
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.documents.sources import load_selected_sources
 from modules.llm.model_type import ModelType
@@ -114,6 +117,9 @@ def regenerate_artifact(session: Session, artifact: Artifact) -> Artifact:
     # An edit asks only the edit model, and starts from its base, not the sources.
     if image_edit_of(meta) is not None:
         require_image_edit_model(session)
+    # A drawing asks only the image model, and paints its prompt, with no sources.
+    elif image_drawing_of(meta) is not None:
+        require_image_model(session)
     # A document script runs as stored: its format's models are never asked.
     elif not renders_as_stored(meta):
         _require_available(session, FORMATS_BY_KEY[artifact.format])
@@ -140,6 +146,8 @@ def cancel_artifact(session: Session, artifact: Artifact) -> Artifact:
     """Stop a queued or running generation. The worker exits without writing ready."""
     if not cancel_studio_job(session, artifact.document, artifact.id):
         raise refused(status.HTTP_409_CONFLICT, "nothing is running", "nothing_running")
+    # A queued job is revoked and never runs its end, so what waits on it settles here.
+    settle_waiting_renders(session, picture_id=artifact.id)
     return artifact
 
 

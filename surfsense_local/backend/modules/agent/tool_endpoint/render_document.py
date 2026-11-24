@@ -6,7 +6,7 @@ The tool waits for the run, since the model fixes its script from the error
 
 import logging
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -28,6 +28,8 @@ from modules.agent.tool_endpoint.rendered_label import (
     queued_line,
 )
 from modules.agent.tool_endpoint.same_title_documents import refuse_same_title
+from modules.agent.tool_endpoint.script_check import ScriptSyntaxError, checked_script
+from modules.agent.tool_endpoint.selected_images import refuse_unselected_images
 from modules.agent.tool_endpoint.tool import (
     InlineImage,
     Tool,
@@ -45,8 +47,8 @@ from modules.artifacts.script_documents.service import (
 )
 from modules.artifacts.script_documents.spec import DOCUMENT_FORMATS, FORMAT_NAMES
 from modules.artifacts.script_documents.version import version_of
+from modules.artifacts.waiting_renders.waits import waiting_sentence, waits_for
 from modules.documents.models import DocumentStatus
-from modules.documents.source_figures import parse_figure_name
 from modules.workspaces.models import Workspace
 
 logger = logging.getLogger(__name__)
@@ -112,8 +114,9 @@ LISTING: dict[str, Any] = {
                 "items": {"type": "string"},
                 "description": (
                     "Names of the images the script places: source images from "
-                    "surfsense_list_images, or charts from surfsense_analyze_data; "
-                    "each is at IMAGES_DIR/<name>.png."
+                    "surfsense_list_images, charts from surfsense_analyze_data, or "
+                    "pictures from surfsense_make_image; each is at "
+                    "IMAGES_DIR/<name>.png."
                 ),
             },
             "template_source_id": {
@@ -147,6 +150,8 @@ class _Started:
     artifact_id: int
     version: int
     title: str
+    # The pictures still being drawn it waits for; it is queued once they are.
+    waits_for: tuple[int, ...] = ()
 
 
 def render(
@@ -160,11 +165,24 @@ def render(
     began = time.monotonic()
     deadline = began + CALL_SECONDS
     request = _request(arguments)
-    _refuse_unselected_images(scope, request.images)
+    refuse_unselected_images(scope, request.images)
     _refuse_unselected_template(session, scope, request)
     if request.base_artifact_id is None and scope.known:
         refuse_same_title(session, scope.thread_id, request.title, request.format)
+    # A script that does not parse never reaches Studio: brackets left open are
+    # closed with a note, anything else comes back with its line and a hint, as
+    # one of the turn's failed runs.
+    try:
+        script, note = checked_script(request.script)
+    except ScriptSyntaxError as refused:
+        raise FailedRunError(f"{refused}\n{STOP_RULE}") from refused
+    request = replace(request, script=script)
     started = _start(session, scope, request)
+    if started.waits_for:
+        waiting = RenderedArtifact(started.artifact_id, started.title, started.version)
+        return _noted(
+            f"{queued_line(waiting)}\n{waiting_sentence(started.waits_for)}", note
+        )
     wait = min(WAIT_SECONDS, deadline - time.monotonic())
     outcome = wait_for_outcome(session, started.artifact_id, wait)
     if outcome is None:
@@ -172,9 +190,9 @@ def render(
             f"Artifact {started.artifact_id} was deleted before it was ready."
         )
     if outcome.status is DocumentStatus.READY:
-        return _made(session, scope.folder, started, deadline)
+        return _noted(_made(session, scope.folder, started, deadline), note)
     if outcome.status is DocumentStatus.FAILED:
-        raise FailedRunError(_failed(started, outcome))
+        raise FailedRunError(_noted(_failed(started, outcome), note))
     if outcome.status is DocumentStatus.CANCELLED:
         raise ToolCallError(
             f"{_version_of(started)} was cancelled in Studio. Ask the user before "
@@ -182,13 +200,24 @@ def render(
         )
     # The first line lets the thread link the version once Studio has made it.
     queued = RenderedArtifact(started.artifact_id, started.title, started.version)
-    return (
+    return _noted(
         f"{queued_line(queued)}\n"
         f"{_version_of(started)} is still being made after "
         f"{time.monotonic() - began:.0f} s, "
         "behind other Studio work. It appears in Studio when it is ready: tell the "
-        "user so, and do not render it again."
+        "user so, and do not render it again.",
+        note,
     )
+
+
+def _noted(result: str | ToolResult, note: str | None) -> str | ToolResult:
+    """The result with the script check's note last, so its first line still names
+    the version."""
+    if not note:
+        return result
+    if isinstance(result, ToolResult):
+        return ToolResult(f"{result.text}\n\n{note}", result.images)
+    return f"{result}\n\n{note}"
 
 
 def _request(arguments: dict[str, Any]) -> _Request:
@@ -223,22 +252,6 @@ def _request(arguments: dict[str, Any]) -> _Request:
     return _Request(title, arguments.get("format"), script, base, images, template)
 
 
-def _refuse_unselected_images(scope: TurnScope, images: list[str]) -> None:
-    """An image is its source's content: one from a source the turn may not use is refused."""
-    if not images:
-        return
-    selected = scope.selected()
-    for name in images:
-        parsed = parse_figure_name(name)
-        # A name no source has is the service's to refuse, as before.
-        if parsed is not None and parsed[0] not in selected:
-            raise ToolCallError(
-                f'Image "{name}" comes from source {parsed[0]}, which is not '
-                "selected for this request. Place only images from the selected "
-                "sources, or ask the user to select that one."
-            )
-
-
 def _refuse_unselected_template(
     session: Session, scope: TurnScope, request: _Request
 ) -> None:
@@ -268,7 +281,12 @@ def _start(session: Session, scope: TurnScope, request: _Request) -> _Started:
         raise
     version = version_of(artifact.artifact_metadata)
     assert version is not None  # the service gave it one
-    return _Started(artifact.id, version.number, request.title.strip())
+    return _Started(
+        artifact.id,
+        version.number,
+        request.title.strip(),
+        waits_for(artifact.artifact_metadata),
+    )
 
 
 def _create(session: Session, scope: TurnScope, request: _Request) -> Artifact:

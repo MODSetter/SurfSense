@@ -97,6 +97,11 @@ export function isWordCopy(revision: Revision): boolean {
   return revision.source_name.toLowerCase().endsWith(".docx")
 }
 
+/** Only a workbook copy can be a job run's. */
+export function isWorkbookCopy(revision: Revision): boolean {
+  return /\.xls[xm]$/i.test(revision.source_name)
+}
+
 export type RevisionDecision = "accept_all" | "reject_all"
 export type RevisedCopyVariant = "changes" | "clean"
 
@@ -106,7 +111,13 @@ export type StudioJobCreate = {
   // What the server resolves into the job's sources, folders included.
   source_scope?: SourceScope
   prompt?: string
-  options?: PodcastBrief
+  options?: PodcastBrief | ComicOptions
+}
+
+/** A comic job's options, checked by the server against its kinds (modules/artifacts/comic/). */
+export type ComicOptions = {
+  kind: string
+  pages: number
 }
 
 export const PODCAST_STYLES = [
@@ -152,7 +163,13 @@ export type Voice = {
 
 /** Where a brief's voices come from: the local model's roster, the server's
  *  own list, or the ones the user added for a server model. */
-export type VoicesSource = "local" | "server" | "saved"
+export type VoicesSource = "local" | "server" | "published" | "saved"
+
+/** `list_failed` carries the server's own words; the interface words the other. */
+export type VoicesProblem = {
+  code: "no_usable_voices" | "list_failed"
+  message: string
+}
 
 /** The server that voices a podcast. */
 export type VoicedBy = { server: string; model: string }
@@ -165,6 +182,8 @@ export type OpenedBrief = {
   voices_source: VoicesSource
   voiced_by: VoicedBy | null
   languages: string[]
+  /** Why a server model has no voices, when it is not simply that it lists none. */
+  problem?: VoicesProblem | null
 }
 
 export function readPodcastBrief(

@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query"
 import { useId } from "react"
 
 import { Button } from "@/components/ui/button"
+import { useLicensing } from "@/features/license/use-license"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
@@ -29,6 +30,7 @@ export function FirstPartyEntryRow({
 }) {
   const row = layout === "row"
   const nameId = useId()
+  const licensing = useLicensing()
   return (
     <li aria-labelledby={nameId} className={entryClassName(layout)}>
       <PluginIcon
@@ -54,7 +56,7 @@ export function FirstPartyEntryRow({
           {entry.description}
         </p>
         {/* A row keeps to one line; the page and Connect say what a license needs. */}
-        {!row && entry.access === "license" ? (
+        {!row && licensing && entry.access === "license" ? (
           <p className="mt-1 text-xs text-muted-foreground">
             {intl.formatMessage({
               id: "plugins_first_party_license_label",

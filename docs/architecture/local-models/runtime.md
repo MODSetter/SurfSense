@@ -90,8 +90,12 @@ directory.
   frees the model and its context rather than parking them. An earlier
   measurement recorded a self-eviction after about 30 s without the flag; it did
   not reproduce on either backend and was withdrawn. The cost is that a local
-  model, once loaded, stays resident while the app runs, even after the user
-  switches to a remote connection. Two things call `RouterClient.unload()`.
+  model, once loaded, stays resident while the app runs and chat stays on it.
+  Three things call `RouterClient.unload()`. Choosing another provider for chat
+  does, as a background task after the response that waits for local text still
+  generating, as an image's hold does ([`residency.py`](../../../surfsense_local/backend/modules/llm/residency.py)):
+  a 1.7B held 1.5 GB of RAM and 6.1 GB of graphics memory, which Windows counts
+  against the page file, for a runtime no one was using.
   Studio does before a local image, which shares the graphics card, and before
   voicing a podcast, which needs its memory ([`studio.md`](../studio.md)); the
   next request reloads it. And `DELETE /llm/models/{name}` unloads a chat model
@@ -176,7 +180,7 @@ parallel = 4
 kv-unified = on                                ; only above one slot
 fit-target = 1024
 fit-ctx = 16384
-cache-ram = 3584
+cache-ram = 3584                               ; 0 when it fits a discrete card
 mmproj = /Users/…/models/mmproj-Qwen3-8B-Q4_K_M.gguf ; only with a projector
 cache-type-k = q8_0                            ; only at q8_0
 cache-type-v = q8_0
@@ -203,11 +207,26 @@ flash-attn = on
   the memory the capacity budget gives a model, at most llama.cpp's own
   8,192 ([`fit/prompt_cache.py`](../../../surfsense_local/backend/modules/llm/fit/prompt_cache.py)),
   and pinned because that default, unbudgeted, let a 1.7B model's server grow
-  to 7.4 GB. The router hands it on: measured at `b11050`, `GET /models` lists
-  `--cache-ram` in the worker's `status.args`.
+  to 7.4 GB. A model the plan keeps whole on a discrete card gets `0`, which
+  turns the cache off: the card reads a prompt again at thousands of tokens a
+  second (Qwen3 1.7B on an RTX 3080, 6,000 tokens in 0.8 s), while the saved
+  prompts grew that server by 2 GB of RAM in one session of chat, Studio and the
+  agent. A model that spills, unified memory and the CPU keep the quarter, since
+  there a prompt read again costs tens of seconds. The router hands it on:
+  measured at `b11050`, `GET /models` lists `--cache-ram` in the worker's
+  `status.args`.
 - The `q8_0` lines are written as a group. Set one cache type without the other
   and the fused flash-attention kernel is skipped, after which attention falls
   back to the CPU silently. An `f16` plan writes none of them.
+
+A section's `model` may name a file outside the models directory: a model
+used where another app keeps it ([catalog](catalog.md#models-other-apps-downloaded)).
+Measured at `b11050` on Windows, the router lists such a section, hands the
+worker the path as `--model`, and loads and answers from it, an Ollama blob with
+no `.gguf` extension included. The parser ends a value at `#` or `;`, quoted or
+not, so the worker gets the path cut short and fails to load;
+`preset_can_name()` in `providers/llamacpp/preset.py` says which paths a section
+can carry, and a found file whose path it refuses is not offered.
 
 The file is `models.ini` in the models directory, named once on each side
 (`PRESET_FILE`). `write_presets()` leaves the existing file and its mtime alone
@@ -217,7 +236,7 @@ when the rendered text is unchanged. A real change is written to a sibling
 ## From download to answerable
 
 llama.cpp's catalog engine, `LlamaCppEngine.reprice()` ([`models_folder/preset.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/models_folder/preset.py)), writes the preset for every `.gguf` in the models
-directory, at API startup (on the warm thread, after the device probe), after
+directory and every model used in place, at its own path, at API startup (on the warm thread, after the device probe), after
 every install and after every delete. A catalog read also rewrites it when the
 folder contains a readable model that the preset does not name. Later catalog
 reads find its section and do not keep moving the file's modification time and
@@ -388,7 +407,9 @@ There is no `pull()`. Fetching weights by name made sense when the runtime owned
 the download; here SurfSense fetches the GGUF itself, because an in-process fetch
 is the only place `egress.require()` can hold, and it buys resume as well.
 
-Delete unlinks the file rather than calling `DELETE /models`. The router only
+Delete unlinks the file rather than calling `DELETE /models`, except for a
+model used where another app keeps it, which is only forgotten: its record goes,
+the preset is rewritten, and the file stays that app's. The router only
 removes what it downloaded into its own cache and refuses everything else:
 measured, `model name=… is not removable (not from cache)`, a 500, with the file
 left on disk. Everything SurfSense installs lands in `--models-dir`, so that call
@@ -483,8 +504,9 @@ runtime:
   `modules/llm/catalog/local/manifest`. The manifest is read by path, so the analyser cannot see
   it, and a packaging test asserts it is bundled.
 - Release CI stages the runtime with `node ../runtimes/fetch-llamacpp.mjs`, and on
-  Linux runs the packaged `llama-server --list-devices` from
-  `resources/llamacpp/`.
+  every platform runs the packaged `llama-server --list-devices` from the `llamacpp`
+  directory `electron-builder` wrote: `resources/llamacpp/` on Linux and Windows,
+  `Contents/Resources/llamacpp/` inside the macOS `.app`. It does not load a model.
 
 The rest of the installer is in [`../packaging.md`](../packaging.md).
 
@@ -528,7 +550,10 @@ The rest of the installer is in [`../packaging.md`](../packaging.md).
 - **A cancelled download.** The partial file stays as `.part`, the router never
   discovers it, and the next attempt resumes with a `Range` request. A server
   that ignores the range, answering without a `206`, has the held bytes discarded
-  rather than appended to.
+  rather than appended to. A run stopped between the last byte and the rename
+  leaves a part that holds the whole file: its range gets a `416`. A part whose
+  file has a sha256 is checked and renamed rather than fetched again; one
+  without is deleted, so the next attempt fetches the file whole.
 
 The probe's backend search path, a missing backend dependency and `-ngl`
 disabling the fitter are one failure in different clothes: each produces a
@@ -548,5 +573,3 @@ layer count, of `--reasoning-budget` and of `--sleep-idle-seconds`.
 
 - Context checkpoints are left at llama.cpp's own 32 per slot. A hybrid model such as Qwen3.5 or Qwen3-Next keeps its whole recurrent state in each, in host memory, and nothing budgets them, because the fit calculation does not size that state.
 - On Windows with a model wholly on a discrete graphics card, saving prompts and checkpoints in host memory crosses the PCI-E bus on every switch of caller, which may cost more than reading the prompt again. Not measured on this build.
-
-- Release CI runs the packaged `llama-server --list-devices` on Linux only; the macOS and Windows builds are checked only in the staging directory by `fetch-llamacpp.mjs`.

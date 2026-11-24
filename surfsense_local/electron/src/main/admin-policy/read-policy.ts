@@ -5,7 +5,7 @@ import { posix, win32 } from "node:path"
 export type AdminPolicy = {
   updates: "off" | "user"
   usageStatistics: "off" | "user"
-  /** An https mirror in place of updates.surfsense.com; it has no GitHub fallback. */
+  /** An https mirror in place of GitHub, serving the same signed manifests; nothing else is asked. */
   updateFeed: string | null
   /** DO_NOT_TRACK=1 or SURFSENSE_NO_TELEMETRY=1: usage statistics off, updates untouched. */
   doNotTrack: boolean

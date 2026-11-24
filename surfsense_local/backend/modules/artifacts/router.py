@@ -8,7 +8,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from api.dependencies import SessionDep, transact
+from modules.artifacts.comic.pages import is_comic_page
+from modules.artifacts.comic.unused_pages import unused_pages
 from modules.artifacts.dependencies import ArtifactDep, get_artifact
+from modules.artifacts.drawn_images.placed_in import refuse_deleting_a_placed_picture
 from modules.artifacts.flashcard_progress import (
     apply_flashcard_mark,
     apply_flashcard_order,
@@ -23,6 +26,7 @@ from modules.artifacts.quiz_progress import (
     apply_quiz_skip,
     read_quiz_questions,
 )
+from modules.artifacts.refused import refused
 from modules.artifacts.revised_copies.decide_all import Decision, decide_all
 from modules.artifacts.revised_copies.downloads import (
     DownloadUnavailableError,
@@ -105,7 +109,12 @@ def list_artifacts(
         )
         .order_by(Artifact.created_at.desc())
     ).all()
-    return [ArtifactRead.of(artifact) for artifact in artifacts]
+    # A comic's pages are its own: the comic is listed, they are not.
+    return [
+        ArtifactRead.of(artifact)
+        for artifact in artifacts
+        if not is_comic_page(artifact.artifact_metadata)
+    ]
 
 
 @router.get(
@@ -141,8 +150,8 @@ def _regenerate(session: Session, artifact_id: int) -> ArtifactRead:
     if revision_of(artifact.artifact_metadata) is not None:
         try:
             return ArtifactRead.of(rerun_revised_copy(session, artifact))
-        except RevisedCopyRefusedError as refused:
-            raise HTTPException(status.HTTP_409_CONFLICT, str(refused)) from refused
+        except RevisedCopyRefusedError as refusal:
+            raise _conflict(refusal) from refusal
     return ArtifactRead.of(regenerate_artifact(session, artifact))
 
 
@@ -241,10 +250,18 @@ def reject_all_revisions(artifact: ArtifactDep, session: SessionDep) -> Artifact
 def _decide_all(session: Session, artifact: Artifact, action: Decision) -> ArtifactRead:
     try:
         made = decide_all(session, artifact, action)
-    except RevisedCopyRefusedError as refused:
+    except RevisedCopyRefusedError as refusal:
         session.rollback()
-        raise HTTPException(status.HTTP_409_CONFLICT, str(refused)) from refused
+        raise _conflict(refusal) from refusal
     return ArtifactRead.of(made)
+
+
+def _conflict(refusal: RevisedCopyRefusedError) -> HTTPException:
+    if refusal.code is None:
+        return HTTPException(status.HTTP_409_CONFLICT, str(refusal))
+    return refused(
+        status.HTTP_409_CONFLICT, str(refusal), refusal.code, **refusal.values
+    )
 
 
 def _require_quiz(artifact: Artifact) -> None:
@@ -394,13 +411,19 @@ def reorder_flashcards(
 )
 def delete_artifact(artifact: ArtifactDep, session: SessionDep) -> Response:
     refuse_deleting_a_base(session, artifact.id)
+    refuse_deleting_a_placed_picture(session, artifact)
     # The ARTIFACT document is the root: deleting it cascades the sidecar, its
     # files and its chunks. Only the blobs live beyond the database.
-    directory = get_storage_settings().artifact_dir(artifact.workspace_id, artifact.id)
-    document = artifact.document
+    storage = get_storage_settings()
+    # A comic's pages go with it, once nothing else uses them: nothing lists them.
+    gone = [artifact, *unused_pages(session, artifact)]
+    directories = [storage.artifact_dir(a.workspace_id, a.id) for a in gone]
 
-    session.delete(document)
+    for each in gone:
+        session.delete(each.document)
+        session.flush()
     session.commit()
 
-    shutil.rmtree(directory, ignore_errors=True)
+    for directory in directories:
+        shutil.rmtree(directory, ignore_errors=True)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

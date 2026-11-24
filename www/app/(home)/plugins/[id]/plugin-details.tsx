@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { siteText } from "@/components/site/site-text";
 import { cn } from "@/components/ui/cn";
 import { ArrowUpRight01Icon } from "@/components/ui/icons";
+import { isBuiltIn } from "../built-in";
 import type { PluginListing, PluginSignIn } from "../plugin-listing";
 
 // What connecting asks of the user, as the app's plugin page names it.
@@ -57,17 +58,26 @@ export function PluginDetails({ plugin }: { plugin: PluginListing }) {
 	return (
 		<dl className="m-0">
 			<Fact term="Publisher">{plugin.author}</Fact>
-			<Fact term="Authentication">
-				{signInLabel(plugin.signIn, plugin.name)}
-				{plugin.accessNote ? (
-					<span className="block text-muted-foreground">{plugin.accessNote}</span>
-				) : null}
-			</Fact>
-			<Fact term="Connects to">{plugin.serverHost}</Fact>
-			{/* An OAuth plugin's other hosts see the sign-in, never a call. */}
-			{plugin.signInHosts.length ? (
-				<Fact term="Signs in with">{plugin.signInHosts.join(", ")}</Fact>
-			) : null}
+			{isBuiltIn(plugin) ? (
+				<>
+					<Fact term="Licence">None needed</Fact>
+					<Fact term="Runs in">The SurfSense desktop app</Fact>
+				</>
+			) : (
+				<>
+					<Fact term="Authentication">
+						{signInLabel(plugin.signIn, plugin.name)}
+						{plugin.accessNote ? (
+							<span className="block text-muted-foreground">{plugin.accessNote}</span>
+						) : null}
+					</Fact>
+					<Fact term="Connects to">{plugin.serverHost}</Fact>
+					{/* An OAuth plugin's other hosts see the sign-in, never a call. */}
+					{plugin.signInHosts.length ? (
+						<Fact term="Signs in with">{plugin.signInHosts.join(", ")}</Fact>
+					) : null}
+				</>
+			)}
 			{plugin.added ? <Fact term="Added">{addedMonth(plugin.added)}</Fact> : null}
 			{plugin.homepage ? (
 				<Fact term="Homepage">

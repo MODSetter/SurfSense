@@ -3,6 +3,7 @@
 from sqlalchemy.orm import Session
 
 from modules.license.license_key import license_key
+from modules.license.licensing import licensing_on
 from modules.plugins.installed.models import InstalledPlugin
 from modules.plugins.lists.plugin_host import on_plugin_host
 from modules.plugins.remote.sign_in.headers.headers_credential import (
@@ -31,6 +32,7 @@ def sign_in_headers(session: Session, plugin: InstalledPlugin) -> dict[str, str]
 
 
 def license_headers(session: Session, url: str) -> dict[str, str]:
-    """`License <key>` only on SurfSense's plugin host: the key never goes anywhere else."""
-    key = license_key(session) if on_plugin_host(url) else None
+    """`License <key>` only on SurfSense's plugin host, and only while licensing runs: the
+    key never goes anywhere else."""
+    key = license_key(session) if licensing_on() and on_plugin_host(url) else None
     return {"authorization": f"License {key}"} if key else {}

@@ -147,7 +147,7 @@ export function MicButton({
               // where Enter stops and Escape cancels.
               event.currentTarget
                 .closest("form")
-                ?.querySelector("textarea")
+                ?.querySelector<HTMLElement>("[data-lexical-editor]")
                 ?.focus()
               start()
             }}

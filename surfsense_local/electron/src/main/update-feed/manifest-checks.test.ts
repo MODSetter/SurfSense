@@ -1,29 +1,25 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { feedManifestProblem } from "./manifest-checks.ts"
+import { githubManifestProblem, mirrorManifestProblem } from "./manifest-checks.ts"
 
-const RELEASE = "https://github.com/MODSetter/SurfSense/releases/download/v2.2.4/"
-
-/** stable-linux.yml as our route rewrites it, naming the given release files. */
-function linuxManifest(names: string[]) {
+/** release-linux.yml as electron-builder writes it, naming the given release files. */
+function linuxManifest(names: string[], version = "2.5.0") {
   return {
-    version: "2.2.4",
-    files: names.map((name) => ({ url: `${RELEASE}${name}`, sha512: "c2hhNTEy", size: 1234 })),
-    path: `${RELEASE}${names[0]}`,
+    version,
+    files: names.map((name) => ({ url: name, sha512: "c2hhNTEy", size: 1234 })),
+    path: names[0],
     sha512: "c2hhNTEy",
   }
 }
 
 test("a Linux manifest listing the rpm beside the AppImage and the deb is used", () => {
   const manifest = linuxManifest(["SurfSense.AppImage", "SurfSense.deb", "SurfSense.rpm"])
-  assert.equal(feedManifestProblem(manifest), null)
+  assert.equal(githubManifestProblem(manifest), null)
+  assert.equal(mirrorManifestProblem(manifest, "https://updates.corp.example/surfsense/"), null)
 })
 
-// The release also carries the install scripts and checksums; the snap updates through snapd.
-for (const name of ["install.sh", "SHA256SUMS", "SurfSense.snap"]) {
-  test(`a Linux manifest naming ${name}, which is no installer, is refused`, () => {
-    const manifest = linuxManifest(["SurfSense.AppImage", name])
-    assert.equal(feedManifestProblem(manifest), "a file outside the GitHub release")
-  })
-}
+test("a manifest with no files, or no release version, is refused", () => {
+  assert.equal(githubManifestProblem(linuxManifest([])), "no files")
+  assert.equal(githubManifestProblem(linuxManifest(["SurfSense.deb"], "2.5.0-rc.1")), "no release version")
+})

@@ -52,15 +52,15 @@ The Date is the day the decision was first written down. Source links are permal
 | 0015 | [Remote models come through named OpenAI-compatible connections, discovered live](0015-openai-compatible-connections.md) | Accepted, in part revised by the model catalog proposal, in part superseded by 0038 |
 | 0016 | [The app sends no telemetry or crash reports](0016-no-telemetry.md) | Superseded by 0070 |
 | 0017 | [Every outbound destination is off until the user allows it](0017-egress-off-by-default.md) | Accepted, in part superseded by 0027, amended by 0070 |
-| 0018 | [Provider keys are encrypted with a per-install secret kept in the OS keychain](0018-keychain-envelope-encryption.md) | Accepted |
-| 0019 | [Licenses are signed files verified offline, and they gate only plugins and priority support](0019-offline-licenses.md) | Accepted |
-| 0020 | [The new app and the legacy app share one release feed and are kept apart by update channel](0020-two-update-channels.md) | Accepted, amended by 0070 |
+| 0018 | [Provider keys are encrypted with a per-install secret kept in the OS keychain](0018-keychain-envelope-encryption.md) | Accepted, amended by 0091 |
+| 0019 | [Licenses are signed files verified offline, and they gate only plugins and priority support](0019-offline-licenses.md) | Accepted, amended by 0080 |
+| 0020 | [The new app and the legacy app share one release feed and are kept apart by update channel](0020-two-update-channels.md) | Accepted, amended by 0070 and 0091 |
 | 0021 | [There is no Intel Mac build](0021-no-intel-mac-build.md) | Accepted |
 | 0022 | [Hosted accounts move to the app as a markdown-only export that is re-embedded locally](0022-markdown-only-cloud-import.md) | Accepted |
 | 0023 | [Every hosted sunset behaviour sits behind a runtime flag, and nothing is deleted or redirected unconditionally](0023-sunset-behind-flags.md) | Accepted |
 | 0024 | [The license portal has no accounts and no license tables; Stripe and Keygen are the system of record](0024-portal-without-accounts.md) | Accepted |
-| 0025 | [The hosted scraper API client ships as a paid plugin whose source lives in this repo](0025-scraper-client-as-paid-plugin.md) | Accepted, in part superseded by 0047 |
-| 0026 | [Curated models are ordered by their position in the manifest, with no score](0026-curated-order-is-list-position.md) | Accepted, in part revised by the model catalog proposal |
+| 0025 | [The hosted scraper API client ships as a paid plugin whose source lives in this repo](0025-scraper-client-as-paid-plugin.md) | Superseded by 0081 |
+| 0026 | [Curated models are ordered by their position in the manifest, with no score](0026-curated-order-is-list-position.md) | Accepted, in part revised by the model catalog proposal and by 0094 |
 | 0027 | [Egress consent is per host, so model search and downloads share one](0027-egress-consent-per-host.md) | Accepted |
 | 0028 | [Model-written code may run on the user's machine without a sandbox, and the agent asks before each shell command](0028-model-written-code-runs-with-approval.md) | Accepted, in part superseded by 0039 |
 | 0029 | [Interface text lives in ICU MessageFormat catalogs, one flat JSON file per language](0029-icu-translation-catalogs.md) | Accepted |
@@ -75,14 +75,14 @@ The Date is the day the decision was first written down. Source links are permal
 | 0038 | [A ChatGPT plan is a connection signed in through OpenAI's open-source flow, not the Codex CLI's client](0038-chatgpt-plans-sign-in-through-openai-not-codex.md) | Accepted, its request body superseded by 0050, its Claude consequence by 0057 |
 | 0039 | [Model-written document scripts run without approval in SurfSense's script runner, and the agent's general shell is off](0039-document-scripts-run-without-approval.md) | Accepted |
 | 0044 | [Basic and Agentic are chosen per chat, and a measured score sets the default mode, never whether a model may be Agentic](0044-a-score-sets-the-default-mode-never-whether-agentic-is-allowed.md) | Accepted |
-| 0047 | [SurfSense's paid plugins are source-available under the Business Source License and unlocked by the SurfSense license](0047-premium-plugins-are-source-available.md) | Accepted, in part superseded by 0054 and 0067 |
+| 0047 | [SurfSense's paid plugins are source-available under the Business Source License and unlocked by the SurfSense license](0047-premium-plugins-are-source-available.md) | Superseded by 0092 |
 | 0048 | [The API is the only path to a text model, so one gate can count everything that generates](0048-the-api-is-the-only-path-to-a-text-model.md) | Accepted |
 | 0049 | [A prompt changes only at its end, so the cached start of it is never read again](0049-prompts-grow-at-the-end.md) | Accepted |
 | 0050 | [A remote text model answers on the route its manifest entry records, with its connection's credential, and SurfSense owns a ChatGPT plan's sign-in for both engines](0050-a-model-answers-on-its-own-route-with-its-connections-credential.md) | Accepted, in part narrowed by 0057 |
 | 0051 | [A plugin is an MCP server, and SurfSense decides which of its tools each caller gets, remote servers first](0051-plugins-are-mcp-servers-behind-one-tool-gateway.md) | Accepted |
 | 0052 | [The chat engine's model never calls tools; SurfSense chooses a plugin tool through structured output and calls it](0052-the-chat-model-never-calls-tools.md) | Proposed, deferred |
 | 0053 | [First-party plugins are listed in the app, third-party plugins in a registry in this repository, and third-party plugins start off](0053-plugins-are-listed-in-a-registry-and-third-party-ones-start-off.md) | Accepted, in part superseded by 0055 |
-| 0054 | [SurfSense's own plugins, free and paid, run on one plugin host, with the registry served beside it](0054-surfsenses-plugins-run-on-one-plugin-host.md) | Accepted |
+| 0054 | [SurfSense's own plugins, free and paid, run on one plugin host, with the registry served beside it](0054-surfsenses-plugins-run-on-one-plugin-host.md) | Accepted, amended by 0081, in part superseded by 0092 |
 | 0055 | [Verified is a maintainer's judgement, and CI contacts each server a pull request adds](0055-verified-is-a-maintainers-judgement-and-ci-contacts-each-server.md) | Accepted |
 | 0056 | [Speech recognition runs on a second audio.cpp server that only the API calls](0056-speech-recognition-runs-on-a-second-audiocpp-server.md) | Accepted |
 | 0057 | [A Claude plan is reached through the user's own Claude Code, and SurfSense holds no Claude credential](0057-a-claude-plan-runs-through-the-users-own-claude-code.md) | Accepted, its network decision superseded by 0061 |
@@ -95,10 +95,10 @@ The Date is the day the decision was first written down. Source links are permal
 | 0064 | [Agent runtimes reach plugins only through SurfSense's gateway, and never hold a plugin's credential](0064-agent-runtimes-reach-plugins-through-surfsenses-gateway.md) | Accepted |
 | 0065 | [A turn's plugin tools are sized by the model's window, not counted, and Claude Code searches its own](0065-a-turns-plugin-tools-are-sized-by-the-window-not-counted.md) | Accepted, superseded for opencode by 0069 |
 | 0066 | [Web pages are HTML the model writes, run in a frame that has no network](0066-web-pages-are-html-the-model-writes-without-network.md) | Accepted |
-| 0067 | [SurfSense's B2B jobs ship as paid plugins that run on the user's machine and unlock with a SurfSense license](0067-b2b-jobs-ship-as-paid-plugins.md) | Accepted |
-| 0068 | [SurfSense calls its own plugins to pull a link into Sources, with no agent](0068-surfsense-calls-its-own-plugins-to-pull-a-link-into-sources.md) | Accepted |
+| 0067 | [SurfSense's B2B jobs ship as paid plugins that run on the user's machine and unlock with a SurfSense license](0067-b2b-jobs-ship-as-paid-plugins.md) | Superseded by 0092 |
+| 0068 | [SurfSense calls its own plugins to pull a link into Sources, with no agent](0068-surfsense-calls-its-own-plugins-to-pull-a-link-into-sources.md) | Accepted, amended by 0081 |
 | 0069 | [On opencode 2.x the agent calls tools natively, holds the plugin tools its task needs from a catalogue of every ready plugin, and no plugin speaks SSE](0069-opencode-calls-tools-natively-and-holds-what-a-turn-needs.md) | Accepted |
-| 0070 | [The app may send opt-in, ID-less update checks and usage statistics](0070-opt-in-id-less-update-checks-and-usage-statistics.md) | Accepted |
+| 0070 | [The app may send opt-in, ID-less update checks and usage statistics](0070-opt-in-id-less-update-checks-and-usage-statistics.md) | Accepted, the update check's request in part superseded by 0091 |
 | 0071 | [Package managers ship the GitHub release files, and a package manager that installs SurfSense owns its updates](0071-package-managers-ship-the-release-files-and-own-their-updates.md) | Accepted |
 | 0072 | [The desktop app and the Docker container are two entries over one core, and the supervisor and runtime staging leave `electron/`](0072-the-desktop-and-the-container-are-two-entries-over-one-core.md) | Accepted |
 | 0073 | [The Docker GPU image is one CUDA 12.8 variant, with `-cuda13` to follow for arm64, and each runtime has one source shared with the desktop](0073-the-docker-gpu-image-is-one-cuda-12-8-variant-from-upstream-builds.md) | Accepted |
@@ -107,3 +107,20 @@ The Date is the day the decision was first written down. Source links are permal
 | 0076 | [The legacy self-hosted stack lives on its own branch, tagged `legacy-v*`, and its install paths on `main` pass to the new stack](0076-the-legacy-stack-lives-on-its-own-branch.md) | Accepted |
 | 0077 | [An image edit is the next version of the same document](0077-an-image-edit-is-the-next-version.md) | Accepted |
 | 0078 | [A picture a connected model returns is fetched with its connection](0078-a-picture-a-connected-model-returns-is-fetched-with-its-connection.md) | Accepted |
+| 0079 | [`@` names sources and artifacts, not plugins](0079-at-names-sources-and-artifacts-not-plugins.md) | Accepted |
+| 0080 | [SurfSense sells one paid license, Business, priced per person](0080-surfsense-sells-one-business-license-priced-per-person.md) | Superseded by 0092 |
+| 0081 | [SurfSense's platform scrapers retire, and reading web pages, YouTube and search move into the app for free](0081-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md) | Accepted, in part superseded by 0092 |
+| 0082 | [The license server delivers job packs itself, from a private repository's releases, to a license whose jobs list them](0082-the-license-server-delivers-job-packs-from-private-releases.md) | Superseded by 0092 |
+| 0083 | [Business's founding price can change at a renewal, after at least 30 days' notice by email](0083-the-founding-price-can-change-at-a-renewal-with-notice.md) | Accepted |
+| 0084 | [ElevenLabs is a connection with its own client](0084-elevenlabs-is-a-connection-with-its-own-client.md) | Accepted |
+| 0085 | [A user can move models or all data to another drive, and Electron's settings stay behind](0085-the-data-folder-moves-and-electrons-settings-stay.md) | Accepted |
+| 0086 | [The contract redline ships with the Business switch, as an app runner on SurfSense's own Word engine](0086-the-contract-redline-ships-with-the-business-switch-on-the-word-engine.md) | Accepted |
+| 0087 | [The agent makes pictures with its own SurfSense tool, not opencode's](0087-the-agent-makes-pictures-with-its-own-surfsense-tool.md) | Accepted |
+| 0088 | [The app draws Word and Excel files with one renderer](0088-the-app-draws-word-and-excel-files-with-one-renderer.md) | Accepted |
+| 0089 | [Any image model changes a picture: one that takes pictures edits it, any other draws it again](0089-any-image-model-changes-a-picture.md) | Accepted |
+| 0090 | [A document waits on the server for the pictures it places](0090-a-document-waits-on-the-server-for-its-pictures.md) | Accepted |
+| 0091 | [From 2.4.0 on, SurfSense's own update key vouches for an update, not a certificate's name](0091-an-update-key-vouches-for-every-update-from-2-4-0-on.md) | Accepted |
+| 0092 | [SurfSense is free; licensing is off, the job packs ship in the app under Apache-2.0, and web search has no default server](0092-surfsense-is-free-and-licensing-is-off.md) | Accepted |
+| 0093 | [A GGUF another app downloaded is found in that app's folder and used where it lies, never copied](0093-a-gguf-another-app-downloaded-is-used-where-it-lies.md) | Accepted |
+| 0094 | [The star goes to a model that runs the agent here, and to a small one without a graphics card](0094-the-star-goes-to-a-model-that-runs-the-agent.md) | Accepted |
+| 0095 | [The agent scripts documents with a helper and a short skill, and a script that does not parse never runs](0095-documents-are-scripted-with-a-helper-and-a-short-skill.md) | Accepted |

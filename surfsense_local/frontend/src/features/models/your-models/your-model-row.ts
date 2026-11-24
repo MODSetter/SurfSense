@@ -15,6 +15,10 @@ export type YourModelRow = {
   target: SelectionTarget | null
   /** What deletion acts on; null when it cannot be deleted from here. */
   removeId: string | null
+  /** Where it was found, for a model used where another app keeps it (an
+   *  `App` code, `folder` for one a person picked): removing it only stops
+   *  SurfSense using it. */
+  keptBy?: string | null
 }
 
 /** The model filling a slot, named the way the list names it. */

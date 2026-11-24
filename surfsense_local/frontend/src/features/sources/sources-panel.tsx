@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button"
 import {
   Empty,
+  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
@@ -22,6 +23,7 @@ import {
 } from "@/components/ui/empty"
 import { ScrollFade } from "@/components/ui/scroll-fade"
 import { SkeletonSlabs } from "@/components/ui/skeleton"
+import { GuideLink } from "@/features/guides/guide-link"
 import { AddSourcesMenu, type SourceUploads } from "./add-sources-menu"
 import type { WorkspaceDocument } from "./api"
 import type { UploadEntry } from "./folder-upload/upload-plan"
@@ -58,6 +60,7 @@ import {
 } from "./tree/source-tree"
 import type { TranscriptionPace } from "./transcription/pace"
 import type { DraggedSource } from "./tree/tree-drag"
+import { useExpandedFolders } from "./tree/use-expanded-folders"
 import { TOP_TICK } from "./tree/use-source-scope"
 import { useDragAutoScroll } from "./use-drag-auto-scroll"
 import { useSourcesDrop } from "./use-sources-drop"
@@ -77,6 +80,7 @@ const NO_TICKS: ReadonlyMap<number, Tick> = new Map()
 // Memoized: the dashboard re-renders for a streamed reply or a column drag,
 // and every row below it would otherwise render again.
 export const SourcesPanel = memo(function SourcesPanel({
+  workspaceId,
   documents,
   index: givenIndex,
   selectedDocumentIds,
@@ -104,6 +108,8 @@ export const SourcesPanel = memo(function SourcesPanel({
   transcriptionPaces,
   onOpenSpeechSettings,
 }: {
+  // Absent, which folders are open is not kept past this panel.
+  workspaceId?: number
   documents: WorkspaceDocument[]
   // The sources in their folders; absent, the documents are one flat list.
   index?: SourceIndex
@@ -165,7 +171,10 @@ export const SourcesPanel = memo(function SourcesPanel({
   const [folderDeleteTarget, setFolderDeleteTarget] =
     useState<FolderDeleteTarget | null>(null)
   const [folderDeleteOpen, setFolderDeleteOpen] = useState(false)
-  const [expanded, setExpanded] = useState<ReadonlySet<number>>(() => new Set())
+  const { expanded, setFolderExpanded } = useExpandedFolders(
+    workspaceId ?? null,
+    index
+  )
   const [filter, setFilter] = useState("")
   const [filterOpen, setFilterOpen] = useState(false)
   // Focus goes to the search button once it mounts in the field's place.
@@ -189,17 +198,6 @@ export const SourcesPanel = memo(function SourcesPanel({
   // Folders are made in the root folder, so an API without one offers none.
   const organizing = folderActions !== undefined && index.rootFolderId !== null
   const filterable = hasFolders || documents.length > 0
-
-  const setFolderExpanded = useCallback(
-    (folderId: number, open: boolean) =>
-      setExpanded((current) => {
-        const next = new Set(current)
-        if (open) next.add(folderId)
-        else next.delete(folderId)
-        return next
-      }),
-    []
-  )
 
   const moveInto = async (
     source: DraggedSource,
@@ -466,6 +464,14 @@ export const SourcesPanel = memo(function SourcesPanel({
                   })}
                 </EmptyDescription>
               </EmptyHeader>
+              <EmptyContent>
+                <GuideLink guide="add-sources" surface="sources_empty">
+                  {intl.formatMessage({
+                    id: "sources_list_guide_link",
+                    defaultMessage: "How to add sources",
+                  })}
+                </GuideLink>
+              </EmptyContent>
             </Empty>
           )}
         </ScrollFade>

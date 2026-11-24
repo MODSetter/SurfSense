@@ -8,6 +8,8 @@ import {
 } from "@testing-library/react"
 import { toast } from "sonner"
 
+import { useJobRun } from "@/features/jobs/run/use-job-run"
+import { runRead } from "@/features/jobs/stub-jobs-api"
 import { createQueryClient } from "@/lib/query-client"
 
 import { messageFrom, useStudio } from "./use-studio"
@@ -544,5 +546,110 @@ describe("useStudio decide all", () => {
     await waitFor(() =>
       expect(result.current.artifacts.map((each) => each.id)).toEqual([51, 50])
     )
+  })
+
+  it("rejects a refused decision with the interface's line for its code", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = String(input)
+        if (path.endsWith("/events")) return new Response(null, { status: 204 })
+        if (path.includes("/studio/formats")) return Response.json([])
+        if (path.endsWith("/reject-all")) {
+          return Response.json(
+            {
+              detail: {
+                message: "the backend's sentence, never shown",
+                code: "version_being_made",
+                version: 3,
+              },
+            },
+            { status: 409 }
+          )
+        }
+        return Response.json([])
+      })
+    )
+
+    const { result } = renderHook(() => useStudio(1))
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    const refusal = await result.current
+      .decideAll(50, "reject_all")
+      .catch((cause: unknown) => cause)
+
+    // revised-copy-bar.tsx shows messageFrom(cause) under the bar.
+    expect(messageFrom(refusal)).toBe(
+      "Version 3 of this revised copy is still being made. Wait for it to finish, then revise again."
+    )
+  })
+})
+
+describe("useStudio job runs", () => {
+  it("reads the workspace’s job runs again when its artifacts change, since each run’s copy is one", async () => {
+    const stream = eventStream()
+    let runReads = 0
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = String(input)
+        if (path.endsWith("/events")) return stream.response
+        if (path === "/workspaces/1/job-runs/41") {
+          runReads += 1
+          return Response.json(runRead())
+        }
+        return Response.json([])
+      })
+    )
+
+    // Studio and a run of one copy, read side by side as the panel reads them.
+    const { result } = renderHook(() => ({
+      studio: useStudio(1),
+      run: useJobRun(1, 41),
+    }))
+    await waitFor(() => expect(result.current.run.data).toBeTruthy())
+    stream.connected()
+    stream.artifactsChanged([42])
+
+    await waitFor(() => expect(runReads).toBe(2))
+  })
+
+  it("reads a run again when its copy changes while the first read is still on its way", async () => {
+    const stream = eventStream()
+    let answerFirstRead!: (response: Response) => void
+    let runReads = 0
+    let listReads = 0
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = String(input)
+        if (path.endsWith("/events")) return stream.response
+        if (path === "/workspaces/1/job-runs/41") {
+          // The first read began before the run ended; the second, after.
+          if (runReads++ === 0) {
+            return new Promise<Response>((resolve) => {
+              answerFirstRead = resolve
+            })
+          }
+          return Response.json(runRead())
+        }
+        if (path === "/workspaces/1/artifacts") listReads += 1
+        return Response.json([])
+      })
+    )
+
+    const { result } = renderHook(() => ({
+      studio: useStudio(1),
+      run: useJobRun(1, 41),
+    }))
+    await waitFor(() => expect(listReads).toBe(1))
+    await waitFor(() => expect(runReads).toBe(1))
+    stream.connected()
+    stream.artifactsChanged([41])
+    // The event was handled: the list it also refreshes was read again.
+    await waitFor(() => expect(listReads).toBe(2))
+    answerFirstRead(Response.json(runRead({ running: true })))
+
+    await waitFor(() => expect(result.current.run.data?.running).toBe(false))
   })
 })

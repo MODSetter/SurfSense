@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 
-const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)"
+import { motionIsReduced } from "@/features/motion-preference/motion-preference"
 
 function AnimatedText({
   text,
@@ -44,8 +44,7 @@ export function TypewriterText({
   animate?: boolean
   onComplete?: () => void
 }) {
-  const reducedMotion =
-    window.matchMedia?.(REDUCED_MOTION_QUERY).matches ?? false
+  const reducedMotion = motionIsReduced()
   return (
     <>
       <span className="sr-only">{text}</span>

@@ -9,6 +9,7 @@ from modules.llm.catalog.local.engines.audiocpp.audio_folder.installed_recognise
 )
 from modules.llm.catalog.remote.reads_images import remote_reads_images
 from modules.llm.connections.serves import connection_serves
+from modules.llm.connections.speech_client import speech_client
 from modules.llm.connections.text_generator import connection_generator
 from modules.llm.model_route.runtime_hold import text_runtime_given_up
 from modules.llm.model_type import ModelType
@@ -22,7 +23,6 @@ from modules.llm.providers.openai_compatible import (
 from modules.llm.providers.openai_compatible.image_edit import (
     OpenAICompatibleImageEditor,
 )
-from modules.llm.providers.openai_compatible.speech import RemoteSpeech
 from modules.llm.providers.protocols import (
     Generator,
     ImageEditor,
@@ -32,6 +32,7 @@ from modules.llm.providers.protocols import (
 from modules.llm.providers.sdcpp import provider as sdcpp
 from modules.llm.providers.sdcpp.editor import LocalImageEditor
 from modules.llm.providers.sdcpp.generator import LocalImageGenerator
+from modules.llm.providers.sdcpp.launch_size import launch_pixels
 from modules.llm.subscriptions.claude.account import CLAUDE_PLAN
 from modules.llm.subscriptions.claude.hosts import require_claude_hosts
 from modules.llm.subscriptions.claude.usable_claude import usable_claude
@@ -119,6 +120,7 @@ def resolve_image_generation(session: Session) -> ResolvedImageGeneration:
                 sdcpp.root_url(),
                 image.served_file,
                 text_runtime_given_up,
+                pixels=launch_pixels(image.args),
             ),
         )
     connection = _connection(session, selected)
@@ -135,6 +137,11 @@ def resolve_image_edit(session: Session) -> ResolvedImageEdit:
     selected = session.get(SelectedModel, ModelType.IMAGE_EDIT)
     if selected is None:
         raise ModelResolutionError("no image editing model selected")
+    return image_editor_for(session, selected)
+
+
+def image_editor_for(session: Session, selected: SelectedModel) -> ResolvedImageEdit:
+    """The client that sends this chosen model a picture, whichever slot chose it."""
     if selected.provider == sdcpp.PROVIDER:
         image = get_local_catalog().sdcpp.installed_image(selected.name)
         if image is None:
@@ -172,17 +179,7 @@ def resolve_text_to_speech(session: Session) -> TextToSpeech:
         return local_speech(selected)
     connection = _connection(session, selected)
     _require_serves(connection, ModelType.AUDIO_GEN)
-    return _remote_speech(selected, connection)
-
-
-def _remote_speech(
-    selected: SelectedModel, connection: ProviderConnection
-) -> RemoteSpeech:
-    return RemoteSpeech(
-        selected.name,
-        base_url=connection.base_url,
-        api_key=connection.api_key,
-    )
+    return speech_client(connection, selected.name)
 
 
 def selected_audio(session: Session) -> SelectedModel:

@@ -5,9 +5,11 @@ import { buttonVariants } from "@/components/ui/button"
 import { DetailPanel } from "@/components/ui/detail-panel"
 import { Download01Icon } from "@/components/ui/icons"
 import { Spinner } from "@/components/ui/spinner"
+import { useJobRun } from "@/features/jobs/run/use-job-run"
 import { intl } from "@/i18n/intl"
 import {
   downloadUrl,
+  isWorkbookCopy,
   readArtifact,
   type Artifact,
   type ArtifactDetail,
@@ -68,6 +70,7 @@ function useFollowNewestVersion(
 }
 
 export function ArtifactPanel({
+  workspaceId,
   artifactId,
   artifacts,
   onOpenVersion,
@@ -77,6 +80,8 @@ export function ArtifactPanel({
   onDecideAll = async () => {},
   onClose,
 }: {
+  /** Where a workbook copy's job run is read; without it, none is. */
+  workspaceId?: number
   artifactId: number
   /** The workspace's artifacts, where the shown one's versions are found. */
   artifacts: Artifact[]
@@ -109,6 +114,24 @@ export function ArtifactPanel({
   const [actionsContainer, setActionsContainer] =
     useState<HTMLDivElement | null>(null)
   const revision = data?.revision ?? null
+  // A workbook copy may be a job run's. Studio's own artifact events re-read
+  // it, so it is never polled here.
+  const run = useJobRun(
+    workspaceId ?? null,
+    revision && isWorkbookCopy(revision)
+      ? (data?.version?.root_id ?? null)
+      : null,
+    { poll: false }
+  ).data
+  const jobRun =
+    run && workspaceId !== undefined
+      ? {
+          workspaceId,
+          rootId: run.artifact_id,
+          suggestions: run.open_suggestions,
+          running: run.running,
+        }
+      : null
   // A decision starts from the newest ready version, so only it offers one.
   const newestShown = (newestReady(versions)?.id ?? artifactId) === artifactId
   // A version not ready has no file of its own to download.
@@ -189,6 +212,7 @@ export function ArtifactPanel({
             versionRunning={writing !== undefined}
             newest={newestShown}
             onDecideAll={onDecideAll}
+            jobRun={jobRun}
           />
         ) : null}
         {/* The one viewable stage every artifact format renders into: same

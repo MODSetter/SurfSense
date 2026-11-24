@@ -5,8 +5,7 @@ import logging
 from sqlalchemy.orm import Session
 
 from api.dependencies import transact
-from modules.llm.catalog.remote.manifest.loader import remote_lookup
-from modules.llm.catalog.remote.rows import CUSTOM
+from modules.llm.catalog.remote.context_window import remote_context_window
 from modules.llm.model_type import ModelType
 from modules.llm.models import ProviderConnection, SelectedModel
 from modules.llm.providers import get_provider, llamacpp
@@ -35,7 +34,7 @@ async def selected_model_window(session: Session) -> tuple[str, int]:
         plan = await transact(session, _plan_connection, selected.connection_id)
         window = (
             await _plan_window(session, plan, selected.name) if plan else None
-        ) or _catalog_window(selected.name, catalog_provider)
+        ) or remote_context_window(selected.name, catalog_provider)
     return selected.name, window or FALLBACK_WINDOW
 
 
@@ -82,10 +81,3 @@ async def _local_window(name: str) -> int | None:
     except Exception:
         logger.warning("could not read the window of %s", name, exc_info=True)
         return None
-
-
-def _catalog_window(name: str, catalog_provider: str | None) -> int | None:
-    """The window the remote catalog records for the model, if it knows the model."""
-    provider = None if catalog_provider in (None, CUSTOM) else catalog_provider
-    found = remote_lookup().classify(name, provider=provider)
-    return found.supports.context_window if found.supports else None

@@ -10,7 +10,7 @@ from capability_list.ladder_input import LadderResults
 from capability_list.merge import merged
 from capability_list.rows import COMMITTED_INPUT, measured_rows, with_ladder_rows
 from capability_list.sweep_input import SweepResults
-from capability_list.sweep_rows import sweep_rows
+from capability_list.sweep_rows import THIS_COMPUTER, sweep_rows
 
 from modules.llm.capability.measured.schema import CapabilityList, MeasuredModel
 
@@ -330,3 +330,74 @@ def test_the_script_says_which_variant_waits_and_which_row_it_replaced(
     replaced = "gpt-5-5 (assumed): replaced by this sweep's gpt-5-5 (openrouter-screen)"
     assert replaced in said
     assert "gpt-5-5: agent (2/2)" in said
+
+
+LOCAL_FOLDER = (
+    Path(__file__).resolve().parents[3] / "scripts" / "capability_list" / "local"
+)
+# Spark-X2.6-4B's screening; local-screen-v2.json is Nemotron 3.5 Bolt E4B's.
+LOCAL_INPUT = LOCAL_FOLDER / "local-screen-v1.json"
+LOCAL_INPUTS = sorted(LOCAL_FOLDER.glob("local-screen-v*.json"))
+
+
+def test_a_screening_on_this_computer_holds_only_for_a_local_copy() -> None:
+    """Spark-X2.6-4B was screened on this computer's llama.cpp: its pass says
+    nothing of a host's copy, and a failure here would say nothing of the
+    full-size model either."""
+    local = SweepResults.model_validate_json(LOCAL_INPUT.read_text(encoding="utf-8"))
+    (row,) = sweep_rows(local, date(2026, 1, 1), THIS_COMPUTER)
+    failed = sweep_rows(
+        SweepResults.model_validate(
+            {
+                "models": [
+                    {
+                        **local.models[0].model_dump(),
+                        "board_pack": "fail",
+                        "passed": 1,
+                        "level": "below",
+                    }
+                ]
+            }
+        ),
+        date(2026, 1, 1),
+        THIS_COMPUTER,
+    )[0]
+
+    assert (row.key, row.level, row.suite) == ("spark-x2-6-4b", "agent", "local-screen")
+    assert row.match.served == ["local"]
+    assert (row.provider, row.host) == ("llamacpp", "localhost")
+    assert "this computer's llama.cpp" in row.note
+    assert (failed.level, failed.match.served) == ("studio_only", ["local"])
+
+
+def test_nemotron_is_measured_for_the_agent_on_this_computer() -> None:
+    """Its screening ran with #2455's documents helper; without it the model
+    passed one of its four document runs, which is in the input's notes."""
+    (nemotron,) = [p for p in LOCAL_INPUTS if p.name == "local-screen-v2.json"]
+    local = SweepResults.model_validate_json(nemotron.read_text(encoding="utf-8"))
+    (row,) = sweep_rows(local, date(2026, 1, 1), THIS_COMPUTER)
+
+    assert (row.key, row.level, row.suite) == (
+        "nemotron-3-5-bolt-e4b",
+        "agent",
+        "local-screen",
+    )
+    assert row.match.served == ["local"]
+    assert row.reads_images is True
+
+
+def test_the_shipped_list_holds_the_local_screens_rows_as_written() -> None:
+    """The list is written, never edited: its local rows are the inputs'."""
+    written = {}
+    for path in LOCAL_INPUTS:
+        local = SweepResults.model_validate_json(path.read_text(encoding="utf-8"))
+        written |= {
+            r.key: r for r in sweep_rows(local, date(2026, 1, 1), THIS_COMPUTER)
+        }
+    shipped = {
+        r.key: r
+        for r in shipped_list.read_shipped().models
+        if r.suite == "local-screen"
+    }
+
+    assert shipped == written

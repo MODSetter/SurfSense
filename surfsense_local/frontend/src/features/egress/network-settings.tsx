@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { useId } from "react"
+import { useId, type ReactNode } from "react"
 
 import { RelativeTime } from "@/components/relative-time"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -101,17 +101,7 @@ function UpdatesRow() {
         id: "egress_network_app_updates_label",
         defaultMessage: "App updates",
       })}
-      host={
-        updates?.fallbackHost
-          ? intl.formatMessage(
-              {
-                id: "egress_network_app_updates_host_label",
-                defaultMessage: "{host}, falls back to {fallback}",
-              },
-              { host: updates.host, fallback: updates.fallbackHost }
-            )
-          : (updates?.host ?? "github.com")
-      }
+      host={updates?.host ?? "github.com"}
       enabled={prefs.automatic}
       lastCallAt={prefs.lastCheckedAt ?? null}
       locked={state ? updatesLockedText(state) : null}
@@ -140,7 +130,8 @@ function UsageStatisticsRow() {
   )
 }
 
-export function NetworkSettings() {
+/** `children` are settings of where calls go, shown under the destinations. */
+export function NetworkSettings({ children }: { children?: ReactNode }) {
   const queryClient = useQueryClient()
   const destinations = useQuery({
     queryKey: destinationsQueryKey,
@@ -197,6 +188,7 @@ export function NetworkSettings() {
           ))}
         </ul>
       )}
+      {children}
     </SettingsSection>
   )
 }

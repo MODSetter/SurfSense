@@ -253,6 +253,7 @@ async def test_with_no_verified_copy_the_list_is_unavailable(
     assert listed.json()["detail"]["code"] == "registry_unavailable"
 
 
+@pytest.mark.usefixtures("first_party_sample")
 async def test_entries_only_the_first_party_list_may_hold_are_dropped(
     client: AsyncClient, registry: StandInRegistry
 ) -> None:
@@ -261,7 +262,7 @@ async def test_entries_only_the_first_party_list_may_hold_are_dropped(
         [
             entry("wants-license", auth={"type": "license"}),
             entry("sells-license", access="license"),
-            entry("amazon"),
+            entry("news"),
             entry("from-the-future", min_app_version="99.0.0"),
             entry("from-the-past", min_app_version="2.0.0"),
             entry("notes"),

@@ -34,6 +34,9 @@ from modules.chat.runs.registry import ChatRuns
 from modules.chat.runs.router import router as chat_runs_router
 from modules.documents.router import router as documents_router
 from modules.documents.web_sources.router import router as web_sources_router
+from modules.documents.web_sources.web_search.server_router import (
+    router as search_server_router,
+)
 from modules.egress.router import router as egress_router
 from modules.egress.service import EgressDeniedError
 from modules.embedding.active import EmbeddingNotChosenError
@@ -46,6 +49,13 @@ from modules.events.router import router as events_router
 from modules.folders.finish_deletes import finish_interrupted_deletes
 from modules.folders.router import router as folders_router
 from modules.health.router import router as health_router
+from modules.jobs.packs.bundled_packs import install_bundled_packs
+from modules.jobs.packs.delivery.delivery_schedule import delivering_daily
+from modules.jobs.packs.delivery.router import router as job_pack_delivery_router
+from modules.jobs.packs.dev_packs import install_dev_packs
+from modules.jobs.router import router as jobs_router
+from modules.license.licensing import licensing_on
+from modules.license.renewal.renewal_schedule import renewing_daily
 from modules.license.router import router as license_router
 from modules.llm.admission.local_runtime import LocalAdmission
 from modules.llm.catalog.local.dependencies import get_local_catalog
@@ -53,6 +63,7 @@ from modules.llm.default_voice import choose_default_voice
 from modules.llm.model_route.router import router as model_route_router
 from modules.llm.model_type import ModelType
 from modules.llm.models import SelectedModel
+from modules.llm.pictures_in.router import router as pictures_in_router
 from modules.llm.residency import warm_selected
 from modules.llm.router import router as llm_router
 from modules.llm.subscriptions.claude.errors import (
@@ -124,6 +135,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             session.commit()
             begin_counting(session)
         app.state.session_factory = session_factory
+        # The app's own packs first, so a developer's version of one replaces it.
+        install_bundled_packs(session_factory)
+        install_dev_packs()
         # A thread too: a large subtree takes a while, and it is out of every
         # scope and the tree meanwhile.
         threading.Thread(
@@ -149,15 +163,30 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             name="catalog-warm",
             daemon=True,
         ).start()
+        # Last in, so it stops first; it runs after the developer's packs are installed.
         async with (
             _opencode_proxy(session_factory),
             serving_claude_proxy(session_factory, get_settings().host),
+            licensing_loops(session_factory),
         ):
             yield
     finally:
         await close_claude_runs()
         await close_engines()
         engine.dispose()
+
+
+@asynccontextmanager
+async def licensing_loops(
+    session_factory: sessionmaker[Session],
+) -> AsyncIterator[None]:
+    """The licence's renewal and its job packs' delivery, each daily; neither runs with
+    licensing off, so nothing asks SurfSense's licence server (ADR 0092)."""
+    if not licensing_on():
+        yield
+        return
+    async with renewing_daily(session_factory), delivering_daily(session_factory):
+        yield
 
 
 @asynccontextmanager
@@ -245,8 +274,10 @@ def create_app() -> FastAPI:
     app.include_router(workspaces_router)
     app.include_router(documents_router)
     app.include_router(web_sources_router)
+    app.include_router(search_server_router)
     app.include_router(folders_router)
     app.include_router(llm_router)
+    app.include_router(pictures_in_router)
     app.include_router(model_route_router)
     app.include_router(transcription_windows_router)
     app.include_router(chat_router)
@@ -259,6 +290,8 @@ def create_app() -> FastAPI:
     app.include_router(events_router)
     app.include_router(migration_router)
     app.include_router(license_router)
+    app.include_router(jobs_router)
+    app.include_router(job_pack_delivery_router)
     app.include_router(egress_router)
     app.include_router(embedding_router)
     app.include_router(embedding_huggingface_router)

@@ -1,24 +1,19 @@
 /**
- * Shared site chrome: the links that appear in the navigation and footer on
- * every page.
+ * Shared site chrome: the addresses and link types the navigation, the footer and
+ * the pages share. The nav and footer themselves are in
+ * `features/site-navigation/site-navigation.ts`.
  *
  * The nav and footer belong to the whole site, not the home page: they are
  * rendered once by `app/(home)/layout.tsx` and kept mounted across navigations.
  */
 
-import {
-	BookOpen01Icon,
-	HistoryIcon,
-	type Icon,
-	Mail01Icon,
-	Megaphone01Icon,
-} from "@/components/ui/icons";
+import type { Icon } from "@/components/ui/icons";
 
 export const REPO_URL = "https://github.com/MODSetter/SurfSense";
 export const DISCORD_URL = "https://discord.gg/ejRNvftDp9";
 export const DOWNLOADS_URL = "/downloads";
 /** The inbox the contact and pricing pages give out. */
-export const EMAIL = "rohan@surfsense.com";
+export const EMAIL = "vermarohanfinal@gmail.com";
 
 /**
  * The cross-cutting professional page. The slug is the page's primary keyword
@@ -32,67 +27,37 @@ export const BUSINESS_URL = "/private-ai-for-business";
 export type SiteLink = { name: string; href: string; external?: boolean };
 export type SiteMenuItem = SiteLink & { description: string; icon: Icon };
 
-export const NAV_LINKS: SiteLink[] = [
-	{ name: "For business", href: BUSINESS_URL },
-	{ name: "Plugins", href: "/plugins" },
-	{ name: "Docs", href: "/docs" },
-	{ name: "Pricing", href: "/pricing" },
-];
+/**
+ * The audience and job pages, from `plans/community-local/seo/09-audience-pages.md`. Each
+ * slug is its page's primary keyword.
+ */
+export const LAWYERS_URL = "/ai-for-lawyers";
+export const ACCOUNTANTS_URL = "/ai-for-accountants";
+export const CONTRACT_REDLINE_URL = "/jobs/contract-redline";
+export const SECURITY_QUESTIONNAIRE_URL = "/jobs/security-questionnaire";
 
-export const NAV_RESOURCES: SiteMenuItem[] = [
-	{
-		name: "Blog",
-		href: "/blog",
-		description: "Guides, comparisons and deep dives",
-		icon: BookOpen01Icon,
-	},
-	{
-		name: "Announcements",
-		href: "/announcements",
-		description: "Product news and updates",
-		icon: Megaphone01Icon,
-	},
-	{
-		name: "Changelog",
-		href: "/changelog",
-		description: "What's new in SurfSense",
-		icon: HistoryIcon,
-	},
-	{
-		name: "Contact us",
-		href: "/contact",
-		description: "Questions, bugs and feedback",
-		icon: Mail01Icon,
-	},
+/**
+ * The free audiences and the Studio jobs they search for, from the same plan's round two.
+ * They name no paid job, so they exist with or without the Business switch.
+ */
+export const STUDENTS_URL = "/ai-for-students";
+export const TEACHERS_URL = "/ai-for-teachers";
+export const STUDY_GUIDE_URL = "/features/study-guide-maker";
+export const FLASHCARDS_URL = "/features/flashcard-generator";
+export const QUIZ_URL = "/features/quiz-generator";
+export const PODCAST_URL = "/features/podcast-generator";
+
+/** The step-by-step guides, with their videos, in the user docs. */
+export const GUIDES_URL = "/docs/v2/guides";
+
+/** Every page round two adds, for the sitemap. */
+export const STUDY_PAGES = [
+	STUDENTS_URL,
+	TEACHERS_URL,
+	STUDY_GUIDE_URL,
+	FLASHCARDS_URL,
+	QUIZ_URL,
+	PODCAST_URL,
 ];
 
 export type FooterLink = { title: string; href: string; external?: boolean };
-
-export const FOOTER_COLUMNS: { heading: string; links: FooterLink[] }[] = [
-	{
-		heading: "Product",
-		links: [
-			{ title: "Download", href: DOWNLOADS_URL },
-			{ title: "For business", href: BUSINESS_URL },
-			{ title: "Plugins", href: "/plugins" },
-			{ title: "Pricing", href: "/pricing" },
-			{ title: "Docs", href: "/docs" },
-		],
-	},
-	{
-		heading: "Resources",
-		links: [
-			{ title: "Blog", href: "/blog" },
-			{ title: "Announcements", href: "/announcements" },
-			{ title: "Changelog", href: "/changelog" },
-			{ title: "Contact us", href: "/contact" },
-		],
-	},
-	{
-		heading: "Company",
-		links: [
-			{ title: "Privacy Policy", href: "/privacy" },
-			{ title: "Terms of Service", href: "/terms" },
-		],
-	},
-];

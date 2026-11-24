@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from api.dependencies import transact
 from modules.egress.service import EgressDeniedError, host_destination, require
+from modules.license.licensing import licensing_on
 from modules.license.service import status
 from modules.plugins.license_verdict.applied_verdict import apply_verdict, paid_plugins
 from modules.plugins.license_verdict.asked_verdict import asked_verdict
@@ -17,7 +18,10 @@ from modules.plugins.remote.sign_in.plugin_headers import license_headers
 
 
 async def refresh_license_verdict(session: Session, *, if_stale: bool) -> list[str]:
-    """The names of plugins it newly holds out; none when nothing was asked or answered."""
+    """The names of plugins it newly holds out; none when nothing was asked or answered, as
+    with licensing off, when the host is never asked."""
+    if not licensing_on():
+        return []
     headers = await transact(session, _planned, if_stale)
     if headers is None:
         return []

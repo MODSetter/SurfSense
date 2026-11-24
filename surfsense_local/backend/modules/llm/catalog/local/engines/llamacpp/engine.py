@@ -1,7 +1,9 @@
-"""llama.cpp behind the engine seam: chat models in llama-server's folder."""
+"""llama.cpp behind the engine seam: chat models in llama-server's folder, and
+those it runs where other apps keep them."""
 
 import asyncio
 import contextlib
+import dataclasses
 import threading
 from collections.abc import AsyncIterator, Callable, Sequence, Set
 from pathlib import Path
@@ -12,6 +14,18 @@ from modules.llm.catalog.local.build import Build, BuildFile, FileRole
 from modules.llm.catalog.local.classifier import UNSUPPORTED_REASON, NotRunnableCode
 from modules.llm.catalog.local.engines.engine import InstallStep
 from modules.llm.catalog.local.engines.llamacpp import ENGINE
+from modules.llm.catalog.local.engines.llamacpp.elsewhere.candidate import Candidate
+from modules.llm.catalog.local.engines.llamacpp.elsewhere.find import (
+    FoundModel,
+    judge,
+)
+from modules.llm.catalog.local.engines.llamacpp.elsewhere.in_place import (
+    in_place_models,
+)
+from modules.llm.catalog.local.engines.llamacpp.elsewhere.record import (
+    forget,
+    in_place,
+)
 from modules.llm.catalog.local.engines.llamacpp.models_folder.preset import (
     preset_model_ids,
     write_preset,
@@ -46,6 +60,7 @@ from modules.llm.providers.llamacpp import PROVIDER
 from modules.llm.providers.llamacpp.router_client import RouterClient
 
 _TOO_BIG = "This build is too big for this computer. Pick a smaller one."
+_GONE = "This model is no longer available where SurfSense expects it."
 
 
 # An unload is quick. The client's own read timeout is sized for a load.
@@ -74,12 +89,29 @@ class LlamaCppEngine:
         return self._models_dir
 
     def installed(self) -> list[DownloadedModel]:
-        """The models on disk, read from their own headers."""
+        """The models on disk, read from their own headers: the folder's, then
+        those used where other apps keep them."""
+        return self._in_folder() + in_place_models(self._models_dir)
+
+    def _in_folder(self) -> list[DownloadedModel]:
         return scan(self._models_dir, read_installs(self._models_dir))
 
     def projector_notices(self) -> tuple[ProjectorNotice, ...]:
-        """Unpaired projectors and the model they identify, when exactly one."""
-        return projector_notices(self._models_dir, self.installed())
+        """Unpaired projectors in the folder and the model they identify, when
+        exactly one. A rename can only pair the folder's own models."""
+        return projector_notices(self._models_dir, self._in_folder())
+
+    def stop_using(self, model_id: str) -> bool:
+        """Forget a model used where another app keeps it, and take it out of
+        the runtime. Its file stays that app's: nothing is deleted. False for
+        a model SurfSense did not use in place."""
+        if not forget(self._models_dir, model_id):
+            return False
+        self.reprice()
+        return True
+
+    def uses_in_place(self, model_id: str) -> bool:
+        return in_place(self._models_dir, model_id) is not None
 
     def rows(
         self,
@@ -137,6 +169,8 @@ class LlamaCppEngine:
         """Refuse what cannot run here, before any bytes move: a curated build by
         its committed shape, a searched one by reading its headers. Returns the
         plan with a failed projector dropped."""
+        if plan.in_place is not None:
+            return self._check_in_place(plan)
         if not plan.needs_check:
             self._refuse_curated_too_big(plan)
             return plan
@@ -158,6 +192,33 @@ class LlamaCppEngine:
         return InstallPlan(
             plan.model_id, checked.build, self.name, pipeline_tag=plan.pipeline_tag
         )
+
+    def _check_in_place(self, plan: InstallPlan) -> InstallPlan:
+        """The file is read again, since its app may have deleted or replaced it
+        since it was listed, then priced as its row was."""
+        found = plan.in_place
+        assert found is not None
+        again = judge(
+            Candidate(
+                found.app,
+                found.path,
+                found.parts,
+                projector=found.projector,
+                name=found.label.name,
+                source=found.source,
+            )
+        )
+        if not isinstance(again, FoundModel):
+            raise InstallRefusedError(_GONE, InstallCode.FILE_GONE)
+        fit = price(
+            again.shape,
+            again.weights_bytes,
+            again.projector_bytes,
+            self._budget(BudgetMode.CAPACITY),
+        )
+        if fit.state is FitState.TOO_BIG:
+            raise InstallRefusedError(_TOO_BIG, InstallCode.TOO_BIG)
+        return dataclasses.replace(plan, in_place=again)
 
     def _refuse_curated_too_big(self, plan: InstallPlan) -> None:
         # A curated build's header was read at refresh time; whether it fits

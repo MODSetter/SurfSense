@@ -33,14 +33,15 @@ from tests.mcp_test_server import (
     RecordingMethods,
     RequiringLicense,
     RequiringToken,
-    amazon_server,
+    news_server,
     notes_server,
     plugin_host,
     serving,
 )
 from tests.oauth_stand_in import ProtectedByStandIn, StandInAuthorizationServer
 
-pytestmark = pytest.mark.integration
+# The packaged list is empty: these connect a sample of SurfSense's own plugins.
+pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("first_party_sample")]
 
 
 @pytest.fixture
@@ -223,13 +224,13 @@ async def test_surfsense_s_plugin_gets_the_license_key_through_opencode(
         guarded.append(RequiringLicense(app))
         return guarded[0]
 
-    with serving(plugin_host("amazon", amazon_server(), around)) as base:
+    with serving(plugin_host("news", news_server(), around)) as base:
         monkeypatch.setattr(get_plugin_host_settings(), "plugin_host_url", base)
-        connected = await agent_api.http.post("/plugins/first-party/amazon")
+        connected = await agent_api.http.post("/plugins/first-party/news")
         assert connected.status_code == 201, connected.text
         guarded[0].authorizations.clear()
         agent_api.model.replies = [
-            call("amazon_search_products", query="ship"),
+            call("news_search_articles", query="ship"),
             ("text", "Done."),
         ]
         thread = await open_thread(agent_api)
@@ -237,7 +238,7 @@ async def test_surfsense_s_plugin_gets_the_license_key_through_opencode(
         frames = await send(agent_api, thread["id"], "Search the web")
 
     step = of_type(frames, "agent-step")[-1]
-    assert (step["tool"], step["status"]) == ("amazon_search_products", "completed")
+    assert (step["tool"], step["status"]) == ("news_search_articles", "completed")
     assert set(guarded[0].authorizations) == {f"License {INDIVIDUAL_KEY}"}
 
 
@@ -254,7 +255,7 @@ async def test_stop_ends_the_thread_s_calls_on_surfsense_s_plugin_host(
         guarded.append(RequiringLicense(app))
         return guarded[0]
 
-    host = plugin_host("amazon", amazon_server(), around, cancels)
+    host = plugin_host("news", news_server(), around, cancels)
     texts = RecordingHeaders(
         notes_server().streamable_http_app(), upstream_headers.TEXT_ONLY_HEADER
     )
@@ -262,7 +263,7 @@ async def test_stop_ends_the_thread_s_calls_on_surfsense_s_plugin_host(
     with serving(host) as base, serving(others) as third_party:
         monkeypatch.setattr(get_plugin_host_settings(), "plugin_host_url", base)
         assert (
-            await agent_api.http.post("/plugins/first-party/amazon")
+            await agent_api.http.post("/plugins/first-party/news")
         ).status_code == 201
         await connect_notes(agent_api, f"{third_party}/mcp")
         agent_api.model.replies = [("stall", "Thinking about")]
@@ -394,7 +395,7 @@ async def test_only_a_plugins_step_is_saved_to_sources(agent_api: AgentAPI) -> N
     assert saved.status_code == 409
 
 
-async def test_mentioning_a_plugin_never_unblocks_its_tools(
+async def test_naming_a_plugin_never_unblocks_its_tools(
     agent_api: AgentAPI, notes_url: str
 ) -> None:
     """A tool switched off stays hidden, whatever the message names."""
@@ -408,7 +409,7 @@ async def test_mentioning_a_plugin_never_unblocks_its_tools(
     assert offered(agent_api) == ["notes_search"]
 
 
-async def test_a_mention_of_a_plugin_that_is_not_ready_changes_nothing(
+async def test_naming_a_plugin_that_is_not_ready_changes_nothing(
     agent_api: AgentAPI, notes_url: str
 ) -> None:
     """With third-party plugins refused, the agent is neither given it nor told of it."""
@@ -420,9 +421,6 @@ async def test_a_mention_of_a_plugin_that_is_not_ready_changes_nothing(
     await send(agent_api, thread["id"], "Use @notes")
 
     assert offered(agent_api) == []
-    assert "The user asked you to use" not in json.dumps(
-        agent_api.model.requests[0]["messages"]
-    )
 
 
 @contextmanager

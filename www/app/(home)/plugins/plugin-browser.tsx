@@ -140,15 +140,7 @@ export function PluginBrowser({
 					<PluginRow
 						id="plugins-surfsense-label"
 						title="By SurfSense"
-						subtitle={
-							<>
-								Made by us. One licence for all.{" "}
-								<Link className={siteText.link} href="/pricing">
-									See pricing
-								</Link>
-								.
-							</>
-						}
+						subtitle={"Made by us, built into the app and free. No licence needed."}
 						plugins={SURFSENSE_PLUGINS}
 					/>
 					{registryPlugins.length > 0 ? (

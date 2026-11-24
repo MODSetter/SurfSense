@@ -19,17 +19,14 @@ import { useFinishOnboarding } from "./use-finish-onboarding"
  * The model steps, in order. The privacy choices come before them as the first
  * step the progress bar counts. The welcome is still onboarding, and still gated
  * by the same marker, but it is an introduction, not a step to complete.
- * Whichever step is last finishes onboarding.
+ * Whichever step is last finishes onboarding. Every other kind of model is
+ * chosen later, in Settings.
  *
- * The embedding model comes last and is the one step that is not a slot: its
- * choice is sent with the finish that fixes it, never held across steps.
+ * The embedding model comes last and is not a slot: its choice is sent with the
+ * finish that fixes it, never held across steps.
  */
 const MODEL_STEPS = [
   "text_gen",
-  "image_gen",
-  "image_edit",
-  "audio_gen",
-  "video_gen",
   "embedding",
 ] as const satisfies readonly OnboardingStepKind[]
 
@@ -121,36 +118,25 @@ function FlowButton({ text, onClick }: { text: string; onClick: () => void }) {
  * horizon, not the site's dithered wave. Where the site sends a visitor off to
  * download, this one starts the setup.
  *
- * Kept in step with `HomeHero` in
- * `surfsense_web/components/homepage/home/home-sections.tsx`. The two type
- * scales are that page's `.ss-home-display` and `.ss-home-lede` written as
- * utilities, and the accent clause is `--primary`, which is what the site's
- * `--home-accent` resolves to. In this app's light theme that token is near
- * black rather than peach, so the clause reads as plain heading text there --
- * the alternative, peach on cream, does not carry enough contrast to set text
- * in. The clause is an `<accent>` tag in the message, so each language places
- * it in its own sentence.
+ * Kept in step with `HomeHero` in `www/app/(home)/_home/home-sections.tsx`,
+ * whose headline and lede these are, word for word in English. The two type
+ * scales are the site's display and lede sizes written as utilities. The site's
+ * headline has no accent clause, so this one has none either.
  */
 function WelcomeStep({ onNext }: { onNext: () => void }) {
   return (
     <div className="text-center">
       <h1 className="relative -top-10 text-[clamp(2.25rem,6vw,3.75rem)] leading-[1.05] font-semibold tracking-[-0.03em] text-balance">
-        {intl.formatMessage(
-          {
-            id: "onboarding_welcome_title",
-            defaultMessage:
-              "Air-gapped, open source <accent>NotebookLM alternative</accent>",
-          },
-          {
-            accent: (chunks) => <span className="text-primary">{chunks}</span>,
-          }
-        )}
+        {intl.formatMessage({
+          id: "onboarding_welcome_title",
+          defaultMessage: "Air-gapped private AI for confidential documents",
+        })}
       </h1>
       <p className="mx-auto mt-8 max-w-2xl text-[clamp(1rem,1.6vw,1.25rem)] leading-[1.6] text-pretty text-muted-foreground">
         {intl.formatMessage({
           id: "onboarding_welcome_body",
           defaultMessage:
-            "A private research notebook that runs entirely on your own machine. Your documents, your model keys, no cloud, no account.",
+            "A NotebookLM-style notebook that runs on your own computer, with no account and no SurfSense cloud.",
         })}
       </p>
       <div className="mt-10 flex justify-center">

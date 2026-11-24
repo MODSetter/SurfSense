@@ -3,9 +3,8 @@ import { privacyBridge } from "@/features/privacy-choices/use-privacy-state"
 
 import { updatesBridge, useUpdatePrefs } from "./use-update-state"
 
-// SurfSense's feed, where a check goes unless an admin policy names a mirror.
-const UPDATE_HOST = "updates.surfsense.com"
-// Where an Electron main from before the privacy bridge reads releases.
+// Where a check goes unless an admin policy names a mirror, and where an
+// Electron main from before the privacy bridge reads releases.
 const GITHUB_HOST = "github.com"
 
 /**
@@ -29,11 +28,11 @@ export function useCheckForUpdates() {
     }
     const allowed = await askEgress({
       destination: "app_updates",
-      host: bridge ? (privacy?.updates.host ?? UPDATE_HOST) : GITHUB_HOST,
-      // A mirror has no GitHub fallback; a main without the bridge reads GitHub alone.
+      host: bridge ? (privacy?.updates.host ?? GITHUB_HOST) : GITHUB_HOST,
+      // A mirror is the only host asked; a main without the bridge reads GitHub's releases list.
       purpose: !bridge
         ? "github_releases"
-        : privacy?.updates.fallbackHost === null
+        : privacy?.updates.mirror
           ? "update_mirror"
           : undefined,
       allow: () => setAutomatic(true),

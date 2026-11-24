@@ -1,7 +1,5 @@
 """The gateway an agent runtime reaches a thread's plugins through: their sign-in is SurfSense's alone."""
 
-import asyncio
-import threading
 from collections.abc import AsyncIterator, Callable, Iterator
 from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass, replace
@@ -10,7 +8,6 @@ import httpx
 import httpx2
 import pytest
 import pytest_asyncio
-import uvicorn
 from fastapi import FastAPI
 from mcp.client.client import Client
 from mcp.client.streamable_http import streamable_http_client
@@ -33,6 +30,7 @@ from shared.db import create_session_factory
 from tests.integration.agent.opencode_harness import free_port
 from tests.integration.agent.test_runtime_proxy import SEARCH
 from tests.integration.plugins.routes.test_oauth_sign_in import approve_in_browser
+from tests.integration.serving_app import serving_app
 from tests.mcp_test_server import (
     RecordingHeaders,
     RecordingMethods,
@@ -87,20 +85,11 @@ async def gateway(
     port = free_port()
     monkeypatch.setattr(get_settings(), "port", port)
     app = create_app()
-    server = uvicorn.Server(
-        uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning")
-    )
-    thread = threading.Thread(target=server.run, daemon=True)
-    thread.start()
-    try:
-        while not server.started:
-            await asyncio.sleep(0.05)
-        base = f"http://127.0.0.1:{port}"
-        async with httpx.AsyncClient(base_url=base, timeout=30.0) as http:
-            yield Gateway(app, http, engine)
-    finally:
-        server.should_exit = True
-        thread.join(timeout=5)
+    async with (
+        serving_app(app, port) as base,
+        httpx.AsyncClient(base_url=base, timeout=30.0) as http,
+    ):
+        yield Gateway(app, http, engine)
 
 
 async def test_a_tool_call_reaches_the_plugin_with_its_key_and_never_the_gateways(

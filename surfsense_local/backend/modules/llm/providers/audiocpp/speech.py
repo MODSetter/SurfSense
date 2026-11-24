@@ -17,7 +17,8 @@ from modules.llm.providers.audiocpp.memory import (
     check_memory,
 )
 from modules.llm.providers.episode_audio.joined_wav import joined_wav
-from modules.llm.providers.protocols import SpokenTurn, SynthesizedAudio, Voice
+from modules.llm.providers.protocols import SpokenTurn, SynthesizedAudio
+from modules.llm.voices.voice import Voice
 from shared import cancellation
 
 __all__ = [

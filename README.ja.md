@@ -11,14 +11,14 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Discord](https://img.shields.io/discord/1359368468260192417?label=Discord)](https://discord.gg/ejRNvftDp9)
 
-  <a href="https://www.surfsense.com/"><img alt="SurfSense。ネットワークから切り離して使える、オープンソースの NotebookLM 代替" src="www/public/homepage/banner.png" /></a>
+  <a href="https://www.surfsense.com/"><img alt="SurfSense。ネットワークから切り離して使える、機密文書のためのプライベート AI" src="www/public/homepage/banner.png" /></a>
 
   <h1>SurfSense</h1>
 
   <p>
-    <b>ネットワークから切り離して使える、オープンソースの NotebookLM 代替。</b>
+    <b>ネットワークから切り離して使える、機密文書のためのプライベート AI。</b>
     <br />
-    自分のマシン上で、手元の文書を調査し、変換し、編集する AI エージェント。
+    自分のコンピューターで動く、オープンソースの NotebookLM 代替。
   </p>
 
   <p>
@@ -46,7 +46,7 @@ https://github.com/user-attachments/assets/88326b9d-e763-46db-9635-75f9df9e8682
 
 https://github.com/user-attachments/assets/073577b7-f055-4f59-8540-330bd764aeb0
 
-SurfSense は、アップロードできない文書のための、無料のオープンソース・デスクトップアプリです。プライバシーを重視した NotebookLM のような AI エージェントが、手元の文書を自分のマシン上で調査し、変換し、編集します。索引は自分のディスクに残り、モデルはローカルでもリモートでも自分で選べます。アカウントも要りません。
+SurfSense は、機密文書のための、無料のオープンソース・デスクトップアプリです。NotebookLM のようなプライベートな AI エージェントが、手元の文書を自分のマシン上で調査し、変換し、編集します。索引は自分のディスクに残り、モデルはローカルでもリモートでも自分で選べます。アカウントも要りません。
 
 | プラットフォーム | ダウンロード |
 |---|---|
@@ -88,24 +88,9 @@ SurfSense は、アップロードできない文書のための、無料のオ�
 
 ## プラグイン
 
-**設定 › プラグイン**で接続します。
+**設定 › プラグイン**で、[プラグインレジストリ](backend/plugins/registry)にある DeepWiki や Notion などの MCP サーバーや、URL を指定して自分で追加したサーバーを接続します。許可するまではオフのままです。
 
-**SurfSense提供。** 自分のアカウントを使わずに公開ページを読み取ります。利用には SurfSense ライセンスが必要です。[アプリをダウンロード](https://www.surfsense.com/downloads)し、アプリでメールアドレスを入力すると、14 日間の無料ライセンスを受け取れます。
-
-| プラグイン | できること |
-|---|---|
-| **Google Search** | Google で検索し、検索結果、広告、関連する質問を読み取る |
-| **Web Crawl** | Webページを読み取るか、サイト全体をクロールしてクリーンなテキストにする |
-| **YouTube** | YouTube の動画、チャンネル、それらのコメントを読み取る |
-| **TikTok** | TikTok の動画とそのコメントを読み取り、ユーザーを検索し、トレンドを確認する |
-| **Reddit** | Reddit の公開投稿とそのコメントスレッド、またはコミュニティ全体を読み取る |
-| **Instagram** | Instagram の公開プロフィール、投稿、リールを読み取り、プロフィールを検索する |
-| **Google Maps** | Google Maps で場所を探し、そのレビューを読み取る |
-| **Amazon** | Amazon の商品と検索結果を読み取る |
-| **Walmart** | Walmart の商品、検索結果、レビューを読み取る |
-| **Indeed** | Indeed の求人情報を読み取る |
-
-**サードパーティ。** [プラグインレジストリ](backend/plugins/registry)にある DeepWiki や Notion などの MCP サーバーや、URL を指定して自分で追加したサーバーです。ライセンスは不要で、許可するまではオフのままです。
+**標準搭載・無料：** エージェントも、ソースにある**ウェブから追加**も、設定 › ネットワーク で追加した SearXNG サーバーを通じてウェブを検索し、自分のインターネット接続でページと YouTube の文字起こしを読み取ります。プラグインもライセンスも不要です。
 
 ## SurfSenseの比較
 

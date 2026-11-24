@@ -15,13 +15,15 @@ const SUMMARY = {
     studio_outputs: "1-4",
     plugin_calls: "0",
     onboarding: "first_answer",
+    days_used_7: "2-3",
+    days_used_28: "4-7",
   },
   hardware: { ram_gb: "16-31", gpu: "nvidia", vram_gb: "8-11", gpu_runtime: "reachable" },
   ui_language: "en",
 }
 // A card the OS sees but the model runtime cannot reach.
 const UNREACHABLE_GPU = { ram_gb: "16-31", gpu: "nvidia", vram_gb: "unknown", gpu_runtime: "unreachable" }
-const NO_FLAGS = { first: false, week: false, month: false }
+const NO_FLAGS = { first: false, week: false, month: false, age: false }
 const BODY_KEYS = [
   "schema",
   "app_version",
@@ -29,6 +31,7 @@ const BODY_KEYS = [
   "os",
   "ui_language",
   "install_week",
+  "install_age",
   "trigger",
   "active",
   "hardware",
@@ -80,6 +83,7 @@ function reporter(
   let summary: unknown = options.summary === undefined ? SUMMARY : options.summary
   const posts: Post[] = []
   const summaries: string[] = []
+  const firstRuns: string[] = []
   const timers: Timer[] = []
   const schedule = (kind: Timer["kind"]) => (run: () => void, ms: number) => {
     const timer: Timer = { kind, ms, run, cancelled: false }
@@ -94,8 +98,9 @@ function reporter(
     lock: options.lock ?? null,
     endpoint: options.endpoint === undefined ? USAGE_ENDPOINT : options.endpoint,
     facts: { appVersion: options.appVersion ?? "2.2.4", platform: "win32-x64", os: "windows-11" },
-    summary: async (since) => {
+    summary: async (since, firstRun) => {
       summaries.push(since.toISOString())
+      firstRuns.push(firstRun.toISOString())
       await options.summaryGate
       if (summary instanceof Error) throw summary
       return summary
@@ -116,6 +121,7 @@ function reporter(
     usage,
     posts,
     summaries,
+    firstRuns,
     timers,
     sent: () => sent,
     file: () => file,
@@ -147,8 +153,9 @@ test("the first report is the contract's body, key for key, posted as JSON with 
     os: "windows-11",
     ui_language: "en",
     install_week: "2026-W43",
+    install_age: "1",
     trigger: "daily",
-    active: { first: true, week: true, month: true },
+    active: { first: true, week: true, month: true, age: true },
     hardware: { ram_gb: "16-31", gpu: "nvidia", vram_gb: "8-11", gpu_runtime: "reachable" },
     week: {
       chat_turns: "10-49",
@@ -158,17 +165,22 @@ test("the first report is the contract's body, key for key, posted as JSON with 
       studio_outputs: "1-4",
       plugin_calls: "0",
       onboarding: "first_answer",
+      days_used_7: "2-3",
+      days_used_28: "4-7",
     },
   })
   assert.deepEqual(Object.keys(body), BODY_KEYS)
   assert.deepEqual(Object.keys(body.hardware), ["ram_gb", "gpu", "vram_gb", "gpu_runtime"])
-  // In the first week the counts cover the time since the first run.
+  // In the first week the counts cover the time since the first run, and no
+  // day before the first run counts as a day used.
   assert.deepEqual(app.summaries, ["2026-10-20T08:00:00.000Z"])
+  assert.deepEqual(app.firstRuns, ["2026-10-20T08:00:00.000Z"])
   assert.equal(app.sent(), 1)
   assert.deepEqual(app.file().lastReport, {
     day: "2026-10-21",
     week: "2026-W43",
     month: "2026-10",
+    age: "1",
   })
   assert.deepEqual(app.file().lastSent, { at: "2026-10-21T09:00:00.000Z", body })
 })
@@ -217,13 +229,103 @@ test("after the first week the week block comes once per ISO week, covering the 
   assert.deepEqual(
     later.map((body) => [body.active, body.hardware, body.week === null]),
     [
-      [{ first: false, week: true, month: false }, null, false],
-      [{ first: false, week: false, month: false }, null, true],
-      [{ first: false, week: false, month: false }, null, true],
-      [{ first: false, week: false, month: true }, null, true],
+      // Day 7 starts the 4-7 range and day 8 the 8-14 one; days 11 and 12 stay in it.
+      [{ first: false, week: true, month: false, age: true }, null, false],
+      [{ first: false, week: false, month: false, age: true }, null, true],
+      [{ first: false, week: false, month: false, age: false }, null, true],
+      [{ first: false, week: false, month: true, age: false }, null, true],
     ]
   )
   assert.equal(app.summaries[1], "2026-10-20T09:00:00.000Z")
+})
+
+test("install_age counts UTC days from the first run, and active.age marks a range's first daily report", async () => {
+  // The install first ran at 2026-10-20T08:00Z.
+  const app = reporter({ at: "2026-10-20T23:59:00Z" })
+
+  for (const at of [
+    "2026-10-20T23:59:00Z",
+    "2026-10-21T00:01:00Z",
+    "2026-10-22T09:00:00Z",
+    "2026-10-23T09:00:00Z",
+    "2026-10-26T09:00:00Z",
+    "2026-12-19T09:00:00Z",
+    "2026-12-20T09:00:00Z",
+  ]) {
+    app.at(at)
+    assert.equal(await app.usage.attempt(), "sent")
+  }
+
+  assert.deepEqual(
+    app.bodies().map((body) => [body.install_age, body.active.age]),
+    [
+      ["0", true],
+      ["1", true],
+      ["2-3", true],
+      ["2-3", false],
+      ["4-7", true],
+      ["31-60", true],
+      ["61+", true],
+    ]
+  )
+})
+
+test("after the update to 1.2 the first daily report says its range is new, even one reported before", async () => {
+  // A 2.2.5 daily report on day 8 kept no range; day 9 is still 8-14.
+  const app = reporter({
+    at: "2026-10-29T09:00:00Z",
+    file: { lastReport: { day: "2026-10-28", week: "2026-W44", month: "2026-10" } },
+  })
+
+  assert.equal(await app.usage.attempt(), "sent")
+  app.at("2026-10-30T09:00:00Z")
+  assert.equal(await app.usage.attempt(), "sent")
+
+  assert.deepEqual(
+    app.bodies().map((body) => [body.install_age, body.active.age]),
+    [
+      ["8-14", true],
+      ["8-14", false],
+    ]
+  )
+  assert.equal(app.file().lastReport?.age, "8-14")
+})
+
+test("a clock set back and restored never says a range is new twice", async () => {
+  const app = reporter({ at: "2026-10-29T09:00:00Z" })
+
+  for (const at of [
+    "2026-10-29T09:00:00Z",
+    // Set back to day 3, then restored to day 10 and on to day 15.
+    "2026-10-23T09:00:00Z",
+    "2026-10-30T09:00:00Z",
+    "2026-11-04T09:00:00Z",
+  ]) {
+    app.at(at)
+    assert.equal(await app.usage.attempt(), "sent")
+  }
+
+  assert.deepEqual(
+    app.bodies().map((body) => [body.install_age, body.active.age]),
+    [
+      ["8-14", true],
+      ["2-3", false],
+      ["8-14", false],
+      ["15-30", true],
+    ]
+  )
+  assert.equal(app.file().lastReport?.age, "15-30")
+})
+
+test("a setup report carries install_age, never the age flag", async () => {
+  const app = reporter({ at: "2026-10-22T09:00:00Z", summary: atStep("model_ready") })
+
+  assert.equal(await app.usage.checkSetup(), "sent")
+
+  const [setup] = app.bodies()
+  assert.equal(setup.trigger, "setup")
+  assert.equal(setup.install_age, "2-3")
+  assert.deepEqual(setup.active, NO_FLAGS)
 })
 
 test("in the first week the hardware goes again only while part of it was unknown, and only when it changed", async () => {
@@ -300,7 +402,12 @@ test("a setup report leaves the day's report and its tries alone", async () => {
   app.at("2026-10-22T08:00:00Z")
   assert.equal(await app.usage.checkSetup(), "sent")
 
-  assert.deepEqual(app.file().lastReport, { day: "2026-10-21", week: "2026-W43", month: "2026-10" })
+  assert.deepEqual(app.file().lastReport, {
+    day: "2026-10-21",
+    week: "2026-W43",
+    month: "2026-10",
+    age: "1",
+  })
   assert.deepEqual(app.file().attempts, { day: "2026-10-21", count: 1 })
   app.at("2026-10-22T09:00:00Z")
   assert.equal(await app.usage.attempt(), "sent")
@@ -649,6 +756,8 @@ test("whatever the local API answers, only the contract's values leave", async (
     studio_outputs: "unknown",
     plugin_calls: "unknown",
     onboarding: "first_answer",
+    days_used_7: "unknown",
+    days_used_28: "unknown",
   })
   // RAM falls back to the main process's own count, rounded to whole GiB.
   assert.deepEqual(body.hardware, {
@@ -686,7 +795,7 @@ test("the preview is the next daily body, built but not sent, even while switche
   assert.deepEqual(app.posts, [])
   assert.equal(preview?.schema, 1)
   assert.equal(preview?.trigger, "daily")
-  assert.deepEqual(preview?.active, { first: true, week: true, month: true })
+  assert.deepEqual(preview?.active, { first: true, week: true, month: true, age: true })
   assert.equal(preview?.week?.onboarding, "model_chosen")
   assert.equal(app.file().attempts, null)
 })

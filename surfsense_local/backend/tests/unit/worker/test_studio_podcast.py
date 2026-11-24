@@ -9,9 +9,10 @@ import pytest
 
 from modules.artifacts.podcast.brief import Duration, PodcastBrief, Speaker, Style
 from modules.llm.profile import Tier
-from modules.llm.providers.protocols import SpokenTurn, SynthesizedAudio, Voice
+from modules.llm.providers.protocols import SpokenTurn, SynthesizedAudio
 from modules.llm.providers.types import Message
 from modules.llm.resolution import ResolvedGeneration
+from modules.llm.voices.voice import Voice
 from worker.studio.media.audio.podcast import draft, outline, pipeline
 from worker.studio.shared import generate
 from worker.studio.shared.artifact import Source

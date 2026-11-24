@@ -11,6 +11,15 @@ class StorageSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="SURFSENSE_LOCAL_")
 
     data_dir: Path = Path.home() / ".surfsense"
+    # Electron says so when the drive holding the user's chosen models folder is
+    # not connected; downloads wait rather than land on another drive.
+    model_storage_unavailable: bool = False
+
+    @property
+    def shell_settings_dir(self) -> Path:
+        """Electron's own settings, which stay behind when the data folder moves."""
+        override = os.environ.get("SURFSENSE_LOCAL_SHELL_SETTINGS_DIR")
+        return Path(override) if override else self.data_dir / "electron"
 
     @property
     def models_dir(self) -> Path:
@@ -22,7 +31,8 @@ class StorageSettings(BaseSettings):
     def embedding_models_dir(self) -> Path:
         """Downloaded embedders, one folder each. Not `models_dir`, which a
         packaged app ships read-only."""
-        return self.data_dir / "embeddings"
+        override = os.environ.get("SURFSENSE_LOCAL_EMBEDDING_MODELS_DIR")
+        return Path(override) if override else self.data_dir / "embeddings"
 
     @property
     def database_path(self) -> Path:
@@ -162,9 +172,23 @@ class PluginHostSettings(BaseSettings):
     plugin_host_url: str | None = None
 
 
+class LicenseServerSettings(BaseSettings):
+    """SURFSENSE_LOCAL_LICENSE_SERVER_URL points the license renewal, and the key it
+    sends, at another license server: a developer's, or a firm's mirror."""
+
+    model_config = SettingsConfigDict(env_prefix="SURFSENSE_LOCAL_")
+
+    license_server_url: str | None = None
+
+
 @lru_cache
 def get_plugin_host_settings() -> PluginHostSettings:
     return PluginHostSettings()
+
+
+@lru_cache
+def get_license_server_settings() -> LicenseServerSettings:
+    return LicenseServerSettings()
 
 
 @lru_cache

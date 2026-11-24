@@ -1,0 +1,50 @@
+---
+title: Analyse a spreadsheet and chart it
+description: Ask the agent a question about a spreadsheet or CSV's numbers, then have it chart them in a document
+---
+
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+
+<GuideVideo slug="analyse-a-spreadsheet" poster="/guides/analyse-a-spreadsheet/poster.webp" title="The agent answering a question about a CSV, then charting it in a Word document" />
+
+Tick a spreadsheet (`.xlsx`) or a `.csv` source and ask about its numbers. The agent writes a short analysis script, runs it on a copy of the file, and answers from the result. See [Data analysis](/docs/v2/agent#data-analysis).
+
+This guide uses CISA's list of known exploited vulnerabilities, a public CSV.
+
+<Steps>
+<Step>
+
+### Ask your question
+
+Add the spreadsheet or CSV to **Sources**. In an **Agentic** chat, ask a question about its numbers, such as "which ten vendors have the most known exploited vulnerabilities?" Its step reads "Ran the analysis".
+
+![The agent at work, with its analysis step](/guides/analyse-a-spreadsheet/01-working.webp)
+
+</Step>
+<Step>
+
+### Read the answer
+
+The answer comes from the analysis, not from a guess, often as a table.
+
+![The answer: the ten vendors and their counts, in a table](/guides/analyse-a-spreadsheet/02-answer.webp)
+
+</Step>
+<Step>
+
+### Chart it in a document
+
+Ask in the same chat for a chart in a document, such as "put that table and a bar chart in a one-page Word document". The chart is drawn from the analysis's numbers, as a real chart.
+
+![The Word document with the table and its bar chart, open in Studio](/guides/analyse-a-spreadsheet/03-chart-document.webp)
+
+</Step>
+</Steps>
+
+<Callout type="warn">
+  The script runs with your user's permissions; it is not a sandbox. Only tick sources you trust in Agentic chats. See [Code the agent writes](/docs/v2/agent#code-the-agent-writes).
+</Callout>
+
+## Next
+
+- [Have the agent write a report or a deck](/docs/v2/guides/agent-documents).

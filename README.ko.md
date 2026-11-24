@@ -11,14 +11,14 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Discord](https://img.shields.io/discord/1359368468260192417?label=Discord)](https://discord.gg/ejRNvftDp9)
 
-  <a href="https://www.surfsense.com/"><img alt="SurfSense, 네트워크와 분리해 쓰는 오픈소스 NotebookLM 대안" src="www/public/homepage/banner.png" /></a>
+  <a href="https://www.surfsense.com/"><img alt="SurfSense, 네트워크와 분리해 쓰는 기밀 문서용 프라이빗 AI" src="www/public/homepage/banner.png" /></a>
 
   <h1>SurfSense</h1>
 
   <p>
-    <b>네트워크와 분리해 쓰는 오픈소스 NotebookLM 대안.</b>
+    <b>네트워크와 분리해 쓰는 기밀 문서용 프라이빗 AI.</b>
     <br />
-    내 컴퓨터에서 문서를 조사하고, 변환하고, 편집하는 AI 에이전트.
+    내 컴퓨터에서 실행되는 오픈소스 NotebookLM 대안.
   </p>
 
   <p>
@@ -46,7 +46,7 @@ https://github.com/user-attachments/assets/88326b9d-e763-46db-9635-75f9df9e8682
 
 https://github.com/user-attachments/assets/073577b7-f055-4f59-8540-330bd764aeb0
 
-SurfSense는 업로드할 수 없는 문서를 위한 무료 오픈소스 데스크톱 앱입니다. 프라이버시를 중시하는 NotebookLM 스타일의 AI 에이전트로, 내 컴퓨터에서 문서를 조사하고, 변환하고, 편집합니다. 색인은 내 디스크에 남고, 모델은 로컬이든 원격이든 내가 고르며, 만들 계정도 없습니다.
+SurfSense는 기밀 문서를 위한 무료 오픈소스 데스크톱 앱입니다. NotebookLM 스타일의 프라이빗 AI 에이전트로, 내 컴퓨터에서 문서를 조사하고, 변환하고, 편집합니다. 색인은 내 디스크에 남고, 모델은 로컬이든 원격이든 내가 고르며, 만들 계정도 없습니다.
 
 | 플랫폼 | 다운로드 |
 |---|---|
@@ -89,24 +89,9 @@ SurfSense는 업로드할 수 없는 문서를 위한 무료 오픈소스 데스
 
 ## 플러그인
 
-**설정 › 플러그인**에서 연결하세요.
+**설정 › 플러그인**에서 [플러그인 레지스트리](backend/plugins/registry)에 있는 DeepWiki, Notion 같은 MCP 서버 또는 URL로 직접 추가한 서버를 연결하세요. 허용하기 전까지 꺼져 있습니다.
 
-**SurfSense 제공.** 내 계정 없이 공개 페이지를 읽으며, SurfSense 라이선스가 필요합니다. [앱을 다운로드](https://www.surfsense.com/downloads)한 다음 앱에서 이메일을 입력하면 14일 무료 라이선스를 받을 수 있습니다.
-
-| 플러그인 | 하는 일 |
-|---|---|
-| **Google Search** | Google에서 검색하고 검색 결과, 광고, 관련 질문 읽기 |
-| **Web Crawl** | 웹 페이지를 읽거나 사이트 전체를 크롤링해 깔끔한 텍스트로 만들기 |
-| **YouTube** | YouTube 동영상, 채널, 댓글 읽기 |
-| **TikTok** | TikTok 동영상과 댓글 읽기, 사용자 검색, 지금 인기 있는 콘텐츠 보기 |
-| **Reddit** | Reddit 공개 게시물과 댓글 스레드, 또는 커뮤니티 전체 읽기 |
-| **Instagram** | Instagram 공개 프로필, 게시물, 릴스 읽기, 프로필 검색 |
-| **Google Maps** | Google Maps에서 장소를 찾고 리뷰 읽기 |
-| **Amazon** | Amazon 상품과 검색 결과 읽기 |
-| **Walmart** | Walmart 상품, 검색 결과, 리뷰 읽기 |
-| **Indeed** | Indeed의 채용 공고 읽기 |
-
-**서드파티.** [플러그인 레지스트리](backend/plugins/registry)에 있는 DeepWiki, Notion 같은 MCP 서버 또는 URL로 직접 추가한 서버입니다. 라이선스는 필요 없으며, 허용하기 전까지 꺼져 있습니다.
+**기본 제공, 무료:** 에이전트도 소스에 있는 **웹에서 추가**도 설정 › 네트워크에서 직접 추가한 SearXNG 서버를 통해 웹을 검색하고, 내 인터넷 연결로 페이지와 YouTube 스크립트를 읽습니다. 플러그인도 라이선스도 필요 없습니다.
 
 ## 비교
 

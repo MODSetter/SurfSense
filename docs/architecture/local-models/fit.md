@@ -513,6 +513,16 @@ the tiers it may be recommended at are exactly the tiers with no badge (below).
 `catalog/local/test_catalog.py` holds it with a sweep of every curated build
 against every budget shape.
 
+Two more rules sit in `fit/speed.py`, both for the star
+([ADR 0094](../../adr/0094-the-star-goes-to-a-model-that-runs-the-agent.md)):
+
+- **`quick_here`**: without a graphics card, only a build of
+  `PROCESSOR_STAR_CEILING_BYTES` (3 GiB) or less may be recommended. The tier
+  cannot see this: on the processor every build that fits is `FULL`, and the
+  processor reads every weight for every token.
+- **`AGENT_WINDOW`**, the agent gate's 32,768: a build carries the agent where
+  `plan_load` keeps it resident at this window.
+
 ### Badges
 
 A badge is a **warning**, shown only when there is something to warn about. It
@@ -588,8 +598,14 @@ to 4,096 tokens is not asked for 8,192.
 - **A fixed set of candidates rather than a continuous search**, so every window
   a person can see is one a test can enumerate: the rungs
   `CONTEXT_RUNGS = (8192, 16384, 32768)` that lie between floor and ceiling, the
-  model's own trained length, so a model is not held below what it was trained
-  for, and the floor, so the search never returns nothing.
+  model's own trained length when it falls between two rungs, so a model is not
+  held below what it was trained for, and the floor, so the search never returns
+  nothing. The ceiling is the trained length or the top rung, whichever is
+  smaller: nothing in the app needs more than Agentic's 32,768
+  ([agent](../agent.md)), and the cache is allocated whole at load. A 1.7B
+  trained to 40,960 held 914 MB more at its full length on an RTX 3080, with
+  prompts read no faster, and on Windows graphics memory counts against the page
+  file too.
 - **Two budgets, and widening stays inside the tighter one.** Capacity decides
   the verdict, so the plan agrees with the badge the catalog showed. Live caps
   widening only, because context past the floor is opportunistic and on unified

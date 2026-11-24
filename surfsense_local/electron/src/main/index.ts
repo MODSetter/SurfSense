@@ -1,10 +1,11 @@
-import { mkdirSync } from "node:fs"
+import { mkdirSync, rmSync } from "node:fs"
 import { join } from "node:path"
 import { pathToFileURL } from "node:url"
 
 import {
   app,
   BrowserWindow,
+  dialog,
   ipcMain,
   Menu,
   nativeTheme,
@@ -26,6 +27,7 @@ import { allowedExternalUrl, confirmedExternalUrl } from "./external-url.ts"
 import { frameMayNavigate } from "./framed-navigation.ts"
 import { pluginPageUrl, type PluginPage } from "./plugin-page-url.ts"
 import { loadSecret } from "./secret.ts"
+import { describeStartupFailure } from "./startup-failure/describe-startup-failure.ts"
 import { bootSidecars, type BootContext } from "../../../sidecars/boot.ts"
 import { stopOnce } from "../../../sidecars/stop-once.ts"
 import { stopAll, type Sidecars } from "../../../sidecars/supervisor.ts"
@@ -43,6 +45,15 @@ import { loadLocalePreference } from "./i18n/locale-prefs.ts"
 import { registerLocaleHandlers } from "./i18n/locale-ipc.ts"
 import { registerAboutHandlers } from "./about/about-ipc.ts"
 import { registerDataFolderHandlers } from "./about/data-folder-ipc.ts"
+import { registerStartupFrameHandlers } from "./startup-frame/startup-frame-ipc.ts"
+import { isOwnSnap } from "./install-channel/own-snap.ts"
+import { appInstallFolder, relaunchOptions } from "./storage/app-install.ts"
+import { removeInterruptedCopy, removeOldCopies } from "./storage/clean-up-old-copies.ts"
+import { drivePrompts } from "./storage/drive-prompts.ts"
+import { UNAVAILABLE_STANDIN } from "./storage/plan-move.ts"
+import { settleStorageBeforeBoot, type SettledStorage } from "./storage/settle-before-boot.ts"
+import { registerModelPickHandlers } from "./model-pick/model-pick-ipc.ts"
+import { registerStorageHandlers } from "./storage/storage-ipc.ts"
 import { sessionLog } from "../../../sidecars/session-log/session-log.ts"
 import { warnMain } from "../../../sidecars/session-log/main-warn.ts"
 import { registerSessionLogHandlers } from "./session-log/session-log-ipc.ts"
@@ -77,7 +88,8 @@ const DIRS = dataDirs({
   home: app.getPath("home"),
   execPath: process.execPath,
 })
-const DATA_DIR = DIRS.data
+// Never moves: Electron's settings and the file saying where the moved folders are.
+const FIXED_DIR = DIRS.data
 // Set before anything asks for a temp path; the sidecars inherit it.
 if (DIRS.temp) {
   try {
@@ -89,7 +101,7 @@ if (DIRS.temp) {
 }
 // productName is "SurfSense", same as the legacy desktop app, so the default
 // userData would be shared with it. Users run both during migration.
-app.setPath("userData", join(DATA_DIR, "electron"))
+app.setPath("userData", join(FIXED_DIR, "electron"))
 
 let sidecars: Sidecars | null = null
 // This run's API, once it answers; the quit asks it about running replies.
@@ -104,6 +116,8 @@ let stopDocxSnapshots: (() => void) | null = null
 let stopSidecarWatchers: (() => void) | null = null
 // The daily update check and the usage report timers.
 let stopPrivacyChoices: (() => void) | null = null
+// A move of the models or data folder is copying; closing the window waits for it.
+let movingStorage = false
 
 function onSidecarCrash(name: string, code: number | null): void {
   warnMain(sessionLog, `sidecar ${name} crashed (code=${code})`)
@@ -129,8 +143,15 @@ function serveWordPreviews(ctx: SidecarContext): void {
   })
 }
 
+/** An empty folder for the runtimes while the real one's drive is away, so none of them fails. */
+function modelStandIn(dataRoot: string): string {
+  const standIn = join(dataRoot, UNAVAILABLE_STANDIN)
+  rmSync(standIn, { recursive: true, force: true })
+  return standIn
+}
+
 /** What only Electron knows: the paths beside the app, and the keychain secret. */
-function bootContext(): BootContext {
+function bootContext({ storage, modelsUnavailable }: SettledStorage): BootContext {
   // Linux without a keyring daemon: keep booting on Chromium's built-in key
   // rather than refusing to start; same fallback every Electron app takes.
   if (process.platform === "linux") safeStorage.setUsePlainTextEncryption(true)
@@ -142,8 +163,17 @@ function bootContext(): BootContext {
     // dev: backend sits next to electron/; packaged: frozen binaries in resources/
     backendDir: join(appPath, "..", "backend"),
     binariesDir: resources,
-    dataDir: DATA_DIR,
-    secret: loadSecret(join(app.getPath("userData"), "secret.bin"), safeStorage),
+    dataDir: storage.dataRoot,
+    ...(storage.dataMoved && { shellSettingsDir: app.getPath("userData") }),
+    ...(modelsUnavailable
+      ? {
+          modelStorageDir: modelStandIn(storage.dataRoot),
+          modelStorageUnavailable: true,
+        }
+      : storage.modelsMoved && { modelStorageDir: storage.modelsRoot }),
+    secret: loadSecret(join(app.getPath("userData"), "secret.bin"), safeStorage, (line) =>
+      warnMain(sessionLog, line)
+    ),
     // Packaged: bundled embedding, voice, and parser packs. Dev: same staging dir.
     modelsDir: packaged
       ? join(resources, "models")
@@ -382,6 +412,10 @@ function createWindow(apiUrl: string): void {
 
   win.on("close", (event) => {
     saveWindowState(win)
+    if (movingStorage) {
+      event.preventDefault()
+      return
+    }
     // Closing the last window quits the app, so it asks as a quit does.
     if (quitConfirmed || shuttingDown || BrowserWindow.getAllWindows().length > 1)
       return
@@ -426,7 +460,7 @@ const shutdown = stopOnce(async () => {
   stopSidecarWatchers?.()
   stopPrivacyChoices?.()
   stopDocxSnapshots?.()
-  withdrawApiUrl(DATA_DIR)
+  withdrawApiUrl(FIXED_DIR)
   if (sidecars) await stopAll(sidecars)
 })
 
@@ -457,6 +491,10 @@ function main(): void {
   // Chromium/Electron itself resolves), so nativeTheme is authoritative and
   // the renderer only ever mirrors it: a sync read on preload boot for the
   // first paint, then this push on every change.
+  // Snap confinement keeps other drives out of reach, so a move has nowhere to go.
+  ipcMain.on("storage:supported", (event) => {
+    event.returnValue = !(app.isPackaged && isOwnSnap(process.env, process.execPath))
+  })
   ipcMain.on("theme:get-system", (event) => {
     event.returnValue = nativeTheme.shouldUseDarkColors ? "dark" : "light"
   })
@@ -474,13 +512,24 @@ function main(): void {
     .then(async () => {
       applyLocalePreference(loadLocalePreference())
       applyDevAppIdentity()
-      const boot = await bootSidecars(bootContext(), onSidecarCrash)
+      const settled = await settleStorageBeforeBoot(FIXED_DIR, drivePrompts)
+      if (settled === null) {
+        app.quit()
+        return
+      }
+      await removeInterruptedCopy(FIXED_DIR)
+      const boot = await bootSidecars(bootContext(settled), onSidecarCrash)
       apiUrl = boot.apiUrl
       sidecars = boot.sidecars
       stopSidecarWatchers = boot.stopWatching
       serveWordPreviews(boot.ctx)
       await boot.waitHealthy()
-      announceApiUrl(boot.dataDir, boot.apiUrl)
+      // At the fixed folder: `surfsense-plugins` looks for it before knowing of any move.
+      announceApiUrl(FIXED_DIR, boot.apiUrl)
+      // Only now: this start has proved the new folder works.
+      void removeOldCopies(FIXED_DIR).catch((error: unknown) => {
+        warnMain(sessionLog, `failed to remove the old copies: ${String(error)}`)
+      })
       registerDocumentHandlers(boot.dataDir)
       registerLocaleHandlers({
         isTrusted: (sender) =>
@@ -492,7 +541,42 @@ function main(): void {
         isTrusted: (sender) =>
           mainWindow !== null && sender === mainWindow.webContents,
       })
+      registerStorageHandlers({
+        storage: settled.storage,
+        modelsUnavailable: settled.modelsUnavailable,
+        appFolder: app.isPackaged
+          ? appInstallFolder(process.platform, process.execPath)
+          : app.getAppPath(),
+        isTrusted: (sender) =>
+          mainWindow !== null && sender === mainWindow.webContents,
+        mainWindow: () => mainWindow,
+        confirmStop: quitWithConfirmation,
+        stop: shutdown,
+        relaunch: () => {
+          // In `pnpm dev` the app's exit also takes Vite down, so a relaunch finds no page.
+          if (app.isPackaged) app.relaunch(relaunchOptions(process.env))
+          else warnMain(sessionLog, "storage changed: run pnpm dev again")
+          app.quit()
+        },
+        onMovingChange: (moving) => {
+          movingStorage = moving
+        },
+      })
+      // A GGUF file or folder for the API to read where it lies; main opens the
+      // system's dialog and hands back only what the person chose.
+      registerModelPickHandlers({
+        ipc: ipcMain,
+        isTrusted: (sender) =>
+          mainWindow !== null && sender === mainWindow.webContents,
+        mainWindow: () => mainWindow,
+        showOpenDialog: (window, options) => dialog.showOpenDialog(window, options),
+      })
       registerSessionLogHandlers({
+        isTrusted: (sender) =>
+          mainWindow !== null && sender === mainWindow.webContents,
+      })
+      registerStartupFrameHandlers({
+        dataDir: boot.dataDir,
         isTrusted: (sender) =>
           mainWindow !== null && sender === mainWindow.webContents,
       })
@@ -520,6 +604,12 @@ function main(): void {
     })
     .catch((err: unknown) => {
       warnMain(sessionLog, `failed to start: ${String(err)}`)
+      // No window exists yet, so without this the app just vanishes. English,
+      // like the application menu: main's own text is not translated.
+      if (!shuttingDown) {
+        const { title, detail } = describeStartupFailure(err, sessionLog.lines())
+        dialog.showErrorBox(title, detail)
+      }
       void shutdown().finally(() => app.exit(1))
     })
 

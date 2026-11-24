@@ -25,6 +25,7 @@ from modules.agent.opencode_config import (
 )
 from modules.agent.opencode_failure import opencode_failure
 from modules.agent.thread_folder.repo_fence import fence_every_workspace
+from modules.jobs.packs.skills import job_skills
 from shared.config import get_agent_settings, get_storage_settings
 
 # Electron checks the file every 2 s and opencode answers about 2 s after it
@@ -73,6 +74,7 @@ async def ready_opencode(
         endpoint_url=_endpoint_url(),
         launch_key=launch_key,
         route=await transact(session, selected_call_route),
+        job_skills=await run_in_threadpool(job_skills),
     )
     agent_dir = get_storage_settings().agent_dir
     config = agent_dir / CONFIG_FILE

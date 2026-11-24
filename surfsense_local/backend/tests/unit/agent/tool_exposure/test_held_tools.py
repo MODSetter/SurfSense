@@ -63,13 +63,6 @@ def test_past_the_share_the_tools_the_request_needs_are_held() -> None:
     assert len(held) <= 2
 
 
-def test_a_mentioned_plugin_is_held_whole_whatever_its_cost() -> None:
-    """An @-mention is the user choosing it."""
-    held = _held(Asked("look", mentioned=frozenset({"notes"})), ONE)
-
-    assert {t.ready.qualified_name for t in NOTES} <= held
-
-
 def test_a_plugin_the_message_names_is_held_by_its_best_tools() -> None:
     """The second app of a two-app request is what retrieval misses most."""
     held = _held(Asked("make an issue for each event in my Gcal"), ONE * 3)
@@ -86,7 +79,7 @@ def test_tools_the_thread_used_stay_held() -> None:
 
 
 def test_never_past_the_providers_limit() -> None:
-    """Not even a mentioned plugin passes the provider's limit."""
-    held = _held(Asked("look", mentioned=frozenset({"notes"})), 10**6, limit=4)
+    """Not even a plugin the message names passes the provider's limit."""
+    held = _held(Asked("use notes"), 10**6, limit=4)
 
     assert len(held) == 4

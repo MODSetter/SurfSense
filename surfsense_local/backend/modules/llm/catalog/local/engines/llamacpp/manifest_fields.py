@@ -69,5 +69,9 @@ class ShapeSpec(BaseModel):
 
 
 # The entry fields llama.cpp reads, and the one it cannot run without.
-ENTRY_OWNS = frozenset({"context", "template", "sampling", "shape"})
+# `default_quantization` names a build to default to instead of the preference
+# order's first, where a measurement says so; most entries leave it out.
+ENTRY_OWNS = frozenset(
+    {"context", "template", "sampling", "shape", "default_quantization"}
+)
 ENTRY_REQUIRES = frozenset({"context"})

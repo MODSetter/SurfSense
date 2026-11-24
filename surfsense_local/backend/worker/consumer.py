@@ -1,4 +1,5 @@
 import logging
+import sys
 
 from huey.consumer import Consumer
 
@@ -7,9 +8,11 @@ from modules.plugins.bundles.interrupted_runs import fail_interrupted_runs
 from shared.db import import_models
 from shared.queue import import_tasks, ingest_queue, plugins_queue, studio_queue
 from worker.document_script.leftover_run_folders import remove_leftover_run_folders
+from worker.fresh_start import FRESH_START_EXIT_CODE, IdleWatch, watch_for_fresh_start
 from worker.interrupted_documents import fail_interrupted_documents
 from worker.interrupted_pulls import fail_interrupted_pulls
 from worker.wait_for_schema import wait_for_schema
+from worker.waiting_renders import settle_every_waiting_render
 
 # Studio jobs wait on a model: overlap them. Ingest jobs saturate the CPU: one.
 # ponytail: laptop defaults; becomes a setting for power users.
@@ -44,12 +47,17 @@ def consume(name: str) -> None:
         # No script runs yet, so every run folder is one a killed worker left.
         remove_leftover_run_folders()
         fail_interrupted_documents({DocumentType.ARTIFACT})
+        # After those: a document waiting on an interrupted picture fails too.
+        settle_every_waiting_render()
     logging.getLogger(__name__).info(
         "%s: worker consuming with %s threads", name, workers
     )
+    asked = watch_for_fresh_start(IdleWatch(queue))
     Consumer(
         queue,
         workers=workers,
         worker_type="thread",
         max_delay=MAX_IDLE_POLL_SECONDS[name],
     ).run()
+    if asked.is_set():
+        sys.exit(FRESH_START_EXIT_CODE)

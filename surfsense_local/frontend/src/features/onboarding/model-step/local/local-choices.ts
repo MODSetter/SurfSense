@@ -13,13 +13,15 @@ export function leadBuild(row: LocalRow): LocalBuild | null {
  * Every model this computer can run, in the order onboarding lists them: what
  * the user fetched from Hugging Face first, since they went looking for it,
  * then the curated list as the server orders it, starred model first. A
- * searched model appears only once it is on disk.
+ * searched model appears only once it is on disk. Another app's model is
+ * listed where it was found, not here.
  */
 export function localChoices(rows: LocalRow[]): LocalRow[] {
   const runnable = rows.filter((row) => {
     const build = leadBuild(row)
     return (
       row.runnable &&
+      row.origin !== "elsewhere" &&
       build !== null &&
       (row.origin === "curated" || build.installed_as !== null)
     )

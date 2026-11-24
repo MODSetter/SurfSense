@@ -28,7 +28,7 @@ export function OrganizationJsonLd() {
 				],
 				contactPoint: {
 					"@type": "ContactPoint",
-					email: "rohan@surfsense.com",
+					email: "vermarohanfinal@gmail.com",
 					contactType: "sales",
 				},
 			}}

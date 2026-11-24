@@ -1,13 +1,13 @@
 import type { ReactNode } from "react"
 
 import { Button } from "@/components/ui/button"
+import { motionIsReduced } from "@/features/motion-preference/motion-preference"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
 // Ported from surfsense_web's flip card, minus the `motion/react` dependency
 // this app doesn't have — a plain CSS transform transition gives the same
 // 3D flip without pulling in framer-motion for one component.
-const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)"
 
 function Face({
   children,
@@ -44,8 +44,7 @@ export function FlashcardSurface({
   revealed: boolean
   onFlip: () => void
 }) {
-  const reducedMotion =
-    window.matchMedia?.(REDUCED_MOTION_QUERY).matches ?? false
+  const reducedMotion = motionIsReduced()
 
   if (reducedMotion) {
     return (

@@ -1,3 +1,4 @@
+import type { StorageBridge } from "@/features/storage/storage-types"
 import { intl } from "@/i18n/intl"
 
 export type Health = {
@@ -9,6 +10,8 @@ declare global {
     surfsense?: {
       apiUrl: string
       platform: string
+      // Changes when the database is made again; null before it exists.
+      databaseIdentity: () => string | null
       openDocument: (workspaceId: number, documentId: number) => Promise<string>
       revealDocument: (
         workspaceId: number,
@@ -57,9 +60,17 @@ declare global {
         // "" once opened, else the OS's reason.
         openDataFolder?: () => Promise<string>
       }
+      // Where the models and data live, and moving them. Absent in Docker and a
+      // confined snap. Mirrors electron/src/preload/index.ts.
+      storage?: StorageBridge
       // This run's log, oldest line first. Mirrors electron/src/preload/index.ts.
       sessionLog?: {
         read: () => Promise<string[]>
+      }
+      // The system's own dialog for a GGUF file, or a folder of them: the path
+      // the person chose, or null. Mirrors electron/src/preload/index.ts.
+      models?: {
+        pick: (kind: "file" | "folder") => Promise<string | null>
       }
       // The system's switch for SurfSense's microphone; Electron decides the
       // page's own permission. Mirrors electron/src/preload/index.ts.
@@ -126,10 +137,10 @@ export type PrivacyState = {
     lockedReason: "policy" | "channel" | null
     // The package manager that owns updates; null unless that is the lock.
     channel: InstallChannel | null
-    // updates.surfsense.com, or the mirror an admin policy names.
+    // github.com, or the mirror an admin policy names.
     host: string
-    // null with a mirror, which never falls back.
-    fallbackHost: "github.com" | null
+    // A mirror is the only host asked, and it hears the app's version and system.
+    mirror: boolean
     lastCheckedAt: string | null
     // The last request to `host`, exactly as sent.
     lastRequest: { url: string; headers: Record<string, string> } | null

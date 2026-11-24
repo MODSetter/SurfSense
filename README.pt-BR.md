@@ -12,14 +12,14 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Discord](https://img.shields.io/discord/1359368468260192417?label=Discord)](https://discord.gg/ejRNvftDp9)
 
-  <a href="https://www.surfsense.com/"><img alt="SurfSense, a alternativa open source ao NotebookLM, isolada da rede" src="www/public/homepage/banner.png" /></a>
+  <a href="https://www.surfsense.com/"><img alt="SurfSense: IA privada e isolada da rede para documentos confidenciais" src="www/public/homepage/banner.png" /></a>
 
   <h1>SurfSense</h1>
 
   <p>
-    <b>A alternativa open source ao NotebookLM, isolada da rede.</b>
+    <b>IA privada e isolada da rede para documentos confidenciais.</b>
     <br />
-    O agente de IA que pesquisa, transforma e edita seus documentos, na sua máquina.
+    Alternativa open source ao NotebookLM que roda no seu computador.
   </p>
 
   <p>
@@ -47,7 +47,7 @@ https://github.com/user-attachments/assets/88326b9d-e763-46db-9635-75f9df9e8682
 
 https://github.com/user-attachments/assets/073577b7-f055-4f59-8540-330bd764aeb0
 
-O SurfSense é um aplicativo de desktop gratuito e open source para os documentos que você não pode enviar para a nuvem. É um agente de IA no estilo do NotebookLM, focado em privacidade, que pesquisa, transforma e edita seus documentos na sua máquina. O índice fica no seu disco, você escolhe o modelo, local ou remoto, e não há conta para criar.
+O SurfSense é um aplicativo de desktop gratuito e open source para documentos confidenciais. É um agente de IA privado, no estilo do NotebookLM, que pesquisa, transforma e edita seus documentos na sua máquina. O índice fica no seu disco, você escolhe o modelo, local ou remoto, e não há conta para criar.
 
 | Plataforma | Download |
 |---|---|
@@ -89,24 +89,9 @@ Edições, conversões e ferramentas de PDF sempre geram um arquivo novo; o seu 
 
 ## Plugins
 
-Conecte-os em **Configurações › Plugins**.
+Conecte-os em **Configurações › Plugins**: servidores MCP do [registro de plugins](backend/plugins/registry), como DeepWiki e Notion, ou qualquer servidor que você adicione por URL. Eles ficam desativados até você permitir.
 
-**Da SurfSense.** Eles leem páginas públicas sem usar suas próprias contas e precisam de uma licença do SurfSense: [baixe o aplicativo](https://www.surfsense.com/downloads) e informe seu e-mail nele para receber uma licença gratuita de 14 dias.
-
-| Plugin | O que faz |
-|---|---|
-| **Google Search** | Pesquisar no Google e ler os resultados, os anúncios e as perguntas relacionadas |
-| **Web Crawl** | Ler uma página web ou rastrear um site inteiro e transformá-lo em texto limpo |
-| **YouTube** | Ler vídeos, canais e comentários do YouTube |
-| **TikTok** | Ler vídeos e comentários do TikTok, pesquisar usuários e ver o que está em alta |
-| **Reddit** | Ler posts públicos do Reddit com seus comentários, ou uma comunidade inteira |
-| **Instagram** | Ler perfis, posts e reels públicos do Instagram, e pesquisar perfis |
-| **Google Maps** | Encontrar lugares no Google Maps e ler as avaliações deles |
-| **Amazon** | Ler produtos e resultados de pesquisa da Amazon |
-| **Walmart** | Ler produtos, resultados de pesquisa e avaliações do Walmart |
-| **Indeed** | Ler vagas de emprego no Indeed |
-
-**De terceiros.** Servidores MCP do [registro de plugins](backend/plugins/registry), como DeepWiki e Notion, ou qualquer servidor que você adicione por URL. Não precisam de licença e ficam desativados até você permitir.
+**Integrado e gratuito:** o agente e **Adicionar da web**, nas Fontes, pesquisam na web por meio de um servidor SearXNG que você adiciona em Configurações › Rede, e leem páginas e transcrições do YouTube pela sua própria conexão, sem plugin nem licença.
 
 ## Como ele se compara
 

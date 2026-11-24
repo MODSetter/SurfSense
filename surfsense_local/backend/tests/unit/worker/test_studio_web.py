@@ -1,9 +1,13 @@
 """Web kind: the model's JSON becomes a self-contained, escaped HTML page."""
 
+from types import SimpleNamespace
+
 import pytest
 
 from modules.llm.profile import Tier
+from worker.studio.shared import generate
 from worker.studio.web.html import pipeline as html
+from worker.studio.web.html import schema as page_schema
 
 pytestmark = pytest.mark.unit
 
@@ -41,6 +45,14 @@ def test_the_model_is_told_a_simple_page_holds_text_only(tier: Tier) -> None:
     assert "The page holds text only" in prompt
 
 
+def test_a_small_model_is_told_to_write_the_page_in_its_own_words() -> None:
+    """Without it, Qwen3 1.7B and 4B copied 92% and 94% of their pages from the
+    source word for word; with it, 1% and 2%."""
+    prompt = html.prompt(Tier.COMPACT, None)
+
+    assert "in your own words" in prompt
+
+
 def test_a_summary_leads_and_points_become_a_list_still_escaped() -> None:
     """The stronger tiers' extra fields: one sentence under the title, a section as a list."""
     raw = (
@@ -69,3 +81,66 @@ def test_only_the_stronger_tiers_are_asked_for_a_summary_and_points(
     prompt = html.prompt(tier, None)
 
     assert ('"summary"' in prompt and '"points"' in prompt) is asked
+
+
+@pytest.mark.parametrize("tier", list(Tier))
+def test_a_simple_page_asks_the_model_for_its_schema(
+    tier: Tier, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Unconstrained, Qwen3 0.6B broke 4 pages in 9 and Qwen3 4B 3 in 9: a quote
+    left unescaped, a bracket too many, a section repeated until the window ran out."""
+    sent: list[dict | None] = []
+
+    def fake_run_model(*_a: object, json_schema: dict | None = None, **_kw: object):
+        sent.append(json_schema)
+        return '{"title": "T", "sections": [{"heading": "H", "paragraphs": ["P"]}]}'
+
+    monkeypatch.setattr(generate, "run_model", fake_run_model)
+    monkeypatch.setattr(html, "writes_script", lambda _selection: False)
+
+    html.render(SimpleNamespace(tier=tier, selection=None), [], None)
+
+    assert sent == [page_schema.reply(tier)]
+
+
+def test_the_small_page_schema_asks_only_what_its_prompt_does() -> None:
+    """The compact prompt asks for neither a summary nor points."""
+    reply = page_schema.reply(Tier.COMPACT)
+    section = reply["properties"]["sections"]["items"]
+
+    assert set(reply["properties"]) == {"title", "sections"}
+    assert set(section["properties"]) == {"heading", "paragraphs"}
+    assert section["required"] == ["heading", "paragraphs"]
+
+
+@pytest.mark.parametrize("tier", [Tier.CAPABLE, Tier.FRONTIER])
+def test_a_stronger_page_schema_takes_a_summary_and_points(tier: Tier) -> None:
+    """A section holds paragraphs or points, so only its heading is required."""
+    reply = page_schema.reply(tier)
+    section = reply["properties"]["sections"]["items"]
+
+    assert "summary" in reply["properties"]
+    assert set(section["properties"]) == {"heading", "paragraphs", "points"}
+    assert section["required"] == ["heading"]
+
+
+@pytest.mark.parametrize("tier", list(Tier))
+def test_every_list_in_a_page_schema_is_bounded(tier: Tier) -> None:
+    """A model that repeats stops at a ceiling instead of filling the window."""
+    sections = page_schema.reply(tier)["properties"]["sections"]
+    lists = [
+        prop
+        for prop in sections["items"]["properties"].values()
+        if prop["type"] == "array"
+    ]
+
+    assert sections["maxItems"] == html.SECTIONS
+    assert lists and all("maxItems" in prop for prop in lists)
+
+
+def test_a_page_with_no_section_fails_rather_than_opening_empty() -> None:
+    """A title alone opened as a ready page; failing says why and lets the job retry."""
+    with pytest.raises(ValueError, match="no usable sections"):
+        html.build(
+            '{"title": "T", "sections": [{"heading": "", "paragraphs": []}]}', []
+        )

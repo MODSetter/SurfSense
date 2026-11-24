@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from modules.egress.models import EgressDestination
+from modules.license.licensing import licensing_on
 from modules.llm.models import ProviderConnection
 
 HOST_PREFIX = "host:"
@@ -17,9 +18,22 @@ HUGGINGFACE = f"{HOST_PREFIX}huggingface.co"
 # SurfSense's plugin host (`modules/plugins/lists/plugin_host.py`): the
 # third-party registry and SurfSense's own plugins, under one consent.
 PLUGIN_HOST = f"{HOST_PREFIX}plugins.surfsense.com"
+# SurfSense's license server (`modules/license/renewal/license_server.py`): a
+# renewed license file, for which the app sends the license key alone, and the
+# license's job packs, for which it sends the key, the job's code, the version
+# already installed and the job runners it ships.
+LICENSE_SERVER = f"{HOST_PREFIX}api.surfsense.com"
 # Contacted whether or not a connection points at them, so they are listed with
 # no connection to discover them from.
-BUILT_IN = (HUGGINGFACE, PLUGIN_HOST)
+BUILT_IN = (HUGGINGFACE, PLUGIN_HOST, LICENSE_SERVER)
+
+
+def built_in() -> tuple[str, ...]:
+    """The built-in hosts this app contacts: with licensing off (ADR 0092) nothing reaches
+    the license server, so it is not listed, even where an earlier version left its row."""
+    if licensing_on():
+        return BUILT_IN
+    return tuple(host for host in BUILT_IN if host != LICENSE_SERVER)
 
 
 class EgressDeniedError(Exception):
@@ -62,16 +76,28 @@ def _is_loopback(host: str) -> bool:
         return False
 
 
-def require(session: Session, destination: str | None, host: str | None = None) -> None:
+def require(
+    session: Session,
+    destination: str | None,
+    host: str | None = None,
+    *,
+    calling: bool = True,
+) -> None:
+    """Refuses a destination off in Settings > Network, and stamps an allowed one's last
+    call, unless `calling` is False: the grant is checked for a call made later, which is
+    stamped then, so Settings shows no call that was not made."""
     if destination is None:
         return
     row = session.get(EgressDestination, destination)
     if row is None or not row.enabled:
         raise EgressDeniedError(destination, host)
-    row.last_call_at = datetime.now(UTC)
+    if calling:
+        row.last_call_at = datetime.now(UTC)
 
 
-def refused_named_host(session: Session, url: str) -> EgressDeniedError | None:
+def refused_named_host(
+    session: Session, url: str, *, calling: bool = True
+) -> EgressDeniedError | None:
     """`require()` for a host an endpoint named, such as an image's URL.
 
     A refused host no connection lists is recorded off, so Settings lists it to
@@ -79,7 +105,7 @@ def refused_named_host(session: Session, url: str) -> EgressDeniedError | None:
     """
     destination = host_destination(url)
     try:
-        require(session, destination)
+        require(session, destination, calling=calling)
     except EgressDeniedError as refused:
         if session.get(EgressDestination, refused.destination) is None:
             session.add(
@@ -127,8 +153,9 @@ def list_destinations(session: Session) -> list[EgressDestination]:
     rows = {row.destination: row for row in session.scalars(select(EgressDestination))}
     # Every host row too: one an endpoint named for its image has no connection.
     hosts = _connection_hosts(session) | {d for d in rows if d.startswith(HOST_PREFIX)}
+    listed = built_in()
     return [
         rows.get(destination)
         or EgressDestination(destination=destination, enabled=False)
-        for destination in [*BUILT_IN, *sorted(hosts - set(BUILT_IN))]
+        for destination in [*listed, *sorted(hosts - set(BUILT_IN))]
     ]

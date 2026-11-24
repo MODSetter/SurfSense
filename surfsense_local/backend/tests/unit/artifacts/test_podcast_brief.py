@@ -1,7 +1,7 @@
 import pytest
 
 from modules.artifacts.podcast import brief
-from modules.llm.providers.protocols import Voice
+from modules.llm.voices.voice import Voice
 
 pytestmark = pytest.mark.unit
 

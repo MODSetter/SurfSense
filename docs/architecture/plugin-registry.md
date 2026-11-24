@@ -1,5 +1,7 @@
 # Plugin registry
 
+> **The repository side is not running since 27 Nov 2026, kept for a relaunch** ([ADR 0092](../adr/0092-surfsense-is-free-and-licensing-is-off.md)). The registry's published files are served as static files by the website under `plugins.surfsense.com`, so the app's side below works unchanged.
+
 The registry is the list of third-party plugins, verified and community, the app offers once third-party plugins are allowed. Publishers fill in a submission issue form, which a bot checks and, once a maintainer accepts it, turns into a pull request to `backend/plugins/registry/plugins.json`, or open that pull request themselves; CI checks it, a maintainer connects it on `dev` and reviews it, and CI signs the list on `dev`; the release pull request carries the signed list to `main`. A small container serves the signed list, its icons and SurfSense's OAuth files at `plugins.surfsense.com`, and the app fetches it, verifies the signature against keys it compiles in, and keeps the last good copy. What the app does with an entry, connecting and signing in, is in [plugins](plugins.md#third-party-plugins).
 
 **Code:** [`backend/plugins/registry/`](../../backend/plugins/registry/), [`surfsense_local/backend/modules/plugins/lists/registry/`](../../surfsense_local/backend/modules/plugins/lists/registry/), [`.github/workflows/`](../../.github/workflows/) (`plugins-registry*.yml`), [`plugin-submit.yml`](../../.github/ISSUE_TEMPLATE/plugin-submit.yml)

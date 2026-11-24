@@ -1,11 +1,15 @@
 """A build resolved for install, named by the server rather than the renderer."""
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from modules.llm.catalog.local.build import Build
 from modules.llm.catalog.local.classifier import NotRunnableCode
 from modules.llm.catalog.local.install.codes import InstallCode
 from modules.llm.fit import ModelShape
+
+if TYPE_CHECKING:
+    from modules.llm.catalog.local.engines.llamacpp.elsewhere.find import FoundModel
 
 
 class InstallRefusedError(Exception):
@@ -39,3 +43,6 @@ class InstallPlan:
     # A curated chat build's committed shape, so whether it fits here is priced
     # from the manifest, as its row is, with no header read.
     shape: ModelShape | None = None
+    # A model another app downloaded, used where it lies: nothing is fetched,
+    # and `model_id` is minted when the job records it.
+    in_place: "FoundModel | None" = None

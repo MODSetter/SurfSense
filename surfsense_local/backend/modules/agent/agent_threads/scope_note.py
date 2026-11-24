@@ -29,7 +29,7 @@ NAMED_PATHS = 20
 
 _EARLIER = "Passages read earlier from other sources no longer apply."
 # A small model repeats the note as the start of its answer.
-_UNSAID = "SurfSense adds this note to the user's message; never repeat or quote it."
+UNSAID = "SurfSense adds this note to the user's message; never repeat or quote it."
 _HOW = "Open {them} with `read`, or search {them} with `surfsense_search_sources`."
 _NONE_SELECTED = (
     "No sources are selected for this request. Do not search, open or cite any "
@@ -61,7 +61,7 @@ def scope_note(
             else f"{indexing} selected sources are"
         )
         why = _STILL_READING.format(selected=selected) if indexing else _NONE_SELECTED
-        return f"[surfsense-scope: none]\n{why} {_EARLIER} {_UNSAID}"
+        return f"[surfsense-scope: none]\n{why} {_EARLIER} {UNSAID}"
     tag = (
         f"[surfsense-scope: {','.join(map(str, ids))}]"
         if len(ids) <= TAGGED_IDS
@@ -87,7 +87,7 @@ def scope_note(
             else f"{len(ids)} sources for this chat; they are the files in {SOURCES}/. "
             "Use only those."
         )
-    return f"{tag}\nThe user chose {chose} {_EARLIER} {_UNSAID}"
+    return f"{tag}\nThe user chose {chose} {_EARLIER} {UNSAID}"
 
 
 def shown_scope(

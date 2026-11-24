@@ -20,6 +20,7 @@ from starlette.concurrency import run_in_threadpool
 
 from api.dependencies import transact
 from modules.agent.agent_threads.citations import load_citations, searched_chunks
+from modules.agent.agent_threads.mention_note import name_mentions
 from modules.agent.agent_threads.ready_renders import link_ready_renders
 from modules.agent.agent_threads.replies import reply_id, session_turns, thread_turns
 from modules.agent.agent_threads.reply_ending import ABORTED
@@ -139,6 +140,7 @@ class ClaudeCodeEngine:
         )
         await transact(session, link_ready_renders, thread.workspace_id, turns)
         await transact(session, name_scopes, thread.workspace_id, turns)
+        await transact(session, name_mentions, thread.workspace_id, turns)
         return turns
 
     async def answer_permission(

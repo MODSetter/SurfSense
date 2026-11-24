@@ -15,6 +15,7 @@ import { getFreePort, waitForHealth } from "./net.ts"
 import { audiocppSpec } from "./audiocpp.ts"
 import { audiocppTranscriptionSpec } from "./audiocpp-transcription.ts"
 import { llamacppSpec } from "./llamacpp.ts"
+import { modelFolders } from "./model-folders.ts"
 import {
   binaryPath as opencodeBinaryPath,
   configPath as opencodeConfigPath,
@@ -53,6 +54,12 @@ export interface BootContext {
   secret: string
   /** Packaged: read-only bundled embedding, voice and parser packs. */
   modelsDir: string
+  /** Where downloaded models live when the user moved them; absent, inside `dataDir`. */
+  modelStorageDir?: string
+  /** The chosen models drive is not connected; `modelStorageDir` is an empty stand-in. */
+  modelStorageUnavailable?: boolean
+  /** Electron's settings, named when `dataDir` is no longer the folder that holds them. */
+  shellSettingsDir?: string
   /** The staged llama.cpp build; absent from disk means no local generation. */
   llamacppBinariesDir: string
   /** The staged audio.cpp build; absent from disk means no voices. */
@@ -87,6 +94,7 @@ export async function bootSidecars(
   const host = "127.0.0.1"
   const { packaged, dataDir } = context
   const apiPort = await getFreePort(host)
+  const folders = modelFolders(context.modelStorageDir ?? dataDir)
 
   const ctx: SidecarContext = {
     packaged,
@@ -97,13 +105,16 @@ export async function bootSidecars(
     dataDir,
     secret: context.secret,
     modelsDir: context.modelsDir,
+    ...(context.modelStorageDir && { embeddingModelsDir: folders.embeddings }),
+    ...(context.shellSettingsDir && { shellSettingsDir: context.shellSettingsDir }),
+    ...(context.modelStorageUnavailable && { modelStorageUnavailable: true }),
     // Unconditional, because dev needs runtimes too and dataDir already keeps
     // dev models out of the real install.
     llamacppBinariesDir: context.llamacppBinariesDir,
     audioBinariesDir: context.audioBinariesDir,
   }
   ctx.llamacppPort = await getFreePort(host)
-  ctx.llamacppModelsDir = join(dataDir, "models")
+  ctx.llamacppModelsDir = folders.generation
   ctx.llamacppUrl = `http://${host}:${ctx.llamacppPort}`
   // llama-server exits 1 when --models-dir does not exist, and on a clean
   // install nothing has created it yet: only a download would, and a download
@@ -114,7 +125,7 @@ export async function bootSidecars(
   // Dev too, as for llama.cpp: podcasts are voiced by the binary that ships.
   ctx.audioPort = await getFreePort(host)
   ctx.audioUrl = `http://${host}:${ctx.audioPort}`
-  ctx.audioModelsDir = join(dataDir, "audio")
+  ctx.audioModelsDir = folders.audio
   mkdirSync(ctx.audioModelsDir, { recursive: true })
   // The same build again for speech recognition, on a port of its own.
   ctx.transcriptionPort = await getFreePort(host)
@@ -126,7 +137,7 @@ export async function bootSidecars(
   if (existsSync(sdcppBinaryPath({ ...ctx, sdcppBinariesDir }))) {
     ctx.sdcppBinariesDir = sdcppBinariesDir
     ctx.imagePort = await getFreePort(host)
-    ctx.imageModelsDir = join(dataDir, "images")
+    ctx.imageModelsDir = folders.images
     ctx.imageUrl = `http://${host}:${ctx.imagePort}`
   }
 

@@ -30,6 +30,17 @@
         } catch {
           // no-op: fall back to the CSS defaults if storage/matchMedia throws
         }
+        // Same rule as features/motion-preference, for the first frame.
+        try {
+          const motion = localStorage.getItem("surfsense:reduce-motion:v1")
+          const reduce =
+            motion === "on" ||
+            (motion !== "off" &&
+              window.matchMedia("(prefers-reduced-motion: reduce)").matches)
+          if (reduce) document.documentElement.classList.add("reduce-motion")
+        } catch {
+          // no-op: the bundle sets it again once it loads
+        }
       })()
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />

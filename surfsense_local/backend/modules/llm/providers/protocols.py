@@ -1,7 +1,8 @@
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from typing import Literal, Protocol
+from typing import Protocol
 
+from modules.llm.providers.picture_shape import Shape
 from modules.llm.providers.types import Delta, Message, Model
 
 
@@ -81,26 +82,25 @@ class GeneratedImage:
 
 
 class ImageGenerator(Protocol):
-    async def generate(self, model: str, prompt: str) -> GeneratedImage: ...
+    """A model that draws from words alone."""
 
-
-class ImageEditor(Protocol):
-    """A model that changes a picture as an instruction says, given it as a reference."""
-
-    async def edit(
-        self, model: str, prompt: str, image: GeneratedImage
+    async def generate(
+        self, model: str, prompt: str, *, shape: Shape | None = None
     ) -> GeneratedImage: ...
 
 
-@dataclass(frozen=True)
-class Voice:
-    id: str
-    label: str
-    # None where the source does not say: OpenAI documents none for its voices.
-    gender: Literal["female", "male"] | None
-    # The languages this voice speaks, as the model's entry names them: one for
-    # a Kokoro voice, every one the model speaks for a Supertonic voice.
-    languages: tuple[str, ...]
+class ImageEditor(Protocol):
+    """A model given pictures as references: an edit of one, or a new picture
+    that keeps the characters and style of the others."""
+
+    async def edit(
+        self,
+        model: str,
+        prompt: str,
+        images: tuple[GeneratedImage, ...],
+        *,
+        shape: Shape | None = None,
+    ) -> GeneratedImage: ...
 
 
 @dataclass(frozen=True)

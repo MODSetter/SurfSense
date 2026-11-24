@@ -15,6 +15,7 @@ import {
   BugIcon,
   Chat01Icon,
   ComputerEthernetIcon,
+  HardDriveIcon,
   CpuIcon,
   Image01Icon,
   InformationCircleIcon,
@@ -41,23 +42,27 @@ import {
   type PluginsStart,
 } from "@/features/plugins/plugins-settings"
 import { LicenseSettings } from "@/features/license/license-settings"
+import { useLicensing } from "@/features/license/use-license"
 import type { ImportAccepted } from "@/features/migration/api"
 import { ImportBundleButton } from "@/features/migration/import-bundle"
 import type { ModelSelection } from "@/features/models/selection/api"
 import { EmbeddingSettings } from "@/features/embedding/embedding-settings"
 import { ReportIssueSettings } from "@/features/feedback/report-issue-settings"
 import { ResourceSettings } from "@/features/resources/resource-settings"
+import { SearchServerSetting } from "@/features/sources/web/search-server-setting"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
 import { AppearanceToggle } from "./appearance-toggle"
 import { LanguageSelect } from "./language-select"
+import { ReduceMotionSelect } from "./reduce-motion-select"
 import { AudioModelsSettings } from "./models/audio-models-settings"
 import { ChatModelsSettings } from "./models/chat-models-settings"
 import { ImageEditModelsSettings } from "./models/image-edit-models-settings"
 import { ImageModelsSettings } from "./models/image-models-settings"
 import { SpeechModelsSettings } from "./models/speech-models-settings"
 import { VideoModelsSettings } from "./models/video-models-settings"
+import { StorageSettings } from "@/features/storage/storage-settings"
 import { SettingsSection } from "./settings-section"
 
 type SettingsNavItem = {
@@ -76,6 +81,7 @@ export type SettingsSectionId =
   | "video-models"
   | "embedding-model"
   | "resources"
+  | "storage"
   | "office-support"
   | "network"
   | "plugins"
@@ -136,6 +142,29 @@ function GeneralSettings({
         </div>
         <LanguageSelect
           aria-labelledby="settings-general-language"
+          className="w-40"
+        />
+      </div>
+      <div className="mt-8 flex items-center justify-between gap-8">
+        <div className="flex flex-col gap-1">
+          <h3
+            id="settings-general-reduce-motion"
+            className="text-sm font-medium"
+          >
+            {intl.formatMessage({
+              id: "settings_general_reduce_motion_title",
+              defaultMessage: "Reduce motion",
+            })}
+          </h3>
+          <p className="text-sm text-pretty text-muted-foreground">
+            {intl.formatMessage({
+              id: "settings_general_reduce_motion_body",
+              defaultMessage: "Keep animations to a minimum on this device.",
+            })}
+          </p>
+        </div>
+        <ReduceMotionSelect
+          aria-labelledby="settings-general-reduce-motion"
           className="w-40"
         />
       </div>
@@ -209,6 +238,7 @@ const ALL_SECTIONS = [
   { id: "video-models", group: "models", icon: Video01Icon },
   { id: "embedding-model", group: "models", icon: EmbeddingIcon },
   { id: "resources", group: "system", icon: CpuIcon },
+  { id: "storage", group: "system", icon: HardDriveIcon },
   { id: "office-support", group: "system", icon: File02Icon },
   { id: "network", group: "system", icon: ComputerEthernetIcon },
   { id: "report-issue", group: "app", icon: BugIcon },
@@ -216,9 +246,16 @@ const ALL_SECTIONS = [
 ] satisfies SettingsNavItem[]
 
 // Access is the Docker image's sign-in (ADR 0074); the desktop has none.
-const SETTINGS_SECTIONS = ALL_SECTIONS.filter(
-  (section) => section.id !== "access" || IN_CONTAINER
-)
+// Storage needs main: the Docker image's folder is its volume, and a snap can reach no other.
+// License only while licensing runs, which no release does since ADR 0092.
+function settingsSections(licensing: boolean) {
+  return ALL_SECTIONS.filter(
+    (section) =>
+      (section.id !== "access" || IN_CONTAINER) &&
+      (section.id !== "license" || licensing) &&
+      (section.id !== "storage" || window.surfsense?.storage !== undefined)
+  )
+}
 
 const GROUP_LABELS: Record<SettingsNavItem["group"], () => string> = {
   settings: () =>
@@ -283,6 +320,11 @@ const SECTION_LABELS: Record<SettingsSectionId, () => string> = {
     intl.formatMessage({
       id: "settings_nav_embedding_label",
       defaultMessage: "Embedding",
+    }),
+  storage: () =>
+    intl.formatMessage({
+      id: "settings_nav_storage_label",
+      defaultMessage: "Storage",
     }),
   resources: () =>
     intl.formatMessage({
@@ -349,9 +391,9 @@ export function SettingsDialog({
   onModelSelected: (selection: ModelSelection) => void
   onImported?: (accepted: ImportAccepted) => Promise<void> | void
 }) {
+  const sections = settingsSections(useLicensing())
   const activeSection =
-    SETTINGS_SECTIONS.find((candidate) => candidate.id === section) ??
-    SETTINGS_SECTIONS[0]
+    sections.find((candidate) => candidate.id === section) ?? sections[0]
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -389,30 +431,30 @@ export function SettingsDialog({
                     className="flex flex-col gap-0.5"
                     aria-labelledby={`settings-nav-${group}`}
                   >
-                    {SETTINGS_SECTIONS.filter(
-                      (section) => section.group === group
-                    ).map((section) => {
-                      const Icon = section.icon
-                      const selected = section.id === activeSection.id
-                      return (
-                        <Button
-                          static
-                          key={section.id}
-                          type="button"
-                          variant="ghost"
-                          className={cn(
-                            "h-8 w-full justify-start rounded-lg",
-                            selected &&
-                              "bg-sidebar-accent text-sidebar-accent-foreground"
-                          )}
-                          aria-current={selected ? "page" : undefined}
-                          onClick={() => onSectionChange(section.id)}
-                        >
-                          <Icon />
-                          {SECTION_LABELS[section.id]()}
-                        </Button>
-                      )
-                    })}
+                    {sections
+                      .filter((section) => section.group === group)
+                      .map((section) => {
+                        const Icon = section.icon
+                        const selected = section.id === activeSection.id
+                        return (
+                          <Button
+                            static
+                            key={section.id}
+                            type="button"
+                            variant="ghost"
+                            className={cn(
+                              "h-8 w-full justify-start rounded-lg",
+                              selected &&
+                                "bg-sidebar-accent text-sidebar-accent-foreground"
+                            )}
+                            aria-current={selected ? "page" : undefined}
+                            onClick={() => onSectionChange(section.id)}
+                          >
+                            <Icon />
+                            {SECTION_LABELS[section.id]()}
+                          </Button>
+                        )
+                      })}
                   </nav>
                 </div>
               )
@@ -450,10 +492,15 @@ export function SettingsDialog({
               <EmbeddingSettings />
             ) : null}
             {activeSection.id === "resources" ? <ResourceSettings /> : null}
+            {activeSection.id === "storage" ? <StorageSettings /> : null}
             {activeSection.id === "office-support" ? (
               <OfficeSupportSettings askConsent={askOfficeConsent} />
             ) : null}
-            {activeSection.id === "network" ? <NetworkSettings /> : null}
+            {activeSection.id === "network" ? (
+              <NetworkSettings>
+                <SearchServerSetting />
+              </NetworkSettings>
+            ) : null}
             {activeSection.id === "plugins" ? (
               <PluginsSettings
                 start={pluginsStart}

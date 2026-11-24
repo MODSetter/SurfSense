@@ -14,10 +14,9 @@ from sqlalchemy.orm import Session
 from modules.agent.engine_choice import (
     AgenticRefusedError,
     new_thread_mode,
-    remember_thread_mode,
     selected_model_can_run_agent,
 )
-from modules.llm.capability.modes import ChatMode, remembered_mode
+from modules.llm.capability.modes import ChatMode, remember_mode, remembered_mode
 from modules.llm.model_type import ModelType
 from modules.llm.models import ProviderConnection, SelectedModel
 from shared.config import get_agent_settings, get_llm_settings
@@ -275,6 +274,25 @@ async def test_a_local_model_whose_template_parses_no_tool_calls_is_refused(
     assert (await new_thread_mode(session, None)).mode is ChatMode.BASIC
 
 
+async def test_agentic_saved_for_a_local_model_that_cannot_run_it_is_dropped_once_refused(
+    session: Session, no_switch: None, local_runtime: LocalRuntime
+) -> None:
+    """A local model's tool calls are read only when a chat starts, so the pick
+    could be saved; the refusal puts the model back on its own default."""
+    local_runtime.template_caps = {"supports_tools": True, "supports_tool_calls": False}
+    select_local(session)
+    selected = session.get(SelectedModel, ModelType.TEXT_GEN)
+    assert selected is not None
+    remember_mode(selected, ChatMode.AGENTIC)
+    session.commit()
+
+    assert await refused(session, ChatMode.AGENTIC) == "tool_calls_unsupported"
+
+    session.expire_all()
+    selected = session.get(SelectedModel, ModelType.TEXT_GEN)
+    assert selected is not None and remembered_mode(selected) is None
+
+
 async def test_a_local_model_loaded_with_a_short_window_is_refused(
     session: Session, no_switch: None, local_runtime: LocalRuntime
 ) -> None:
@@ -303,22 +321,6 @@ async def test_a_local_copy_of_a_model_that_passed_opens_basic(
     select_local(session, "Qwen3.8-27B-Q4_K_M")
 
     assert (await new_thread_mode(session, None)).mode is ChatMode.BASIC
-
-
-async def test_the_mode_a_chat_opened_in_is_the_model_s_next_default(
-    session: Session, no_switch: None
-) -> None:
-    """Remembered on the selection, over the measured default."""
-    select_remote(session, "gpt-4o-mini", "openai", base_url=OPENAI)
-    opening = await new_thread_mode(session, ChatMode.AGENTIC)
-    assert opening.entry is not None
-
-    await remember_thread_mode(session, opening.entry, ChatMode.AGENTIC)
-
-    assert (await new_thread_mode(session, None)).mode is ChatMode.AGENTIC
-    session.expire_all()
-    selected = session.get(SelectedModel, ModelType.TEXT_GEN)
-    assert selected is not None and remembered_mode(selected) is ChatMode.AGENTIC
 
 
 async def test_an_agent_thread_s_next_turn_is_held_only_to_technical_gates(

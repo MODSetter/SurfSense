@@ -220,6 +220,54 @@ test("an echo with no terminal to open stays silent", () => {
   })
 })
 
+test("a sidecar that exits asking for a fresh start is started again, not reported as a crash", async () => {
+  const crashes: Array<[string, number | null]> = []
+  const children: Sidecars = new Map()
+  const folder = mkdtempSync(join(tmpdir(), "supervisor-"))
+  const started = join(folder, "started")
+  // The first run asks to be replaced; the second stays, as a fresh worker does.
+  const script = `
+    const fs = require("node:fs")
+    const first = !fs.existsSync(${JSON.stringify(started)})
+    fs.appendFileSync(${JSON.stringify(started)}, process.pid + "\\n")
+    if (first) process.exit(75)
+    setInterval(() => {}, 1000)
+  `
+  const spec = { ...nodeSidecar("fresh", script, {}), freshStartExitCode: 75 }
+
+  startOne(children, spec, (name, code) => crashes.push([name, code]))
+  const first = children.get("fresh")!
+  await once(first, "exit")
+  for (let tries = 0; tries < 200 && readLines(started).length < 2; tries++) {
+    await new Promise((resolve) => setTimeout(resolve, 25))
+  }
+
+  const second = children.get("fresh")!
+  try {
+    assert.notEqual(second, first)
+    assert.equal(readLines(started).length, 2)
+    assert.ok(isAlive(second.pid!))
+    assert.deepEqual(crashes, [])
+  } finally {
+    await stopNamed(children, "fresh")
+  }
+})
+
+test("an exit with any other code is still a crash", async () => {
+  const crashes: Array<[string, number | null]> = []
+  const children: Sidecars = new Map()
+  const spec = { ...nodeSidecar("crashing", "process.exit(3)", {}), freshStartExitCode: 75 }
+
+  startOne(children, spec, (name, code) => crashes.push([name, code]))
+  await once(children.get("crashing")!, "exit")
+
+  assert.deepEqual(crashes, [["crashing", 3]])
+})
+
+function readLines(path: string): string[] {
+  return existsSync(path) ? readFileSync(path, "utf8").split("\n").filter(Boolean) : []
+}
+
 test("a sidecar that cannot be spawned is reported as a crash, not thrown", async () => {
   const crashes: Array<[string, number | null]> = []
   const children: Sidecars = new Map()

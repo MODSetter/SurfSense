@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { HomeAudiences } from "@/app/(home)/_home/home-audiences";
 import { HomeCompare } from "@/app/(home)/_home/home-compare/home-compare";
 import { HomeConfidential } from "@/app/(home)/_home/home-confidential/home-confidential";
 import { HomeFeatures } from "@/app/(home)/_home/home-features/home-features";
@@ -7,14 +8,18 @@ import { HomeLogos } from "@/app/(home)/_home/home-logos";
 import { HomePillars } from "@/app/(home)/_home/home-pillars/home-pillars";
 import { HomeQuestions } from "@/app/(home)/_home/home-questions";
 import { HomeHero, HomeOnYourMachine } from "@/app/(home)/_home/home-sections";
+import { HomeUseCases } from "@/app/(home)/_home/home-use-cases";
 import { JsonLd } from "@/components/site/json-ld";
 
 /**
  * Landing page.
  *
- * Title, description and heading order come from the `/` landing brief in
+ * Heading order comes from the `/` landing brief in
  * `plans/community-local/seo/02-page-briefs.md` (B6). The headings carry demand
- * phrases and their order is load-bearing — see `home-content.ts`.
+ * phrases and their order is load-bearing — see `home-content.ts`. The title, the
+ * description and the H1 lead with private AI for confidential documents since
+ * `plans/community-local/seo/09-audience-pages.md` (9 Nov 2026), with NotebookLM as the
+ * familiar hook below them.
  *
  * A server component. Most sections are static and the FAQ uses native
  * details/summary; the client exceptions are the claims tabs and the formats
@@ -22,14 +27,14 @@ import { JsonLd } from "@/components/site/json-ld";
  */
 
 export const metadata: Metadata = {
-	title: "Air-Gapped, Open Source NotebookLM Alternative | SurfSense",
+	title: "Air-Gapped Private AI for Confidential Documents | SurfSense",
 	description:
-		"A private, self-hosted NotebookLM alternative that runs air-gapped on your own machine. Your documents, your model keys, no cloud, no account.",
+		"SurfSense is free, open-source private AI that runs on your computer: a NotebookLM-style notebook for files you can't upload. No account, works offline.",
 	alternates: { canonical: "https://www.surfsense.com" },
 	openGraph: {
-		title: "Air-Gapped, Open Source NotebookLM Alternative | SurfSense",
+		title: "Air-Gapped Private AI for Confidential Documents | SurfSense",
 		description:
-			"A private, self-hosted NotebookLM alternative that runs air-gapped on your own machine. Your documents, your model keys, no cloud, no account.",
+			"SurfSense is free, open-source private AI that runs on your computer: a NotebookLM-style notebook for files you can't upload. No account, works offline.",
 		url: "https://www.surfsense.com",
 		siteName: "SurfSense",
 		type: "website",
@@ -38,7 +43,7 @@ export const metadata: Metadata = {
 				url: "/og-image.png",
 				width: 1200,
 				height: 630,
-				alt: "SurfSense, the air-gapped open-source NotebookLM alternative",
+				alt: "SurfSense, air-gapped private AI for confidential documents",
 			},
 		],
 	},
@@ -52,7 +57,7 @@ const APPLICATION_SCHEMA = {
 	applicationCategory: "productivity",
 	operatingSystem: "Windows, macOS, Linux",
 	description:
-		"A private, self-hosted NotebookLM alternative that runs air-gapped on your own machine.",
+		"Free, open-source private AI for confidential documents: a NotebookLM-style notebook that runs on your own computer, air-gapped with a local model.",
 	url: "https://www.surfsense.com",
 	isAccessibleForFree: true,
 	offers: {
@@ -70,6 +75,8 @@ export default function HomePage() {
 			<JsonLd data={APPLICATION_SCHEMA} />
 			<HomeHero />
 			<HomeLogos />
+			<HomeUseCases />
+			<HomeAudiences />
 			<HomeOnYourMachine />
 			<HomePillars />
 			<HomeCompare />

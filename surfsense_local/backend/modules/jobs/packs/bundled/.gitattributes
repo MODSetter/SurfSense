@@ -1,0 +1,3 @@
+# Byte for byte: every file of a pack is checked by its sha256, so no checkout may
+# change its line endings.
+* -text

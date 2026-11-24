@@ -1,4 +1,15 @@
-import { BUSINESS_URL, DOWNLOADS_URL, REPO_URL } from "@/components/site/site-content";
+import {
+	ACCOUNTANTS_URL,
+	BUSINESS_URL,
+	CONTRACT_REDLINE_URL,
+	DOWNLOADS_URL,
+	LAWYERS_URL,
+	REPO_URL,
+	SECURITY_QUESTIONNAIRE_URL,
+	STUDENTS_URL,
+	TEACHERS_URL,
+} from "@/components/site/site-content";
+import type { UseCaseSlug } from "@/features/guides/use-cases";
 
 /**
  * Homepage copy and data.
@@ -135,6 +146,83 @@ export const FORMATS: Format[] = [
 	{ key: "infographic", label: "Infographic", body: "Key figures laid out as one visual." },
 ];
 
+/**
+ * Who it's for, added on 9 Nov 2026 (`plans/community-local/seo/09-audience-pages.md`):
+ * a card per reader, each linking the page written for them, and the paid jobs in a strip
+ * below. Like `HomePillars` and `HomeCompare`, a band of its own whose headline is a `<p>`
+ * styled like an H2, so the brief's eight H2s keep their count and order.
+ */
+export type AudienceCard = {
+	key: "lawyers" | "accountants" | "students" | "teachers" | "business";
+	title: string;
+	body: string;
+	action: Action;
+};
+
+export const AUDIENCES: { eyebrow: string; headline: string; cards: AudienceCard[] } = {
+	eyebrow: "Who it's for",
+	headline: "Made for the files you can't upload",
+	cards: [
+		{
+			key: "lawyers",
+			title: "Lawyers",
+			body: "Ask across a matter with a citation for every point, draft memos and decks, and review contracts against your playbook.",
+			action: { label: "AI for lawyers", href: LAWYERS_URL },
+		},
+		{
+			key: "accountants",
+			title: "Accountants",
+			body: "Work through client statements and returns, build reports and spreadsheets, and answer clients' security questionnaires.",
+			action: { label: "AI for accountants", href: ACCOUNTANTS_URL },
+		},
+		{
+			key: "students",
+			title: "Students",
+			body: "Turn lecture slides, readings and notes into flashcards, practice quizzes, mind maps and podcasts, free.",
+			action: { label: "AI for students", href: STUDENTS_URL },
+		},
+		{
+			key: "teachers",
+			title: "Teachers",
+			body: "Make quizzes, worksheets, lesson plans and slides from your own teaching materials, free.",
+			action: { label: "AI for teachers", href: TEACHERS_URL },
+		},
+		{
+			key: "business",
+			title: "Consultants and other professions",
+			body: "Turn confidential research into client-ready decks, reports and briefings, on the machine the files are on.",
+			action: { label: "Private AI for business", href: BUSINESS_URL },
+		},
+	],
+};
+
+/**
+ * The use-case videos under the logos: the app doing the work, before any argument for
+ * it. A tab per video, the free work first and the paid jobs last. Its headline is a `<p>`,
+ * like `AUDIENCES`, so the H2s keep their count and order.
+ */
+export const USE_CASES: { eyebrow: string; headline: string; slugs: UseCaseSlug[] } = {
+	eyebrow: "See it work",
+	headline: "Watch it work on real documents",
+	slugs: [
+		"ask-and-cite",
+		"agent-documents",
+		"study-materials",
+		"podcast",
+		"contract-redline",
+		"security-questionnaire",
+	],
+};
+
+/** The jobs, in the user guide's words: a job does paperwork from your firm's own documents. */
+export const JOBS_STRIP: { body: string; actions: Action[] } = {
+	body: "SurfSense's jobs do paperwork from your firm's own documents, free like the rest of the app.",
+	actions: [
+		{ label: "Contract redline", href: CONTRACT_REDLINE_URL },
+		{ label: "Security questionnaire", href: SECURITY_QUESTIONNAIRE_URL },
+	],
+};
+
 /** H2 #2, #3, #4 — the three arguments that run as a ruled row. */
 export const PILLARS: (Cell & { action: Action })[] = [
 	{
@@ -189,12 +277,13 @@ export const FEATURES: {
 	},
 	{
 		key: "plugins",
-		heading: "Open source, extended by plugins",
-		body: "Each plugin gives the agent live data from one platform. Ten ship today.",
+		heading: "Open source, with web search built in",
+		// The platform scrapers retired; web search, YouTube and Web Crawl are built in.
+		body: "Reading web pages, YouTube and web search is built in and free. Plugins add more.",
 		points: [
 			{
-				title: "More places to search",
-				body: "Google Search, Reddit, YouTube, Instagram, TikTok, Google Maps, Amazon, Walmart, Indeed and the open web.",
+				title: "Built in, free",
+				body: "Web search, YouTube and Web Crawl, with no licence and nothing to connect.",
 			},
 			{
 				title: "Open to everyone",

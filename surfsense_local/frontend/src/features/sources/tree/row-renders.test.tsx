@@ -130,6 +130,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
+  localStorage.clear()
 })
 
 async function openTree() {
@@ -160,10 +161,10 @@ describe("source tree renders", () => {
     fireEvent.click(screen.getByRole("checkbox", { name: "Select deep.txt" }))
 
     expect(screen.getByRole("treeitem", { name: "deep.txt" }).ariaChecked).toBe(
-      "false"
+      "true"
     )
     expect(rendered.documents).toEqual([30])
-    // 2024 empties and Research turns mixed; nothing else changed.
+    // 2024 fills and Research turns mixed; nothing else changed.
     expect(rendered.folders.sort()).toEqual([2, 3])
   })
 

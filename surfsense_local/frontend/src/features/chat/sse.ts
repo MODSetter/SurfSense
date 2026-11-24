@@ -64,6 +64,7 @@ export type ChatErrorKind =
   | "provider_not_found"
   | "provider_rate_limited"
   | "provider_unavailable"
+  | "provider_refused"
   | "model_cannot_run"
   | "context_too_long"
   | "subscription_sign_in"

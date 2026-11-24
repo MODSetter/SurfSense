@@ -3,9 +3,11 @@ import type { MetadataRoute } from "next";
 import { blog } from "@/.source/server";
 import { FREE_MODELS } from "@/app/(home)/free/free-models";
 import { allPlugins } from "@/app/(home)/plugins/all-plugins";
+import { STUDY_PAGES } from "@/components/site/site-content";
 import { getPublishedAnnouncementPosts } from "@/features/announcements/announcements-source";
 import { announcementPath } from "@/features/announcements/announcements-utils";
 import { source as docsSource } from "@/features/docs/source";
+import { WORK_PAGES } from "@/features/site-navigation/site-navigation";
 
 const blogSource = loader({
 	baseUrl: "/blog",
@@ -35,8 +37,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 			changeFrequency: "weekly",
 			priority: 0.9,
 		},
+		// The student, teacher and study pages, which name no paid job.
+		...STUDY_PAGES.map((path) => ({
+			url: `${BASE_URL}${path}`,
+			lastModified,
+			changeFrequency: "weekly" as const,
+			priority: 0.9,
+		})),
+		// The audience and job pages for work: lawyers, accountants and the two jobs.
+		...WORK_PAGES.map((path) => ({
+			url: `${BASE_URL}${path}`,
+			lastModified,
+			changeFrequency: "weekly" as const,
+			priority: 0.9,
+		})),
 		{ url: `${BASE_URL}/plugins`, lastModified, changeFrequency: "weekly", priority: 0.9 },
-		{ url: `${BASE_URL}/mcp-server`, lastModified, changeFrequency: "weekly", priority: 0.85 },
 		{
 			url: `${BASE_URL}/external-mcp-connectors`,
 			lastModified,
@@ -44,27 +59,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 			priority: 0.85,
 		},
 		{ url: `${BASE_URL}/pricing`, lastModified, changeFrequency: "weekly", priority: 0.9 },
-		{
-			url: `${BASE_URL}/pricing/individual`,
-			lastModified,
-			changeFrequency: "weekly",
-			priority: 0.8,
-		},
 		{ url: `${BASE_URL}/contact`, lastModified, changeFrequency: "monthly", priority: 0.7 },
 		{ url: `${BASE_URL}/blog`, lastModified, changeFrequency: "daily", priority: 0.9 },
 		{ url: `${BASE_URL}/changelog`, lastModified, changeFrequency: "weekly", priority: 0.7 },
 		{ url: `${BASE_URL}/announcements`, lastModified, changeFrequency: "weekly", priority: 0.6 },
 		// /docs itself redirects to the current version section, so the version
 		// roots come from `docsPages` below instead of being listed here.
-		// The one indexable page under /license: the other two are noindex, one
-		// being a form keyed on an email address and the other serving a license
-		// file. This one is a help document, and the license emails link it.
-		{
-			url: `${BASE_URL}/license/activate`,
-			lastModified,
-			changeFrequency: "monthly",
-			priority: 0.4,
-		},
+		// No /license pages: SurfSense needs no licence, and all three are noindex.
 		{ url: `${BASE_URL}/privacy`, lastModified, changeFrequency: "monthly", priority: 0.3 },
 		{ url: `${BASE_URL}/terms`, lastModified, changeFrequency: "monthly", priority: 0.3 },
 	];

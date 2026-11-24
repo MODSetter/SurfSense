@@ -1,31 +1,11 @@
 from collections.abc import Callable
 from dataclasses import dataclass
-from enum import StrEnum
-from typing import Any, NamedTuple
+from typing import NamedTuple
 from urllib.parse import SplitResult
 
-# Items a plugin answered, by tool name.
-Results = dict[str, list[dict[str, Any]]]
-# Comments and reviews kept in a source, the most relevant first.
-MAX_REPLIES = 100
-
-
-class Fit(StrEnum):
-    """How a link on a puller's site fits it."""
-
-    ONE = "one"
-    # A channel, profile, playlist, search page, category: opened into its items to pick.
-    LIST = "list"
-    # A short link the plugin cannot follow; following it would reach another host.
-    SHORT_LINK = "short_link"
-
-
-@dataclass(frozen=True)
-class ToolCall:
-    tool: str
-    arguments: dict[str, Any]
-    # The source stands without it, as a video does without its comments.
-    optional: bool = False
+# Called with each host before a read connects to it: returns when the user
+# allowed it, raises EgressDeniedError when not.
+HostCheck = Callable[[str], None]
 
 
 class Pulled(NamedTuple):
@@ -33,33 +13,12 @@ class Pulled(NamedTuple):
     markdown: str
 
 
-class Listed(NamedTuple):
-    """One item of a list, as a row the user may add."""
-
-    url: str
-    title: str
-    description: str | None
-
-
-@dataclass(frozen=True)
-class Listing:
-    # The call that reads a list link's first `count` items.
-    call: Callable[[str, int], ToolCall]
-    items: Callable[[list[dict[str, Any]]], list[Listed]]
-
-
 @dataclass(frozen=True)
 class Puller:
-    # Stored on the note, and shown on a search result.
+    # Stored on the note, and shown on a result row.
     id: str
-    plugin_id: str
-    # None for a link on another site.
-    fit: Callable[[SplitResult], Fit | None]
-    calls: Callable[[str], list[ToolCall]]
-    # None when the plugin found nothing to keep.
-    written: Callable[[str, Results], Pulled | None]
-    # None for a site with no list links.
-    listing: Listing | None = None
-    # The site's own search for a query, read as its listing reads a list;
-    # None for a site with none.
-    search: Callable[[str, int], ToolCall] | None = None
+    takes: Callable[[SplitResult], bool]
+    # The hosts a read of the link starts on: what Add asks the user about.
+    hosts: Callable[[str], list[str]]
+    # Raises ReadFailedError, or EgressDeniedError for a host turned off.
+    read: Callable[[str, HostCheck], Pulled]

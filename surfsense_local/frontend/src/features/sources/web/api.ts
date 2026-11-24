@@ -2,45 +2,37 @@ import { requestJson } from "@/lib/api"
 
 import type { WorkspaceDocument } from "../api"
 
-// One to add, a list to open into its items, or a short link that can't be added.
-export type LinkFit = "one" | "list" | "short_link"
-
 export type WebResult = {
   url: string
   title: string
   description: string | null
   site: string
-  // Which plugin would add it, such as "youtube"; "web_page" for any page.
+  // What would read it: "youtube" for a video's transcript, "web_page" for a page.
   puller: string
-  fit: LinkFit
 }
 
-export type WebGroup = {
-  // The list link these rows came from; null for single links or a search.
-  link: string | null
+export type WebResults = {
   results: WebResult[]
-  // The list has items past these.
+  // Show more would find more.
   more: boolean
-  failed: boolean
 }
 
 export type WebLinksOutcome = {
   created: WorkspaceDocument[]
   duplicates: { url: string; document_id: number }[]
-  rejected: { url: string; reason: Exclude<LinkFit, "one"> }[]
 }
 
 const json = { "Content-Type": "application/json" }
 
-/** `source` is `web` for Google, or a site with its own search, such as `youtube`. */
+/** `source` is `web` for the whole web, or `youtube` for its videos alone. */
 export function searchWeb(
   workspaceId: number,
   query: string,
   source: string,
   page: number,
   signal?: AbortSignal
-): Promise<WebGroup> {
-  return requestJson<WebGroup>(
+): Promise<WebResults> {
+  return requestJson<WebResults>(
     `/workspaces/${workspaceId}/documents/web/search`,
     {
       method: "POST",
@@ -55,27 +47,12 @@ export async function openWebLinks(
   workspaceId: number,
   urls: string[],
   signal?: AbortSignal
-): Promise<WebGroup[]> {
-  const opened = await requestJson<{ groups: WebGroup[] }>(
+): Promise<WebResult[]> {
+  const opened = await requestJson<WebResults>(
     `/workspaces/${workspaceId}/documents/web/open`,
     { method: "POST", headers: json, body: JSON.stringify({ urls }), signal }
   )
-  return opened.groups
-}
-
-export function listWebLink(
-  workspaceId: number,
-  url: string,
-  page: number
-): Promise<WebGroup> {
-  return requestJson<WebGroup>(
-    `/workspaces/${workspaceId}/documents/web/list`,
-    {
-      method: "POST",
-      headers: json,
-      body: JSON.stringify({ url, page }),
-    }
-  )
+  return opened.results
 }
 
 export function addWebLinks(

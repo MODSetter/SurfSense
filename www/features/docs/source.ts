@@ -4,7 +4,6 @@ import { docs } from "@/.source/server";
 import {
 	BookOpen01Icon,
 	BubbleChatIcon,
-	ClipboardCheckIcon,
 	Compass01Icon,
 	ContainerIcon,
 	CpuIcon,
@@ -13,8 +12,10 @@ import {
 	FlaskConicalIcon,
 	HistoryIcon,
 	LaptopIcon,
+	PlayCircleIcon,
 	Plug01Icon,
 	Radar01Icon,
+	Task01Icon,
 	UnplugIcon,
 	Wrench01Icon,
 } from "@/components/ui/icons";
@@ -25,7 +26,6 @@ import {
  */
 const DOCS_ICONS: Record<string, React.ComponentType> = {
 	BookOpen: BookOpen01Icon,
-	ClipboardCheck: ClipboardCheckIcon,
 	Compass: Compass01Icon,
 	Container: ContainerIcon,
 	Cpu: CpuIcon,
@@ -35,9 +35,12 @@ const DOCS_ICONS: Record<string, React.ComponentType> = {
 	History: HistoryIcon,
 	Laptop: LaptopIcon,
 	MessageCircle: BubbleChatIcon,
+	PlayCircle: PlayCircleIcon,
 	// The desktop app's plugin icon, so the docs and the app match.
 	Plug: Plug01Icon,
 	Radar: Radar01Icon,
+	// The desktop app's Jobs icon, so the docs and the app match.
+	Task: Task01Icon,
 	Unplug: UnplugIcon,
 	Wrench: Wrench01Icon,
 };

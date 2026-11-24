@@ -2,6 +2,7 @@ import type { OsLabel, PlatformLabel } from "../system-labels.ts"
 import { isoWeek } from "../utc-calendar.ts"
 import type { ActiveFlags } from "./active-flags.ts"
 import type { ReportTrigger } from "./first-week.ts"
+import { installAge, type InstallAge } from "./install-age.ts"
 import { SETUP_STEPS } from "./setup-progress.ts"
 
 // Every value is one of these, a boolean or a fixed format (contract 05, part B):
@@ -14,6 +15,9 @@ const WEEK_VALUES = {
   studio_outputs: ["0", "1-4", "5+", "unknown"],
   plugin_calls: ["0", "1-9", "10+", "unknown"],
   onboarding: [...SETUP_STEPS, "unknown"],
+  // Revision 1.2: of the 7 and 28 UTC days before the report, how many show use.
+  days_used_7: ["0", "1", "2-3", "4-6", "7", "unknown"],
+  days_used_28: ["0", "1", "2-3", "4-7", "8-14", "15-28", "unknown"],
 } as const
 const RAM_GB = ["<8", "8-15", "16-31", "32-63", "64+"] as const
 const GPU = ["nvidia", "amd", "intel", "apple", "none", "unknown"] as const
@@ -38,6 +42,7 @@ export type UsageReport = {
   os: OsLabel
   ui_language: UiLanguage
   install_week: string
+  install_age: InstallAge
   trigger: ReportTrigger
   active: ActiveFlags
   hardware: HardwareBlock | null
@@ -62,6 +67,8 @@ function weekBlock(value: unknown): WeekBlock {
     studio_outputs: oneOf(WEEK_VALUES.studio_outputs, week.studio_outputs, "unknown"),
     plugin_calls: oneOf(WEEK_VALUES.plugin_calls, week.plugin_calls, "unknown"),
     onboarding: oneOf(WEEK_VALUES.onboarding, week.onboarding, "unknown"),
+    days_used_7: oneOf(WEEK_VALUES.days_used_7, week.days_used_7, "unknown"),
+    days_used_28: oneOf(WEEK_VALUES.days_used_28, week.days_used_28, "unknown"),
   }
 }
 
@@ -100,6 +107,7 @@ export function buildUsageReport(input: {
   platform: PlatformLabel
   os: OsLabel
   firstRunAt: string
+  at: Date
   trigger: ReportTrigger
   flags: ActiveFlags
   withHardware: boolean
@@ -120,6 +128,7 @@ export function buildUsageReport(input: {
       uiLanguage(input.locale)
     ),
     install_week: isoWeek(new Date(input.firstRunAt)),
+    install_age: installAge(input.firstRunAt, input.at),
     trigger: input.trigger,
     active: { ...input.flags },
     hardware: input.withHardware ? hardwareBlock(summary.hardware, input.totalMemoryBytes) : null,

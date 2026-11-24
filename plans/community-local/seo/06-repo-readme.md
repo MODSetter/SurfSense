@@ -24,13 +24,22 @@ whose installers carry the agent. It is about 450 words under six H2s, at the
 short end of the [length table](#length-the-biggest-projects-have-the-shortest-readmes).
 In order:
 
-1. **The header.** Badges, the banner and the H1, then the bold line **"The
-   air-gapped, open-source NotebookLM alternative."**, which keeps the terms the
-   repo ranks for, and the sub-line "The AI agent that researches, transforms
-   and edits your documents, on your machine.", which leads with the edit, as
-   the [file agent strategy](../file-agent-strategy.md#the-headline) asks. Then
-   the link row, Trendshift and the language row.
-2. **The demo videos** (below), one paragraph and the download table. The sunset
+1. **The header.** Badges, the banner and the H1, then the bold line
+   **"Air-gapped, private AI for confidential documents."** and the sub-line
+   "Open-source NotebookLM alternative that runs on your computer.": the two
+   sentences of the repo description that 2.4.0 sets (agreed 9 Nov 2026). The
+   banner's alt text says the same. The sub-line keeps "open-source NotebookLM
+   alternative", the phrase the repo ranks first for. Until 2.4.0 the bold line
+   was "The air-gapped, open-source NotebookLM alternative." and the sub-line
+   "The AI agent that researches, transforms and edits your documents, on your
+   machine.", which led with the edit, as the
+   [file agent strategy](../file-agent-strategy.md#the-headline) asked; the
+   opening paragraph still says it. Then the link row, Trendshift and the
+   language row.
+2. **The demo videos** (below), one paragraph and the download table. Since
+   2.4.0 the paragraph opens "a free, open-source desktop app for confidential
+   documents" and calls the agent private, matching the header; it said
+   "documents you can't upload" and "privacy-focused" before. The sunset
    callout was removed after 18 Oct 2026, here and in every translation. Since
    22 Oct 2026 the table links `https://www.surfsense.com/downloads/<platform>?src=readme`
    rather than GitHub's `/releases/latest/download/`: the site counts the
@@ -43,13 +52,25 @@ In order:
    from with citations, creates, edits as a copy and transforms, with three
    footnotes. It replaced "What SurfSense makes", the table of Studio outputs,
    because what the agent does to the user's own files is now the pitch.
-5. **Plugins**, added on 15 Oct 2026 once SurfSense's plugins shipped (2.2.1):
-   where to connect them, a table of the ten first-party ones (Reddit and
-   Instagram joined in 2.2.5) with the app's
-   one-line descriptions, which need a license, with the free 14-day one claimed
-   on `/downloads`, and third-party ones, which need none. It replaced **Star
-   history**, under the rule that anything added replaces something, and sits
-   above the comparison, as the maintainer asked.
+5. **Plugins**, added on 15 Oct 2026 once SurfSense's plugins shipped (2.2.1),
+   is two paragraphs. The first says where to connect plugins: MCP servers from
+   the plugin registry, or any added by URL, which stay off until allowed. The
+   second, **Built in, free**, says the agent and **Add from the web**, in
+   Sources, search the web through a SearXNG server the user adds in Settings ›
+   Network (2.4.0 has no default server) and read pages and YouTube
+   transcripts on the user's own connection, with no plugin and no license.
+   They replaced the table of SurfSense's own plugins, and the line on their
+   license and free 14-day trial, in November 2026, when SurfSense's web
+   plugins became built-in tools
+   ([ADR 0081](../../../docs/adr/0081-surfsenses-scrapers-retire-and-web-pages-and-search-stay-free.md)).
+   The section replaced **Star history**, under the rule that anything added
+   replaces something, and sits above the comparison, as the maintainer asked.
+   Since 2.4.0 SurfSense is free with licensing off
+   ([ADR 0092](../../../docs/adr/0092-surfsense-is-free-and-licensing-is-off.md)),
+   so the README names no license, plan or price, and it still names no job
+   before an eval row backs it
+   ([file agent strategy](../file-agent-strategy.md#the-headline), item 4).
+   Each change goes into every translation.
 6. **How it compares**, against NotebookLM (now Gemini Notebook) alone: offline
    use, whether documents leave the machine, editing files, licence and models.
    "Everything stays on your machine", the comparisons with local chat apps and
@@ -58,15 +79,18 @@ In order:
 7. **Community** and **License**. License says Apache-2.0 and links `LICENSE`.
    Since 15 Oct 2026 the root `LICENSE` is the plain Apache text with no
    preamble, so GitHub's About panel names the license instead of showing "View
-   license". The two folders under the BSL 1.1, `backend/plugins/proprietary/` and
-   `surfsense_backend/app/proprietary/`, each say so in their own `LICENSE`; the
-   README does not list them.
+   license". Since 2.4.0 the whole repo is Apache-2.0: `backend/plugins/proprietary/`,
+   the last folder under the BSL 1.1, was relicensed, and its own `LICENSE` says so.
 
 The repo's About field, read on 11 Oct 2026, follows the header rather than the
 [project description](#project-description) below: "Air-gapped,
 privacy-focused, open-source NotebookLM alternative. AI agent that researches,
 transforms, and edits your documents." and a Discord link. It has nine topics,
-not the sixteen below.
+not the sixteen below. With 2.4.0 it becomes "Air-gapped, private AI for
+confidential documents. Open-source NotebookLM alternative that runs on your
+computer. Join our Discord: https://discord.gg/ejRNvftDp9", with 20 topics
+(agreed 9 Nov 2026), and the README's header follows it. Re-check the repo's
+rankings four weeks after the change.
 
 **Changing it.** Edit `README.md` first, then make the same change in every
 `README.<locale>.md`. Each follows the English section for section and keeps its

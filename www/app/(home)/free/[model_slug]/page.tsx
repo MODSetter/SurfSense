@@ -161,7 +161,7 @@ export default async function FreeModelPage({ params }: PageProps) {
 		{
 			question: "Is the SurfSense desktop app free?",
 			answer:
-				"Yes. The app and every update are free forever on Windows, macOS and Linux, and a 14-day licence for the scraper plugins comes with it. There is no account to create and no trial clock on the app itself.",
+				"Yes. The app and every update are free forever on Windows, macOS and Linux, reading web pages, YouTube and web search included, and so are the security questionnaire and contract redline jobs. There is no account to create, no licence and no trial clock.",
 		},
 		{
 			question: "What happened to the 500,000 free tokens?",
@@ -333,7 +333,7 @@ export default async function FreeModelPage({ params }: PageProps) {
 					</div>
 					<p className="mt-6">
 						<Link className={siteText.forward} href="/pricing">
-							What a licence adds
+							Why it is free
 						</Link>
 					</p>
 				</div>

@@ -11,6 +11,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
+from modules.agent.agent_threads.mention_note import noted_mentions
 from modules.agent.agent_threads.reply_ending import reply_ending
 from modules.agent.agent_threads.scope_note import noted_scope
 from modules.agent.agent_threads.steps import step_of
@@ -183,6 +184,9 @@ def _user_content(turn: Turn) -> dict[str, Any]:
     scope = noted_scope(turn.notes)
     if scope is not None:
         content["scope"] = scope
+    mentions = noted_mentions(turn.notes)
+    if mentions is not None:
+        content["mentions"] = mentions
     return content
 
 

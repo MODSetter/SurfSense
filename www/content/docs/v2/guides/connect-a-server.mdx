@@ -1,0 +1,79 @@
+---
+title: Use a model from a server or provider
+description: Connect OpenRouter, or any server that speaks the OpenAI API, and chat with one of its models
+---
+
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+
+<GuideVideo slug="connect-a-server" poster="/guides/connect-a-server/poster.webp" title="Connecting OpenRouter and choosing one of its models" />
+
+A server or provider gives you models too big for your computer. This guide uses OpenRouter; LM Studio, Ollama, vLLM and any other OpenAI-compatible server work the same way. A model from a provider receives your questions and excerpts of your documents. See [Use a server](/docs/v2/models/api-providers).
+
+<Steps>
+<Step>
+
+### Open the server form
+
+Open **Settings**, then **Text gen**, and click **Add model**. Under **Use a server**, click **Connect**.
+
+</Step>
+<Step>
+
+### Pick your provider
+
+Click **Provider** and type its name to find it. Picking a provider fills in the **Name** and the **Base URL**. For a server of your own, keep **Local or custom server** and type its address under **Base URL**.
+
+![The provider list filtered to OpenRouter](/guides/connect-a-server/01-provider.webp)
+
+</Step>
+<Step>
+
+### Paste your API key
+
+Paste the key from your provider's dashboard under **API key**, then click **Save server**. A server on your own computer may need no key.
+
+![The Connect a server form with the provider, base URL and a hidden API key filled in](/guides/connect-a-server/02-server-form.webp)
+
+</Step>
+<Step>
+
+### Allow the provider
+
+The first time, SurfSense asks before it sends anything to the provider, and says what it receives. Click **Allow**. You can turn it off later in **Settings › Network**.
+
+![The question Allow sending data to openrouter.ai?, with Cancel and Allow](/guides/connect-a-server/03-allow-server.webp)
+
+</Step>
+<Step>
+
+### Find a model
+
+SurfSense checks the server and lists its chat models under its name. Type in the search box to find one, then click **Use**.
+
+![The provider's chat models filtered by a search, each with a Use button](/guides/connect-a-server/04-server-models.webp)
+
+</Step>
+<Step>
+
+### Test it
+
+SurfSense asks whether to test the model first. **Test chat** sends one short prompt, which your provider may bill. When the model answers, click **Use this model**.
+
+![The model's answer to the test prompt, with the Use this model button](/guides/connect-a-server/05-test-chat.webp)
+
+</Step>
+<Step>
+
+### It's in use
+
+**In use:** names the model and the server. The next reply in any chat comes from it.
+
+![In use naming the provider's model](/guides/connect-a-server/06-in-use.webp)
+
+</Step>
+</Steps>
+
+## Next
+
+- [Add files and folders](/docs/v2/guides/add-sources) to answer from.
+- [Use your ChatGPT plan](/docs/v2/models/chatgpt-plan) or [your Claude plan](/docs/v2/models/claude-plan) instead of an API key.

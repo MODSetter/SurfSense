@@ -84,18 +84,14 @@ describe("usage statistics in Settings › About", () => {
 })
 
 describe("App updates in Settings › About", () => {
-  it("shows the last update request with its headers, and its fallback", async () => {
+  it("shows the last update request exactly as GitHub got it, with no header of ours", async () => {
     stubPrivacyBridge({
       updates: {
         automatic: true,
         lastCheckedAt: "2026-10-21T08:00:00Z",
         lastRequest: {
-          url: "https://updates.surfsense.com/api/updates/stable.yml",
-          headers: {
-            "X-SurfSense-Version": "2.2.4",
-            "X-SurfSense-Platform": "win32-x64",
-            "X-SurfSense-OS": "windows-11",
-          },
+          url: "https://github.com/MODSetter/SurfSense/releases/latest/download/release.yml",
+          headers: { "User-Agent": "SurfSense" },
         },
       },
     })
@@ -110,15 +106,47 @@ describe("App updates in Settings › About", () => {
     })
     const request = within(dialog).getByLabelText("The last update request")
     expect(request.textContent).toContain(
-      "GET https://updates.surfsense.com/api/updates/stable.yml"
+      "GET https://github.com/MODSetter/SurfSense/releases/latest/download/release.yml"
     )
-    expect(request.textContent).toContain("X-SurfSense-Platform: win32-x64")
-    expect(dialog.textContent).toContain("github.com")
+    expect(request.textContent).toContain("User-Agent: SurfSense")
+    expect(dialog.textContent).not.toContain("X-SurfSense")
+    expect(dialog.textContent).not.toContain("updates.surfsense.com")
+  })
+
+  it("before any check, lists the User-Agent as the one header GitHub gets, and a mirror's three more", async () => {
+    stubPrivacyBridge()
+    const user = userEvent.setup()
+    const { unmount } = render(<UpdateSettings />)
+
+    await user.click(
+      await screen.findByRole("button", { name: "Show exactly what’s sent" })
+    )
+    const github = await screen.findByRole("dialog", {
+      name: "What an update check sends",
+    })
+    expect(github.textContent).toContain("User-Agent")
+    expect(github.textContent).not.toContain("X-SurfSense-Version")
+    unmount()
+
+    stubPrivacyBridge({
+      updates: { host: "updates.example.org", mirror: true },
+    })
+    render(<UpdateSettings />)
+    await user.click(
+      await screen.findByRole("button", { name: "Show exactly what’s sent" })
+    )
+    const mirror = await screen.findByRole("dialog", {
+      name: "What an update check sends",
+    })
+    expect(mirror.textContent).toContain("X-SurfSense-Version")
+    expect(mirror.textContent).toContain(
+      "updates.example.org is the update server your organization set"
+    )
   })
 
   it("names a policy's mirror as the only update host", async () => {
     stubPrivacyBridge({
-      updates: { host: "updates.example.org", fallbackHost: null },
+      updates: { host: "updates.example.org", mirror: true },
     })
     const user = userEvent.setup()
     render(<UpdateSettings />)
@@ -171,13 +199,7 @@ describe("App updates in Settings › About", () => {
       screen.getByRole("button", { name: "What usage statistics send" })
     )
     const usageDetails = (await screen.findByRole("tooltip")).textContent
-    expect(usageDetails).toContain(
-      "During the install’s first week it sends one more each time setup reaches a new step, at most four more."
-    )
-    expect(usageDetails).toContain("whether the model runtime can use the card")
-    expect(usageDetails).toContain(
-      "in the first week they go again only while part of them is unknown"
-    )
+    expect(usageDetails).toContain("your system and hardware")
     expect(usageDetails).toContain(
       "Never documents, prompts, file names, model names, hosts, your license key or an ID."
     )

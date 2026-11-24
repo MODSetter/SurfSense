@@ -1,9 +1,12 @@
+import "./test-lexical-input"
 // jsdom has no Web Animations API; Base UI calls it to wait for exit animations.
 Element.prototype.getAnimations ??= () => []
 // Nor pointer capture, which sonner takes when a toast is pressed, to swipe it away.
 Element.prototype.setPointerCapture ??= () => {}
 // Nor hit testing, which Pragmatic drag and drop reads as a drag ends.
 document.elementsFromPoint ??= () => []
+// Nor layout for a caret, which the `@` list measures to open at the `@`.
+Range.prototype.getBoundingClientRect ??= () => new DOMRect()
 
 // Replies in progress live at module level, one set per window; each test is a
 // fresh window, so none inherits another's runs.

@@ -1,0 +1,49 @@
+---
+title: Add files and folders
+description: Upload documents to a workspace and watch SurfSense read them on your computer
+---
+
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+
+<GuideVideo slug="add-sources" poster="/guides/add-sources/poster.webp" title="Uploading a folder of documents and waiting until they're ready" />
+
+Sources are what SurfSense answers from. It copies what you add into its data folder and reads it on your computer, with no network. [Sources](/docs/v2/sources) lists the file types it reads and what it skips.
+
+<Steps>
+<Step>
+
+### Open the add menu
+
+Click **+** at the top of the **Sources** panel. Choose **Upload files…** for one or more files, or **Upload folder…** for a whole folder, subfolders and all.
+
+You can also drag files or folders from your file manager onto the panel.
+
+![The Sources panel's add menu: Upload files…, Upload folder…, Add from the web…, New folder and New note](/guides/add-sources/01-add-menu.webp)
+
+</Step>
+<Step>
+
+### Pick the folder
+
+Pick the folder in the window that opens. It appears in **Sources** straight away, and each file shows a spinner while SurfSense reads it. Text PDFs are quick; scans and photos take longer, since SurfSense reads them with text recognition.
+
+![The uploaded folder with a spinner beside each of its files](/guides/add-sources/02-reading.webp)
+
+</Step>
+<Step>
+
+### Wait until they're ready
+
+A source is ready once it's searchable: its spinner turns into a tick box. New sources start ticked, so chat and Studio use them. The chat box shows how many are ticked, such as **3 sources**.
+
+![The folder's three files, ready and ticked, with 3 sources shown in the chat box](/guides/add-sources/03-ready.webp)
+
+</Step>
+</Steps>
+
+To stop a source that's being read, open its **⋯** menu and choose **Cancel**. A source that failed shows why, with **Retry** in the same menu.
+
+## Next
+
+- [Ask a question and check its citations](/docs/v2/guides/ask-and-cite).
+- [Add web pages and YouTube videos](/docs/v2/guides/add-from-the-web).
