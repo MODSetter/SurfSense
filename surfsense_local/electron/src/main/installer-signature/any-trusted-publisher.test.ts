@@ -90,6 +90,45 @@ test("a check PowerShell fails while it still runs ConvertTo-Json stops the upda
   await assert.rejects(acceptAnyTrustedPublisher(recorder().log, run)(["SurfSense"], INSTALLER), /denied/)
 })
 
+test("the installer is read through before PowerShell checks it, and the check gets two minutes", async () => {
+  // Defender's scan of a new executable then happens outside the bound (2.3.1 to 2.4.0 hit 20 s).
+  const steps: string[] = []
+  const run: RunPowerShell = async (_command, timeoutMs) => {
+    steps.push(`check, ${timeoutMs} ms`)
+    return JSON.stringify({ Status: 0, Path: INSTALLER, SignerCertificate: { Subject: "CN=x" } })
+  }
+  const read = async (file: string) => {
+    steps.push(`read ${file}`)
+  }
+
+  assert.equal(await acceptAnyTrustedPublisher(recorder().log, run, read)(["SurfSense"], INSTALLER), null)
+  assert.deepEqual(steps, [`read ${INSTALLER}`, "check, 120000 ms"])
+})
+
+test("an installer that cannot be read first is still checked, with a warning", async () => {
+  const { run, commands } = answering({ Status: 0, Path: INSTALLER, SignerCertificate: { Subject: "CN=x" } })
+  const { lines, log } = recorder()
+  const read = async () => {
+    throw new Error("EBUSY: resource busy or locked")
+  }
+
+  assert.equal(await acceptAnyTrustedPublisher(log, run, read)(["SurfSense"], INSTALLER), null)
+  assert.equal(commands.length, 1)
+  assert.ok(lines.some((line) => line.includes("Could not read the installer") && line.includes("EBUSY")), lines.join("\n"))
+})
+
+test("the default read goes through a real file to its end", async (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "installer-signature-"))
+  t.after(() => rmSync(dir, { recursive: true, force: true }))
+  const file = join(dir, "temp-SurfSense-Setup.exe")
+  writeFileSync(file, Buffer.alloc(3 * 1024 * 1024 + 7, 1))
+  const { run } = answering({ Status: 0, Path: file, SignerCertificate: { Subject: "CN=x" } })
+  const { lines, log } = recorder()
+
+  assert.equal(await acceptAnyTrustedPublisher(log, run)(["SurfSense"], file), null)
+  assert.ok(!lines.some((line) => line.includes("Could not read")), lines.join("\n"))
+})
+
 const onWindows = { skip: process.platform !== "win32" && "Get-AuthenticodeSignature is Windows-only" }
 
 test("on Windows, a binary another trusted publisher signed passes: Node's own node.exe", onWindows, async (t) => {
