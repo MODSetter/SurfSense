@@ -61,7 +61,7 @@ const canonicalUrl = "https://www.surfsense.com/private-ai-for-business";
 /**
  * 58 characters, inside the brief's 60-character budget. The brief writes the
  * separator as an em dash; no shipped title or body string on this site uses
- * one, so it takes the colon that `/pricing` and `/mcp-server` already use.
+ * one, so it takes the colon that `/pricing` already uses.
  */
 const metaTitle = "Private AI for Business: Documents Never Leave Your Laptop";
 const metaDescription =

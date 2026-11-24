@@ -31,6 +31,10 @@ test("the old checkout pages send their visitors to /pricing, temporarily", () =
 	assert.equal(redirect("/pricing"), null);
 });
 
+test("the retired MCP server page sends its visitors home, temporarily", () => {
+	assert.deepEqual(redirect("/mcp-server"), { destination: "/", permanent: false });
+});
+
 test("no redirect to a pricing page is permanent", () => {
 	for (const rule of launchRedirects()) {
 		if (rule.source.startsWith("/pricing") || rule.destination.startsWith("/pricing")) {
