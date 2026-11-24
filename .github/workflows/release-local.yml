@@ -1055,8 +1055,10 @@ jobs:
     if: github.event_name == 'push'
     needs: [update-path, release-extras]
     runs-on: ubuntu-latest
+    # Write, though the job only reads: GitHub shows a draft release only to a token
+    # with push access, so with read the draft is "release not found" (v2.4.0).
     permissions:
-      contents: read
+      contents: write
     defaults:
       run:
         shell: bash
