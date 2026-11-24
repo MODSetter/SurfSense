@@ -106,11 +106,6 @@ const FAQ: FaqItem[] = [
 			"An external MCP connector links SurfSense to an outside MCP (Model Context Protocol) server, so your agents can call that server's tools. You add a server config once, its tools are auto-discovered, and every agent in your workspace can use them with per-tool approval.",
 	},
 	{
-		question: "How is this different from the SurfSense MCP server?",
-		answer:
-			"Direction. External MCP connectors make SurfSense the client: outside tools flow into your SurfSense agents. The SurfSense MCP server is the reverse: it exposes your workspace and the scraper APIs as tools inside Claude, Cursor, or any MCP client you already run.",
-	},
-	{
 		question: "Which MCP transports are supported?",
 		answer:
 			"All the common ones. Local stdio servers run as a process with a command, args, and environment variables. Remote servers connect over streamable HTTP, plain HTTP, or SSE with a URL and optional headers, which covers hosted MCP servers that require an auth token.",
@@ -276,41 +271,6 @@ export default function ExternalMcpConnectorsPage() {
 					</Reveal>
 				</MarketingSection>
 
-				{/* Connector vs server */}
-				<MarketingSection>
-					<Reveal>
-						<h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-							External MCP connectors vs the SurfSense MCP server
-						</h2>
-						<p className="mt-3 max-w-2xl text-muted-foreground leading-relaxed">
-							They are two sides of the same protocol. The external MCP connectors on this page make
-							SurfSense a <em>client</em>: they consume tools from outside MCP servers. The{" "}
-							<Link
-								href="/mcp-server"
-								className="font-medium text-foreground underline underline-offset-4"
-							>
-								SurfSense MCP server
-							</Link>{" "}
-							does the reverse, exposing your workspace and scraper APIs like{" "}
-							<Link
-								href="/plugins/google-search"
-								className="font-medium text-foreground underline underline-offset-4"
-							>
-								Google Search
-							</Link>{" "}
-							and{" "}
-							<Link
-								href="/plugins/google-maps"
-								className="font-medium text-foreground underline underline-offset-4"
-							>
-								Google Maps
-							</Link>{" "}
-							as native tools inside Claude, Cursor, or any agent you already run. Use both and data
-							flows in either direction.
-						</p>
-					</Reveal>
-				</MarketingSection>
-
 				{/* FAQ */}
 				<MarketingSection>
 					<Reveal>
@@ -356,9 +316,6 @@ export default function ExternalMcpConnectorsPage() {
 							<nav aria-label="Other connectors" className="flex flex-wrap justify-center gap-2">
 								<HomeButton asChild variant="ghost" size="sm">
 									<Link href="/plugins">All plugins</Link>
-								</HomeButton>
-								<HomeButton asChild variant="ghost" size="sm">
-									<Link href="/mcp-server">SurfSense MCP Server</Link>
 								</HomeButton>
 								<HomeButton asChild variant="ghost" size="sm">
 									<Link href="/plugins/youtube">YouTube</Link>

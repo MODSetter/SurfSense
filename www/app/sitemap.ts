@@ -52,7 +52,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 			priority: 0.9,
 		})),
 		{ url: `${BASE_URL}/plugins`, lastModified, changeFrequency: "weekly", priority: 0.9 },
-		{ url: `${BASE_URL}/mcp-server`, lastModified, changeFrequency: "weekly", priority: 0.85 },
 		{
 			url: `${BASE_URL}/external-mcp-connectors`,
 			lastModified,
