@@ -7,9 +7,11 @@ from modules.chat.budget import (
     ANSWER_RESERVE_TOKENS,
     CHARS_PER_TOKEN,
     DEFAULT_HISTORY_TOKENS,
+    EXCERPTS_TOKENS,
     QUESTION_CHARS,
     QUESTION_TOKENS,
     SMALLEST_IMAGE_TOKENS,
+    SYSTEM_PROMPT_TOKENS,
     answer_max_tokens,
     history_budget,
     image_room,
@@ -39,6 +41,15 @@ def test_the_fixed_parts_and_the_answer_never_starve_a_tight_window() -> None:
     """A window smaller than the fixed parts plus the reserve leaves zero for
     history rather than a negative number that would corrupt a slice."""
     assert history_budget(1) == 0
+
+
+def test_history_never_spends_the_answer_reserve() -> None:
+    """History gets what the fixed parts and the answer leave. Spending the
+    reserve on history is how a long chat's answer gets cut off mid-sentence."""
+    fixed = SYSTEM_PROMPT_TOKENS + EXCERPTS_TOKENS + QUESTION_TOKENS
+
+    assert history_budget(16384) == 16384 - fixed - ANSWER_RESERVE_TOKENS
+    assert history_budget(fixed + ANSWER_RESERVE_TOKENS) == 0
 
 
 def test_the_answer_reserve_is_capped_only_when_the_window_is_known() -> None:
