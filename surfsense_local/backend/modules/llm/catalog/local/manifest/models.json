@@ -21,8 +21,7 @@
       "context": 262144,
       "template": {
         "tools": true,
-        "reasoning": true,
-        "system_role": true
+        "reasoning": true
       },
       "sampling": null,
       "image": null,
@@ -77,9 +76,6 @@
               }
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -112,9 +108,6 @@
               }
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -147,9 +140,6 @@
               }
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -182,9 +172,6 @@
               }
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -217,9 +204,6 @@
               }
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -252,9 +236,6 @@
               }
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -287,9 +268,6 @@
               }
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -331,9 +309,6 @@
               }
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -359,8 +334,7 @@
       "context": 131072,
       "template": {
         "tools": true,
-        "reasoning": true,
-        "system_role": true
+        "reasoning": true
       },
       "sampling": null,
       "image": null,
@@ -458,9 +432,6 @@
               }
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -493,9 +464,6 @@
               }
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -528,9 +496,6 @@
               }
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -563,9 +528,6 @@
               }
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -598,9 +560,6 @@
               }
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -633,9 +592,6 @@
               }
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -668,9 +624,6 @@
               }
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -696,8 +649,7 @@
       "context": 1048576,
       "template": {
         "tools": true,
-        "reasoning": true,
-        "system_role": true
+        "reasoning": true
       },
       "sampling": null,
       "image": null,
@@ -775,9 +727,6 @@
               "sha256": "91cb2811aebb47ac916aa619d27d4cdd7f4143106b7917accb8ead4cd7f5cbd9"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -795,9 +744,6 @@
               "sha256": "145c2aa606820663f26ad530b8fc141ed885e2e9ca29f9be7c3bfe8931d58b81"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -825,8 +771,7 @@
       "context": 40960,
       "template": {
         "tools": true,
-        "reasoning": true,
-        "system_role": true
+        "reasoning": true
       },
       "sampling": {
         "origin": "unsloth/Qwen3-4B-GGUF@22c9fc8a8c7700b76a1789366280a6a5a1ad1120/params",
@@ -875,9 +820,6 @@
               "sha256": "a5f2398927fa06fe12074aa39086004300185b82de53a1d2623b0f015e3881b0"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -895,9 +837,6 @@
               "sha256": "a09c9695db755e5f3896b20323f16eb79554be6ad4637ef9787245bc212b53d7"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -915,9 +854,6 @@
               "sha256": "0f16e5ebc31514dbdb0e0c736ed6d28c2b086de689afb0f1ab1f7a2ad2eff43e"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -935,9 +871,6 @@
               "sha256": "e78ff54a67f3b3f57e637fbf0770d5b73c1e215ea7c0153980f1e8140c2b2486"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -955,9 +888,6 @@
               "sha256": "fd11f2a0741a8bad10d6892bac438326460844c09d8eaeb27419fb89360c8f55"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -975,9 +905,6 @@
               "sha256": "82aa8394fd5b43eea0c287c88ae932b22f90e192e1288cff94bc39e2d5a97c01"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -995,9 +922,6 @@
               "sha256": "51fa8380d1c9a7dd47876dbed6c963fffeceec54a0065feeb6a8f3c113e1a562"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -1015,9 +939,6 @@
               "sha256": "78cea0ccfd5fd7af5761f7dfdeebd2ec8f04328be0f1e6f70e2213a6f1309bc9"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -1035,9 +956,6 @@
               "sha256": "f6f851777709861056efcdad3af01da38b31223a3ba26e61a4f8bf3a2195813a"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -1055,9 +973,6 @@
               "sha256": "f6e3fb6c2cdc869d16e66c719e94f2c02095d195967230e759a2d77fe814c71f"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -1075,9 +990,6 @@
               "sha256": "7bc3b33f8439ef774adc4665f61c8c31132056a8616db6227a6664397a42563a"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -1095,9 +1007,6 @@
               "sha256": "37edbd37f5b7a4d4e7a766400c57def1f790e809de03513b86bf11bb06979695"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -1115,9 +1024,6 @@
               "sha256": "bf8683da9e517b872859fdc8a0704a599021305380f5c08780c209b07ba26fe6"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -1135,9 +1041,6 @@
               "sha256": "002b8b61c298976afc2c9c3ca65f9dbb28deba22c4b6381853dfaa92b5690022"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -1155,9 +1058,6 @@
               "sha256": "ac0767b5e9c9f16efe57ce422253a33747970c166c3131c4d4d59d20511f07e1"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -1175,9 +1075,6 @@
               "sha256": "eed555233267a33c7e8ee31682762cc7751b3f6d224039086e0e846f05fffa5d"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -1195,9 +1092,6 @@
               "sha256": "93bc18247eac98a8265c80c78b1322a96cc9c83218351f5a6922fb9e6f8fb242"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -1215,9 +1109,6 @@
               "sha256": "f59dbdf0a0131f4bafe257e5eaf25137a88c89c7a009e9418b0e447accda58a8"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -1245,8 +1136,7 @@
       "context": 131072,
       "template": {
         "tools": false,
-        "reasoning": false,
-        "system_role": true
+        "reasoning": false
       },
       "sampling": {
         "origin": "unsloth/gemma-3-4b-it-GGUF@5a3566e716d80f709ed7b79817eaf7733d2a1fce/params",
@@ -1310,9 +1200,6 @@
               }
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -1345,9 +1232,6 @@
               }
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -1380,9 +1264,6 @@
               }
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -1415,9 +1296,6 @@
               }
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -1450,9 +1328,6 @@
               }
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -1485,9 +1360,6 @@
               }
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -1520,9 +1392,6 @@
               }
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -1555,9 +1424,6 @@
               }
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -1590,9 +1456,6 @@
               }
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -1625,9 +1488,6 @@
               }
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -1660,9 +1520,6 @@
               }
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -1695,9 +1552,6 @@
               }
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -1730,9 +1584,6 @@
               }
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -1765,9 +1616,6 @@
               }
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -1800,9 +1648,6 @@
               }
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -1835,9 +1680,6 @@
               }
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -1870,9 +1712,6 @@
               }
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -1905,9 +1744,6 @@
               }
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -1935,8 +1771,7 @@
       "context": 40960,
       "template": {
         "tools": true,
-        "reasoning": true,
-        "system_role": true
+        "reasoning": true
       },
       "sampling": {
         "origin": "unsloth/Qwen3-1.7B-GGUF@d7f544eead698dbd1f15126ef60b45a1e1933222/params",
@@ -1985,9 +1820,6 @@
               "sha256": "62b3fb705434cb57fabc59d59aa7b4c6fb558fff7c7c4b2ce67456373bc30fd3"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -2005,9 +1837,6 @@
               "sha256": "4a76542930ebab924832e9fe5d1970122564c026411162ee48a4d503b1a16f5f"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -2025,9 +1854,6 @@
               "sha256": "b6afc9f02da55f66c086ac00bc4483b7bb89bbfad87fc93602d359151362bf2d"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -2045,9 +1871,6 @@
               "sha256": "8070f21b9763ef653289e20252592d0aab6680948f36eb5b4362d403fef09170"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -2065,9 +1888,6 @@
               "sha256": "21499d25b4dfc46066caaeef39fff5b43a4bfab80aef7c70d1db1a31ec02ed58"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -2085,9 +1905,6 @@
               "sha256": "a02e41d3208e97a7cb224297e8d3abb22e5bb8d664362c6be4f48948a3797eec"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -2105,9 +1922,6 @@
               "sha256": "54d4991db0f405c5d81c41a22094026cbc37bb2ee445b551bb1754204b5cb680"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -2125,9 +1939,6 @@
               "sha256": "71eed840867db10f14b3332e3e0bf0a36b98b762c5b0bf9e091a3e00ecd21805"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -2145,9 +1956,6 @@
               "sha256": "b139949c5bd74937ad8ed8c8cf3d9ffb1e99c866c823204dc42c0d91fa181897"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -2165,9 +1973,6 @@
               "sha256": "01977643b1d7292d09eb6ef75c7af8b084a3bbf2cb4e1d128ab76adeb8d75490"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -2185,9 +1990,6 @@
               "sha256": "43dc60ef9b7d27e43a61c05e13941503ab6d86944c306ef5207f164cb47cc982"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -2205,9 +2007,6 @@
               "sha256": "b0949de5b2e06cbed6aa96517f9bd8afb334584b6f95ee83479292ff4bdd8ed3"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -2225,9 +2024,6 @@
               "sha256": "f2d3ad6203939ffcf169ac9fe4f7d7430ce227e024395850cd878fe646912c08"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -2245,9 +2041,6 @@
               "sha256": "6a9cadec4883df6f3efcf337103479dcc6a3efa9f5f8cc64a904dba57808207a"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -2265,9 +2058,6 @@
               "sha256": "9e7232c93d12498a74a19826c367681314d86d5e468dacc6afe24bc6adbd7754"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -2285,9 +2075,6 @@
               "sha256": "0becaa825564295d82e9af4d008bca5f8b7f5f73bf1c6a0b58f7c53ef26b47fd"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -2305,9 +2092,6 @@
               "sha256": "7da8dded81945002c1024cb71cc95b6cc5013b82289353f352a47c99395de65c"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -2325,9 +2109,6 @@
               "sha256": "3412cc86f04dd7b49cb5fe05249690a95d643ee0f1f980cd5e777a8f40eb37f9"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -2355,8 +2136,7 @@
       "context": 40960,
       "template": {
         "tools": true,
-        "reasoning": true,
-        "system_role": true
+        "reasoning": true
       },
       "sampling": {
         "origin": "unsloth/Qwen3-0.6B-GGUF@50968a4468ef4233ed78cd7c3de230dd1d61a56b/params",
@@ -2405,9 +2185,6 @@
               "sha256": "26d035ea15c4a2853e8d20ffc56a76f6164e17dbb6c9e532c5766700c404519d"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -2425,9 +2202,6 @@
               "sha256": "93a7ae9c1ddbebc9d754d855aa623c8109dad5ac2952de71300160122c1044b0"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -2445,9 +2219,6 @@
               "sha256": "1d61e10a443e3e335a979eecde30bab6c2489a1e876632e22e0695178d368b67"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -2465,9 +2236,6 @@
               "sha256": "30bb9f9222cf58c076277879881a24e7127a10be32076d76d8c70f8defc01f5d"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -2485,9 +2253,6 @@
               "sha256": "401c23cd33883cb9403f14a941c0cb04b8d5bdbc240f0f9008b574a5dcb75b5e"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -2505,9 +2270,6 @@
               "sha256": "dacc1fe1dc6f4799f366ac3385299f71c7e02c58b8702448a174f14d91b1c64d"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -2525,9 +2287,6 @@
               "sha256": "f1b14e28a6de64f21672ddf2c8f24736c389da4c64ebf024b1204f4f43a4fd71"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -2545,9 +2304,6 @@
               "sha256": "3e5495288a45c7891d32afeb4e7a1ed58a9a22fab83f8903b561204a89aae363"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -2565,9 +2321,6 @@
               "sha256": "ac2d97712095a558e31573f62f466a3f9d93990898b0ec79d7c974c1780d524a"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -2585,9 +2338,6 @@
               "sha256": "ed2dd561f8aa5651cfb198be583269779e26ca6e28c40dba94fc2da4432bde2a"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -2605,9 +2355,6 @@
               "sha256": "222acaa0376ffd371c5673a98ff896d7aa82428a4fab92e4b858e7eb281467ad"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -2625,9 +2372,6 @@
               "sha256": "03c6e2127d155b89c21a512954010486b1e00e1a9eebdfad650d03b53ab4c74a"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -2645,9 +2389,6 @@
               "sha256": "23604893990250423a7f1a08e9a8d16da71eaeb560352020f533c9e62e14badd"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -2665,9 +2406,6 @@
               "sha256": "1c15a88244c9e852516e5ba0e394fc97f2182f1f2757413fb99fe6a9214c033b"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -2685,9 +2423,6 @@
               "sha256": "d7df206be8dfac0267b24b97b6f062b31a8655ef770a74e82a38c262efb570ba"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -2705,9 +2440,6 @@
               "sha256": "e150ed544dfe6016930c026a93913a5e3184181ebfe6ab2223ae01dd0491784c"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -2725,9 +2457,6 @@
               "sha256": "523982b2bb2ce75857aa0de6763c41e46ef2be5f79c26867f73be143f2ba8bad"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }
@@ -2745,9 +2474,6 @@
               "sha256": "f9c9f1d3c1e21755b82d4e165f88dbbbd4355646d632fb5d6cef7c66ed4ee04e"
             }
           ],
-          "run": {
-            "args": []
-          },
           "validated": {
             "llama_cpp": null
           }

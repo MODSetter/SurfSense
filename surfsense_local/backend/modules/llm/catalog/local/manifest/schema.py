@@ -24,7 +24,11 @@ from modules.llm.catalog.local.engines.llamacpp.manifest_fields import (
 from modules.llm.catalog.local.engines.onnxruntime.manifest_fields import (
     EmbeddingDefaults,
 )
-from modules.llm.catalog.local.engines.registry import ENGINE_ENTRY_FIELDS, engine_for
+from modules.llm.catalog.local.engines.registry import (
+    ENGINE_BUILD_FIELDS,
+    ENGINE_ENTRY_FIELDS,
+    engine_for,
+)
 from modules.llm.catalog.local.engines.sdcpp.manifest_fields import (
     ImageDefaults,
     VideoDefaults,
@@ -84,8 +88,7 @@ class ManifestBuild(BaseModel):
 
     quantization: str = Field(min_length=1)
     files: list[ManifestFile] = Field(min_length=1)
-    # sd-server's launch flags. Empty on every llama.cpp build and unread there:
-    # the router ignores per-model load arguments (runtime.md).
+    # sd-server's launch flags; owned by sd.cpp only (enforced in `_engine_fields`).
     run: RunArgs = Field(default_factory=RunArgs)
     validated: Validated = Field(default_factory=Validated)
 
@@ -167,6 +170,16 @@ class CuratedModel(BaseModel):
                 raise ValueError(
                     f"{self.id} {build.quantization}: {engine.name} needs "
                     f"{sorted(missing_roles)}"
+                )
+            present_build = {
+                name
+                for name in ENGINE_BUILD_FIELDS
+                if name in build.model_fields_set and getattr(build, name) is not None
+            }
+            if foreign_build := present_build - engine.build_owns:
+                raise ValueError(
+                    f"{self.id} {build.quantization}: {engine.name} reads none of "
+                    f"{sorted(foreign_build)}"
                 )
         return self
 
