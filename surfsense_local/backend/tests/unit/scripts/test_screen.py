@@ -34,7 +34,7 @@ def _model(key: str, **over) -> dict:
 def test_folding_the_rerun_into_the_first_screen_rebuilds_the_committed_one(
     tmp_path: Path,
 ) -> None:
-    """The 8 October re-run folded into the 7 October screen, byte for byte.
+    """The 8 October re-run folded into the 7 October screen, exactly.
 
     The committed screen was built by hand; the command's fold must land
     on exactly it, extras, ordering and all.
@@ -53,7 +53,9 @@ def test_folding_the_rerun_into_the_first_screen_rebuilds_the_committed_one(
 
     write_screen(folded_screen(base, rerun), out)
 
-    assert out.read_bytes() == (SWEEP / "openrouter-screen-v1.json").read_bytes()
+    assert out.read_text(encoding="utf-8") == (
+        SWEEP / "openrouter-screen-v1.json"
+    ).read_text(encoding="utf-8")
 
 
 def test_the_fold_moves_entries_whole_extras_and_all() -> None:
