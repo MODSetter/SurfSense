@@ -1,0 +1,46 @@
+---
+date: "2026-11-25"
+version: "2.4.0"
+---
+
+## What's New in v2.4.0
+
+SurfSense is now free. Every feature, the jobs included, works without a license or a trial, and all of SurfSense is open source under Apache-2.0. Get the desktop app from the [downloads page](/downloads).
+
+### Before you update
+
+- **Online services end on 27 November.** License activation and trials, the plugins SurfSense hosted on plugins.surfsense.com, and SurfSense's hosted web search stop then. Third-party plugins keep working.
+- **Web search needs your own server.** To search from Add from the web and the agent, add a SearXNG server in Settings › Network. Links you paste still open without one.
+- **Mac users on 2.3.0 or earlier:** install this version by hand once, from the [downloads page](/downloads) or with `brew upgrade`. Those versions can't install an update this large.
+- **Windows: if the update stops with a signature error,** click Check now in Settings › About again. Windows checks the new installer's signature first, and on a first try that can take longer than older versions allow. If it keeps failing, download this version from the [downloads page](/downloads) and install it over the old one. Your data stays.
+- **Later versions are signed under a new name.** After this release, SurfSense is signed in its maintainer's own name instead of SurfSense Inc.'s. Updates keep installing in the app, though Windows may show the new publisher name and warn about fresh downloads for a while.
+- **Still on the old desktop app (0.0.x)?** It doesn't move to this one on its own, so download it from the [downloads page](/downloads).
+
+### New
+
+- **Jobs, free for everyone.** The security questionnaire fills in a client's questionnaire workbook from your own policies, with a source and a quote for every answer. The contract redline marks up a contract with tracked changes and comments. Both are in Jobs.
+- **Use the models you already have.** SurfSense finds the chat models Ollama, LM Studio, Jan, GPT4All, llama.cpp and the Hugging Face cache downloaded, and uses each one where it is, with nothing copied. They're listed under Already on this computer in onboarding and in Settings › Text gen, where Choose a file… and Add a folder… load one from anywhere else.
+- **Local models that run the agent.** Nemotron 3.5 Bolt E4B and Spark-X2.6 4B join the list, and the star now goes to a model that can run Agentic chats on your computer. Qwen3 8B, 14B and 32B leave the list; a copy you already downloaded keeps working.
+- **Better documents.** The agent writes Word, PowerPoint and Excel files more reliably, small local models included.
+- **Web pages, YouTube and search built in.** Add from the web and the agent read web pages and YouTube transcripts on your own connection, with no plugin.
+- **Pictures and comics.** The agent draws pictures, Studio and the agent make comics, and any image model can edit a picture.
+- **@ mentions.** Name a source or an artifact with @ in the chat box.
+- **Move your data.** Settings › Storage moves your models, or all your data, to another drive.
+- **ElevenLabs voices.** Connect ElevenLabs with your key and voice podcasts with it.
+- **Guides in the app.** Step-by-step guides with screenshots and videos open from the app.
+- **A faster start.** The app draws your dashboard while it loads, onboarding is shorter, and it reserves about half the memory it did.
+- **Small touches.** Sources start unticked, update results show in the title bar, and the source folders you open stay open across launches.
+
+### No longer broken
+
+- **Studio on small models.** Flashcards, quizzes, mind maps and web pages work reliably on small local models, and Studio sizes your sources to the model's context window.
+- **Downloads.** Word and Excel files show as they are when downloaded, and a model download that had already finished no longer gets stuck.
+- **macOS 27.** Scans are read with Vision again.
+- **Startup.** When the app can't start, it says why.
+- **Connections.** OpenCode Zen and Go connect the documented way, OpenRouter speech keeps its pauses and reports real errors, and the Claude Code sign-in works on Windows.
+
+### Developers
+
+- **Update handover.** From 2.4.0 the app reads signed `release*.yml` manifests from GitHub and trusts SurfSense's own update key rather than a certificate's name, so later releases can change certificates without breaking any update ([ADR 0091](https://github.com/MODSetter/SurfSense/blob/main/docs/adr/0091-an-update-key-vouches-for-every-update-from-2-4-0-on.md)).
+- **Licensing is off, not gone.** `LICENSING_ON` in `surfsense_local/backend/modules/license/licensing.py` turns it back on ([ADR 0092](https://github.com/MODSetter/SurfSense/blob/main/docs/adr/0092-surfsense-is-free-and-licensing-is-off.md)).
+- **Builds.** The snap builds with snapcraft 8, and CI smokes the packaged llama-server on macOS and Windows.

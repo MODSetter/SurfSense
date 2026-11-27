@@ -15,15 +15,20 @@ pytestmark = pytest.mark.unit
 
 def test_a_curated_model_is_named_as_each_target_serves_it() -> None:
     """The router lists the default build's file; Featherless lists the source repo."""
-    model = eval_model("qwen3-8b")
+    model = eval_model("qwen3-4b")
 
-    assert model.local_name == "Qwen3-8B-UD-Q4_K_XL"
-    assert model.featherless_name == "Qwen/Qwen3-8B"
+    assert model.local_name == "Qwen3-4B-UD-Q4_K_XL"
+    assert model.featherless_name == "Qwen/Qwen3-4B"
+
+
+def test_a_model_that_names_its_own_default_runs_that_build() -> None:
+    """Spark-X2.6-4B defaults to Q8_0, not the order's first four bit build."""
+    assert eval_model("spark-x2.6-4b").local_name == "Spark-X2.6-4B-Q8_0"
 
 
 def test_both_targets_get_the_prompt_tier_the_app_gives_the_local_build() -> None:
     """Featherless lists no sizes, so the app would give its models frontier prompts."""
-    assert eval_model("qwen3-8b").tier is Tier.CAPABLE
+    assert eval_model("qwen3.8-27b").tier is Tier.CAPABLE
     assert eval_model("qwen3-4b").tier is Tier.COMPACT
 
 

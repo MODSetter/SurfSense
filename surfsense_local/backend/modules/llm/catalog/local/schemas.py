@@ -122,6 +122,21 @@ class TranscriptionRead(BaseModel):
     languages: list[str]
 
 
+class FoundInRead(BaseModel):
+    """A model another app keeps, read from its own header."""
+
+    # ollama, lm_studio, hugging_face, llama_cpp, jan, gpt4all, or folder.
+    app: str
+    # The file the runtime opens, where that app keeps it.
+    path: str
+    # That app's name for it, or the repo it came from.
+    source: str | None
+    architecture: str
+    # Counted from the tensor table.
+    parameters: int | None
+    quantization: str
+
+
 class LocalRowRead(BaseModel):
     id: str
     source: str = "local"
@@ -153,6 +168,8 @@ class LocalRowRead(BaseModel):
     # A recogniser's memory while transcribing, window and languages; null
     # otherwise.
     transcription: TranscriptionRead | None = None
+    # A model another app downloaded, used where it lies; null otherwise.
+    found_in: FoundInRead | None = None
 
 
 class ProjectorNoticeRead(BaseModel):
@@ -193,6 +210,44 @@ class SearchRead(BaseModel):
 class RepoRead(BaseModel):
     repo: str
     gated: bool
+    row: LocalRowRead
+
+
+class SkippedRead(BaseModel):
+    """A model found and not offered: why, as a code and as a sentence."""
+
+    app: str
+    name: str
+    path: str
+    code: str
+    reason: str
+
+
+class ElsewhereRead(BaseModel):
+    # False where nothing outside SurfSense's folders can be read (Docker).
+    available: bool
+    # Whether other apps' folders are looked in; added folders are either way.
+    look: bool
+    # The apps whose model folder exists here, which is what was read.
+    looked_in: list[str]
+    folders: list[str]
+    rows: list[LocalRowRead]
+    skipped: list[SkippedRead]
+    budget: BudgetRead
+    gpu_status: str
+
+
+class LookWrite(BaseModel):
+    look: bool
+
+
+class PathWrite(BaseModel):
+    """A file or folder the system's own dialog returned."""
+
+    path: str = Field(min_length=1, max_length=4096)
+
+
+class OfferedRead(BaseModel):
     row: LocalRowRead
 
 

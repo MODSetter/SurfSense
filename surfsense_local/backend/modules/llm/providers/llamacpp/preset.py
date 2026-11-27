@@ -21,6 +21,16 @@ from modules.llm.fit import KvPrecision
 # sides have to agree on it, so it is stated once here.
 PRESET_FILE = "models.ini"
 
+# Measured at b11050: the router's INI parser ends a value at `#` or `;`, quoted
+# or not, so the worker is handed the path cut short and fails to load. A line
+# break would end the value too.
+_CUTS_A_VALUE = ("#", ";", "\n", "\r")
+
+
+def preset_can_name(path: Path) -> bool:
+    """Whether a `model` or `mmproj` line can carry this path whole."""
+    return not any(mark in str(path) for mark in _CUTS_A_VALUE)
+
 
 @dataclass(frozen=True)
 class ModelPreset:
@@ -91,13 +101,14 @@ def _section(preset: ModelPreset) -> str:
 
 def write_presets(path: Path, presets: list[ModelPreset]) -> None:
     """Replace a changed preset atomically, so a half-written INI never loads."""
-    rendered = render_presets(presets)
+    # UTF-8 whatever the code page: llama.cpp opens the paths it reads as UTF-8.
+    rendered = render_presets(presets).encode("utf-8")
     try:
-        if path.read_text() == rendered:
+        if path.read_bytes() == rendered:
             return
     except FileNotFoundError:
         pass
 
     temporary = path.with_suffix(f"{path.suffix}.tmp")
-    temporary.write_text(rendered)
+    temporary.write_bytes(rendered)
     temporary.replace(path)

@@ -13,13 +13,22 @@ from modules.llm.fit.offload import offload_fraction
 from modules.llm.fit.plan_load import LoadPlan, plan_load
 from modules.llm.fit.precision import planned_precision, resident_precision
 from modules.llm.fit.prompt_cache import prompt_cache_mib
-from modules.llm.fit.speed import RECOMMENDABLE_TIERS, SpeedTier, speed_tier
+from modules.llm.fit.speed import (
+    AGENT_WINDOW,
+    PROCESSOR_STAR_CEILING_BYTES,
+    RECOMMENDABLE_TIERS,
+    SpeedTier,
+    quick_here,
+    speed_tier,
+)
 from modules.llm.fit.states import FitState
 from modules.llm.fit.types import KvPrecision, ModelShape
 
 __all__ = [
+    "AGENT_WINDOW",
     "CONTEXT_FLOOR_TOKENS",
     "CONTEXT_RUNGS",
+    "PROCESSOR_STAR_CEILING_BYTES",
     "RECOMMENDABLE_TIERS",
     "Badge",
     "BadgeLevel",
@@ -40,6 +49,7 @@ __all__ = [
     "plan_load",
     "planned_precision",
     "prompt_cache_mib",
+    "quick_here",
     "resident_precision",
     "speed_tier",
 ]

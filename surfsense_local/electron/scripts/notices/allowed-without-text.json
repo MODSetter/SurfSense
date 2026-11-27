@@ -14,19 +14,19 @@
   {
     "tree": "frontend",
     "name": "@napi-rs/canvas-darwin-arm64",
-    "version": "1.0.9",
+    "version": "1.1.0",
     "reason": "A platform binary of @napi-rs/canvas, which carries the MIT licence text listed under its own entry; this package ships no licence file of its own."
   },
   {
     "tree": "frontend",
     "name": "@napi-rs/canvas-linux-x64-gnu",
-    "version": "1.0.9",
+    "version": "1.1.0",
     "reason": "A platform binary of @napi-rs/canvas, which carries the MIT licence text listed under its own entry; this package ships no licence file of its own."
   },
   {
     "tree": "frontend",
     "name": "@napi-rs/canvas-win32-x64-msvc",
-    "version": "1.0.9",
+    "version": "1.1.0",
     "reason": "A platform binary of @napi-rs/canvas, which carries the MIT licence text listed under its own entry; this package ships no licence file of its own."
   },
   {

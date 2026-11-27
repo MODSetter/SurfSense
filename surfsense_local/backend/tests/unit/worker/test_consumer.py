@@ -89,6 +89,21 @@ def test_revoke_pending_skips_the_matching_job() -> None:
     queue.ingest_queue.flush()
 
 
+def test_revoke_pending_leaves_every_other_queued_job() -> None:
+    """Cancelling one upload must not skip the other uploads queued behind it."""
+    queue.ingest_queue.flush()
+    ingest_document(42)
+    ingest_document(43)
+    queue.revoke_pending(queue.ingest_queue, "ingest_document", 42)
+
+    revoked = {
+        task.args[0]: queue.ingest_queue.is_revoked(task)
+        for task in queue.ingest_queue.pending()
+    }
+    assert revoked == {42: True, 43: False}
+    queue.ingest_queue.flush()
+
+
 def test_the_studio_worker_clears_run_folders_a_killed_worker_left(
     monkeypatch: pytest.MonkeyPatch, data_dir: Path
 ) -> None:

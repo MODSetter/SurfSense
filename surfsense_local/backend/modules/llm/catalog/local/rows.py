@@ -13,6 +13,7 @@ from modules.llm.catalog.local.classifier import (
     Classification,
     NotRunnableCode,
 )
+from modules.llm.catalog.local.engines.llamacpp.elsewhere.found_in import FoundIn
 from modules.llm.catalog.local.engines.registry import engine_for
 from modules.llm.fit import Badge, FitVerdict
 
@@ -71,6 +72,8 @@ class Origin(StrEnum):
     CURATED = "curated"
     DOWNLOADED = "downloaded"
     SEARCH = "search"
+    # Found where another app keeps it, and used there rather than downloaded.
+    ELSEWHERE = "elsewhere"
 
 
 @dataclass(frozen=True)
@@ -127,6 +130,8 @@ class LocalRow:
     # What the model is for, as its entry says; an embedder's only, which
     # onboarding lists without a chat model's fit and badges to tell them apart.
     description: str | None = None
+    # A model another app keeps: whose folder, which file, what its header says.
+    found_in: FoundIn | None = None
 
     @property
     def runnable(self) -> bool:

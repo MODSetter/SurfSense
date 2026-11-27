@@ -61,7 +61,7 @@ def entry(**overrides) -> dict:
             "parameters_b": 3.9,
         },
         "context": 131072,
-        "template": {"tools": False, "reasoning": False, "system_role": True},
+        "template": {"tools": False, "reasoning": False},
         "sampling": None,
         "image": None,
         "shape": {
@@ -80,7 +80,6 @@ def entry(**overrides) -> dict:
                     file("weights", "gemma-3-4b-it-Q4_K_M.gguf", 2_490),
                     PROJECTOR,
                 ],
-                "run": {"args": []},
                 "validated": {"llama_cpp": None},
             },
             {
@@ -89,7 +88,6 @@ def entry(**overrides) -> dict:
                     file("weights", "gemma-3-4b-it-UD-Q4_K_XL.gguf", 2_540),
                     PROJECTOR,
                 ],
-                "run": {"args": []},
                 "validated": {"llama_cpp": "b6500"},
             },
         ],
@@ -546,6 +544,42 @@ def test_an_image_model_needs_no_chat_fields() -> None:
             entry(embedding=embedding_entry()["embedding"]),
             id="a chat model with an embedding spec",
         ),
+        pytest.param(
+            entry(template={"tools": False, "reasoning": False, "system_role": True}),
+            id="a chat model with removed template.system_role",
+        ),
+        pytest.param(
+            entry(
+                builds=[
+                    {**entry()["builds"][0], "run": {"args": []}},
+                ]
+            ),
+            id="a chat build with empty run.args",
+        ),
+        pytest.param(
+            entry(
+                builds=[
+                    {**entry()["builds"][0], "run": {"args": ["--ctx-size", "4096"]}},
+                ]
+            ),
+            id="a chat build with run.args",
+        ),
+        pytest.param(
+            audio_entry(
+                builds=[
+                    {**audio_entry()["builds"][0], "run": {"args": ["--threads", "4"]}},
+                ]
+            ),
+            id="an audio build with run.args",
+        ),
+        pytest.param(
+            embedding_entry(
+                builds=[
+                    {**embedding_entry()["builds"][0], "run": {"args": []}},
+                ]
+            ),
+            id="an embedding build with run.args",
+        ),
     ],
 )
 def test_a_model_carries_its_own_engines_fields_and_no_others(broken: dict) -> None:
@@ -554,6 +588,14 @@ def test_a_model_carries_its_own_engines_fields_and_no_others(broken: dict) -> N
     trusted while doing nothing."""
     with pytest.raises(ValidationError):
         LocalManifest.model_validate(manifest(broken))
+
+
+def test_sdcpp_builds_may_carry_run_args() -> None:
+    """sd.cpp owns build-level `run` launch flags passed to sd-server."""
+    img = image_entry()
+    img["builds"][0]["run"] = {"args": ["--backend", "vae=cpu"]}
+    (model,) = LocalManifest.model_validate(manifest(img)).models
+    assert model.builds[0].run.args == ["--backend", "vae=cpu"]
 
 
 def test_an_audio_model_carries_its_voices_and_memory() -> None:

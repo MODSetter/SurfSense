@@ -1,6 +1,7 @@
 import { intl } from "@/i18n/intl"
 
 import { notRunnableReason } from "../local/chat/not-runnable-text"
+import { appName } from "../local/elsewhere/app-name"
 import { useLocalChatCatalog } from "../local/chat/use-local-chat-catalog"
 import { useConnections } from "../remote/connections/use-connections"
 import { useSelection } from "../selection/use-selection"
@@ -9,6 +10,22 @@ import {
   type YourModelRow,
   type YourModels,
 } from "./your-model-row"
+
+/** Where a model used in place lies, said under its name. */
+function inPlaceNote(app: string): string {
+  return app === "folder"
+    ? intl.formatMessage({
+        id: "models_your_models_in_place_body",
+        defaultMessage: "Used where it is",
+      })
+    : intl.formatMessage(
+        {
+          id: "models_your_models_kept_by_body",
+          defaultMessage: "Used where it is, in {app}",
+        },
+        { app: appName(app) }
+      )
+}
 
 /** Every chat model on disk, and the one in use wherever it runs. */
 export function useChatModels(): YourModels {
@@ -33,9 +50,11 @@ export function useChatModels(): YourModels {
     row.builds.flatMap((build) => {
       if (build.installed_as === null) return []
       const rename = projectorRenames.get(build.installed_as)
+      const keptBy = row.found_in?.app ?? null
       return [
         {
           key: build.installed_as,
+          keptBy,
           name:
             row.origin === "curated"
               ? `${row.name} ${build.quantization}`
@@ -51,19 +70,21 @@ export function useChatModels(): YourModels {
             : [],
           note: !row.runnable
             ? notRunnableReason(row)
-            : rename
-              ? intl.formatMessage(
-                  {
-                    id: "models_your_models_projector_rename_body",
-                    defaultMessage:
-                      "Rename {projector} to {renameTo} to enable vision for this model.",
-                  },
-                  {
-                    projector: rename.projector,
-                    renameTo: rename.rename_to,
-                  }
-                )
-              : null,
+            : keptBy
+              ? inPlaceNote(keptBy)
+              : rename
+                ? intl.formatMessage(
+                    {
+                      id: "models_your_models_projector_rename_body",
+                      defaultMessage:
+                        "Rename {projector} to {renameTo} to enable vision for this model.",
+                    },
+                    {
+                      projector: rename.projector,
+                      renameTo: rename.rename_to,
+                    }
+                  )
+                : null,
           target: row.selectable_for.includes("text_gen")
             ? {
                 provider: "llamacpp",

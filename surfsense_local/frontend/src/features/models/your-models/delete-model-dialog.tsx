@@ -11,6 +11,7 @@ import {
 import { Spinner } from "@/components/ui/spinner"
 import { intl } from "@/i18n/intl"
 
+import { appName } from "../local/elsewhere/app-name"
 import type { YourModelRow } from "./your-model-row"
 
 export function DeleteModelDialog({
@@ -31,6 +32,7 @@ export function DeleteModelDialog({
   /** Where the caller clears `row`, once the dialog has finished closing. */
   onOpenChangeComplete: (open: boolean) => void
 }) {
+  const keptBy = row?.keptBy ?? null
   return (
     <AlertDialog
       open={open}
@@ -42,26 +44,49 @@ export function DeleteModelDialog({
       <AlertDialogContent className="select-none">
         <AlertDialogHeader>
           <AlertDialogTitle>
-            {intl.formatMessage(
-              {
-                id: "models_delete_dialog_title",
-                defaultMessage: "Delete {model}?",
-              },
-              { model: row?.name ?? "" }
-            )}
+            {keptBy
+              ? intl.formatMessage(
+                  {
+                    id: "models_delete_dialog_stop_using_title",
+                    defaultMessage: "Stop using {model}?",
+                  },
+                  { model: row?.name ?? "" }
+                )
+              : intl.formatMessage(
+                  {
+                    id: "models_delete_dialog_title",
+                    defaultMessage: "Delete {model}?",
+                  },
+                  { model: row?.name ?? "" }
+                )}
           </AlertDialogTitle>
           <AlertDialogDescription>
-            {row?.selected
+            {keptBy === "folder"
               ? intl.formatMessage({
-                  id: "models_delete_dialog_in_use_body",
+                  id: "models_delete_dialog_stop_using_folder_body",
                   defaultMessage:
-                    "This is your current model. Deleting it will require you to choose another model.",
+                    "SurfSense stops using this file and deletes nothing. It stays where it is.",
                 })
-              : intl.formatMessage({
-                  id: "models_delete_dialog_body",
-                  defaultMessage:
-                    "This permanently removes the model and its downloaded data from this computer.",
-                })}
+              : keptBy
+                ? intl.formatMessage(
+                    {
+                      id: "models_delete_dialog_stop_using_body",
+                      defaultMessage:
+                        "SurfSense stops using this file and deletes nothing. It stays where it is, in {app}.",
+                    },
+                    { app: appName(keptBy) }
+                  )
+                : row?.selected
+                  ? intl.formatMessage({
+                      id: "models_delete_dialog_in_use_body",
+                      defaultMessage:
+                        "This is your current model. Deleting it will require you to choose another model.",
+                    })
+                  : intl.formatMessage({
+                      id: "models_delete_dialog_body",
+                      defaultMessage:
+                        "This permanently removes the model and its downloaded data from this computer.",
+                    })}
           </AlertDialogDescription>
         </AlertDialogHeader>
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
@@ -73,7 +98,7 @@ export function DeleteModelDialog({
             })}
           </AlertDialogCancel>
           <AlertDialogAction
-            variant="destructive"
+            variant={keptBy ? "default" : "destructive"}
             disabled={pending}
             onClick={(event) => {
               event.preventDefault()
@@ -81,15 +106,20 @@ export function DeleteModelDialog({
             }}
           >
             {pending ? <Spinner data-icon="inline-start" /> : null}
-            {pending
+            {keptBy
               ? intl.formatMessage({
-                  id: "models_delete_dialog_deleting_status",
-                  defaultMessage: "Deleting…",
+                  id: "models_delete_dialog_stop_using_button",
+                  defaultMessage: "Stop using",
                 })
-              : intl.formatMessage({
-                  id: "models_delete_dialog_confirm_button",
-                  defaultMessage: "Delete model",
-                })}
+              : pending
+                ? intl.formatMessage({
+                    id: "models_delete_dialog_deleting_status",
+                    defaultMessage: "Deleting…",
+                  })
+                : intl.formatMessage({
+                    id: "models_delete_dialog_confirm_button",
+                    defaultMessage: "Delete model",
+                  })}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

@@ -7,8 +7,12 @@ from typing import Annotated
 
 from fastapi import Depends
 
+from api.config import get_settings
 from modules.llm.catalog.local.engines.audiocpp.audio_folder.espeak import Espeak
 from modules.llm.catalog.local.engines.audiocpp.bundled import bundled_audio_dir
+from modules.llm.catalog.local.engines.llamacpp.elsewhere.looking import (
+    Surroundings,
+)
 from modules.llm.catalog.local.manifest import empty_manifest, load_local_manifest
 from modules.llm.catalog.local.service import LocalCatalogService
 from shared.config import get_llm_settings
@@ -39,7 +43,17 @@ def get_local_catalog() -> LocalCatalogService:
             if settings.audio_espeak_library and settings.audio_espeak_data
             else None
         ),
+        surroundings=this_computer(),
     )
+
+
+def this_computer() -> Surroundings | None:
+    """Where other apps keep their models. None in the Docker image: its
+    browser cannot name a path on the server, and the container holds no other
+    app's folder."""
+    if get_settings().in_container():
+        return None
+    return Surroundings.of_this_process()
 
 
 LocalCatalogDep = Annotated[LocalCatalogService, Depends(get_local_catalog)]

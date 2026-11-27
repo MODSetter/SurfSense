@@ -25,8 +25,8 @@ def preset_model_ids(models_dir: Path) -> frozenset[str]:
     """The models already named in the runtime preset."""
     parser = configparser.ConfigParser(interpolation=None, default_section="")
     try:
-        parser.read(models_dir / PRESET_FILE)
-    except configparser.Error:
+        parser.read(models_dir / PRESET_FILE, encoding="utf-8")
+    except (configparser.Error, UnicodeDecodeError):
         return frozenset()
     return frozenset(parser.sections())
 

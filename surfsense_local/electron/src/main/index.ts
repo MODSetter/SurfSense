@@ -52,6 +52,7 @@ import { removeInterruptedCopy, removeOldCopies } from "./storage/clean-up-old-c
 import { drivePrompts } from "./storage/drive-prompts.ts"
 import { UNAVAILABLE_STANDIN } from "./storage/plan-move.ts"
 import { settleStorageBeforeBoot, type SettledStorage } from "./storage/settle-before-boot.ts"
+import { registerModelPickHandlers } from "./model-pick/model-pick-ipc.ts"
 import { registerStorageHandlers } from "./storage/storage-ipc.ts"
 import { sessionLog } from "../../../sidecars/session-log/session-log.ts"
 import { warnMain } from "../../../sidecars/session-log/main-warn.ts"
@@ -560,6 +561,15 @@ function main(): void {
         onMovingChange: (moving) => {
           movingStorage = moving
         },
+      })
+      // A GGUF file or folder for the API to read where it lies; main opens the
+      // system's dialog and hands back only what the person chose.
+      registerModelPickHandlers({
+        ipc: ipcMain,
+        isTrusted: (sender) =>
+          mainWindow !== null && sender === mainWindow.webContents,
+        mainWindow: () => mainWindow,
+        showOpenDialog: (window, options) => dialog.showOpenDialog(window, options),
       })
       registerSessionLogHandlers({
         isTrusted: (sender) =>

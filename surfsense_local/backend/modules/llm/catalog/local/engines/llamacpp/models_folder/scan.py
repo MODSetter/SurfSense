@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from modules.llm.catalog.local.classifier import Classification, classify
+from modules.llm.catalog.local.engines.llamacpp.elsewhere.found_in import FoundIn
 from modules.llm.catalog.local.engines.llamacpp.support import (
     projector_identifies_model,
     projector_reads_images,
@@ -43,6 +44,9 @@ class DownloadedModel:
     projector: Path | None
     projector_kv: dict[str, Any]
     model_kv: dict[str, Any]
+    # Set for a model used where another app keeps it: its file is not
+    # SurfSense's, so it is never deleted and never folds into a curated row.
+    found_in: FoundIn | None = None
 
     @property
     def projector_bytes(self) -> int:

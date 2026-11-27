@@ -95,13 +95,15 @@ def entry_for(
         "template": {
             "tools": tools,
             "reasoning": reasoning,
-            "system_role": ("system" in template)
-            if isinstance(template, str)
-            else None,
         },
         "sampling": _sampling(snapshot, reasoning),
         "image": None,
         "shape": _shape_fields(shape),
+        **(
+            {"default_quantization": entry.default_quantization}
+            if entry.default_quantization
+            else {}
+        ),
         "builds": [
             {
                 "quantization": build.quantization,
@@ -122,7 +124,6 @@ def entry_for(
                     }
                     for file in build.files
                 ],
-                "run": {"args": []},
                 "validated": {"llama_cpp": validated.get(build.weights.path)},
             }
             for build in builds

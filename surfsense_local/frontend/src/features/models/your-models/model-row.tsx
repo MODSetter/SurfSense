@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Trash2Icon } from "@/components/ui/icons"
+import { Trash2Icon, XIcon } from "@/components/ui/icons"
 import { intl } from "@/i18n/intl"
 
 import type { YourModelRow } from "./your-model-row"
@@ -61,7 +61,25 @@ export function ModelRow({
             })}
           </Button>
         ) : null}
-        {row.removeId ? (
+        {row.removeId && row.keptBy ? (
+          // Another app's file: SurfSense stops using it, and nothing is deleted.
+          <Button
+            type="button"
+            size="icon-sm"
+            variant="ghost"
+            disabled={disabled}
+            aria-label={intl.formatMessage(
+              {
+                id: "models_model_row_stop_using_aria",
+                defaultMessage: "Stop using {model}",
+              },
+              { model: row.name }
+            )}
+            onClick={onDelete}
+          >
+            <XIcon />
+          </Button>
+        ) : row.removeId ? (
           <Button
             type="button"
             size="icon-sm"

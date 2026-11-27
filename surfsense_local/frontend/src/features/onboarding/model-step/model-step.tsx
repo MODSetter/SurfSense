@@ -31,6 +31,7 @@ import { ConnectionDialog } from "@/features/models/remote/connections/connectio
 import { useConnectionsServing } from "@/features/models/remote/connections/use-connections"
 import { DeleteModelDialog } from "@/features/models/your-models/delete-model-dialog"
 import type { YourModelRow } from "@/features/models/your-models/your-model-row"
+import { ElsewhereSection } from "@/features/models/local/elsewhere/elsewhere-section"
 import { ChangeModelsFolder } from "@/features/storage/change-models-folder"
 import { intl } from "@/i18n/intl"
 
@@ -205,6 +206,14 @@ export function ModelStep({
               </p>
             ) : null}
           </div>
+          {/* First: a model already here needs nothing downloaded. Chat only:
+              an embedder is SurfSense's own, never another app's. */}
+          {offersServer ? (
+            <ElsewhereSection
+              onUse={(name) => models.use(name)}
+              disabled={busy}
+            />
+          ) : null}
           {choices.length ? (
             <LocalModelList
               rows={choices}

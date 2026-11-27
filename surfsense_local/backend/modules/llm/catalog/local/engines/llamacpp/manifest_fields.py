@@ -13,16 +13,12 @@ class Template(BaseModel):
 
     tools: bool | None = None
     reasoning: bool | None = None
-    # Unread: chat asks the loaded model's own template (`capabilities.py`),
-    # which answers for the file actually running. Kept for a screen that shows it.
-    system_role: bool | None = None
 
 
 class SamplingSet(BaseModel):
     model_config = STRICT
 
-    # Sent when the caller sets none (`llamacpp/sampling.py`). The other three wait
-    # on the `Generator` protocol carrying them, which every provider implements.
+    # Sent when the caller sets none (`llamacpp/sampling.py`, `llamacpp/provider.py`).
     temperature: float | None = None
     top_p: float | None = None
     top_k: int | None = None
@@ -69,5 +65,9 @@ class ShapeSpec(BaseModel):
 
 
 # The entry fields llama.cpp reads, and the one it cannot run without.
-ENTRY_OWNS = frozenset({"context", "template", "sampling", "shape"})
+# `default_quantization` names a build to default to instead of the preference
+# order's first, where a measurement says so; most entries leave it out.
+ENTRY_OWNS = frozenset(
+    {"context", "template", "sampling", "shape", "default_quantization"}
+)
 ENTRY_REQUIRES = frozenset({"context"})

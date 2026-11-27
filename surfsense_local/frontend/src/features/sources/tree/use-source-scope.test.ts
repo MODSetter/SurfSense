@@ -68,6 +68,100 @@ describe("useSourceScope", () => {
     expect(result.current.includedDocumentIds).toEqual([10])
   })
 
+  it("leaves a chat's ticks out of what the workspace remembers", () => {
+    const { result, unmount } = scopeFor(1)
+    act(() => result.current.setDocumentIncluded(10, true))
+    // A chat is opened: its stored ticks, then one the user makes in it.
+    act(() =>
+      result.current.setScope({
+        all: false,
+        folder_ids: [2],
+        excluded_folder_ids: [],
+        document_ids: [],
+        excluded_document_ids: [],
+      })
+    )
+    expect(result.current.includedDocumentIds).toEqual([20])
+    act(() => result.current.setDocumentIncluded(20, false))
+    unmount()
+
+    expect(scopeFor(1).result.current.includedDocumentIds).toEqual([10])
+  })
+
+  it("leaves the ticks on screen to the chat they opened", () => {
+    const { result, unmount } = scopeFor(1)
+    act(() => result.current.setDocumentIncluded(10, true))
+    act(() => result.current.keepForChat())
+    expect(result.current.includedDocumentIds).toEqual([10])
+    act(() => result.current.setDocumentIncluded(20, true))
+    unmount()
+
+    expect(scopeFor(1).result.current.includedDocumentIds).toEqual([10])
+  })
+
+  it("remembers again the ticks kept for a chat that never opened", () => {
+    const { result, unmount } = scopeFor(1)
+    act(() => result.current.setDocumentIncluded(10, true))
+    act(() => result.current.keepForChat())
+    act(() => result.current.setDocumentIncluded(20, true))
+    act(() => result.current.rememberShown())
+    expect(result.current.includedDocumentIds).toEqual([10, 20])
+    unmount()
+
+    expect(scopeFor(1).result.current.includedDocumentIds).toEqual([10, 20])
+  })
+
+  it("remembers them even when another chat's ticks take the screen at once", () => {
+    const { result, unmount } = scopeFor(1)
+    act(() => result.current.keepForChat())
+    act(() => result.current.setDocumentIncluded(20, true))
+    act(() => {
+      result.current.rememberShown()
+      result.current.setScope({
+        all: false,
+        folder_ids: [],
+        excluded_folder_ids: [],
+        document_ids: [10],
+        excluded_document_ids: [],
+      })
+    })
+    expect(result.current.includedDocumentIds).toEqual([10])
+    unmount()
+
+    expect(scopeFor(1).result.current.includedDocumentIds).toEqual([20])
+  })
+
+  it("shows the workspace's ticks again for a new chat, and remembers its ticks", () => {
+    const { result, unmount } = scopeFor(1)
+    act(() => result.current.setDocumentIncluded(10, true))
+    act(() =>
+      result.current.setScope({
+        all: true,
+        folder_ids: [],
+        excluded_folder_ids: [],
+        document_ids: [],
+        excluded_document_ids: [],
+      })
+    )
+    expect(result.current.includedDocumentIds).toEqual([10, 20])
+
+    act(() => result.current.showRemembered())
+    expect(result.current.includedDocumentIds).toEqual([10])
+    act(() => result.current.setDocumentIncluded(20, true))
+    unmount()
+
+    expect(scopeFor(1).result.current.includedDocumentIds).toEqual([10, 20])
+  })
+
+  it("counts the user's ticks, not a chat's ticks put on screen", () => {
+    const { result } = scopeFor(1)
+    act(() => result.current.setDocumentIncluded(10, true))
+    expect(result.current.edits).toBe(1)
+    act(() => result.current.keepForChat())
+    act(() => result.current.showRemembered())
+    expect(result.current.edits).toBe(1)
+  })
+
   it("starts with none ticked when the saved ticks are unreadable", () => {
     localStorage.setItem("surfsense:source-ticks:v1", "{not json")
 

@@ -47,6 +47,18 @@ def test_nothing_in_the_order_means_no_default() -> None:
     assert default_build([]) is None
 
 
+def test_an_entry_names_its_own_default_over_the_order() -> None:
+    """Spark-X2.6-4B's Q8_0 passed every agent case its Q4_K_M missed half of, so
+    its entry names Q8_0 though the order puts four bits first."""
+    assert default_build(LADDER, first="Q8_0") is Q8
+    assert default_build(LADDER, first="q8_0") is Q8
+
+
+def test_a_named_default_the_model_lacks_falls_back_to_the_order() -> None:
+    """A named default the model lacks falls back to the order."""
+    assert default_build(LADDER, first="Q6_K") is UD4
+
+
 def test_the_default_is_recommended_where_it_runs_well() -> None:
     """The default is recommended where it runs well."""
     assert recommended_build(LADDER, UD4, tiers()) is UD4
@@ -76,6 +88,18 @@ def test_the_step_down_skips_what_would_still_be_slow() -> None:
 def test_nothing_fast_enough_means_no_recommendation() -> None:
     """Nothing fast enough means no recommendation."""
     assert recommended_build(LADDER, UD4, lambda _: SpeedTier.HEAVY_SPILL) is None
+
+
+def test_a_build_the_tier_passes_but_the_caller_finds_too_slow_steps_down() -> None:
+    """On the processor alone a resident build can still be too slow to star, so
+    the step down skips it as it skips a spilling one."""
+    assert (
+        recommended_build(LADDER, UD4, tiers(), lambda b: b.footprint_bytes <= 4) is Q4
+    )
+    assert (
+        recommended_build(LADDER, UD4, tiers(), lambda b: b.footprint_bytes <= 2)
+        is None
+    )
 
 
 def test_no_default_means_no_recommendation() -> None:

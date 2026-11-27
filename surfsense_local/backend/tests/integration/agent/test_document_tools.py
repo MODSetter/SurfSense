@@ -605,6 +605,53 @@ async def test_a_failing_script_returns_its_error_and_the_stop_rule(
     assert text.endswith(STOP)
 
 
+async def test_a_script_that_does_not_parse_comes_back_with_its_line_and_runs_nothing(
+    tools: ToolEndpoint, studio_worker: None
+) -> None:
+    """No version is made, and the refusal is one of the turn's three failed runs."""
+    workspace_id = await tools.workspace()
+    broken = render(script='title = "Brief"\nif title\n    print(title)\n')
+
+    text, is_error = await tools.call(workspace_id, "render_document", broken)
+
+    assert is_error is True
+    assert text.startswith(
+        "The script does not parse, so it was not run. Line 2: expected ':'."
+    )
+    assert ">    2 | if title" in text
+    assert text.endswith(STOP)
+    assert await _listed(tools, workspace_id) == []
+    await tools.call(workspace_id, "render_document", broken)
+    await tools.call(workspace_id, "render_document", broken)
+    text, is_error = await tools.call(workspace_id, "render_document", render())
+    assert is_error is True
+    assert "3 renders failed in this request" in text
+
+
+async def test_a_script_missing_its_last_bracket_renders_and_says_what_was_closed(
+    tools: ToolEndpoint, studio_worker: None
+) -> None:
+    """The commonest slip of a small model, fixed without a failed run."""
+    workspace_id = await tools.workspace()
+    script = WORD.format(closing="Signed.").replace(
+        'document.save(os.environ["OUTPUT_PATH"])',
+        'document.save(os.environ["OUTPUT_PATH"]',
+    )
+
+    text, is_error = await tools.call(
+        workspace_id, "render_document", render(script=script)
+    )
+
+    assert is_error is False, text
+    assert text.splitlines()[0].startswith("Rendered artifact ")
+    assert text.endswith(
+        "Before running the script, SurfSense closed the ( opened on line 8 at the "
+        "end of the script. Check that the result is what you meant."
+    )
+    (listed,) = await _listed(tools, workspace_id)
+    assert listed["status"] == "ready"
+
+
 async def test_after_three_failed_runs_the_next_render_is_refused_and_runs_nothing(
     tools: ToolEndpoint, studio_worker: None
 ) -> None:
@@ -744,6 +791,27 @@ async def test_a_render_still_running_at_the_limit_says_where_it_will_appear(
     assert pending["status"] == "pending"
     assert f"artifact {pending['id']}" in text
     assert "appears in Studio when it is ready" in text
+
+
+async def test_a_queued_render_still_says_what_the_check_fixed(
+    tools: ToolEndpoint, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The script stored is the fixed one, so the model must hear of it either way."""
+    monkeypatch.setattr(render_document, "WAIT_SECONDS", 0.5)
+    workspace_id = await tools.workspace()
+    script = WORD.format(closing="Signed.").removesuffix(")\n")
+
+    text, is_error = await tools.call(
+        workspace_id, "render_document", render(script=script)
+    )
+
+    assert is_error is False
+    assert text.startswith("Queued artifact ")
+    assert "do not render it again." in text
+    assert text.endswith(
+        "Before running the script, SurfSense closed the ( opened on line 8 at the "
+        "end of the script. Check that the result is what you meant."
+    )
 
 
 @pytest.mark.parametrize(
