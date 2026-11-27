@@ -6,12 +6,15 @@ Run by hand once a sweep is written up, from `surfsense_local/backend`:
 
 Each screened model becomes an `openrouter-screen` row, at `agent` when it
 passed both cases and `studio_only` otherwise; each assumed flagship an
-`assumed` row. With `--local` the same cases ran on this computer's llama.cpp,
-for a model no provider serves: each row is `local-screen`, and holds only for a
-local copy, pass or fail (the committed input is
-`capability_list/local/local-screen-v1.json`). A model the list already names keeps its row unless the new
-one outranks it (a screening over an assumption), and a model the sweep has
-no verdict for gets none, nor does a variant of it such as its -chat model. The input's shape is in
+`assumed` row. The screen replaces the list's screening and assumed rows,
+so a re-run's verdicts land even for a model the list already names, and a
+model the sweep has no verdict for loses its row, and so does a variant of it
+such as its -chat model. With `--local` the same cases ran on this computer's
+llama.cpp, for a model no provider serves: each row is `local-screen`, and
+holds only for a local copy, pass or fail (the committed input is
+`capability_list/local/local-screen-v1.json`). A model the list already names
+keeps its row unless the new one outranks it (a screening over an
+assumption). The input's shape is in
 `capability_list/sweep_input.py`. A person reviews the diff and commits
 it; nothing fetches the list at runtime.
 """
@@ -20,10 +23,17 @@ import argparse
 from datetime import date
 from pathlib import Path
 
-from capability_list.merge import merged
+from capability_list.merge import merged, same_model
 from capability_list.shipped import read_shipped, write_shipped
 from capability_list.sweep_input import SweepResults
-from capability_list.sweep_rows import OPENROUTER, THIS_COMPUTER, sweep_rows
+from capability_list.sweep_rows import (
+    OPENROUTER,
+    THIS_COMPUTER,
+    sweep_rows,
+    with_screen_rows,
+)
+
+from modules.llm.capability.measured.schema import ASSUMED_SUITE, SCREEN_SUITE
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -43,7 +53,11 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
     sweep = SweepResults.model_validate_json(args.results.read_text("utf-8"))
     rows = sweep_rows(sweep, args.date, THIS_COMPUTER if args.local else OPENROUTER)
-    written, left_out = merged(read_shipped(), rows)
+    shipped = read_shipped()
+    if args.local:
+        written, left_out = merged(shipped, rows)
+    else:
+        written, left_out = with_screen_rows(shipped, rows)
     write_shipped(written)
     for row in rows:
         if all(row is not out.row for out in left_out):
@@ -60,6 +74,15 @@ def main(argv: list[str] | None = None) -> None:
             f"{out.row.key} ({out.row.suite}): left out, {whose} "
             f"{out.kept.key} ({out.kept.suite}) names the same model"
         )
+    # A partial screen — a re-run fed without its base — drops the rows it
+    # does not cover; the maintainer reads the drops, not just the diff.
+    for old in (
+        row
+        for row in shipped.models
+        if row.suite in {SCREEN_SUITE, ASSUMED_SUITE}
+    ):
+        if not any(same_model(old, new) for new in written.models):
+            print(f"{old.key} ({old.suite}): dropped, the screen has no row for it")
     for model in sweep.models:
         if model.finished and (base := sweep.waiting_for(model)) is not None:
             print(f"{model.key}: left out, waiting for {base.key}")

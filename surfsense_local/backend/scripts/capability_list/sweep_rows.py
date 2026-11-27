@@ -3,7 +3,9 @@ two cases run on this computer's llama.cpp for a model no provider serves."""
 
 from dataclasses import dataclass
 from datetime import date
+from pathlib import Path
 
+from capability_list.merge import LeftOut, merged, same_model
 from capability_list.sweep_input import AssumedModel, SweepResults, SweptModel
 from modules.llm.capability import model_key
 from modules.llm.capability.measured.schema import (
@@ -11,11 +13,14 @@ from modules.llm.capability.measured.schema import (
     ASSUMED_SUITE,
     LOCAL_SCREEN_SUITE,
     SCREEN_SUITE,
+    CapabilityList,
     Match,
     MeasuredModel,
     Passes,
     Served,
 )
+
+COMMITTED_SCREEN = Path(__file__).with_name("sweep") / "openrouter-screen-v1.json"
 
 SUITE_VERSION = 1
 # Both cases must pass: a PDF brief and a board pack, after the smoke check.
@@ -75,6 +80,70 @@ def sweep_rows(
         ),
         *(_assumed(model, when) for model in sweep.assumed),
     ]
+
+
+def with_screen_rows(
+    shipped: CapabilityList, screen: list[MeasuredModel]
+) -> tuple[CapabilityList, list[LeftOut]]:
+    """The screen's rows in place of its suites', then every other row they do not name.
+
+    Rewriting from sweep results keeps the ladder's rows, and a suite the
+    screen does not cover keeps its place. The screen is the
+    source of truth for its suites: a listed screening or assumed row gives
+    way to the screen's row for the same model, the way a listed ladder row
+    gives way to `with_ladder_rows`. The left-out rows are the screen's rows
+    a ladder row or another screen row names over, plus the shipped rows the
+    screen replaces — the script prints them, the pin test ignores them.
+    """
+    others = [
+        row
+        for row in shipped.models
+        if row.suite not in {SCREEN_SUITE, ASSUMED_SUITE}
+    ]
+    written, left_out = merged(shipped.model_copy(update={"models": others}), screen)
+    # `merged` appends the screen's rows after the kept ones, so a suite the
+    # screen does not cover — local-screen — would move ahead of them. The
+    # screen's rows take the shipped screen block's place instead, and every
+    # other row keeps its place around them.
+    block = [
+        index
+        for index, row in enumerate(shipped.models)
+        if row.suite in {SCREEN_SUITE, ASSUMED_SUITE}
+    ]
+    cut = block[0] if block else len(shipped.models)
+    at = {row.key: index for index, row in enumerate(shipped.models)}
+    screen_rows = [
+        row for row in written.models if row.suite in {SCREEN_SUITE, ASSUMED_SUITE}
+    ]
+    kept = [
+        row for row in written.models if row.suite not in {SCREEN_SUITE, ASSUMED_SUITE}
+    ]
+    written = written.model_copy(
+        update={
+            "models": [
+                *[row for row in kept if at[row.key] < cut],
+                *screen_rows,
+                *[row for row in kept if at[row.key] >= cut],
+            ]
+        }
+    )
+    for old in (
+        row for row in shipped.models if row.suite in {SCREEN_SUITE, ASSUMED_SUITE}
+    ):
+        # A written row of a screen suite came from the screen: `merged`
+        # re-validates, so identity with the screen's rows does not hold.
+        new = next(
+            (
+                row
+                for row in written.models
+                if row.suite in {SCREEN_SUITE, ASSUMED_SUITE}
+                and same_model(old, row)
+            ),
+            None,
+        )
+        if new is not None and new != old:
+            left_out.append(LeftOut(old, new, listed=False, replaced=True))
+    return written, left_out
 
 
 def _screened(
