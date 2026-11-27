@@ -22,7 +22,6 @@ resume, checksums and the header as the file lands. Downloading is a catalog
 concern; this adapter answers questions and reports what is on disk.
 """
 
-import logging
 from collections.abc import AsyncIterator, Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -48,8 +47,6 @@ if TYPE_CHECKING:
 PROVIDER = "llamacpp"
 # The first part of a split build is listed as a shard; it is the model.
 _MODEL_KINDS = frozenset({FileKind.MODEL, FileKind.SHARD})
-
-logger = logging.getLogger(__name__)
 
 
 def _beyond_temperature(sampling: "SamplingSet | None") -> dict[str, float | int]:
@@ -261,33 +258,15 @@ class LlamaCppProvider:
         if temperature is None and sampling is not None:
             temperature = sampling.temperature
         extra = _beyond_temperature(sampling)
-        try:
-            async for delta in self._chat.chat_deltas(
-                model,
-                shaped,
-                max_tokens=max_tokens,
-                temperature=temperature,
-                reasoning=reasoning,
-                json_schema=json_schema,
-                sampling=extra,
-            ):
-                yield delta
-        except httpx.HTTPStatusError as error:
-            # llama.cpp issue #29006: json_schema on the chat endpoint returns
-            # 400 for some templates, though the model itself is fine. Losing a
-            # whole Studio format to a template quirk is worse than falling back
-            # to an unconstrained answer, which the parser can still repair.
-            if json_schema is None or error.response.status_code != 400:
-                raise
-            logger.warning(
-                "%s rejected a json_schema request; retrying unconstrained", model
-            )
-            async for delta in self._chat.chat_deltas(
-                model,
-                shaped,
-                max_tokens=max_tokens,
-                temperature=temperature,
-                reasoning=reasoning,
-                sampling=extra,
-            ):
-                yield delta
+        # A template that refuses the schema (llama.cpp issue #29006) is retried
+        # unconstrained by the client, as any endpoint's refusal is.
+        async for delta in self._chat.chat_deltas(
+            model,
+            shaped,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            reasoning=reasoning,
+            json_schema=json_schema,
+            sampling=extra,
+        ):
+            yield delta

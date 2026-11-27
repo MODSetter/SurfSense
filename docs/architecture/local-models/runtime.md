@@ -387,12 +387,13 @@ downloads, the preset, waiting for the router to list a model, and warming.
 
 Chat is composed, not reimplemented. llama-server speaks OpenAI on
 `/v1/chat/completions`, so the streaming, deadlines, error handling and message
-shaping in `OpenAICompatibleChatProvider` work against it unchanged. The one
-addition is a fallback:
+shaping in `OpenAICompatibleChatProvider` work against it unchanged. That
+includes its fallback:
 [llama.cpp#29006](https://github.com/ggml-org/llama.cpp/issues/29006) returns 400
-for `json_schema` on some templates, and on that 400 the provider retries once
-unconstrained, because losing a whole Studio format to a template quirk is worse
-than an answer the parser can still repair. Before sending, `for_template()`
+for `json_schema` on some templates, and on a 400 to a `json_schema` request the
+client retries once unconstrained, because losing a whole Studio format to a
+template quirk is worse than an answer the parser can still repair
+([`selection.md`](selection.md#constrained-decoding)). Before sending, `for_template()`
 folds the system prompt into the first non-system turn for a template with no
 system role ([`selection.md`](selection.md)).
 A request carries the sampling its curated entry commits for the mode it

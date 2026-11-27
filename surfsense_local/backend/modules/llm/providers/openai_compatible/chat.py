@@ -1,5 +1,6 @@
 import base64
 import json
+import logging
 from collections.abc import AsyncIterator
 
 import httpx
@@ -34,6 +35,8 @@ TIMEOUT = httpx.Timeout(FIRST_TOKEN_SECONDS, connect=5.0)
 # the dialog.
 LISTING_TIMEOUT = httpx.Timeout(120.0, connect=5.0)
 MAX_ERROR_CHARS = 400
+
+logger = logging.getLogger(__name__)
 
 
 class StreamedError(RuntimeError):
@@ -187,16 +190,37 @@ class OpenAICompatibleChatProvider:
             body.update(self._thinking_off)
         if self._prompt_progress is not None:
             body.update(self._prompt_progress)
-        async for delta in with_deadlines(
-            self._stream(body, conversation_headers(self._base_url, conversation)),
+        headers = conversation_headers(self._base_url, conversation)
+        try:
+            async for delta in self._deadlined(body, headers):
+                yield delta
+        except httpx.HTTPStatusError as error:
+            # Some endpoints refuse a schema with a 400 though the model is
+            # fine: DeepSeek's API ("This response_format type is unavailable
+            # now"), and llama.cpp for some templates (issue #29006).
+            # The refusal comes before any token, so nothing was yielded, and
+            # an unconstrained answer is still read by the caller's parser.
+            if json_schema is None or error.response.status_code != 400:
+                raise
+            logger.warning(
+                "%s rejected a json_schema request; retrying unconstrained", model
+            )
+            del body["response_format"]
+            async for delta in self._deadlined(body, headers):
+                yield delta
+
+    def _deadlined(
+        self, body: dict[str, object], headers: dict[str, str]
+    ) -> AsyncIterator[Delta]:
+        return with_deadlines(
+            self._stream(body, headers),
             first_item_seconds=FIRST_TOKEN_SECONDS,
             between_items_seconds=BETWEEN_TOKENS_SECONDS,
             subject="the model",
             # A batch of prompt can take longer than the gap allowed between
             # tokens, so progress keeps the start budget.
             started=lambda delta: delta.progress is None,
-        ):
-            yield delta
+        )
 
     async def _stream(
         self, body: dict[str, object], headers: dict[str, str]

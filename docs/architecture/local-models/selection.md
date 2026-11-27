@@ -319,11 +319,14 @@ knows before anything is sent ([`../chat.md`](../chat.md#images)).
 Both chat providers accept a `json_schema` and send it as
 `response_format: {"type": "json_schema", ...}`, which masks every token that
 would produce invalid JSON, so a malformed answer stops being something to
-repair and becomes something that cannot be emitted. On a local model, a 400 for
-a `json_schema` request, which
-[llama.cpp#29006](https://github.com/ggml-org/llama.cpp/issues/29006) produces on
-some templates, is retried once unconstrained. Chat prose is deliberately
-unconstrained.
+repair and becomes something that cannot be emitted. Some endpoints refuse a
+schema with a 400 though the model is fine: llama.cpp on some templates
+([llama.cpp#29006](https://github.com/ggml-org/llama.cpp/issues/29006)), and
+DeepSeek's API with "This response_format type is unavailable now".
+[`OpenAICompatibleChatProvider`](../../../surfsense_local/backend/modules/llm/providers/openai_compatible/chat.py),
+which the local runtime and remote OpenAI-compatible connections share, retries
+a 400 to a `json_schema` request once unconstrained. The refusal comes before
+any token, so nothing is sent twice. Chat prose is deliberately unconstrained.
 
 Studio passes a schema through `run_model()`
 ([`generate.py`](../../../surfsense_local/backend/worker/studio/shared/generate.py)),
