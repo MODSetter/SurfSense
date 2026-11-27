@@ -7,6 +7,7 @@ from modules.llm import prompting
 from modules.llm.profile import Tier
 from modules.llm.resolution import ResolvedGeneration, ResolvedImageGeneration
 from worker.studio.media.visual import EXTENSIONS
+from worker.studio.media.visual.image.schema import REPLY
 from worker.studio.media.visual.redraw.drawing_prompt import kept_drawing_prompt
 from worker.studio.shared import generate
 from worker.studio.shared.artifact import Built, Source, fallback_title
@@ -20,7 +21,9 @@ def render(
     user_prompt: str | None,
 ) -> Built:
     spec = parse_json(
-        generate.run_model(writer, prompt(writer.tier, user_prompt), sources)
+        generate.run_model(
+            writer, prompt(writer.tier, user_prompt), sources, json_schema=REPLY
+        )
     )
     image_prompt = as_text(spec.get("prompt"))
     if not image_prompt:

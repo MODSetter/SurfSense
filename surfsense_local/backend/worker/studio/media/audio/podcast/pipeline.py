@@ -31,7 +31,10 @@ def render(
 
     plan = outline.parse(
         generate.run_model(
-            model, outline.prompt(model.tier, brief, user_prompt), sources
+            model,
+            outline.prompt(model.tier, brief, user_prompt),
+            sources,
+            json_schema=outline.reply(brief),
         ),
         brief,
     )

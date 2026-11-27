@@ -10,15 +10,12 @@ from modules.llm import prompting
 from modules.llm.profile import Tier
 from modules.llm.resolution import ResolvedGeneration, ResolvedImageGeneration
 from worker.studio.media.visual import EXTENSIONS
+from worker.studio.media.visual.infographic.schema import REPLY, SECTIONS
 from worker.studio.media.visual.infographic.style import in_infographic_style
 from worker.studio.media.visual.redraw.drawing_prompt import kept_drawing_prompt
 from worker.studio.shared import generate
 from worker.studio.shared.artifact import Built, Source, fallback_title
 from worker.studio.shared.text import as_list, as_text, parse_json, slug
-
-# The frontier prompt leaves the count to the material, so the ceiling is kept
-# here: past this a drawn panel stops being readable.
-SECTIONS = 8
 
 
 def render(
@@ -28,7 +25,9 @@ def render(
     user_prompt: str | None,
 ) -> Built:
     brief = _brief(
-        generate.run_model(writer, prompt(writer.tier, user_prompt), sources),
+        generate.run_model(
+            writer, prompt(writer.tier, user_prompt), sources, json_schema=REPLY
+        ),
         fallback_title(user_prompt, sources, "Infographic"),
     )
     painted = _image_prompt(brief)

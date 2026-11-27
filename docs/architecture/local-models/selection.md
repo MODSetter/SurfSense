@@ -326,11 +326,17 @@ some templates, is retried once unconstrained. Chat prose is deliberately
 unconstrained.
 
 Studio passes a schema through `run_model()`
-([`generate.py`](../../../surfsense_local/backend/worker/studio/shared/generate.py)),
-each format's beside its prompts, as the quiz's
+([`generate.py`](../../../surfsense_local/backend/worker/studio/shared/generate.py))
+for every format that asks for JSON: the quiz, flashcards, simple web page,
+image, infographic, comic plan, and the podcast's outline and draft. Each
+format's schema sits beside its prompts, as the quiz's
 ([`schema.py`](../../../surfsense_local/backend/worker/studio/content/quiz/schema.py)).
-Every list in a schema has a `maxItems`, so a model that repeats stops at the
-ceiling instead of filling the window and cutting its JSON short.
+The lists in the quiz's, deck's, page's, infographic's and podcast outline's
+schemas have a `maxItems`, so a model that repeats stops at the ceiling instead
+of filling the window and cutting its JSON short. A podcast segment's turns have
+none, since the segment's token cap already bounds them, and each turn's speaker
+can only be a slot in the cast. The mind map is not JSON: it is a Markdown
+outline, written free.
 A reply that arrives unconstrained, from an endpoint that ignores
 `response_format` or from the 400 retry, is still read by `parse_json()`.
 
@@ -348,6 +354,5 @@ language, and `test_connections.py` that no connection fills it.
 ## Known gaps
 
 - Settings shows the edit override as its own section, "Use a different model for edits", not folded under Image gen; and the **Image editing** badge is on server models only, not on local models to download.
-- Only the quiz, flashcards, simple web page and comic plan pass `json_schema`: image, infographic and the podcast's outline and draft still ask for JSON in the prompt alone, so their format compliance depends on it. The mind map is not JSON: it is a Markdown outline, written free.
 - A schema whose node refers to itself, for a tree of any depth, crashed llama-server at b11050 twice in nine replies as Qwen3 0.6B nested deeper. No Studio schema refers to itself.
 - Nothing measures whether three tiers are still needed; once constrained decoding carries format compliance, a tier would carry reasoning depth only, which plausibly collapses three tiers to two.
