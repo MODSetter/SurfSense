@@ -15,6 +15,7 @@ import {
 import { CopyVersionButton } from "./copy-version-button"
 import { DataFolder } from "./data-folder"
 import { ExternalLink } from "./external-link"
+import { ThirdPartyNotices } from "./third-party-notices"
 import { useAppDetails } from "./use-app-details"
 
 function AppIdentity({ version }: { version?: string }) {
@@ -131,12 +132,15 @@ export function AboutSettings() {
               "SurfSense is open source under the Apache License 2.0.",
           })}
         </p>
-        <ExternalLink href={LICENSE_URL}>
-          {intl.formatMessage({
-            id: "about_license_link",
-            defaultMessage: "Read the license",
-          })}
-        </ExternalLink>
+        <div className="mt-1 flex flex-col gap-2">
+          <ExternalLink href={LICENSE_URL}>
+            {intl.formatMessage({
+              id: "about_license_link",
+              defaultMessage: "Read the license",
+            })}
+          </ExternalLink>
+          <ThirdPartyNotices />
+        </div>
       </div>
     </SettingsSection>
   )

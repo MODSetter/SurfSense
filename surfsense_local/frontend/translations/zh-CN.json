@@ -14,6 +14,8 @@
   "about_license_link": "阅读许可证",
   "about_license_title": "许可证",
   "about_links_title": "链接",
+  "about_notices_open_button": "第三方声明",
+  "about_notices_open_error": "无法打开第三方声明",
   "about_release_notes_link": "发行说明",
   "about_settings_body": "查看你的版本、获取更新并寻求帮助。",
   "about_settings_title": "关于",

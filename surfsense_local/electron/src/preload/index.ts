@@ -115,6 +115,8 @@ contextBridge.exposeInMainWorld("surfsense", {
     // "" once opened, else the OS's reason.
     openDataFolder: (): Promise<string> =>
       ipcRenderer.invoke("about:open-data-folder"),
+    // Opens the third-party notices: "" once opened, else the reason.
+    openNotices: (): Promise<string> => ipcRenderer.invoke("about:open-notices"),
   },
   // Where the models and data live, and moving them. Absent where no other drive
   // can be reached (a confined snap); main opens the picker and holds the plan.

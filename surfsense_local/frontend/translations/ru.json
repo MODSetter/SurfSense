@@ -14,6 +14,8 @@
   "about_license_link": "Прочитать лицензию",
   "about_license_title": "Лицензия",
   "about_links_title": "Ссылки",
+  "about_notices_open_button": "Уведомления о сторонних компонентах",
+  "about_notices_open_error": "Не удалось открыть уведомления о сторонних компонентах",
   "about_release_notes_link": "Примечания к выпуску",
   "about_settings_body": "Узнайте, какая у вас версия, получите обновления и найдите помощь.",
   "about_settings_title": "О приложении",
