@@ -14,6 +14,8 @@
   "about_license_link": "Read the license",
   "about_license_title": "License",
   "about_links_title": "Links",
+  "about_notices_open_button": "Third-party notices",
+  "about_notices_open_error": "Couldn’t open the third-party notices",
   "about_release_notes_link": "Release notes",
   "about_settings_body": "See which version you have, get updates, and find help.",
   "about_settings_title": "About",

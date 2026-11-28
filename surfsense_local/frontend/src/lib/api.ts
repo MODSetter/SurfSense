@@ -59,6 +59,8 @@ declare global {
         dataFolder?: () => Promise<string | null>
         // "" once opened, else the OS's reason.
         openDataFolder?: () => Promise<string>
+        // Opens the third-party notices: "" once opened, else the reason.
+        openNotices?: () => Promise<string>
       }
       // Where the models and data live, and moving them. Absent in Docker and a
       // confined snap. Mirrors electron/src/preload/index.ts.

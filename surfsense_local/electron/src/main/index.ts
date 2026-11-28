@@ -45,6 +45,7 @@ import { loadLocalePreference } from "./i18n/locale-prefs.ts"
 import { registerLocaleHandlers } from "./i18n/locale-ipc.ts"
 import { registerAboutHandlers } from "./about/about-ipc.ts"
 import { registerDataFolderHandlers } from "./about/data-folder-ipc.ts"
+import { noticesPath, registerNoticesHandlers } from "./about/notices-ipc.ts"
 import { registerStartupFrameHandlers } from "./startup-frame/startup-frame-ipc.ts"
 import { isOwnSnap } from "./install-channel/own-snap.ts"
 import { appInstallFolder, relaunchOptions } from "./storage/app-install.ts"
@@ -540,6 +541,17 @@ function main(): void {
         dataDir: boot.dataDir,
         isTrusted: (sender) =>
           mainWindow !== null && sender === mainWindow.webContents,
+      })
+      registerNoticesHandlers({
+        ipc: ipcMain,
+        file: noticesPath({
+          packaged: app.isPackaged,
+          appPath: app.getAppPath(),
+          resourcesPath: process.resourcesPath,
+        }),
+        isTrusted: (sender) =>
+          mainWindow !== null && sender === mainWindow.webContents,
+        openPath: (path) => shell.openPath(path),
       })
       registerStorageHandlers({
         storage: settled.storage,

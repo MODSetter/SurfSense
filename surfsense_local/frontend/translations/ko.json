@@ -14,6 +14,8 @@
   "about_license_link": "라이선스 읽기",
   "about_license_title": "라이선스",
   "about_links_title": "링크",
+  "about_notices_open_button": "서드파티 고지",
+  "about_notices_open_error": "서드파티 고지를 열지 못했습니다",
   "about_release_notes_link": "릴리스 노트",
   "about_settings_body": "사용 중인 버전을 확인하고, 업데이트를 받고, 도움말을 찾아보세요.",
   "about_settings_title": "정보",

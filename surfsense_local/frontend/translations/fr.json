@@ -14,6 +14,8 @@
   "about_license_link": "Lire la licence",
   "about_license_title": "Licence",
   "about_links_title": "Liens",
+  "about_notices_open_button": "Avis de tiers",
+  "about_notices_open_error": "Impossible d’ouvrir les avis de tiers",
   "about_release_notes_link": "Notes de version",
   "about_settings_body": "Voyez quelle version vous utilisez, obtenez les mises à jour et trouvez de l’aide.",
   "about_settings_title": "À propos",
